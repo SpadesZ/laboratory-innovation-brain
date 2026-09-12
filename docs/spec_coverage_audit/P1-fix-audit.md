@@ -95,8 +95,16 @@ TST-003's wording is *Spec CI MUST verify*, so the gap was against the requireme
 No PostgreSQL, no Lumerical, no network. `LAB_BRAIN_TEST_*` stay unset, so backend tests are
 deselected rather than silently passing.
 
-Not yet proven: the first remote run. Recorded as Risk R-6 — a workflow that has never executed
-is not a gate.
+**Verified on GitHub.** Run
+[34674213878](https://github.com/SpadesZ/laboratory-innovation-brain/actions/runs/34674213878)
+on commit `331de32`, both jobs `success`:
+
+| Job | Result | Evidence in log |
+|---|---|---|
+| Spec conformance (T-SPEC-001 / T-SPEC-002) | success | `51 passed`; `IMPLEMENTATION_STATUS.md is up to date`; `spec tables: 52 requirements / 52 tests`; `current milestone : M0a` |
+| Lint, types and full suite | success | ruff `All checks passed!`; format check; mypy strict; `51 passed` |
+
+Risk R-6 closed. The gate is executed, not merely authored.
 
 ## 5. Durable mutation evidence
 
@@ -155,8 +163,9 @@ written files, not test cost.
 - **Registry completeness against the prose** — §23.5 (2), human gate, due at P3.
 - **Any scientific or storage behaviour** — no models, migrations or repositories exist.
 - **Postgres conformance** — no instance provisioned (R-5).
-- **That CI works** — authored, never executed remotely (R-6).
 - **The real-environment half of TST-001** — no Lumerical seat (R-1).
+
+CI is no longer on this list: run 34674213878 is green on `origin/main`.
 
 ## 9. Verdict
 

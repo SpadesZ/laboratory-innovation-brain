@@ -200,9 +200,11 @@ human review gate.
 5. **R-5 No PostgreSQL instance yet** — migrations 001–004/008 are authored in P2 but will
    only be applied once `docker compose up` has run. Until then repository conformance is
    proven against the in-memory fake only, which is weaker evidence than the spec expects.
-6. **R-6 CI has not yet run against a remote push** — the workflow is authored and the suite
-   passes locally, but the first GitHub Actions run is what proves the workflow itself is
-   valid. Until a green run exists on `origin/main`, treat CI as unverified.
+6. ~~**R-6 CI has not yet run against a remote push**~~ — **CLOSED 2026-09-12.** Run
+   [34674213878](https://github.com/SpadesZ/laboratory-innovation-brain/actions/runs/34674213878)
+   on `331de32`: both jobs `success`. `spec-conformance` reported 51 passed, status table
+   current, spec tables 52 requirements / 52 tests; `quality` reported ruff, format, mypy strict
+   and the full suite green. CI is now an executed gate, not an authored file.
 
 ## Next Recommended Task
 
