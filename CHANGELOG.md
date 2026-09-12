@@ -7,6 +7,57 @@ Version Notes table of `docs/spec/SAI_3.3.md`, not here.
 
 ### M0a — Scientific Identity Foundation (in progress)
 
+### M0a-2 — scientific identity models (P2)
+
+#### Added
+
+- Core entities: `Artifact`, `SourceWork`, `Claim`, `Observation`, `Attestation`,
+  `RelationJudgment`, plus `EvidenceField`, `ConditionSchemaRef`, `ConditionMatch`. All frozen,
+  all `extra="forbid"` — a typo'd `sensitivity_lable` that is silently dropped produces a record
+  that looks classified and is not.
+- Content addressing (ART-001): `artifact_id` is derived from `content_hash` by a total,
+  injective function and recomputed on every construction. "Same bytes, two ids" and "one id,
+  two contents" are unrepresentable rather than discouraged. Streaming and path hashing for
+  payloads larger than memory.
+- `ConditionSchemaRegistry` (EVI-005): schema versions are immutable contracts; unregistered
+  versions and undeclared condition keys are rejected at write time. Comparison semantics stay
+  domain-owned — core refuses to compare without a registered DomainPack comparator, and rejects
+  a comparator that misreports its own version.
+- Repository protocols with an in-memory implementation that enforces the same write-time
+  invariants as SQL. A fake that accepts what the real store rejects makes a green suite
+  meaningless.
+- Migrations 001, 002, 003, 004, 008 and `scripts/migrate.py`. Apply order is declared, not
+  alphabetical: 008 precedes 003 because attestations carry a foreign key to a registered
+  condition schema. Applied migrations are checksummed, so editing one after it has been applied
+  fails the run instead of silently diverging two environments.
+- CI `backend` job with a PostgreSQL service. Without it, `gate_profile: [postgres]` could never
+  be satisfied in CI and the final step of the ratchet would fall back to a local run.
+
+#### Fixed
+
+- Executed-coverage guards were not hermetic: they passed `{**os.environ, **env}` to their
+  subprocesses, so with `LAB_BRAIN_TEST_POSTGRES=1` set in the outer run the gated-skip fixture
+  stopped being skipped and that guard silently stopped guarding. Found by running both gate
+  profiles rather than one.
+
+#### Changed
+
+- `SYS-001` reallocated from M0a to M0b. Its §26 pass condition names `EpistemicState` and
+  `Hypothesis`, neither of which exists in M0a, so only half of it was exercisable there — which
+  under the executed-coverage gate would have meant claiming a requirement discharged on half a
+  pass condition. The no-support-arrays invariant is enforced on the M0a models regardless.
+- Ruff line length 95 -> 100.
+
+#### Notes
+
+- Risk R-5 closed: PostgreSQL 17 + pgvector running, migrations applied, 13 schema-constraint
+  tests confirming the constraints actually reject.
+- New R-7: `artifact_id` is globally content-addressed while `Artifact.project_id` is a single
+  value, so the same file in two projects is one row with one sensitivity label. Harmless until
+  ACL enforcement exists; must be resolved by P4/SEC-002.
+
+### M0a-1 — repository skeleton and spec CI (P1, P1-fix, P1-fix2)
+
 #### Added
 
 - Repository skeleton per §18, scoped to what M0a needs — `learning/`, `interfaces/dashboard`,

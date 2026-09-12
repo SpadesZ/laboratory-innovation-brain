@@ -89,3 +89,62 @@ jobs:
 
       - name: Executed-coverage gate
         run: python scripts/check_requirement_coverage.py
+
+  backend:
+    # M0a-M4 declare `gate_profile: [postgres]`, so a run that skipped every PostgreSQL test
+    # cannot sign those milestones off. Without this job the executed-coverage gate could never
+    # be satisfied in CI, and the final step of the ratchet would fall back to a local run --
+    # which is the agent-reports-it-passed situation the gate exists to remove.
+    #
+    # Separate from `quality` so the AGT-007 guarantee stays observable: `quality` proves the
+    # suite is green with no backend at all, this job proves the backend-dependent half.
+    name: Backend profile (postgres)
+    needs: spec-conformance
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: lab_brain
+          POSTGRES_PASSWORD: lab_brain
+          POSTGRES_DB: lab_brain
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U lab_brain -d lab_brain"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      LAB_BRAIN_DATABASE_URL: postgresql://lab_brain:lab_brain@localhost:5433/lab_brain
+      LAB_BRAIN_TEST_POSTGRES: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,postgres]"
+
+      - name: Apply migrations
+        run: python scripts/migrate.py
+
+      - name: Migrations are idempotent
+        # A second run must apply nothing. If it does, the runner is not tracking applied
+        # migrations and two environments will drift apart while both reporting success.
+        run: python scripts/migrate.py --status
+
+      - name: Tests (postgres profile)
+        run: python -m pytest -q
+
+      - name: Executed-coverage gate
+        run: python scripts/check_requirement_coverage.py

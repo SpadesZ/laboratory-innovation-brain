@@ -8,13 +8,13 @@ Last Updated: 2026-09-12
 ## Environment
 
 - Python: 3.12.10 (`.venv`)
-- PostgreSQL: 17 + pgvector via `compose.yaml` (host port 5433); **not yet provisioned**
+- PostgreSQL: 17 + pgvector via `compose.yaml` (host port 5433); **running, migrations 001-004/008 applied**
 - Lumerical availability: not available in this environment
 - Lumerical seats available / concurrent limit: 0 / unknown — see Risk R-1
 - Real-run gate mode: manual (no license seat; mock backends only)
 - Ground-truth benchmark cases collected: 0 / target TBD — see Risk R-2
 - Configured LLM slots: none (all 6 slots + EMBEDDING empty; §7.3 logical slots only)
-- Verification backends available: none yet
+- Verification backends available: none yet (PostgreSQL is storage, not a verification backend)
 - External network mode: private (no egress configured)
 - Configured external source adapters: none (M5 deferred)
 - GitHub connector auth mode / scope: not configured; private access fails closed (GH-002)
@@ -95,9 +95,9 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 
 | Suite | Count | Notes |
 |---|---|---|
-| Unit | 0 | — |
-| Contract | 0 | — |
-| Integration | 0 | — |
+| Unit | 22 | core architecture invariants: no parallel support arrays, frozen, no domain leak |
+| Contract | 45 | T-ART-001 (22) + T-EVI-005 (23) against the models |
+| Integration | 13 | T-ART-001 (8) + T-EVI-005 (5) against the PostgreSQL schema; `postgres` gated |
 | E2E | 0 | — |
 | Security | 0 | — |
 | UX | 0 | — |
@@ -107,16 +107,27 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | Spec — executed-coverage guards | 28 | real pytest subprocesses; skip/xfail/gated tests must not count |
 | Spec — collection cross-check | 3 | static marker model vs real `pytest --collect-only` |
 | Spec — repo hygiene | 1 | IMPLEMENTATION_STATUS.md freshness (AGT-003) |
-| **Total** | **79** | ~13s, no external dependency |
+| **Total** | **159** | 159 passed with `postgres`; 146 + 13 skipped without |
 | Lumerical real-run | 0 | no seat available; `lumerical` marker deselected by default |
 
 A bare `pytest` run requires no PostgreSQL, no Lumerical seat and no network (AGT-007).
 Backend-dependent tests carry `postgres` / `lumerical` / `network` markers and are
-deselected unless the matching `LAB_BRAIN_TEST_*` variable is set.
+deselected unless the matching `LAB_BRAIN_TEST_*` variable is set. The two profiles agree
+exactly — 146 + 13 skipped = 159 — so no result depends on how the suite was invoked.
 
-CI: `.github/workflows/ci.yml` runs spec conformance as a separate first job (a normative
-break blocks the slice under AGT-015), then lint, format check, mypy strict and the full
-suite. Both jobs end with the executed-coverage gate.
+Each M0a invariant is asserted twice: once against the Pydantic models, once against the
+database schema. A bulk load or a service writing SQL directly never passes through the
+application layer, so an invariant enforced only there is enforced only for callers who use it.
+
+CI: `.github/workflows/ci.yml` runs three jobs. `spec-conformance` first and alone (a normative
+break blocks the slice under AGT-015). Then `quality` — ruff, format check, mypy strict, full
+suite with **no** backend, which is what keeps the AGT-007 guarantee observable. Then `backend`,
+with a `pgvector/pgvector:pg17` service, which applies the migrations, asserts they are
+idempotent, and runs the postgres profile. All three end with the executed-coverage gate.
+
+The `backend` job is not optional: M0a–M4 declare `gate_profile: [postgres]`, so without it the
+executed-coverage gate could never be satisfied in CI and the last step of the ratchet would
+fall back to a local run.
 
 ### The DONE gate: executed, not collected
 
@@ -180,10 +191,11 @@ spec sections they cite.
 ## Spec Coverage Audit
 
 - Last audit milestone: none (M0a **gate** audit due at M0a exit, after P3)
-- Last phase audit: P1 — CONDITIONAL PASS by external review; both blockers fixed in P1-fix
+- Last phase audit: P2 — PASS (`docs/spec_coverage_audit/P2-phase-audit.md`)
 - Unregistered hard MUST found: not yet assessed (§23.5 (2) gate not yet run)
 - Audit artifacts: `docs/spec_coverage_audit/P1-phase-audit.md`,
-  `docs/spec_coverage_audit/P1-fix-audit.md`
+  `docs/spec_coverage_audit/P1-fix-audit.md`, `docs/spec_coverage_audit/P1-fix2-audit.md`,
+  `docs/spec_coverage_audit/P2-phase-audit.md`
 
 ### Open spec issues (AGT-015)
 
@@ -229,29 +241,41 @@ human review gate.
    Mitigation: `tests/spec/test_marker_collection.py` compares the model against real
    `--collect-only` output on every run, so drift fails CI instead of silently miscounting.
    Residual risk: the cross-check parses `-q` text output, which is not a stable API.
-5. **R-5 No PostgreSQL instance yet** — migrations 001–004/008 are authored in P2 but will
-   only be applied once `docker compose up` has run. Until then repository conformance is
-   proven against the in-memory fake only, which is weaker evidence than the spec expects.
-   Now machine-enforced rather than noted: M0a–M4 declare `gate_profile: [postgres]`, so none of
-   them can be marked DONE by a run that skipped every PostgreSQL test.
+5. ~~**R-5 No PostgreSQL instance yet**~~ — **CLOSED 2026-09-12 (P2).** PostgreSQL 17 + pgvector
+   is running; migrations 001–004/008 applied; 13 schema-constraint tests confirm the CHECK
+   constraints and foreign keys actually reject rather than merely existing. CI gained a
+   `backend` job with a PostgreSQL service, so `gate_profile: [postgres]` is satisfiable in CI
+   rather than only on a developer machine — without it the last step of the ratchet would have
+   fallen back to "the agent says it passed locally".
 6. ~~**R-6 CI has not yet run against a remote push**~~ — **CLOSED 2026-09-12.** Run
    [34674213878](https://github.com/SpadesZ/laboratory-innovation-brain/actions/runs/34674213878)
    on `331de32`: both jobs `success`. `spec-conformance` reported 51 passed, status table
    current, spec tables 52 requirements / 52 tests; `quality` reported ruff, format, mypy strict
    and the full suite green. CI is now an executed gate, not an authored file.
 
+7. **R-7 Cross-project identical bytes** — `artifact_id` is globally content-addressed while
+   `Artifact.project_id` is a single value, so the same file ingested into two projects is one
+   row with one project and one sensitivity label. Harmless today (no ACL enforcement yet), but
+   MUST be resolved by P4/SEC-002: surfacing project A's `RESTRICTED_NDA` artifact to project B
+   via content-hash duplicate detection would be a genuine SEC-001 leak.
+
 ## Next Recommended Task
 
-**P2 / M0a-2** — core scientific identity models and migrations 001–004, 008.
+**P3 / M0a-3** — canonical `EvidenceBundle` and its deterministic hash, then the **M0a gate
+audit**.
 
-Requirement IDs: `SYS-001`, `ART-001`, `EVI-005` (plus the `EvidenceField` status enum that
-`EVI-002` will later exercise).
+Requirement IDs: `EVI-006`.
 
-Scope: `core/models/{artifact,source_work,claim,observation,attestation,relation}.py`;
-`EvidenceField` + field-status enum; `ConditionSchemaRegistry` + `ConditionMatch`; repository
-protocols with an in-memory fake and a Postgres implementation; migrations
-`001_actors_projects.sql`, `002_artifacts_sourceworks.sql`,
-`003_claims_observations_attestations.sql`, `004_relations.sql`, `008_conditions.sql`.
+Scope: `EvidenceBundle` per §17.14.1 with a canonical hash over ordered attestation IDs plus the
+query / policy / condition snapshot. RFC 8785 (JCS) serialization, with floats rejected in hash
+fields — float formatting is the one place JCS is genuinely hard to get right, and bundle
+identity has no need for them.
 
-Explicitly out of scope for that slice: `EvidenceBundle` (P3), any Actor/ACL enforcement
-(P4), any LLM or simulator path.
+Also required before M0a can be marked DONE, and neither is an agent decision:
+
+- **SPEC-ISSUE-001** and **SPEC-ISSUE-003** are `GATE` severity against M0a. The coverage gate
+  now refuses a DONE milestone named by an open GATE issue, so these need maintainer rulings.
+- **§23.5 (2) Spec Coverage Audit** — the human review that every hard MUST in §6–§16 reached
+  the registry. A passing T-SPEC-002 explicitly does not establish this.
+
+Out of scope for P3: any belief event, any ACL enforcement, any LLM or simulator path.
