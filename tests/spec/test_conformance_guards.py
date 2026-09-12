@@ -78,8 +78,7 @@ def test_ext_001_declared_in_both_sections_is_rejected(spec_text):
     """
     injected = spec_text.replace(
         "| SYS-001 | Core scientific state path MUST be",
-        "| EXT-001 | Duplicate injected by test. |\n"
-        "| SYS-001 | Core scientific state path MUST be",
+        "| EXT-001 | Duplicate injected by test. |\n| SYS-001 | Core scientific state path MUST be",
         1,
     )
     assert injected != spec_text, "injection point not found; fixture needs updating"
@@ -97,9 +96,7 @@ def test_missing_ext_001_declaration_is_rejected(spec_text):
 def test_requirement_count_drift_is_reported(spec_text, tmp_path):
     """The spec's self-asserted "52 requirements" must agree with its own tables."""
     path = tmp_path / "SAI_3.3.md"
-    path.write_text(
-        spec_text.replace("**52 requirements", "**51 requirements"), encoding="utf-8"
-    )
+    path.write_text(spec_text.replace("**52 requirements", "**51 requirements"), encoding="utf-8")
     drifted = load_spec(path)
     assert conformance.check_declared_invariant(drifted) != []
 
@@ -451,9 +448,7 @@ def test_requirement_allocated_twice_is_reported(tmp_path):
     )
     assert any(
         "more than one milestone" in violation
-        for violation in conformance.check_milestones_partition_requirements(
-            load_spec(), catalog
-        )
+        for violation in conformance.check_milestones_partition_requirements(load_spec(), catalog)
     )
 
 
@@ -463,9 +458,7 @@ def test_unknown_requirement_in_milestones_is_reported(tmp_path):
     )
     assert any(
         "undeclared requirement" in violation
-        for violation in conformance.check_milestones_partition_requirements(
-            load_spec(), catalog
-        )
+        for violation in conformance.check_milestones_partition_requirements(load_spec(), catalog)
     )
 
 

@@ -109,9 +109,7 @@ class MilestoneCatalog:
     @property
     def allocated_requirements(self) -> tuple[str, ...]:
         return tuple(
-            requirement
-            for milestone in self.milestones
-            for requirement in milestone.requirements
+            requirement for milestone in self.milestones for requirement in milestone.requirements
         )
 
     def milestone_of(self, requirement_id: str) -> MilestoneEntry | None:
@@ -187,9 +185,7 @@ def load_registry(path: Path | None = None) -> NormativeStatementRegistry:
                 f"{context} ({key}): level {level!r} not in {sorted(_VALID_LEVELS)}"
             )
         raw_tests = raw.get("tests", []) or []
-        if not isinstance(raw_tests, list) or any(
-            not isinstance(test, str) for test in raw_tests
-        ):
+        if not isinstance(raw_tests, list) or any(not isinstance(test, str) for test in raw_tests):
             raise RegistryError(f"{context} ({key}): tests must be a list of strings")
         rationale = raw.get("deferred_rationale")
         if rationale is not None and not isinstance(rationale, str):
@@ -243,8 +239,7 @@ def load_milestones(path: Path | None = None) -> MilestoneCatalog:
         status = _require_str(raw, "status", f"{context} ({milestone_id})")
         if status not in _VALID_STATUSES:
             raise RegistryError(
-                f"{context} ({milestone_id}): status {status!r} not in "
-                f"{sorted(_VALID_STATUSES)}"
+                f"{context} ({milestone_id}): status {status!r} not in {sorted(_VALID_STATUSES)}"
             )
         raw_requirements = raw.get("requirements", []) or []
         if not isinstance(raw_requirements, list) or any(

@@ -74,8 +74,7 @@ def main() -> int:
     catalog = load_milestones()
     print(f"  spec              : v{spec.version} at {spec.path.name}")
     print(
-        f"  spec tables       : {len(spec.requirements)} requirements / "
-        f"{len(spec.test_ids)} tests"
+        f"  spec tables       : {len(spec.requirements)} requirements / {len(spec.test_ids)} tests"
     )
     print(f"  registry          : {len(registry.statements)} normative statements")
     active = [m.milestone_id for m in catalog.milestones if m.status == "IN_PROGRESS"]

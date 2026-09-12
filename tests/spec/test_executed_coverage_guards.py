@@ -50,7 +50,14 @@ pytest_plugins = ("lab_brain.spec.outcome_plugin",)
 def _run_pytest(
     tmp_path: Path, source: str, *, env_extra: dict[str, str] | None = None
 ) -> OutcomeReport:
-    """Run pytest over a generated test file and return the outcome report it produced."""
+    """Run pytest over a generated test file and return the outcome report it produced.
+
+    The subprocess environment is scrubbed of every ``LAB_BRAIN_TEST_*`` gate before
+    ``env_extra`` is applied. Inheriting them made these tests depend on how the *outer* suite
+    was invoked: with ``LAB_BRAIN_TEST_POSTGRES=1`` set, the gated-skip fixture stopped being
+    skipped and the guard silently stopped guarding. A test of the harness must control its own
+    environment, or it is testing the ambient shell.
+    """
     project = tmp_path / "sandbox"
     project.mkdir()
     (project / "conftest.py").write_text(_CONFTEST, encoding="utf-8")
@@ -65,11 +72,16 @@ def _run_pytest(
     )
     report_path = project / "outcomes.json"
 
-    env = {"PYTHONIOENCODING": "utf-8"}
+    import os
+
+    from lab_brain.spec.outcome_plugin import GATE_ENV_VARS
+
+    env = {
+        key: value for key, value in os.environ.items() if key not in set(GATE_ENV_VARS.values())
+    }
+    env["PYTHONIOENCODING"] = "utf-8"
     if env_extra:
         env.update(env_extra)
-
-    import os
 
     subprocess.run(
         [
@@ -86,7 +98,7 @@ def _run_pytest(
         capture_output=True,
         text=True,
         check=False,
-        env={**os.environ, **env},
+        env=env,
     )
     assert report_path.is_file(), "plugin did not write an outcome report"
     return load_outcome_report(report_path)
@@ -347,9 +359,7 @@ def _report(tmp_path: Path, outcome: str, gates: list[str]) -> OutcomeReport:
     return load_outcome_report(path)
 
 
-@pytest.mark.parametrize(
-    "outcome", ["skipped", "xfailed", "xpassed", "failed", "error", "not_run"]
-)
+@pytest.mark.parametrize("outcome", ["skipped", "xfailed", "xpassed", "failed", "error", "not_run"])
 def test_done_milestone_rejects_every_non_passing_outcome(tmp_path, outcome):
     catalog = load_milestones(_milestones(tmp_path, status="DONE"))
     report = _report(tmp_path, outcome, [])
@@ -374,8 +384,7 @@ def test_done_milestone_requires_its_declared_gate_profile(tmp_path):
     catalog = load_milestones(_milestones(tmp_path, status="DONE", gate_profile="[postgres]"))
     assert check_gate_profiles_were_enabled(catalog, _report(tmp_path, "passed", [])) != []
     assert (
-        check_gate_profiles_were_enabled(catalog, _report(tmp_path, "passed", ["postgres"]))
-        == []
+        check_gate_profiles_were_enabled(catalog, _report(tmp_path, "passed", ["postgres"])) == []
     )
 
 

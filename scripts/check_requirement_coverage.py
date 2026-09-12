@@ -66,9 +66,7 @@ def main() -> int:
         "no OPEN GATE spec issue blocks a DONE milestone": (
             check_no_open_gate_issues_for_completed_milestones(catalog, issues)
         ),
-        "spec issue headers are machine-readable": check_spec_issue_headers_are_parseable(
-            issues
-        ),
+        "spec issue headers are machine-readable": check_spec_issue_headers_are_parseable(issues),
     }
 
     print(f"outcome report : {report.path}")
@@ -80,9 +78,7 @@ def main() -> int:
     print(f"requirements with a passing test: {len(counted)}")
 
     not_counted = sorted(
-        f"{test.node_id} -> {test.outcome}"
-        for test in report.tests
-        if not test.counts_as_coverage
+        f"{test.node_id} -> {test.outcome}" for test in report.tests if not test.counts_as_coverage
     )
     if not_counted:
         print(f"\nmarked tests NOT counted as coverage ({len(not_counted)}):")

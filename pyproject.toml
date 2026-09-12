@@ -54,7 +54,7 @@ markers = [
 ]
 
 [tool.ruff]
-line-length = 95
+line-length = 100
 target-version = "py312"
 src = ["src", "tests"]
 
@@ -69,6 +69,11 @@ ignore = [
     "RUF002",
     "RUF003",
 ]
+
+[tool.ruff.lint.isort]
+# `tests` is an importable package here (tests/conftest_fixtures.py is shared), so it must sort
+# as first-party rather than alongside third-party dependencies.
+known-first-party = ["lab_brain", "tests"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 # §24.2 dependency rule is enforced by T-EXT-001; this is a fast local guard.

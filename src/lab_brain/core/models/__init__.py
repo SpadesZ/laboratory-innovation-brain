@@ -1,0 +1,126 @@
+"""Core scientific state entities — domain-agnostic (§24.1).
+
+The canonical path (SYS-001), in order:
+
+    Artifact / SourceWork -> Claim / Observation -> Attestation -> RelationJudgment
+      -> TransitionPolicy -> BeliefRevisionEvent -> EpistemicStateProjection
+
+M0a implements the first four. The belief-event half arrives in M0b.
+
+Nothing here may mention a physical quantity, a solver, or a default wavelength. If a field
+would only make sense to a photonics researcher, it belongs in a DomainPack condition schema.
+"""
+
+from lab_brain.core.models.artifact import Artifact, RightsMetadata
+from lab_brain.core.models.attestation import (
+    FORBIDDEN_RELATION_FIELDS,
+    Attestation,
+    EvidenceField,
+    ExtractionProvenance,
+    Uncertainty,
+)
+from lab_brain.core.models.base import CoreModel, utc_now
+from lab_brain.core.models.claim import Claim
+from lab_brain.core.models.condition import (
+    ConditionMatch,
+    ConditionMismatch,
+    ConditionSchemaError,
+    ConditionSchemaRef,
+    ConditionSchemaRegistration,
+)
+from lab_brain.core.models.enums import (
+    FACTUAL_EPISTEMIC_TYPES,
+    FAIL_CLOSED_SENSITIVITY,
+    HIGH_WEIGHT_FIELD_STATUSES,
+    IMPLEMENTED_INDEPENDENCE_BASES,
+    ClaimIdentityStatus,
+    ConditionMatchState,
+    EpistemicType,
+    ExtractionStatus,
+    FieldStatus,
+    IndependenceBasis,
+    IndependenceRelation,
+    LicenseClass,
+    RelationType,
+    SecretScanStatus,
+    SensitivityLabel,
+    SourceOrigin,
+    SourceWorkStatus,
+    SourceWorkType,
+    TrustClass,
+    VerificationStatus,
+)
+from lab_brain.core.models.identifiers import (
+    ContentHashError,
+    artifact_id_for,
+    compute_content_hash,
+    compute_content_hash_from_path,
+    compute_content_hash_from_stream,
+    content_hash_for,
+    new_id,
+    parse_content_hash,
+)
+from lab_brain.core.models.observation import Observation
+from lab_brain.core.models.relation import (
+    EPISTEMIC_RELATION_TYPES,
+    IDENTITY_RELATION_TYPES,
+    RelationJudgment,
+)
+from lab_brain.core.models.source_work import (
+    RetractionCheck,
+    SourceWork,
+    WorkIdentifier,
+)
+
+__all__ = [
+    "EPISTEMIC_RELATION_TYPES",
+    "FACTUAL_EPISTEMIC_TYPES",
+    "FAIL_CLOSED_SENSITIVITY",
+    "FORBIDDEN_RELATION_FIELDS",
+    "HIGH_WEIGHT_FIELD_STATUSES",
+    "IDENTITY_RELATION_TYPES",
+    "IMPLEMENTED_INDEPENDENCE_BASES",
+    "Artifact",
+    "Attestation",
+    "Claim",
+    "ClaimIdentityStatus",
+    "ConditionMatch",
+    "ConditionMatchState",
+    "ConditionMismatch",
+    "ConditionSchemaError",
+    "ConditionSchemaRef",
+    "ConditionSchemaRegistration",
+    "ContentHashError",
+    "CoreModel",
+    "EpistemicType",
+    "EvidenceField",
+    "ExtractionProvenance",
+    "ExtractionStatus",
+    "FieldStatus",
+    "IndependenceBasis",
+    "IndependenceRelation",
+    "LicenseClass",
+    "Observation",
+    "RelationJudgment",
+    "RelationType",
+    "RetractionCheck",
+    "RightsMetadata",
+    "SecretScanStatus",
+    "SensitivityLabel",
+    "SourceOrigin",
+    "SourceWork",
+    "SourceWorkStatus",
+    "SourceWorkType",
+    "TrustClass",
+    "Uncertainty",
+    "VerificationStatus",
+    "WorkIdentifier",
+    "artifact_id_for",
+    "compute_content_hash",
+    "compute_content_hash_from_path",
+    "compute_content_hash_from_stream",
+    "content_hash_for",
+    "new_id",
+    "parse_content_hash",
+    "utc_now",
+]

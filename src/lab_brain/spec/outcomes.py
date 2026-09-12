@@ -135,9 +135,7 @@ def check_completed_milestones_have_passing_tests(
                     "marked test in the outcome report"
                 )
             else:
-                observed = ", ".join(
-                    f"{test.node_id} -> {test.outcome}" for test in candidates
-                )
+                observed = ", ".join(f"{test.node_id} -> {test.outcome}" for test in candidates)
                 violations.append(
                     f"{milestone.milestone_id} is DONE but no test for {requirement_id} "
                     f"passed; observed: {observed}"
@@ -145,17 +143,14 @@ def check_completed_milestones_have_passing_tests(
     return violations
 
 
-def check_gate_profiles_were_enabled(
-    catalog: MilestoneCatalog, report: OutcomeReport
-) -> list[str]:
+def check_gate_profiles_were_enabled(catalog: MilestoneCatalog, report: OutcomeReport) -> list[str]:
     """A DONE milestone must have been validated under the gates it declares it needs."""
     return [
         f"{milestone.milestone_id} is DONE and declares gate_profile "
         f"{sorted(milestone.gate_profile)} but the report was produced with "
         f"{sorted(report.enabled_gates)} enabled"
         for milestone in catalog.milestones
-        if milestone.is_complete
-        and not set(milestone.gate_profile) <= set(report.enabled_gates)
+        if milestone.is_complete and not set(milestone.gate_profile) <= set(report.enabled_gates)
     ]
 
 

@@ -27,7 +27,13 @@ milestones:
       testable without Actor/LLM/Simulator.
     gate_profile: [postgres]
     requirements:
-      - SYS-001
+      # SYS-001 was allocated here in P1. That was an allocation error, corrected in P2:
+      # its §26 pass condition is "rejects bypass from cognition directly to EpistemicState
+      # update OR support arrays on Attestation/Hypothesis". EpistemicStateProjection and
+      # Hypothesis do not exist until M0b, so only half the condition is exercisable here.
+      # Under the executed-coverage gate that would mean claiming SYS-001 discharged on half a
+      # test. Moved to M0b, where both halves are testable. The no-support-arrays invariant is
+      # still enforced on the M0a models -- it is a schema design constraint either way.
       - ART-001
       - EVI-005
       - EVI-006
@@ -42,6 +48,7 @@ milestones:
       testable without a DomainPack.
     gate_profile: [postgres]
     requirements:
+      - SYS-001
       - SEC-002
       - COST-001
       - EPI-003

@@ -249,6 +249,4 @@ def covered_requirement_ids(root: Path | None = None) -> frozenset[str]:
 
 
 def referenced_test_ids(root: Path | None = None) -> frozenset[str]:
-    return frozenset(
-        test_id for test in collect_marked_tests(root) for test_id in test.test_ids
-    )
+    return frozenset(test_id for test in collect_marked_tests(root) for test_id in test.test_ids)

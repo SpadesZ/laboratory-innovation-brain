@@ -74,8 +74,7 @@ def build_table() -> str:
             test_ids = ", ".join(f"`{t}`" for t in spec.tests_for(requirement_id))
             files = ", ".join(f"`{m}`" for m in modules) or "—"
             lines.append(
-                f"| {requirement_id} | {milestone.milestone_id} | {status} "
-                f"| {test_ids} | {files} |"
+                f"| {requirement_id} | {milestone.milestone_id} | {status} | {test_ids} | {files} |"
             )
 
     counts: dict[str, int] = {}
@@ -91,9 +90,7 @@ def build_table() -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--check", action="store_true", help="exit 1 if the table is out of date"
-    )
+    parser.add_argument("--check", action="store_true", help="exit 1 if the table is out of date")
     args = parser.parse_args()
 
     status_file = repo_root() / "IMPLEMENTATION_STATUS.md"

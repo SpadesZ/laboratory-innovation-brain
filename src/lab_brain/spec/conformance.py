@@ -121,13 +121,10 @@ def check_markers_reference_known_tests(
     ]
 
 
-def check_marker_pairs_in_matrix(
-    spec: SpecDocument, tests: tuple[MarkedTest, ...]
-) -> list[str]:
+def check_marker_pairs_in_matrix(spec: SpecDocument, tests: tuple[MarkedTest, ...]) -> list[str]:
     declared = {(row.requirement_id, row.test_id) for row in spec.traceability}
     return [
-        f"{test.location} claims ({requirement_id}, {test_id}), "
-        "a pair the §26 matrix does not map"
+        f"{test.location} claims ({requirement_id}, {test_id}), a pair the §26 matrix does not map"
         for test in tests
         for requirement_id in test.requirement_ids
         for test_id in test.test_ids
@@ -186,8 +183,7 @@ def check_milestones_partition_requirements(
 def check_registry_keys_unique(registry: NormativeStatementRegistry) -> list[str]:
     keys = list(registry.keys)
     return [
-        f"duplicate statement key: {key}"
-        for key in sorted({k for k in keys if keys.count(k) > 1})
+        f"duplicate statement key: {key}" for key in sorted({k for k in keys if keys.count(k) > 1})
     ]
 
 
