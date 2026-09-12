@@ -22,8 +22,11 @@ import pytest
 
 from lab_brain.spec import load_registry
 from lab_brain.spec.coverage_audit import (
+    counted_but_absent_from_spec,
     load_hard_must_counts,
     reconcile,
+    spec_headings,
+    unaudited_headings,
     unaudited_sections,
     unbalanced,
 )
@@ -49,8 +52,38 @@ def test_no_registry_section_in_range_is_left_uncounted():
     """A section omitted from the count file would balance by never being counted.
 
     That is the quieter version of the §15.4 failure: not a wrong number, but an absent row.
+    Necessary but not sufficient -- it only sees sections someone already registered.
     """
     assert unaudited_sections(load_registry(), load_hard_must_counts()) == []
+
+
+def test_every_spec_heading_is_audited():
+    """Completeness against the *document*, not against the registry.
+
+    The registry-derived check above can only confirm that sections someone already registered
+    were counted. A section of prose that reached neither the registry nor the count file is
+    invisible to it, and the audit balances because nobody looked -- which is how §10.5.1's two
+    MUSTs went unregistered while §10.5 appeared covered.
+
+    So the section list is parsed from SAI_3.3.md. Every §6–§16 heading must be counted, including
+    the ones that are genuinely 0: "this section states no obligation" is a reviewable claim,
+    silence is not.
+    """
+    assert unaudited_headings(load_hard_must_counts()) == []
+
+
+def test_no_counted_section_has_disappeared_from_the_spec():
+    """The inverse drift: a section renumbered by an amendment leaving a stale row behind."""
+    assert counted_but_absent_from_spec(load_hard_must_counts()) == []
+
+
+def test_heading_parse_is_not_vacuous():
+    """Guard the guard: a heading-format change must not silently empty the completeness check."""
+    headings = spec_headings()
+    assert len(headings) > 60, f"only {len(headings)} headings parsed; format likely changed"
+    # Anchor on sections this audit is known to depend on.
+    for section in ("6.1", "9.1", "10.5", "10.5.1", "14.3", "15.4"):
+        assert section in headings, f"§{section} not parsed from the spec"
 
 
 def test_should_entries_are_excluded_from_hard_must_coverage(rows):

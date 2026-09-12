@@ -25,7 +25,7 @@
 | FIX-7 | Lumerical seat 與 ground-truth benchmark 兩項外部依賴進 Risk Register |
 | FIX-8 | 新增 Frontend Error & Recovery Contract：§17.22–17.24、§27、`UX-xxx` namespace、UX-001~007 |
 
-**Requirement ↔ Test 不變式：57 ↔ 57。**
+**Requirement ↔ Test 不變式：58 ↔ 58。**
 
 ---
 
@@ -2499,7 +2499,7 @@ EXPECTED RESEARCH LOOP
 
 ## 25.3 First Vertical Requirements
 
-> EXT-001 定義於 §24.5，不在本表重複。本表 56 條 + EXT-001 = **57 條 normative requirements**。
+> EXT-001 定義於 §24.5，不在本表重複。本表 57 條 + EXT-001 = **58 條 normative requirements**。
 
 | Requirement | MUST |
 |---|---|
@@ -2529,6 +2529,7 @@ EXPECTED RESEARCH LOOP
 | VER-005 | After Pareto filtering, planner MUST apply a versioned deterministic SelectionPolicy; identical input+policy returns identical ranked plan. |
 | VER-006 | Hypothesis predictions MUST be typed Prediction objects bound to a declared OutcomeSpace version, carrying RelationJudgmentTemplate effects. Sufficiency MUST be computed via side-effect-free `TransitionPolicy.evaluate_hypothetical`; planner or LLM MUST NOT invent hypothetical relations. |
 | VER-007 | Candidate/design comparison MUST preserve and present multi-objective trade-offs. A single scalar figure of merit MUST NOT be the sole keep/discard criterion (P10). |
+| VER-008 | Any `DisagreementMetric` used for verification ranking MUST be bound to a declared OutcomeSpace, MUST carry a version, and MUST be deterministic: identical input plus identical metric version MUST yield an identical result. Core MUST NOT hard-code one universal distance. |
 | DOM-SP-001 | Silicon photonics rule/validator 版本必須記錄；core 不得內建 Rs 趨勢規則。 |
 | DOM-SP-002 | Cj/Rs/Q/ER 等 extractor 必須 backend-agnostic；simulation 與 measurement 共用定義與 normalization provenance。 |
 | SRC-001 | 所有外部知識取得經 ExternalSourceAdapter/SourceRouter；provider-specific SDK 不得滲入 cognition/domain core。 |
@@ -2585,7 +2586,7 @@ VS-SP-001 只有在以下條件全部成立才算完成：
 
 Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 將需求直接綁到測試；IMPLEMENTATION_STATUS.md 應引用這些 Requirement IDs 與 Test IDs。
 
-**57 requirements ↔ 57 tests。**
+**58 requirements ↔ 58 tests。**
 
 | Requirement | Test ID | Test type | Pass condition |
 |---|---|---|---|
@@ -2615,6 +2616,7 @@ Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 
 | VER-005 | T-VER-005 | unit | same actions/state/policy produce identical ranking across repeated runs; tie is resolved by configured lexicographic fallback. |
 | VER-006 | T-VER-006 | contract/unit | Prediction with out-of-space expected_outcome is rejected at admission; `evaluate_hypothetical` persists nothing (no relation rows, no BeliefRevisionEvent, projection unchanged); an action with no bound Prediction over its produces is reported NOT sufficient; identical inputs return identical TransitionDecision. |
 | VER-007 | T-VER-007 | unit | a single scalar figure of merit cannot decide keep/discard; multi-objective trade-offs are preserved and presented; a scalar-only OutcomeSpace over design quality requires explicit declared justification. |
+| VER-008 | T-VER-008 | unit | a DisagreementMetric with no declared OutcomeSpace binding or no version is rejected; identical input plus identical metric version returns an identical result across repeated runs; two domains may register different metrics and neither is core-supplied. |
 | DOM-SP-001 | T-DOM-SP-001 | domain | Rs trend validator 只存在 Silicon Photonics DomainPack，移除 plugin 後 core 仍可啟動。 |
 | DOM-SP-002 | T-DOM-SP-002 | domain | 同一 `extract_cj_rs` contract 通過 simulated impedance 與 measured impedance fixtures。 |
 | SRC-001 | T-SRC-001 | contract | 以 fake GitHub/Literature connectors 替換真 provider 時 SourceRouter/cognition 不需修改；normalized record schema 相同。 |
@@ -3083,3 +3085,4 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | **v3.3-a1** | **2026-09-12** | **Maintainer amendment (P2-fix)**：裁決 SPEC-ISSUE-001 採 Reading B —— §26 T-SPEC-002 pass condition 改為「`statement_key` 唯一；每筆 entry 恰好引用一個合法 Requirement ID；一個 Requirement ID 可被多筆 entry 引用（涵蓋不同章節的相異 normative statements）」，消除與 §23.6 範例的自相矛盾。裁決 SPEC-ISSUE-003 採 Option 1 —— 新增 **SIM-003 / T-SIM-003**（typed ToolRegistry；禁止 `eval_script`-class 公開工具介面），SIM-003 配置至 M2。Requirement ↔ Test：**52 ↔ 52 → 53 ↔ 53**。無架構方向變更。 |
 | **v3.3-a2** | **2026-09-12** | **Maintainer amendment (P3-fix / M0a sign-off patch)**：裁決 M0a Spec Coverage Audit 提出的五項未登錄 hard MUST。新增 **HEU-001 / T-HEU-001**（heuristic 核准治理，P16，配置 M7）、**SRC-003 / T-SRC-003**（PriorArtSearchRecord novelty 覆蓋率，配置 M3）、**VER-007 / T-VER-007**（P10 多目標 trade-off；單一 scalar FoM 不得單獨決定去留，配置 M4）、**OPS-004 / T-OPS-004**（跨儲存 unit of work 補償，需 fault-injection 驗證，配置 M1）。SPEC-ISSUE-008（fabrication sign-off）不新增 requirement，以 **SEC-002** 登錄並標為 DEFERRED（review_at = FIRST_FABRICATION_CAPABILITY）。SPEC-ISSUE-002：§23.2 namespace 表補 `GH-xxx`，並新增 `HEU-xxx`。Requirement ↔ Test：**53 ↔ 53 → 57 ↔ 57**。無架構方向變更。 |
 | **v3.3-a3** | **2026-09-12** | **Maintainer amendment (M0a coverage fix)**：精確化 `T-LLM-002` pass condition —— fixed benchmark 必須將 debate mechanism 與 baseline/disabled condition 在相同案例上比較，使「groupthink reduction」之主張可被結果反駁而非僅被例示。未新增 Requirement/Test ID；Requirement ↔ Test 維持 **57 ↔ 57**。無架構方向變更。 |
+| **v3.3-a4** | **2026-09-12** | **Maintainer amendment (M0a coverage fix, round 2)**：M0a Spec Coverage Audit 於 §9.1 發現第五條未登錄 hard MUST —— 「Disagreement metrics MUST be deterministic, versioned and defined over the declared OutcomeSpace」。新增 **VER-008 / T-VER-008**（不併入 VER-004：後者管 plausible outcome 來自declared OutcomeSpace，前者管排序所用 metric 本身的 determinism 與版本綁定），配置 M3。同時修正 §10.5 / §10.5.1 的 registry 歸屬：`fidelity.low_cannot_reject` 在 §6–§16 正文無對應敘述，其 prose home 為 §25.3；§10.5.1 的兩條 MUST（INCOMPARABLE 不得被強制排序、DomainPack MUST expose compare）補登。Requirement ↔ Test：**57 ↔ 57 → 58 ↔ 58**。無架構方向變更。 |

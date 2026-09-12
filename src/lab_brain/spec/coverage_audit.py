@@ -22,13 +22,21 @@ audit is scoped to §6–§16 per §23.5.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
-from lab_brain.spec.parser import repo_root
+from lab_brain.spec.parser import repo_root, spec_path
 from lab_brain.spec.registry import NormativeStatementRegistry, RegistryError
+
+#: Markdown headings of the form "## 9.1 Title" / "### 10.5.1 Title".
+_HEADING = re.compile(r"^#{1,4}\s+(\d+(?:\.\d+)*)\.?\s+(.*)$", re.MULTILINE)
+
+#: Bounds of the audited range. §23.5 scopes a coverage audit to the normative architecture
+#: chapters; §17's contracts are exercised by the requirement tests instead.
+AUDIT_RANGE = (6, 16)
 
 
 @dataclass(frozen=True)
@@ -130,13 +138,14 @@ def unbalanced(rows: tuple[SectionCoverage, ...]) -> list[str]:
 def unaudited_sections(
     registry: NormativeStatementRegistry,
     counts: dict[str, tuple[int, str]],
-    low: int = 6,
-    high: int = 16,
+    low: int = AUDIT_RANGE[0],
+    high: int = AUDIT_RANGE[1],
 ) -> list[str]:
     """Registry sections inside the audited range that the count file does not list.
 
-    Without this an audit could reconcile perfectly while silently omitting a whole section --
-    the numbers would balance because the section was never counted.
+    Catches an audit that reconciles perfectly while omitting a section that *has* registry
+    entries. Necessary but not sufficient -- see :func:`unaudited_headings`, which catches the
+    worse case where a section reached neither the registry nor the count file.
     """
     missing: set[str] = set()
     for statement in registry.statements:
@@ -146,6 +155,63 @@ def unaudited_sections(
         if statement.section not in counts:
             missing.add(statement.section)
     return sorted(missing, key=_section_sort_key)
+
+
+def spec_headings(
+    path: Path | None = None,
+    low: int = AUDIT_RANGE[0],
+    high: int = AUDIT_RANGE[1],
+) -> dict[str, str]:
+    """Every numbered heading in the audited range, parsed from the specification.
+
+    The source of truth for "which sections exist" has to be the document, not the registry.
+    Deriving it from the registry only ever confirms that the sections someone already registered
+    were counted -- a chapter of prose that reached neither the registry nor the count file would
+    be invisible, and the audit would balance because nobody looked at it.
+    """
+    text = (path or spec_path()).read_text(encoding="utf-8")
+    start = text.index(f"\n# {low}. ")
+    end = text.index(f"\n# {high + 1}. ")
+    headings: dict[str, str] = {}
+    for match in _HEADING.finditer(text[start:end]):
+        section, title = match.group(1), match.group(2).strip()
+        head = section.split(".")[0]
+        if head.isdigit() and low <= int(head) <= high:
+            headings[section] = title
+    if not headings:
+        raise RegistryError(
+            f"no §{low}-§{high} headings parsed from the specification; the heading format has "
+            "probably changed and this completeness check is no longer checking anything"
+        )
+    return headings
+
+
+def unaudited_headings(counts: dict[str, tuple[int, str]], path: Path | None = None) -> list[str]:
+    """Spec headings absent from the count file.
+
+    A section with ``hard_must: 0`` still has to be listed, with a basis explaining why it is
+    zero. "This section states no obligation" is a reviewable claim; silence is not.
+    """
+    headings = spec_headings(path)
+    return [
+        f"§{section} {title}"
+        for section, title in sorted(
+            ((s, t) for s, t in headings.items() if s not in counts),
+            key=lambda pair: _section_sort_key(pair[0]),
+        )
+    ]
+
+
+def counted_but_absent_from_spec(
+    counts: dict[str, tuple[int, str]], path: Path | None = None
+) -> list[str]:
+    """Count-file sections with no corresponding spec heading.
+
+    The inverse drift: a section renumbered or removed by a spec amendment would otherwise keep
+    contributing a stale row to the reconciliation.
+    """
+    headings = spec_headings(path)
+    return sorted((section for section in counts if section not in headings), key=_section_sort_key)
 
 
 def render_table(rows: tuple[SectionCoverage, ...]) -> str:
@@ -176,11 +242,15 @@ def render_table(rows: tuple[SectionCoverage, ...]) -> str:
 
 
 __all__ = [
+    "AUDIT_RANGE",
     "SectionCoverage",
+    "counted_but_absent_from_spec",
     "hard_must_counts_path",
     "load_hard_must_counts",
     "reconcile",
     "render_table",
+    "spec_headings",
+    "unaudited_headings",
     "unaudited_sections",
     "unbalanced",
 ]

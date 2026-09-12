@@ -426,8 +426,12 @@ normative_statements:
     requirement_id: SIM-001
     tests: [T-SIM-001]
 
+  # Section corrected from 10.5 to 25.3 by the M0a audit. The low-fidelity rule appears nowhere
+  # in §6-§16 prose -- §10.5 states only that authority is not a fixed ladder. Its prose home is
+  # the §25.3 requirement table. Registering it at §10.5 made that section read as covered while
+  # §10.5.1's two actual MUSTs went unregistered.
   - key: fidelity.low_cannot_reject
-    section: "10.5"
+    section: "25.3"
     level: MUST
     requirement_id: SIM-002
     tests: [T-SIM-002]
@@ -694,6 +698,39 @@ normative_statements:
     level: MUST
     requirement_id: SEC-001
     tests: [T-SEC-001]
+
+  # ---------------------------------------------------------------------------
+  # M0a coverage fix round 2 (2026-09-12).
+  # ---------------------------------------------------------------------------
+
+  # §9.1: "Disagreement metrics ... MUST be deterministic, versioned and defined over the
+  # declared OutcomeSpace." The audit counted §9.1 as 4 hard MUSTs; it has 5.
+  #
+  # NOT merged into VER-004. VER-004 governs which *outcomes* count as plausible -- they must come
+  # from a declared, versioned OutcomeSpace. VER-008 governs the *metric* used to rank how much
+  # two predictions disagree. A planner could draw every outcome from a properly declared
+  # OutcomeSpace and still rank them with an unversioned, non-deterministic distance function, and
+  # T-VER-004 would pass. Ranking that cannot be reproduced makes a VerificationPlan
+  # unexplainable after the fact, which is what VER-005's determinism exists to prevent one layer
+  # up.
+  - key: disagreement.metric.deterministic_versioned
+    section: "9.1"
+    level: MUST
+    requirement_id: VER-008
+    tests: [T-VER-008]
+
+  # §10.5.1: two MUSTs that were unregistered because §10.5 appeared covered.
+  - key: authority.incomparable.not_coerced
+    section: "10.5.1"
+    level: MUST
+    requirement_id: EPI-004
+    tests: [T-EPI-004]
+
+  - key: authority.domainpack_exposes_compare
+    section: "10.5.1"
+    level: MUST
+    requirement_id: EPI-004
+    tests: [T-EPI-004]
 
   # ---------------------------------------------------------------------------
   # §23.5 Spec integrity

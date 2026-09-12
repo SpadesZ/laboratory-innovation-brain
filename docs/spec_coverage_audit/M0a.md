@@ -1,7 +1,7 @@
 # M0a Spec Coverage Audit — §23.5 (2)
 
-Date: 2026-09-12 (rev 3 — coverage fix; deltas now machine-verified)
-Spec: SAI 3.3, amendments `v3.3-a1` + `v3.3-a2` + `v3.3-a3`
+Date: 2026-09-12 (rev 4 — completeness against the document; §9.1 closed)
+Spec: SAI 3.3, amendments `v3.3-a1` ... `v3.3-a4`
 Milestone: **M0a — Scientific Identity Foundation**
 Owner per §23.5: spec maintainer
 Prepared by: implementation agent
@@ -52,56 +52,72 @@ delta = hard_must - (registry_live_must + registry_deferred_must)
   SHOULD entries          excluded entirely from hard-MUST coverage
 ```
 
-Three rules that revision 2 did not apply consistently, and which caused its arithmetic to be
-wrong:
-
 - **`registry-covered` counts hard-MUST statements only.** §0.2 makes SHOULD normative and
   deviation ADR-worthy, so SHOULD statements are registered — but a SHOULD is not a hard MUST and
-  must not pad a hard-MUST coverage count. §6.21 is the live case: three registry entries, one of
-  them SHOULD-level, against two hard MUSTs. Counting all three showed coverage exceeding the
-  requirement, which conceals gaps rather than revealing them.
+  must not pad a hard-MUST coverage count. §6.21 is the live case.
 - **A DEFERRED entry is counted once, as deferred.** Counting it in both columns would drive the
   delta negative and mask a missing registration. §6.17 and §14.3 each hold one.
-- **Coverage is counted only at the section where the statement is registered.** Revision 2 closed
-  §15.4 by pointing at a §7.2 entry. That move is no longer available, and it was wrong on the
-  merits: §7.2 obliges the system to *record* debate metrics, §15.4 obliges the
-  groupthink-reduction *claim* to be refutable by benchmark. A recorded metric that nobody can use
-  to contradict the claim satisfies §7.2 and leaves §15.4 unmet.
+- **Coverage is counted only at the section where the statement is registered.** No section is
+  closed by pointing at an entry filed elsewhere.
 
-`hard_must` is a **judged** count, not a raw keyword-match count. The raw scan over-counts three
-ways, each resolved by reading and recorded per section in
-`M0a_hard_must_counts.yaml`'s `basis` field: line-splitting (a rule wrapped across two lines
-matches twice), restatement (a table row repeating a rule owned elsewhere), and descriptive prose
-(overview text that describes rather than obliges).
+### `hard_must` is judged, and keyword scanning fails in both directions
+
+The count is not a keyword-match total. Both failure directions are real, and both are recorded
+per section in `M0a_hard_must_counts.yaml`'s `basis` field:
+
+| Direction | Examples found in this audit |
+|---|---|
+| **False positive** | line-splitting (§6.17's three matches are two rules); restatement (§6.5's table row repeats GH-003; §8.2's lifecycle diagram repeats §8.2.1 and §6.18); descriptive prose (§9.3's `不可逆` is a cost characteristic of fabrication, §7.4's cells describe role I/O) |
+| **False negative** | obligations phrased with no keyword. §10.5's "「measurement 永遠最高」**不是** core 假設" and §8.2's "No LLM may directly assign a scientific transition" carry neither MUST nor 不得 |
+
+Every section was read, not only scanned. That is why §10.5 counts 1 rather than 0.
+
+### Completeness is checked against the document, not the registry
+
+Rev 3 verified that every *registry* section inside §6–§16 appeared in the count file. Necessary,
+and not sufficient: it can only confirm that sections someone had already registered were counted.
+A section of prose reaching neither the registry nor the count file was invisible to it.
+
+That hole was not hypothetical. §10.5.1's two MUSTs — INCOMPARABLE must not be coerced into an
+ordering, and DomainPack MUST expose `compare` — were unregistered, and the subtree looked covered
+because `fidelity.low_cannot_reject` had been filed at §10.5. That rule appears **nowhere** in
+§6–§16 prose; its home is the §25.3 requirement table, where it is now registered.
+
+So the section list is parsed from `SAI_3.3.md`. All **76** numbered headings in §6–§16
+must appear in the count file, including the 36 whose count is 0 — "this section states no
+obligation" is a reviewable claim, silence is not. Drift is checked in both directions, so a
+section renumbered by an amendment cannot leave a stale row behind either.
 
 ### The arithmetic is executable
 
-Revision 2 contained the row `§15.4: hard MUST = 2, registry-covered = 1, delta = 0`. That is
-false, and it survived review because the table was prose — nothing recomputed it.
-
-The judged counts now live in `M0a_hard_must_counts.yaml`; the coverage side is derived from
+Judged counts live in `M0a_hard_must_counts.yaml`; coverage is derived from
 `normative_statements.yaml` by `lab_brain.spec.coverage_audit`; and
 `tests/spec/test_m0a_coverage_audit.py` recomputes every delta on each CI run. A row that does not
-balance fails the build. The test also refuses an audit that omits a registry section inside
-§6–§16 — the quieter version of the same failure, where the numbers balance because a section was
-never counted at all.
+balance fails the build, as does an uncounted heading, a stale row, or a heading-format change that
+would quietly empty the completeness check.
 
 What remains human: the `hard_must` judgements, their recorded basis, and the sign-off.
 
 ## 3. Per-section reconciliation
 
-Generated from the same data the test checks. 48 sections; §6–§16 as §23.5 scopes it.
+Generated from the same data the test checks. 76 sections — every numbered heading in
+§6–§16, as §23.5 scopes it.
 
 | Section | hard MUST | registry-covered (live) | named deferred | SHOULD (excluded) | delta |
 |---|---:|---:|---:|---:|---:|
+| 6 | 0 | 0 | — | — | 0 |
 | 6.1 | 2 | 2 | — | — | 0 |
 | 6.2 | 1 | 1 | — | — | 0 |
 | 6.3 | 2 | 2 | — | — | 0 |
 | 6.4 | 1 | 1 | — | — | 0 |
 | 6.5 | 0 | 0 | — | — | 0 |
+| 6.6 | 0 | 0 | — | — | 0 |
 | 6.7 | 0 | 0 | — | — | 0 |
 | 6.8 | 1 | 1 | — | — | 0 |
+| 6.9 | 0 | 0 | — | — | 0 |
+| 6.10 | 0 | 0 | — | — | 0 |
 | 6.11 | 1 | 1 | — | — | 0 |
+| 6.12 | 0 | 0 | — | — | 0 |
 | 6.13 | 1 | 1 | — | — | 0 |
 | 6.14 | 0 | 0 | — | — | 0 |
 | 6.15 | 1 | 1 | — | — | 0 |
@@ -111,79 +127,107 @@ Generated from the same data the test checks. 48 sections; §6–§16 as §23.5 
 | 6.19 | 1 | 1 | — | — | 0 |
 | 6.20 | 2 | 2 | — | — | 0 |
 | 6.21 | 2 | 2 | — | 1 | 0 |
+| 7 | 0 | 0 | — | — | 0 |
 | 7.1 | 0 | 0 | — | — | 0 |
 | 7.2 | 2 | 2 | — | — | 0 |
+| 7.3 | 0 | 0 | — | — | 0 |
+| 7.4 | 0 | 0 | — | — | 0 |
 | 7.5 | 1 | 1 | — | — | 0 |
 | 7.6 | 1 | 1 | — | — | 0 |
 | 8 | 0 | 0 | — | — | 0 |
 | 8.1 | 2 | 2 | — | — | 0 |
+| 8.2 | 0 | 0 | — | — | 0 |
 | 8.2.1 | 2 | 2 | — | — | 0 |
-| 9.1 | 4 | 4 | — | — | 0 |
+| 9 | 0 | 0 | — | — | 0 |
+| 9.1 | 5 | 5 | — | — | 0 |
+| 9.2 | 0 | 0 | — | — | 0 |
+| 9.3 | 0 | 0 | — | — | 0 |
 | 9.4 | 1 | 1 | — | — | 0 |
 | 9.5 | 1 | 1 | — | — | 0 |
 | 9.6 | 1 | 1 | — | — | 0 |
+| 10 | 0 | 0 | — | — | 0 |
+| 10.1 | 0 | 0 | — | — | 0 |
 | 10.2 | 2 | 2 | — | — | 0 |
 | 10.2.1 | 2 | 2 | — | — | 0 |
 | 10.2.2 | 1 | 1 | — | — | 0 |
 | 10.3 | 1 | 1 | — | — | 0 |
 | 10.4 | 1 | 1 | — | — | 0 |
-| 10.5 | 2 | 2 | — | — | 0 |
+| 10.5 | 1 | 1 | — | — | 0 |
+| 10.5.1 | 2 | 2 | — | — | 0 |
 | 10.6 | 1 | 1 | — | — | 0 |
 | 10.7 | 0 | 0 | — | — | 0 |
 | 11 | 0 | 0 | — | — | 0 |
+| 12 | 0 | 0 | — | — | 0 |
+| 12.1 | 0 | 0 | — | — | 0 |
+| 12.2 | 0 | 0 | — | — | 0 |
 | 12.3 | 1 | 1 | — | — | 0 |
 | 12.4 | 1 | 1 | — | — | 0 |
 | 12.5 | 1 | 1 | — | — | 0 |
 | 13 | 0 | 0 | — | — | 0 |
+| 13.1 | 0 | 0 | — | — | 0 |
+| 13.2 | 0 | 0 | — | — | 0 |
+| 13.3 | 0 | 0 | — | — | 0 |
+| 14 | 0 | 0 | — | — | 0 |
 | 14.1 | 2 | 2 | — | — | 0 |
+| 14.2 | 0 | 0 | — | — | 0 |
 | 14.3 | 2 | 1 | 1 | — | 0 |
 | 14.4 | 1 | 1 | — | — | 0 |
 | 14.4.1 | 1 | 1 | — | — | 0 |
 | 14.5 | 2 | 2 | — | — | 0 |
+| 15 | 0 | 0 | — | — | 0 |
+| 15.1 | 0 | 0 | — | — | 0 |
+| 15.2 | 0 | 0 | — | — | 0 |
+| 15.3 | 0 | 0 | — | — | 0 |
 | 15.4 | 2 | 2 | — | — | 0 |
 | 16 | 0 | 0 | — | — | 0 |
-| **Total** | **62** | **60** | **2** | 1 | **0** |
+| 16.1 | 0 | 0 | — | — | 0 |
+| **Total** | **64** | **62** | **2** | 1 | **0** |
 
-**Every delta is 0.** 62 hard MUSTs = 60 registered live + 2 named
-deferred. The single SHOULD-level entry (§6.21) is excluded from the coverage count and shown for
-transparency.
+**Every delta is 0.** 64 hard MUSTs = 62 registered live + 2 named deferred. The single
+SHOULD-level entry (§6.21) is excluded from coverage and shown for transparency.
 
 ### Section notes
 
+**§9.1 — the round-2 blocker, now closed.** Five hard MUSTs, not four. The fifth is
+"Disagreement metrics ... MUST be deterministic, versioned and defined over the declared
+OutcomeSpace", which had no registry entry. Now `disagreement.metric.deterministic_versioned` →
+`VER-008` (amendment `v3.3-a4`).
+
+It was **not** merged into `VER-004`. `VER-004` governs which *outcomes* count as plausible — they
+must come from a declared, versioned OutcomeSpace. `VER-008` governs the *metric* that ranks how
+far two predictions disagree. A planner could draw every outcome from a properly declared
+OutcomeSpace and still rank them with an unversioned, non-deterministic distance function, and
+`T-VER-004` would pass. Ranking that cannot be reproduced makes a VerificationPlan unexplainable
+after the fact, which is what `VER-005`'s determinism prevents one layer up.
+
+**§10.5 and §10.5.1 — re-attributed.** §10.5 carries one hard MUST: authority is a function of
+(method, calibration, validated_range fit) and "measurement is always highest" is *not* a core
+assumption (P27). §10.5.1 carries two: INCOMPARABLE must not be silently coerced into an ordering,
+and DomainPack MUST expose `compare`. Both §10.5.1 MUSTs are now registered against `EPI-004`, and
+`fidelity.low_cannot_reject` moved to §25.3, its actual prose home.
+
 **§6.17 — one of two deferred.** `independence.dependence_unknown_counts_zero` is live;
 `independence.basis.beyond_work` is DEFERRED with `review_at: M4_EXIT`, because v3.3 models
-WORK-level independence only and a policy demanding a stronger basis must escalate to human review
-rather than assume independence. Counted as 1 live + 1 deferred = 2, not as 2 covered.
+WORK-level independence only. Counted 1 live + 1 deferred, not 2 covered.
 
-**§6.21 — two hard MUSTs, three entries, one excluded.** The hard MUSTs are that the
-retraction/erratum check status is recorded even when UNKNOWN (`EVI-008`) and that a novelty status
-without a coverage record is unauditable (`SRC-003`, added in `v3.3-a2`). The third entry,
-`source.retraction.check_performed`, is SHOULD-level and excluded.
+**§6.21 — two hard MUSTs, three entries, one excluded.** Retraction check status recorded even
+when UNKNOWN (`EVI-008`) and a novelty status without a coverage record is unauditable
+(`SRC-003`). The third entry, `source.retraction.check_performed`, is SHOULD-level.
 
-Revision 1 of this audit listed §6.21 as difference 0 *and* cited it in SPEC-ISSUE-005 — which
-could not both be true. The cause was conflating the two rules above; the novelty one was
-unregistered at the time.
+**§14.3 — two hard MUSTs, one live and one deferred.** The external query gate is
+`privacy.query_gate.no_private_identifiers` → `SEC-001`, distinct from §14.1's classification
+rule: a sanitized query over RESTRICTED_NDA material still must not carry private identifiers. The
+fabrication gate remains DEFERRED under `SEC-002` with `review_at: FIRST_FABRICATION_CAPABILITY` —
+a trigger, not a date.
 
-**§14.3 — two hard MUSTs, one live and one deferred.** The external query gate (private
-identifiers and exact confidential geometry must not be sent out) is now registered here as
-`privacy.query_gate.no_private_identifiers` → `SEC-001`. It is distinct from §14.1's
-`privacy.restricted.no_egress`, which classifies *data* by sensitivity label: a sanitized query
-over RESTRICTED_NDA material still must not carry private identifiers. Before this fix §14.3 held
-only its fabrication MUST, giving `hard_must=2, live=0, deferred=1, delta=1`.
+**§15.4 — closed in round 1 of this fix.** `debate.groupthink_reduction.falsifiable` → `LLM-002`
+registered at its own section, not borrowed from §7.2: that entry obliges the metrics to be
+*recorded*, this one obliges the claim to be *refutable*.
 
-The fabrication gate remains DEFERRED under `SEC-002` with
-`review_at: FIRST_FABRICATION_CAPABILITY` — a trigger rather than a date, since the relevant event
-is registering a fabrication Capability, not elapsed time.
-
-**§15.4 — the blocker, now closed.** Two hard MUSTs: the groupthink-reduction claim must be
-falsifiable, and hard gates must reference a versioned `BenchmarkPolicy` with no pre-calibration
-thresholds. Only the second was registered. `debate.groupthink_reduction.falsifiable` → `LLM-002`
-now covers the first at its own section.
-
-`T-LLM-002`'s pass condition was also sharpened (amendment `v3.3-a3`, **no new Requirement or Test
-ID** — the invariant stays 57 ↔ 57) so that "falsifiable" is something a test can actually fail:
-the fixed benchmark must compare the debate mechanism against a baseline/disabled condition on the
-same cases. Without that comparison the claim could only ever be illustrated, never refuted.
+**§6.6 — flagged judgement.** Counted 0. The graph-DB migration trigger ("遷移由實測 traversal
+workload 觸發") is phrased as a design note and recorded in ADR-0001 under P20, not as an
+implementation obligation with a Requirement. A stricter reading is defensible; the count is 0 and
+the basis says so, so a reviewer can overrule it rather than having to discover it.
 
 ## 4. Findings, and what was done about them
 
@@ -246,7 +290,7 @@ without Actor/LLM/Simulator.*
 | Testable without Actor/LLM/Simulator | full suite green with no backend at all; no LLM or simulator code exists |
 | No OPEN GATE spec issue against M0a | SPEC-ISSUE-001 and -003 RESOLVED |
 | `gate_profile: [postgres]` | postgres profile green in CI's `backend` job |
-| §23.5 (2) coverage audit | this document; 48 sections, 62 hard MUSTs, every delta 0, recomputed by `tests/spec/test_m0a_coverage_audit.py` |
+| §23.5 (2) coverage audit | this document; 76 sections (every §6-§16 heading), 64 hard MUSTs, every delta 0, recomputed by `tests/spec/test_m0a_coverage_audit.py` |
 
 All conditions are met on the evidence. **I have not flipped the status.** Under §23.5 the sign-off
 is the maintainer's, and an agent marking its own milestone complete on the strength of its own

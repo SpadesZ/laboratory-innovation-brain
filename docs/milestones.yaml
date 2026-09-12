@@ -3,7 +3,7 @@
 # Gate order and exit gates are transcribed from SAI 3.3 §26.1. The per-milestone
 # `requirements` allocation is an implementation decision, not spec text: each
 # requirement is assigned to the milestone at which its §26 pass condition can be
-# fully satisfied. The union of all allocations MUST equal the 57 requirements the
+# fully satisfied. The union of all allocations MUST equal the 58 requirements the
 # spec declares (enforced by T-SPEC-001).
 #
 # `status` drives the CI ratchet. Once a milestone is DONE, every requirement allocated to it
@@ -117,6 +117,7 @@ milestones:
       - LLM-002
       - SRC-002
       - SRC-003
+      - VER-008
 
   - id: M4
     name: First Vertical (VS-SP-001)
