@@ -1,0 +1,8 @@
+# Normalize to LF in the repository. Migrations and fixtures are hashed content in places,
+# so line-ending drift across platforms must not change what gets committed.
+* text=auto eol=lf
+
+*.ps1 text eol=crlf
+
+*.pdf binary
+*.parquet binary

@@ -1,0 +1,123 @@
+# Milestone gate order and requirement allocation.
+#
+# Gate order and exit gates are transcribed from SAI 3.3 §26.1. The per-milestone
+# `requirements` allocation is an implementation decision, not spec text: each
+# requirement is assigned to the milestone at which its §26 pass condition can be
+# fully satisfied. The union of all allocations MUST equal the 52 requirements the
+# spec declares (enforced by T-SPEC-001).
+#
+# `status` drives the CI ratchet: once a milestone is DONE, T-SPEC-002 requires a
+# real test to exist for every requirement allocated to it.
+
+schema_version: 1
+
+milestones:
+  - id: M0a
+    name: Scientific Identity Foundation
+    status: IN_PROGRESS
+    exit_gate: >-
+      artifact/claim identity + bundle hash + schema/spec conformance pass;
+      testable without Actor/LLM/Simulator.
+    requirements:
+      - SYS-001
+      - ART-001
+      - EVI-005
+      - EVI-006
+      - TST-002
+      - TST-003
+
+  - id: M0b
+    name: Execution/Governance Foundation
+    status: NOT_STARTED
+    exit_gate: >-
+      event replay + transition/authority tests + ACL/budget/trace contracts pass;
+      testable without a DomainPack.
+    requirements:
+      - SEC-002
+      - COST-001
+      - EPI-003
+      - EPI-004
+      - EPI-005
+      - EPI-006
+      - VER-006
+      - OPS-002
+      - OPS-003
+
+  - id: M1
+    name: Research Memory
+    status: NOT_STARTED
+    exit_gate: >-
+      local document/run ingest; source-work dedup; delayed mock job resumes episode;
+      all scientific LLM calls persist bundle+provenance; UX-001~007 tests pass.
+    requirements:
+      - EVI-002
+      - EVI-003
+      - EVI-004
+      - EVI-007
+      - EVI-008
+      - LLM-001
+      - OPS-001
+      - SEC-001
+      - SEC-003
+      - SEC-004
+      - SRC-001
+      - UX-001
+      - UX-002
+      - UX-003
+      - UX-004
+      - UX-005
+      - UX-006
+      - UX-007
+
+  - id: M2
+    name: Silicon Photonics Tool Layer
+    status: NOT_STARTED
+    exit_gate: >-
+      simulated + measured fixtures use the same extractor contract;
+      license/resource queue mock pass.
+    requirements:
+      - SIM-001
+      - SIM-002
+      - EVI-001
+      - DOM-SP-001
+      - DOM-SP-002
+      - VER-002
+      - EXT-001
+
+  - id: M3
+    name: Hypothesis Brain
+    status: NOT_STARTED
+    exit_gate: >-
+      role I/O + Position/Critique contracts pass; Critic bundle divergence measurable;
+      benchmark thresholds calibrated and stored in BenchmarkPolicy before gate
+      enforcement.
+    requirements:
+      - EPI-001
+      - LLM-002
+      - SRC-002
+
+  - id: M4
+    name: First Vertical (VS-SP-001)
+    status: NOT_STARTED
+    exit_gate: >-
+      a fixed, non-cherry-picked benchmark set demonstrates root-cause correctness and
+      avoids unnecessary high-cost action in predefined cases.
+    requirements:
+      - VER-001
+      - VER-003
+      - VER-004
+      - VER-005
+      - EPI-002
+      - TST-001
+
+  - id: M5
+    name: External Evidence Expansion
+    status: DEFERRED
+    exit_gate: >-
+      external evidence enters with source/condition/rights/provenance metadata;
+      GitHub source traces to repo + resolved commit/ref; removing the GitHub provider
+      does not affect core cognition.
+    requirements:
+      - GH-001
+      - GH-002
+      - GH-003

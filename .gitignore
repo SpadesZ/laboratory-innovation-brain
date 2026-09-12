@@ -1,0 +1,22 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Secrets and local config — never commit (SEC-003)
+.env
+.env.local
+*.pem
+*.key
+
+# Local artifact store and numerical arrays live outside version control
+var/
+artifacts_store/

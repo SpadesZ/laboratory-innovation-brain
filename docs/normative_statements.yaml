@@ -1,0 +1,552 @@
+# Normative Statement Registry -- SAI 3.3 §23.6
+#
+# Each entry maps one hard normative statement in the specification prose to exactly
+# one Requirement ID and to the Test IDs that discharge it.
+#
+# WHAT T-SPEC-002 CHECKS (machine-checkable, §23.5 (1)):
+#   - statement keys are unique
+#   - every requirement_id resolves to a requirement declared by the spec
+#   - every listed test resolves to a Test ID declared by the §26 matrix
+#   - an entry with no tests carries an explicit deferred_rationale + review_at
+#
+# WHAT IT DOES NOT CHECK (human audit gate, §23.5 (2)):
+#   - that every hard MUST in the prose actually reached this file.
+# That gap cannot be derived from prose by a linter. Per §23.5 a Coding Agent MUST NOT
+# infer registry completeness from a passing T-SPEC-002. Completeness is asserted only
+# by docs/spec_coverage_audit/<milestone>.md, signed off before each milestone exit.
+#
+# The first 17 entries are transcribed verbatim from the §23.6 excerpt.
+
+schema_version: 1
+spec_version: "3.3"
+
+normative_statements:
+  # ---------------------------------------------------------------------------
+  # §23.6 verbatim excerpt
+  # ---------------------------------------------------------------------------
+  - key: belief.transition.policy
+    section: "8.2.1"
+    level: MUST
+    requirement_id: EPI-005
+    tests: [T-EPI-005]
+
+  - key: authority.incomparable.review
+    section: "8.2.1"
+    level: MUST
+    requirement_id: EPI-004
+    tests: [T-EPI-004]
+
+  - key: critic.inverted_retrieval.high_stakes
+    section: "7.2"
+    level: MUST
+    requirement_id: SRC-002
+    tests: [T-SRC-002]
+
+  - key: review.capacity.planner
+    section: "14.4.1"
+    level: MUST
+    requirement_id: OPS-002
+    tests: [T-OPS-002]
+
+  - key: benchmark.policy.calibration
+    section: "15.4"
+    level: MUST
+    requirement_id: LLM-002
+    tests: [T-LLM-002]
+
+  - key: prediction.typed.contract
+    section: "17.5.1"
+    level: MUST
+    requirement_id: VER-006
+    tests: [T-VER-006]
+
+  - key: sufficiency.hypothetical.sideeffect_free
+    section: "9.1"
+    level: MUST
+    requirement_id: VER-006
+    tests: [T-VER-006]
+
+  - key: conflict.typed.blocking
+    section: "17.19.3"
+    level: MUST
+    requirement_id: EPI-006
+    tests: [T-EPI-006]
+
+  - key: ingestion.state.derived
+    section: "17.22"
+    level: MUST
+    requirement_id: UX-001
+    tests: [T-UX-001]
+
+  - key: ingestion.duplicate.work_vs_bytes
+    section: "17.22"
+    level: MUST
+    requirement_id: UX-001
+    tests: [T-UX-001]
+
+  - key: error.class.retry_policy
+    section: "17.23"
+    level: MUST
+    requirement_id: UX-002
+    tests: [T-UX-002]
+
+  - key: error.disclosure.acl_gated
+    section: "17.24"
+    level: MUST
+    requirement_id: UX-003
+    tests: [T-UX-003]
+
+  - key: ingestion.raw_first.stage_retry
+    section: "27.2"
+    level: MUST
+    requirement_id: UX-004
+    tests: [T-UX-004]
+
+  - key: review.surface.single_queue
+    section: "27.3"
+    level: MUST
+    requirement_id: UX-005
+    tests: [T-UX-005]
+
+  - key: message.catalog.not_llm
+    section: "17.24"
+    level: MUST
+    requirement_id: UX-006
+    tests: [T-UX-006]
+
+  - key: health.derived.from_capability
+    section: "17.24"
+    level: MUST
+    requirement_id: UX-007
+    tests: [T-UX-007]
+
+  - key: independence.basis.beyond_work
+    section: "6.17"
+    level: MUST
+    requirement_id: EVI-004
+    tests: [T-EVI-004]
+    review_at: M4_EXIT
+    deferred_rationale: >
+      Non-work-level independence (same group / wafer / instrument / method) is not modeled
+      in v3.3. Policies requiring it must escalate to human review rather than silently
+      treating attestations as independent. Review at M4 exit.
+
+  # ---------------------------------------------------------------------------
+  # §3 Core scientific principles with direct schema-level enforcement
+  # ---------------------------------------------------------------------------
+  - key: inference.not_evidence
+    section: "3"
+    level: MUST
+    requirement_id: EVI-003
+    tests: [T-EVI-003]
+
+  # ---------------------------------------------------------------------------
+  # §5.3 / §17 Canonical scientific state path
+  # ---------------------------------------------------------------------------
+  - key: state.path.canonical
+    section: "5.3"
+    level: MUST
+    requirement_id: SYS-001
+    tests: [T-SYS-001]
+
+  - key: state.attestation.no_relation_arrays
+    section: "17.2"
+    level: MUST
+    requirement_id: SYS-001
+    tests: [T-SYS-001]
+
+  - key: state.hypothesis.no_evidence_arrays
+    section: "17.5"
+    level: MUST
+    requirement_id: SYS-001
+    tests: [T-SYS-001]
+
+  - key: graph.traversal.bounded_as_of
+    section: "17.12"
+    level: MUST
+    requirement_id: SYS-001
+    tests: [T-SYS-001]
+
+  # ---------------------------------------------------------------------------
+  # §6.1 / §17.1 Artifact layer
+  # ---------------------------------------------------------------------------
+  - key: artifact.content_addressed
+    section: "6.1"
+    level: MUST
+    requirement_id: ART-001
+    tests: [T-ART-001]
+
+  - key: artifact.lineage_separate_from_hash
+    section: "6.1"
+    level: MUST
+    requirement_id: ART-001
+    tests: [T-ART-001]
+
+  # ---------------------------------------------------------------------------
+  # §6.2 Claim / Observation / Attestation separation
+  # ---------------------------------------------------------------------------
+  - key: claim.identity_before_corroboration
+    section: "6.2"
+    level: MUST
+    requirement_id: EVI-004
+    tests: [T-EVI-004]
+
+  - key: attestation.epistemic_type.admission_gate
+    section: "17.2"
+    level: MUST
+    requirement_id: EVI-003
+    tests: [T-EVI-003]
+
+  # ---------------------------------------------------------------------------
+  # §6.3 / §6.4 / §17.9 Evidence field status and abstention
+  # ---------------------------------------------------------------------------
+  - key: evidence.field_status.per_field
+    section: "6.3"
+    level: MUST
+    requirement_id: EVI-002
+    tests: [T-EVI-002]
+
+  - key: evidence.field_status.explicit_only_high_weight
+    section: "6.3"
+    level: MUST
+    requirement_id: EVI-005
+    tests: [T-EVI-005]
+
+  - key: enrichment.stage.unknown_not_filled
+    section: "6.4"
+    level: MUST
+    requirement_id: EVI-002
+    tests: [T-EVI-002]
+
+  - key: evidence.field.review_id_is_reviewitem
+    section: "17.9"
+    level: MUST
+    requirement_id: OPS-002
+    tests: [T-OPS-002]
+
+  # ---------------------------------------------------------------------------
+  # §6.13 / §6.20 Embedding layer
+  # ---------------------------------------------------------------------------
+  - key: embedding.version.filter
+    section: "6.13"
+    level: MUST
+    requirement_id: EVI-007
+    tests: [T-EVI-007]
+
+  - key: embedding.migration.dual_index
+    section: "6.20"
+    level: MUST
+    requirement_id: EVI-007
+    tests: [T-EVI-007]
+
+  # ---------------------------------------------------------------------------
+  # §6.16 External source boundary
+  # ---------------------------------------------------------------------------
+  - key: source.provider_agnostic_boundary
+    section: "6.16"
+    level: MUST
+    requirement_id: SRC-001
+    tests: [T-SRC-001]
+
+  - key: source.connector_error.no_llm_guess
+    section: "6.16"
+    level: MUST
+    requirement_id: SRC-001
+    tests: [T-SRC-001]
+
+  - key: github.public.ref_pinned
+    section: "6.16"
+    level: MUST
+    requirement_id: GH-001
+    tests: [T-GH-001]
+
+  - key: github.private.fail_closed
+    section: "6.16"
+    level: MUST
+    requirement_id: GH-002
+    tests: [T-GH-002]
+
+  - key: github.no_auto_promotion
+    section: "6.16"
+    level: MUST
+    requirement_id: GH-003
+    tests: [T-GH-003]
+
+  # ---------------------------------------------------------------------------
+  # §6.17 Evidence independence
+  # ---------------------------------------------------------------------------
+  - key: independence.dependence_unknown_counts_zero
+    section: "6.17"
+    level: MUST
+    requirement_id: EVI-004
+    tests: [T-EVI-004]
+
+  # ---------------------------------------------------------------------------
+  # §6.18 Belief replay and contamination rollback
+  # ---------------------------------------------------------------------------
+  - key: belief.replay.append_only
+    section: "6.18"
+    level: MUST
+    requirement_id: EPI-003
+    tests: [T-EPI-003]
+
+  - key: belief.quarantine.replay_not_manual_edit
+    section: "6.18"
+    level: MUST
+    requirement_id: EPI-003
+    tests: [T-EPI-003]
+
+  # ---------------------------------------------------------------------------
+  # §6.19 / §17.19 Versioned condition schema
+  # ---------------------------------------------------------------------------
+  - key: condition.schema_version.required
+    section: "6.19"
+    level: MUST
+    requirement_id: EVI-005
+    tests: [T-EVI-005]
+
+  - key: condition.match.registered_by_domain
+    section: "17.19"
+    level: MUST
+    requirement_id: EVI-005
+    tests: [T-EVI-005]
+
+  # ---------------------------------------------------------------------------
+  # §6.21 Retraction / erratum gate
+  # ---------------------------------------------------------------------------
+  - key: source.retraction.check_performed
+    section: "6.21"
+    level: SHOULD
+    requirement_id: EVI-008
+    tests: [T-EVI-008]
+
+  - key: source.retraction.status_recorded
+    section: "6.21"
+    level: MUST
+    requirement_id: EVI-008
+    tests: [T-EVI-008]
+
+  # ---------------------------------------------------------------------------
+  # §7.6 / §17.14 Inference provenance and evidence bundles
+  # ---------------------------------------------------------------------------
+  - key: inference.provenance.required
+    section: "7.6"
+    level: MUST
+    requirement_id: LLM-001
+    tests: [T-LLM-001]
+
+  - key: bundle.canonical_before_llm_call
+    section: "17.14.1"
+    level: MUST
+    requirement_id: EVI-006
+    tests: [T-EVI-006]
+
+  - key: bundle.hash.deterministic_serialization
+    section: "17.14.1"
+    level: MUST
+    requirement_id: EVI-006
+    tests: [T-EVI-006]
+
+  # ---------------------------------------------------------------------------
+  # §8.1 Hypothesis certificate and competing mechanisms
+  # ---------------------------------------------------------------------------
+  - key: hypothesis.competing.minimum_two
+    section: "8.1"
+    level: MUST
+    requirement_id: EPI-001
+    tests: [T-EPI-001]
+
+  - key: hypothesis.admission.certificate_fields
+    section: "8.1"
+    level: MUST
+    requirement_id: EPI-001
+    tests: [T-EPI-001]
+
+  - key: rootcause.traceable_to_run_artifact
+    section: "25.3"
+    level: MUST
+    requirement_id: EPI-002
+    tests: [T-EPI-002]
+
+  # ---------------------------------------------------------------------------
+  # §9 Verification planning
+  # ---------------------------------------------------------------------------
+  - key: verification.action.predicted_outcome_and_cost
+    section: "9.1"
+    level: MUST
+    requirement_id: VER-001
+    tests: [T-VER-001]
+
+  - key: verification.no_unjustified_escalation
+    section: "9.1"
+    level: MUST
+    requirement_id: VER-001
+    tests: [T-VER-001]
+
+  - key: outcome.space.declared_versioned
+    section: "9.1"
+    level: MUST
+    requirement_id: VER-004
+    tests: [T-VER-004]
+
+  - key: cost.vector.not_single_scalar
+    section: "9.4"
+    level: MUST
+    requirement_id: VER-003
+    tests: [T-VER-003]
+
+  - key: capability.descriptor.required_for_planning
+    section: "9.5"
+    level: MUST
+    requirement_id: VER-002
+    tests: [T-VER-002]
+
+  - key: selection.policy.deterministic
+    section: "9.6"
+    level: MUST
+    requirement_id: VER-005
+    tests: [T-VER-005]
+
+  # ---------------------------------------------------------------------------
+  # §10 Tool and simulation architecture
+  # ---------------------------------------------------------------------------
+  - key: tools.typed_only.no_arbitrary_script
+    section: "10.2"
+    level: MUST
+    requirement_id: VER-002
+    tests: [T-VER-002]
+
+  - key: run.manifest.reproducible_fields
+    section: "10.3"
+    level: MUST
+    requirement_id: SIM-001
+    tests: [T-SIM-001]
+
+  - key: fidelity.low_cannot_reject
+    section: "10.5"
+    level: MUST
+    requirement_id: SIM-002
+    tests: [T-SIM-002]
+
+  - key: authority.partial_order_not_ladder
+    section: "10.5"
+    level: MUST
+    requirement_id: EPI-004
+    tests: [T-EPI-004]
+
+  - key: extractor.backend_agnostic
+    section: "10.2"
+    level: MUST
+    requirement_id: DOM-SP-002
+    tests: [T-DOM-SP-002]
+
+  # ---------------------------------------------------------------------------
+  # §12 Orchestration and execution
+  # ---------------------------------------------------------------------------
+  - key: job.long_running.suspend_resume_idempotent
+    section: "12.4"
+    level: MUST
+    requirement_id: OPS-001
+    tests: [T-OPS-001]
+
+  - key: trace.span.persisted
+    section: "12.5"
+    level: MUST
+    requirement_id: OPS-003
+    tests: [T-OPS-003]
+
+  # ---------------------------------------------------------------------------
+  # §14 Security, privacy and governance
+  # ---------------------------------------------------------------------------
+  - key: privacy.restricted.no_egress
+    section: "14.1"
+    level: MUST
+    requirement_id: SEC-001
+    tests: [T-SEC-001]
+
+  - key: classification.fail_closed_default
+    section: "14.1"
+    level: MUST
+    requirement_id: SEC-002
+    tests: [T-SEC-002]
+
+  - key: acl.actor.required_for_approval_egress
+    section: "14.4"
+    level: MUST
+    requirement_id: SEC-002
+    tests: [T-SEC-002]
+
+  - key: secret.scan.before_immutable_store
+    section: "14.5"
+    level: MUST
+    requirement_id: SEC-003
+    tests: [T-SEC-003]
+
+  - key: license.class.blocks_codegen
+    section: "14.5"
+    level: MUST
+    requirement_id: SEC-004
+    tests: [T-SEC-004]
+
+  # ---------------------------------------------------------------------------
+  # §17.17 Cost and budget governance
+  # ---------------------------------------------------------------------------
+  - key: budget.gate.before_side_effect
+    section: "17.17"
+    level: MUST
+    requirement_id: COST-001
+    tests: [T-COST-001]
+
+  - key: cost.ledger.minimum_dimensions
+    section: "17.17"
+    level: MUST
+    requirement_id: COST-001
+    tests: [T-COST-001]
+
+  # ---------------------------------------------------------------------------
+  # §24 Domain extensibility
+  # ---------------------------------------------------------------------------
+  - key: domain.core_no_domain_import
+    section: "24.2"
+    level: MUST
+    requirement_id: EXT-001
+    tests: [T-EXT-001]
+
+  - key: domain.second_pack_without_core_change
+    section: "24.5"
+    level: MUST
+    requirement_id: EXT-001
+    tests: [T-EXT-001]
+
+  - key: domain.rule_version_recorded
+    section: "25.3"
+    level: MUST
+    requirement_id: DOM-SP-001
+    tests: [T-DOM-SP-001]
+
+  - key: evidence.cj_rs.required_fields
+    section: "25.3"
+    level: MUST
+    requirement_id: EVI-001
+    tests: [T-EVI-001]
+
+  # ---------------------------------------------------------------------------
+  # §23.5 Spec integrity
+  # ---------------------------------------------------------------------------
+  - key: spec.replay.mock_and_real
+    section: "25.3"
+    level: MUST
+    requirement_id: TST-001
+    tests: [T-E2E-SP-001]
+
+  - key: spec.requirement_test.traceability
+    section: "23.5"
+    level: MUST
+    requirement_id: TST-002
+    tests: [T-SPEC-001]
+
+  - key: spec.registry.coverage
+    section: "23.5"
+    level: MUST
+    requirement_id: TST-003
+    tests: [T-SPEC-002]
