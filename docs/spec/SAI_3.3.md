@@ -25,7 +25,7 @@
 | FIX-7 | Lumerical seat 與 ground-truth benchmark 兩項外部依賴進 Risk Register |
 | FIX-8 | 新增 Frontend Error & Recovery Contract：§17.22–17.24、§27、`UX-xxx` namespace、UX-001~007 |
 
-**Requirement ↔ Test 不變式：53 ↔ 53。**
+**Requirement ↔ Test 不變式：57 ↔ 57。**
 
 ---
 
@@ -2209,6 +2209,8 @@ SEC-xxx     actor/ACL/privacy/egress
 OPS-xxx     job queue / observability / review operations
 COST-xxx    cost ledger / budget gates
 SRC-xxx     external source / intent-aware routing
+GH-xxx      external code-hosting provider (GitHub and equivalents)
+HEU-xxx     tacit knowledge / heuristic governance
 LLM-xxx     model router / inference provenance
 EXT-xxx     domain extension
 UX-xxx      user-facing state / error surface / recovery
@@ -2497,7 +2499,7 @@ EXPECTED RESEARCH LOOP
 
 ## 25.3 First Vertical Requirements
 
-> EXT-001 定義於 §24.5，不在本表重複。本表 52 條 + EXT-001 = **53 條 normative requirements**。
+> EXT-001 定義於 §24.5，不在本表重複。本表 56 條 + EXT-001 = **57 條 normative requirements**。
 
 | Requirement | MUST |
 |---|---|
@@ -2526,13 +2528,16 @@ EXPECTED RESEARCH LOOP
 | VER-004 | Plausible outcomes MUST come from a declared, versioned OutcomeSpace and pass explicit constraints/ValidationReport checks; planner may not invent outcomes. |
 | VER-005 | After Pareto filtering, planner MUST apply a versioned deterministic SelectionPolicy; identical input+policy returns identical ranked plan. |
 | VER-006 | Hypothesis predictions MUST be typed Prediction objects bound to a declared OutcomeSpace version, carrying RelationJudgmentTemplate effects. Sufficiency MUST be computed via side-effect-free `TransitionPolicy.evaluate_hypothetical`; planner or LLM MUST NOT invent hypothetical relations. |
+| VER-007 | Candidate/design comparison MUST preserve and present multi-objective trade-offs. A single scalar figure of merit MUST NOT be the sole keep/discard criterion (P10). |
 | DOM-SP-001 | Silicon photonics rule/validator 版本必須記錄；core 不得內建 Rs 趨勢規則。 |
 | DOM-SP-002 | Cj/Rs/Q/ER 等 extractor 必須 backend-agnostic；simulation 與 measurement 共用定義與 normalization provenance。 |
 | SRC-001 | 所有外部知識取得經 ExternalSourceAdapter/SourceRouter；provider-specific SDK 不得滲入 cognition/domain core。 |
 | SRC-002 | SourcePolicy 依 research intent 切換；當 decision.stakes >= policy threshold，Critic MUST 執行 inverted retrieval、保存 inverted EvidenceBundle，否則該 decision 不得進入 BELIEF_REVISION。 |
+| SRC-003 | 任何 novelty status MUST 引用 `PriorArtSearchRecord`，記錄 sources、queries、date range 與 limitations。無覆蓋率記錄的 novelty status MUST 被拒絕；internal novelty MUST NOT 被當作 global novelty 呈現。 |
 | GH-001 | GitHubConnector 至少支援 public repo discovery + ref/commit-pinned file fetch + normalized provenance record。 |
 | GH-002 | private repo access 需 explicit auth/allowlist/security policy；未授權時必須 fail closed。 |
 | GH-003 | GitHub technical/prior-art evidence 不得自動升級為 peer-reviewed scientific evidence；repo/ref/commit 必須保存。 |
+| HEU-001 | `CandidateHeuristic` MUST 保存 source_artifact_ids 與 source_locators，MUST 以 `PENDING_REVIEW` 起始，且 MUST NOT 在缺少帶 `approved_by_actor_id` 的人類核准紀錄下成為 active lab rule。Heuristic Miner MUST 只從 approved sources 產生候選（P16）。 |
 | LLM-001 | 所有 LLM scientific outputs 必須帶 InferenceProvenance：model/version、slot、prompt version、evidence bundle hash。 |
 | LLM-002 | Structured Debate MUST collect diversity/bundle-divergence/cost metrics; hard gates use a versioned BenchmarkPolicy calibrated on a fixed domain benchmark before enforcement. |
 | SEC-001 | RESTRICTED_NDA/CONFIDENTIAL context MUST NOT leave the approved boundary; external connector/model egress requires policy + Actor clearance, otherwise fail closed and emit audit evidence. |
@@ -2542,6 +2547,7 @@ EXPECTED RESEARCH LOOP
 | OPS-001 | long-running tool/external actions 必須 Job 化並支援 suspend/resume/idempotent callback。 |
 | OPS-002 | Human ReviewQueue MUST have capacity, stakes, SLA/expiry and feed availability/earliest_available_at into human-review Capability. |
 | OPS-003 | Execution observability MUST persist trace/span contract linking episode → retrieval/LLM/job/run/artifact with status and cost refs. |
+| OPS-004 | Cross-store writes (artifact store + PostgreSQL) MUST be compensated within a single unit of work. A failure between stores MUST leave no dangling reference; the compensating path MUST be verified by fault injection. |
 | COST-001 | 每次 LLM/tool action 前必須經 BudgetGate；CostLedger 至少記 wall-clock/tokens/money/license-seat estimates。 |
 | UX-001 | IngestionItem state MUST be derived from Job / ExecutionSpan / Artifact / ReviewItem / Conflict by the documented precedence order; it MUST NOT be set directly by a client or by an LLM. Identical-bytes duplicates and same-work duplicates MUST be distinguished; same-work duplicates MUST still create SourceWork/Attestation. |
 | UX-002 | Every surfaced failure MUST carry an error_class from {USER_INPUT_ERROR, EXTRACTION_WARNING, POLICY_BLOCK, EXTERNAL_SERVICE_ERROR, SYSTEM_ERROR} and a reason_code. POLICY_BLOCK and USER_INPUT_ERROR MUST NOT be auto-retried. Auto-retry MUST pass BudgetGate and stop at Job.max_attempts. Budget exhaustion MUST classify as POLICY_BLOCK, not FAILED. |
@@ -2579,7 +2585,7 @@ VS-SP-001 只有在以下條件全部成立才算完成：
 
 Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 將需求直接綁到測試；IMPLEMENTATION_STATUS.md 應引用這些 Requirement IDs 與 Test IDs。
 
-**53 requirements ↔ 53 tests。**
+**57 requirements ↔ 57 tests。**
 
 | Requirement | Test ID | Test type | Pass condition |
 |---|---|---|---|
@@ -2608,13 +2614,16 @@ Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 
 | VER-004 | T-VER-004 | unit | outcome outside declared OutcomeSpace 或被 explicit constraint/ValidationReport 排除時不可算 plausible；合法 outcome version 可重現 sufficiency result。 |
 | VER-005 | T-VER-005 | unit | same actions/state/policy produce identical ranking across repeated runs; tie is resolved by configured lexicographic fallback. |
 | VER-006 | T-VER-006 | contract/unit | Prediction with out-of-space expected_outcome is rejected at admission; `evaluate_hypothetical` persists nothing (no relation rows, no BeliefRevisionEvent, projection unchanged); an action with no bound Prediction over its produces is reported NOT sufficient; identical inputs return identical TransitionDecision. |
+| VER-007 | T-VER-007 | unit | a single scalar figure of merit cannot decide keep/discard; multi-objective trade-offs are preserved and presented; a scalar-only OutcomeSpace over design quality requires explicit declared justification. |
 | DOM-SP-001 | T-DOM-SP-001 | domain | Rs trend validator 只存在 Silicon Photonics DomainPack，移除 plugin 後 core 仍可啟動。 |
 | DOM-SP-002 | T-DOM-SP-002 | domain | 同一 `extract_cj_rs` contract 通過 simulated impedance 與 measured impedance fixtures。 |
 | SRC-001 | T-SRC-001 | contract | 以 fake GitHub/Literature connectors 替換真 provider 時 SourceRouter/cognition 不需修改；normalized record schema 相同。 |
 | SRC-002 | T-SRC-002 | e2e | DIAGNOSIS/NOVELTY 使用不同 source policies；high-stakes decision 未執行 inverted retrieval 時 BELIEF_REVISION 被拒絕；執行後 CritiqueReport.inverted_bundle_id 與 bundle divergence 可追溯。 |
+| SRC-003 | T-SRC-003 | integration | novelty fixture without a `PriorArtSearchRecord` is rejected; recorded coverage (sources / queries / date range / limitations) is retrievable; an internal-only search cannot yield a global-novelty claim. |
 | GH-001 | T-GH-001 | integration | public fixture repo 可 search/fetch；requested ref 解析到固定 commit SHA，file content hash 與 locator 被保存。 |
 | GH-002 | T-GH-002 | security | 未授權 private repo request 被 fail-closed 並產生 audit event；不洩漏 query/private context。 |
 | GH-003 | T-GH-003 | epistemic | GitHub record 能被標為 technical/prior-art source；admission gate 不允許其自動冒充 measured/peer-reviewed evidence。 |
+| HEU-001 | T-HEU-001 | security/governance | a mined candidate starts `PENDING_REVIEW` and carries source artifact IDs plus locators; promotion without `approved_by_actor_id` is rejected; a miner fixture drawing from an unapproved source yields no candidate. |
 | LLM-001 | T-LLM-001 | contract | Hypothesis/Critique/Relation 缺 model/prompt/bundle provenance 時 admission fail。 |
 | LLM-002 | T-LLM-002 | benchmark | fixed SiPho benchmark produces baseline distributions; BenchmarkPolicy schema stores metric/threshold/sample size/calibration artifacts/version; no hard gate before calibration. |
 | SEC-001 | T-SEC-001 | security | RESTRICTED_NDA context 嘗試送 external connector 時被 policy engine 阻擋並留下 audit event。 |
@@ -2624,6 +2633,7 @@ Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 
 | OPS-001 | T-OPS-001 | e2e | delayed mock job 可 suspend/resume；重複 completion event 不建立第二個 run。 |
 | OPS-002 | T-OPS-002 | unit/integration | queue depth/capacity changes human-review capability availability and planner earliest_available_at. |
 | OPS-003 | T-OPS-003 | e2e | one episode trace reconstructs retrieval → LLM → job → run → artifact and associated cost entries. |
+| OPS-004 | T-OPS-004 | integration | fault injection between the artifact-store write and the database commit leaves no dangling artifact reference; the compensating path is exercised and the partial state is either completed or removed. |
 | COST-001 | T-COST-001 | integration | 預算不足時 model/tool call 在產生外部 side effect 前被阻擋。 |
 | UX-001 | T-UX-001 | contract/integration | Fixture set drives every state through the documented precedence (BLOCKED > FAILED > PARTIAL > NEEDS_REVIEW > DUPLICATE > PROCESSING > READY); direct client state assignment is rejected; preprint-vs-journal fixture yields DUPLICATE-by-work **and** a persisted SourceWork/Attestation, while byte-identical fixture yields DUPLICATE with no new Attestation. |
 | UX-002 | T-UX-002 | unit/integration | POLICY_BLOCK and USER_INPUT_ERROR fixtures produce zero retry attempts and, for POLICY_BLOCK, one audit event; EXTERNAL_SERVICE_ERROR retries until max_attempts then surfaces FAILED with next_retry_at cleared; budget-exhausted fixture classifies POLICY_BLOCK. |
@@ -3071,3 +3081,4 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | v3.2 | 2026-09-10 | Release Candidate Closure：修 T-SPEC 自我一致性；補 EVI-003/SEC-001 條文與 EVI-001/EPI-002 tests；定義 INCOMPARABLE→human review、BenchmarkPolicy/OutcomeSpace/ValidationReport、DEPENDENCE_UNKNOWN 計數、high-stakes inverted retrieval；補 migration 010、normative registry/spec lint 與懸空 FK/actor references。 |
 | **v3.3** | **2026-09-11** | **Implementation Readiness + User Surface Release**：統一 `TransitionPolicy.evaluate` 單一簽章與 `TransitionDecision` 回傳；新增 typed `Prediction` 與 side-effect-free `evaluate_hypothetical`，使 sufficiency 可確定性計算（VER-006）；新增 `Conflict` 型別使 `blocking_conflict_policy` 可實作（EPI-006）；統一 DomainPack tool 命名類別（`run_*`/`extract_*`/`inspect_*`/`validate_*`）與單一 ID scheme `DOM-SP-TOOL-xxx`；將 registry 完整性拆為 CI 檢查與人工稽核兩段；補 `independence_basis` 值域與 DEFERRED rationale、`estimate_cost_contract`、`EvidenceField.review_id`；補 Lumerical seat 與 ground-truth benchmark 兩項外部依賴風險。新增 **Frontend Error & Recovery Contract**：IngestionItem 七態推導、五類 FROZEN error taxonomy 與 GROWING reason_code、retry 政策、ACL-gated 兩層診斷揭露、raw-artifact-first 與 stage-level retry、NEEDS_REVIEW 併入單一 ReviewQueue、versioned MessageCatalog（禁止 LLM 生成使用者錯誤文字）、derived System Health（UX-001~007）。Requirement ↔ Test：**52 ↔ 52**。無架構方向變更。 |
 | **v3.3-a1** | **2026-09-12** | **Maintainer amendment (P2-fix)**：裁決 SPEC-ISSUE-001 採 Reading B —— §26 T-SPEC-002 pass condition 改為「`statement_key` 唯一；每筆 entry 恰好引用一個合法 Requirement ID；一個 Requirement ID 可被多筆 entry 引用（涵蓋不同章節的相異 normative statements）」，消除與 §23.6 範例的自相矛盾。裁決 SPEC-ISSUE-003 採 Option 1 —— 新增 **SIM-003 / T-SIM-003**（typed ToolRegistry；禁止 `eval_script`-class 公開工具介面），SIM-003 配置至 M2。Requirement ↔ Test：**52 ↔ 52 → 53 ↔ 53**。無架構方向變更。 |
+| **v3.3-a2** | **2026-09-12** | **Maintainer amendment (P3-fix / M0a sign-off patch)**：裁決 M0a Spec Coverage Audit 提出的五項未登錄 hard MUST。新增 **HEU-001 / T-HEU-001**（heuristic 核准治理，P16，配置 M7）、**SRC-003 / T-SRC-003**（PriorArtSearchRecord novelty 覆蓋率，配置 M3）、**VER-007 / T-VER-007**（P10 多目標 trade-off；單一 scalar FoM 不得單獨決定去留，配置 M4）、**OPS-004 / T-OPS-004**（跨儲存 unit of work 補償，需 fault-injection 驗證，配置 M1）。SPEC-ISSUE-008（fabrication sign-off）不新增 requirement，以 **SEC-002** 登錄並標為 DEFERRED（review_at = FIRST_FABRICATION_CAPABILITY）。SPEC-ISSUE-002：§23.2 namespace 表補 `GH-xxx`，並新增 `HEU-xxx`。Requirement ↔ Test：**53 ↔ 53 → 57 ↔ 57**。無架構方向變更。 |

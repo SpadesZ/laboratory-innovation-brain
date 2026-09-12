@@ -1,9 +1,17 @@
-"""RFC 8785 conformance for the canonical JSON serializer.
+"""Conformance of the canonical JSON serializer to its **restricted JCS profile**.
+
+Not "RFC 8785 conformance" -- the serializer deliberately implements a subset and fails closed
+outside it (floats, oversized integers, non-JSON types). Calling these tests a conformance suite
+for the full standard would overstate what they establish, so both the module and this file say
+"restricted profile" and the rejection cases are asserted as *deliberate refusals* rather than as
+gaps.
+
+What the tests do establish: for every document the profile accepts, the output matches what a
+conformant implementation would produce. The two places that is easy to get accidentally wrong are
+UTF-16 key ordering and string escaping, so both are checked directly.
 
 Unmarked: this is the mechanism EVI-006 depends on, not the requirement itself. T-EVI-006 asserts
-bundle-level properties; these assert that the serializer underneath actually follows the standard,
-including the two places it is easy to be accidentally wrong -- UTF-16 key ordering and string
-escaping.
+bundle-level properties.
 """
 
 from __future__ import annotations
@@ -91,20 +99,33 @@ def test_integers(value, expected):
     assert canonicalize(value) == expected
 
 
-def test_integers_beyond_the_safe_range_are_rejected():
+# ---------------------------------------------------------------------------
+# Outside the profile: deliberate refusals, not gaps
+#
+# A conformant RFC 8785 implementation would serialize all three of these. This profile refuses
+# them, and the refusal is the tested behaviour -- rejecting is safe, guessing is not.
+# ---------------------------------------------------------------------------
+
+
+def test_integers_beyond_the_safe_range_are_refused():
     """Past 2^53-1 an integer is not exactly a double, so it has no canonical JCS form."""
     with pytest.raises(CanonicalizationError, match="safe range"):
         canonicalize(MAX_SAFE_INTEGER + 1)
 
 
-def test_floats_are_rejected_with_an_explanation():
-    """Deliberate: ECMAScript Number::toString is the one part of RFC 8785 easy to get wrong."""
-    with pytest.raises(CanonicalizationError, match="float values are not canonicalizable"):
+def test_floats_are_refused_rather_than_approximated():
+    """Outside the profile by design.
+
+    ECMAScript Number::toString is the one genuinely hard part of RFC 8785. An approximation would
+    produce hashes agreeing on one machine and disagreeing on another -- worse than refusing,
+    because the failure surfaces only when two environments compare provenance.
+    """
+    with pytest.raises(CanonicalizationError, match="outside this restricted JCS profile"):
         canonicalize({"level": 1.5})
 
 
-def test_unsupported_types_are_rejected():
-    with pytest.raises(CanonicalizationError, match="not JSON-canonicalizable"):
+def test_types_outside_the_profile_are_refused():
+    with pytest.raises(CanonicalizationError, match="outside this restricted JCS profile"):
         canonicalize({"when": object()})
 
 
@@ -144,16 +165,17 @@ def test_forward_slash_is_not_escaped():
 
 
 # ---------------------------------------------------------------------------
-# RFC 8785 published test vectors
+# RFC 8785 published test vector, restricted to the accepted domain
 # ---------------------------------------------------------------------------
 
 
-def test_rfc8785_structural_example():
-    """The RFC's own sorting example, minus its float members.
+def test_rfc8785_sorting_vector_within_the_profile():
+    """The RFC's own key-sorting example, with its float members removed.
 
-    Adapted rather than copied verbatim: the published vector includes floats, which this
-    implementation refuses by design. The structural properties it demonstrates -- literal
-    ordering, nested sorting, array order preservation -- are what is checked here.
+    Adapted, not copied: the published vector includes floats, which this profile refuses by
+    design. So this checks the property the vector exists to demonstrate -- UTF-16 key ordering
+    across literals, BMP and non-BMP characters -- on the subset the profile accepts. It is not
+    evidence of full-vector conformance and is not named as if it were.
     """
     document = {
         "€": "Euro Sign",

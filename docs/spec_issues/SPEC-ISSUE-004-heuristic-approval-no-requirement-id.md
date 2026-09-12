@@ -1,7 +1,7 @@
 # SPEC-ISSUE-004: Heuristic approval governance has no dedicated Requirement ID
 
 Severity: GATE
-Status: OPEN
+Status: RESOLVED
 Blocks gate: M7
 Raised: 2026-09-12
 Raised by: M0a Spec Coverage Audit (§23.5 (2))
@@ -37,7 +37,20 @@ The Heuristic Miner is M7 (`Operational Lab Brain`, DEFERRED). Nothing in M0a–
 heuristics, so no code can violate this today. Recorded as `Blocks gate: M7` so it must be settled
 before that milestone rather than after.
 
-## Options for the maintainer
+## Resolution
+
+**Maintainer ruled Option 1 on 2026-09-12 (amendment `v3.3-a2`).** `HEU-001` / `T-HEU-001` added,
+with a new `HEU-xxx` namespace in §23.2:
+
+> HEU-001 — `CandidateHeuristic` MUST 保存 source_artifact_ids 與 source_locators，MUST 以
+> `PENDING_REVIEW` 起始，且 MUST NOT 在缺少帶 `approved_by_actor_id` 的人類核准紀錄下成為
+> active lab rule。Heuristic Miner MUST 只從 approved sources 產生候選（P16）。
+
+Allocated to **M7**, alongside the Heuristic Miner it constrains. Registry entries added for §6.11
+and §6.15. Part of the 53 ↔ 53 to 57 ↔ 57 move.
+
+
+## Superseded options considered
 
 1. **Add a dedicated requirement** (e.g. `HEU-001` / `T-HEU-001`): a candidate heuristic MUST carry
    source artifact IDs and locators, MUST start at `PENDING_REVIEW`, and MUST NOT become active

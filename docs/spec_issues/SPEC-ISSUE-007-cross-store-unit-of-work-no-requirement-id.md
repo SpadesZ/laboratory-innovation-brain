@@ -1,7 +1,7 @@
 # SPEC-ISSUE-007: Cross-store unit of work has no dedicated Requirement ID
 
 Severity: GATE
-Status: OPEN
+Status: RESOLVED
 Blocks gate: M1
 Raised: 2026-09-12
 Raised by: M0a Spec Coverage Audit (§23.5 (2))
@@ -32,7 +32,21 @@ ART-001's test covers identity and hashing, not write ordering across two stores
 M0a stores no artifact bytes: `Artifact.uri` is recorded but nothing writes to an artifact store
 until the M1 ingestion pipeline. Recorded as `Blocks gate: M1`.
 
-## Options for the maintainer
+## Resolution
+
+**Maintainer ruled Option 1 on 2026-09-12 (amendment `v3.3-a2`)** — a dedicated requirement rather
+than folding this into `ART-001` or `UX-004`. `OPS-004` / `T-OPS-004` added:
+
+> OPS-004 — Cross-store writes (artifact store + PostgreSQL) MUST be compensated within a single
+> unit of work. A failure between stores MUST leave no dangling reference; the compensating path
+> MUST be verified by fault injection.
+
+The fault-injection requirement is explicit in the pass condition: a compensation path that is
+never exercised is indistinguishable from one that does not work. Allocated to **M1**, where the
+artifact store first exists. Registry entry added for §12.3. Part of the 53 ↔ 53 to 57 ↔ 57 move.
+
+
+## Superseded options considered
 
 1. **Add a dedicated requirement** (e.g. `OPS-004` / `T-OPS-004`): a cross-store write MUST be
    compensated within one unit of work; a failure between stores MUST leave no dangling reference,

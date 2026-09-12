@@ -18,9 +18,9 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-#: Requirement ID namespaces. §23.2 declares the namespace list; ``GH`` is used by
-#: §25.3/§26 (GH-001..GH-003) without appearing in the §23.2 table. That gap is
-#: recorded as a spec observation in docs/spec_coverage_audit/, not silently fixed.
+#: Requirement ID namespaces, as declared by §23.2. ``GH`` and ``HEU`` were added to that table
+#: by maintainer amendment ``v3.3-a2`` -- ``GH`` had been used by §25.3/§26 since v3.3 without
+#: appearing in the namespace list (SPEC-ISSUE-002), and ``HEU`` arrived with HEU-001.
 REQUIREMENT_NAMESPACES = (
     "SYS",
     "ART",
@@ -33,11 +33,12 @@ REQUIREMENT_NAMESPACES = (
     "OPS",
     "COST",
     "SRC",
+    "GH",
+    "HEU",
     "LLM",
     "EXT",
     "UX",
     "TST",
-    "GH",
 )
 
 REQUIREMENT_ID_RE = re.compile(

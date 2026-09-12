@@ -3,7 +3,7 @@
 # Gate order and exit gates are transcribed from SAI 3.3 §26.1. The per-milestone
 # `requirements` allocation is an implementation decision, not spec text: each
 # requirement is assigned to the milestone at which its §26 pass condition can be
-# fully satisfied. The union of all allocations MUST equal the 53 requirements the
+# fully satisfied. The union of all allocations MUST equal the 57 requirements the
 # spec declares (enforced by T-SPEC-001).
 #
 # `status` drives the CI ratchet. Once a milestone is DONE, every requirement allocated to it
@@ -74,6 +74,7 @@ milestones:
       - EVI-008
       - LLM-001
       - OPS-001
+      - OPS-004
       - SEC-001
       - SEC-003
       - SEC-004
@@ -115,6 +116,7 @@ milestones:
       - EPI-001
       - LLM-002
       - SRC-002
+      - SRC-003
 
   - id: M4
     name: First Vertical (VS-SP-001)
@@ -128,6 +130,7 @@ milestones:
       - VER-003
       - VER-004
       - VER-005
+      - VER-007
       - EPI-002
       - TST-001
 
@@ -144,10 +147,10 @@ milestones:
       - GH-002
       - GH-003
 
-  # M6-M8 are declared by §26.1 but carry no requirement allocation: all 53 requirements fall in
-  # M0a-M5. They are listed so the catalog mirrors §26.1 completely, and so a spec issue can name
-  # the gate it blocks -- `check_no_open_gate_issues_for_completed_milestones` rejects an issue
-  # pointing at a milestone that does not exist.
+  # M6-M8 are declared by §26.1. They are listed so the catalog mirrors §26.1 completely, and so a
+  # spec issue can name the gate it blocks -- `check_no_open_gate_issues_for_completed_milestones`
+  # rejects an issue pointing at a milestone that does not exist. M6 and M8 hold no requirements;
+  # M7 gained HEU-001 under amendment v3.3-a2.
   - id: M6
     name: Multi-physics Ring
     status: DEFERRED
@@ -160,7 +163,8 @@ milestones:
     status: DEFERRED
     exit_gate: real lab workflow pilot with low human write friction.
     gate_profile: [postgres]
-    requirements: []
+    requirements:
+      - HEU-001
 
   - id: M8
     name: Learning / Second Domain

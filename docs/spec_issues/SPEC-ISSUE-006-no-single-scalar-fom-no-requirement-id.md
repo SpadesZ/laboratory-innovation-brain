@@ -1,7 +1,7 @@
 # SPEC-ISSUE-006: P10 "No single scalar FoM" has no dedicated Requirement ID
 
 Severity: GATE
-Status: OPEN
+Status: RESOLVED
 Blocks gate: M4
 Raised: 2026-09-12
 Raised by: M0a Spec Coverage Audit (§23.5 (2))
@@ -30,7 +30,20 @@ as "單 scalar FoM keep/discard".
 
 No design evaluation exists before M4. Recorded as `Blocks gate: M4`.
 
-## Options for the maintainer
+## Resolution
+
+**Maintainer ruled Option 1 on 2026-09-12 (amendment `v3.3-a2`).** `VER-007` / `T-VER-007` added:
+
+> VER-007 — Candidate/design comparison MUST preserve and present multi-objective trade-offs. A
+> single scalar figure of merit MUST NOT be the sole keep/discard criterion (P10).
+
+Allocated to **M4**, where design comparison first exists. Registry entry added for §10.4, with a
+note recording why this is not VER-003: that governs the *cost* of a verification action, this the
+*quality* of a design, and a multi-dimensional `CostVector` can coexist with a scalar-ranked design
+space while `T-VER-003` passes. Part of the 53 ↔ 53 to 57 ↔ 57 move.
+
+
+## Superseded options considered
 
 1. **Add a dedicated requirement** (e.g. `VER-007` / `T-VER-007`): candidate/design comparison MUST
    preserve and present multi-objective trade-offs; a single scalar FoM MUST NOT be the sole

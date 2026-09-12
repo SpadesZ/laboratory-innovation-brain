@@ -600,6 +600,71 @@ normative_statements:
     tests: [T-EPI-006]
 
   # ---------------------------------------------------------------------------
+  # Maintainer amendment v3.3-a2 (2026-09-12): the five hard MUSTs the M0a audit found with no
+  # Requirement ID now have one. Four new requirements; SPEC-ISSUE-008 registered against
+  # SEC-002 as DEFERRED rather than given a requirement of its own.
+  # ---------------------------------------------------------------------------
+
+  # §6.11 / §6.15 -> HEU-001 (SPEC-ISSUE-004 resolved)
+  - key: heuristic.candidate.awaits_human_approval
+    section: "6.11"
+    level: MUST
+    requirement_id: HEU-001
+    tests: [T-HEU-001]
+
+  - key: heuristic.miner.approved_sources_only
+    section: "6.15"
+    level: MUST
+    requirement_id: HEU-001
+    tests: [T-HEU-001]
+
+  # §6.21 / §7.5 -> SRC-003 (SPEC-ISSUE-005 resolved). Distinct from the EVI-008 entries in
+  # §6.21, which cover retraction checking; this covers novelty search coverage.
+  - key: novelty.coverage.record_required
+    section: "6.21"
+    level: MUST
+    requirement_id: SRC-003
+    tests: [T-SRC-003]
+
+  - key: novelty.internal_is_not_global
+    section: "7.5"
+    level: MUST
+    requirement_id: SRC-003
+    tests: [T-SRC-003]
+
+  # §10.4 -> VER-007 (SPEC-ISSUE-006 resolved). Deliberately not VER-003: that governs the cost
+  # of a verification action, this the quality of a design. A multi-dimensional CostVector and a
+  # scalar-ranked design space can coexist, and T-VER-003 would pass.
+  - key: fom.multi_objective.no_single_scalar
+    section: "10.4"
+    level: MUST
+    requirement_id: VER-007
+    tests: [T-VER-007]
+
+  # §12.3 -> OPS-004 (SPEC-ISSUE-007 resolved)
+  - key: storage.cross_store.unit_of_work
+    section: "12.3"
+    level: MUST
+    requirement_id: OPS-004
+    tests: [T-OPS-004]
+
+  # §14.3 -> SEC-002, DEFERRED (SPEC-ISSUE-008 resolved without a new requirement). Fabrication
+  # is outside the v3.3 delivery scope entirely: §26.1's milestones end at M8 and none submits a
+  # tape-out, so there is no milestone at which an implementation could violate this.
+  - key: governance.fabrication.human_signoff
+    section: "14.3"
+    level: MUST
+    requirement_id: SEC-002
+    tests: [T-SEC-002]
+    review_at: FIRST_FABRICATION_CAPABILITY
+    deferred_rationale: >
+      Fabrication submission (版圖/製程送件) requires human sign-off. No fabrication Capability
+      exists or is planned within M0a-M8, so the rule is unenforceable rather than unenforced.
+      Registered against SEC-002, which owns approval-gated actions. Review when the first
+      fabrication Capability is registered; at that point it needs either its own requirement or
+      an explicit extension of SEC-002's pass condition to enumerate irreversible actions.
+
+  # ---------------------------------------------------------------------------
   # §23.5 Spec integrity
   # ---------------------------------------------------------------------------
   - key: spec.replay.mock_and_real

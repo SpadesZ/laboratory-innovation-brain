@@ -1,34 +1,45 @@
-"""RFC 8785 (JCS) canonical JSON serialization.
+"""Canonical JSON serialization — a **restricted profile** of RFC 8785 (JCS).
 
-§17.14.1 requires an EvidenceBundle hash computed over a *canonical* serialization:
+This is deliberately NOT a conformant RFC 8785 implementation, and must not be described as one.
+It implements the subset of JCS that accepts a restricted value domain, and **fails closed** on
+anything outside it. A caller cannot use it to canonicalize arbitrary JSON.
+
+§17.14.1 requires an EvidenceBundle hash computed over a canonical serialization:
 
     canonical_hash(bundle) = SHA256(JCS/RFC8785 canonical JSON of hash_fields)
     ...不得 hash 任意 JSON 字串順序。
 
-The point is that two processes which agree on the *content* must agree on the *bytes*. A hash
-over `json.dumps(...)` with default settings does not have that property: key order follows
-insertion order, so the same bundle assembled by two code paths hashes differently, and provenance
+The property that matters is that two processes agreeing on the *content* must agree on the
+*bytes*. A hash over `json.dumps(...)` with default settings does not have it: key order follows
+insertion order, so the same bundle assembled by two code paths hashes differently and provenance
 silently stops matching.
 
-WHAT IS IMPLEMENTED
+IMPLEMENTED (matches RFC 8785)
 
-  - object keys sorted by UTF-16 code unit order (RFC 8785 §3.2.3)
-  - no insignificant whitespace
-  - minimal string escaping per RFC 8785 §3.2.2.2
-  - integers serialized as plain decimal
+  - object keys sorted by UTF-16 code unit order (§3.2.3)
+  - no insignificant whitespace (§3.2.1)
+  - minimal string escaping (§3.2.2.2)
+  - `true` / `false` / `null` literals
+  - integers within ±(2^53 - 1), as plain decimal
 
-WHAT IS DELIBERATELY REFUSED: floats.
+NOT IMPLEMENTED — rejected, never guessed
 
-RFC 8785 §3.2.2.3 requires ECMAScript `Number::toString` semantics, which is the one genuinely
-hard part of the standard -- shortest round-tripping representation, exponent thresholds at 1e21
-and 1e-7, negative zero. Getting it subtly wrong produces hashes that agree on this machine and
-disagree on another, which is worse than refusing.
+  - **floats** (§3.2.2.3). JCS requires ECMAScript `Number::toString`: shortest round-tripping
+    representation, exponent thresholds at 1e21 and 1e-7, negative zero. Implementing it subtly
+    wrong yields hashes that agree on one machine and disagree on another, which is worse than
+    refusing outright.
+  - **integers beyond ±(2^53 - 1)**. JCS numbers are ECMAScript doubles, so a larger integer has
+    no canonical form.
+  - anything that is not `str` / `int` / `bool` / `None` / `list` / `tuple` / `dict`.
 
-Bundle identity has no need for floats. It hashes attestation IDs, a query string, policy
-identifiers and condition *filters*. Measured values live in Observations and the numerical store,
-not in bundle identity. So a float in a hash field is rejected with an explicit error rather than
-serialized on a guess. If a future requirement genuinely needs one, implementing
-`Number::toString` correctly is the price, and it should be paid deliberately.
+Consequence: a document this module accepts hashes identically to a conformant implementation.
+A document it rejects would have hashed fine under a conformant one. That asymmetry is the design
+— narrower and honest, rather than broad and occasionally wrong.
+
+The restriction costs nothing here. Bundle identity hashes attestation IDs, a query string, policy
+identifiers and condition *filters*; measured values live in Observations and the numerical store.
+If a future requirement genuinely needs floats, implementing `Number::toString` correctly is the
+price, and it should be paid deliberately rather than approximated.
 """
 
 from __future__ import annotations
@@ -69,17 +80,17 @@ def _serialize(value: Any, path: str) -> str:
     if isinstance(value, int):
         if abs(value) > MAX_SAFE_INTEGER:
             raise CanonicalizationError(
-                f"{path}: integer {value} exceeds the safe range (±{MAX_SAFE_INTEGER}); "
-                "RFC 8785 numbers are ECMAScript doubles, so larger integers have no canonical "
-                "form"
+                f"{path}: integer {value} exceeds the safe range (±{MAX_SAFE_INTEGER}). JCS "
+                "numbers are ECMAScript doubles, so a larger integer has no canonical form. "
+                "This profile rejects rather than rounds."
             )
         return str(value)
 
     if isinstance(value, float):
         raise CanonicalizationError(
-            f"{path}: float values are not canonicalizable by this implementation. RFC 8785 "
+            f"{path}: float values are outside this restricted JCS profile. Conformant RFC 8785 "
             "requires ECMAScript Number::toString semantics, which is easy to get subtly wrong "
-            "and would produce hashes that differ between machines. Bundle identity hashes IDs, "
+            "and would yield hashes that differ between machines. Bundle identity hashes IDs, "
             "queries and filters -- measured values belong in Observations and the numerical "
             "store. Convert to a string if the value is genuinely part of identity."
         )
@@ -107,16 +118,18 @@ def _serialize(value: Any, path: str) -> str:
         return f"{{{members}}}"
 
     raise CanonicalizationError(
-        f"{path}: {type(value).__name__} is not JSON-canonicalizable. Convert it to a string, "
-        "int, bool, None, list or dict first -- an implicit conversion here would make the hash "
-        "depend on this implementation's choices."
+        f"{path}: {type(value).__name__} is outside this restricted JCS profile. Convert it to a "
+        "string, int, bool, None, list or dict first -- an implicit conversion here would make "
+        "the hash depend on this implementation's choices."
     )
 
 
 def canonicalize(value: Any) -> str:
-    """Return the RFC 8785 canonical JSON form of ``value``.
+    """Return the canonical JSON form of ``value`` under the restricted JCS profile.
 
-    Deterministic across processes and machines for any input this accepts.
+    Deterministic across processes and machines for any input this accepts. Raises
+    :class:`CanonicalizationError` for anything outside the accepted domain -- see the module
+    docstring for what is deliberately not implemented.
     """
     return _serialize(value, "$")
 

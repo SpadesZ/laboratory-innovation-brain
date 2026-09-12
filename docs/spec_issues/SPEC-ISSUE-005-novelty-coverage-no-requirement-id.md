@@ -1,7 +1,7 @@
 # SPEC-ISSUE-005: PriorArtSearchRecord / novelty coverage has no dedicated Requirement ID
 
 Severity: GATE
-Status: OPEN
+Status: RESOLVED
 Blocks gate: M3
 Raised: 2026-09-12
 Raised by: M0a Spec Coverage Audit (§23.5 (2))
@@ -37,7 +37,20 @@ record is gone.
 The Novelty Auditor is one of the six core roles (M3); external adapters are M5. Nothing in M0a–M2
 asserts novelty. Recorded as `Blocks gate: M3`, where the role first exists.
 
-## Options for the maintainer
+## Resolution
+
+**Maintainer ruled Option 1 on 2026-09-12 (amendment `v3.3-a2`)** — a dedicated requirement rather
+than extending `SRC-002`. `SRC-003` / `T-SRC-003` added:
+
+> SRC-003 — 任何 novelty status MUST 引用 `PriorArtSearchRecord`，記錄 sources、queries、date
+> range 與 limitations。無覆蓋率記錄的 novelty status MUST 被拒絕；internal novelty MUST NOT 被
+> 當作 global novelty 呈現。
+
+Allocated to **M3**, where the Novelty Auditor first exists. Registry entries added for §6.21 and
+§7.5. Part of the 53 ↔ 53 to 57 ↔ 57 move.
+
+
+## Superseded options considered
 
 1. **Add a dedicated requirement** (e.g. `SRC-003` / `T-SRC-003`): a novelty status MUST reference a
    `PriorArtSearchRecord` recording sources, queries, date range and limitations; a novelty status

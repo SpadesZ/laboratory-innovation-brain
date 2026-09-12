@@ -41,6 +41,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # After 003: bundle members reference attestations. `a` suffixes mark additions beyond
     # Appendix A's index, whose 001-012 numbers are reserved for the canonical migrations.
     "004a_evidence_bundles.sql",
+    # After 004a: makes the bundle tables append-only. Separate from 004a because storability and
+    # immutability are distinct guarantees, and 004a shipped without the second one.
+    "004b_evidence_bundle_immutability.sql",
     # After 003: the EVI-005 payload triggers attach to observations and attestations.
     "008a_condition_payload_validation.sql",
 )

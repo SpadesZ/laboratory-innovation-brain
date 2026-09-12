@@ -1,7 +1,7 @@
 # SPEC-ISSUE-002: `GH-xxx` is missing from the §23.2 Requirement ID namespace table
 
 Severity: EDITORIAL
-Status: OPEN
+Status: RESOLVED
 Raised: 2026-09-12
 Raised by: implementation agent, P1 review
 Affected: §23.2, §25.3, §26
@@ -51,6 +51,6 @@ editorial fix.
 
 ## Resolution checklist
 
-- [ ] Spec maintainer adds `GH-xxx` to §23.2, or decides on renumbering into `SRC`
-- [ ] If renumbered: update §25.3, §26, `docs/normative_statements.yaml`, `docs/milestones.yaml`
-- [ ] Inline comment in `parser.py` updated to cite the settled text
+- [x] `GH-xxx` added to §23.2 (2026-09-12); renumbering into `SRC` rejected
+- [x] No Requirement or Test ID changed, so §25.3/§26 needed no edit
+- [x] `parser.py` comment updated to cite the settled namespace table

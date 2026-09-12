@@ -126,32 +126,53 @@ def test_declared_non_identity_fields_do_not_affect_the_hash(field):
 def test_hash_is_stable_across_processes():
     """A hash that depends on process state cannot be compared tomorrow.
 
-    Run in real subprocesses under different ``PYTHONHASHSEED`` values. String hash randomisation
-    perturbs dict and set iteration order, which is exactly what a naive ``json.dumps`` would leak
-    into the digest. Asserting twice within one process would not detect it, because the seed is
-    fixed for a process's lifetime.
+    Run in real subprocesses under different ``PYTHONHASHSEED`` values, because the seed is fixed
+    for a process's lifetime -- asserting twice inside one process could not detect the problem.
+
+    The condition filter is built by iterating a **set**, so its insertion order really is
+    hash-order dependent. An earlier version of this test used a dict literal, whose insertion
+    order is fixed in Python 3.7+; the seed could not have influenced it, so the test would have
+    passed against a naive serializer and proved nothing.
+
+    Two assertions, and the second is what makes the first mean something:
+
+      1. the canonical hash is identical across every seed;
+      2. a naive ``json.dumps`` over the same source differs across seeds.
+
+    If (2) ever stops holding, the fixture has stopped being hash-order dependent and (1) has
+    become vacuous -- so the test fails and says so rather than passing quietly.
     """
+    import json
     import subprocess
     import sys
 
     program = (
-        "import sys; sys.path.insert(0, 'src')\n"
+        "import hashlib, json, sys\n"
+        "sys.path.insert(0, 'src')\n"
         "from lab_brain.core.models.evidence_bundle import EvidenceBundle, ResearchIntent\n"
+        # Iterating a set is where string hash randomisation actually shows up. Enough members
+        # that the permutation differs between seeds with overwhelming probability.
+        "keys = {'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta'}\n"
+        "condition_filter = {key: 'v' for key in keys}\n"
+        "schema_versions = {key: 'toy/basic@1.0.0' for key in keys}\n"
         "b = EvidenceBundle(\n"
         "    research_intent=ResearchIntent(intent='DIAGNOSIS', stakes='HIGH'),\n"
         "    query_text='q',\n"
         "    source_policy_id='sp:1',\n"
         "    source_policy_version='1.0.0',\n"
-        "    condition_filter={'z': '1', 'a': '2', 'm': '3'},\n"
-        "    condition_schema_versions={'q': 'q/r@1.0.0', 'b': 'b/c@1.0.0'},\n"
+        "    condition_filter=condition_filter,\n"
+        "    condition_schema_versions=schema_versions,\n"
         "    ordered_attestation_ids=('att:a', 'att:b'),\n"
         "    project_id='prj:test',\n"
         ")\n"
-        "print(b.canonical_hash)\n"
+        # The control: what a naive serializer would have hashed.
+        "naive = hashlib.sha256(json.dumps(condition_filter).encode()).hexdigest()\n"
+        "print(json.dumps({'canonical': b.canonical_hash, 'naive': naive}))\n"
     )
 
-    digests = set()
-    for seed in ("0", "1", "12345", "random"):
+    canonical_digests: set[str] = set()
+    naive_digests: set[str] = set()
+    for seed in ("0", "1", "12345", "99999"):
         result = subprocess.run(
             [sys.executable, "-c", program],
             cwd=repo_root(),
@@ -161,9 +182,18 @@ def test_hash_is_stable_across_processes():
             env={**os.environ, "PYTHONHASHSEED": seed},
         )
         assert result.returncode == 0, f"seed {seed} failed:\n{result.stderr}"
-        digests.add(result.stdout.strip())
+        payload = json.loads(result.stdout.strip())
+        canonical_digests.add(payload["canonical"])
+        naive_digests.add(payload["naive"])
 
-    assert len(digests) == 1, f"hash varied across hash seeds: {digests}"
+    assert len(naive_digests) > 1, (
+        "the fixture is no longer hash-order dependent: a naive json.dumps produced the same "
+        f"digest under every seed ({naive_digests}). The canonical-stability assertion below "
+        "would be vacuous, so fix the fixture rather than this assertion."
+    )
+    assert len(canonical_digests) == 1, (
+        f"canonical hash varied across hash seeds: {canonical_digests}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -301,11 +331,13 @@ def test_duplicate_attestation_in_one_bundle_is_rejected():
 @pytest.mark.requirement("EVI-006")
 @pytest.mark.spec_test("T-EVI-006")
 def test_a_float_in_the_condition_filter_is_refused_not_guessed():
-    """RFC 8785 float serialization is not implemented, so it fails loudly.
+    """Floats are outside the restricted JCS profile, so hashing fails loudly.
 
     Hashing a float on a guess would produce digests that agree on one machine and disagree on
     another -- the failure mode that makes a provenance hash worthless precisely when it matters.
+    A conformant RFC 8785 implementation would accept this; this profile refuses rather than
+    approximate ECMAScript `Number::toString`.
     """
     bundle = make_bundle(condition_filter={"level": 1.5})
-    with pytest.raises(CanonicalizationError, match="float values are not canonicalizable"):
+    with pytest.raises(CanonicalizationError, match="outside this restricted JCS profile"):
         bundle.compute_hash()

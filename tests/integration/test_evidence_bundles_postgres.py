@@ -274,3 +274,165 @@ def test_the_same_retrieval_may_recur_as_a_second_bundle(db_with_attestations):
         (first.canonical_hash,),
     ).fetchall()
     assert len(rows) == 2
+
+
+# ---------------------------------------------------------------------------
+# Bundles are append-only (migration 004b)
+#
+# 004a made a bundle storable and its ordering reconstructable. It did not make it immutable,
+# which left the guarantee hollow: rewriting `query_text` silently changes what an LLM is recorded
+# as having been shown, while `canonical_hash` still reads as valid to anyone who does not
+# recompute it. The audit trail would then confirm a history that never happened.
+#
+# Corrections create a NEW bundle. 004a deliberately left `canonical_hash` non-unique so the same
+# retrieval may recur as its own row.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.requirement("EVI-006")
+@pytest.mark.spec_test("T-EVI-006")
+@pytest.mark.parametrize(
+    ("column", "value"),
+    [
+        ("query_text", "a different question"),
+        ("query_hash", "sha256:" + "b" * 64),
+        ("source_policy_id", "sp:novelty"),
+        ("source_policy_version", "9.9.9"),
+        ("canonical_hash", "sha256:" + "c" * 64),
+        ("schema_version", 2),
+        ("research_intent", "NOVELTY_AUDIT"),
+        ("stakes", "LOW"),
+        ("condition_filter", '{"setting": "stressed"}'),
+        ("condition_schema_versions", '{"toy": "toy/basic@2.0.0"}'),
+        ("project_id", "prj:test"),
+        ("retrieval_trace_id", "trace:rewritten"),
+    ],
+)
+def test_database_refuses_to_update_any_bundle_column(db_with_attestations, column, value):
+    """Every column, not a curated subset.
+
+    A column-level trigger list has to be extended by hand whenever the table gains a field, and
+    the field most likely to be forgotten is the one added under deadline pressure.
+    """
+    import psycopg
+
+    bundle = make_bundle()
+    _store(db_with_attestations, bundle)
+    with pytest.raises(psycopg.errors.RestrictViolation, match="append-only"):
+        db_with_attestations.execute(
+            f"UPDATE evidence_bundles SET {column} = %s WHERE bundle_id = %s",
+            (value, bundle.bundle_id),
+        )
+
+
+@pytest.mark.requirement("EVI-006")
+@pytest.mark.spec_test("T-EVI-006")
+def test_database_refuses_to_delete_a_bundle(db_with_attestations):
+    """Deleting a bundle would orphan the provenance of anything citing its hash."""
+    import psycopg
+
+    bundle = make_bundle()
+    _store(db_with_attestations, bundle)
+    with pytest.raises(psycopg.errors.RestrictViolation, match="append-only"):
+        db_with_attestations.execute(
+            "DELETE FROM evidence_bundles WHERE bundle_id = %s", (bundle.bundle_id,)
+        )
+
+
+@pytest.mark.requirement("EVI-006")
+@pytest.mark.spec_test("T-EVI-006")
+def test_database_refuses_to_repoint_a_member_attestation(db_with_attestations):
+    """Swapping the evidence under a stored hash is the sharpest form of this bypass."""
+    import psycopg
+
+    bundle = make_bundle(ordered_attestation_ids=("att:a", "att:b"))
+    _store(db_with_attestations, bundle)
+    with pytest.raises(psycopg.errors.RestrictViolation, match="append-only"):
+        db_with_attestations.execute(
+            "UPDATE evidence_bundle_members SET attestation_id = 'att:c' "
+            "WHERE bundle_id = %s AND position = 0",
+            (bundle.bundle_id,),
+        )
+
+
+@pytest.mark.requirement("EVI-006")
+@pytest.mark.spec_test("T-EVI-006")
+def test_database_refuses_to_rehome_a_member_to_another_bundle(db_with_attestations):
+    """Moving a member between bundles changes two evidence sets with one statement."""
+    import psycopg
+
+    first = make_bundle(ordered_attestation_ids=("att:a",))
+    second = make_bundle(ordered_attestation_ids=("att:b",), query_text="a second question")
+    _store(db_with_attestations, first)
+    _store(db_with_attestations, second)
+    with pytest.raises(psycopg.errors.RestrictViolation, match="append-only"):
+        db_with_attestations.execute(
+            "UPDATE evidence_bundle_members SET bundle_id = %s WHERE bundle_id = %s",
+            (second.bundle_id, first.bundle_id),
+        )
+
+
+@pytest.mark.requirement("EVI-006")
+@pytest.mark.spec_test("T-EVI-006")
+def test_database_refuses_to_reorder_members(db_with_attestations):
+    """Order is part of bundle identity, so reordering silently invalidates the hash."""
+    import psycopg
+
+    bundle = make_bundle(ordered_attestation_ids=("att:a", "att:b"))
+    _store(db_with_attestations, bundle)
+    with pytest.raises(psycopg.errors.RestrictViolation, match="append-only"):
+        db_with_attestations.execute(
+            "UPDATE evidence_bundle_members SET position = 1 WHERE bundle_id = %s AND position = 0",
+            (bundle.bundle_id,),
+        )
+
+
+@pytest.mark.requirement("EVI-006")
+@pytest.mark.spec_test("T-EVI-006")
+def test_database_refuses_to_delete_a_member(db_with_attestations):
+    """Removing evidence from a stored bundle leaves the hash asserting it was present."""
+    import psycopg
+
+    bundle = make_bundle(ordered_attestation_ids=("att:a", "att:b"))
+    _store(db_with_attestations, bundle)
+    with pytest.raises(psycopg.errors.RestrictViolation, match="append-only"):
+        db_with_attestations.execute(
+            "DELETE FROM evidence_bundle_members WHERE bundle_id = %s AND position = 1",
+            (bundle.bundle_id,),
+        )
+
+
+@pytest.mark.requirement("EVI-006")
+@pytest.mark.spec_test("T-EVI-006")
+def test_a_correction_is_expressed_as_a_new_bundle(db_with_attestations):
+    """The sanctioned path. A different evidence set *is* a different retrieval."""
+    original = make_bundle(ordered_attestation_ids=("att:a", "att:b"))
+    _store(db_with_attestations, original)
+
+    corrected = make_bundle(ordered_attestation_ids=("att:a", "att:b", "att:c"))
+    _store(db_with_attestations, corrected)
+
+    assert corrected.canonical_hash != original.canonical_hash
+    rows = db_with_attestations.execute(
+        "SELECT bundle_id, canonical_hash FROM evidence_bundles ORDER BY bundle_id"
+    ).fetchall()
+    assert len(rows) == 2
+    # The original survives unaltered -- that is the point of refusing the UPDATE.
+    stored = dict(rows)
+    assert stored[original.bundle_id] == original.canonical_hash
+
+
+@pytest.mark.requirement("EVI-006")
+@pytest.mark.spec_test("T-EVI-006")
+def test_insert_still_works_after_the_immutability_triggers(db_with_attestations):
+    """Positive control: append-only must not mean write-only-never.
+
+    Without this, a trigger that refused every statement would pass all the negative tests above.
+    """
+    bundle = make_bundle(ordered_attestation_ids=("att:a", "att:b", "att:c"))
+    _store(db_with_attestations, bundle)
+    count = db_with_attestations.execute(
+        "SELECT count(*) FROM evidence_bundle_members WHERE bundle_id = %s", (bundle.bundle_id,)
+    ).fetchone()
+    assert count is not None
+    assert count[0] == 3
