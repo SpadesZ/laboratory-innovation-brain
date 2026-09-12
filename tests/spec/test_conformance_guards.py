@@ -94,9 +94,18 @@ def test_missing_ext_001_declaration_is_rejected(spec_text):
 
 
 def test_requirement_count_drift_is_reported(spec_text, tmp_path):
-    """The spec's self-asserted "52 requirements" must agree with its own tables."""
+    """The spec's self-asserted requirement count must agree with its own tables.
+
+    The count is read from the spec rather than hardcoded. A literal broke once already when the
+    maintainer amendment moved 52 -> 53, and a guard that needs editing every time the spec is
+    amended is a guard that will eventually be edited into passing.
+    """
+    actual = len(load_spec().requirements)
     path = tmp_path / "SAI_3.3.md"
-    path.write_text(spec_text.replace("**52 requirements", "**51 requirements"), encoding="utf-8")
+    path.write_text(
+        spec_text.replace(f"**{actual} requirements", f"**{actual - 1} requirements"),
+        encoding="utf-8",
+    )
     drifted = load_spec(path)
     assert conformance.check_declared_invariant(drifted) != []
 

@@ -139,10 +139,17 @@ class RelationJudgment(CoreModel):
 
         A new object rather than a mutation: the relation row is superseded, and the reason plus
         the actor who decided are part of the record (§17.12).
+
+        Reconstructed through ``model_validate`` rather than ``model_copy(update=...)``.
+        ``model_copy`` does not re-run validators, so it could produce a judgment with
+        ``valid_to`` before ``valid_from`` -- a relation valid at no instant at all, which
+        ``as_of`` replay would silently skip while the record looked closed and accounted for.
+        Every field-level and model-level rule is re-checked here.
         """
         closed_at = at or utc_now()
-        return self.model_copy(
-            update={
+        return RelationJudgment.model_validate(
+            self.model_dump()
+            | {
                 "valid_to": closed_at,
                 "invalidation_reason": reason,
                 "actor_id": actor_id,

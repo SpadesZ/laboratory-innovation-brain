@@ -21,9 +21,9 @@ proposed wording, and the decision is escalated to the spec maintainer.
 
 | ID | Severity | Subject | Must resolve before | Status |
 |---|---|---|---|---|
-| [SPEC-ISSUE-001](SPEC-ISSUE-001-registry-unique-requirement-ids.md) | GATE | T-SPEC-002 "unique Requirement IDs" contradicts the §23.6 example | M0a gate (P3) | OPEN |
+| [SPEC-ISSUE-001](SPEC-ISSUE-001-registry-unique-requirement-ids.md) | GATE | T-SPEC-002 "unique Requirement IDs" contradicts the §23.6 example | M0a gate (P3) | **RESOLVED** — Reading B, 2026-09-12 |
 | [SPEC-ISSUE-002](SPEC-ISSUE-002-gh-namespace-missing.md) | EDITORIAL | `GH-xxx` missing from the §23.2 namespace table | — | OPEN |
-| [SPEC-ISSUE-003](SPEC-ISSUE-003-typed-tools-no-requirement-id.md) | GATE | §10.2 typed-tools-only has no dedicated Requirement ID | M0a gate (P3) | OPEN |
+| [SPEC-ISSUE-003](SPEC-ISSUE-003-typed-tools-no-requirement-id.md) | GATE | §10.2 typed-tools-only has no dedicated Requirement ID | M0a gate (P3) | **RESOLVED** — Option 1 (SIM-003), 2026-09-12 |
 
 A registry entry that rests on an unresolved issue names it in its `spec_issue` field.
 `T-SPEC-002` verifies the referenced file exists, so an issue cannot be cited and then quietly

@@ -53,11 +53,13 @@ TOY_SCHEMA = ConditionSchemaRegistration(
     },
 )
 
+TOY_COMPARATOR_V2_VERSION = "toy-comparator-2.0.0"
+
 TOY_SCHEMA_V2 = ConditionSchemaRegistration(
     domain="toy",
     schema_id="basic",
     version="2.0.0",
-    comparator_version="toy-comparator-2.0.0",
+    comparator_version=TOY_COMPARATOR_V2_VERSION,
     json_schema={
         "type": "object",
         "required": ["setting", "level"],
@@ -163,6 +165,7 @@ __all__ = [
     "EXTRACTOR_ID",
     "EXTRACTOR_VERSION",
     "PROJECT_ID",
+    "TOY_COMPARATOR_V2_VERSION",
     "TOY_COMPARATOR_VERSION",
     "TOY_SCHEMA",
     "TOY_SCHEMA_REF",

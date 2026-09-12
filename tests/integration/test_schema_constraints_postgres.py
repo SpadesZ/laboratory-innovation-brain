@@ -243,3 +243,178 @@ def test_database_accepts_a_consistent_condition_match(db):
         "condition_match_id = 'cmt:1'"
     ).fetchone()
     assert row == ("EXACT", TOY_SCHEMA.comparator_version)
+
+
+# ---------------------------------------------------------------------------
+# EVI-005 payload validation (migration 008a)
+#
+# The foreign key proves the declared schema version is *registered*. It says nothing about
+# whether `conditions` conforms to it, so direct SQL could store a misspelled condition key
+# against a perfectly valid version. A record that looks fully specified but is not is exactly
+# what makes condition-aware retrieval treat incomparable data as comparable.
+# ---------------------------------------------------------------------------
+
+_INSERT_OBSERVATION = """
+INSERT INTO observations (observation_id, artifact_id, metric_or_event, conditions,
+                          conditions_schema_version, method_ref, project_id)
+VALUES (%(observation_id)s, %(artifact_id)s, 'toy_metric', %(conditions)s,
+        %(schema_ref)s, 'toy@1.0.0', 'prj:test')
+"""
+
+_INSERT_ATTESTATION = """
+INSERT INTO attestations (attestation_id, claim_id, epistemic_type, source_work_id, locator,
+                          conditions, conditions_schema_version, project_id,
+                          extractor_version, extraction_provenance)
+VALUES (%(attestation_id)s, 'clm:1', 'REPORTED', 'swk:1', 'p.3',
+        %(conditions)s, %(schema_ref)s, 'prj:test', '1.0.0',
+        '{"extractor_id": "toy_extractor", "extractor_version": "1.0.0"}'::jsonb)
+"""
+
+
+def _observation_params(conditions: str, **overrides: object) -> dict[str, object]:
+    params: dict[str, object] = {
+        "observation_id": "obs:1",
+        "artifact_id": f"art:{HASH_A}",
+        "conditions": conditions,
+        "schema_ref": TOY_SCHEMA_REF,
+    }
+    params.update(overrides)
+    return params
+
+
+@pytest.fixture
+def db_with_schema(db):  # type: ignore[no-untyped-def]
+    """Toy condition schema + one artifact, ready for payload tests."""
+    _register_toy_schema(db)
+    db.execute(_INSERT_ARTIFACT, _artifact_params(HASH_A))
+    return db
+
+
+@pytest.fixture
+def db_with_claim(db_with_schema):  # type: ignore[no-untyped-def]
+    """Adds a Claim and SourceWork so attestations can be inserted."""
+    db_with_schema.execute(
+        "INSERT INTO claims (claim_id, normalized_proposition) VALUES ('clm:1', 'p')"
+    )
+    db_with_schema.execute(
+        "INSERT INTO source_works (source_work_id, work_type, title, trust_class) "
+        "VALUES ('swk:1', 'JOURNAL_ARTICLE', 'A paper', 'PEER_REVIEWED')"
+    )
+    return db_with_schema
+
+
+@pytest.mark.requirement("EVI-005")
+@pytest.mark.spec_test("T-EVI-005")
+def test_database_rejects_observation_conditions_missing_a_required_field(db_with_schema):
+    import psycopg
+
+    with pytest.raises(psycopg.errors.CheckViolation, match="missing required fields"):
+        db_with_schema.execute(_INSERT_OBSERVATION, _observation_params('{"level": 1.0}'))
+
+
+@pytest.mark.requirement("EVI-005")
+@pytest.mark.spec_test("T-EVI-005")
+def test_database_rejects_observation_conditions_with_an_undeclared_field(db_with_schema):
+    """A misspelled key reaching storage makes an incomplete record look complete."""
+    import psycopg
+
+    with pytest.raises(psycopg.errors.CheckViolation, match="not declared"):
+        db_with_schema.execute(
+            _INSERT_OBSERVATION, _observation_params('{"setting": "nominal", "levle": 1.0}')
+        )
+
+
+@pytest.mark.requirement("EVI-005")
+@pytest.mark.spec_test("T-EVI-005")
+def test_database_rejects_empty_observation_conditions_when_a_field_is_required(
+    db_with_schema,
+):
+    import psycopg
+
+    with pytest.raises(psycopg.errors.CheckViolation, match="missing required fields"):
+        db_with_schema.execute(_INSERT_OBSERVATION, _observation_params("{}"))
+
+
+@pytest.mark.requirement("EVI-005")
+@pytest.mark.spec_test("T-EVI-005")
+def test_database_accepts_conforming_observation_conditions(db_with_schema):
+    """Positive control: the trigger must not reject the legitimate payload."""
+    db_with_schema.execute(
+        _INSERT_OBSERVATION, _observation_params('{"setting": "nominal", "level": 2.0}')
+    )
+    row = db_with_schema.execute(
+        "SELECT conditions FROM observations WHERE observation_id = 'obs:1'"
+    ).fetchone()
+    assert row is not None
+    assert row[0] == {"setting": "nominal", "level": 2.0}
+
+    # An optional declared field may be omitted.
+    db_with_schema.execute(
+        _INSERT_OBSERVATION,
+        _observation_params('{"setting": "nominal"}', observation_id="obs:2"),
+    )
+
+
+@pytest.mark.requirement("EVI-005")
+@pytest.mark.spec_test("T-EVI-005")
+def test_database_rejects_attestation_conditions_missing_a_required_field(db_with_claim):
+    """The trigger covers attestations too, not only observations."""
+    import psycopg
+
+    with pytest.raises(psycopg.errors.CheckViolation, match="missing required fields"):
+        db_with_claim.execute(
+            _INSERT_ATTESTATION,
+            {
+                "attestation_id": "att:1",
+                "conditions": '{"level": 1.0}',
+                "schema_ref": TOY_SCHEMA_REF,
+            },
+        )
+
+
+@pytest.mark.requirement("EVI-005")
+@pytest.mark.spec_test("T-EVI-005")
+def test_database_rejects_attestation_conditions_with_an_undeclared_field(db_with_claim):
+    import psycopg
+
+    with pytest.raises(psycopg.errors.CheckViolation, match="not declared"):
+        db_with_claim.execute(
+            _INSERT_ATTESTATION,
+            {
+                "attestation_id": "att:1",
+                "conditions": '{"setting": "nominal", "junk": true}',
+                "schema_ref": TOY_SCHEMA_REF,
+            },
+        )
+
+
+@pytest.mark.requirement("EVI-005")
+@pytest.mark.spec_test("T-EVI-005")
+def test_database_accepts_conforming_attestation_conditions(db_with_claim):
+    db_with_claim.execute(
+        _INSERT_ATTESTATION,
+        {
+            "attestation_id": "att:1",
+            "conditions": '{"setting": "nominal"}',
+            "schema_ref": TOY_SCHEMA_REF,
+        },
+    )
+    row = db_with_claim.execute(
+        "SELECT conditions FROM attestations WHERE attestation_id = 'att:1'"
+    ).fetchone()
+    assert row is not None
+    assert row[0] == {"setting": "nominal"}
+
+
+@pytest.mark.requirement("EVI-005")
+@pytest.mark.spec_test("T-EVI-005")
+def test_payload_validation_also_covers_updates(db_with_schema):
+    """An UPDATE introducing an undeclared key must be rejected, not only an INSERT."""
+    import psycopg
+
+    db_with_schema.execute(_INSERT_OBSERVATION, _observation_params('{"setting": "nominal"}'))
+    with pytest.raises(psycopg.errors.CheckViolation, match="not declared"):
+        db_with_schema.execute(
+            'UPDATE observations SET conditions = \'{"setting": "a", "nope": 1}\'::jsonb '
+            "WHERE observation_id = 'obs:1'"
+        )

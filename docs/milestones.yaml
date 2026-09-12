@@ -3,7 +3,7 @@
 # Gate order and exit gates are transcribed from SAI 3.3 §26.1. The per-milestone
 # `requirements` allocation is an implementation decision, not spec text: each
 # requirement is assigned to the milestone at which its §26 pass condition can be
-# fully satisfied. The union of all allocations MUST equal the 52 requirements the
+# fully satisfied. The union of all allocations MUST equal the 53 requirements the
 # spec declares (enforced by T-SPEC-001).
 #
 # `status` drives the CI ratchet. Once a milestone is DONE, every requirement allocated to it
@@ -96,6 +96,7 @@ milestones:
     requirements:
       - SIM-001
       - SIM-002
+      - SIM-003
       - EVI-001
       - DOM-SP-001
       - DOM-SP-002

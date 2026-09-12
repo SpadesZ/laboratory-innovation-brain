@@ -1,16 +1,20 @@
 """T-SPEC-002 — Normative Statement Registry coverage (TST-003).
 
-Pass condition (§26): registry entries have unique Requirement IDs; every entry maps to
-at least one existing Test ID or carries an explicit DEFERRED rationale with review
-date; no entry references an unknown requirement or test.
+Pass condition (§26, as amended by maintainer ruling `v3.3-a1`):
+
+    `statement_key` MUST be unique across the registry; each registry entry MUST reference
+    exactly one valid Requirement ID. One Requirement ID MAY be referenced by multiple entries
+    when it covers distinct normative statements in different sections. Every entry maps to at
+    least one existing Test ID or carries an explicit DEFERRED rationale with review date; no
+    entry references an unknown requirement or test.
 
   Registry completeness against prose is a human audit gate (§23.5), NOT asserted here.
 
-The "unique Requirement IDs" clause is ambiguous -- read literally, the §23.6 excerpt
-violates its own rule. That is recorded as SPEC-ISSUE-001 and escalated to the spec
-maintainer rather than settled here; AGT-015 forbids an agent picking a reading. The
-provisional reading implemented below is "statement keys are unique, and each entry names
-exactly one resolvable Requirement ID".
+The original wording said only "registry entries have unique Requirement IDs", which read
+literally made the §23.6 excerpt violate its own rule -- `VER-006` and `UX-001` each appear
+twice there. That was escalated as SPEC-ISSUE-001 rather than decided in code (AGT-015), and
+the maintainer ruled Reading B on 2026-09-12. The assertions below did not change; they now
+rest on settled spec text.
 """
 
 from __future__ import annotations

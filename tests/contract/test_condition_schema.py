@@ -105,7 +105,12 @@ class ToyComparator:
 
 
 class LyingComparator(ToyComparator):
-    """Returns a tolerance_policy_version that does not match its own."""
+    """Declares c1 but stamps its matches with a different version.
+
+    Registered as the *sole* comparator in its own registry below. Since P2-fix,
+    ``register_comparator`` rejects two implementations sharing one declared version, so this
+    cannot simply be layered over ``ToyComparator``.
+    """
 
     def compare(self, left, right, schema):  # type: ignore[no-untyped-def]
         match = super().compare(left, right, schema)
@@ -289,11 +294,12 @@ def test_condition_match_records_the_comparator_version(registry):
 
 @pytest.mark.requirement("EVI-005")
 @pytest.mark.spec_test("T-EVI-005")
-def test_comparator_must_not_misreport_its_own_version(registry):
+def test_comparator_must_not_misreport_its_own_version():
     """A ConditionMatch that cannot be attributed to real rules is not reproducible."""
-    registry.register_comparator("toy", "basic", LyingComparator())
+    lying = registry_with_toy_schema()
+    lying.register_comparator("toy", "basic", LyingComparator())
     with pytest.raises(ConditionSchemaError, match="tolerance_policy_version"):
-        registry.compare(
+        lying.compare(
             {"setting": "nominal", "level": 1.0},
             {"setting": "nominal", "level": 1.0},
             TOY_SCHEMA_REF,

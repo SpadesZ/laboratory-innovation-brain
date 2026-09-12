@@ -1,14 +1,14 @@
 # SPEC-ISSUE-001: T-SPEC-002 "unique Requirement IDs" contradicts the §23.6 example
 
 Severity: GATE
-Status: OPEN
+Status: RESOLVED
 Blocks gate: M0a
 Raised: 2026-09-12
 Raised by: implementation agent, P1 review
 Affected: TST-003 / T-SPEC-002, §23.6, §26
 
-> The four fields above are machine-read by `scripts/check_requirement_coverage.py`. While
-> `Status: OPEN` and `Severity: GATE`, milestone `M0a` cannot be marked DONE.
+> The four fields above are machine-read by `scripts/check_requirement_coverage.py`. Now
+> `RESOLVED`, so it no longer blocks `M0a`.
 
 ## The statement
 
@@ -38,29 +38,31 @@ can map to one Requirement ID.
 statement keys are unique.**
 Consistent with the §23.6 excerpt and with §23.5's stated purpose.
 
-## Why this is not resolved in code
+## Why this was escalated rather than decided in code
 
-Reading B is the architecturally coherent one. But AGT-015 exists to stop a Coding Agent
-choosing between readings of the specification, and "the other reading is obviously wrong" is
-exactly the reasoning AGT-015 distrusts. Choosing B and shipping a passing test would present
-an agent's interpretation as a verified norm.
+Reading B is the architecturally coherent one. But AGT-015 exists to stop a Coding Agent choosing
+between readings of the specification, and "the other reading is obviously wrong" is exactly the
+reasoning AGT-015 distrusts. Shipping B with a passing test would have presented an agent's
+interpretation as a verified norm. The implementation used Reading B provisionally while this
+issue stayed open; the maintainer ruling below is what makes it normative.
 
-## Provisional implementation (must not be treated as a resolution)
+## Resolution
 
-Reading B, as `check_registry_keys_unique` + `check_registry_requirements_resolvable` in
-`src/lab_brain/spec/conformance.py`.
+**Maintainer ruled Reading B on 2026-09-12 (P2-fix).** §26's `T-SPEC-002` pass condition now
+reads:
 
-## Proposed wording
+> `statement_key` MUST be unique across the registry; each registry entry MUST reference exactly
+> one valid Requirement ID. One Requirement ID MAY be referenced by multiple entries when it
+> covers distinct normative statements in different sections.
 
-Replace the clause in the §26 `T-SPEC-002` pass condition with:
-
-> `statement_key` MUST be unique across the registry; each registry entry MUST reference
-> exactly one valid Requirement ID. One Requirement ID MAY be referenced by multiple entries
-> when it covers distinct normative statements in different sections.
+Implemented by `check_registry_keys_unique` + `check_registry_requirements_resolvable` in
+`src/lab_brain/spec/conformance.py`. The implementation did not change -- what changed is that it
+now rests on settled spec text rather than on an agent's reading.
 
 ## Resolution checklist
 
-- [ ] Spec maintainer confirms Reading B or states Reading A with a corrected §23.6 excerpt
-- [ ] §26 `T-SPEC-002` pass condition updated
-- [ ] `conformance.py` docstrings updated to cite the settled wording instead of this issue
-- [ ] This issue closed, and the `spec_issue` reference removed from any registry entry
+- [x] Spec maintainer confirmed Reading B (2026-09-12)
+- [x] §26 `T-SPEC-002` pass condition updated
+- [x] `conformance.py` / test docstrings updated to cite the settled wording
+- [x] Recorded in the spec Version Notes as amendment `v3.3-a1`
+- [x] Issue closed; no registry entry cited it

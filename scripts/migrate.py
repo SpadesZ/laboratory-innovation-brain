@@ -38,6 +38,10 @@ APPLY_ORDER: tuple[str, ...] = (
     "008_conditions.sql",
     "003_claims_observations_attestations.sql",
     "004_relations.sql",
+    # After 003: the EVI-005 payload triggers attach to observations and attestations. The `a`
+    # suffix marks an amendment to 008 rather than a new canonical Appendix A migration, whose
+    # 001-012 numbers are reserved.
+    "008a_condition_payload_validation.sql",
 )
 
 _BOOTSTRAP = """

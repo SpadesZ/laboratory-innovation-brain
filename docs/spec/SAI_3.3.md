@@ -25,7 +25,7 @@
 | FIX-7 | Lumerical seat 與 ground-truth benchmark 兩項外部依賴進 Risk Register |
 | FIX-8 | 新增 Frontend Error & Recovery Contract：§17.22–17.24、§27、`UX-xxx` namespace、UX-001~007 |
 
-**Requirement ↔ Test 不變式：52 ↔ 52。**
+**Requirement ↔ Test 不變式：53 ↔ 53。**
 
 ---
 
@@ -2497,7 +2497,7 @@ EXPECTED RESEARCH LOOP
 
 ## 25.3 First Vertical Requirements
 
-> EXT-001 定義於 §24.5，不在本表重複。本表 51 條 + EXT-001 = **52 條 normative requirements**。
+> EXT-001 定義於 §24.5，不在本表重複。本表 52 條 + EXT-001 = **53 條 normative requirements**。
 
 | Requirement | MUST |
 |---|---|
@@ -2505,6 +2505,7 @@ EXPECTED RESEARCH LOOP
 | ART-001 | 每個輸入 project/script/result 必須有 immutable artifact ID + hash + source + timestamp。 |
 | SIM-001 | 每次 CHARGE run 必須保存 solver version、project hash、mesh/bias/config、exit/convergence status。 |
 | SIM-002 | coarse/low-fidelity contradiction 只能標記 CHALLENGED；要 REJECT hypothesis 必須過 standard/validation fidelity gate。 |
+| SIM-003 | Tool invocation MUST occur through a typed ToolRegistry. No tool, Capability or backend adapter may expose an arbitrary script-execution entry point (`eval_script`-class public interface). Untyped execution paths MUST be rejected by static conformance test. |
 | EVI-001 | Cj/Rs evidence 必須含 unit、normalization basis、bias/frequency conditions 與 extraction method。 |
 | EVI-002 | 缺失欄位必須是 UNKNOWN/NOT_REPORTED，不得由 LLM 補常見值。 |
 | EVI-003 | LLM-generated interpretation/inference MUST NOT be admitted as OBSERVED/SIMULATED/MEASURED evidence; it remains an inference/RelationJudgment with InferenceProvenance. |
@@ -2578,7 +2579,7 @@ VS-SP-001 只有在以下條件全部成立才算完成：
 
 Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 將需求直接綁到測試；IMPLEMENTATION_STATUS.md 應引用這些 Requirement IDs 與 Test IDs。
 
-**52 requirements ↔ 52 tests。**
+**53 requirements ↔ 53 tests。**
 
 | Requirement | Test ID | Test type | Pass condition |
 |---|---|---|---|
@@ -2586,6 +2587,7 @@ Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 
 | ART-001 | T-ART-001 | contract | 同一 bytes 得到同一 content hash/artifact identity；修改 1 byte 必須產生新 artifact_id/hash；若同一人類文件 lineage，lineage_revision 遞增並保留 previous_artifact_id。 |
 | SIM-001 | T-SIM-001 | contract | run manifest 缺 solver/project/conditions/validity 任一必要欄位即拒絕升級正式 evidence。 |
 | SIM-002 | T-SIM-002 | e2e | low-fidelity contradiction 只使 hypothesis → CHALLENGED，不得直接 → REJECTED。 |
+| SIM-003 | T-SIM-003 | architecture | static test rejects any public tool/Capability/backend-adapter interface accepting arbitrary script or code text for execution (`eval_script`-class); every tool invocation resolves through the typed ToolRegistry. |
 | EVI-001 | T-EVI-001 | contract/domain | Cj/Rs fixture missing unit、normalization basis、bias/frequency condition 或 extraction method 時 admission fail；完整 fixture 可 round-trip。 |
 | EVI-002 | T-EVI-002 | unit | parser 缺欄位時輸出 UNKNOWN/NOT_REPORTED，不得生成 default scientific value。 |
 | EVI-003 | T-EVI-003 | integration | LLM-generated interpretation 無法被 evidence admission gate 當作 observed/simulated evidence。 |
@@ -2633,7 +2635,7 @@ Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 
 | EXT-001 | T-EXT-001 | architecture | 新增 ToyDomain 時 core package 無 source modification；plugin registration 即運作。 |
 | TST-001 | T-E2E-SP-001 | vertical e2e | Rs anomaly mock fixture 完整跑通 ingest → diagnose → test → evidence → failure/heuristic candidate。 |
 | TST-002 | T-SPEC-001 | spec | 所有 requirement IDs 唯一；每個 normative ID 至少一個 test；test 不引用未知 ID。 |
-| TST-003 | T-SPEC-002 | spec | registry entries have unique Requirement IDs; every entry maps to at least one existing Test ID or carries an explicit DEFERRED rationale with review date; no entry references an unknown requirement or test. Registry completeness against prose is a human audit gate (§23.5), not asserted by this test. |
+| TST-003 | T-SPEC-002 | spec | `statement_key` MUST be unique across the registry; each registry entry MUST reference exactly one valid Requirement ID. One Requirement ID MAY be referenced by multiple entries when it covers distinct normative statements in different sections. Every entry maps to at least one existing Test ID or carries an explicit DEFERRED rationale with review date; no entry references an unknown requirement or test. Registry completeness against prose is a human audit gate (§23.5), not asserted by this test. |
 
 ## 26.1 Milestone Gate Order
 
@@ -3068,3 +3070,4 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | v3.1 | 2026-09-10 | Specification Closure Release：移除 v2.x/v3.0 殘留；補 AuthorityPolicy/TransitionPolicy/EvidenceBundle/Position/Critique/Plan/Review contracts、plausible outcome、deterministic SelectionPolicy、ReviewQueue capacity、secret/license/embedding/retraction/observability requirements；拆 M0a/M0b。 |
 | v3.2 | 2026-09-10 | Release Candidate Closure：修 T-SPEC 自我一致性；補 EVI-003/SEC-001 條文與 EVI-001/EPI-002 tests；定義 INCOMPARABLE→human review、BenchmarkPolicy/OutcomeSpace/ValidationReport、DEPENDENCE_UNKNOWN 計數、high-stakes inverted retrieval；補 migration 010、normative registry/spec lint 與懸空 FK/actor references。 |
 | **v3.3** | **2026-09-11** | **Implementation Readiness + User Surface Release**：統一 `TransitionPolicy.evaluate` 單一簽章與 `TransitionDecision` 回傳；新增 typed `Prediction` 與 side-effect-free `evaluate_hypothetical`，使 sufficiency 可確定性計算（VER-006）；新增 `Conflict` 型別使 `blocking_conflict_policy` 可實作（EPI-006）；統一 DomainPack tool 命名類別（`run_*`/`extract_*`/`inspect_*`/`validate_*`）與單一 ID scheme `DOM-SP-TOOL-xxx`；將 registry 完整性拆為 CI 檢查與人工稽核兩段；補 `independence_basis` 值域與 DEFERRED rationale、`estimate_cost_contract`、`EvidenceField.review_id`；補 Lumerical seat 與 ground-truth benchmark 兩項外部依賴風險。新增 **Frontend Error & Recovery Contract**：IngestionItem 七態推導、五類 FROZEN error taxonomy 與 GROWING reason_code、retry 政策、ACL-gated 兩層診斷揭露、raw-artifact-first 與 stage-level retry、NEEDS_REVIEW 併入單一 ReviewQueue、versioned MessageCatalog（禁止 LLM 生成使用者錯誤文字）、derived System Health（UX-001~007）。Requirement ↔ Test：**52 ↔ 52**。無架構方向變更。 |
+| **v3.3-a1** | **2026-09-12** | **Maintainer amendment (P2-fix)**：裁決 SPEC-ISSUE-001 採 Reading B —— §26 T-SPEC-002 pass condition 改為「`statement_key` 唯一；每筆 entry 恰好引用一個合法 Requirement ID；一個 Requirement ID 可被多筆 entry 引用（涵蓋不同章節的相異 normative statements）」，消除與 §23.6 範例的自相矛盾。裁決 SPEC-ISSUE-003 採 Option 1 —— 新增 **SIM-003 / T-SIM-003**（typed ToolRegistry；禁止 `eval_script`-class 公開工具介面），SIM-003 配置至 M2。Requirement ↔ Test：**52 ↔ 52 → 53 ↔ 53**。無架構方向變更。 |

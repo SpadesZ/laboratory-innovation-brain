@@ -61,7 +61,11 @@ class ConditionSchemaRegistry:
 
     def __init__(self) -> None:
         self._schemas: dict[tuple[str, str, str], ConditionSchemaRegistration] = {}
-        self._comparators: dict[tuple[str, str], ConditionComparator] = {}
+        #: Keyed by (domain, schema_id, comparator_version). Keying only by (domain, schema_id)
+        #: was a defect: two schema versions declaring different comparator_version values would
+        #: share whichever comparator happened to be registered last, so v2 conditions could be
+        #: compared under v1 tolerance rules while the ConditionMatch claimed otherwise.
+        self._comparators: dict[tuple[str, str, str], ConditionComparator] = {}
 
     # -- registration -----------------------------------------------------
 
@@ -84,7 +88,23 @@ class ConditionSchemaRegistry:
     def register_comparator(
         self, domain: str, schema_id: str, comparator: ConditionComparator
     ) -> None:
-        self._comparators[(domain, schema_id)] = comparator
+        """Register a comparator under the version it declares.
+
+        Which comparator a schema version uses is decided by that schema's
+        ``comparator_version``, not by registration order. Registering a second comparator with
+        the same declared version and different identity is rejected, because a persisted
+        ConditionMatch names only the version -- if two implementations shared it, the match
+        would no longer identify the rules that produced it.
+        """
+        key = (domain, schema_id, comparator.version)
+        existing = self._comparators.get(key)
+        if existing is not None and existing is not comparator:
+            raise ConditionSchemaError(
+                f"comparator version {comparator.version!r} is already registered for "
+                f"{domain}/{schema_id} by a different implementation; a ConditionMatch records "
+                "only the version, so two implementations cannot share one"
+            )
+        self._comparators[key] = comparator
 
     # -- lookup -----------------------------------------------------------
 
@@ -104,17 +124,28 @@ class ConditionSchemaRegistry:
             ) from None
 
     def get_comparator(self, reference: str | ConditionSchemaRef) -> ConditionComparator:
-        ref = (
-            reference
-            if isinstance(reference, ConditionSchemaRef)
-            else ConditionSchemaRef.parse(reference)
-        )
+        """Resolve the comparator for one schema *version*.
+
+        The schema registration decides this: its ``comparator_version`` names the rules that
+        version is to be compared under. Fails closed when that comparator is absent -- falling
+        back to any other registered comparator would compare conditions under rules the schema
+        never declared, while the resulting ConditionMatch claimed the declared version.
+        """
+        schema = self.get_schema(reference)
+        key = (schema.domain, schema.schema_id, schema.comparator_version)
         try:
-            return self._comparators[ref.schema_key]
+            return self._comparators[key]
         except KeyError:
+            available = sorted(
+                version
+                for (domain, schema_id, version) in self._comparators
+                if (domain, schema_id) == (schema.domain, schema.schema_id)
+            )
             raise ConditionSchemaError(
-                f"no comparator registered for {ref.domain}/{ref.schema_id}; core does not "
-                "define condition comparison semantics (§24.1)"
+                f"no comparator registered for {schema.ref} at its declared comparator_version "
+                f"{schema.comparator_version!r}; core does not define condition comparison "
+                f"semantics (§24.1). Registered versions for "
+                f"{schema.domain}/{schema.schema_id}: {available or '(none)'}"
             ) from None
 
     def is_registered(self, reference: str | ConditionSchemaRef) -> bool:
@@ -183,13 +214,29 @@ class ConditionSchemaRegistry:
         schema = self.validate(left, conditions_schema_version)
         self.validate(right, conditions_schema_version)
         comparator = self.get_comparator(conditions_schema_version)
+
+        # Defensive: get_comparator keys on the schema's declared version, so this should hold by
+        # construction. Asserted anyway because a comparator whose `version` attribute drifted
+        # from its registration key would silently compare under undeclared rules.
+        if comparator.version != schema.comparator_version:
+            raise ConditionSchemaError(
+                f"comparator resolved for {schema.ref} declares version "
+                f"{comparator.version!r} but the schema declares "
+                f"{schema.comparator_version!r}"
+            )
+
         match = comparator.compare(left, right, schema)
-        if match.tolerance_policy_version != comparator.version:
+        if match.tolerance_policy_version != schema.comparator_version:
             raise ConditionSchemaError(
                 f"comparator returned tolerance_policy_version "
-                f"{match.tolerance_policy_version!r} but declares version "
-                f"{comparator.version!r}; a ConditionMatch must be attributable to the rules "
-                "that produced it"
+                f"{match.tolerance_policy_version!r} but {schema.ref} declares "
+                f"{schema.comparator_version!r}; a ConditionMatch must be attributable to the "
+                "rules that produced it"
+            )
+        if match.schema_ref != schema.ref:
+            raise ConditionSchemaError(
+                f"comparator returned a ConditionMatch for {match.schema_ref} while comparing "
+                f"under {schema.ref}"
             )
         return match
 

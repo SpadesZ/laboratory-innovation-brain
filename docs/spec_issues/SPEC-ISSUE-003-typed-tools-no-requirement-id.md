@@ -1,14 +1,14 @@
 # SPEC-ISSUE-003: §10.2 typed-tools-only has no dedicated Requirement ID
 
 Severity: GATE
-Status: OPEN
+Status: RESOLVED
 Blocks gate: M0a
 Raised: 2026-09-12
 Raised by: implementation agent, P1 review
 Affected: P19, §10.2, VER-002 / T-VER-002, §23.5
 
-> The four fields above are machine-read by `scripts/check_requirement_coverage.py`. While
-> `Status: OPEN` and `Severity: GATE`, milestone `M0a` cannot be marked DONE.
+> The four fields above are machine-read by `scripts/check_requirement_coverage.py`. Now
+> `RESOLVED`, so it no longer blocks `M0a`.
 
 ## The unregistered MUST
 
@@ -55,17 +55,41 @@ count. An agent minting `SIM-003` would be manufacturing a norm.
 Option 1 is recommended: a P0 risk-register defence with no dedicated test is the pattern §0.3
 warns about ("only a Requirement with no Test = will never be implemented").
 
-## Interim implementation
+## Resolution
 
-The registry entry keeps its `VER-002` mapping so `T-SPEC-002` stays internally consistent, and
-carries `spec_issue: SPEC-ISSUE-003` so the weakness is visible in data rather than only in an
-audit document. A static guard against untyped execution paths will be implemented with the
-tool registry in M2 regardless of how this issue resolves.
+**Maintainer ruled Option 1 on 2026-09-12 (P2-fix).** `SIM-003` and `T-SIM-003` added:
+
+> SIM-003 — Tool invocation MUST occur through a typed ToolRegistry. No tool, Capability or
+> backend adapter may expose an arbitrary script-execution entry point (`eval_script`-class
+> public interface). Untyped execution paths MUST be rejected by static conformance test.
+
+The requirement/test invariant moves from **52 ↔ 52 to 53 ↔ 53**, recorded in the spec Version
+Notes as amendment `v3.3-a1`. `SIM-003` is allocated to **M2**, alongside the ToolRegistry it
+constrains.
+
+The registry entry `tools.typed_only.no_arbitrary_script` now maps to `SIM-003` / `T-SIM-003`
+and no longer cites this issue.
+
+A static guard is already in place from P2-fix --
+`tests/unit/test_no_arbitrary_script_execution.py` rejects `eval_script`-class callables, script
+text parameters, and `eval`/`exec`/`compile` calls across `src/lab_brain`, with a non-vacuity
+probe proving each pattern matches. It is unmarked because `T-SIM-003` additionally requires
+"every invocation resolves through the typed ToolRegistry", which needs the registry to exist;
+marking it now would discharge half a pass condition. The guard nonetheless runs from today, so
+the forbidden shape cannot be introduced and later have to be removed.
+
+## Superseded interim implementation
+
+Until the ruling, the registry entry kept its `VER-002` mapping so `T-SPEC-002` stayed internally
+consistent, and carried `spec_issue: SPEC-ISSUE-003` so the weakness was visible in data rather
+than only in an audit document. Both are now removed: the mapping points at `SIM-003`.
 
 ## Resolution checklist
 
-- [ ] Spec maintainer picks option 1, 2 or 3
-- [ ] If option 1: §25.3, §26 and the invariant count updated; `docs/milestones.yaml` allocates
-      the new requirement
-- [ ] `docs/normative_statements.yaml` remaps `tools.typed_only.no_arbitrary_script`
-- [ ] `spec_issue` reference removed from that entry
+- [x] Spec maintainer picked Option 1 (2026-09-12)
+- [x] §25.3, §26 and the invariant count updated (52 ↔ 52 -> 53 ↔ 53)
+- [x] `docs/milestones.yaml` allocates `SIM-003` to M2
+- [x] `docs/normative_statements.yaml` remaps `tools.typed_only.no_arbitrary_script` to SIM-003
+- [x] `spec_issue` reference removed from that entry
+- [x] Static guard landed (`tests/unit/test_no_arbitrary_script_execution.py`)
+- [ ] **M2**: marked `T-SIM-003` asserting the ToolRegistry half as well

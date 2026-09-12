@@ -150,3 +150,8 @@ def test_condition_schema_migration_precedes_the_tables_that_reference_it():
     assert order.index("008_conditions.sql") < order.index(
         "003_claims_observations_attestations.sql"
     )
+    # 008a attaches the EVI-005 payload triggers to observations/attestations, so it must follow
+    # their creation in 003.
+    assert order.index("003_claims_observations_attestations.sql") < order.index(
+        "008a_condition_payload_validation.sql"
+    )
