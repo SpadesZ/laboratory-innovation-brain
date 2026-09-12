@@ -17,6 +17,8 @@ DEFAULT_URL = "postgresql://lab_brain:lab_brain@localhost:5433/lab_brain"
 
 #: Truncated between tests. Ordered child-first so foreign keys do not block the cascade.
 _TABLES = (
+    "evidence_bundle_members",
+    "evidence_bundles",
     "evidence_independence",
     "relation_judgments",
     "attestations",

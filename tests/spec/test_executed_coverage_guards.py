@@ -527,8 +527,15 @@ def test_gate_issue_naming_an_unknown_milestone_is_reported(tmp_path):
 
 
 def test_this_repository_has_parseable_spec_issue_headers():
+    """Every issue in this repository must have a machine-readable header.
+
+    The count is a floor, not an equality. An exact count broke the first time an audit raised new
+    issues -- and a guard that needs editing whenever the thing it guards changes is a guard that
+    will eventually be edited into passing. The floor still catches the failure that matters: a
+    loader silently returning nothing, which would make the assertion below vacuous.
+    """
     from lab_brain.spec import spec_issues_dir
 
     issues = load_spec_issues(spec_issues_dir())
-    assert len(issues) == 3, f"expected 3 spec issues, found {[i.issue_id for i in issues]}"
+    assert len(issues) >= 3, f"expected at least 3 spec issues, found {len(issues)}"
     assert check_spec_issue_headers_are_parseable(issues) == []

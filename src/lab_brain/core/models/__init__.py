@@ -50,6 +50,12 @@ from lab_brain.core.models.enums import (
     TrustClass,
     VerificationStatus,
 )
+from lab_brain.core.models.evidence_bundle import (
+    BUNDLE_SCHEMA_VERSION,
+    IDENTITY_EXCLUDED_FIELDS,
+    EvidenceBundle,
+    ResearchIntent,
+)
 from lab_brain.core.models.identifiers import (
     ContentHashError,
     artifact_id_for,
@@ -73,11 +79,13 @@ from lab_brain.core.models.source_work import (
 )
 
 __all__ = [
+    "BUNDLE_SCHEMA_VERSION",
     "EPISTEMIC_RELATION_TYPES",
     "FACTUAL_EPISTEMIC_TYPES",
     "FAIL_CLOSED_SENSITIVITY",
     "FORBIDDEN_RELATION_FIELDS",
     "HIGH_WEIGHT_FIELD_STATUSES",
+    "IDENTITY_EXCLUDED_FIELDS",
     "IDENTITY_RELATION_TYPES",
     "IMPLEMENTED_INDEPENDENCE_BASES",
     "Artifact",
@@ -93,6 +101,7 @@ __all__ = [
     "ContentHashError",
     "CoreModel",
     "EpistemicType",
+    "EvidenceBundle",
     "EvidenceField",
     "ExtractionProvenance",
     "ExtractionStatus",
@@ -103,6 +112,7 @@ __all__ = [
     "Observation",
     "RelationJudgment",
     "RelationType",
+    "ResearchIntent",
     "RetractionCheck",
     "RightsMetadata",
     "SecretScanStatus",

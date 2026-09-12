@@ -143,3 +143,28 @@ milestones:
       - GH-001
       - GH-002
       - GH-003
+
+  # M6-M8 are declared by §26.1 but carry no requirement allocation: all 53 requirements fall in
+  # M0a-M5. They are listed so the catalog mirrors §26.1 completely, and so a spec issue can name
+  # the gate it blocks -- `check_no_open_gate_issues_for_completed_milestones` rejects an issue
+  # pointing at a milestone that does not exist.
+  - id: M6
+    name: Multi-physics Ring
+    status: DEFERRED
+    exit_gate: end-to-end mechanism discrimination benchmark.
+    gate_profile: [postgres]
+    requirements: []
+
+  - id: M7
+    name: Operational Lab Brain
+    status: DEFERRED
+    exit_gate: real lab workflow pilot with low human write friction.
+    gate_profile: [postgres]
+    requirements: []
+
+  - id: M8
+    name: Learning / Second Domain
+    status: DEFERRED
+    exit_gate: EXT-001 demonstrated on an adjacent domain.
+    gate_profile: [postgres]
+    requirements: []

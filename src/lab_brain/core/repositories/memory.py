@@ -17,6 +17,7 @@ from lab_brain.core.models.artifact import Artifact
 from lab_brain.core.models.attestation import Attestation
 from lab_brain.core.models.claim import Claim
 from lab_brain.core.models.enums import RelationType
+from lab_brain.core.models.evidence_bundle import EvidenceBundle
 from lab_brain.core.models.observation import Observation
 from lab_brain.core.models.relation import RelationJudgment
 from lab_brain.core.models.source_work import SourceWork
@@ -190,6 +191,50 @@ class InMemoryAttestationRepository:
                     and a.extractor_version == extractor_version
                 ),
                 key=lambda a: (a.created_at, a.attestation_id),
+            )
+        )
+
+
+class InMemoryEvidenceBundleRepository:
+    def __init__(self) -> None:
+        self._by_id: dict[str, EvidenceBundle] = {}
+
+    def add(self, bundle: EvidenceBundle) -> EvidenceBundle:
+        existing = self._by_id.get(bundle.bundle_id)
+        if existing is not None and existing.canonical_hash != bundle.canonical_hash:
+            raise DuplicateIdentityError(
+                f"bundle_id {bundle.bundle_id} already stored with a different canonical_hash "
+                f"({existing.canonical_hash} vs {bundle.canonical_hash})"
+            )
+        self._by_id[bundle.bundle_id] = bundle
+        return bundle
+
+    def get(self, bundle_id: str) -> EvidenceBundle | None:
+        bundle = self._by_id.get(bundle_id)
+        if bundle is None:
+            return None
+        # An in-memory object cannot disagree with itself, but the check is kept so this
+        # implementation and the SQL one enforce the same contract. The conformance suite runs
+        # against both, and a fake that skips a check makes the suite weaker than it looks.
+        if bundle.canonical_hash != bundle.compute_hash():
+            raise RepositoryError(
+                f"bundle {bundle_id} hash does not match its content; provenance is unverifiable"
+            )
+        return bundle
+
+    def find_by_hash(self, canonical_hash: str) -> tuple[EvidenceBundle, ...]:
+        return tuple(
+            sorted(
+                (b for b in self._by_id.values() if b.canonical_hash == canonical_hash),
+                key=lambda b: (b.created_at, b.bundle_id),
+            )
+        )
+
+    def list_for_project(self, project_id: str) -> tuple[EvidenceBundle, ...]:
+        return tuple(
+            sorted(
+                (b for b in self._by_id.values() if b.project_id == project_id),
+                key=lambda b: (b.created_at, b.bundle_id),
             )
         )
 

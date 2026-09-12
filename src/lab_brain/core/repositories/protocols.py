@@ -27,6 +27,7 @@ from lab_brain.core.models.artifact import Artifact
 from lab_brain.core.models.attestation import Attestation
 from lab_brain.core.models.claim import Claim
 from lab_brain.core.models.enums import RelationType
+from lab_brain.core.models.evidence_bundle import EvidenceBundle
 from lab_brain.core.models.observation import Observation
 from lab_brain.core.models.relation import RelationJudgment
 from lab_brain.core.models.source_work import SourceWork
@@ -135,6 +136,33 @@ class AttestationRepository(Protocol):
         everything it produced so belief events can be replayed without it.
         """
         ...
+
+
+@runtime_checkable
+class EvidenceBundleRepository(Protocol):
+    """§17.14.1 / EVI-006.
+
+    §22's Bundle Reproducibility criterion requires any LLM scientific output to trace to a
+    canonical bundle hash and **reconstruct the same ordered evidence set**. A hash nobody can look
+    up proves only that two hashes differ, never what either contained -- so bundles are stored, and
+    every read recomputes the hash and rejects a mismatch.
+    """
+
+    def add(self, bundle: EvidenceBundle) -> EvidenceBundle: ...
+
+    def get(self, bundle_id: str) -> EvidenceBundle | None:
+        """Load a bundle. MUST verify the stored hash against a freshly computed one."""
+        ...
+
+    def find_by_hash(self, canonical_hash: str) -> tuple[EvidenceBundle, ...]:
+        """Bundles representing the same retrieval.
+
+        Returns a sequence, not a single bundle: the same retrieval legitimately recurs, and each
+        occurrence is its own record with its own id and timestamp.
+        """
+        ...
+
+    def list_for_project(self, project_id: str) -> tuple[EvidenceBundle, ...]: ...
 
 
 @runtime_checkable

@@ -535,6 +535,71 @@ normative_statements:
     tests: [T-EVI-001]
 
   # ---------------------------------------------------------------------------
+  # Added by the M0a Spec Coverage Audit (§23.5 (2)), 2026-09-12.
+  # Each was a hard MUST in §6-§16 prose that had not reached this registry. Found by
+  # section-by-section enumeration, which is precisely what T-SPEC-002 cannot do.
+  # ---------------------------------------------------------------------------
+
+  # §6.8: "波長、偏壓、溫度、幾何、doping、平台不同的資料不得被直接合併". EVI-005's other
+  # entries cover schema versioning and who defines comparison; none covered the prohibition on
+  # merging incompatible data, which is the operative rule (P4).
+  - key: condition.incompatible.must_not_merge
+    section: "6.8"
+    level: MUST
+    requirement_id: EVI-005
+    tests: [T-EVI-005]
+
+  # §6.20: "cutover 前後都必須可回答『這筆檢索用的是哪個 embedding version』". Distinct from the
+  # dual-index migration procedure: this is provenance of the version actually used.
+  - key: embedding.version.answerable_per_retrieval
+    section: "6.20"
+    level: MUST
+    requirement_id: EVI-007
+    tests: [T-EVI-007]
+
+  # §7.2: "系統 MUST 記錄 position diversity、bundle divergence、Critic 是否改變決策". The 15.4
+  # entry covers threshold calibration; this covers collecting the metrics at all.
+  - key: debate.metrics.recorded
+    section: "7.2"
+    level: MUST
+    requirement_id: LLM-002
+    tests: [T-LLM-002]
+
+  # §10.2.1: "All DomainPack tools MUST use one of four verb prefixes." Part of the typed-tool
+  # contract SIM-003 now owns.
+  - key: tools.verb_prefix.four_classes
+    section: "10.2.1"
+    level: MUST
+    requirement_id: SIM-003
+    tests: [T-SIM-003]
+
+  # §10.2.1 / §17.19.2: "validate_* returns ValidationReport; MUST NOT mutate raw evidence."
+  # A validator that can edit the evidence it judges is the evaluator-corruption path in the
+  # Risk Register.
+  - key: validators.return_report_never_mutate
+    section: "10.2.1"
+    level: MUST
+    requirement_id: DOM-SP-001
+    tests: [T-DOM-SP-001]
+
+  # §10.2.2: domain run conditions (drive states, receiver settings, DSP assumptions) MUST be
+  # bound into the Run manifest. The 10.3 entry covers manifest completeness generically.
+  - key: run.manifest.binds_domain_conditions
+    section: "10.2.2"
+    level: MUST
+    requirement_id: SIM-001
+    tests: [T-SIM-001]
+
+  # §10.6: sim/measurement disagreement must not be flattened by assuming measurement is always
+  # true; SIM_TO_REAL_CONFLICT must be preserved. The 17.19.3 entry covers Conflict typing in
+  # general, not this specific prohibition.
+  - key: conflict.sim_to_real.not_flattened
+    section: "10.6"
+    level: MUST
+    requirement_id: EPI-006
+    tests: [T-EPI-006]
+
+  # ---------------------------------------------------------------------------
   # §23.5 Spec integrity
   # ---------------------------------------------------------------------------
   - key: spec.replay.mock_and_real
