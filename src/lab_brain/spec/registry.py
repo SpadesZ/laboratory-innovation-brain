@@ -26,9 +26,7 @@ NormativeLevel = Literal["MUST", "SHOULD", "MAY"]
 MilestoneStatus = Literal["NOT_STARTED", "IN_PROGRESS", "DONE", "DEFERRED"]
 
 _VALID_LEVELS: frozenset[str] = frozenset({"MUST", "SHOULD", "MAY"})
-_VALID_STATUSES: frozenset[str] = frozenset(
-    {"NOT_STARTED", "IN_PROGRESS", "DONE", "DEFERRED"}
-)
+_VALID_STATUSES: frozenset[str] = frozenset({"NOT_STARTED", "IN_PROGRESS", "DONE", "DEFERRED"})
 
 
 class RegistryError(RuntimeError):
@@ -46,6 +44,11 @@ class NormativeStatement:
     tests: tuple[str, ...]
     deferred_rationale: str | None = None
     review_at: str | None = None
+    #: Identifier of a docs/spec_issues/ record, when this entry rests on a contested
+    #: reading of the spec or on an indirect requirement mapping. AGT-015 forbids an agent
+    #: from settling such a question itself, so the open question is carried as data that
+    #: CI can verify rather than as a code comment.
+    spec_issue: str | None = None
 
     @property
     def is_deferred(self) -> bool:
@@ -129,6 +132,11 @@ def milestones_path() -> Path:
     return repo_root() / "docs" / "milestones.yaml"
 
 
+def spec_issues_dir() -> Path:
+    """Where open questions about the specification itself are recorded (AGT-015)."""
+    return repo_root() / "docs" / "spec_issues"
+
+
 def _load_yaml_mapping(path: Path) -> dict[str, Any]:
     if not path.is_file():
         raise RegistryError(f"file not found: {path}")
@@ -183,6 +191,9 @@ def load_registry(path: Path | None = None) -> NormativeStatementRegistry:
         review_at = raw.get("review_at")
         if review_at is not None and not isinstance(review_at, str):
             raise RegistryError(f"{context} ({key}): review_at must be a string")
+        spec_issue = raw.get("spec_issue")
+        if spec_issue is not None and not isinstance(spec_issue, str):
+            raise RegistryError(f"{context} ({key}): spec_issue must be a string")
         statements.append(
             NormativeStatement(
                 key=key,
@@ -192,6 +203,7 @@ def load_registry(path: Path | None = None) -> NormativeStatementRegistry:
                 tests=tuple(test.strip() for test in raw_tests),
                 deferred_rationale=" ".join(rationale.split()) if rationale else None,
                 review_at=review_at.strip() if review_at else None,
+                spec_issue=spec_issue.strip() if spec_issue else None,
             )
         )
 

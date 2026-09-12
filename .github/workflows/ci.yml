@@ -1,0 +1,82 @@
+name: CI
+
+# TST-003 says "Spec CI MUST verify normative-statement registry coverage". A `check` target
+# in the Makefile is not CI -- nothing executes it. This workflow is what turns the harness
+# into an actual gate, so coverage claims stop depending on an agent reporting that it ran
+# the tests locally.
+#
+# AGT-007: this job provisions no PostgreSQL, no Lumerical seat and no network-dependent
+# service. The LAB_BRAIN_TEST_* opt-in variables stay unset, so backend tests are deselected
+# rather than silently passing.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spec-conformance:
+    # Runs first and alone. A normative conflict or a traceability break BLOCKS the slice
+    # (AGT-015), so there is no value in reporting lint noise from a slice that cannot ship.
+    name: Spec conformance (T-SPEC-001 / T-SPEC-002)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,postgres]"
+
+      - name: Spec conformance
+        run: python -m pytest tests/spec -q
+
+      - name: IMPLEMENTATION_STATUS.md is current (AGT-003)
+        run: python scripts/update_status.py --check
+
+      - name: Environment report
+        run: python scripts/verify_environment.py
+
+  quality:
+    name: Lint, types and full suite
+    needs: spec-conformance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,postgres]"
+
+      - name: Ruff
+        run: python -m ruff check src tests scripts
+
+      - name: Ruff format check
+        run: python -m ruff format --check src tests scripts
+
+      - name: mypy (strict)
+        run: python -m mypy
+
+      - name: Tests
+        run: python -m pytest -q

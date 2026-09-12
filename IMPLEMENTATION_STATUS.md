@@ -101,12 +101,35 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | E2E | 0 | — |
 | Security | 0 | — |
 | UX | 0 | — |
-| Spec | 19 | T-SPEC-001 (10) + T-SPEC-002 (9) |
+| Spec — traceability | 11 | T-SPEC-001 (TST-002) |
+| Spec — registry | 10 | T-SPEC-002 (TST-003) |
+| Spec — harness guards | 26 | negative tests; each conformance guard must be able to fail |
+| Spec — collection cross-check | 3 | static marker model vs real `pytest --collect-only` |
+| Spec — repo hygiene | 1 | IMPLEMENTATION_STATUS.md freshness (AGT-003) |
+| **Total** | **51** | 2.0s, no external dependency |
 | Lumerical real-run | 0 | no seat available; `lumerical` marker deselected by default |
 
 A bare `pytest` run requires no PostgreSQL, no Lumerical seat and no network (AGT-007).
 Backend-dependent tests carry `postgres` / `lumerical` / `network` markers and are
 deselected unless the matching `LAB_BRAIN_TEST_*` variable is set.
+
+CI: `.github/workflows/ci.yml` runs spec conformance as a separate first job (a normative
+break blocks the slice under AGT-015), then lint, format check, mypy strict and the full
+suite. Before this existed the `make check` target was never executed by anything, so
+"CI verified" rested on the agent's own report.
+
+### Why there are 26 negative tests
+
+Positive assertions prove the data is correct, not that the guard has teeth. The P1 review
+found two guards that constrained nothing while passing every positive test:
+
+- a duplicate `EXT-001` was collapsed by a dict write before uniqueness was counted;
+- a traceability marker on a function pytest never collects counted as coverage, so a
+  milestone could reach DONE with nothing executing.
+
+Each guard now has a fixture that violates exactly one rule and must be reported. These run
+in CI on every commit, replacing the earlier approach of editing the repo by hand and
+reverting — which produced no durable evidence and could not be re-run.
 
 ## Architecture Decisions
 
@@ -130,12 +153,27 @@ spec sections they cite.
 ## Spec Coverage Audit
 
 - Last audit milestone: none (M0a **gate** audit due at M0a exit, after P3)
-- Last phase audit: P1 — PASS, 9/9 injected violations caught, 0 vacuous assertions
+- Last phase audit: P1 — CONDITIONAL PASS by external review; both blockers fixed in P1-fix
 - Unregistered hard MUST found: not yet assessed (§23.5 (2) gate not yet run)
-- Audit artifact: `docs/spec_coverage_audit/P1-phase-audit.md`
-- Open findings carried to the M0a gate: F-1 (`GH-xxx` missing from §23.2),
-  F-2 (T-SPEC-002 "unique Requirement IDs" ambiguity), F-3 (§10.2 typed-tools-only has no
-  dedicated Requirement ID)
+- Audit artifacts: `docs/spec_coverage_audit/P1-phase-audit.md`,
+  `docs/spec_coverage_audit/P1-fix-audit.md`
+
+### Open spec issues (AGT-015)
+
+Escalated to the spec maintainer rather than resolved by the agent. `T-SPEC-002` verifies that
+any registry entry citing an issue names a file that exists, so these cannot be quietly
+forgotten.
+
+| Issue | Severity | Must resolve before | Subject |
+|---|---|---|---|
+| [SPEC-ISSUE-001](docs/spec_issues/SPEC-ISSUE-001-registry-unique-requirement-ids.md) | GATE | M0a gate (P3) | T-SPEC-002 "unique Requirement IDs" contradicts the §23.6 example |
+| [SPEC-ISSUE-002](docs/spec_issues/SPEC-ISSUE-002-gh-namespace-missing.md) | EDITORIAL | — | `GH-xxx` missing from the §23.2 namespace table |
+| [SPEC-ISSUE-003](docs/spec_issues/SPEC-ISSUE-003-typed-tools-no-requirement-id.md) | GATE | M0a gate (P3) | §10.2 typed-tools-only has no dedicated Requirement ID |
+
+SPEC-ISSUE-003 note: `tools.typed_only.no_arbitrary_script` is registered against `VER-002`,
+but the two propositions are not equivalent — a backend can hold a valid `Capability`
+descriptor and still expose an untyped `eval_script` path. `T-VER-002` does not discharge that
+MUST, so the M0a gate must not close it by default.
 
 Registry currently holds 77 statements covering all 52 requirements. Per §23.5, a passing
 T-SPEC-002 does **not** establish registry completeness against the prose — that remains a
@@ -151,18 +189,20 @@ human review gate.
    collected. M4's exit gate demands a *fixed, non-cherry-picked* benchmark set, so case
    collection is on the critical path and needs human scientific input (§23.4), not agent
    invention.
-3. **R-3 `GH-xxx` namespace absent from §23.2** — §25.3/§26 define GH-001..GH-003 but the
-   §23.2 namespace table omits `GH`. Treated as an incomplete list rather than a
-   contradiction, so it does not block a slice under AGT-015. Logged for the M0a audit; a
-   spec issue should add `GH-xxx` to §23.2.
-4. **R-4 T-SPEC-002 "unique Requirement IDs" is ambiguous** — read literally, the §23.6
-   excerpt violates its own rule (VER-006 and UX-001 each appear twice). Implemented as
-   "each entry names exactly one resolvable Requirement ID; statement keys are unique".
-   Rationale recorded in `tests/spec/test_normative_statement_coverage.py`. Logged for the
-   M0a audit.
+3. **R-3 Open spec issues** — SPEC-ISSUE-001 and SPEC-ISSUE-003 are GATE severity and must be
+   resolved by the spec maintainer before the M0a gate. See the Spec Coverage Audit section.
+4. **R-4 `markers.py` reimplements pytest's collection rules** — coverage counting depends on a
+   static model of `python_files` / `python_functions` / `python_classes`. A pytest upgrade or a
+   config change could make the model disagree with reality.
+   Mitigation: `tests/spec/test_marker_collection.py` compares the model against real
+   `--collect-only` output on every run, so drift fails CI instead of silently miscounting.
+   Residual risk: the cross-check parses `-q` text output, which is not a stable API.
 5. **R-5 No PostgreSQL instance yet** — migrations 001–004/008 are authored in P2 but will
    only be applied once `docker compose up` has run. Until then repository conformance is
    proven against the in-memory fake only, which is weaker evidence than the spec expects.
+6. **R-6 CI has not yet run against a remote push** — the workflow is authored and the suite
+   passes locally, but the first GitHub Actions run is what proves the workflow itself is
+   valid. Until a green run exists on `origin/main`, treat CI as unverified.
 
 ## Next Recommended Task
 

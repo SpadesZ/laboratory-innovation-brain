@@ -19,15 +19,11 @@ _ENV_GATES: dict[str, str] = {
 }
 
 
-def pytest_collection_modifyitems(
-    config: pytest.Config, items: list[pytest.Item]
-) -> None:
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     for marker_name, env_var in _ENV_GATES.items():
         if os.environ.get(env_var):
             continue
-        skip = pytest.mark.skip(
-            reason=f"requires {marker_name}; set {env_var}=1 to enable"
-        )
+        skip = pytest.mark.skip(reason=f"requires {marker_name}; set {env_var}=1 to enable")
         for item in items:
             if marker_name in item.keywords:
                 item.add_marker(skip)

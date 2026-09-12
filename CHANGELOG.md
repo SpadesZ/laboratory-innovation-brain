@@ -31,10 +31,48 @@ Version Notes table of `docs/spec/SAI_3.3.md`, not here.
   milestone allocation and test markers, with `--check` for CI (AGT-003).
 - `compose.yaml` (PostgreSQL 17 + pgvector on host port 5433), `Makefile`, `scripts/dev.ps1`.
 
+#### Fixed (P1-fix, after external review returned CONDITIONAL PASS)
+
+- **`EXT-001` declared in both §25.3 and §24.5 was silently overwritten.** `parse_requirements`
+  ended in a plain dict write, so the duplicate was collapsed before
+  `len(ids) == len(set(ids))` could count it — and `test_requirement_ids_are_unique` claimed in
+  its docstring to catch exactly this. Now raises `SpecParseError`, with a regression test that
+  injects the duplicate into the real spec text.
+- **The "real test" ratchet could be satisfied by a function pytest never collects.** The static
+  collector looked for decorators without checking collectability, so a marked
+  `helper_that_never_runs()` counted as coverage and a milestone could reach DONE with nothing
+  executing. Audit found two further paths the review had not: markers on methods of any
+  non-`Test*` class, and on `Test*` classes defining `__init__` (which pytest skips).
+  `markers.py` now models pytest's collection rules and returns `RejectedMarker` for anything
+  failing them; `T-SPEC-001` asserts that list is empty.
+
+#### Added (P1-fix)
+
+- `.github/workflows/ci.yml` — spec conformance runs first and alone (a normative break blocks
+  the slice under AGT-015), then ruff, format check, mypy strict and the full suite. Before
+  this, the `make check` target was executed by nothing, so "CI verified" rested on the agent's
+  own report while TST-003 requires *Spec CI MUST verify*.
+- `lab_brain.spec.conformance` — all checks as pure functions returning violation lists, so the
+  same function can be asserted `== []` against the repository and `!= []` against a broken
+  fixture.
+- 26 negative tests in `tests/spec/test_conformance_guards.py`: every guard must be able to
+  fail. Replaces P1's evidence, which was a document describing repository edits that were
+  reverted — not durable, not re-runnable, not visible in CI. Fixtures use `tmp_path`; the
+  repository is never mutated.
+- `tests/spec/test_marker_collection.py` — cross-checks the static collector against real
+  `pytest --collect-only` output, since reproducing pytest's rules is a model that can drift.
+  Includes a guard that the parsed output is non-empty, so the cross-check cannot pass by
+  comparing nothing.
+- `docs/spec_issues/` with a `BLOCKING` / `GATE` / `EDITORIAL` severity scale, and an optional
+  `spec_issue` field on registry entries whose existence `T-SPEC-002` verifies.
+
 #### Notes
 
 - A bare `pytest` run needs no PostgreSQL, no Lumerical seat and no network (AGT-007).
-- Two spec observations logged for the M0a audit rather than silently resolved: the `GH-xxx`
-  namespace is missing from the §23.2 table, and T-SPEC-002's "unique Requirement IDs" phrasing
-  is violated by §23.6's own excerpt if read literally. Neither is a contradiction between
-  normative contracts, so neither blocks the slice under AGT-015.
+- Three spec ambiguities are now formal records rather than docstring asides. Recording an
+  interpretation in a comment and then passing the test presents an agent's reading as a
+  verified norm, which is what AGT-015 prohibits. SPEC-ISSUE-001 (T-SPEC-002 "unique
+  Requirement IDs" contradicts its own §23.6 example) and SPEC-ISSUE-003 (§10.2
+  typed-tools-only has no dedicated Requirement ID, and `T-VER-002` does not discharge it) are
+  GATE severity: work continues on a provisional reading, both must be resolved before the M0a
+  gate. SPEC-ISSUE-002 (`GH-xxx` missing from §23.2) is editorial.

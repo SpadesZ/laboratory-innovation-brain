@@ -51,9 +51,7 @@ _EXT_001_RE = re.compile(r"\*\*(EXT-001)\*\*[：:]\s*(.+?)(?:\n\n|\Z)", re.DOTAL
 #: The spec asserts the requirement/test count invariant twice, in the change summary
 #: and again in §26. Both are parsed so the number cannot drift from the tables it
 #: describes without CI noticing.
-_INVARIANT_SUMMARY_RE = re.compile(
-    r"Requirement\s*↔\s*Test\s*不變式[：:]\s*(\d+)\s*↔\s*(\d+)"
-)
+_INVARIANT_SUMMARY_RE = re.compile(r"Requirement\s*↔\s*Test\s*不變式[：:]\s*(\d+)\s*↔\s*(\d+)")
 _INVARIANT_SECTION_RE = re.compile(r"\*\*(\d+)\s*requirements?\s*↔\s*(\d+)\s*tests?")
 
 
@@ -117,9 +115,7 @@ class SpecDocument:
         )
 
     def requirements_for(self, test_id: str) -> tuple[str, ...]:
-        return tuple(
-            row.requirement_id for row in self.traceability if row.test_id == test_id
-        )
+        return tuple(row.requirement_id for row in self.traceability if row.test_id == test_id)
 
 
 def repo_root() -> Path:
@@ -195,8 +191,18 @@ def parse_requirements(text: str) -> dict[str, SpecRequirement]:
     ext_match = _EXT_001_RE.search(ext_block)
     if not ext_match:
         raise SpecParseError("EXT-001 declaration not found in §24.5")
-    requirements[ext_match.group(1)] = SpecRequirement(
-        requirement_id=ext_match.group(1),
+    ext_id = ext_match.group(1)
+    # Must be checked, not assigned. A plain dict write would silently overwrite a §25.3
+    # row of the same ID, and the downstream len(ids) == len(set(ids)) uniqueness assertion
+    # would still pass -- the duplicate having been collapsed before it could be counted.
+    if ext_id in requirements:
+        raise SpecParseError(
+            f"{ext_id} is declared both in §25.3 and in §24.5. §25.3 states it is "
+            f"deliberately not repeated in that table (51 rows + EXT-001 = 52); one of the "
+            f"two declarations must be removed."
+        )
+    requirements[ext_id] = SpecRequirement(
+        requirement_id=ext_id,
         statement=" ".join(ext_match.group(2).split()),
         section="24.5",
     )
@@ -219,9 +225,7 @@ def parse_traceability(text: str) -> tuple[TraceabilityRow, ...]:
         if not REQUIREMENT_ID_RE.match(requirement_id):
             continue
         if not TEST_ID_RE.match(test_id):
-            raise SpecParseError(
-                f"malformed Test ID for {requirement_id} in §26: {test_id!r}"
-            )
+            raise SpecParseError(f"malformed Test ID for {requirement_id} in §26: {test_id!r}")
         rows.append(
             TraceabilityRow(
                 requirement_id=requirement_id,

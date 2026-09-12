@@ -410,11 +410,16 @@ normative_statements:
   # ---------------------------------------------------------------------------
   # §10 Tool and simulation architecture
   # ---------------------------------------------------------------------------
+  # Mapped to VER-002 as the nearest enforcement point, but the two propositions are not
+  # equivalent: a backend can hold a valid Capability descriptor and still expose an untyped
+  # eval_script path. T-VER-002 therefore does not discharge this MUST. Tracked as a spec
+  # issue rather than closed by assertion -- see SPEC-ISSUE-003.
   - key: tools.typed_only.no_arbitrary_script
     section: "10.2"
     level: MUST
     requirement_id: VER-002
     tests: [T-VER-002]
+    spec_issue: SPEC-ISSUE-003
 
   - key: run.manifest.reproducible_fields
     section: "10.3"
