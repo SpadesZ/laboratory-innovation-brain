@@ -108,17 +108,18 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | UX | 0 | — |
 | Spec — traceability | 11 | T-SPEC-001 (TST-002) |
 | Spec — registry | 10 | T-SPEC-002 (TST-003) |
+| Spec — coverage audit arithmetic | 8 | recomputes every §23.5 (2) delta; a false row fails CI |
 | Spec — conformance guards | 26 | negative tests; each conformance guard must be able to fail |
 | Spec — executed-coverage guards | 28 | real pytest subprocesses; skip/xfail/gated tests must not count |
 | Spec — collection cross-check | 3 | static marker model vs real `pytest --collect-only` |
 | Spec — repo hygiene | 1 | IMPLEMENTATION_STATUS.md freshness (AGT-003) |
-| **Total** | **277** | 277 passed with `postgres`; 226 + 51 skipped without |
+| **Total** | **285** | 285 passed with `postgres`; 234 + 51 skipped without |
 | Lumerical real-run | 0 | no seat available; `lumerical` marker deselected by default |
 
 A bare `pytest` run requires no PostgreSQL, no Lumerical seat and no network (AGT-007).
 Backend-dependent tests carry `postgres` / `lumerical` / `network` markers and are deselected
 unless the matching `LAB_BRAIN_TEST_*` variable is set. The two profiles agree exactly —
-226 + 51 skipped = 277 — so no result depends on how the suite was invoked.
+234 + 51 skipped = 285 — so no result depends on how the suite was invoked.
 
 Each M0a invariant is asserted twice: once against the Pydantic models, once against the database
 schema. A bulk load or a service writing SQL directly never passes through the application layer,
@@ -131,6 +132,13 @@ integers and non-JSON types are refused rather than approximated — a conforman
 would accept them, and an approximation of ECMAScript `Number::toString` would yield hashes that
 agree on one machine and disagree on another. The module, its tests and their names all say
 "restricted profile" so the narrower guarantee is not mistaken for the broader one.
+
+The §23.5 (2) coverage audit's arithmetic is executable. Judged hard-MUST counts live in
+`docs/spec_coverage_audit/M0a_hard_must_counts.yaml`, coverage is derived from the registry, and
+`tests/spec/test_m0a_coverage_audit.py` recomputes every delta on each run. Two successive
+revisions of that audit had been wrong in prose — rev 1 declared §6.21 clean while citing it in a
+spec issue, rev 2 carried a row asserting `2 - 1 = 0` — and neither was caught because nothing
+recomputed the table.
 
 CI: `.github/workflows/ci.yml` runs three jobs. `spec-conformance` first and alone (a normative
 break blocks the slice under AGT-015). Then `quality` — ruff, format check, mypy strict, full
@@ -206,9 +214,9 @@ spec sections they cite.
 - Last audit milestone: none (M0a **gate** audit due at M0a exit, after P3)
 - Last phase audit: P2 — PASS (`docs/spec_coverage_audit/P2-phase-audit.md`)
 - Unregistered hard MUST found: not yet assessed (§23.5 (2) gate not yet run)
-- Audit artifacts: `docs/spec_coverage_audit/P1-phase-audit.md`,
-  `docs/spec_coverage_audit/P1-fix-audit.md`, `docs/spec_coverage_audit/P1-fix2-audit.md`,
-  `docs/spec_coverage_audit/P2-phase-audit.md`
+- Audit artifacts: `docs/spec_coverage_audit/` — P1, P1-fix, P1-fix2, P2, P2-fix phase audits
+  plus `M0a.md` (rev 3) and its machine-checked counts in `M0a_hard_must_counts.yaml`
+- M0a reconciliation: **48 sections, 62 hard MUSTs = 60 live + 2 named deferred, every delta 0**
 
 ### Spec issues (AGT-015)
 

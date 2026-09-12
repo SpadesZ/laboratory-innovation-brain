@@ -1,7 +1,7 @@
 # M0a Spec Coverage Audit — §23.5 (2)
 
-Date: 2026-09-12 (rev 2, after maintainer amendment `v3.3-a2`)
-Spec: SAI 3.3, amendments `v3.3-a1` + `v3.3-a2`
+Date: 2026-09-12 (rev 3 — coverage fix; deltas now machine-verified)
+Spec: SAI 3.3, amendments `v3.3-a1` + `v3.3-a2` + `v3.3-a3`
 Milestone: **M0a — Scientific Identity Foundation**
 Owner per §23.5: spec maintainer
 Prepared by: implementation agent
@@ -29,121 +29,161 @@ And it is explicit about the consequence:
 
 > Coding Agent 不得因 T-SPEC-002 通過就推論 registry 完整。
 
-So this document exists because 79 passing spec tests prove nothing about completeness. A registry
-containing one entry would pass all of them.
+So this document exists because a passing T-SPEC-002 proves nothing about completeness. A
+registry containing one entry would pass it.
+
+Revision history matters here, because two successive revisions of this audit were themselves
+wrong: rev 1 declared §6.21 clean while citing it in a spec issue, and rev 2 carried a row
+asserting `2 - 1 = 0`. Both survived because the reconciliation was prose. Rev 3 makes the
+arithmetic executable — see §2.
 
 Pass condition, §23.5 (2): *逐節列出該節 hard MUST 數與已登錄數，差額為 0 或有具名 DEFERRED.*
 
-## 2. Method
+## 2. Counting rule
 
-§6–§16 were extracted and scanned line by line for normative keywords — `MUST`, `MUST NOT`,
-`SHOULD`, and the spec's own Chinese vocabulary per §0.2 (`必須`, `不得`, `應`, `禁止`). That
-produced **56 MUST-bearing and 6 SHOULD-bearing candidate lines across 41 subsections**, each then
-reviewed individually.
+One formula, applied to every section without exception:
 
-The enumeration is machine-assisted; the judgement is not. Three classes of false positive had to
-be resolved by reading, and the `hard MUST count` column below reports the judged count, not the
-raw line count:
+```
+delta = hard_must - (registry_live_must + registry_deferred_must)
 
-- **Line-splitting** — a rule wrapped across two lines counts twice in the raw scan. §6.17's three
-  hits are two rules.
-- **Restatement** — §6.5's table row restates GH-003, owned at §6.16.
-- **Descriptive prose** — §7.1's Domain Specialist row describes role scope in an overview table
-  rather than stating an obligation.
+  registry_live_must      entries for the section with level MUST and no deferred_rationale
+  registry_deferred_must  entries with level MUST and a deferred_rationale, counted ONCE as
+                          deferred and never also as covered
+  SHOULD entries          excluded entirely from hard-MUST coverage
+```
 
-The `registry-covered` column is **machine-derived** from `docs/normative_statements.yaml`, not
-hand-counted, so the two columns cannot silently drift apart.
+Three rules that revision 2 did not apply consistently, and which caused its arithmetic to be
+wrong:
+
+- **`registry-covered` counts hard-MUST statements only.** §0.2 makes SHOULD normative and
+  deviation ADR-worthy, so SHOULD statements are registered — but a SHOULD is not a hard MUST and
+  must not pad a hard-MUST coverage count. §6.21 is the live case: three registry entries, one of
+  them SHOULD-level, against two hard MUSTs. Counting all three showed coverage exceeding the
+  requirement, which conceals gaps rather than revealing them.
+- **A DEFERRED entry is counted once, as deferred.** Counting it in both columns would drive the
+  delta negative and mask a missing registration. §6.17 and §14.3 each hold one.
+- **Coverage is counted only at the section where the statement is registered.** Revision 2 closed
+  §15.4 by pointing at a §7.2 entry. That move is no longer available, and it was wrong on the
+  merits: §7.2 obliges the system to *record* debate metrics, §15.4 obliges the
+  groupthink-reduction *claim* to be refutable by benchmark. A recorded metric that nobody can use
+  to contradict the claim satisfies §7.2 and leaves §15.4 unmet.
+
+`hard_must` is a **judged** count, not a raw keyword-match count. The raw scan over-counts three
+ways, each resolved by reading and recorded per section in
+`M0a_hard_must_counts.yaml`'s `basis` field: line-splitting (a rule wrapped across two lines
+matches twice), restatement (a table row repeating a rule owned elsewhere), and descriptive prose
+(overview text that describes rather than obliges).
+
+### The arithmetic is executable
+
+Revision 2 contained the row `§15.4: hard MUST = 2, registry-covered = 1, delta = 0`. That is
+false, and it survived review because the table was prose — nothing recomputed it.
+
+The judged counts now live in `M0a_hard_must_counts.yaml`; the coverage side is derived from
+`normative_statements.yaml` by `lab_brain.spec.coverage_audit`; and
+`tests/spec/test_m0a_coverage_audit.py` recomputes every delta on each CI run. A row that does not
+balance fails the build. The test also refuses an audit that omits a registry section inside
+§6–§16 — the quieter version of the same failure, where the numbers balance because a section was
+never counted at all.
+
+What remains human: the `hard_must` judgements, their recorded basis, and the sign-off.
 
 ## 3. Per-section reconciliation
 
-`deferred / spec issue` names the disposition when coverage is not a plain registry entry.
-`delta` = hard MUST count − (registry-covered + named deferred/spec issue).
+Generated from the same data the test checks. 48 sections; §6–§16 as §23.5 scopes it.
 
-| Section | hard MUST count | registry-covered | named deferred / spec issue | delta |
-|---|---:|---:|---|---:|
-| 6.1 | 2 | 2 | — | 0 |
-| 6.2 | 1 | 1 | — | 0 |
-| 6.3 | 2 | 2 | — | 0 |
-| 6.4 | 1 | 1 | — | 0 |
-| 6.5 | 0 | 0 | restates GH-003, owned at §6.16 | 0 |
-| 6.7 | 0 | 0 | SHOULD only | 0 |
-| 6.8 | 1 | 1 | — | 0 |
-| 6.11 | 1 | 1 | SPEC-ISSUE-004 → HEU-001 (RESOLVED) | 0 |
-| 6.13 | 1 | 1 | — | 0 |
-| 6.14 | 0 | 0 | SHOULD only | 0 |
-| 6.15 | 1 | 1 | SPEC-ISSUE-004 → HEU-001 (RESOLVED) | 0 |
-| 6.16 | 5 | 5 | — | 0 |
-| 6.17 | 2 | 2 | 1 of 2 DEFERRED: non-WORK independence, `review_at: M4_EXIT` | 0 |
-| 6.18 | 2 | 2 | — | 0 |
-| 6.19 | 1 | 1 | — | 0 |
-| 6.20 | 2 | 2 | — | 0 |
-| 6.21 | 2 | 3 | see note (a) | 0 |
-| 7.1 | 0 | 0 | descriptive table row, not an obligation | 0 |
-| 7.2 | 2 | 2 | — | 0 |
-| 7.5 | 1 | 1 | SPEC-ISSUE-005 → SRC-003 (RESOLVED) | 0 |
-| 7.6 | 1 | 1 | — | 0 |
-| 8 | 0 | 0 | same rule as §8.1, registered there | 0 |
-| 8.1 | 2 | 2 | — | 0 |
-| 8.2.1 | 2 | 2 | — | 0 |
-| 9.1 | 4 | 4 | — | 0 |
-| 9.4 | 1 | 1 | — | 0 |
-| 9.5 | 1 | 1 | — | 0 |
-| 9.6 | 1 | 1 | — | 0 |
-| 10.2 | 2 | 2 | — | 0 |
-| 10.2.1 | 2 | 2 | — | 0 |
-| 10.2.2 | 1 | 1 | — | 0 |
-| 10.3 | 1 | 1 | — | 0 |
-| 10.4 | 1 | 1 | SPEC-ISSUE-006 → VER-007 (RESOLVED) | 0 |
-| 10.5 / 10.5.1 | 2 | 2 | — | 0 |
-| 10.6 | 1 | 1 | SPEC-ISSUE-003 lineage; now EPI-006 | 0 |
-| 10.7 | 0 | 0 | same rule as §12.4, registered there | 0 |
-| 11 | 0 | 0 | same rule as §24.2, registered there | 0 |
-| 12.3 | 1 | 1 | SPEC-ISSUE-007 → OPS-004 (RESOLVED) | 0 |
-| 12.4 | 1 | 1 | — | 0 |
-| 12.5 | 1 | 1 | — | 0 |
-| 13 | 0 | 0 | SHOULD only | 0 |
-| 14.1 | 2 | 2 | — | 0 |
-| 14.3 | 2 | 2 | 1 of 2 DEFERRED: fabrication sign-off under SEC-002, `review_at: FIRST_FABRICATION_CAPABILITY` (SPEC-ISSUE-008, RESOLVED) | 0 |
-| 14.4 / 14.4.1 | 2 | 2 | — | 0 |
-| 14.5 | 2 | 2 | — | 0 |
-| 15.4 | 2 | 1 | see note (b) | 0 |
-| 16 | 0 | 0 | SHOULD only | 0 |
-| **Total** | **56** | **57** | 2 DEFERRED, both with `review_at` | **0** |
+| Section | hard MUST | registry-covered (live) | named deferred | SHOULD (excluded) | delta |
+|---|---:|---:|---:|---:|---:|
+| 6.1 | 2 | 2 | — | — | 0 |
+| 6.2 | 1 | 1 | — | — | 0 |
+| 6.3 | 2 | 2 | — | — | 0 |
+| 6.4 | 1 | 1 | — | — | 0 |
+| 6.5 | 0 | 0 | — | — | 0 |
+| 6.7 | 0 | 0 | — | — | 0 |
+| 6.8 | 1 | 1 | — | — | 0 |
+| 6.11 | 1 | 1 | — | — | 0 |
+| 6.13 | 1 | 1 | — | — | 0 |
+| 6.14 | 0 | 0 | — | — | 0 |
+| 6.15 | 1 | 1 | — | — | 0 |
+| 6.16 | 5 | 5 | — | — | 0 |
+| 6.17 | 2 | 1 | 1 | — | 0 |
+| 6.18 | 2 | 2 | — | — | 0 |
+| 6.19 | 1 | 1 | — | — | 0 |
+| 6.20 | 2 | 2 | — | — | 0 |
+| 6.21 | 2 | 2 | — | 1 | 0 |
+| 7.1 | 0 | 0 | — | — | 0 |
+| 7.2 | 2 | 2 | — | — | 0 |
+| 7.5 | 1 | 1 | — | — | 0 |
+| 7.6 | 1 | 1 | — | — | 0 |
+| 8 | 0 | 0 | — | — | 0 |
+| 8.1 | 2 | 2 | — | — | 0 |
+| 8.2.1 | 2 | 2 | — | — | 0 |
+| 9.1 | 4 | 4 | — | — | 0 |
+| 9.4 | 1 | 1 | — | — | 0 |
+| 9.5 | 1 | 1 | — | — | 0 |
+| 9.6 | 1 | 1 | — | — | 0 |
+| 10.2 | 2 | 2 | — | — | 0 |
+| 10.2.1 | 2 | 2 | — | — | 0 |
+| 10.2.2 | 1 | 1 | — | — | 0 |
+| 10.3 | 1 | 1 | — | — | 0 |
+| 10.4 | 1 | 1 | — | — | 0 |
+| 10.5 | 2 | 2 | — | — | 0 |
+| 10.6 | 1 | 1 | — | — | 0 |
+| 10.7 | 0 | 0 | — | — | 0 |
+| 11 | 0 | 0 | — | — | 0 |
+| 12.3 | 1 | 1 | — | — | 0 |
+| 12.4 | 1 | 1 | — | — | 0 |
+| 12.5 | 1 | 1 | — | — | 0 |
+| 13 | 0 | 0 | — | — | 0 |
+| 14.1 | 2 | 2 | — | — | 0 |
+| 14.3 | 2 | 1 | 1 | — | 0 |
+| 14.4 | 1 | 1 | — | — | 0 |
+| 14.4.1 | 1 | 1 | — | — | 0 |
+| 14.5 | 2 | 2 | — | — | 0 |
+| 15.4 | 2 | 2 | — | — | 0 |
+| 16 | 0 | 0 | — | — | 0 |
+| **Total** | **62** | **60** | **2** | 1 | **0** |
 
-**Every delta is 0.** No section carries an unregistered hard MUST.
+**Every delta is 0.** 62 hard MUSTs = 60 registered live + 2 named
+deferred. The single SHOULD-level entry (§6.21) is excluded from the coverage count and shown for
+transparency.
 
-### Note (a) — §6.21: the rev-1 contradiction, resolved
+### Section notes
 
-Revision 1 of this audit listed §6.21 as `difference 0` *and* cited it in SPEC-ISSUE-005. Both
-could not be true: if a §6.21 MUST had no Requirement ID, the difference was not zero.
+**§6.17 — one of two deferred.** `independence.dependence_unknown_counts_zero` is live;
+`independence.basis.beyond_work` is DEFERRED with `review_at: M4_EXIT`, because v3.3 models
+WORK-level independence only and a policy demanding a stronger basis must escalate to human review
+rather than assume independence. Counted as 1 live + 1 deferred = 2, not as 2 covered.
 
-The error was conflating two distinct rules that share the section:
+**§6.21 — two hard MUSTs, three entries, one excluded.** The hard MUSTs are that the
+retraction/erratum check status is recorded even when UNKNOWN (`EVI-008`) and that a novelty status
+without a coverage record is unauditable (`SRC-003`, added in `v3.3-a2`). The third entry,
+`source.retraction.check_performed`, is SHOULD-level and excluded.
 
-| §6.21 rule | Requirement | Status in rev 1 |
-|---|---|---|
-| Retraction/erratum check status MUST be recorded even when UNKNOWN | `EVI-008` | registered |
-| A novelty status with no coverage record is unauditable | *none* | **unregistered** |
+Revision 1 of this audit listed §6.21 as difference 0 *and* cited it in SPEC-ISSUE-005 — which
+could not both be true. The cause was conflating the two rules above; the novelty one was
+unregistered at the time.
 
-Rev 1 counted only the first and declared the section clean. The second is now `SRC-003`
-(amendment `v3.3-a2`), registered as `novelty.coverage.record_required`. §6.21 therefore holds
-2 hard MUSTs against 3 registry entries — the third being the SHOULD-level
-`source.retraction.check_performed`, which is registered because §0.2 makes SHOULD normative and
-deviation ADR-worthy, though it is not counted as a hard MUST.
+**§14.3 — two hard MUSTs, one live and one deferred.** The external query gate (private
+identifiers and exact confidential geometry must not be sent out) is now registered here as
+`privacy.query_gate.no_private_identifiers` → `SEC-001`. It is distinct from §14.1's
+`privacy.restricted.no_egress`, which classifies *data* by sensitivity label: a sanitized query
+over RESTRICTED_NDA material still must not carry private identifiers. Before this fix §14.3 held
+only its fabrication MUST, giving `hard_must=2, live=0, deferred=1, delta=1`.
 
-### Note (b) — §15.4
+The fabrication gate remains DEFERRED under `SEC-002` with
+`review_at: FIRST_FABRICATION_CAPABILITY` — a trigger rather than a date, since the relevant event
+is registering a fabrication Capability, not elapsed time.
 
-Two hard MUSTs: *groupthink reduction MUST be falsifiable* and *hard gates MUST reference a
-versioned BenchmarkPolicy, with no hard-coded thresholds before calibration*. Both are
-`LLM-002`, and `benchmark.policy.calibration` covers the pair as one statement at §15.4; the
-metric-collection obligation is registered separately at §7.2 as `debate.metrics.recorded`. Two
-MUSTs, two registry entries across the two sections, delta 0.
+**§15.4 — the blocker, now closed.** Two hard MUSTs: the groupthink-reduction claim must be
+falsifiable, and hard gates must reference a versioned `BenchmarkPolicy` with no pre-calibration
+thresholds. Only the second was registered. `debate.groupthink_reduction.falsifiable` → `LLM-002`
+now covers the first at its own section.
 
-### Why registry-covered (57) exceeds hard MUST count (56)
-
-Three reasons, all benign: §6.21 registers a SHOULD alongside its MUSTs; several rules appear in
-both a §6–§16 narrative section and a §17 contract section and are registered at the more precise
-one; and the totals here cover only §6–§16, while the registry holds 91 entries across the whole
-document.
+`T-LLM-002`'s pass condition was also sharpened (amendment `v3.3-a3`, **no new Requirement or Test
+ID** — the invariant stays 57 ↔ 57) so that "falsifiable" is something a test can actually fail:
+the fixed benchmark must compare the debate mechanism against a baseline/disabled condition on the
+same cases. Without that comparison the claim could only ever be illustrated, never refuted.
 
 ## 4. Findings, and what was done about them
 
@@ -206,7 +246,7 @@ without Actor/LLM/Simulator.*
 | Testable without Actor/LLM/Simulator | full suite green with no backend at all; no LLM or simulator code exists |
 | No OPEN GATE spec issue against M0a | SPEC-ISSUE-001 and -003 RESOLVED |
 | `gate_profile: [postgres]` | postgres profile green in CI's `backend` job |
-| §23.5 (2) coverage audit | this document; every delta 0 |
+| §23.5 (2) coverage audit | this document; 48 sections, 62 hard MUSTs, every delta 0, recomputed by `tests/spec/test_m0a_coverage_audit.py` |
 
 All conditions are met on the evidence. **I have not flipped the status.** Under §23.5 the sign-off
 is the maintainer's, and an agent marking its own milestone complete on the strength of its own

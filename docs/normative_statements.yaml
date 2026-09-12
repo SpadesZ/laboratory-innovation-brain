@@ -665,6 +665,37 @@ normative_statements:
       an explicit extension of SEC-002's pass condition to enumerate irreversible actions.
 
   # ---------------------------------------------------------------------------
+  # M0a coverage fix (2026-09-12). Two sections failed §23.5's delta-0 test once the counting
+  # rule was tightened: `registry-covered` counts hard-MUST entries only, SHOULD entries are
+  # excluded, and a DEFERRED entry is counted once as deferred rather than also as covered.
+  # ---------------------------------------------------------------------------
+
+  # §15.4: "Structured Debate 是否減少 groupthink **必須可證偽**".
+  #
+  # NOT covered by §7.2's `debate.metrics.recorded`, and the earlier audit was wrong to imply it
+  # was. §7.2 obliges the system to *record* position diversity and bundle divergence; §15.4
+  # obliges the groupthink-reduction *claim* to be refutable -- the benchmark must be able to come
+  # back and say the debate mechanism did not help. Recording a metric nobody can use to
+  # contradict the claim satisfies §7.2 and leaves §15.4 unmet.
+  - key: debate.groupthink_reduction.falsifiable
+    section: "15.4"
+    level: MUST
+    requirement_id: LLM-002
+    tests: [T-LLM-002]
+
+  # §14.3: "外部查詢 gate：private identifiers / exact confidential geometry 不得送出".
+  #
+  # Distinct from §14.1's `privacy.restricted.no_egress`, which classifies *data* by sensitivity
+  # label. This constrains what may leave inside a *query* -- a sanitized query over
+  # RESTRICTED_NDA material still must not carry private identifiers or exact geometry. Same
+  # requirement, different obligation, and §14.3 had only its fabrication MUST registered.
+  - key: privacy.query_gate.no_private_identifiers
+    section: "14.3"
+    level: MUST
+    requirement_id: SEC-001
+    tests: [T-SEC-001]
+
+  # ---------------------------------------------------------------------------
   # §23.5 Spec integrity
   # ---------------------------------------------------------------------------
   - key: spec.replay.mock_and_real
