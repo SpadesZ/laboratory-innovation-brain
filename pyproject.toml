@@ -38,7 +38,9 @@ packages = ["src/lab_brain"]
 minversion = "8.0"
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-ra --strict-markers --strict-config"
+# The outcome report is always written, so `check_requirement_coverage.py` can never be
+# satisfied by a stale file left over from an earlier, more permissive run.
+addopts = "-ra --strict-markers --strict-config --requirement-outcomes=var/requirement_outcomes.json"
 markers = [
     # Requirement / Test traceability (SAI 3.3 §26). Every test that discharges a
     # normative requirement MUST carry both markers so T-SPEC-001 can verify the

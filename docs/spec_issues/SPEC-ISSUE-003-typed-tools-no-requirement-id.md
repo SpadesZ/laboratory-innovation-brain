@@ -1,10 +1,14 @@
 # SPEC-ISSUE-003: §10.2 typed-tools-only has no dedicated Requirement ID
 
-Severity: **GATE** — must be resolved before the M0a gate (P3)
+Severity: GATE
 Status: OPEN
+Blocks gate: M0a
 Raised: 2026-09-12
 Raised by: implementation agent, P1 review
 Affected: P19, §10.2, VER-002 / T-VER-002, §23.5
+
+> The four fields above are machine-read by `scripts/check_requirement_coverage.py`. While
+> `Status: OPEN` and `Severity: GATE`, milestone `M0a` cannot be marked DONE.
 
 ## The unregistered MUST
 

@@ -20,6 +20,7 @@ from typing import Any, Literal
 
 import yaml
 
+from lab_brain.spec.outcome_plugin import GATE_ENV_VARS
 from lab_brain.spec.parser import repo_root
 
 NormativeLevel = Literal["MUST", "SHOULD", "MAY"]
@@ -82,6 +83,11 @@ class MilestoneEntry:
     status: MilestoneStatus
     requirements: tuple[str, ...]
     exit_gate: str
+    #: Backend test profiles that MUST have been enabled in the run validating this
+    #: milestone, e.g. ``("postgres",)``. Without this, a milestone whose schema conformance
+    #: needs PostgreSQL could be signed off by a run in which every PostgreSQL test was
+    #: skipped -- which is how "deselected" quietly becomes "covered".
+    gate_profile: tuple[str, ...] = ()
 
     @property
     def is_complete(self) -> bool:
@@ -247,6 +253,19 @@ def load_milestones(path: Path | None = None) -> MilestoneCatalog:
             raise RegistryError(
                 f"{context} ({milestone_id}): requirements must be a list of strings"
             )
+        raw_gate_profile = raw.get("gate_profile", []) or []
+        if not isinstance(raw_gate_profile, list) or any(
+            not isinstance(item, str) for item in raw_gate_profile
+        ):
+            raise RegistryError(
+                f"{context} ({milestone_id}): gate_profile must be a list of strings"
+            )
+        unknown_gates = sorted(set(raw_gate_profile) - set(GATE_ENV_VARS))
+        if unknown_gates:
+            raise RegistryError(
+                f"{context} ({milestone_id}): unknown gate_profile entries "
+                f"{unknown_gates}; known gates are {sorted(GATE_ENV_VARS)}"
+            )
         milestones.append(
             MilestoneEntry(
                 milestone_id=milestone_id,
@@ -254,6 +273,7 @@ def load_milestones(path: Path | None = None) -> MilestoneCatalog:
                 status=status,  # type: ignore[arg-type]
                 requirements=tuple(item.strip() for item in raw_requirements),
                 exit_gate=_require_str(raw, "exit_gate", f"{context} ({milestone_id})"),
+                gate_profile=tuple(item.strip() for item in raw_gate_profile),
             )
         )
 

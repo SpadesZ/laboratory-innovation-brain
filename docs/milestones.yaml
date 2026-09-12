@@ -6,8 +6,15 @@
 # fully satisfied. The union of all allocations MUST equal the 52 requirements the
 # spec declares (enforced by T-SPEC-001).
 #
-# `status` drives the CI ratchet: once a milestone is DONE, T-SPEC-002 requires a
-# real test to exist for every requirement allocated to it.
+# `status` drives the CI ratchet. Once a milestone is DONE, every requirement allocated to it
+# must have a traceability test that ACTUALLY EXECUTED AND PASSED -- not merely one that pytest
+# would collect. Collection is not execution: @skip, @xfail(run=False), a class- or module-level
+# skip, and our own backend-gate skips in tests/conftest.py are all collected while running no
+# assertion. Enforced by scripts/check_requirement_coverage.py against the outcome report.
+#
+# `gate_profile` names the backend profiles that MUST have been enabled in the validating run.
+# M0a onward declare `postgres` because schema and repository conformance is not demonstrated by
+# in-memory fakes; a run that skipped every PostgreSQL test cannot sign off those gates.
 
 schema_version: 1
 
@@ -18,6 +25,7 @@ milestones:
     exit_gate: >-
       artifact/claim identity + bundle hash + schema/spec conformance pass;
       testable without Actor/LLM/Simulator.
+    gate_profile: [postgres]
     requirements:
       - SYS-001
       - ART-001
@@ -32,6 +40,7 @@ milestones:
     exit_gate: >-
       event replay + transition/authority tests + ACL/budget/trace contracts pass;
       testable without a DomainPack.
+    gate_profile: [postgres]
     requirements:
       - SEC-002
       - COST-001
@@ -49,6 +58,7 @@ milestones:
     exit_gate: >-
       local document/run ingest; source-work dedup; delayed mock job resumes episode;
       all scientific LLM calls persist bundle+provenance; UX-001~007 tests pass.
+    gate_profile: [postgres]
     requirements:
       - EVI-002
       - EVI-003
@@ -75,6 +85,7 @@ milestones:
     exit_gate: >-
       simulated + measured fixtures use the same extractor contract;
       license/resource queue mock pass.
+    gate_profile: [postgres]
     requirements:
       - SIM-001
       - SIM-002
@@ -91,6 +102,7 @@ milestones:
       role I/O + Position/Critique contracts pass; Critic bundle divergence measurable;
       benchmark thresholds calibrated and stored in BenchmarkPolicy before gate
       enforcement.
+    gate_profile: [postgres]
     requirements:
       - EPI-001
       - LLM-002
@@ -102,6 +114,7 @@ milestones:
     exit_gate: >-
       a fixed, non-cherry-picked benchmark set demonstrates root-cause correctness and
       avoids unnecessary high-cost action in predefined cases.
+    gate_profile: [postgres]
     requirements:
       - VER-001
       - VER-003
@@ -117,6 +130,7 @@ milestones:
       external evidence enters with source/condition/rights/provenance metadata;
       GitHub source traces to repo + resolved commit/ref; removing the GitHub provider
       does not affect core cognition.
+    gate_profile: [postgres, network]
     requirements:
       - GH-001
       - GH-002

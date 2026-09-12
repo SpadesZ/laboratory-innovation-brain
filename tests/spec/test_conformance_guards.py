@@ -469,7 +469,7 @@ def test_unknown_requirement_in_milestones_is_reported(tmp_path):
     )
 
 
-def test_milestone_marked_done_without_a_collected_test_is_reported(tmp_path):
+def test_static_check_reports_done_milestone_with_no_collected_test(tmp_path):
     """The DONE ratchet must fail on a requirement whose only "test" is uncollectable."""
     catalog = load_milestones(
         _write_milestones(tmp_path, _M0A.format(status="DONE", requirements="ART-001"))
@@ -487,12 +487,14 @@ def test_milestone_marked_done_without_a_collected_test_is_reported(tmp_path):
         """,
     )
     assert (
-        conformance.check_completed_milestones_have_tests(catalog, collect_marked_tests(root))
+        conformance.check_completed_milestones_have_collected_tests(
+            catalog, collect_marked_tests(root)
+        )
         != []
     )
 
 
-def test_milestone_marked_done_with_a_real_test_passes(tmp_path):
+def test_static_check_accepts_done_milestone_with_a_collected_test(tmp_path):
     catalog = load_milestones(
         _write_milestones(tmp_path, _M0A.format(status="DONE", requirements="ART-001"))
     )
@@ -509,6 +511,8 @@ def test_milestone_marked_done_with_a_real_test_passes(tmp_path):
         """,
     )
     assert (
-        conformance.check_completed_milestones_have_tests(catalog, collect_marked_tests(root))
+        conformance.check_completed_milestones_have_collected_tests(
+            catalog, collect_marked_tests(root)
+        )
         == []
     )

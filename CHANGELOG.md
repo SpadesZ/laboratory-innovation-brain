@@ -46,6 +46,50 @@ Version Notes table of `docs/spec/SAI_3.3.md`, not here.
   `markers.py` now models pytest's collection rules and returns `RejectedMarker` for anything
   failing them; `T-SPEC-001` asserts that list is empty.
 
+#### Fixed (P1-fix2, after the second review found a new bypass one layer down)
+
+- **A collected test counted as coverage even when it never executed.** The DONE ratchet read
+  `collect_marked_tests()`, which returns tests pytest *would collect*. `@pytest.mark.skip`,
+  `@pytest.mark.xfail(run=False)`, a module- or class-level skip, and — worst — our own
+  `conftest.py` backend-gate skips are all collected while running no assertion. The last was
+  self-inflicted: the mechanism keeping a bare `pytest` green without PostgreSQL (AGT-007) was
+  converting "deselected" into "covered". The `--collect-only` cross-check could not catch this
+  by construction, since it guards absence from collection, not absence of execution.
+
+  DONE now means: every Requirement of a DONE milestone has >= 1 traceability test that
+  **executed and passed**, in a run where every gate in the milestone's `gate_profile` was
+  enabled. Enforced by `scripts/check_requirement_coverage.py` after the session — it cannot be
+  a test, because a test asserting "every DONE requirement passed" would need outcomes of tests
+  that have not run yet.
+
+#### Added (P1-fix2)
+
+- `lab_brain.spec.outcome_plugin` — pytest plugin recording each marked test's real outcome
+  through pytest's own `iter_markers()`, so this gate does not inherit any error in the AST
+  model in `markers.py`. `COVERING_OUTCOMES` is `{"passed"}` alone; `xpassed` is excluded
+  because a test declared expected-to-fail is not an assertion the lab stands behind.
+- `gate_profile` on every milestone. M0a–M4 declare `[postgres]`, which turns Risk R-5 from a
+  note into a machine condition: they cannot be signed off by a run that skipped every
+  PostgreSQL test.
+- 28 executed-coverage guards using **real pytest subprocesses** over generated fixtures,
+  reading the report that run produced. Covers all four named bypasses, five adjacent failure
+  modes (failed, xpassed, setup error, missing report, wrong schema version) and a positive
+  control, plus the ratchet parametrised over every non-passing outcome.
+- GATE severity is now enforced rather than documented. Spec issues carry machine-readable
+  `Severity:` / `Status:` / `Blocks gate:` fields; a DONE milestone named by an OPEN GATE issue
+  is a violation, and so is an unparseable header — which would silently disable that check.
+
+#### Changed (P1-fix2)
+
+- `check_completed_milestones_have_tests` renamed to
+  `check_completed_milestones_have_collected_tests`, so its insufficiency is visible at the call
+  site instead of buried in a docstring.
+- `TestOutcome` dataclass renamed to `RecordedOutcome`: pytest warned
+  `cannot collect test class 'TestOutcome' because it has a __init__ constructor` wherever it was
+  imported into a test module — the exact `Test*` + `__init__` case `markers.py` models.
+- `xfail(run=False)` is now labelled `xfailed` rather than `skipped`. It was correctly excluded
+  from coverage either way, but the label was wrong and would have misled a report reader.
+
 #### Added (P1-fix)
 
 - `.github/workflows/ci.yml` — spec conformance runs first and alone (a normative break blocks

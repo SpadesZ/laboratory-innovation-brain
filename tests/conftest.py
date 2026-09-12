@@ -12,6 +12,11 @@ import os
 
 import pytest
 
+#: Records the real outcome of every traceability-marked test. Registered here because the
+#: skip logic below is itself a coverage hazard: it turns a backend-gated test into SKIPPED,
+#: which a collection-based coverage count would have read as "covered".
+pytest_plugins = ("lab_brain.spec.outcome_plugin",)
+
 _ENV_GATES: dict[str, str] = {
     "postgres": "LAB_BRAIN_TEST_POSTGRES",
     "lumerical": "LAB_BRAIN_TEST_LUMERICAL",

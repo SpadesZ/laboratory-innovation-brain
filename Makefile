@@ -8,7 +8,7 @@ ifeq ($(OS),Windows_NT)
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help install spec test test-all lint typecheck fmt check db-up db-down migrate clean
+.PHONY: help install spec test test-all coverage-gate lint typecheck fmt check db-up db-down migrate clean
 
 help:  ## Show available tasks
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
@@ -20,12 +20,18 @@ install:  ## Create the venv and install the project with dev extras
 
 spec:  ## Spec conformance only (T-SPEC-001 / T-SPEC-002) — blocks every slice
 	$(PY) -m pytest tests/spec -q
+	$(PY) scripts/check_requirement_coverage.py
 
 test:  ## Default suite: no Postgres, no Lumerical seat, no network (AGT-007)
 	$(PY) -m pytest
+	$(PY) scripts/check_requirement_coverage.py
 
 test-all:  ## Full suite including backend-dependent tests
 	LAB_BRAIN_TEST_POSTGRES=1 $(PY) -m pytest
+	$(PY) scripts/check_requirement_coverage.py
+
+coverage-gate:  ## Executed-coverage gate alone (reads the last pytest run's outcomes)
+	$(PY) scripts/check_requirement_coverage.py
 
 lint:  ## Ruff lint
 	$(PY) -m ruff check src tests

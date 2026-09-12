@@ -45,6 +45,12 @@ jobs:
       - name: Spec conformance
         run: python -m pytest tests/spec -q
 
+      # Must run AFTER pytest: it reads the outcome report that run produced. A DONE
+      # milestone needs a test that actually executed and passed under its declared
+      # gate_profile -- a collected-but-skipped test is not coverage.
+      - name: Executed-coverage gate
+        run: python scripts/check_requirement_coverage.py
+
       - name: IMPLEMENTATION_STATUS.md is current (AGT-003)
         run: python scripts/update_status.py --check
 
@@ -80,3 +86,6 @@ jobs:
 
       - name: Tests
         run: python -m pytest -q
+
+      - name: Executed-coverage gate
+        run: python scripts/check_requirement_coverage.py

@@ -1,10 +1,14 @@
 # SPEC-ISSUE-001: T-SPEC-002 "unique Requirement IDs" contradicts the §23.6 example
 
-Severity: **GATE** — must be resolved before the M0a gate (P3)
+Severity: GATE
 Status: OPEN
+Blocks gate: M0a
 Raised: 2026-09-12
 Raised by: implementation agent, P1 review
 Affected: TST-003 / T-SPEC-002, §23.6, §26
+
+> The four fields above are machine-read by `scripts/check_requirement_coverage.py`. While
+> `Status: OPEN` and `Severity: GATE`, milestone `M0a` cannot be marked DONE.
 
 ## The statement
 

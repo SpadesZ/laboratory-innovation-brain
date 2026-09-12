@@ -102,15 +102,17 @@ def test_cited_spec_issues_exist(registry):
 
 @pytest.mark.requirement("TST-003")
 @pytest.mark.spec_test("T-SPEC-002")
-def test_completed_milestones_have_real_tests():
-    """The ratchet: once a milestone is DONE, its requirements need executable tests.
+def test_completed_milestones_have_collected_tests():
+    """Fast source-level half of the ratchet: a DONE requirement must have a marked test.
 
-    This is what stops a milestone being declared complete on the strength of prose. It is
-    only as strong as the collectability check in ``markers.py`` -- see
-    ``test_no_traceability_marker_sits_on_an_uncollected_function``.
+    NOT the authoritative gate. A collected test can be skipped, xfailed or deselected and
+    still satisfy this. The real gate runs after the session, in
+    ``scripts/check_requirement_coverage.py``, which requires outcome ``passed`` under the
+    milestone's declared ``gate_profile``. It cannot live here: a test asserting "every DONE
+    requirement passed" would need the outcomes of tests that have not run yet.
     """
     assert (
-        conformance.check_completed_milestones_have_tests(
+        conformance.check_completed_milestones_have_collected_tests(
             load_milestones(), collect_marked_tests()
         )
         == []

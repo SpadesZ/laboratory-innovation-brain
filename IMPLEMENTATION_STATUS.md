@@ -103,10 +103,11 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | UX | 0 | — |
 | Spec — traceability | 11 | T-SPEC-001 (TST-002) |
 | Spec — registry | 10 | T-SPEC-002 (TST-003) |
-| Spec — harness guards | 26 | negative tests; each conformance guard must be able to fail |
+| Spec — conformance guards | 26 | negative tests; each conformance guard must be able to fail |
+| Spec — executed-coverage guards | 28 | real pytest subprocesses; skip/xfail/gated tests must not count |
 | Spec — collection cross-check | 3 | static marker model vs real `pytest --collect-only` |
 | Spec — repo hygiene | 1 | IMPLEMENTATION_STATUS.md freshness (AGT-003) |
-| **Total** | **51** | 2.0s, no external dependency |
+| **Total** | **79** | ~13s, no external dependency |
 | Lumerical real-run | 0 | no seat available; `lumerical` marker deselected by default |
 
 A bare `pytest` run requires no PostgreSQL, no Lumerical seat and no network (AGT-007).
@@ -115,21 +116,47 @@ deselected unless the matching `LAB_BRAIN_TEST_*` variable is set.
 
 CI: `.github/workflows/ci.yml` runs spec conformance as a separate first job (a normative
 break blocks the slice under AGT-015), then lint, format check, mypy strict and the full
-suite. Before this existed the `make check` target was never executed by anything, so
-"CI verified" rested on the agent's own report.
+suite. Both jobs end with the executed-coverage gate.
 
-### Why there are 26 negative tests
+### The DONE gate: executed, not collected
 
-Positive assertions prove the data is correct, not that the guard has teeth. The P1 review
-found two guards that constrained nothing while passing every positive test:
+A milestone may only be marked DONE if, for every Requirement allocated to it, a traceability
+test **actually executed and passed** under the milestone's declared `gate_profile`.
+
+Collection is not execution. Each of these is collected by pytest, runs no assertion, and
+leaves the session green:
+
+| Construct | Reported as |
+|---|---|
+| `@pytest.mark.skip` | `skipped` |
+| `@pytest.mark.xfail(run=False)` | `xfailed` (body never invoked) |
+| module- or class-level skip | `skipped` |
+| `@pytest.mark.postgres` with the gate unset | `skipped` by our own `conftest.py` |
+
+The last was self-inflicted: the mechanism that keeps a bare `pytest` green without PostgreSQL
+(AGT-007) was also turning "deselected" into "covered".
+
+`lab_brain.spec.outcome_plugin` records each marked test's real outcome through pytest's own
+marker API — independent of the AST model in `markers.py` — and
+`scripts/check_requirement_coverage.py` enforces the gate after the session. It cannot be a
+test: a test asserting "every DONE requirement passed" would need outcomes of tests that have
+not run yet. It fails closed if the report is missing.
+
+`gate_profile: [postgres]` on M0a–M4 makes Risk R-5 machine-enforced: those milestones cannot
+be signed off by a run in which every PostgreSQL test was skipped.
+
+### Why there are 54 negative tests
+
+Positive assertions prove the data is correct, not that the guard has teeth. Three guards were
+found to constrain nothing while passing every positive test:
 
 - a duplicate `EXT-001` was collapsed by a dict write before uniqueness was counted;
-- a traceability marker on a function pytest never collects counted as coverage, so a
-  milestone could reach DONE with nothing executing.
+- a marker on a function pytest never collects counted as coverage;
+- a marker on a test pytest collects but never *runs* also counted as coverage.
 
-Each guard now has a fixture that violates exactly one rule and must be reported. These run
-in CI on every commit, replacing the earlier approach of editing the repo by hand and
-reverting — which produced no durable evidence and could not be re-run.
+Each guard now has a fixture violating exactly one rule. The executed-coverage guards run real
+pytest subprocesses and read the report that run produced — asserting against a hand-built
+report would only prove the checker parses JSON.
 
 ## Architecture Decisions
 
@@ -175,6 +202,11 @@ but the two propositions are not equivalent — a backend can hold a valid `Capa
 descriptor and still expose an untyped `eval_script` path. `T-VER-002` does not discharge that
 MUST, so the M0a gate must not close it by default.
 
+GATE severity is now enforced, not documented: each issue carries machine-readable
+`Severity:` / `Status:` / `Blocks gate:` fields, and `check_requirement_coverage.py` refuses to
+let a named milestone be DONE while an issue against it is `OPEN`. An unparseable header is
+itself a violation, since it would silently disable the check.
+
 Registry currently holds 77 statements covering all 52 requirements. Per §23.5, a passing
 T-SPEC-002 does **not** establish registry completeness against the prose — that remains a
 human review gate.
@@ -200,6 +232,8 @@ human review gate.
 5. **R-5 No PostgreSQL instance yet** — migrations 001–004/008 are authored in P2 but will
    only be applied once `docker compose up` has run. Until then repository conformance is
    proven against the in-memory fake only, which is weaker evidence than the spec expects.
+   Now machine-enforced rather than noted: M0a–M4 declare `gate_profile: [postgres]`, so none of
+   them can be marked DONE by a run that skipped every PostgreSQL test.
 6. ~~**R-6 CI has not yet run against a remote push**~~ — **CLOSED 2026-09-12.** Run
    [34674213878](https://github.com/SpadesZ/laboratory-innovation-brain/actions/runs/34674213878)
    on `331de32`: both jobs `success`. `spec-conformance` reported 51 passed, status table

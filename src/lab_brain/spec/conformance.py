@@ -290,9 +290,19 @@ def check_registry_spec_issues_exist(
     ]
 
 
-def check_completed_milestones_have_tests(
+def check_completed_milestones_have_collected_tests(
     catalog: MilestoneCatalog, tests: tuple[MarkedTest, ...]
 ) -> list[str]:
+    """NECESSARY BUT NOT SUFFICIENT -- this is not the DONE gate.
+
+    A collected test can be skipped, xfailed or deselected and still appear here, so passing
+    this check does not establish that anything executed. The authoritative gate is
+    ``lab_brain.spec.outcomes.check_completed_milestones_have_passing_tests``, which reads real
+    pytest outcomes after the session finishes.
+
+    Kept because it gives a fast source-level signal, and a Requirement with no marked test at
+    all is worth catching without waiting for a full run.
+    """
     covered = {requirement_id for test in tests for requirement_id in test.requirement_ids}
     return [
         f"{milestone.milestone_id} is DONE but {requirement_id} has no collected test"

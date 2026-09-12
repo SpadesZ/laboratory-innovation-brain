@@ -1,10 +1,13 @@
 # SPEC-ISSUE-002: `GH-xxx` is missing from the §23.2 Requirement ID namespace table
 
-Severity: **EDITORIAL** — no semantic consequence; does not gate a milestone
+Severity: EDITORIAL
 Status: OPEN
 Raised: 2026-09-12
 Raised by: implementation agent, P1 review
 Affected: §23.2, §25.3, §26
+
+> EDITORIAL severity carries no `Blocks gate:` field: it has no semantic consequence and does
+> not gate a milestone.
 
 ## The gap
 
