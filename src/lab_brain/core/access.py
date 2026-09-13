@@ -9,6 +9,7 @@ no representation, and the answer defaulted to whichever project ingested the by
 FAIL-CLOSED MEANS THE ABSENCE OF A REASON TO ALLOW IS A DENIAL.
 
     unresolved actor       an unidentified request cannot be authorised
+    wrong artifact         the occurrence must be an occurrence of the identity being asked about
     inactive actor         the account is disabled globally; every grant it holds is suspended
     no membership          not "no policy applies", a denial
     empty clearance set    not "unrestricted", a denial -- and it is the DB column default
@@ -56,11 +57,18 @@ class AccessDecision:
 
 def can_read_artifact(
     actor: Actor | None,
+    artifact_id: str,
     project_id: str,
     occurrence: ArtifactOccurrence | None,
     membership: ProjectMembership | None,
 ) -> AccessDecision:
-    """Decide whether ``actor`` may read the artifact as it exists in ``project_id``.
+    """Decide whether ``actor`` may read ``artifact_id`` as it exists in ``project_id``.
+
+    ``artifact_id`` is the identity the caller is *asking about*, and the occurrence must be an
+    occurrence of it. Without that binding the gate answers about whatever record it was handed: a
+    lookup keyed on the wrong id, or a cache returning a neighbouring row, would let a PUBLIC
+    seminar deck authorise reading a RESTRICTED_NDA document, with every individual check passing
+    honestly on the wrong record.
 
     ``actor`` is a required parameter, not an optional one that defaults to skipping the identity
     check. An optional identity check is not a check: the caller who forgets it gets a pass rather
@@ -116,7 +124,7 @@ def can_read_artifact(
     if occurrence is None:
         return AccessDecision(
             False,
-            f"there is no occurrence of that artifact in {project_id}. The artifact may exist "
+            f"there is no occurrence of {artifact_id} in {project_id}. The artifact may exist "
             "globally -- content identity is shared -- but presence in one project grants nothing "
             "in another (R-7)",
         )
@@ -125,6 +133,17 @@ def can_read_artifact(
             False,
             f"the supplied occurrence belongs to a different project ({occurrence.project_id}, "
             f"not {project_id}); its label classifies that project's copy, not this one",
+        )
+    if occurrence.artifact_id != artifact_id:
+        # Checked before the label, deliberately. Clearance is evaluated against whatever
+        # occurrence is supplied, so a substituted-but-readable record would pass the clearance
+        # check honestly -- on the wrong artifact. Binding identity first also means the refusal
+        # names the real problem instead of blaming clearance.
+        return AccessDecision(
+            False,
+            f"the supplied occurrence is for a different artifact ({occurrence.artifact_id}), "
+            f"not the requested {artifact_id}; holding one occurrence in a project is not holding "
+            "the one that was asked for",
         )
 
     if not membership.clears(occurrence.sensitivity_label):

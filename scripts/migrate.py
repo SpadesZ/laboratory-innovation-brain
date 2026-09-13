@@ -51,28 +51,6 @@ APPLY_ORDER: tuple[str, ...] = (
     "008a_condition_payload_validation.sql",
 )
 
-#: Migrations renamed AFTER being applied somewhere, as ``{old filename: new filename}``.
-#:
-#: A rename is a real event and pretending it did not happen is how two environments end up with
-#: different schemas while both report themselves up to date. Deleting the old ledger row would
-#: make the renamed file look pending and re-run it -- here that means `CREATE TABLE
-#: artifact_occurrences` against a database that already has it, so the run fails and the operator
-#: is left to repair it by hand. Editing the row silently would leave no trace that the rename
-#: occurred.
-#:
-#: So the carry-across is explicit, transactional, idempotent and logged. It runs before pending is
-#: computed, updates `filename` and `checksum` in place, and keeps the original `applied_at` and
-#: `apply_index` -- the migration really was applied then, in that position.
-#:
-#: Entries are permanent. Removing one would make the rename invisible to a database that has not
-#: yet seen it, which is the same failure one release later.
-RENAMED: dict[str, str] = {
-    # P4 / M0b-1. `005` is reserved by Appendix A for epistemic events and transition policies;
-    # artifact occurrences extend 002. Caught by tests/spec/test_migration_numbering.py, which now
-    # fails on any bare-numbered migration whose slug disagrees with Appendix A.
-    "005_artifact_occurrences.sql": "002a_artifact_occurrences.sql",
-}
-
 _BOOTSTRAP = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
     filename    TEXT PRIMARY KEY,
@@ -84,6 +62,20 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 
 
 @dataclass(frozen=True)
+class RenamedMigration:
+    """Where an applied migration moved to, and what its ledger row must already say.
+
+    ``expected_old_checksum`` is what the file hashed to **when it was applied under the old
+    name**. It is written out literally rather than computed from the file on disk: computing it
+    would make the check tautological, since the whole point is to detect a file that no longer
+    matches what ran.
+    """
+
+    new_filename: str
+    expected_old_checksum: str
+
+
+@dataclass(frozen=True)
 class Migration:
     filename: str
     path: Path
@@ -92,6 +84,39 @@ class Migration:
     @property
     def checksum(self) -> str:
         return hashlib.sha256(self.sql.encode("utf-8")).hexdigest()
+
+
+#: Migrations renamed AFTER being applied somewhere.
+#:
+#: A rename is a real event and pretending it did not happen is how two environments end up with
+#: different schemas while both report themselves up to date. Deleting the old ledger row would make
+#: the renamed file look pending and re-run it -- here that means `CREATE TABLE
+#: artifact_occurrences` against a database that already has it. Editing the row silently would
+#: leave no trace that the rename occurred.
+#:
+#: A RENAME MOVES THE FILENAME AND NOTHING ELSE. `expected_old_checksum` is the checksum of the file
+#: **as it was applied under the old name**, and the carry refuses unless the ledger matches it
+#: exactly. The first version of this took the *current* file's checksum and wrote that into the
+#: ledger, which meant a rename that also edited the migration would launder the edit past the
+#: drift check -- the one guard that exists to catch exactly that. The carry now preserves the
+#: recorded checksum, so an edited file still fails drift afterwards, as it should.
+#:
+#: Entries are permanent. Removing one would make the rename invisible to a database that has not
+#: yet seen it, which is the same failure one release later.
+RENAMED: dict[str, RenamedMigration] = {
+    # P4 / M0b-1. `005` is reserved by Appendix A for epistemic events and transition policies;
+    # artifact occurrences extend 002. Caught by tests/spec/test_migration_numbering.py, which now
+    # fails on any bare-numbered migration whose slug disagrees with Appendix A.
+    #
+    # The file is byte-identical to what was applied under the old name -- deliberately, so this is
+    # a pure rename. The explanation of *why* it was renamed lives in ADR-0010 and in the numbering
+    # test, not in the migration, because editing an applied migration to document its own rename is
+    # the thing this mechanism must not normalise.
+    "005_artifact_occurrences.sql": RenamedMigration(
+        new_filename="002a_artifact_occurrences.sql",
+        expected_old_checksum=("7e47e2fd8cf75a7aaab30de8c220f3bb9b5dcfb422ec77af6e4c384da2b91030"),
+    ),
+}
 
 
 class MigrationError(RuntimeError):
@@ -130,33 +155,44 @@ def load_migrations() -> tuple[Migration, ...]:
 def _carry_renames(connection: object, migrations: tuple[Migration, ...]) -> list[str]:
     """Move ledger rows for migrations renamed after they were applied. See ``RENAMED``.
 
-    Idempotent by construction: a row is only moved when the old name is present and the new one is
-    not, so a second run does nothing. If both are somehow present the ledger is contradictory and
-    this refuses rather than guessing which is authoritative.
+    Moves the filename and **preserves the recorded checksum**, so a rename cannot launder an edit
+    to an applied migration past the drift check that runs immediately after.
+
+    Fails closed on anything unexpected: a ledger checksum that does not match what was declared to
+    have been applied, both names present at once, or a target missing from APPLY_ORDER. Idempotent
+    -- a row is only moved when the old name is present and the new one is not.
     """
     by_name = {migration.filename: migration for migration in migrations}
     moved: list[str] = []
-    for old_name, new_name in RENAMED.items():
+    for old_name, rename in RENAMED.items():
+        new_name = rename.new_filename
         rows = connection.execute(  # type: ignore[attr-defined]
-            "SELECT filename FROM schema_migrations WHERE filename IN (%s, %s)",
+            "SELECT filename, checksum FROM schema_migrations WHERE filename IN (%s, %s)",
             (old_name, new_name),
         ).fetchall()
-        present = {str(row[0]) for row in rows}
-        if old_name not in present:
+        recorded = {str(row[0]): str(row[1]) for row in rows}
+        if old_name not in recorded:
             continue
-        if new_name in present:
+        if new_name in recorded:
             raise MigrationError(
                 f"ledger holds both {old_name!r} and {new_name!r}; a rename left two rows for one "
                 "migration and this cannot be resolved automatically"
             )
-        migration = by_name.get(new_name)
-        if migration is None:
+        if new_name not in by_name:
             raise MigrationError(
                 f"{old_name!r} was renamed to {new_name!r}, which is not in APPLY_ORDER"
             )
+        actual = recorded[old_name]
+        if actual != rename.expected_old_checksum:
+            raise MigrationError(
+                f"refusing to carry {old_name!r} -> {new_name!r}: the ledger records checksum "
+                f"{actual}, but the rename declares {rename.expected_old_checksum}. Either the "
+                "migration was edited after it was applied, or this database ran a different "
+                "version of it. A rename moves a filename; it must not overwrite history."
+            )
         connection.execute(  # type: ignore[attr-defined]
-            "UPDATE schema_migrations SET filename = %s, checksum = %s WHERE filename = %s",
-            (new_name, migration.checksum, old_name),
+            "UPDATE schema_migrations SET filename = %s WHERE filename = %s",
+            (new_name, old_name),
         )
         connection.commit()  # type: ignore[attr-defined]
         moved.append(f"{old_name} -> {new_name}")

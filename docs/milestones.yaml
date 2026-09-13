@@ -6,7 +6,7 @@
 # fully satisfied. The union of all allocations MUST equal the 59 requirements the
 # spec declares -- enforced by T-SPEC-001 against the parsed §25.3 table, so this
 # number is documentation and the check does not depend on it being retyped
-# correctly. It has moved with the amendments (v3.3-a1 .. a7); §0's amendment
+# correctly. It has moved with the amendments (v3.3-a1 .. a8); §0's amendment
 # ledger is the record.
 #
 # `status` drives the CI ratchet. Once a milestone is DONE, every requirement allocated to it

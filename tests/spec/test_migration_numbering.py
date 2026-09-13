@@ -141,7 +141,8 @@ def test_renamed_migrations_are_declared_and_resolvable():
     module = _migrate_module()
 
     on_disk = {path.name for path in (repo_root() / "migrations").glob("*.sql")}
-    for old_name, new_name in module.RENAMED.items():
+    for old_name, rename in module.RENAMED.items():
+        new_name = rename.new_filename
         assert old_name not in on_disk, (
             f"{old_name} is declared renamed but still exists; the ledger carry-across would "
             "collide with the file"
@@ -150,6 +151,12 @@ def test_renamed_migrations_are_declared_and_resolvable():
             f"{old_name} was renamed to {new_name}, which is not in APPLY_ORDER"
         )
         assert new_name in on_disk, f"rename target {new_name} does not exist"
+        # A rename moves a filename. If the declared checksum does not match the file, the rename
+        # also changed the content, and carrying the ledger across would attach an applied-at
+        # record to bytes that never ran under either name.
+        assert len(rename.expected_old_checksum) == 64, (
+            f"{old_name}: expected_old_checksum is not a sha256 digest"
+        )
 
 
 def test_apply_order_matches_the_directory():

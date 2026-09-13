@@ -17,12 +17,15 @@ import pytest
 
 from lab_brain.spec.schema_drift import (
     BINDINGS,
+    UNBOUND,
     SchemaDriftError,
     all_drift,
     canonical_fields,
     drift,
     effective_table_columns,
     model_fields,
+    stale_exemptions,
+    unbound_canonical_schemas,
 )
 
 
@@ -113,3 +116,63 @@ def test_every_binding_names_a_real_model_and_table():
     for binding in BINDINGS:
         assert model_fields(binding.model_path), binding.model_path
         assert effective_table_columns(binding), binding.table
+
+
+def test_every_canonical_schema_is_bound_or_exempt():
+    """Completeness. The claim `BINDINGS` makes about itself has to be true.
+
+    An earlier comment said adding a model without binding it "is itself caught by
+    test_every_core_model_with_a_canonical_schema_is_bound" -- a test that did not exist. Only 2 of
+    the 12 §17 schemas naming a core model were bound, and nothing said so.
+
+    This is that test. Every §17 block naming an exported core model must be bound, or listed in
+    `UNBOUND` with a reason. Silence is no longer an option; an unreviewed gap becomes a visible one.
+    """
+    assert unbound_canonical_schemas() == []
+
+
+def test_no_exemption_has_gone_stale():
+    """The exemption list must not rot into a permanent excuse.
+
+    A schema deleted by an amendment, or one later bound properly, would otherwise keep an entry
+    claiming it cannot be checked.
+    """
+    assert stale_exemptions() == []
+
+
+def test_the_exemptions_are_explained_and_finite():
+    """Each exemption states why, and the list is small enough to read.
+
+    Most §17 blocks are abbreviated sketches rather than complete schemas, which is a real reason
+    not to bind them by exact field equality -- and also exactly the reasoning that would excuse
+    anything if it were left implicit.
+    """
+    for name, reason in UNBOUND.items():
+        assert len(reason.split()) >= 8, f"{name}'s exemption is too terse to review: {reason!r}"
+        assert "§" in reason or "block" in reason, (
+            f"{name}'s exemption should say what about the canonical block prevents binding"
+        )
+    assert len(UNBOUND) < len(BINDINGS) + 20, "the exemption list has grown past reviewability"
+
+
+def test_the_completeness_scan_sees_the_schemas_it_should():
+    """Guard the guard: a §17 format change must not empty the scan and pass everything."""
+    from lab_brain.spec.schema_drift import canonical_schema_names
+
+    names = canonical_schema_names()
+    assert len(names) > 20, f"only {len(names)} §17 schema blocks found; format likely changed"
+    for expected in ("Artifact", "ArtifactOccurrence", "Claim", "Attestation"):
+        assert expected in names, f"§17 scan missed {expected}"
+
+
+def test_an_unbound_unexempted_schema_is_detected():
+    """Prove the completeness guard fires, by removing an exemption it depends on."""
+    import lab_brain.spec.schema_drift as module
+
+    saved = dict(module.UNBOUND)
+    try:
+        module.UNBOUND.pop("Claim")
+        assert any("Claim" in finding for finding in unbound_canonical_schemas())
+    finally:
+        module.UNBOUND.clear()
+        module.UNBOUND.update(saved)

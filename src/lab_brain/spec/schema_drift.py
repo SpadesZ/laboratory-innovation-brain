@@ -49,8 +49,9 @@ class SchemaBinding:
     migration: str
 
 
-#: The bindings this guard enforces. Adding a model without adding it here is itself caught, by
-#: ``test_every_core_model_with_a_canonical_schema_is_bound``.
+#: The bindings this guard enforces. Completeness is enforced by
+#: ``test_every_canonical_schema_is_bound_or_exempt``: every §17 block naming an exported core
+#: model must appear here or in ``UNBOUND`` with a stated reason.
 BINDINGS: tuple[SchemaBinding, ...] = (
     SchemaBinding(
         section="17.1",
@@ -67,6 +68,39 @@ BINDINGS: tuple[SchemaBinding, ...] = (
         migration="002a_artifact_occurrences.sql",
     ),
 )
+
+
+#: §17 schemas that name a core model but are NOT field-for-field bound, and why.
+#:
+#: Most §17 blocks are abbreviated sketches rather than complete schemas -- they name the fields the
+#: chapter is making a point about and omit foreign keys, denormalised columns and audit fields the
+#: implementation needs. Binding those by exact field equality would report a dozen "undeclared"
+#: findings that are not drift, and a guard that cries wolf gets suppressed.
+#:
+#: §17.1 and §17.1.1 are bound because amendment v3.3-a8 rewrote them to be exact, which is what
+#: made the Artifact drift detectable in the first place. The entries below are the honest statement
+#: of how far this guard currently reaches. Each says what would have to change to bind it.
+UNBOUND: dict[str, str] = {
+    "Claim": "§17.2's block omits merged_into_claim_id, which the merge path needs. Bindable once "
+    "§17.2 is amended to state it.",
+    "Observation": "§17.2's block is a sketch: it omits the artifact/run/project links and the "
+    "value+unit pair that make an Observation queryable.",
+    "Attestation": "§17.2's block omits every foreign key (claim, observation, source work, "
+    "artifact, run, project), which is most of the record.",
+    "RelationJudgment": "§17.8's block omits project_id and invalidation_reason; the latter exists "
+    "because RelationJudgment.invalidate() must record why.",
+    "EvidenceBundle": "§17.14.1 declares canonical_hash and query_hash, which the model exposes as "
+    "computed properties rather than stored fields, and omits project_id. Binding needs a rule for "
+    "computed fields that this guard does not yet have.",
+    "EvidenceField": "§17.9's block describes a value object embedded in Observation, not a table, "
+    "so there is no DDL side to compare against.",
+    "ConditionSchemaRegistration": "§17.19 describes the registration payload; the table stores it "
+    "decomposed across condition_schemas.",
+    "ConditionMatch": "§17.19's block is a return value, not stored state.",
+    "Actor": "§17.15's block is not parseable as a standalone `Actor { ... }` schema; the section "
+    "describes the ACL model in prose. Bindable once §17.15 states a schema block.",
+    "ProjectMembership": "Same as Actor -- §17.15 has no standalone block.",
+}
 
 
 class SchemaDriftError(RuntimeError):
@@ -219,14 +253,64 @@ def all_drift(text: str | None = None) -> list[str]:
     return [finding for binding in BINDINGS for finding in drift(binding, text)]
 
 
+def canonical_schema_names(text: str | None = None) -> dict[str, str]:
+    """Every ``Name {`` schema block inside §17, mapped to the section that declares it.
+
+    Used by the completeness check. Scanning the document rather than a hand-kept list is the point:
+    a schema added by an amendment has to be bound or exempted, not quietly ignored.
+    """
+    body = text if text is not None else spec_path().read_text(encoding="utf-8")
+    found: dict[str, str] = {}
+    for heading in re.finditer(r"^#{1,4}\s+(17(?:\.\d+)*)[ .].*$", body, re.M):
+        section = heading.group(1)
+        following = re.search(r"^#{1,4}\s+\d", body[heading.end() :], re.M)
+        window = body[heading.end() : heading.end() + (following.start() if following else 4000)]
+        for block in re.finditer(r"^\s*([A-Z][A-Za-z0-9]*)\s*\{", window, re.M):
+            found.setdefault(block.group(1), section)
+    return found
+
+
+def unbound_canonical_schemas(text: str | None = None) -> list[str]:
+    """§17 schemas naming an exported core model that are neither bound nor exempted."""
+    import lab_brain.core.models as core_models
+
+    exported = {name for name in dir(core_models) if name[:1].isupper()}
+    bound = {binding.schema_name for binding in BINDINGS}
+    return sorted(
+        f"§{section} {name}"
+        for name, section in canonical_schema_names(text).items()
+        if name in exported and name not in bound and name not in UNBOUND
+    )
+
+
+def stale_exemptions(text: str | None = None) -> list[str]:
+    """``UNBOUND`` entries that no longer name a §17 schema, or that are now bound.
+
+    Without this the exemption list rots into a permanent excuse: a schema deleted by an amendment,
+    or one that was later bound properly, would keep an entry claiming it cannot be checked.
+    """
+    names = canonical_schema_names(text)
+    bound = {binding.schema_name for binding in BINDINGS}
+    problems = [f"{name}: no longer a §17 schema" for name in UNBOUND if name not in names]
+    problems += [f"{name}: exempt but also bound" for name in UNBOUND if name in bound]
+    problems += [
+        f"{name}: exemption has no reason" for name, why in UNBOUND.items() if not why.strip()
+    ]
+    return sorted(problems)
+
+
 __all__ = [
     "BINDINGS",
+    "UNBOUND",
     "SchemaBinding",
     "SchemaDriftError",
     "all_drift",
     "canonical_fields",
+    "canonical_schema_names",
     "drift",
     "effective_table_columns",
     "model_fields",
+    "stale_exemptions",
     "table_columns",
+    "unbound_canonical_schemas",
 ]
