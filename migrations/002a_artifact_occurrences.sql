@@ -1,4 +1,11 @@
--- 005_artifact_occurrences.sql
+-- 002a_artifact_occurrences.sql
+--
+-- NUMBERING. Appendix A reserves 005 for `005_epistemic_events_transition_policies.sql`. This
+-- migration was first written as `005_artifact_occurrences.sql`, which collided with that
+-- reservation; it is an extension of 002 (which creates `artifacts`), so it takes the `002a`
+-- suffix, matching 004a/004b/008a. See RENAMED in scripts/migrate.py for how the already-applied
+-- ledger row is carried across, and tests/spec/test_migration_numbering.py for the guard that
+-- would have caught the collision.
 --
 -- Closes risk R-7: separate global content identity from project-scoped presence.
 --

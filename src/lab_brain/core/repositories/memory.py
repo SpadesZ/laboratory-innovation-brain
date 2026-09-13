@@ -13,6 +13,7 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Sequence
 
+from lab_brain.core.models.access import ArtifactOccurrence
 from lab_brain.core.models.artifact import Artifact
 from lab_brain.core.models.attestation import Attestation
 from lab_brain.core.models.claim import Claim
@@ -31,6 +32,10 @@ from lab_brain.evidence.condition_schema_registry import ConditionSchemaRegistry
 class InMemoryArtifactRepository:
     def __init__(self) -> None:
         self._by_id: dict[str, Artifact] = {}
+        #: Keyed on (artifact_id, project_id), mirroring the primary key of the
+        #: `artifact_occurrences` table. Separate from `_by_id` because the same bytes may be
+        #: present in several projects under different labels (ADR-0010).
+        self._occurrences: dict[tuple[str, str], ArtifactOccurrence] = {}
 
     def add(self, artifact: Artifact) -> Artifact:
         existing = self._by_id.get(artifact.artifact_id)
@@ -64,12 +69,36 @@ class InMemoryArtifactRepository:
         )
 
     def list_for_project(self, project_id: str) -> tuple[Artifact, ...]:
+        """Artifacts with an occurrence in ``project_id``.
+
+        An artifact alone no longer knows which projects hold it (ADR-0010), so this answers from
+        the recorded occurrences. An artifact with no occurrence here is not in this project, even
+        though it exists globally -- which is the whole point of the split.
+        """
+        ids = {key[0] for key in self._occurrences if key[1] == project_id}
         return tuple(
             sorted(
-                (a for a in self._by_id.values() if a.project_id == project_id),
+                (a for a in self._by_id.values() if a.artifact_id in ids),
                 key=lambda a: (a.created_at, a.artifact_id),
             )
         )
+
+    def record_occurrence(self, occurrence: ArtifactOccurrence) -> ArtifactOccurrence:
+        """Place an artifact in a project under that project's label.
+
+        Refuses an occurrence for an artifact this repository has never seen: an occurrence is a
+        statement about specific bytes, and one pointing at nothing classifies nothing.
+        """
+        if occurrence.artifact_id not in self._by_id:
+            raise KeyError(
+                f"no artifact {occurrence.artifact_id!r}; an occurrence must refer to stored bytes"
+            )
+        self._occurrences[occurrence.occurrence_key] = occurrence
+        return occurrence
+
+    def occurrence(self, artifact_id: str, project_id: str) -> ArtifactOccurrence | None:
+        """The occurrence, or None. None means *not present here*, never *unclassified*."""
+        return self._occurrences.get((artifact_id, project_id))
 
 
 class InMemorySourceWorkRepository:

@@ -19,7 +19,6 @@ from lab_brain.core.models import (
     Observation,
     RelationJudgment,
     RelationType,
-    SensitivityLabel,
     SourceOrigin,
     SourceWork,
     SourceWorkType,
@@ -83,8 +82,6 @@ def make_artifact(data: bytes = b"payload", **overrides: Any) -> Artifact:
         "media_type": "application/octet-stream",
         "uri": "file:///tmp/payload.bin",
         "source_origin": SourceOrigin.UPLOAD,
-        "sensitivity_label": SensitivityLabel.INTERNAL,
-        "project_id": PROJECT_ID,
     }
     fields.update(overrides)
     return Artifact.from_bytes(data, **fields)

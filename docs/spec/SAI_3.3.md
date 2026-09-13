@@ -1082,13 +1082,13 @@ Structured Debate 是否減少 groupthink **必須可證偽**。最低指標：
 
 本章提供可直接採用 Pydantic / SQLAlchemy / event-store pattern 實作的概念 schema。
 
-## 17.1 Artifact Schema
+## 17.1 Artifact Schema — global content identity
 
 ```
 Artifact {
   artifact_id, content_hash, media_type, uri,
   lineage_id?, lineage_revision?, previous_artifact_id?,
-  source_origin, sensitivity_label, project_id,
+  source_origin,
   created_at, captured_at, author_or_device?, actor_id?,
   parser_version?, derived_from_artifact_ids[],
   rights_metadata?, secret_scan_status, metadata{}
@@ -1097,7 +1097,35 @@ Artifact {
 artifact_id is content-addressed identity.
 Changing 1 byte creates a new artifact_id/hash.
 lineage_id + lineage_revision express human/version lineage when needed.
+
+Artifact carries ONLY properties of the bytes. `project_id` and `sensitivity_label` are
+NOT Artifact fields: they describe a project's copy of the bytes, and the same bytes may
+be present in several projects under different labels. See 17.1.1 and ADR-0010.
 ```
+
+**為什麼分開（R-7）**：`artifact_id` 是全域 content-addressed，`content_hash` 唯一。若 `project_id` /
+`sensitivity_label` 掛在同一列，相同 bytes 在兩個 project 就是**同一列**——content-hash 去重會把 project A
+的 artifact（連同 A 的 label）交給 project B，而任何讀 `artifact.sensitivity_label` 的檢查都在問錯的
+project。這不是漏檢查，而是「這份東西在**這個** project 標記為什麼」無法被表示。
+
+### 17.1.1 ArtifactOccurrence Schema — project-scoped presence
+
+```
+ArtifactOccurrence {
+  artifact_id, project_id,
+  sensitivity_label,
+  ingested_by_actor_id?, ingested_at
+}
+
+Identity is the PAIR (artifact_id, project_id). Neither half alone identifies an occurrence.
+One Artifact MAY have many ArtifactOccurrences; each carries its own sensitivity_label.
+An artifact with no occurrence in a project is NOT present in that project, and MUST NOT be
+readable there regardless of the requesting actor's clearance elsewhere (SEC-002).
+```
+
+`sensitivity_label` 為必填且無預設（P28）。一個 occurrence 在當前 schema 中對每個
+`(artifact_id, project_id)` 只保存**一筆**分類；reclassification 的歷史尚未可表示，屬 `EPI-003`
+事件層範圍。
 
 ## 17.2 Claim / Observation / Attestation Schema
 
@@ -2504,7 +2532,7 @@ EXPECTED RESEARCH LOOP
 | Requirement | MUST |
 |---|---|
 | SYS-001 | Core scientific state path MUST be Artifact/SourceWork → Claim/Observation → Attestation → RelationJudgment → TransitionPolicy → BeliefRevisionEvent → EpistemicStateProjection. |
-| ART-001 | 每個輸入 project/script/result 必須有 immutable artifact ID + hash + source + timestamp。 |
+| ART-001 | 每個輸入 project/script/result 必須有 immutable artifact ID + hash + source + timestamp。**Artifact identity 只由內容決定，不含 project scope 或 sensitivity；後兩者屬 `ArtifactOccurrence`（§17.1.1）。** |
 | SIM-001 | 每次 CHARGE run 必須保存 solver version、project hash、mesh/bias/config、exit/convergence status。 |
 | SIM-002 | coarse/low-fidelity contradiction 只能標記 CHALLENGED；要 REJECT hypothesis 必須過 standard/validation fidelity gate。 |
 | SIM-003 | Tool invocation MUST occur through a typed ToolRegistry. No tool, Capability or backend adapter may expose an arbitrary script-execution entry point (`eval_script`-class public interface). Untyped execution paths MUST be rejected by static conformance test. |
@@ -2543,7 +2571,7 @@ EXPECTED RESEARCH LOOP
 | LLM-001 | 所有 LLM scientific outputs 必須帶 InferenceProvenance：model/version、slot、prompt version、evidence bundle hash。 |
 | LLM-002 | Structured Debate MUST collect diversity/bundle-divergence/cost metrics; hard gates use a versioned BenchmarkPolicy calibrated on a fixed domain benchmark before enforcement. |
 | SEC-001 | RESTRICTED_NDA/CONFIDENTIAL context MUST NOT leave the approved boundary; external connector/model egress requires policy + Actor clearance, otherwise fail closed and emit audit evidence. |
-| SEC-002 | 所有 actor/approval/egress/private-source access 必須經 Actor+ACL；新 internal artifact sensitivity 預設 fail-closed。 |
+| SEC-002 | 所有 actor/approval/egress/private-source access 必須經 Actor+ACL；新 internal artifact sensitivity 預設 fail-closed。**Artifact 讀取以 `ArtifactOccurrence`（§17.1.1）為範圍：在某 project 無 occurrence 即不可讀，且 `Actor.active` 與 `ProjectMembership.active` 必須同時成立——停用帳號的授權全部即時中止。clearance 是集合而非等級，未列出的 label 不予授予。** |
 | SEC-003 | Immutable ingestion MUST run secret scan first; suspected credentials go to quarantine/redaction flow, not permanent normal artifact storage. |
 | SEC-004 | External code MUST carry license_class; UNKNOWN/COPYLEFT source code is blocked from code-generation context unless project policy explicitly permits. |
 | OPS-001 | long-running tool/external actions 必須 Job 化並支援 suspend/resume/idempotent callback。 |
@@ -2592,7 +2620,7 @@ Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 
 | Requirement | Test ID | Test type | Pass condition |
 |---|---|---|---|
 | SYS-001 | T-SYS-001 | architecture | static/conformance test rejects bypass from cognition directly to EpistemicState update or support arrays on Attestation/Hypothesis. |
-| ART-001 | T-ART-001 | contract | 同一 bytes 得到同一 content hash/artifact identity；修改 1 byte 必須產生新 artifact_id/hash；若同一人類文件 lineage，lineage_revision 遞增並保留 previous_artifact_id。 |
+| ART-001 | T-ART-001 | contract | 同一 bytes 得到同一 content hash/artifact identity；修改 1 byte 必須產生新 artifact_id/hash；若同一人類文件 lineage，lineage_revision 遞增並保留 previous_artifact_id；**`Artifact` MUST NOT 帶 `project_id` 或 `sensitivity_label`，在 model 與 schema 兩層皆須拒絕。** |
 | SIM-001 | T-SIM-001 | contract | run manifest 缺 solver/project/conditions/validity 任一必要欄位即拒絕升級正式 evidence。 |
 | SIM-002 | T-SIM-002 | e2e | low-fidelity contradiction 只使 hypothesis → CHALLENGED，不得直接 → REJECTED。 |
 | SIM-003 | T-SIM-003 | architecture | static test rejects any public tool/Capability/backend-adapter interface accepting arbitrary script or code text for execution (`eval_script`-class); every tool invocation resolves through the typed ToolRegistry. |
@@ -2631,7 +2659,7 @@ Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 
 | LLM-001 | T-LLM-001 | contract | Hypothesis/Critique/Relation 缺 model/prompt/bundle provenance 時 admission fail；**且既存於庫中而無 InferenceProvenance 的舊推論不得作為新 belief transition 的依據 -- 以該推論為唯一 basis 的 transition 被拒絕，理由可追溯（§7.6）。僅測 admission 不足以通過。** |
 | LLM-002 | T-LLM-002 | benchmark | fixed SiPho benchmark produces baseline distributions; the benchmark MUST compare the debate mechanism against a baseline/disabled condition on the same cases, so a claim of groupthink reduction can be refuted by the result and not merely illustrated; BenchmarkPolicy schema stores metric/threshold/sample size/calibration artifacts/version; no hard gate before calibration; **the benchmark MUST record per-case round count and show it varies with case difficulty, so an implementation that always runs the configured maximum number of rounds FAILS even when every metric is recorded correctly (§7.2).** |
 | SEC-001 | T-SEC-001 | security | RESTRICTED_NDA context 嘗試送 external connector 時被 policy engine 阻擋並留下 audit event。 |
-| SEC-002 | T-SEC-002 | security | 未授權 actor 被 ACL/egress gate 拒絕；新 artifact 未分類時預設 restricted。 |
+| SEC-002 | T-SEC-002 | security | 未授權 actor 被 ACL/egress gate 拒絕；新 artifact 未分類時預設 restricted；**相同 bytes 在兩 project 可帶不同 label；在 A project 持有並不授予 B project 任何存取；inactive actor 即使 membership 與 clearance 正確仍必須 BLOCK；未解析出 actor 必須 BLOCK。以上皆須有 negative fixture。** |
 | SEC-003 | T-SEC-003 | security | fixture secret is quarantined before immutable normal ingest; redacted derivative preserves audit linkage. |
 | SEC-004 | T-SEC-004 | security | UNKNOWN/COPYLEFT code fixture is blocked from generation context unless explicit policy fixture allows it. |
 | OPS-001 | T-OPS-001 | e2e | delayed mock job 可 suspend/resume；重複 completion event 不建立第二個 run。 |
@@ -3091,3 +3119,4 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | **v3.3-a5** | **2026-09-12** | **Maintainer amendment (M0a occurrence inventory)**：將 §23.5 (2) coverage audit 自 section-level 計數推進到 occurrence-level。§6–§16 每一個明確 `MUST / MUST NOT / 必須 / 不得 / 不可` 出現處都必須被分類為 REGISTERED(statement_key)、RESTATEMENT_OF(statement_key) 或 NON_NORMATIVE_WITH_RATIONALE；不再允許以「已在別節註冊」把本節計為 0 而不指名對應 statement。新增四筆 registry statement 對應先前無主的義務：§7.2 round count 不得固定（LLM-002）、§7.6 重大 REJECT 需 independent critique path（SRC-002）、§7.6 無 provenance 舊推論不可用（LLM-001）、§8.2.1 TransitionDecision 決定性（EPI-005）。修正兩筆 section 歸屬：`extractor.backend_agnostic` 10.2 → 10.2.1、`hypothesis.admission.certificate_fields` 8.1 → 8。**未新增 Requirement/Test ID**；Requirement ↔ Test 維持 **58 ↔ 58**。無架構方向變更。 |
 | **v3.3-a6** | **2026-09-13** | **Maintainer amendment (occurrence targets must be dischargeable)**：§23.2 要求 registry 的 Test IDs 必須真能 discharge 該 statement，而非僅存在。本修訂修正 v3.3-a5 留下的兩類缺口。（a）§14.3 兩筆誤判為 RESTATEMENT_OF 的義務改為真正義務：「solver budget 超標需 supervisor/human approval」不等於 COST-001 的 refuse/escalate（永久拒絕即可滿足舊條文），故 COST-001 與 T-COST-001 增列 approval path；「measurement/simulation 需 artifact reference」不等於 EPI-002（後者僅在 confirmed root cause 時成立，且屬 M4），故**新增 EVI-009 / T-EVI-009**，配置 M1，Requirement ↔ Test **58 ↔ 58 改為 59 ↔ 59**。（b）補齊四筆 pass condition 使新 statement 可 discharge：T-EPI-005 增列 identical inputs + policy_version 決定性、T-LLM-002 增列 per-case round count 須隨難度變化、T-OPS-002 增列 stakes / SLA / expiry、T-SRC-002 增列 critique path 獨立性與 external adjudication。T-LLM-001 另增列「無 provenance 舊推論不可作為 transition basis」（僅測 admission 不足）。無架構方向變更。 |
 | **v3.3-a7** | **2026-09-13** | **Maintainer amendment (§7.6 第二個 trigger)**：§7.6 「重大 REJECT / irreversible action 必須經 independent critique path」是一條規則的兩個 trigger，而 v3.3-a6 只綁定了第一個 —— 不造成 belief transition 的 irreversible dispatch（版圖送件、MPW shuttle 訂位）因此無人管。**擴充既有 SRC-002 / T-SRC-002**，不新增 Requirement：irreversible Capability/action 在 independent critique 完成前 MUST NOT dispatch，且 human approval 不可取代 critique。Requirement ↔ Test 維持 **59 ↔ 59**。無架構方向變更。 |
+| **v3.3-a8** | **2026-09-13** | **Maintainer amendment (Artifact / ArtifactOccurrence canonical contract)**：修正 §17.1 與實作之間的 drift。migration 005（現 002a）已將 `project_id` / `sensitivity_label` 移出全域 `artifacts`，但 §17.1 與 Pydantic `Artifact` 仍保留這兩個欄位。本修訂確立：**`Artifact` = global content identity**（只含 bytes 的性質）、**`ArtifactOccurrence` = project-scoped presence/classification**（identity 為 `(artifact_id, project_id)`）。§17.1 移除該二欄位並新增 **§17.1.1 ArtifactOccurrence Schema**；`ART-001` / `T-ART-001` 澄清 content identity 不含 project scope；`SEC-002` / `T-SEC-002` 增列 occurrence-scoped read gate 與 `Actor.active`。決策記錄於 **ADR-0010**。新增 conformance guard：§17 canonical schema 與 Pydantic model 及 migration 欄位漂移時 CI 必須失敗。**未新增 Requirement/Test ID**；Requirement ↔ Test 維持 **59 ↔ 59**。 |

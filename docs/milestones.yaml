@@ -49,7 +49,11 @@ milestones:
 
   - id: M0b
     name: Execution/Governance Foundation
-    status: NOT_STARTED
+    # IN_PROGRESS since P4 (2026-09-13). SEC-002's read gate and the R-7 split landed; the rest of
+    # the milestone has not started. IN_PROGRESS rather than NOT_STARTED because work has begun --
+    # the ratchet only binds at DONE, so this status is a statement to readers, and leaving it at
+    # NOT_STARTED while a migration and a gate exist is simply false.
+    status: IN_PROGRESS
     exit_gate: >-
       event replay + transition/authority tests + ACL/budget/trace contracts pass;
       testable without a DomainPack.

@@ -8,11 +8,17 @@ no representation, and the answer defaulted to whichever project ingested the by
 
 FAIL-CLOSED MEANS THE ABSENCE OF A REASON TO ALLOW IS A DENIAL.
 
+    unresolved actor       an unidentified request cannot be authorised
+    inactive actor         the account is disabled globally; every grant it holds is suspended
     no membership          not "no policy applies", a denial
     empty clearance set    not "unrestricted", a denial -- and it is the DB column default
     no occurrence          the artifact existing globally is not it being present here
     mismatched project     on either the membership or the occurrence
     inactive membership    revocation without deleting the audit trail
+
+`Actor.active` and `ProjectMembership.active` are separate facts and both are required. Disabling
+an account is the global action; revoking a membership is the per-project one. Checking only the
+second means a centrally disabled credential keeps every grant it already held.
 
 CLEARANCE IS A SET, NOT A LEVEL. §14.1's labels are categories of handling rather than a security
 ladder, and ``SensitivityLabel`` happens to be declared most-restrictive-first, so writing
@@ -29,7 +35,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from lab_brain.core.models.access import ArtifactOccurrence, ProjectMembership
+from lab_brain.core.models.access import Actor, ArtifactOccurrence, ProjectMembership
 
 
 @dataclass(frozen=True)
@@ -49,17 +55,42 @@ class AccessDecision:
 
 
 def can_read_artifact(
-    actor_id: str,
+    actor: Actor | None,
     project_id: str,
     occurrence: ArtifactOccurrence | None,
     membership: ProjectMembership | None,
 ) -> AccessDecision:
-    """Decide whether ``actor_id`` may read the artifact as it exists in ``project_id``.
+    """Decide whether ``actor`` may read the artifact as it exists in ``project_id``.
 
-    Order matters for the message, not the verdict: membership is checked first so an outsider is
-    told they are not a member rather than being told the artifact is absent, which would leak
-    whether the project holds it.
+    ``actor`` is a required parameter, not an optional one that defaults to skipping the identity
+    check. An optional identity check is not a check: the caller who forgets it gets a pass rather
+    than an error, which is the failure mode every other guard in this repository was built to
+    remove.
+
+    Order matters for the message, not the verdict. The actor is resolved first, so a deactivated
+    credential is never told whether the project holds the artifact -- answering "no occurrence
+    here" to a disabled account leaks the contents of a project it has no standing in. Then
+    membership, so an outsider learns they are not a member rather than learning what is inside.
     """
+    if actor is None:
+        return AccessDecision(
+            False,
+            "the requesting actor could not be resolved; an unidentified request cannot be "
+            "authorised (§14.4: no governance without 'who')",
+        )
+    actor_id = actor.actor_id
+    if not actor.active:
+        # Distinct from an inactive membership, and the distinction is the point. Deactivating an
+        # account is the global, immediate action -- a departed researcher, a compromised service
+        # credential, a revoked agent role -- and it must not require walking every project to
+        # revoke each membership one at a time. Checking only the membership left a centrally
+        # disabled account holding every grant it already had.
+        return AccessDecision(
+            False,
+            f"actor {actor_id} is not active; the account is disabled globally, so every grant it "
+            "holds is suspended regardless of project membership",
+        )
+
     if membership is None:
         return AccessDecision(
             False,

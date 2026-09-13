@@ -79,9 +79,19 @@ class ProjectMembership(CoreModel):
 class ArtifactOccurrence(CoreModel):
     """The presence of one artifact's bytes in one project, under that project's label.
 
-    Immutable like every other core model. Reclassification is a new occurrence row plus an
-    event, not an in-place edit -- the same reason belief state is event-sourced (P14, EPI-003):
-    a label that can be overwritten cannot answer "what was this classified as when it was sent".
+    WHAT THIS DOES NOT PROMISE. The Python object is frozen, like every ``CoreModel``. The **row**
+    is not: the table's primary key is ``(artifact_id, project_id)``, so there is exactly one
+    classification per artifact per project and an ``UPDATE`` overwrites it leaving no trace.
+
+    An earlier version of this docstring claimed reclassification was "a new occurrence row plus an
+    event, not an in-place edit". The schema cannot represent that -- the primary key forbids a
+    second row -- so the claim was an over-promise, and a model that describes semantics its storage
+    does not have is worse than one that admits the gap. Removed rather than softened.
+
+    Event-sourced classification history belongs with ``EPI-003``, which brings the event
+    infrastructure this would need. Tracked as risk **R-9** until then. It matters: a label that can
+    be silently overwritten cannot answer "what was this classified as at the moment it was sent",
+    which is the question an NDA incident review asks first.
     """
 
     artifact_id: str

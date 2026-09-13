@@ -15,6 +15,7 @@ from typing import Any, Self
 
 from pydantic import Field, model_validator
 
+from lab_brain.core.models.access import ArtifactOccurrence
 from lab_brain.core.models.base import CoreModel, utc_now
 from lab_brain.core.models.enums import (
     LicenseClass,
@@ -64,11 +65,12 @@ class Artifact(CoreModel):
     previous_artifact_id: str | None = None
 
     source_origin: SourceOrigin
-    #: Required, with no default. P28 / SEC-002 demand a fail-closed default, and a field that
-    #: defaults to anything can be forgotten; requiring it means an unclassified artifact cannot
-    #: be constructed at all. The admission gate applies FAIL_CLOSED_SENSITIVITY in M1.
-    sensitivity_label: SensitivityLabel
-    project_id: str
+
+    # `project_id` and `sensitivity_label` are deliberately ABSENT (§17.1, ADR-0010, amendment
+    # v3.3-a8). They describe a project's copy of the bytes, not the bytes, and the same bytes may
+    # be present in several projects under different labels. They live on `ArtifactOccurrence`,
+    # keyed on (artifact_id, project_id). `CoreModel` forbids extra fields, so passing either here
+    # is a ValidationError rather than a silently ignored kwarg.
 
     created_at: dt.datetime = Field(default_factory=utc_now)
     #: When the content itself came into being, if known -- a 2019 paper ingested today has a
@@ -154,13 +156,14 @@ class Artifact(CoreModel):
         media_type: str,
         uri: str,
         source_origin: SourceOrigin,
-        sensitivity_label: SensitivityLabel,
-        project_id: str,
         **extra: Any,
     ) -> Artifact:
         """Build an Artifact by hashing ``data``.
 
         The only ergonomic constructor, so the ordinary path cannot produce a mismatched id.
+
+        Takes no project or sensitivity argument: classifying bytes is a separate act from
+        recording them. Use :meth:`occurrence_in` to place the result in a project.
         """
         content_hash = compute_content_hash(data)
         return cls(
@@ -169,9 +172,27 @@ class Artifact(CoreModel):
             media_type=media_type,
             uri=uri,
             source_origin=source_origin,
-            sensitivity_label=sensitivity_label,
-            project_id=project_id,
             **extra,
+        )
+
+    def occurrence_in(
+        self,
+        project_id: str,
+        sensitivity_label: SensitivityLabel,
+        *,
+        ingested_by_actor_id: str | None = None,
+    ) -> ArtifactOccurrence:
+        """Record this artifact's presence in one project, under that project's label.
+
+        Both arguments are required and positional. An ``occurrence_in(project)`` that defaulted
+        the label would be the P28 violation the old required field existed to prevent, one layer
+        further out.
+        """
+        return ArtifactOccurrence(
+            artifact_id=self.artifact_id,
+            project_id=project_id,
+            sensitivity_label=sensitivity_label,
+            ingested_by_actor_id=ingested_by_actor_id or self.actor_id,
         )
 
     def next_revision(self, data: bytes, *, uri: str, **overrides: Any) -> Artifact:
@@ -187,11 +208,13 @@ class Artifact(CoreModel):
                 "next_revision called with identical bytes; the same content is the same "
                 f"artifact ({self.artifact_id}), not a new revision"
             )
+        # Inherits properties of the bytes only. A revision does NOT inherit occurrences:
+        # revision n+1 is different bytes, so which projects hold it and how each classifies it
+        # are new facts. Silently copying the predecessor's label into every project would
+        # classify content nobody has looked at.
         fields: dict[str, Any] = {
             "media_type": self.media_type,
             "source_origin": self.source_origin,
-            "sensitivity_label": self.sensitivity_label,
-            "project_id": self.project_id,
             "actor_id": self.actor_id,
         }
         fields.update(overrides)

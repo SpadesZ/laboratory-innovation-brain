@@ -34,6 +34,9 @@ from lab_brain.spec import repo_root
 APPLY_ORDER: tuple[str, ...] = (
     "001_actors_projects.sql",
     "002_artifacts_sourceworks.sql",
+    # P4 / M0b-1. Extends 002 by moving project scope off the global artifact row
+    # (R-7, ADR-0010). Needs 001 for the `projects` and `actors` foreign keys.
+    "002a_artifact_occurrences.sql",
     # Before 003: observations and attestations reference condition_schemas(schema_ref).
     "008_conditions.sql",
     "003_claims_observations_attestations.sql",
@@ -46,10 +49,29 @@ APPLY_ORDER: tuple[str, ...] = (
     "004b_evidence_bundle_immutability.sql",
     # After 003: the EVI-005 payload triggers attach to observations and attestations.
     "008a_condition_payload_validation.sql",
-    # P4 / M0b-1. Must follow 002 (creates `artifacts`) and 001 (creates `projects` and
-    # `actors`), because it backfills from the first and references the other two.
-    "005_artifact_occurrences.sql",
 )
+
+#: Migrations renamed AFTER being applied somewhere, as ``{old filename: new filename}``.
+#:
+#: A rename is a real event and pretending it did not happen is how two environments end up with
+#: different schemas while both report themselves up to date. Deleting the old ledger row would
+#: make the renamed file look pending and re-run it -- here that means `CREATE TABLE
+#: artifact_occurrences` against a database that already has it, so the run fails and the operator
+#: is left to repair it by hand. Editing the row silently would leave no trace that the rename
+#: occurred.
+#:
+#: So the carry-across is explicit, transactional, idempotent and logged. It runs before pending is
+#: computed, updates `filename` and `checksum` in place, and keeps the original `applied_at` and
+#: `apply_index` -- the migration really was applied then, in that position.
+#:
+#: Entries are permanent. Removing one would make the rename invisible to a database that has not
+#: yet seen it, which is the same failure one release later.
+RENAMED: dict[str, str] = {
+    # P4 / M0b-1. `005` is reserved by Appendix A for epistemic events and transition policies;
+    # artifact occurrences extend 002. Caught by tests/spec/test_migration_numbering.py, which now
+    # fails on any bare-numbered migration whose slug disagrees with Appendix A.
+    "005_artifact_occurrences.sql": "002a_artifact_occurrences.sql",
+}
 
 _BOOTSTRAP = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -105,6 +127,42 @@ def load_migrations() -> tuple[Migration, ...]:
     )
 
 
+def _carry_renames(connection: object, migrations: tuple[Migration, ...]) -> list[str]:
+    """Move ledger rows for migrations renamed after they were applied. See ``RENAMED``.
+
+    Idempotent by construction: a row is only moved when the old name is present and the new one is
+    not, so a second run does nothing. If both are somehow present the ledger is contradictory and
+    this refuses rather than guessing which is authoritative.
+    """
+    by_name = {migration.filename: migration for migration in migrations}
+    moved: list[str] = []
+    for old_name, new_name in RENAMED.items():
+        rows = connection.execute(  # type: ignore[attr-defined]
+            "SELECT filename FROM schema_migrations WHERE filename IN (%s, %s)",
+            (old_name, new_name),
+        ).fetchall()
+        present = {str(row[0]) for row in rows}
+        if old_name not in present:
+            continue
+        if new_name in present:
+            raise MigrationError(
+                f"ledger holds both {old_name!r} and {new_name!r}; a rename left two rows for one "
+                "migration and this cannot be resolved automatically"
+            )
+        migration = by_name.get(new_name)
+        if migration is None:
+            raise MigrationError(
+                f"{old_name!r} was renamed to {new_name!r}, which is not in APPLY_ORDER"
+            )
+        connection.execute(  # type: ignore[attr-defined]
+            "UPDATE schema_migrations SET filename = %s, checksum = %s WHERE filename = %s",
+            (new_name, migration.checksum, old_name),
+        )
+        connection.commit()  # type: ignore[attr-defined]
+        moved.append(f"{old_name} -> {new_name}")
+    return moved
+
+
 def database_url(explicit: str | None) -> str:
     url = explicit or os.environ.get("LAB_BRAIN_DATABASE_URL")
     if not url:
@@ -138,6 +196,10 @@ def main() -> int:
     with psycopg.connect(url, autocommit=False) as connection:
         connection.execute(_BOOTSTRAP)
         connection.commit()
+
+        carried = _carry_renames(connection, migrations)
+        for line in carried:
+            print(f"  renamed  {line}")
 
         applied = {
             str(row[0]): str(row[1])

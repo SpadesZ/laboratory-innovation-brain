@@ -23,6 +23,7 @@ import datetime as dt
 from collections.abc import Sequence
 from typing import Protocol, runtime_checkable
 
+from lab_brain.core.models.access import ArtifactOccurrence
 from lab_brain.core.models.artifact import Artifact
 from lab_brain.core.models.attestation import Attestation
 from lab_brain.core.models.claim import Claim
@@ -62,6 +63,10 @@ class ArtifactRepository(Protocol):
         ...
 
     def list_for_project(self, project_id: str) -> tuple[Artifact, ...]: ...
+
+    def record_occurrence(self, occurrence: ArtifactOccurrence) -> ArtifactOccurrence: ...
+
+    def occurrence(self, artifact_id: str, project_id: str) -> ArtifactOccurrence | None: ...
 
 
 @runtime_checkable

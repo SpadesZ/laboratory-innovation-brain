@@ -15,9 +15,11 @@ from __future__ import annotations
 import io
 
 import pytest
+from pydantic import ValidationError
 
 from lab_brain.core.models import (
     Artifact,
+    ArtifactOccurrence,
     ContentHashError,
     SecretScanStatus,
     SensitivityLabel,
@@ -78,8 +80,6 @@ def test_identity_is_derived_not_assigned():
             media_type="application/octet-stream",
             uri="file:///x",
             source_origin=SourceOrigin.UPLOAD,
-            sensitivity_label=SensitivityLabel.INTERNAL,
-            project_id="prj:test",
         )
 
 
@@ -190,32 +190,68 @@ def test_artifact_records_the_four_mandatory_provenance_fields():
 
 @pytest.mark.requirement("ART-001")
 @pytest.mark.spec_test("T-ART-001")
-def test_sensitivity_classification_is_mandatory():
-    """P28: an artifact that was never classified must not be constructible.
+def test_an_artifact_cannot_carry_project_scope_or_classification():
+    """Identity is a property of the bytes (§17.1, ADR-0010, amendment v3.3-a8).
 
-    Both routes are checked. ``from_bytes`` rejects at the signature -- a stronger guarantee
-    than validation, since the call cannot even be made -- and direct construction rejects at
-    validation, so bypassing the helper does not bypass the rule.
+    `project_id` and `sensitivity_label` describe a project's *copy* of the bytes, and the same
+    bytes may sit in several projects under different labels. Passing either here used to be
+    accepted and stored; now `CoreModel` forbids extra fields, so it is a loud error rather than a
+    record that answers the wrong project's question.
+
+    Both routes are checked, because bypassing the helper must not bypass the rule.
     """
-    with pytest.raises(TypeError, match="sensitivity_label"):
-        Artifact.from_bytes(  # type: ignore[call-arg]
-            b"payload",
-            media_type="text/plain",
-            uri="file:///x",
-            source_origin=SourceOrigin.UPLOAD,
-            project_id="prj:test",
-        )
-
     content_hash = compute_content_hash(b"payload")
-    with pytest.raises(ValueError, match="sensitivity_label"):
-        Artifact(  # type: ignore[call-arg]
-            artifact_id=artifact_id_for(content_hash),
-            content_hash=content_hash,
-            media_type="text/plain",
-            uri="file:///x",
-            source_origin=SourceOrigin.UPLOAD,
-            project_id="prj:test",
-        )
+    for rejected in ("sensitivity_label", "project_id"):
+        with pytest.raises(ValidationError, match=rejected):
+            Artifact(
+                artifact_id=artifact_id_for(content_hash),
+                content_hash=content_hash,
+                media_type="text/plain",
+                uri="file:///x",
+                source_origin=SourceOrigin.UPLOAD,
+                **{rejected: "prj:test"},
+            )
+        with pytest.raises(ValidationError, match=rejected):
+            Artifact.from_bytes(
+                b"payload",
+                media_type="text/plain",
+                uri="file:///x",
+                source_origin=SourceOrigin.UPLOAD,
+                **{rejected: "prj:test"},
+            )
+
+
+@pytest.mark.requirement("ART-001")
+@pytest.mark.spec_test("T-ART-001")
+def test_classification_is_mandatory_on_the_occurrence():
+    """P28 survives the split: the obligation moved, it did not disappear.
+
+    An occurrence is where "this project holds these bytes, classified thus" is recorded, so that
+    is where an unclassified value must be unconstructible.
+    """
+    artifact = make_artifact(b"payload")
+    with pytest.raises(ValidationError, match="sensitivity_label"):
+        ArtifactOccurrence(artifact_id=artifact.artifact_id, project_id="prj:test")
+
+    placed = artifact.occurrence_in("prj:test", SensitivityLabel.INTERNAL)
+    assert placed.occurrence_key == (artifact.artifact_id, "prj:test")
+    assert placed.sensitivity_label is SensitivityLabel.INTERNAL
+
+
+@pytest.mark.requirement("ART-001")
+@pytest.mark.spec_test("T-ART-001")
+def test_a_revision_does_not_inherit_its_predecessors_occurrences():
+    """Revision n+1 is different bytes, so where it lives and how it is labelled are new facts.
+
+    Copying the predecessor's classification into every project would classify content nobody has
+    looked at -- the inverse of P28, arrived at by convenience.
+    """
+    first = make_artifact(b"v1")
+    second = first.next_revision(b"v2", uri="file:///v2")
+    assert second.lineage_id == first.lineage_id
+    assert second.previous_artifact_id == first.artifact_id
+    assert not hasattr(second, "sensitivity_label")
+    assert not hasattr(second, "project_id")
 
 
 @pytest.mark.requirement("ART-001")

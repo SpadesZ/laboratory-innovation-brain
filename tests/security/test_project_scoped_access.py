@@ -26,6 +26,8 @@ import pytest
 
 from lab_brain.core.access import AccessDecision, can_read_artifact
 from lab_brain.core.models import (
+    Actor,
+    ActorType,
     ArtifactOccurrence,
     ProjectMembership,
     SensitivityLabel,
@@ -51,6 +53,10 @@ def occurrence(project_id: str, label: SensitivityLabel) -> ArtifactOccurrence:
         sensitivity_label=label,
         ingested_by_actor_id=ALICE,
     )
+
+
+def actor(actor_id: str = ALICE, *, active: bool = True) -> Actor:
+    return Actor(actor_id=actor_id, actor_type=ActorType.HUMAN, active=active)
 
 
 def membership(actor_id: str, project_id: str, *clearance: SensitivityLabel) -> ProjectMembership:
@@ -85,7 +91,7 @@ def test_holding_the_artifact_in_one_project_grants_nothing_in_another():
     for. A check that reasoned "the artifact exists and Bob has clearance somewhere" would allow it.
     """
     decision = can_read_artifact(
-        actor_id=BOB,
+        actor=actor(BOB),
         project_id=NDA_PROJECT,
         occurrence=None,  # no occurrence of these bytes in the NDA project for Bob's request
         membership=membership(BOB, OPEN_PROJECT, SensitivityLabel.INTERNAL),
@@ -101,7 +107,7 @@ def test_clearance_in_one_project_does_not_carry_into_another():
     teaching project, where her membership grants less.
     """
     decision = can_read_artifact(
-        actor_id=ALICE,
+        actor=actor(),
         project_id=OPEN_PROJECT,
         occurrence=occurrence(OPEN_PROJECT, SensitivityLabel.RESTRICTED_NDA),
         membership=membership(ALICE, OPEN_PROJECT, SensitivityLabel.INTERNAL),
@@ -118,7 +124,7 @@ def test_clearance_in_one_project_does_not_carry_into_another():
 def test_no_membership_is_refused():
     """Absence of a membership row is a denial, not an absence of policy."""
     decision = can_read_artifact(
-        actor_id=BOB,
+        actor=actor(BOB),
         project_id=NDA_PROJECT,
         occurrence=occurrence(NDA_PROJECT, SensitivityLabel.PUBLIC),
         membership=None,
@@ -134,7 +140,7 @@ def test_membership_with_empty_clearance_is_refused_even_for_public():
     membership starts in. If empty meant unrestricted, every new member would begin fully cleared.
     """
     decision = can_read_artifact(
-        actor_id=BOB,
+        actor=actor(BOB),
         project_id=OPEN_PROJECT,
         occurrence=occurrence(OPEN_PROJECT, SensitivityLabel.PUBLIC),
         membership=membership(BOB, OPEN_PROJECT),
@@ -151,7 +157,7 @@ def test_a_missing_occurrence_is_refused_even_for_a_cleared_member():
     fallback to the artifact's global row.
     """
     decision = can_read_artifact(
-        actor_id=ALICE,
+        actor=actor(),
         project_id=NDA_PROJECT,
         occurrence=None,
         membership=membership(ALICE, NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
@@ -163,7 +169,7 @@ def test_a_missing_occurrence_is_refused_even_for_a_cleared_member():
 def test_a_membership_for_the_wrong_project_is_refused():
     """Guard against the check reading the membership without comparing its project."""
     decision = can_read_artifact(
-        actor_id=ALICE,
+        actor=actor(),
         project_id=NDA_PROJECT,
         occurrence=occurrence(NDA_PROJECT, SensitivityLabel.PUBLIC),
         membership=membership(ALICE, OPEN_PROJECT, SensitivityLabel.RESTRICTED_NDA),
@@ -175,7 +181,7 @@ def test_a_membership_for_the_wrong_project_is_refused():
 def test_an_occurrence_from_another_project_is_refused():
     """And the mirror: the occurrence must belong to the project being asked about."""
     decision = can_read_artifact(
-        actor_id=ALICE,
+        actor=actor(),
         project_id=NDA_PROJECT,
         occurrence=occurrence(OPEN_PROJECT, SensitivityLabel.PUBLIC),
         membership=membership(ALICE, NDA_PROJECT, SensitivityLabel.PUBLIC),
@@ -194,13 +200,108 @@ def test_an_inactive_membership_is_refused():
         active=False,
     )
     decision = can_read_artifact(
-        actor_id=ALICE,
+        actor=actor(),
         project_id=NDA_PROJECT,
         occurrence=occurrence(NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
         membership=revoked,
     )
     assert not decision.allowed
     assert "not active" in decision.reason
+
+
+def test_an_inactive_actor_is_refused_despite_correct_membership_and_clearance():
+    """The hole this rework closes.
+
+    `Actor.active` and `ProjectMembership.active` are different facts. Deactivating an account is
+    the global, immediate action -- a departed researcher, a compromised service credential, a
+    revoked agent role -- and it must not require walking every project to revoke each membership
+    individually. The first version of this gate checked only the membership, so an account
+    disabled centrally kept every grant it already held.
+    """
+    decision = can_read_artifact(
+        actor=actor(active=False),
+        project_id=NDA_PROJECT,
+        occurrence=occurrence(NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
+        membership=membership(ALICE, NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
+    )
+    assert not decision.allowed
+    assert "actor" in decision.reason and "not active" in decision.reason
+
+
+def test_an_inactive_actor_is_refused_before_any_project_question_is_asked():
+    """A disabled account must not be told whether the project holds the artifact.
+
+    Ordering is a disclosure decision, not a style one: answering "no occurrence here" to a
+    deactivated credential leaks whether a project holds a given file.
+    """
+    decision = can_read_artifact(
+        actor=actor(active=False),
+        project_id=NDA_PROJECT,
+        occurrence=None,
+        membership=None,
+    )
+    assert not decision.allowed
+    assert "not active" in decision.reason
+    assert "occurrence" not in decision.reason
+
+
+def test_a_missing_actor_is_refused():
+    """Fail closed: an unresolvable actor is a denial, not an unchecked path.
+
+    `actor` is a required parameter rather than an optional one defaulting to None-means-skip.
+    An optional identity check is not a check.
+    """
+    decision = can_read_artifact(
+        actor=None,
+        project_id=NDA_PROJECT,
+        occurrence=occurrence(NDA_PROJECT, SensitivityLabel.PUBLIC),
+        membership=membership(ALICE, NDA_PROJECT, SensitivityLabel.PUBLIC),
+    )
+    assert not decision.allowed
+    assert "could not be resolved" in decision.reason
+
+
+def test_the_membership_must_belong_to_the_supplied_actor():
+    """Both halves of the identity must agree, or the gate is checking two different people."""
+    decision = can_read_artifact(
+        actor=actor(BOB),
+        project_id=NDA_PROJECT,
+        occurrence=occurrence(NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
+        membership=membership(ALICE, NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
+    )
+    assert not decision.allowed
+    assert "not a member" in decision.reason
+
+
+def test_both_active_flags_are_required_independently():
+    """Neither flag substitutes for the other.
+
+    An active actor with a revoked membership and a deactivated actor with a live membership must
+    both be refused -- otherwise one of the two flags is decorative.
+    """
+    live_actor_dead_membership = can_read_artifact(
+        actor=actor(),
+        project_id=NDA_PROJECT,
+        occurrence=occurrence(NDA_PROJECT, SensitivityLabel.PUBLIC),
+        membership=ProjectMembership(
+            actor_id=ALICE,
+            project_id=NDA_PROJECT,
+            role="researcher",
+            sensitivity_clearance=frozenset({SensitivityLabel.PUBLIC}),
+            active=False,
+        ),
+    )
+    dead_actor_live_membership = can_read_artifact(
+        actor=actor(active=False),
+        project_id=NDA_PROJECT,
+        occurrence=occurrence(NDA_PROJECT, SensitivityLabel.PUBLIC),
+        membership=membership(ALICE, NDA_PROJECT, SensitivityLabel.PUBLIC),
+    )
+    assert not live_actor_dead_membership.allowed
+    assert not dead_actor_live_membership.allowed
+    assert live_actor_dead_membership.reason != dead_actor_live_membership.reason, (
+        "the two refusals must be distinguishable, or an operator cannot tell which flag to fix"
+    )
 
 
 # --------------------------------------------------------------------------------------------
@@ -217,7 +318,7 @@ def test_clearance_is_a_set_membership_not_a_ranking():
     the enum's declaration order as a total order would silently widen every grant.
     """
     decision = can_read_artifact(
-        actor_id=ALICE,
+        actor=actor(),
         project_id=NDA_PROJECT,
         occurrence=occurrence(NDA_PROJECT, SensitivityLabel.INTERNAL),
         membership=membership(ALICE, NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
@@ -230,7 +331,7 @@ def test_clearance_is_a_set_membership_not_a_ranking():
 def test_every_label_requires_its_own_explicit_clearance(label):
     """No label is exempt. PUBLIC included -- the project boundary applies to all of them."""
     granted = can_read_artifact(
-        actor_id=ALICE,
+        actor=actor(),
         project_id=NDA_PROJECT,
         occurrence=occurrence(NDA_PROJECT, label),
         membership=membership(ALICE, NDA_PROJECT, label),
@@ -238,7 +339,7 @@ def test_every_label_requires_its_own_explicit_clearance(label):
     assert granted.allowed, label
 
     withheld = can_read_artifact(
-        actor_id=ALICE,
+        actor=actor(),
         project_id=NDA_PROJECT,
         occurrence=occurrence(NDA_PROJECT, label),
         membership=membership(ALICE, NDA_PROJECT),
@@ -254,7 +355,7 @@ def test_every_label_requires_its_own_explicit_clearance(label):
 def test_a_cleared_member_reading_their_own_project_is_allowed():
     """A gate that refuses everything is not a gate."""
     decision = can_read_artifact(
-        actor_id=ALICE,
+        actor=actor(),
         project_id=NDA_PROJECT,
         occurrence=occurrence(NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
         membership=membership(ALICE, NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
@@ -270,9 +371,9 @@ def test_every_decision_records_a_reason():
     recorded as anything useful.
     """
     for decision in (
-        can_read_artifact(ALICE, NDA_PROJECT, None, None),
+        can_read_artifact(actor(), NDA_PROJECT, None, None),
         can_read_artifact(
-            ALICE,
+            actor(),
             NDA_PROJECT,
             occurrence(NDA_PROJECT, SensitivityLabel.PUBLIC),
             membership(ALICE, NDA_PROJECT, SensitivityLabel.PUBLIC),
@@ -285,7 +386,7 @@ def test_every_decision_records_a_reason():
 def test_the_decision_is_deterministic():
     """Same inputs, same verdict and same reason -- otherwise the audit record is not reproducible."""
     args = (
-        ALICE,
+        actor(),
         NDA_PROJECT,
         occurrence(NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
         membership(ALICE, NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
