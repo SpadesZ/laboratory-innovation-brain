@@ -10,8 +10,17 @@ applied under the old name -- and the carry refuses unless the ledger matches ex
 the filename and leaves the checksum alone. An edited file therefore still fails drift afterwards,
 which is the correct outcome.
 
-These run inside the transactional `db` fixture, so each inserts its own ledger rows and rolls them
-back. No throwaway database, and no dependence on what this developer's ledger happens to hold.
+These run against a TEMPORARY table that shadows `schema_migrations` for one session. The first
+version of this file used the `db` fixture and opened with `DELETE FROM schema_migrations`, on the
+stated belief that `db` "wraps each test in a transaction that is rolled back". It does not -- `db`
+truncates a fixed list of tables on an autocommit connection -- so that DELETE committed and
+destroyed the developer's migration ledger. The schema survived; the record of what had been applied
+did not.
+
+The docstring asserting a property of a fixture I had not read is the actual defect. A temp table
+removes the need to trust any such claim: `pg_temp` precedes `public` on the search path, so the
+unqualified `schema_migrations` that `_carry_renames` queries resolves to a private copy that cannot
+outlive the connection, whatever the test does to it.
 """
 
 from __future__ import annotations
@@ -23,6 +32,7 @@ import sys
 import pytest
 
 from lab_brain.spec import repo_root
+from tests.integration.conftest import database_url
 
 pytestmark = pytest.mark.postgres
 
@@ -43,10 +53,32 @@ def _migrate():
 
 
 @pytest.fixture
-def ledger(db):  # type: ignore[no-untyped-def]
-    """The real `schema_migrations` table, emptied for the duration of one rolled-back test."""
-    db.execute("DELETE FROM schema_migrations")
-    return db
+def ledger(postgres_connection):  # type: ignore[no-untyped-def]
+    """A private, empty `schema_migrations` that shadows the real one for this connection only.
+
+    A dedicated connection, not the shared session one: a temp table lives for the life of its
+    session, so creating it on the shared connection would shadow the real ledger for every
+    subsequent test in the run.
+    """
+    psycopg = pytest.importorskip("psycopg")
+    connection = psycopg.connect(database_url(), autocommit=True, connect_timeout=5)
+    with connection:
+        connection.execute(
+            "CREATE TEMP TABLE schema_migrations "
+            "(LIKE public.schema_migrations INCLUDING ALL) ON COMMIT PRESERVE ROWS"
+        )
+        # Prove the shadow is in effect before any test writes through it. If `pg_temp` were not
+        # ahead of `public` on the search path, every test below would silently edit the real
+        # ledger -- which is exactly what happened last time.
+        relation = connection.execute(
+            "SELECT n.nspname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "WHERE c.oid = 'schema_migrations'::regclass"
+        ).fetchone()
+        assert relation is not None and str(relation[0]).startswith("pg_temp"), (
+            f"unqualified schema_migrations resolves to {relation}, not a temp table; refusing to "
+            "run rename fixtures against the real ledger"
+        )
+        yield connection
 
 
 def _insert(db, filename: str, checksum: str) -> None:  # type: ignore[no-untyped-def]

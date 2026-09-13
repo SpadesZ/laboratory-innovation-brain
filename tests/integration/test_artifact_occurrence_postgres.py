@@ -32,8 +32,9 @@ CONTENT_HASH = compute_content_hash(SHARED)
 def seeded(db):  # type: ignore[no-untyped-def]
     """One artifact, two projects, one actor. Nothing classified yet.
 
-    Uses `db` rather than `postgres_connection`: `db` wraps each test in a transaction that is
-    rolled back, so these fixtures do not leak into the next test.
+    Uses `db` rather than `postgres_connection`: `db` TRUNCATEs the core tables before each test, so
+    these rows do not leak into the next one. It is not transactional -- the connection is
+    autocommit -- so nothing here may touch a table outside that truncation list.
     """
     with db.cursor() as cur:
         cur.execute(
