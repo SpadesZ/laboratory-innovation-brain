@@ -1446,15 +1446,40 @@ Job {
 
 ```
 CostEntry {
-  cost_entry_id, episode_id, actor_or_slot, action_ref,
-  tokens_in?, tokens_out?, wall_clock_s?, human_minutes?,
-  money_estimate?, compute_units?, license_seat_s?,
-  earliest_available_at?, irreversible?, recorded_at
+  cost_entry_id, project_id, episode_id, actor_or_slot, action_ref,
+  cost_kind,                 # ESTIMATED | ACTUAL
+  cost,                      # CostVector (9.4)
+  approval_id?,
+  recorded_at
 }
 
 Before each LLM/tool call, BudgetGate MUST check project/episode caps.
 Exceed -> refuse/escalate; never silently continue.
 ```
+
+`cost` is a `CostVector` (§9.4) rather than a flat list of dimensions, so the ledger and the planner
+cannot drift apart about what a cost consists of. `cost_kind` keeps the estimate the gate decided
+from as a separate row from the actual: overwriting one with the other destroys the evidence for why
+the call was admitted, and makes systematic under-estimation invisible.
+
+### 17.17.1 BudgetApproval Schema — 超限的具名放行
+
+```
+BudgetApproval {
+  approval_id, approver_actor_id,
+  project_id, episode_id, action_ref,
+  policy_id, policy_version,
+  approved_overrun,          # CostVector (9.4)
+  granted_at, expires_at
+}
+
+An approval releases ONE action, in ONE episode of ONE project, under ONE policy version,
+for a STATED overrun, within a window, ONCE.
+It releases the budget only: SEC-002, the §7.6 critique path and every other gate still apply.
+```
+
+`approved_overrun` 是額度而非空白支票；`action_ref` 綁定單一 action，否則一次核准會變成整個 session 的
+常設許可。`policy_version` 綁定核准當時的 caps：caps 變更後，被核准的已不是將要執行的東西。
 
 ## 17.18 Capability Descriptor
 
@@ -3120,3 +3145,4 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | **v3.3-a6** | **2026-09-13** | **Maintainer amendment (occurrence targets must be dischargeable)**：§23.2 要求 registry 的 Test IDs 必須真能 discharge 該 statement，而非僅存在。本修訂修正 v3.3-a5 留下的兩類缺口。（a）§14.3 兩筆誤判為 RESTATEMENT_OF 的義務改為真正義務：「solver budget 超標需 supervisor/human approval」不等於 COST-001 的 refuse/escalate（永久拒絕即可滿足舊條文），故 COST-001 與 T-COST-001 增列 approval path；「measurement/simulation 需 artifact reference」不等於 EPI-002（後者僅在 confirmed root cause 時成立，且屬 M4），故**新增 EVI-009 / T-EVI-009**，配置 M1，Requirement ↔ Test **58 ↔ 58 改為 59 ↔ 59**。（b）補齊四筆 pass condition 使新 statement 可 discharge：T-EPI-005 增列 identical inputs + policy_version 決定性、T-LLM-002 增列 per-case round count 須隨難度變化、T-OPS-002 增列 stakes / SLA / expiry、T-SRC-002 增列 critique path 獨立性與 external adjudication。T-LLM-001 另增列「無 provenance 舊推論不可作為 transition basis」（僅測 admission 不足）。無架構方向變更。 |
 | **v3.3-a7** | **2026-09-13** | **Maintainer amendment (§7.6 第二個 trigger)**：§7.6 「重大 REJECT / irreversible action 必須經 independent critique path」是一條規則的兩個 trigger，而 v3.3-a6 只綁定了第一個 —— 不造成 belief transition 的 irreversible dispatch（版圖送件、MPW shuttle 訂位）因此無人管。**擴充既有 SRC-002 / T-SRC-002**，不新增 Requirement：irreversible Capability/action 在 independent critique 完成前 MUST NOT dispatch，且 human approval 不可取代 critique。Requirement ↔ Test 維持 **59 ↔ 59**。無架構方向變更。 |
 | **v3.3-a8** | **2026-09-13** | **Maintainer amendment (Artifact / ArtifactOccurrence canonical contract)**：修正 §17.1 與實作之間的 drift。migration 005（現 002a）已將 `project_id` / `sensitivity_label` 移出全域 `artifacts`，但 §17.1 與 Pydantic `Artifact` 仍保留這兩個欄位。本修訂確立：**`Artifact` = global content identity**（只含 bytes 的性質）、**`ArtifactOccurrence` = project-scoped presence/classification**（identity 為 `(artifact_id, project_id)`）。§17.1 移除該二欄位並新增 **§17.1.1 ArtifactOccurrence Schema**；`ART-001` / `T-ART-001` 澄清 content identity 不含 project scope；`SEC-002` / `T-SEC-002` 增列 occurrence-scoped read gate 與 `Actor.active`。決策記錄於 **ADR-0010**。新增 conformance guard：§17 canonical schema 與 Pydantic model 及 migration 欄位漂移時 CI 必須失敗。**未新增 Requirement/Test ID**；Requirement ↔ Test 維持 **59 ↔ 59**。 |
+| **v3.3-a9** | **2026-09-14** | **Maintainer amendment (COST-001 ledger 與 approval contract)**：§17.17 的 `CostEntry` 原本無 `project_id`，也無法區分 estimate 與 actual，而 COST-001 要求成本可追溯到 project 並保留兩者。改為 `project_id` + `cost_kind（ESTIMATED | ACTUAL）` + `cost`（直接引用 §9.4 `CostVector`，避免 ledger 與 planner 對「成本由什麼組成」各自漂移）+ `approval_id?`。新增 **§17.17.1 BudgetApproval Schema**：v3.3-a6 要求超限時存在 supervisor/human approval path 且 approval 本身可歸屬，但未定義其 scope；現明確為 one action / one episode / one project / one policy_version / stated overrun / time window / single use，且**僅解除 budget，不解除 SEC-002、§7.6 critique path 或任何其他 gate**。**未新增 Requirement/Test ID**；Requirement ↔ Test 維持 **59 ↔ 59**。 |

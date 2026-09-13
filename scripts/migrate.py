@@ -49,6 +49,9 @@ APPLY_ORDER: tuple[str, ...] = (
     "004b_evidence_bundle_immutability.sql",
     # After 003: the EVI-005 payload triggers attach to observations and attestations.
     "008a_condition_payload_validation.sql",
+    # P5 / M0b-2. The cost half of Appendix A's 007 slot (COST-001); the capabilities
+    # half lands with VER-002 in M2. Needs 001 for the project and actor foreign keys.
+    "007a_cost_ledger.sql",
 )
 
 _BOOTSTRAP = """

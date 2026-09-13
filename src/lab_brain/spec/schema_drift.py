@@ -47,6 +47,12 @@ class SchemaBinding:
     model_path: str
     table: str
     migration: str
+    #: Canonical fields the TABLE stores decomposed into one column per sub-field, mapped to the
+    #: model that defines those sub-fields. §17.17's `cost` is a CostVector: the model keeps it as
+    #: one nested object, the table spreads it across a column per §9.4 dimension because caps are
+    #: compared dimension-by-dimension in SQL. Both are faithful; declaring the relationship lets
+    #: the guard check it instead of being told to look away.
+    decomposed: tuple[tuple[str, str], ...] = ()
 
 
 #: The bindings this guard enforces. Completeness is enforced by
@@ -66,6 +72,14 @@ BINDINGS: tuple[SchemaBinding, ...] = (
         model_path="lab_brain.core.models.access:ArtifactOccurrence",
         table="artifact_occurrences",
         migration="002a_artifact_occurrences.sql",
+    ),
+    SchemaBinding(
+        section="17.17",
+        schema_name="CostEntry",
+        model_path="lab_brain.core.models.cost:CostEntry",
+        table="cost_entries",
+        migration="007a_cost_ledger.sql",
+        decomposed=(("cost", "lab_brain.core.models.cost:CostVector"),),
     ),
 )
 
@@ -232,8 +246,23 @@ def drift(binding: SchemaBinding, text: str | None = None) -> list[str]:
     model = model_fields(binding.model_path)
     table = effective_table_columns(binding)
 
+    # A decomposed field is satisfied by the presence of its parts, and those parts are not
+    # "undeclared" -- they are the declared field, spread out.
+    expanded: set[str] = set()
+    satisfied: set[str] = set()
+    for parent, nested_path in binding.decomposed:
+        parts = model_fields(nested_path)
+        expanded |= set(parts)
+        if parts <= table:
+            satisfied.add(parent)
+        else:
+            findings_missing = sorted(parts - table)
+            expanded -= set(findings_missing)
+
     findings: list[str] = []
     for label, implemented in (("model", model), ("table", table)):
+        if label == "table":
+            implemented = (implemented - expanded) | satisfied
         missing = sorted(canonical - implemented - allowed)
         extra = sorted(implemented - canonical)
         if missing:

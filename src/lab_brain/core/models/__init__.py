@@ -29,6 +29,13 @@ from lab_brain.core.models.condition import (
     ConditionSchemaRef,
     ConditionSchemaRegistration,
 )
+from lab_brain.core.models.cost import (
+    CAPPED_DIMENSIONS,
+    CostEntry,
+    CostKind,
+    CostVector,
+    DependencyRisk,
+)
 from lab_brain.core.models.enums import (
     FACTUAL_EPISTEMIC_TYPES,
     FAIL_CLOSED_SENSITIVITY,
@@ -82,6 +89,7 @@ from lab_brain.core.models.source_work import (
 
 __all__ = [
     "BUNDLE_SCHEMA_VERSION",
+    "CAPPED_DIMENSIONS",
     "EPISTEMIC_RELATION_TYPES",
     "FACTUAL_EPISTEMIC_TYPES",
     "FAIL_CLOSED_SENSITIVITY",
@@ -105,6 +113,10 @@ __all__ = [
     "ConditionSchemaRegistration",
     "ContentHashError",
     "CoreModel",
+    "CostEntry",
+    "CostKind",
+    "CostVector",
+    "DependencyRisk",
     "EpistemicType",
     "EvidenceBundle",
     "EvidenceField",
