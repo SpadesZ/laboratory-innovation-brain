@@ -24,7 +24,11 @@ schema_version: 1
 milestones:
   - id: M0a
     name: Scientific Identity Foundation
-    status: IN_PROGRESS
+    # DONE 2026-09-13 on maintainer sign-off after the §23.5 (2) coverage audit (rev 6) balanced
+    # at 70 hard MUSTs over 72 classified occurrences with every delta 0. From this point the
+    # executed-coverage ratchet enforces M0a on every CI run: each requirement below needs a
+    # traceability test that actually executed and passed under gate_profile [postgres].
+    status: DONE
     exit_gate: >-
       artifact/claim identity + bundle hash + schema/spec conformance pass;
       testable without Actor/LLM/Simulator.
