@@ -1,7 +1,7 @@
 # M0a Spec Coverage Audit — §23.5 (2)
 
-Date: 2026-09-12 (rev 5 — occurrence-level inventory; seven sections re-adjudicated)
-Spec: SAI 3.3, amendments `v3.3-a1` ... `v3.3-a5`
+Date: 2026-09-13 (rev 6 — targets must discharge, not merely resolve; EVI-009)
+Spec: SAI 3.3, amendments `v3.3-a1` ... `v3.3-a6`
 Milestone: **M0a — Scientific Identity Foundation**
 Owner per §23.5: spec maintainer
 Prepared by: implementation agent
@@ -289,6 +289,54 @@ profile. Classified `NON_NORMATIVE_WITH_RATIONALE` with the reason recorded, not
 **§6.6 — flagged judgement, carried forward.** Counted 0. The graph-DB migration trigger is phrased
 as a design note and recorded in ADR-0001 under P20, not as an implementation obligation. A stricter
 reading is defensible; the basis says so, so a reviewer can overrule it rather than discover it.
+
+### Revision 6 — a resolvable target is not a dischargeable one
+
+Rev 5's guards proved every named target existed. They could not prove a target *obliged the same
+thing*, and two §14.3 classifications were wrong in exactly that gap:
+
+| Occurrence | Rev 5 said | Why it was wrong | Rev 6 |
+|---|---|---|---|
+| `14.3#M1` 「超出 session solver budget 需 supervisor/human approval」 | `RESTATEMENT_OF(budget.gate.before_side_effect)` | COST-001 obliged the gate to refuse **or** escalate before a side effect. A system that refuses **permanently** satisfies it completely — no supervisor, no approval, no way through. | `REGISTERED(budget.overrun.supervisor_approval)` → COST-001, whose statement and pass condition now state the approval path |
+| `14.3#M3` 「measurement/simulation 需 artifact reference」 | `RESTATEMENT_OF(rootcause.traceable_to_run_artifact)` | EPI-002 binds a **confirmed root cause**. A measurement admitted with no artifact reference never reaches it unless it later joins a root-cause confirmation — and that capability is M4. This obligation holds at admission. | `REGISTERED(evidence.measured_simulated.artifact_reference)` → **new EVI-009 / T-EVI-009**, allocated to M1 |
+
+`14.3#M2` stays `RESTATEMENT_OF(inference.not_evidence)`: that target does oblige exactly the
+inferred-marking the bullet restates. §14.3 therefore counts **4**, not 2.
+
+EVI-009 was minted rather than mapped. Nothing existing reached it: `ART-001` gives artifacts
+identity without obliging evidence to cite one; `SIM-001` governs a simulation manifest's fields and
+a measurement has no solver version; `EVI-003` forbids inference being *typed* measured but leaves a
+human-entered measured claim untouched. Requirement ↔ Test moves **58 ↔ 58 → 59 ↔ 59**.
+
+### The registry's Test IDs must discharge, not merely exist
+
+§23.2 says a statement's `tests` are the tests that discharge it. Five pass conditions did not, so
+they were amended under `v3.3-a6` rather than left as decoration:
+
+| Statement | The gap |
+|---|---|
+| `transition.decision.deterministic` | `T-EPI-005` tested the canonical operator, the ban on direct mutation and the event path — never that identical inputs plus an identical `policy_version` give an identical `TransitionDecision`. |
+| `debate.rounds.not_fixed` | `T-LLM-002` tested metrics, baseline comparison and calibration. A system that always runs the configured maximum rounds passed all three. |
+| `review.queue.stakes_sla_expiry` | `T-OPS-002` tested only the second half of OPS-002 (queue state feeding Capability availability). `stakes` / SLA / expiry were unverified. |
+| `critique.independent_path.major_reject` | `T-SRC-002` gated high-stakes decisions on inverted retrieval but never required the critique path to *differ*, nor the adjudication to cite external evidence rather than another model opinion. |
+| `inference.no_provenance_not_usable` | `T-LLM-001` tested that a **new** output without provenance fails admission. §7.6 forbids *using* a stored provenance-less inference, which admission testing cannot reach. Found while re-checking the statements the review did not flag. |
+
+### IMPLEMENTATION_STATUS.md's test table is generated now
+
+It claimed "288 passed with postgres; 237 + 51 skipped without" while the suite held 307, and
+`update_status.py --check` passed because it only ever read the requirement block. CI was green on a
+number nobody recomputed — the executed-coverage failure relocated from coverage to documentation.
+
+The table is derived from the collection the pytest plugin records, and the check refuses three ways:
+a missing report (fail closed), a partial one (a `pytest tests/spec` report would shrink every
+number, so the spec job passes `--requirements-only` explicitly), and a stale one (the recorded
+`node_digest` must match a fresh collection, or "doc matches report" is satisfiable while both are
+out of date). Counts are *collected*, which is profile-independent, so both whole-suite CI jobs check
+the same table and disagreement would mean a gate marker is changing collection rather than skips.
+
+**Rev 6 totals: 76 sections, 70 hard MUSTs = 68 registered live + 2 named deferred,
+every delta 0. 72 occurrences: 52 REGISTERED, 17 RESTATEMENT_OF, 3
+NON_NORMATIVE, plus 18 keyword-free declarations.**
 
 ## 4. Findings, and what was done about them
 

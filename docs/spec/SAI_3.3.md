@@ -25,7 +25,7 @@
 | FIX-7 | Lumerical seat 與 ground-truth benchmark 兩項外部依賴進 Risk Register |
 | FIX-8 | 新增 Frontend Error & Recovery Contract：§17.22–17.24、§27、`UX-xxx` namespace、UX-001~007 |
 
-**Requirement ↔ Test 不變式：58 ↔ 58。**
+**Requirement ↔ Test 不變式：59 ↔ 59。**
 
 ---
 
@@ -2516,6 +2516,7 @@ EXPECTED RESEARCH LOOP
 | EVI-006 | Every scientific LLM call MUST use a canonical EvidenceBundle with deterministic hash over ordered attestation IDs + query/policy/condition snapshot. |
 | EVI-007 | Vector retrieval MUST filter by compatible embedding model/version; embedding migration uses dual-index + verified cutover. |
 | EVI-008 | Major belief revision from external reported evidence SHOULD pass source-work version/retraction/erratum check; check status MUST be recorded. |
+| EVI-009 | Evidence admitted as MEASURED or SIMULATED MUST reference the Run and/or Artifact it was derived from; a record without that reference is refused at admission and MUST NOT be admitted first and back-filled later（§14.3 memory admission gate）。 |
 | EPI-001 | 至少維護 2 個 competing hypotheses；單一看似合理原因不得直接被升級成 confirmed root cause。 |
 | EPI-002 | confirmed root cause 必須可以 trace 回 Run/Evidence/Artifact；LLM statement 不可作為證據。 |
 | EPI-003 | 所有 hypothesis status 變更必須產生 BeliefRevisionEvent；EpistemicState 可由 event replay 重建。 |
@@ -2549,7 +2550,7 @@ EXPECTED RESEARCH LOOP
 | OPS-002 | Human ReviewQueue MUST have capacity, stakes, SLA/expiry and feed availability/earliest_available_at into human-review Capability. |
 | OPS-003 | Execution observability MUST persist trace/span contract linking episode → retrieval/LLM/job/run/artifact with status and cost refs. |
 | OPS-004 | Cross-store writes (artifact store + PostgreSQL) MUST be compensated within a single unit of work. A failure between stores MUST leave no dangling reference; the compensating path MUST be verified by fault injection. |
-| COST-001 | 每次 LLM/tool action 前必須經 BudgetGate；CostLedger 至少記 wall-clock/tokens/money/license-seat estimates。 |
+| COST-001 | 每次 LLM/tool action 前必須經 BudgetGate；CostLedger 至少記 wall-clock/tokens/money/license-seat estimates。**超出 session budget 時 BudgetGate MUST 提供 supervisor/human approval path，approval 本身記為帶 `actor_id` 的事件；只會永久拒絕、不存在 approval path 的實作不滿足本要求（§14.3 昂貴計算 gate）。** |
 | UX-001 | IngestionItem state MUST be derived from Job / ExecutionSpan / Artifact / ReviewItem / Conflict by the documented precedence order; it MUST NOT be set directly by a client or by an LLM. Identical-bytes duplicates and same-work duplicates MUST be distinguished; same-work duplicates MUST still create SourceWork/Attestation. |
 | UX-002 | Every surfaced failure MUST carry an error_class from {USER_INPUT_ERROR, EXTRACTION_WARNING, POLICY_BLOCK, EXTERNAL_SERVICE_ERROR, SYSTEM_ERROR} and a reason_code. POLICY_BLOCK and USER_INPUT_ERROR MUST NOT be auto-retried. Auto-retry MUST pass BudgetGate and stop at Job.max_attempts. Budget exhaustion MUST classify as POLICY_BLOCK, not FAILED. |
 | UX-003 | Technical diagnostics MUST NOT be included in the default user payload. Expansion requires a server-side ACL scope check and MUST be redacted against the requesting Actor's sensitivity_clearance while preserving trace_id/job_id/span_id. error_id lookup MUST be scoped by project membership. |
@@ -2586,7 +2587,7 @@ VS-SP-001 只有在以下條件全部成立才算完成：
 
 Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 將需求直接綁到測試；IMPLEMENTATION_STATUS.md 應引用這些 Requirement IDs 與 Test IDs。
 
-**58 requirements ↔ 58 tests。**
+**59 requirements ↔ 59 tests。**
 
 | Requirement | Test ID | Test type | Pass condition |
 |---|---|---|---|
@@ -2603,11 +2604,12 @@ Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 
 | EVI-006 | T-EVI-006 | contract | permuted JSON key order yields same canonical bundle hash; changed attestation order/policy/query snapshot changes hash as defined. |
 | EVI-007 | T-EVI-007 | integration | mixed embedding versions are never compared; dual-index migration preserves benchmark recall within threshold before cutover. |
 | EVI-008 | T-EVI-008 | integration | retracted/erratum fixture records source status and blocks/flags major belief promotion per SourcePolicy. |
+| EVI-009 | T-EVI-009 | contract | a MEASURED/SIMULATED evidence fixture with no run/artifact reference is refused at admission; one with a reference round-trips and the reference resolves to an existing Artifact; admitting first and back-filling the reference is refused; an INFERRED record is not subject to the reference requirement but still cannot be typed MEASURED/SIMULATED (EVI-003). |
 | EPI-001 | T-EPI-001 | e2e | root-cause episode 在驗證前保留至少兩個 active/competing hypotheses。 |
 | EPI-002 | T-EPI-002 | e2e/provenance | confirmed root cause query 必須 trace 到 Relation/Attestation or Observation → Run → Artifact；只有 LLM statement 的 fixture 不得確認 root cause。 |
 | EPI-003 | T-EPI-003 | e2e | 隔離 triggering attestation 後 replay，EpistemicState 投影改變且 history 保留。 |
 | EPI-004 | T-EPI-004 | unit | authority fixtures cover stronger/weaker/equivalent/incomparable; required INCOMPARABLE returns NEED_HUMAN_REVIEW, auto-creates ReviewItem(AUTHORITY_CONFLICT), and blocks belief promotion/rejection. |
-| EPI-005 | T-EPI-005 | contract/e2e | direct LLM status assignment is rejected; admitted RelationJudgments + policy produce event and replayable projection; only `evaluate` signature exists in the codebase (no `should_transition`). |
+| EPI-005 | T-EPI-005 | contract/e2e | direct LLM status assignment is rejected; admitted RelationJudgments + policy produce event and replayable projection; only `evaluate` signature exists in the codebase (no `should_transition`); **identical inputs + identical `policy_version` MUST yield an identical `TransitionDecision`, compared under canonical serialization -- a policy whose result varies across repeated calls on the same inputs, or which reads wall-clock/random/ambient state, must FAIL (§8.2.1).** |
 | EPI-006 | T-EPI-006 | contract/e2e | A blocking Conflict of a type listed in blocking_conflict_policy forces TransitionDecision.outcome != ALLOW and appears in blocking_conflict_ids[]; AUTHORITY_CONFLICT from an INCOMPARABLE comparison creates a Conflict linked to the auto-created ReviewItem; resolving a Conflict without a resolution_event_id is rejected. |
 | VER-001 | T-VER-001 | e2e | Planner 先檢查已存在 evidence / cheap actions；只有較便宜層不足時才升級 simulator，並記錄選擇理由。 |
 | VER-002 | T-VER-002 | unit | Planner 對無 capability descriptor 的 backend 不可規劃；有 descriptor 時依 produces/requires match。 |
@@ -2620,23 +2622,23 @@ Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 
 | DOM-SP-001 | T-DOM-SP-001 | domain | Rs trend validator 只存在 Silicon Photonics DomainPack，移除 plugin 後 core 仍可啟動。 |
 | DOM-SP-002 | T-DOM-SP-002 | domain | 同一 `extract_cj_rs` contract 通過 simulated impedance 與 measured impedance fixtures。 |
 | SRC-001 | T-SRC-001 | contract | 以 fake GitHub/Literature connectors 替換真 provider 時 SourceRouter/cognition 不需修改；normalized record schema 相同。 |
-| SRC-002 | T-SRC-002 | e2e | DIAGNOSIS/NOVELTY 使用不同 source policies；high-stakes decision 未執行 inverted retrieval 時 BELIEF_REVISION 被拒絕；執行後 CritiqueReport.inverted_bundle_id 與 bundle divergence 可追溯。 |
+| SRC-002 | T-SRC-002 | e2e | DIAGNOSIS/NOVELTY 使用不同 source policies；high-stakes decision 未執行 inverted retrieval 時 BELIEF_REVISION 被拒絕；執行後 CritiqueReport.inverted_bundle_id 與 bundle divergence 可追溯；**該 critique path MUST 在 retrieval bundle、reasoning policy 或 model route 至少一項與原推論不同，且 adjudication MUST 引用 external evidence 或 verification result，不得由另一次 model opinion 裁定（§7.6）。** |
 | SRC-003 | T-SRC-003 | integration | novelty fixture without a `PriorArtSearchRecord` is rejected; recorded coverage (sources / queries / date range / limitations) is retrievable; an internal-only search cannot yield a global-novelty claim. |
 | GH-001 | T-GH-001 | integration | public fixture repo 可 search/fetch；requested ref 解析到固定 commit SHA，file content hash 與 locator 被保存。 |
 | GH-002 | T-GH-002 | security | 未授權 private repo request 被 fail-closed 並產生 audit event；不洩漏 query/private context。 |
 | GH-003 | T-GH-003 | epistemic | GitHub record 能被標為 technical/prior-art source；admission gate 不允許其自動冒充 measured/peer-reviewed evidence。 |
 | HEU-001 | T-HEU-001 | security/governance | a mined candidate starts `PENDING_REVIEW` and carries source artifact IDs plus locators; promotion without `approved_by_actor_id` is rejected; a miner fixture drawing from an unapproved source yields no candidate. |
-| LLM-001 | T-LLM-001 | contract | Hypothesis/Critique/Relation 缺 model/prompt/bundle provenance 時 admission fail。 |
-| LLM-002 | T-LLM-002 | benchmark | fixed SiPho benchmark produces baseline distributions; the benchmark MUST compare the debate mechanism against a baseline/disabled condition on the same cases, so a claim of groupthink reduction can be refuted by the result and not merely illustrated; BenchmarkPolicy schema stores metric/threshold/sample size/calibration artifacts/version; no hard gate before calibration. |
+| LLM-001 | T-LLM-001 | contract | Hypothesis/Critique/Relation 缺 model/prompt/bundle provenance 時 admission fail；**且既存於庫中而無 InferenceProvenance 的舊推論不得作為新 belief transition 的依據 -- 以該推論為唯一 basis 的 transition 被拒絕，理由可追溯（§7.6）。僅測 admission 不足以通過。** |
+| LLM-002 | T-LLM-002 | benchmark | fixed SiPho benchmark produces baseline distributions; the benchmark MUST compare the debate mechanism against a baseline/disabled condition on the same cases, so a claim of groupthink reduction can be refuted by the result and not merely illustrated; BenchmarkPolicy schema stores metric/threshold/sample size/calibration artifacts/version; no hard gate before calibration; **the benchmark MUST record per-case round count and show it varies with case difficulty, so an implementation that always runs the configured maximum number of rounds FAILS even when every metric is recorded correctly (§7.2).** |
 | SEC-001 | T-SEC-001 | security | RESTRICTED_NDA context 嘗試送 external connector 時被 policy engine 阻擋並留下 audit event。 |
 | SEC-002 | T-SEC-002 | security | 未授權 actor 被 ACL/egress gate 拒絕；新 artifact 未分類時預設 restricted。 |
 | SEC-003 | T-SEC-003 | security | fixture secret is quarantined before immutable normal ingest; redacted derivative preserves audit linkage. |
 | SEC-004 | T-SEC-004 | security | UNKNOWN/COPYLEFT code fixture is blocked from generation context unless explicit policy fixture allows it. |
 | OPS-001 | T-OPS-001 | e2e | delayed mock job 可 suspend/resume；重複 completion event 不建立第二個 run。 |
-| OPS-002 | T-OPS-002 | unit/integration | queue depth/capacity changes human-review capability availability and planner earliest_available_at. |
+| OPS-002 | T-OPS-002 | unit/integration | queue depth/capacity changes human-review capability availability and planner earliest_available_at; **a ReviewItem without `stakes` or without an SLA/expiry policy is refused at creation, and an item past its expiry leaves PENDING via the declared policy rather than parking there indefinitely (§14.4).** |
 | OPS-003 | T-OPS-003 | e2e | one episode trace reconstructs retrieval → LLM → job → run → artifact and associated cost entries. |
 | OPS-004 | T-OPS-004 | integration | fault injection between the artifact-store write and the database commit leaves no dangling artifact reference; the compensating path is exercised and the partial state is either completed or removed. |
-| COST-001 | T-COST-001 | integration | 預算不足時 model/tool call 在產生外部 side effect 前被阻擋。 |
+| COST-001 | T-COST-001 | integration | 預算不足時 model/tool call 在產生外部 side effect 前被阻擋；**該阻擋可經 supervisor/human approval 解除，approval 以帶 `actor_id` 的事件記錄，未經 approval 的重試仍被阻擋。只實作永久拒絕、沒有 approval path 者必須 FAIL。** |
 | UX-001 | T-UX-001 | contract/integration | Fixture set drives every state through the documented precedence (BLOCKED > FAILED > PARTIAL > NEEDS_REVIEW > DUPLICATE > PROCESSING > READY); direct client state assignment is rejected; preprint-vs-journal fixture yields DUPLICATE-by-work **and** a persisted SourceWork/Attestation, while byte-identical fixture yields DUPLICATE with no new Attestation. |
 | UX-002 | T-UX-002 | unit/integration | POLICY_BLOCK and USER_INPUT_ERROR fixtures produce zero retry attempts and, for POLICY_BLOCK, one audit event; EXTERNAL_SERVICE_ERROR retries until max_attempts then surfaces FAILED with next_retry_at cleared; budget-exhausted fixture classifies POLICY_BLOCK. |
 | UX-003 | T-UX-003 | security | Default payload contains no stack trace, file path, repo name or prompt fragment; expansion without scope is denied; expansion with scope but lower clearance returns redacted detail retaining trace_id/job_id/span_id; cross-project error_id returns not-found (not permission-denied). |
@@ -3087,3 +3089,4 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | **v3.3-a3** | **2026-09-12** | **Maintainer amendment (M0a coverage fix)**：精確化 `T-LLM-002` pass condition —— fixed benchmark 必須將 debate mechanism 與 baseline/disabled condition 在相同案例上比較，使「groupthink reduction」之主張可被結果反駁而非僅被例示。未新增 Requirement/Test ID；Requirement ↔ Test 維持 **57 ↔ 57**。無架構方向變更。 |
 | **v3.3-a4** | **2026-09-12** | **Maintainer amendment (M0a coverage fix, round 2)**：M0a Spec Coverage Audit 於 §9.1 發現第五條未登錄 hard MUST —— 「Disagreement metrics MUST be deterministic, versioned and defined over the declared OutcomeSpace」。新增 **VER-008 / T-VER-008**（不併入 VER-004：後者管 plausible outcome 來自declared OutcomeSpace，前者管排序所用 metric 本身的 determinism 與版本綁定），配置 M3。同時修正 §10.5 / §10.5.1 的 registry 歸屬：`fidelity.low_cannot_reject` 在 §6–§16 正文無對應敘述，其 prose home 為 §25.3；§10.5.1 的兩條 MUST（INCOMPARABLE 不得被強制排序、DomainPack MUST expose compare）補登。Requirement ↔ Test：**57 ↔ 57 → 58 ↔ 58**。無架構方向變更。 |
 | **v3.3-a5** | **2026-09-12** | **Maintainer amendment (M0a occurrence inventory)**：將 §23.5 (2) coverage audit 自 section-level 計數推進到 occurrence-level。§6–§16 每一個明確 `MUST / MUST NOT / 必須 / 不得 / 不可` 出現處都必須被分類為 REGISTERED(statement_key)、RESTATEMENT_OF(statement_key) 或 NON_NORMATIVE_WITH_RATIONALE；不再允許以「已在別節註冊」把本節計為 0 而不指名對應 statement。新增四筆 registry statement 對應先前無主的義務：§7.2 round count 不得固定（LLM-002）、§7.6 重大 REJECT 需 independent critique path（SRC-002）、§7.6 無 provenance 舊推論不可用（LLM-001）、§8.2.1 TransitionDecision 決定性（EPI-005）。修正兩筆 section 歸屬：`extractor.backend_agnostic` 10.2 → 10.2.1、`hypothesis.admission.certificate_fields` 8.1 → 8。**未新增 Requirement/Test ID**；Requirement ↔ Test 維持 **58 ↔ 58**。無架構方向變更。 |
+| **v3.3-a6** | **2026-09-13** | **Maintainer amendment (occurrence targets must be dischargeable)**：§23.2 要求 registry 的 Test IDs 必須真能 discharge 該 statement，而非僅存在。本修訂修正 v3.3-a5 留下的兩類缺口。（a）§14.3 兩筆誤判為 RESTATEMENT_OF 的義務改為真正義務：「solver budget 超標需 supervisor/human approval」不等於 COST-001 的 refuse/escalate（永久拒絕即可滿足舊條文），故 COST-001 與 T-COST-001 增列 approval path；「measurement/simulation 需 artifact reference」不等於 EPI-002（後者僅在 confirmed root cause 時成立，且屬 M4），故**新增 EVI-009 / T-EVI-009**，配置 M1，Requirement ↔ Test **58 ↔ 58 改為 59 ↔ 59**。（b）補齊四筆 pass condition 使新 statement 可 discharge：T-EPI-005 增列 identical inputs + policy_version 決定性、T-LLM-002 增列 per-case round count 須隨難度變化、T-OPS-002 增列 stakes / SLA / expiry、T-SRC-002 增列 critique path 獨立性與 external adjudication。T-LLM-001 另增列「無 provenance 舊推論不可作為 transition basis」（僅測 admission 不足）。無架構方向變更。 |

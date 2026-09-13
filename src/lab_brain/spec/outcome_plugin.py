@@ -31,6 +31,7 @@ it is missing, so deleting it is not a way past the gate.
 from __future__ import annotations
 
 import datetime as _dt
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -72,17 +73,36 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 class RequirementOutcomeRecorder:
-    """Records, per marked test, whether it actually executed and passed."""
+    """Records, per marked test, whether it actually executed and passed.
+
+    It also records the session's whole collection, which is what lets
+    ``scripts/update_status.py`` derive IMPLEMENTATION_STATUS.md's test inventory rather than trust
+    a hand-written table. That table claimed "288 passed with postgres; 237 + 51 skipped without"
+    while the suite had grown to 307, and nothing read it -- so AGT-003's "docs agree with
+    implementation state" was passing CI on a number nobody recomputed.
+
+    The per-file figures recorded here are **collected** counts, deliberately. Collection is
+    profile-independent: the postgres and backend-free profiles collect the same tests and differ
+    only in how many they skip. That makes the derived table checkable in every CI job, and the
+    "how many execute without a backend" figure comes from counting gate markers rather than from
+    comparing two separate runs.
+    """
 
     def __init__(self, path: Path) -> None:
         self.path = path
         self._markers: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {}
         self._outcomes: dict[str, str] = {}
+        self._collected: dict[str, tuple[str, ...]] = {}
 
     # -- collection -------------------------------------------------------
 
     def pytest_collection_modifyitems(self, items: list[pytest.Item]) -> None:
         for item in items:
+            # Which backend gates this test needs, so "runs without a backend" is derived from the
+            # markers instead of asserted by whoever last edited the table.
+            self._collected[item.nodeid] = tuple(
+                sorted(gate for gate in GATE_ENV_VARS if item.get_closest_marker(gate) is not None)
+            )
             requirement_ids = tuple(
                 value
                 for mark in item.iter_markers(name="requirement")
@@ -150,7 +170,30 @@ class RequirementOutcomeRecorder:
             "schema_version": REPORT_SCHEMA_VERSION,
             "generated_at": _dt.datetime.now(_dt.UTC).isoformat(),
             "enabled_gates": enabled_gates(),
+            "collection": self.build_collection(),
             "tests": tests,
+        }
+
+    def build_collection(self) -> dict[str, Any]:
+        """The session's collection, grouped by test file.
+
+        ``node_digest`` covers the sorted node ids. ``update_status.py --check`` re-collects and
+        compares it, so a report left over from an earlier run cannot validate the current table --
+        without that, "the doc matches the report" would be true while both were stale.
+        """
+        by_file: dict[str, dict[str, int]] = {}
+        for node_id, gates in sorted(self._collected.items()):
+            path = node_id.split("::", 1)[0].replace("\\", "/")
+            entry = by_file.setdefault(path, {"collected": 0, "gated": 0})
+            entry["collected"] += 1
+            if gates:
+                entry["gated"] += 1
+        digest = hashlib.sha256("\n".join(sorted(self._collected)).encode("utf-8")).hexdigest()
+        return {
+            "collected": len(self._collected),
+            "gated": sum(1 for gates in self._collected.values() if gates),
+            "node_digest": digest[:16],
+            "by_file": by_file,
         }
 
     def pytest_sessionfinish(self, session: pytest.Session, exitstatus: int) -> None:

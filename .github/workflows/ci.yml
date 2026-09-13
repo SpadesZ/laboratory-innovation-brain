@@ -59,8 +59,13 @@ jobs:
       - name: Executed-coverage gate
         run: python scripts/check_requirement_coverage.py
 
-      - name: IMPLEMENTATION_STATUS.md is current (AGT-003)
-        run: python scripts/update_status.py --check
+      # This job runs only `pytest tests/spec`, so it has no whole-suite outcome report and cannot
+      # derive the test inventory. `--requirements-only` says so explicitly rather than letting the
+      # check generate the table from a partial report and call the file current -- which would
+      # shrink every number while reporting success. The inventory half is checked in the two jobs
+      # below, which do execute the whole suite.
+      - name: IMPLEMENTATION_STATUS.md requirement table is current (AGT-003)
+        run: python scripts/update_status.py --check --requirements-only
 
       - name: Environment report
         run: python scripts/verify_environment.py
@@ -97,6 +102,12 @@ jobs:
 
       - name: Executed-coverage gate
         run: python scripts/check_requirement_coverage.py
+
+      # AGT-003, the half the spec job cannot check. IMPLEMENTATION_STATUS.md's test inventory is
+      # derived from the collection this run recorded, so it runs here, after the whole suite.
+      # It previously claimed 288 tests while the suite had 307 and nothing objected.
+      - name: IMPLEMENTATION_STATUS.md test inventory is current (AGT-003)
+        run: python scripts/update_status.py --check
 
   backend:
     # M0a-M4 declare `gate_profile: [postgres]`, so a run that skipped every PostgreSQL test
@@ -156,3 +167,10 @@ jobs:
 
       - name: Executed-coverage gate
         run: python scripts/check_requirement_coverage.py
+
+      # The same check as in `quality`, under the opposite profile. It must agree: the inventory
+      # records *collected* counts, and collection does not depend on which backends are enabled.
+      # If these two jobs ever disagree, a gate marker is changing what gets collected rather than
+      # what gets skipped, and the AGT-007 guarantee is not what the table says it is.
+      - name: IMPLEMENTATION_STATUS.md test inventory is current (AGT-003)
+        run: python scripts/update_status.py --check

@@ -21,7 +21,7 @@
 # tests/spec/test_m0a_obligation_inventory.py on every run.
 schema_version: 3
 audit: M0a
-spec_amendment: v3.3-a5
+spec_amendment: v3.3-a6
 sections:
 - section: '6'
   hard_must: 0
@@ -316,9 +316,17 @@ sections:
   hard_must: 0
   basis: privacy-mode table; the egress obligations are stated at §14.1 and §14.3
 - section: '14.3'
-  hard_must: 2
-  basis: external query gate -- private identifiers and exact confidential geometry must not be sent out;
-    fabrication submission requires human sign-off (the latter DEFERRED)
+  hard_must: 4
+  basis: 'Four registered occurrences. Two carry an explicit keyword: 14.3#1 the external query gate (privacy.query_gate.no_private_identifiers
+    -> SEC-001, distinct from §14.1''s classification rule because a sanitized query over RESTRICTED_NDA
+    material still must not carry private identifiers) and 14.3#2 the fabrication gate (governance.fabrication.human_signoff,
+    DEFERRED under SEC-002 with review_at: FIRST_FABRICATION_CAPABILITY -- a trigger, not a date). Two
+    are 需-phrased and hand-adjudicated: 14.3#M1 the solver-budget approval path (budget.overrun.supervisor_approval
+    -> COST-001) and 14.3#M3 the measurement/simulation artifact reference (evidence.measured_simulated.artifact_reference
+    -> EVI-009). Both were classified RESTATEMENT_OF in rev 5 and both were wrong: the targets did not
+    oblige the same thing, so the obligations were recorded nowhere. Corrected by v3.3-a6. 14.3#M2 remains
+    RESTATEMENT_OF(inference.not_evidence) -- that target does oblige exactly the inferred-marking this
+    bullet restates.'
 - section: '14.4'
   hard_must: 2
   basis: One registered occurrence -- 14.4#1, the ReviewQueue's stakes / created_at / SLA/expiry fields,

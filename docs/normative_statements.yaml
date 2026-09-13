@@ -799,6 +799,39 @@ normative_statements:
     tests: [T-OPS-002]
 
   # ---------------------------------------------------------------------------
+  # Amendment v3.3-a6. Two §14.3 governance gates that v3.3-a5 classified as RESTATEMENT_OF a
+  # statement which does not in fact oblige the same thing. Both are now their own obligation.
+  # ---------------------------------------------------------------------------
+
+  # §14.3: 「昂貴計算 gate：超出 session solver budget 需 supervisor/human approval」. This was
+  # pointed at budget.gate.before_side_effect (COST-001, §17.17), and that was wrong: COST-001
+  # obliged the gate to refuse or escalate before a side effect, which a system that refuses
+  # PERMANENTLY satisfies completely -- with no supervisor, no approval and no way through. The
+  # obligation here is the existence of the approval path and the record of who took it. COST-001
+  # and T-COST-001 were amended to state it, so this statement is now dischargeable.
+  - key: budget.overrun.supervisor_approval
+    section: "14.3"
+    level: MUST
+    requirement_id: COST-001
+    tests: [T-COST-001]
+
+  # §14.3: 「Memory admission gate：measurement/simulation 需 artifact reference」. This was pointed
+  # at rootcause.traceable_to_run_artifact (EPI-002, §25.3), and that was wrong in timing as well
+  # as scope: EPI-002 obliges a CONFIRMED ROOT CAUSE to be traceable, so a measurement admitted
+  # with no artifact reference never reaches it unless it later participates in a root-cause
+  # confirmation -- and that capability is M4. This obligation holds the moment the record enters
+  # the system. No existing requirement covered it (ART-001 gives artifacts identity without
+  # obliging evidence to cite one; SIM-001 governs a simulation manifest's fields and a
+  # measurement has no solver version; EVI-003 forbids inference being TYPED measured but leaves a
+  # human-entered measured claim untouched), so EVI-009 / T-EVI-009 was minted and the invariant
+  # moved to 59 <-> 59.
+  - key: evidence.measured_simulated.artifact_reference
+    section: "14.3"
+    level: MUST
+    requirement_id: EVI-009
+    tests: [T-EVI-009]
+
+  # ---------------------------------------------------------------------------
   # §23.5 Spec integrity
   # ---------------------------------------------------------------------------
   - key: spec.replay.mock_and_real

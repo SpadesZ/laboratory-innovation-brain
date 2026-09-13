@@ -72,6 +72,9 @@ milestones:
       - EVI-004
       - EVI-007
       - EVI-008
+      # v3.3-a6. Admission-time obligation, so it sits with EVI-003's
+      # admission gate rather than waiting for M4's root-cause vertical.
+      - EVI-009
       - LLM-001
       - OPS-001
       - OPS-004

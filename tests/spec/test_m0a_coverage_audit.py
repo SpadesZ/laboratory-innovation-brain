@@ -106,16 +106,27 @@ def test_deferred_entries_are_counted_once_not_twice(rows):
 
     §6.17 and §14.3 each hold one deferred MUST. Counting it in both columns would make the delta
     negative and mask a missing registration.
+
+    Asserted as a property, not as literal totals. An earlier version of this test pinned
+    ``(hard_must, live, deferred) == (2, 1, 1)`` for both sections, and when v3.3-a6 corrected
+    §14.3 from 2 obligations to 4 the test failed for a reason that had nothing to do with double
+    counting. A guard that needs editing every time the thing it guards legitimately changes is a
+    guard that will eventually be edited into passing.
     """
     by_section = {row.section: row for row in rows}
+    deferred_sections = [row.section for row in rows if row.deferred_must]
+    assert deferred_sections, "no deferred entry left; this test no longer checks anything"
 
-    independence = by_section["6.17"]
-    assert (independence.hard_must, independence.live_must, independence.deferred_must) == (2, 1, 1)
-    assert independence.delta == 0
-
-    governance = by_section["14.3"]
-    assert (governance.hard_must, governance.live_must, governance.deferred_must) == (2, 1, 1)
-    assert governance.delta == 0
+    for section in deferred_sections:
+        row = by_section[section]
+        # The whole point: the deferred entry appears in exactly one column, so the two columns
+        # still sum to the section's obligations rather than overshooting them.
+        assert row.live_must + row.deferred_must == row.hard_must, section
+        assert row.delta == 0, section
+        assert row.live_must < row.hard_must, (
+            f"§{section} has a deferred MUST but live_must already equals hard_must, so the "
+            "deferred entry is being counted twice"
+        )
 
 
 def test_section_15_4_is_covered_at_its_own_section(rows):
