@@ -56,6 +56,29 @@ def main() -> int:
         print(f"FAIL  {exc}")
         return 1
 
+    # A partial report cannot answer this question, and answering it anyway produces a message that
+    # actively misleads: "M0a is DONE but ART-001 has no marked test in the outcome report" reads as
+    # "that test does not exist" when the truth is "this run did not execute it". CI hit exactly
+    # that on the commit which first marked a milestone DONE -- the spec-conformance job runs only
+    # `pytest tests/spec`, and this check had been vacuously passing until then because no milestone
+    # was DONE. Same failure mode as `update_status.py` reading a spec-only report, and it gets the
+    # same answer: refuse, rather than state a confident wrong one.
+    scope = report.collection_directories()
+    expected = {
+        entry.name
+        for entry in (Path(__file__).resolve().parents[1] / "tests").iterdir()
+        if entry.is_dir() and entry.name != "__pycache__" and any(entry.glob("test_*.py"))
+    }
+    if scope and not expected <= scope:
+        print(
+            f"FAIL  the outcome report covers only {', '.join(sorted(scope))}, so it cannot show "
+            "whether a DONE milestone's tests passed."
+        )
+        print(f"      Missing: {', '.join(sorted(expected - scope))}")
+        print("      Run the whole suite first, under the gate profile the milestone declares:")
+        print("        LAB_BRAIN_TEST_POSTGRES=1 pytest")
+        return 1
+
     checks = {
         "DONE milestones have passing tests": check_completed_milestones_have_passing_tests(
             catalog, report

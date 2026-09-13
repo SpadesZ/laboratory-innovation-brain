@@ -58,6 +58,18 @@ class OutcomeReport:
     generated_at: str
     enabled_gates: frozenset[str]
     tests: tuple[RecordedOutcome, ...]
+    collected_files: tuple[str, ...] = ()
+
+    def collection_directories(self) -> frozenset[str]:
+        """Top-level ``tests/`` directories this run collected from.
+
+        Lets a caller tell "the milestone's tests failed" apart from "this run never executed
+        them". Empty for a report written before the collection block existed, which callers
+        treat as unknown rather than as empty scope.
+        """
+        return frozenset(
+            path.split("/")[1] for path in self.collected_files if path.count("/") >= 1
+        )
 
     def passing_requirement_ids(self) -> frozenset[str]:
         return frozenset(
@@ -109,11 +121,17 @@ def load_outcome_report(path: Path | None = None) -> OutcomeReport:
                 outcome=str(entry.get("outcome", "not_run")),
             )
         )
+    collection = payload.get("collection")
+    collected_files: tuple[str, ...] = ()
+    if isinstance(collection, dict) and isinstance(collection.get("by_file"), dict):
+        collected_files = tuple(sorted(collection["by_file"]))
+
     return OutcomeReport(
         path=resolved,
         generated_at=str(payload.get("generated_at", "")),
         enabled_gates=frozenset(payload.get("enabled_gates") or ()),
         tests=tuple(tests),
+        collected_files=collected_files,
     )
 
 

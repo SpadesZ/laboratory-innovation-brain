@@ -53,12 +53,6 @@ jobs:
       - name: Obligation inventory is in sync with the spec (§23.5 (2))
         run: python scripts/rebuild_obligation_inventory.py --check
 
-      # Must run AFTER pytest: it reads the outcome report that run produced. A DONE
-      # milestone needs a test that actually executed and passed under its declared
-      # gate_profile -- a collected-but-skipped test is not coverage.
-      - name: Executed-coverage gate
-        run: python scripts/check_requirement_coverage.py
-
       # This job runs only `pytest tests/spec`, so it has no whole-suite outcome report and cannot
       # derive the test inventory. `--requirements-only` says so explicitly rather than letting the
       # check generate the table from a partial report and call the file current -- which would
@@ -99,9 +93,6 @@ jobs:
 
       - name: Tests
         run: python -m pytest -q
-
-      - name: Executed-coverage gate
-        run: python scripts/check_requirement_coverage.py
 
       # AGT-003, the half the spec job cannot check. IMPLEMENTATION_STATUS.md's test inventory is
       # derived from the collection this run recorded, so it runs here, after the whole suite.
@@ -165,10 +156,23 @@ jobs:
       - name: Tests (postgres profile)
         run: python -m pytest -q
 
+      # THE executed-coverage gate. It lives here and only here, because this is the only job
+      # whose outcome report can support it: a DONE milestone needs its tests to have executed and
+      # passed under the gate_profile it declares, and M0a onward declare `postgres`.
+      #
+      # It used to run in all three jobs. That was harmless only while no milestone was DONE --
+      # the check short-circuits with "nothing to enforce" -- and broke the moment M0a became DONE:
+      # the spec job runs `pytest tests/spec` (so ART-001's tests never execute) and `quality` runs
+      # backend-free (so gate_profile [postgres] is not met). Both then reported M0a as unproven,
+      # which was true of those runs and false of the repository.
+      #
+      # tests/spec/test_ci_workflow.py asserts this step exists in a job that enables every gate
+      # any DONE milestone declares, so deleting it here fails CI rather than silently disarming
+      # the ratchet.
       - name: Executed-coverage gate
         run: python scripts/check_requirement_coverage.py
 
-      # The same check as in `quality`, under the opposite profile. It must agree: the inventory
+      # The same status check as in `quality`, under the opposite profile. It must agree: the inventory
       # records *collected* counts, and collection does not depend on which backends are enabled.
       # If these two jobs ever disagree, a gate marker is changing what gets collected rather than
       # what gets skipped, and the AGT-007 guarantee is not what the table says it is.
