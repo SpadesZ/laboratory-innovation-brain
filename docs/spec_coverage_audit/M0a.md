@@ -1,7 +1,7 @@
 # M0a Spec Coverage Audit — §23.5 (2)
 
-Date: 2026-09-12 (rev 4 — completeness against the document; §9.1 closed)
-Spec: SAI 3.3, amendments `v3.3-a1` ... `v3.3-a4`
+Date: 2026-09-12 (rev 5 — occurrence-level inventory; seven sections re-adjudicated)
+Spec: SAI 3.3, amendments `v3.3-a1` ... `v3.3-a5`
 Milestone: **M0a — Scientific Identity Foundation**
 Owner per §23.5: spec maintainer
 Prepared by: implementation agent
@@ -60,47 +60,96 @@ delta = hard_must - (registry_live_must + registry_deferred_must)
 - **Coverage is counted only at the section where the statement is registered.** No section is
   closed by pointing at an entry filed elsewhere.
 
-### `hard_must` is judged, and keyword scanning fails in both directions
+### `hard_must` is derived from the occurrence inventory, not judged per section
 
-The count is not a keyword-match total. Both failure directions are real, and both are recorded
-per section in `M0a_hard_must_counts.yaml`'s `basis` field:
+Rev 4 judged one number per section and recorded a prose `basis` for it. That was reviewable but not
+checkable, and it left one move open. A section could be written off as `hard_must: 0` with a basis
+saying the rule was **"registered at §12.4, its precise location"** — and nothing required that note
+to name *which* statement, nor verified that the named statement existed, still lived there, or said
+what the basis claimed. §10.7 and §11 were both closed exactly that way. Both claims were true;
+neither was checked.
 
-| Direction | Examples found in this audit |
-|---|---|
-| **False positive** | line-splitting (§6.17's three matches are two rules); restatement (§6.5's table row repeats GH-003; §8.2's lifecycle diagram repeats §8.2.1 and §6.18); descriptive prose (§9.3's `不可逆` is a cost characteristic of fabrication, §7.4's cells describe role I/O) |
-| **False negative** | obligations phrased with no keyword. §10.5's "「measurement 永遠最高」**不是** core 假設" and §8.2's "No LLM may directly assign a scientific transition" carry neither MUST nor 不得 |
+So the count is now derived from two declared inputs:
 
-Every section was read, not only scanned. That is why §10.5 counts 1 rather than 0.
+```
+hard_must == REGISTERED occurrences at this section in M0a_obligation_inventory.yaml
+             + len(keyword_free)     # registered MUSTs the spec states without a keyword
+```
+
+Every explicit `MUST / MUST NOT / 必須 / 不得 / 不可` in §6–§16 is listed individually in
+`M0a_obligation_inventory.yaml` and classified as exactly one of:
+
+| Classification | Meaning | Constraint enforced in CI |
+|---|---|---|
+| `REGISTERED(target)` | this occurrence is the prose home of `target` | `target` resolves; **at most one** occurrence per statement key |
+| `RESTATEMENT_OF(target)` | introduces no new obligation | `target` resolves, and its home section either registers it or declares it keyword-free |
+| `NON_NORMATIVE_WITH_RATIONALE` | the keyword does no normative work | no target permitted; a rationale is **required** |
+
+There is no fourth class and no default. An occurrence nobody has looked at fails CI rather than
+being assumed benign.
+
+**50 REGISTERED + 19 RESTATEMENT_OF + 3 NON_NORMATIVE = 72 occurrences**
+(3 of them adjudicated by hand — see below).
+
+| Classification | Occurrences |
+|---|---:|
+| `REGISTERED` | 50 |
+| `RESTATEMENT_OF` | 19 |
+| `NON_NORMATIVE_WITH_RATIONALE` | 3 |
+| **Total** | **72** |
+
+### What is matched, and the two categories that escape matching
+
+`MUST` / `MUST NOT` are matched **case-sensitively**: a lowercase "must" in prose is not the keyword
+§0.2 defines. `必須 / 不得 / 不可` are the spec's own vocabulary. Heading lines are excluded, on the
+rule that a title asserting an obligation must state it in the body.
+
+Two categories cannot be reached by matching, and both are declared rather than ignored:
+
+**`需`-phrased occurrences (3, all in §14.3).** `需` reads as "requires" in some places and
+"needs" in others, so matching it would manufacture obligations. The occurrences that do carry one
+are adjudicated by hand, marked `keyword: 需 (manual)`, and given ids of the form `14.3#M1`. All
+three are RESTATEMENT_OF: the solver-budget gate restates `budget.gate.before_side_effect` (§17.17),
+and the memory-admission gate restates `inference.not_evidence` (§3) plus
+`rootcause.traceable_to_run_artifact` (§25.3).
+
+**Keyword-free statements (18).** Obligations the spec states declaratively — a schema rule, a
+table cell, `不是` / `不提供` / `都要` / `保存`. §10.5 is the clearest: *「「measurement 永遠最高」**不是**
+core 假設。權威是 `(method, calibration, validated_range fit)` 的函數」* is a genuine obligation
+carried entirely by `不是`. These are legitimate, and they are also exactly where an unfounded count
+could hide, so each must name its statement key **and** quote how the section states it. A statement
+that is neither registered by an occurrence nor declared keyword-free fails CI.
 
 ### Completeness is checked against the document, not the registry
 
-Rev 3 verified that every *registry* section inside §6–§16 appeared in the count file. Necessary,
-and not sufficient: it can only confirm that sections someone had already registered were counted.
-A section of prose reaching neither the registry nor the count file was invisible to it.
+All **76** numbered headings in §6–§16 must appear in the count file, including the 36
+whose count is 0 — "this section states no obligation" is a reviewable claim, silence is not. Drift
+is checked in both directions, so a section renumbered by an amendment cannot leave a stale row
+behind, and a heading-format change cannot quietly empty the check.
 
-That hole was not hypothetical. §10.5.1's two MUSTs — INCOMPARABLE must not be coerced into an
-ordering, and DomainPack MUST expose `compare` — were unregistered, and the subtree looked covered
-because `fidelity.low_cannot_reject` had been filed at §10.5. That rule appears **nowhere** in
-§6–§16 prose; its home is the §25.3 requirement table, where it is now registered.
+The heading exclusion gets its own guard, because an exclusion is a hiding place. §14.4.1's heading
+is 「ReviewQueue **必須**接回 Verification Planner」; had its body stated nothing, the section would
+have counted 0 and no scan would have objected. Any section whose *title* carries a hard keyword must
+count at least one obligation.
 
-So the section list is parsed from `SAI_3.3.md`. All **76** numbered headings in §6–§16
-must appear in the count file, including the 36 whose count is 0 — "this section states no
-obligation" is a reviewable claim, silence is not. Drift is checked in both directions, so a
-section renumbered by an amendment cannot leave a stale row behind either.
+### The arithmetic is executable, and so is the bookkeeping
 
-### The arithmetic is executable
+| Artefact | Checked by |
+|---|---|
+| per-section deltas | `tests/spec/test_m0a_coverage_audit.py` (11 tests) |
+| occurrence classification, targets, counts | `tests/spec/test_m0a_obligation_inventory.py` (19 tests) |
+| inventory still matches the document | `scripts/rebuild_obligation_inventory.py --check`, in CI |
 
-Judged counts live in `M0a_hard_must_counts.yaml`; coverage is derived from
-`normative_statements.yaml` by `lab_brain.spec.coverage_audit`; and
-`tests/spec/test_m0a_coverage_audit.py` recomputes every delta on each CI run. A row that does not
-balance fails the build, as does an uncounted heading, a stale row, or a heading-format change that
-would quietly empty the completeness check.
+Seven of the inventory tests are negative fixtures: dropping an adjudication, breaking a target,
+claiming a second prose home, inflating a count, rewording a quote, un-declaring a keyword-free
+statement, and loading a malformed row must each **fail**. A guard that has not been shown to fire
+is not a guard.
 
-What remains human: the `hard_must` judgements, their recorded basis, and the sign-off.
+What remains human: the adjudications, the keyword-free rationales, and the sign-off.
 
 ## 3. Per-section reconciliation
 
-Generated from the same data the test checks. 76 sections — every numbered heading in
+Generated from the same data the tests check. 76 sections — every numbered heading in
 §6–§16, as §23.5 scopes it.
 
 | Section | hard MUST | registry-covered (live) | named deferred | SHOULD (excluded) | delta |
@@ -129,15 +178,15 @@ Generated from the same data the test checks. 76 sections — every numbered hea
 | 6.21 | 2 | 2 | — | 1 | 0 |
 | 7 | 0 | 0 | — | — | 0 |
 | 7.1 | 0 | 0 | — | — | 0 |
-| 7.2 | 2 | 2 | — | — | 0 |
+| 7.2 | 3 | 3 | — | — | 0 |
 | 7.3 | 0 | 0 | — | — | 0 |
 | 7.4 | 0 | 0 | — | — | 0 |
 | 7.5 | 1 | 1 | — | — | 0 |
-| 7.6 | 1 | 1 | — | — | 0 |
-| 8 | 0 | 0 | — | — | 0 |
-| 8.1 | 2 | 2 | — | — | 0 |
+| 7.6 | 3 | 3 | — | — | 0 |
+| 8 | 1 | 1 | — | — | 0 |
+| 8.1 | 0 | 0 | — | — | 0 |
 | 8.2 | 0 | 0 | — | — | 0 |
-| 8.2.1 | 2 | 2 | — | — | 0 |
+| 8.2.1 | 3 | 3 | — | — | 0 |
 | 9 | 0 | 0 | — | — | 0 |
 | 9.1 | 5 | 5 | — | — | 0 |
 | 9.2 | 0 | 0 | — | — | 0 |
@@ -147,8 +196,8 @@ Generated from the same data the test checks. 76 sections — every numbered hea
 | 9.6 | 1 | 1 | — | — | 0 |
 | 10 | 0 | 0 | — | — | 0 |
 | 10.1 | 0 | 0 | — | — | 0 |
-| 10.2 | 2 | 2 | — | — | 0 |
-| 10.2.1 | 2 | 2 | — | — | 0 |
+| 10.2 | 1 | 1 | — | — | 0 |
+| 10.2.1 | 3 | 3 | — | — | 0 |
 | 10.2.2 | 1 | 1 | — | — | 0 |
 | 10.3 | 1 | 1 | — | — | 0 |
 | 10.4 | 1 | 1 | — | — | 0 |
@@ -171,7 +220,7 @@ Generated from the same data the test checks. 76 sections — every numbered hea
 | 14.1 | 2 | 2 | — | — | 0 |
 | 14.2 | 0 | 0 | — | — | 0 |
 | 14.3 | 2 | 1 | 1 | — | 0 |
-| 14.4 | 1 | 1 | — | — | 0 |
+| 14.4 | 2 | 2 | — | — | 0 |
 | 14.4.1 | 1 | 1 | — | — | 0 |
 | 14.5 | 2 | 2 | — | — | 0 |
 | 15 | 0 | 0 | — | — | 0 |
@@ -181,53 +230,65 @@ Generated from the same data the test checks. 76 sections — every numbered hea
 | 15.4 | 2 | 2 | — | — | 0 |
 | 16 | 0 | 0 | — | — | 0 |
 | 16.1 | 0 | 0 | — | — | 0 |
-| **Total** | **64** | **62** | **2** | 1 | **0** |
+| **Total** | **68** | **66** | **2** | 1 | **0** |
 
-**Every delta is 0.** 64 hard MUSTs = 62 registered live + 2 named deferred. The single
+**Every delta is 0.** 68 hard MUSTs = 66 registered live + 2 named deferred, of which
+50 have an explicit-keyword occurrence and 18 are declared keyword-free. The single
 SHOULD-level entry (§6.21) is excluded from coverage and shown for transparency.
+
+### What the occurrence inventory changed
+
+Rev 4 totalled 64 hard MUSTs; rev 5 totals 68. The difference is not a re-tally — it is seven
+sections whose count was wrong in a way section-level arithmetic could not see.
+
+| Section | Rev 4 | Rev 5 | What occurrence-level adjudication found |
+|---|---:|---:|---|
+| §7.2 | 2 | 3 | Rev 4's own basis named **three** obligations — metrics recorded, round count not fixed, inverted retrieval — while the number said 2. `debate.rounds.not_fixed` (occurrence `7.2#2`) did not exist. Registered under `LLM-002`. |
+| §7.6 | 1 | 3 | Both keyword occurrences were unowned. `critique.independent_path.major_reject` → `SRC-002`, `inference.no_provenance_not_usable` → `LLM-001`. |
+| §8 / §8.1 | 0 / 2 | 1 / 0 | Rev 4 counted §8 as 0 because the admission-gate rule was "registered at §8.1, its precise location". It is stated at **§8**; §8.1 is the certificate schema. And §8.1's second entry, `hypothesis.competing.minimum_two`, is not stated in §8.1 at all — its home is §3's P6 and EPI-001's §25.3 row. |
+| §8.2.1 | 2 | 3 | `transition.decision.deterministic` (identical inputs + `policy_version` → identical `TransitionDecision`) was unowned. `belief.transition.policy` is satisfied by routing every transition through `TransitionPolicy.evaluate` **even if that call is irreproducible**, so it cannot discharge this. → `EPI-005`. |
+| §10.2 / §10.2.1 | 2 / 2 | 1 / 3 | `extractor.backend_agnostic` was filed at §10.2, but the sentence is in §10.2.1's tool table. §10.2's own rule is stated with `不提供` and has no keyword occurrence. |
+| §14.4 | 1 | 2 | Rev 4's basis read "ReviewQueue carries stakes, SLA/expiry and capacity" while the single statement credited was `acl.actor.required_for_approval_egress` — the `actor_id` rule. `OPS-002` states two obligations and only the §14.4.1 half was registered; `review.queue.stakes_sla_expiry` is the other. |
+| §10.7, §11 | 0 | 0 | Unchanged, but no longer asserted. `10.7#1` is `RESTATEMENT_OF(job.long_running.suspend_resume_idempotent)` and `11#1` is `RESTATEMENT_OF(domain.core_no_domain_import)`, both resolved against the registry by CI. |
+
+Five statements were added, all mapped to **existing** Requirements able to discharge them — no
+Requirement or Test ID was minted, and the invariant stays **58 ↔ 58**. Two statements were
+re-sectioned and one re-homed out of the audited range, matching the `fidelity.low_cannot_reject`
+correction from rev 4.
 
 ### Section notes
 
-**§9.1 — the round-2 blocker, now closed.** Five hard MUSTs, not four. The fifth is
-"Disagreement metrics ... MUST be deterministic, versioned and defined over the declared
-OutcomeSpace", which had no registry entry. Now `disagreement.metric.deterministic_versioned` →
-`VER-008` (amendment `v3.3-a4`).
+**§9.1 — five hard MUSTs.** Two keyword occurrences (`MUST NOT invent outcomes`; disagreement
+metrics `MUST be deterministic, versioned`) and three keyword-free contract rules. Closed in round 2
+as `VER-008`, which was **not** merged into `VER-004`: `VER-004` governs which *outcomes* count as
+plausible, `VER-008` governs the *metric* that ranks how far two predictions disagree. A planner
+could draw every outcome from a properly declared OutcomeSpace and still rank them with an
+unversioned distance function, and `T-VER-004` would pass.
 
-It was **not** merged into `VER-004`. `VER-004` governs which *outcomes* count as plausible — they
-must come from a declared, versioned OutcomeSpace. `VER-008` governs the *metric* that ranks how
-far two predictions disagree. A planner could draw every outcome from a properly declared
-OutcomeSpace and still rank them with an unversioned, non-deterministic distance function, and
-`T-VER-004` would pass. Ranking that cannot be reproduced makes a VerificationPlan unexplainable
-after the fact, which is what `VER-005`'s determinism prevents one layer up.
+**§10.5 and §10.5.1 — re-attributed in rev 4, confirmed here.** §10.5's one obligation is
+keyword-free (`不是`). §10.5.1's two are both explicit and both registered against `EPI-004`.
 
-**§10.5 and §10.5.1 — re-attributed.** §10.5 carries one hard MUST: authority is a function of
-(method, calibration, validated_range fit) and "measurement is always highest" is *not* a core
-assumption (P27). §10.5.1 carries two: INCOMPARABLE must not be silently coerced into an ordering,
-and DomainPack MUST expose `compare`. Both §10.5.1 MUSTs are now registered against `EPI-004`, and
-`fidelity.low_cannot_reject` moved to §25.3, its actual prose home.
+**§6.17 — one of two deferred.** `independence.dependence_unknown_counts_zero` (occurrence `6.17#1`,
+restated by `6.17#2`) is live; `independence.basis.beyond_work` (`6.17#3`) is DEFERRED with
+`review_at: M4_EXIT`, because v3.3 models WORK-level independence only.
 
-**§6.17 — one of two deferred.** `independence.dependence_unknown_counts_zero` is live;
-`independence.basis.beyond_work` is DEFERRED with `review_at: M4_EXIT`, because v3.3 models
-WORK-level independence only. Counted 1 live + 1 deferred, not 2 covered.
+**§14.3 — two keyword occurrences plus three manual.** The external query gate is
+`privacy.query_gate.no_private_identifiers` → `SEC-001`, distinct from §14.1's classification rule:
+a sanitized query over RESTRICTED_NDA material still must not carry private identifiers. The
+fabrication gate remains DEFERRED under `SEC-002` with `review_at: FIRST_FABRICATION_CAPABILITY` — a
+trigger, not a date. The solver-budget and memory-admission gates are `需`-phrased restatements.
 
-**§6.21 — two hard MUSTs, three entries, one excluded.** Retraction check status recorded even
-when UNKNOWN (`EVI-008`) and a novelty status without a coverage record is unauditable
-(`SRC-003`). The third entry, `source.retraction.check_performed`, is SHOULD-level.
+**§15.4 — closed in round 1.** `debate.groupthink_reduction.falsifiable` → `LLM-002` registered at
+its own section, not borrowed from §7.2: that entry obliges the metrics to be *recorded*, this one
+obliges the claim to be *refutable*. The one-prose-home rule now makes borrowing impossible.
 
-**§14.3 — two hard MUSTs, one live and one deferred.** The external query gate is
-`privacy.query_gate.no_private_identifiers` → `SEC-001`, distinct from §14.1's classification
-rule: a sanitized query over RESTRICTED_NDA material still must not carry private identifiers. The
-fabrication gate remains DEFERRED under `SEC-002` with `review_at: FIRST_FABRICATION_CAPABILITY` —
-a trigger, not a date.
+**§9.3 / §9.4 — the false-positive case.** Three occurrences of `不可` / `不得`; one is an
+obligation (`cost.vector.not_single_scalar`) and two are `不可逆` describing a fabrication cost
+profile. Classified `NON_NORMATIVE_WITH_RATIONALE` with the reason recorded, not silently dropped.
 
-**§15.4 — closed in round 1 of this fix.** `debate.groupthink_reduction.falsifiable` → `LLM-002`
-registered at its own section, not borrowed from §7.2: that entry obliges the metrics to be
-*recorded*, this one obliges the claim to be *refutable*.
-
-**§6.6 — flagged judgement.** Counted 0. The graph-DB migration trigger ("遷移由實測 traversal
-workload 觸發") is phrased as a design note and recorded in ADR-0001 under P20, not as an
-implementation obligation with a Requirement. A stricter reading is defensible; the count is 0 and
-the basis says so, so a reviewer can overrule it rather than having to discover it.
+**§6.6 — flagged judgement, carried forward.** Counted 0. The graph-DB migration trigger is phrased
+as a design note and recorded in ADR-0001 under P20, not as an implementation obligation. A stricter
+reading is defensible; the basis says so, so a reviewer can overrule it rather than discover it.
 
 ## 4. Findings, and what was done about them
 
@@ -290,7 +351,7 @@ without Actor/LLM/Simulator.*
 | Testable without Actor/LLM/Simulator | full suite green with no backend at all; no LLM or simulator code exists |
 | No OPEN GATE spec issue against M0a | SPEC-ISSUE-001 and -003 RESOLVED |
 | `gate_profile: [postgres]` | postgres profile green in CI's `backend` job |
-| §23.5 (2) coverage audit | this document; 76 sections (every §6-§16 heading), 64 hard MUSTs, every delta 0, recomputed by `tests/spec/test_m0a_coverage_audit.py` |
+| §23.5 (2) coverage audit | this document; 76 sections (every §6-§16 heading), 68 hard MUSTs over 72 classified occurrences, every delta 0, recomputed by `tests/spec/test_m0a_coverage_audit.py` + `tests/spec/test_m0a_obligation_inventory.py` |
 
 All conditions are met on the evidence. **I have not flipped the status.** Under §23.5 the sign-off
 is the maintainer's, and an agent marking its own milestone complete on the strength of its own

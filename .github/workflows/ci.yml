@@ -45,6 +45,14 @@ jobs:
       - name: Spec conformance
         run: python -m pytest tests/spec -q
 
+      # §23.5 (2) occurrence inventory. The tests above already recompute the audit's arithmetic
+      # against the inventory on disk; this proves the inventory itself is still in sync with the
+      # document. An amendment that adds a hard obligation, deletes one, or rewords one fails here
+      # with the occurrence ids to re-adjudicate -- rather than leaving the tests to pass against a
+      # stale file that happens to still balance.
+      - name: Obligation inventory is in sync with the spec (§23.5 (2))
+        run: python scripts/rebuild_obligation_inventory.py --check
+
       # Must run AFTER pytest: it reads the outcome report that run produced. A DONE
       # milestone needs a test that actually executed and passed under its declared
       # gate_profile -- a collected-but-skipped test is not coverage.

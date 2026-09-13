@@ -350,14 +350,20 @@ normative_statements:
   # ---------------------------------------------------------------------------
   # §8.1 Hypothesis certificate and competing mechanisms
   # ---------------------------------------------------------------------------
+  # Section corrected 8.1 -> 3 by the occurrence inventory. §8.1 is the Hypothesis Certificate
+  # schema and does not state the >=2 rule at all; its prose home is §3's P6 ("任何時刻維持 >=2 個
+  # 競爭機制") and the §25.3 EPI-001 row. Same correction as fidelity.low_cannot_reject in v3.3-a4.
   - key: hypothesis.competing.minimum_two
-    section: "8.1"
+    section: "3"
     level: MUST
     requirement_id: EPI-001
     tests: [T-EPI-001]
 
+  # Section corrected 8.1 -> 8 by the occurrence inventory. The admission-gate obligation
+  # ("只有通過 Hypothesis Admission Gate，補齊 mechanism/prediction/falsifier/... 才可佔用昂貴
+  # simulation budget") is stated in §8's introduction; §8.1 presents the certificate schema.
   - key: hypothesis.admission.certificate_fields
-    section: "8.1"
+    section: "8"
     level: MUST
     requirement_id: EPI-001
     tests: [T-EPI-001]
@@ -442,8 +448,11 @@ normative_statements:
     requirement_id: EPI-004
     tests: [T-EPI-004]
 
+  # Section corrected 10.2 -> 10.2.1 by the occurrence inventory. The "MUST accept both simulated
+  # and measured" sentence is in the §10.2.1 canonical tool table; §10.2's own prose states the
+  # typed-tools rule without an explicit keyword.
   - key: extractor.backend_agnostic
-    section: "10.2"
+    section: "10.2.1"
     level: MUST
     requirement_id: DOM-SP-002
     tests: [T-DOM-SP-002]
@@ -731,6 +740,63 @@ normative_statements:
     level: MUST
     requirement_id: EPI-004
     tests: [T-EPI-004]
+
+  # ---------------------------------------------------------------------------
+  # M0a occurrence inventory (2026-09-12, amendment v3.3-a5). Four explicit hard obligations that
+  # no registry statement claimed. Each maps to an existing Requirement able to discharge it; no
+  # new Requirement ID was minted.
+  # ---------------------------------------------------------------------------
+
+  # §7.2: "簡單問題不得固定跑 8 rounds". Distinct from debate.metrics.recorded, which obliges the
+  # metrics to be collected. This obliges the round count to respond to them -- a system could
+  # faithfully record diversity and cost while running a fixed 8 rounds regardless, and the
+  # recording obligation would be met. LLM-002 owns debate cost metrics and T-LLM-002's fixed
+  # benchmark observes round count against the baseline condition.
+  - key: debate.rounds.not_fixed
+    section: "7.2"
+    level: MUST
+    requirement_id: LLM-002
+    tests: [T-LLM-002]
+
+  # §7.6: "重大 REJECT / irreversible action 必須經 independent critique path". SRC-002 owns the
+  # high-stakes critic path and its test already blocks BELIEF_REVISION when that path was not
+  # taken, which is the same gate this obligation needs.
+  - key: critique.independent_path.major_reject
+    section: "7.6"
+    level: MUST
+    requirement_id: SRC-002
+    tests: [T-SRC-002]
+
+  # §7.6: "無 provenance 的舊推論不可作為新 belief transition 的依據". The converse of
+  # inference.provenance.required: that one obliges provenance to be attached, this one forbids
+  # using an inference that lacks it. Both are LLM-001, whose admission gate is where the refusal
+  # happens.
+  - key: inference.no_provenance_not_usable
+    section: "7.6"
+    level: MUST
+    requirement_id: LLM-001
+    tests: [T-LLM-001]
+
+  # §8.2.1: "identical inputs + identical policy_version MUST return identical TransitionDecision".
+  # Determinism of the operator, not merely its existence. belief.transition.policy establishes
+  # that only TransitionPolicy.evaluate may authorise a transition; this establishes that the
+  # authorisation is reproducible, without which a past belief revision cannot be re-derived.
+  - key: transition.decision.deterministic
+    section: "8.2.1"
+    level: MUST
+    requirement_id: EPI-005
+    tests: [T-EPI-005]
+
+  # §14.4: 「Human ReviewQueue 必須有 stakes、created_at、SLA/expiry policy 與 queue capacity」.
+  # OPS-002 states two obligations and only the second was registered: review.capacity.planner
+  # (§14.4.1) covers feeding availability/earliest_available_at into the human-review Capability.
+  # This is the first -- the queue item must carry stakes and an expiry, without which every
+  # uncertain item parks in PENDING forever and the Capability it feeds reports a stale queue.
+  - key: review.queue.stakes_sla_expiry
+    section: "14.4"
+    level: MUST
+    requirement_id: OPS-002
+    tests: [T-OPS-002]
 
   # ---------------------------------------------------------------------------
   # §23.5 Spec integrity

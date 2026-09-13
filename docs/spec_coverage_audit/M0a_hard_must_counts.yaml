@@ -1,373 +1,366 @@
-# Judged hard-MUST count per section for §6–§16, as required by §23.5 (2).
+# §23.5 (2) M0a hard-MUST counts, per section, with the basis for each judgement.
 #
-# WHY THIS FILE EXISTS
+# `hard_must` is not stored as a free number. It is checked against two independent sources:
 #
-# Revision 2 of the M0a audit contained a row reading "§15.4: hard MUST = 2,
-# registry-covered = 1, delta = 0". That is arithmetically false, and it survived review because
-# the table was prose: nothing recomputed it. The numbers now live here as data, and
-# tests/spec/test_m0a_coverage_audit.py recomputes every delta from this file plus
-# docs/normative_statements.yaml. A row that does not balance fails CI.
+#   hard_must == (REGISTERED occurrences at this section in M0a_obligation_inventory.yaml)
+#                + len(keyword_free)
 #
-# COMPLETENESS
+# so a count cannot drift from the occurrence inventory, and the inventory cannot classify an
+# occurrence REGISTERED without the count moving. `keyword_free` lists the registered MUST
+# statements at this section that have NO explicit-keyword occurrence -- obligations the spec states
+# declaratively (a schema rule, a table cell, 不是 / 不提供 / 都要 / 保存) which a keyword scan cannot
+# see. Each needs a rationale quoting how the section states it; §10.5 is the clearest case, where
+# the whole obligation rides on 不是.
 #
-# Every heading in §6–§16 of SAI_3.3.md must appear here, including sections whose hard-MUST count
-# is 0. `test_every_spec_heading_is_audited` parses the headings out of the spec and fails if one
-# is missing. Listing only the sections that happen to have registry entries would let a whole
-# section of prose go unexamined -- the numbers would balance because nobody looked.
+# `basis` records how the section's total was judged, in prose, for a human reviewer. It may no
+# longer discharge a section by saying an obligation is "registered elsewhere" without naming it --
+# that is what the inventory's RESTATEMENT_OF(target) classification is for, and CI resolves the
+# target against the registry.
 #
-# THE COUNTING RULE (one formula, applied uniformly)
-#
-#   delta = hard_must - (registry_live_must + registry_deferred_must)
-#
-#   registry_live_must     entries for the section with level MUST and no deferred_rationale
-#   registry_deferred_must entries with level MUST and a deferred_rationale, counted once as
-#                          deferred and never also as covered
-#   SHOULD entries         excluded entirely from hard-MUST coverage (§0.2 makes SHOULD normative
-#                          and deviation ADR-worthy, but it is not a hard MUST)
-#
-# `hard_must` is a judged count, not a raw keyword-match count. Keyword scanning has two failure
-# directions and both are recorded per section in `basis`:
-#
-#   FALSE POSITIVES  line-splitting (a rule wrapped across two lines matches twice); restatement
-#                    (a table row or diagram repeating a rule owned by another section);
-#                    descriptive prose (a cost characteristic such as §9.3's "不可逆", or an
-#                    overview table of role I/O, which describes rather than obliges).
-#   FALSE NEGATIVES  obligations phrased without a keyword. §8.2's "No LLM may directly assign a
-#                    scientific transition" and §10.5's "「measurement 永遠最高」不是 core 假設"
-#                    carry no MUST/不得 and were missed by the scan. Every section below was read,
-#                    not only scanned.
-
-schema_version: 2
+# Recomputed by tests/spec/test_m0a_coverage_audit.py and
+# tests/spec/test_m0a_obligation_inventory.py on every run.
+schema_version: 3
 audit: M0a
-spec_version: "3.3"
-spec_amendments: [v3.3-a1, v3.3-a2, v3.3-a3, v3.3-a4]
-
+spec_amendment: v3.3-a5
 sections:
-  - section: "6"
-    hard_must: 0
-    basis: >-
-      chapter heading; the chapter's obligations live in its numbered subsections
-  - section: "6.1"
-    hard_must: 2
-    basis: >-
-      content-addressed identity; lineage separate from the content hash
-  - section: "6.2"
-    hard_must: 1
-    basis: >-
-      claim identity resolved before corroboration is counted
-  - section: "6.3"
-    hard_must: 2
-    basis: >-
-      per-field status; only EXPLICIT / VERIFIED_DERIVED carry high filtering weight
-  - section: "6.4"
-    hard_must: 1
-    basis: >-
-      an incomplete stage stays UNKNOWN and must not be model-filled
-  - section: "6.5"
-    hard_must: 0
-    basis: >-
-      source-type table; the GitHub row restates GH-003, owned at §6.16
-  - section: "6.6"
-    hard_must: 0
-    basis: >-
-      judged non-obligation: the graph-DB migration trigger is phrased as a design note (「重要修正」)
-      and the decision is recorded in ADR-0001 under principle P20, not as an implementation
-      obligation with a Requirement. Flag for maintainer if a stricter reading is preferred
-  - section: "6.7"
-    hard_must: 0
-    basis: >-
-      SHOULD only (layout-aware parsing)
-  - section: "6.8"
-    hard_must: 1
-    basis: >-
-      data differing in operating conditions must not be merged directly
-  - section: "6.9"
-    hard_must: 0
-    basis: >-
-      descriptive: historical episodes are a first-class retrieval target
-  - section: "6.10"
-    hard_must: 0
-    basis: >-
-      presents the FailureAnalysis schema; obligations are in §17.6
-  - section: "6.11"
-    hard_must: 1
-    basis: >-
-      mined output is a CandidateHeuristic awaiting human approval
-  - section: "6.12"
-    hard_must: 0
-    basis: >-
-      descriptive storage choice for large numerical arrays
-  - section: "6.13"
-    hard_must: 1
-    basis: >-
-      vector retrieval must filter by embedding model + version
-  - section: "6.14"
-    hard_must: 0
-    basis: >-
-      SHOULD only (non-intrusive ingestion)
-  - section: "6.15"
-    hard_must: 1
-    basis: >-
-      the miner draws only from approved sources and may not self-promote
-  - section: "6.16"
-    hard_must: 5
-    basis: >-
-      provider-agnostic boundary; connector errors are structured and not LLM-guessed; GH-001
-      ref-pinned fetch; GH-002 private fails closed; GH-003 no auto-promotion
-  - section: "6.17"
-    hard_must: 2
-    basis: >-
-      DEPENDENCE_UNKNOWN contributes 0 to the independent count; a basis stronger than WORK must
-      escalate to human review. Three raw matches, two rules (line-splitting)
-  - section: "6.18"
-    hard_must: 2
-    basis: >-
-      belief revision is append-only; manual correction is also an event, never a row update
-  - section: "6.19"
-    hard_must: 1
-    basis: >-
-      every condition-aware record carries conditions_schema_version, validated on write
-  - section: "6.20"
-    hard_must: 2
-    basis: >-
-      dual-index migration with verified cutover; which embedding version a retrieval used must
-      remain answerable
-  - section: "6.21"
-    hard_must: 2
-    basis: >-
-      retraction/erratum check status recorded even when UNKNOWN; a novelty status with no
-      coverage record is unauditable. The section's third registry entry is SHOULD-level (the
-      check itself) and is excluded from this count
-  - section: "7"
-    hard_must: 0
-    basis: >-
-      chapter heading
-  - section: "7.1"
-    hard_must: 0
-    basis: >-
-      overview table of cognitive role scope; describes rather than obliges
-  - section: "7.2"
-    hard_must: 2
-    basis: >-
-      debate metrics recorded and round count not fixed; high-stakes Critic performs inverted
-      retrieval before BELIEF_REVISION
-  - section: "7.3"
-    hard_must: 0
-    basis: >-
-      declares six logical model slots; no obligation stated in this section
-  - section: "7.4"
-    hard_must: 0
-    basis: >-
-      role I/O overview table; the shared-bundle and prior-art cells are descriptive
-  - section: "7.5"
-    hard_must: 1
-    basis: >-
-      internal novelty must not be presented as global novelty
-  - section: "7.6"
-    hard_must: 1
-    basis: >-
-      every LLM scientific output carries InferenceProvenance
-  - section: "8"
-    hard_must: 0
-    basis: >-
-      chapter intro; the admission-gate rule is registered at §8.1, its precise location
-  - section: "8.1"
-    hard_must: 2
-    basis: >-
-      at least two competing hypotheses; admission requires the certificate fields
-  - section: "8.2"
-    hard_must: 0
-    basis: >-
-      lifecycle diagram. 'No LLM may directly assign a scientific transition' and 'Every accepted
-      transition emits BeliefRevisionEvent' carry no MUST keyword but are genuine obligations --
-      both restate rules owned at §8.2.1 (transition authority) and §6.18 (append-only events),
-      so counting them here would double-count
-  - section: "8.2.1"
-    hard_must: 2
-    basis: >-
-      transitions authorised only by versioned TransitionPolicy; required INCOMPARABLE yields
-      NEED_HUMAN_REVIEW plus a ReviewItem
-  - section: "9"
-    hard_must: 0
-    basis: >-
-      chapter intro; states that the planner is domain-agnostic
-  - section: "9.1"
-    hard_must: 5
-    basis: >-
-      sufficiency via side-effect-free evaluate_hypothetical; action needs predicted outcome and
-      cost; no unjustified escalation; plausible outcomes come from a declared OutcomeSpace;
-      disagreement metrics are deterministic, versioned and defined over that OutcomeSpace. The
-      fifth was unregistered until amendment v3.3-a4 added VER-008
-  - section: "9.2"
-    hard_must: 0
-    basis: >-
-      states the v1 position on information gain; ranking obligations are in §9.1/§9.6
-  - section: "9.3"
-    hard_must: 0
-    basis: >-
-      action-type cost table. The 不可逆 cell is a cost characteristic of fabrication, not an
-      obligation; the fabrication sign-off MUST lives at §14.3
-  - section: "9.4"
-    hard_must: 1
-    basis: >-
-      cost is a vector, never a single normalized scalar
-  - section: "9.5"
-    hard_must: 1
-    basis: >-
-      a backend with no Capability descriptor cannot be planned
-  - section: "9.6"
-    hard_must: 1
-    basis: >-
-      versioned deterministic SelectionPolicy after Pareto filtering. Two raw matches, one rule
-      (line-splitting)
-  - section: "10"
-    hard_must: 0
-    basis: >-
-      chapter heading
-  - section: "10.1"
-    hard_must: 0
-    basis: >-
-      enumerates backend types; no obligation stated
-  - section: "10.2"
-    hard_must: 2
-    basis: >-
-      typed tools only, no arbitrary script execution; extractors are backend-agnostic
-  - section: "10.2.1"
-    hard_must: 2
-    basis: >-
-      four verb prefixes; validate_* returns ValidationReport and never mutates raw evidence
-  - section: "10.2.2"
-    hard_must: 1
-    basis: >-
-      domain run conditions bound into the Run manifest
-  - section: "10.3"
-    hard_must: 1
-    basis: >-
-      every backend run produces a replayable manifest
-  - section: "10.4"
-    hard_must: 1
-    basis: >-
-      multi-objective trade-offs preserved; no single scalar FoM decides
-  - section: "10.5"
-    hard_must: 1
-    basis: >-
-      authority is a function of (method, calibration, validated_range fit) and 'measurement is
-      always highest' is NOT a core assumption (P27). Phrased with 不是 rather than 不得, so the
-      keyword scan missed it
-  - section: "10.5.1"
-    hard_must: 2
-    basis: >-
-      INCOMPARABLE is legitimate and must not be silently coerced into an ordering; DomainPack
-      MUST expose compare. Both were unregistered until the M0a audit: fidelity.low_cannot_reject
-      had been filed at §10.5, making that subtree look covered
-  - section: "10.6"
-    hard_must: 1
-    basis: >-
-      sim-to-real disagreement preserved as a Conflict, never flattened
-  - section: "10.7"
-    hard_must: 0
-    basis: >-
-      the Job-ification rule is registered at §12.4, its precise location
-  - section: "11"
-    hard_must: 0
-    basis: >-
-      the core-must-not-import-domain rule is registered at §24.2
-  - section: "12"
-    hard_must: 0
-    basis: >-
-      chapter heading
-  - section: "12.1"
-    hard_must: 0
-    basis: >-
-      presents the episode state machine; no obligation stated in this section
-  - section: "12.2"
-    hard_must: 0
-    basis: >-
-      enumerates termination conditions descriptively
-  - section: "12.3"
-    hard_must: 1
-    basis: >-
-      cross-store writes compensated within one unit of work
-  - section: "12.4"
-    hard_must: 1
-    basis: >-
-      long-running actions are Jobs with idempotent callbacks
-  - section: "12.5"
-    hard_must: 1
-    basis: >-
-      execution trace/span contract is persisted
-  - section: "13"
-    hard_must: 0
-    basis: >-
-      SHOULD only (learning is not fine-tuning first)
-  - section: "13.1"
-    hard_must: 0
-    basis: >-
-      describes the learning ladder; no obligation stated
-  - section: "13.2"
-    hard_must: 0
-    basis: >-
-      contrasts memory kinds against weights; descriptive
-  - section: "13.3"
-    hard_must: 0
-    basis: >-
-      advises against online gradient update; SHOULD-level guidance
-  - section: "14"
-    hard_must: 0
-    basis: >-
-      chapter heading
-  - section: "14.1"
-    hard_must: 2
-    basis: >-
-      RESTRICTED_NDA forbids external egress; unclassified data defaults fail-closed
-  - section: "14.2"
-    hard_must: 0
-    basis: >-
-      privacy-mode table; the egress obligations are stated at §14.1 and §14.3
-  - section: "14.3"
-    hard_must: 2
-    basis: >-
-      external query gate -- private identifiers and exact confidential geometry must not be sent
-      out; fabrication submission requires human sign-off (the latter DEFERRED)
-  - section: "14.4"
-    hard_must: 1
-    basis: >-
-      ReviewQueue carries stakes, SLA/expiry and capacity
-  - section: "14.4.1"
-    hard_must: 1
-    basis: >-
-      human review is a finite Capability whose availability comes from queue depth
-  - section: "14.5"
-    hard_must: 2
-    basis: >-
-      secret scan precedes immutable ingest; license_class gates code-generation context
-  - section: "15"
-    hard_must: 0
-    basis: >-
-      chapter heading
-  - section: "15.1"
-    hard_must: 0
-    basis: >-
-      enumerates benchmark classes descriptively
-  - section: "15.2"
-    hard_must: 0
-    basis: >-
-      enumerates core metrics descriptively
-  - section: "15.3"
-    hard_must: 0
-    basis: >-
-      lists required ablations; the enforcement obligation is LLM-002 at §15.4
-  - section: "15.4"
-    hard_must: 2
-    basis: >-
-      the groupthink-reduction claim must be falsifiable; hard gates reference a versioned
-      BenchmarkPolicy with no pre-calibration thresholds. Not covered by §7.2's
-      debate.metrics.recorded -- that obliges recording, this obliges refutability
-  - section: "16"
-    hard_must: 0
-    basis: >-
-      SHOULD only (roadmap narrative)
-  - section: "16.1"
-    hard_must: 0
-    basis: >-
-      lists derivable research topics; explicitly non-binding
+- section: '6'
+  hard_must: 0
+  basis: chapter heading; the chapter's obligations live in its numbered subsections
+- section: '6.1'
+  hard_must: 2
+  basis: content-addressed identity; lineage separate from the content hash
+  keyword_free:
+  - key: artifact.content_addressed
+    rationale: Stated as a schema identity rule -- 「`artifact_id` 由內容 hash 決定。改 1 byte 就是另一個 artifact」
+      -- which is declarative, not keyworded.
+  - key: artifact.lineage_separate_from_hash
+    rationale: 'Stated as a schema separation: human versioning lives in lineage_id / lineage_revision
+      / previous_artifact_id, 「與 content-addressing 不衝突」.'
+- section: '6.2'
+  hard_must: 1
+  basis: claim identity resolved before corroboration is counted
+  keyword_free:
+  - key: claim.identity_before_corroboration
+    rationale: Carried by §6.2's NOT/YES contrast block. The section's only keyword occurrence (6.2#1)
+      is the 「為什麼必須分開」 rationale heading, classified NON_NORMATIVE.
+- section: '6.3'
+  hard_must: 2
+  basis: per-field status; only EXPLICIT / VERIFIED_DERIVED carry high filtering weight
+  keyword_free:
+  - key: evidence.field_status.per_field
+    rationale: 「每個重要條件/參數**獨立**持有 status」 -- an assertion about the schema. The section's keyword occurrence
+      is the weighting rule instead.
+- section: '6.4'
+  hard_must: 1
+  basis: an incomplete stage stays UNKNOWN and must not be model-filled
+- section: '6.5'
+  hard_must: 0
+  basis: source-type table; the GitHub row restates GH-003, owned at §6.16
+- section: '6.6'
+  hard_must: 0
+  basis: 'judged non-obligation: the graph-DB migration trigger is phrased as a design note (「重要修正」) and
+    the decision is recorded in ADR-0001 under principle P20, not as an implementation obligation with
+    a Requirement. Flag for maintainer if a stricter reading is preferred'
+- section: '6.7'
+  hard_must: 0
+  basis: SHOULD only (layout-aware parsing)
+- section: '6.8'
+  hard_must: 1
+  basis: data differing in operating conditions must not be merged directly
+- section: '6.9'
+  hard_must: 0
+  basis: 'descriptive: historical episodes are a first-class retrieval target'
+- section: '6.10'
+  hard_must: 0
+  basis: presents the FailureAnalysis schema; obligations are in §17.6
+- section: '6.11'
+  hard_must: 1
+  basis: mined output is a CandidateHeuristic awaiting human approval
+- section: '6.12'
+  hard_must: 0
+  basis: descriptive storage choice for large numerical arrays
+- section: '6.13'
+  hard_must: 1
+  basis: vector retrieval must filter by embedding model + version
+- section: '6.14'
+  hard_must: 0
+  basis: SHOULD only (non-intrusive ingestion)
+- section: '6.15'
+  hard_must: 1
+  basis: the miner draws only from approved sources and may not self-promote
+- section: '6.16'
+  hard_must: 5
+  basis: provider-agnostic boundary; connector errors are structured and not LLM-guessed; GH-001 ref-pinned
+    fetch; GH-002 private fails closed; GH-003 no auto-promotion
+  keyword_free:
+  - key: github.public.ref_pinned
+    rationale: GH-001's row reads 「public repo 引用需 pinned commit SHA + retrieved_at」 -- 需, which is not
+      machine-matched.
+- section: '6.17'
+  hard_must: 2
+  basis: DEPENDENCE_UNKNOWN contributes 0 to the independent count; a basis stronger than WORK must escalate
+    to human review. Three raw matches, two rules (line-splitting)
+- section: '6.18'
+  hard_must: 2
+  basis: belief revision is append-only; manual correction is also an event, never a row update
+- section: '6.19'
+  hard_must: 1
+  basis: every condition-aware record carries conditions_schema_version, validated on write
+- section: '6.20'
+  hard_must: 2
+  basis: dual-index migration with verified cutover; which embedding version a retrieval used must remain
+    answerable
+  keyword_free:
+  - key: embedding.migration.dual_index
+    rationale: 「換 model 時採 dual-index:新舊並存,以 benchmark recall 驗證後才 cutover」 -- stated as the migration
+      procedure.
+- section: '6.21'
+  hard_must: 2
+  basis: retraction/erratum check status recorded even when UNKNOWN; a novelty status with no coverage
+    record is unauditable. The section's third registry entry is SHOULD-level (the check itself) and is
+    excluded from this count
+- section: '7'
+  hard_must: 0
+  basis: chapter heading
+- section: '7.1'
+  hard_must: 0
+  basis: overview table of cognitive role scope; describes rather than obliges
+- section: '7.2'
+  hard_must: 3
+  basis: 'Three distinct obligations, one more than rev 4 counted -- rev 4''s own basis named all three
+    while the number said 2, which is the arithmetic the inventory now forces to agree. Occurrences 7.2#1
+    (metrics recorded), 7.2#2 (round count not fixed, newly registered as debate.rounds.not_fixed), 7.2#3
+    (high-stakes inverted retrieval); 7.2#4 restates #3''s enforcement half.'
+- section: '7.3'
+  hard_must: 0
+  basis: declares six logical model slots; no obligation stated in this section
+- section: '7.4'
+  hard_must: 0
+  basis: role I/O overview table; the shared-bundle and prior-art cells are descriptive
+- section: '7.5'
+  hard_must: 1
+  basis: internal novelty must not be presented as global novelty
+- section: '7.6'
+  hard_must: 3
+  basis: Two registered occurrences -- 7.6#1 independent critique path for major REJECT, 7.6#2 no-provenance
+    inferences unusable -- both newly registered, plus the keyword-free provenance rule. Rev 4 counted
+    1.
+  keyword_free:
+  - key: inference.provenance.required
+    rationale: 「所有 LLM 產物保存 InferenceProvenance」 -- imperative by 保存, no keyword. LLM-001's §25.3 row
+      states it with 必須.
+- section: '8'
+  hard_must: 1
+  basis: The Hypothesis Admission Gate is stated here, in §8's introduction (occurrence 8#1). Rev 4 counted
+    0 on the grounds that the rule was 'registered at §8.1, its precise location'; §8.1 is the certificate
+    schema, so that was backwards. Statement re-sectioned 8.1 -> 8.
+- section: '8.1'
+  hard_must: 0
+  basis: Certificate schema only. The >=2 competing hypotheses rule is not stated here at all -- its prose
+    home is §3's P6 and EPI-001's §25.3 row -- so hypothesis.competing.minimum_two moved to §3 and this
+    section counts 0. Rev 4 counted 2.
+- section: '8.2'
+  hard_must: 0
+  basis: lifecycle diagram. 'No LLM may directly assign a scientific transition' and 'Every accepted transition
+    emits BeliefRevisionEvent' carry no MUST keyword but are genuine obligations -- both restate rules
+    owned at §8.2.1 (transition authority) and §6.18 (append-only events), so counting them here would
+    double-count
+- section: 8.2.1
+  hard_must: 3
+  basis: Two registered occurrences -- 8.2.1#1 (LLM may not assign a transition) and 8.2.1#2 (identical
+    inputs + policy_version yield an identical TransitionDecision, newly registered as transition.decision.deterministic)
+    -- plus the keyword-free INCOMPARABLE-to-review rule. Rev 4 counted 2 and missed the determinism obligation.
+  keyword_free:
+  - key: authority.incomparable.review
+    rationale: The required_authority_rule / human_gate fields in §8.2.1's TransitionPolicy block encode
+      it; the INCOMPARABLE-to-review consequence is spelled out in EPI-004's §25.3 row.
+- section: '9'
+  hard_must: 0
+  basis: chapter intro; states that the planner is domain-agnostic
+- section: '9.1'
+  hard_must: 5
+  basis: sufficiency via side-effect-free evaluate_hypothetical; action needs predicted outcome and cost;
+    no unjustified escalation; plausible outcomes come from a declared OutcomeSpace; disagreement metrics
+    are deterministic, versioned and defined over that OutcomeSpace. The fifth was unregistered until
+    amendment v3.3-a4 added VER-008
+  keyword_free:
+  - key: sufficiency.hypothetical.sideeffect_free
+    rationale: Stated in §9.1's SufficiencyProbe contract as a property of the probe, not as a MUST sentence.
+  - key: verification.action.predicted_outcome_and_cost
+    rationale: 'Stated as the VerificationAction contract: every action carries a predicted outcome and
+      a cost vector. §9.1''s two keyword occurrences are the OutcomeSpace and disagreement-metric rules.'
+  - key: verification.no_unjustified_escalation
+    rationale: Stated as the escalation ladder's rule -- a step up must be justified by the cheaper step's
+      result -- without a keyword.
+- section: '9.2'
+  hard_must: 0
+  basis: states the v1 position on information gain; ranking obligations are in §9.1/§9.6
+- section: '9.3'
+  hard_must: 0
+  basis: action-type cost table. The 不可逆 cell is a cost characteristic of fabrication, not an obligation;
+    the fabrication sign-off MUST lives at §14.3
+- section: '9.4'
+  hard_must: 1
+  basis: cost is a vector, never a single normalized scalar
+- section: '9.5'
+  hard_must: 1
+  basis: a backend with no Capability descriptor cannot be planned
+- section: '9.6'
+  hard_must: 1
+  basis: versioned deterministic SelectionPolicy after Pareto filtering. Two raw matches, one rule (line-splitting)
+- section: '10'
+  hard_must: 0
+  basis: chapter heading
+- section: '10.1'
+  hard_must: 0
+  basis: enumerates backend types; no obligation stated
+- section: '10.2'
+  hard_must: 1
+  basis: Typed tools only, stated with 不提供 rather than a keyword. The extractor rule rev 4 counted here
+    is stated at §10.2.1, so extractor.backend_agnostic moved there and this section counts 1. Rev 4 counted
+    2.
+  keyword_free:
+  - key: tools.typed_only.no_arbitrary_script
+    rationale: §10.2 reads 「**不提供** arbitrary script execution（P19）」. 不提供 is a refusal, not one of §0.2's
+      keywords, so it does not match; the heading itself says 「不使用 arbitrary eval_script」.
+- section: 10.2.1
+  hard_must: 3
+  basis: 'Three registered occurrences: 10.2.1#1 four verb prefixes, 10.2.1#2 extract_* MUST accept both
+    simulated and measured (re-sectioned here from §10.2), 10.2.1#3 validate_* MUST NOT mutate raw evidence.
+    Rev 4 counted 2.'
+- section: 10.2.2
+  hard_must: 1
+  basis: domain run conditions bound into the Run manifest
+- section: '10.3'
+  hard_must: 1
+  basis: every backend run produces a replayable manifest
+- section: '10.4'
+  hard_must: 1
+  basis: multi-objective trade-offs preserved; no single scalar FoM decides
+- section: '10.5'
+  hard_must: 1
+  basis: authority is a function of (method, calibration, validated_range fit) and 'measurement is always
+    highest' is NOT a core assumption (P27). Phrased with 不是 rather than 不得, so the keyword scan missed
+    it
+  keyword_free:
+  - key: authority.partial_order_not_ladder
+    rationale: §10.5 reads 「「measurement 永遠最高」**不是** core 假設。權威是 `(method, calibration, validated_range
+      fit)` 的函數」 -- a genuine obligation carried entirely by 不是. This is the false-negative case that
+      keyword scanning cannot see.
+- section: 10.5.1
+  hard_must: 2
+  basis: 'INCOMPARABLE is legitimate and must not be silently coerced into an ordering; DomainPack MUST
+    expose compare. Both were unregistered until the M0a audit: fidelity.low_cannot_reject had been filed
+    at §10.5, making that subtree look covered'
+- section: '10.6'
+  hard_must: 1
+  basis: sim-to-real disagreement preserved as a Conflict, never flattened
+- section: '10.7'
+  hard_must: 0
+  basis: Counted 0 because occurrence 10.7#1 is classified RESTATEMENT_OF(job.long_running.suspend_resume_idempotent),
+    whose home is §12.4. The target is named in the inventory and CI resolves it against the registry
+    -- rev 4's basis asserted the same conclusion without naming anything.
+- section: '11'
+  hard_must: 0
+  basis: Counted 0 because occurrence 11#1 is classified RESTATEMENT_OF(domain.core_no_domain_import),
+    whose home is §24.2 and whose enforcement is T-EXT-001's import scan. The sentence names its own home
+    (「詳見 §24」). Target resolved by CI.
+- section: '12'
+  hard_must: 0
+  basis: chapter heading
+- section: '12.1'
+  hard_must: 0
+  basis: presents the episode state machine; no obligation stated in this section
+- section: '12.2'
+  hard_must: 0
+  basis: enumerates termination conditions descriptively
+- section: '12.3'
+  hard_must: 1
+  basis: cross-store writes compensated within one unit of work
+- section: '12.4'
+  hard_must: 1
+  basis: long-running actions are Jobs with idempotent callbacks
+- section: '12.5'
+  hard_must: 1
+  basis: execution trace/span contract is persisted
+  keyword_free:
+  - key: trace.span.persisted
+    rationale: 「Critique 與所有 LLM 產物保存 provenance（OPS-003）」 plus the trace_id chain -- imperative by 保存
+      and 貫穿.
+- section: '13'
+  hard_must: 0
+  basis: SHOULD only (learning is not fine-tuning first)
+- section: '13.1'
+  hard_must: 0
+  basis: describes the learning ladder; no obligation stated
+- section: '13.2'
+  hard_must: 0
+  basis: contrasts memory kinds against weights; descriptive
+- section: '13.3'
+  hard_must: 0
+  basis: advises against online gradient update; SHOULD-level guidance
+- section: '14'
+  hard_must: 0
+  basis: chapter heading
+- section: '14.1'
+  hard_must: 2
+  basis: RESTRICTED_NDA forbids external egress; unclassified data defaults fail-closed
+  keyword_free:
+  - key: classification.fail_closed_default
+    rationale: The same table's 外部使用 column states the closed default per label (CONFIDENTIAL_LAB 「預設
+      local；需 explicit project policy」).
+  - key: privacy.restricted.no_egress
+    rationale: '§14.1''s label table states it as a cell: RESTRICTED_NDA -> 「禁止外部 API / cloud model」.
+      禁止 is a prohibition outside §0.2''s keyword set.'
+- section: '14.2'
+  hard_must: 0
+  basis: privacy-mode table; the egress obligations are stated at §14.1 and §14.3
+- section: '14.3'
+  hard_must: 2
+  basis: external query gate -- private identifiers and exact confidential geometry must not be sent out;
+    fabrication submission requires human sign-off (the latter DEFERRED)
+- section: '14.4'
+  hard_must: 2
+  basis: One registered occurrence -- 14.4#1, the ReviewQueue's stakes / created_at / SLA/expiry fields,
+    newly registered as review.queue.stakes_sla_expiry -- plus the keyword-free actor_id rule. Rev 4 counted
+    1 and credited it to acl.actor.required_for_approval_egress, which is the actor rule, not the queue
+    rule; its basis text described the queue fields. OPS-002 states both halves and only the §14.4.1 half
+    was registered.
+  keyword_free:
+  - key: acl.actor.required_for_approval_egress
+    rationale: 「所有 external egress、private repo access、human approval 與 destructive governance action
+      都要記 `actor_id`」 -- imperative by 都要.
+- section: 14.4.1
+  hard_must: 1
+  basis: human review is a finite Capability whose availability comes from queue depth
+  keyword_free:
+  - key: review.capacity.planner
+    rationale: §14.4.1's body states the feed as a mechanism (queue depth / availability / SLA update
+      the Capability's availability and earliest_available_at). Its *heading* carries 必須, which is why
+      the heading-assertion guard requires this section to count at least one.
+- section: '14.5'
+  hard_must: 2
+  basis: secret scan precedes immutable ingest; license_class gates code-generation context
+- section: '15'
+  hard_must: 0
+  basis: chapter heading
+- section: '15.1'
+  hard_must: 0
+  basis: enumerates benchmark classes descriptively
+- section: '15.2'
+  hard_must: 0
+  basis: enumerates core metrics descriptively
+- section: '15.3'
+  hard_must: 0
+  basis: lists required ablations; the enforcement obligation is LLM-002 at §15.4
+- section: '15.4'
+  hard_must: 2
+  basis: the groupthink-reduction claim must be falsifiable; hard gates reference a versioned BenchmarkPolicy
+    with no pre-calibration thresholds. Not covered by §7.2's debate.metrics.recorded -- that obliges
+    recording, this obliges refutability
+- section: '16'
+  hard_must: 0
+  basis: SHOULD only (roadmap narrative)
+- section: '16.1'
+  hard_must: 0
+  basis: lists derivable research topics; explicitly non-binding
