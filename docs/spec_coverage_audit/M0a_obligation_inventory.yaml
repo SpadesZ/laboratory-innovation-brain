@@ -43,7 +43,7 @@
 # necessary and not sufficient -- the target has to be able to discharge the obligation.
 schema_version: 1
 audit: M0a
-spec_amendment: v3.3-a6
+spec_amendment: v3.3-a7
 range: §6-§16
 occurrences:
 - occurrence_id: 6.2#1
@@ -321,9 +321,12 @@ occurrences:
   quote_digest: 852b064f1b914621
   quote: '重大 REJECT / irreversible action 必須經 independent critique path:'
   classification: REGISTERED
-  target: critique.independent_path.major_reject
-  note: 「重大 REJECT / irreversible action 必須經 independent critique path」. Registered at §7.6 under SRC-002
-    by amendment v3.3-a5.
+  target: critique.independent_path.reject_or_irreversible
+  note: 'One rule, two triggers: 重大 REJECT AND irreversible action. v3.3-a6 bound only the first because
+    T-SRC-002 gated BELIEF_REVISION, leaving an irreversible dispatch that touches no belief state entirely
+    ungoverned. v3.3-a7 extended SRC-002 rather than minting a 60th Requirement, and added negative fixtures:
+    an irreversible action with causes_belief_revision=false must not dispatch without a completed independent
+    critique, and a valid human approval does not substitute for one.'
 - occurrence_id: 7.6#2
   section: '7.6'
   keyword: 不可

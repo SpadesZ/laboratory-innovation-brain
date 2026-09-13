@@ -135,12 +135,53 @@ def _traceability_markers(
     return requirement_ids, test_ids
 
 
+def _pytestmark_markers(tree: ast.Module) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Traceability markers from a module-level ``pytestmark`` assignment.
+
+    pytest applies ``pytestmark`` to every test in the module, so a module marked that way is
+    genuinely covered -- but this collector originally read only decorator lists, which left those
+    markers invisible to the traceability matrix while pytest honoured them.
+
+    The direction of the error matters: the matrix *under*-reported, so a Requirement could have a
+    real, passing, executed test and still look uncovered. Found by writing
+    ``tests/contract/test_critique_gate.py`` with ``pytestmark`` and noticing that SRC-002 never
+    appeared in the status table. ``tests/spec/test_marker_collection.py`` now checks this
+    direction too, so a construct the walker does not understand fails loudly instead of
+    silently under-counting.
+
+    Both ``pytestmark = [...]`` and the single-marker ``pytestmark = pytest.mark.requirement(...)``
+    forms are handled; both are valid pytest.
+    """
+    requirement_ids: tuple[str, ...] = ()
+    test_ids: tuple[str, ...] = ()
+    for node in tree.body:
+        if not isinstance(node, ast.Assign | ast.AnnAssign):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        if not any(
+            isinstance(target, ast.Name) and target.id == "pytestmark" for target in targets
+        ):
+            continue
+        value = node.value
+        if value is None:
+            continue
+        entries = value.elts if isinstance(value, ast.List | ast.Tuple) else [value]
+        for entry in entries:
+            name = _marker_name(entry)
+            if name == _MARKER_REQUIREMENT:
+                requirement_ids += _string_args(entry)
+            elif name == _MARKER_SPEC_TEST:
+                test_ids += _string_args(entry)
+    return requirement_ids, test_ids
+
+
 def _collect_from_module(
     path: Path, module_name: str
 ) -> tuple[list[MarkedTest], list[RejectedMarker]]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     collected: list[MarkedTest] = []
     rejected: list[RejectedMarker] = []
+    module_markers = _pytestmark_markers(tree)
 
     def record_function(
         node: ast.FunctionDef | ast.AsyncFunctionDef,
@@ -149,23 +190,33 @@ def _collect_from_module(
         class_reason: str | None,
     ) -> None:
         own = _traceability_markers(node)
-        requirement_ids = inherited[0] + own[0]
-        test_ids = inherited[1] + own[1]
-        if not requirement_ids and not test_ids:
-            return
+        # Markers someone wrote *at* this function or its class, as distinct from ones the module
+        # applies to everything. Only the explicit kind can be misplaced: pytest applies
+        # `pytestmark` to collected items, so a private helper inside a marked module has not been
+        # mis-marked and must not be reported as though it had.
+        explicit = (inherited[0] + own[0], inherited[1] + own[1])
+        has_explicit = bool(explicit[0] or explicit[1])
+
         if class_reason is not None:
-            rejected.append(RejectedMarker(module_name, node.name, node.lineno, class_reason))
+            if has_explicit:
+                rejected.append(RejectedMarker(module_name, node.name, node.lineno, class_reason))
             return
         if not is_test_function_name(node.name):
-            rejected.append(
-                RejectedMarker(
-                    module_name,
-                    node.name,
-                    node.lineno,
-                    f"function name does not start with {_TEST_FUNCTION_PREFIX!r}, "
-                    "so pytest does not collect it",
+            if has_explicit:
+                rejected.append(
+                    RejectedMarker(
+                        module_name,
+                        node.name,
+                        node.lineno,
+                        f"function name does not start with {_TEST_FUNCTION_PREFIX!r}, "
+                        "so pytest does not collect it",
+                    )
                 )
-            )
+            return
+
+        requirement_ids = module_markers[0] + explicit[0]
+        test_ids = module_markers[1] + explicit[1]
+        if not requirement_ids and not test_ids:
             return
         collected.append(
             MarkedTest(

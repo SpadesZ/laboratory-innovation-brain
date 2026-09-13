@@ -758,10 +758,14 @@ normative_statements:
     requirement_id: LLM-002
     tests: [T-LLM-002]
 
-  # §7.6: "重大 REJECT / irreversible action 必須經 independent critique path". SRC-002 owns the
-  # high-stakes critic path and its test already blocks BELIEF_REVISION when that path was not
-  # taken, which is the same gate this obligation needs.
-  - key: critique.independent_path.major_reject
+  # §7.6: "重大 REJECT / irreversible action 必須經 independent critique path". ONE rule, TWO
+  # triggers. Amendment v3.3-a6 bound only the first, because T-SRC-002 gated BELIEF_REVISION and
+  # an irreversible action that never touches belief state was therefore unreached -- a fabrication
+  # submission or an MPW shuttle booking needed no critique at all. Renamed from
+  # `critique.independent_path.major_reject` by v3.3-a7, which extended SRC-002 to bind the
+  # dispatch of any irreversible Capability/action and recorded that human approval does not
+  # substitute for critique. Enforced by lab_brain.core.critique_gate.evaluate_dispatch.
+  - key: critique.independent_path.reject_or_irreversible
     section: "7.6"
     level: MUST
     requirement_id: SRC-002

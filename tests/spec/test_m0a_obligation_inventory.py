@@ -159,7 +159,7 @@ def test_the_sections_the_reviewer_named_are_resolved_at_occurrence_level(invent
 
     # Previously unowned; now registered against an existing Requirement.
     assert rows["7.2#2"].target == "debate.rounds.not_fixed"
-    assert rows["7.6#1"].target == "critique.independent_path.major_reject"
+    assert rows["7.6#1"].target == "critique.independent_path.reject_or_irreversible"
     assert rows["7.6#2"].target == "inference.no_provenance_not_usable"
     assert rows["8.2.1#2"].target == "transition.decision.deterministic"
     assert rows["14.4#1"].target == "review.queue.stakes_sla_expiry"

@@ -3,8 +3,11 @@
 # Gate order and exit gates are transcribed from SAI 3.3 §26.1. The per-milestone
 # `requirements` allocation is an implementation decision, not spec text: each
 # requirement is assigned to the milestone at which its §26 pass condition can be
-# fully satisfied. The union of all allocations MUST equal the 58 requirements the
-# spec declares (enforced by T-SPEC-001).
+# fully satisfied. The union of all allocations MUST equal the 59 requirements the
+# spec declares -- enforced by T-SPEC-001 against the parsed §25.3 table, so this
+# number is documentation and the check does not depend on it being retyped
+# correctly. It has moved with the amendments (v3.3-a1 .. a7); §0's amendment
+# ledger is the record.
 #
 # `status` drives the CI ratchet. Once a milestone is DONE, every requirement allocated to it
 # must have a traceability test that ACTUALLY EXECUTED AND PASSED -- not merely one that pytest
