@@ -11,6 +11,7 @@ Nothing here may mention a physical quantity, a solver, or a default wavelength.
 would only make sense to a photonics researcher, it belongs in a DomainPack condition schema.
 """
 
+from lab_brain.core.models.access import Actor, ArtifactOccurrence, ProjectMembership
 from lab_brain.core.models.artifact import Artifact, RightsMetadata
 from lab_brain.core.models.attestation import (
     FORBIDDEN_RELATION_FIELDS,
@@ -33,6 +34,7 @@ from lab_brain.core.models.enums import (
     FAIL_CLOSED_SENSITIVITY,
     HIGH_WEIGHT_FIELD_STATUSES,
     IMPLEMENTED_INDEPENDENCE_BASES,
+    ActorType,
     ClaimIdentityStatus,
     ConditionMatchState,
     EpistemicType,
@@ -88,7 +90,10 @@ __all__ = [
     "IDENTITY_EXCLUDED_FIELDS",
     "IDENTITY_RELATION_TYPES",
     "IMPLEMENTED_INDEPENDENCE_BASES",
+    "Actor",
+    "ActorType",
     "Artifact",
+    "ArtifactOccurrence",
     "Attestation",
     "Claim",
     "ClaimIdentityStatus",
@@ -110,6 +115,7 @@ __all__ = [
     "IndependenceRelation",
     "LicenseClass",
     "Observation",
+    "ProjectMembership",
     "RelationJudgment",
     "RelationType",
     "ResearchIntent",

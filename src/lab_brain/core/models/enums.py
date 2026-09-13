@@ -10,6 +10,19 @@ from __future__ import annotations
 from enum import StrEnum
 
 
+class ActorType(StrEnum):
+    """§14.4's minimum Actor model: no governance without "who".
+
+    AGENT_ROLE is a first-class actor rather than a flag on a human. An agent acting under a
+    delegated role must be attributable in its own right, or every action it takes is recorded
+    against whoever configured it.
+    """
+
+    HUMAN = "HUMAN"
+    SERVICE = "SERVICE"
+    AGENT_ROLE = "AGENT_ROLE"
+
+
 class SensitivityLabel(StrEnum):
     """§14.1. Ordered most-restrictive first so fail-closed defaults are unambiguous."""
 

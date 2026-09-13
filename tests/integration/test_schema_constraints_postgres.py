@@ -26,11 +26,9 @@ HASH_B = compute_content_hash(b"payload B")
 
 _INSERT_ARTIFACT = """
 INSERT INTO artifacts (artifact_id, content_hash, media_type, uri, lineage_id,
-                       lineage_revision, previous_artifact_id, source_origin,
-                       sensitivity_label, project_id)
+                       lineage_revision, previous_artifact_id, source_origin)
 VALUES (%(artifact_id)s, %(content_hash)s, 'application/octet-stream', %(uri)s,
-        %(lineage_id)s, %(lineage_revision)s, %(previous_artifact_id)s, 'UPLOAD',
-        %(sensitivity_label)s, 'prj:test')
+        %(lineage_id)s, %(lineage_revision)s, %(previous_artifact_id)s, 'UPLOAD')
 """
 
 
@@ -43,7 +41,6 @@ def _artifact_params(content_hash: str, **overrides: object) -> dict[str, object
         "lineage_id": artifact_id,
         "lineage_revision": 1,
         "previous_artifact_id": None,
-        "sensitivity_label": "INTERNAL",
     }
     params.update(overrides)
     return params
@@ -149,23 +146,29 @@ def test_database_stores_a_valid_lineage_chain(db):
     assert [row[1] for row in rows] == [1, 2]
 
 
-@pytest.mark.requirement("ART-001")
-@pytest.mark.spec_test("T-ART-001")
-def test_database_requires_a_sensitivity_label(db):
-    """P28: classification is NOT NULL with no default, so it cannot be skipped."""
-    import psycopg
-
-    with pytest.raises(psycopg.errors.NotNullViolation):
-        db.execute(_INSERT_ARTIFACT, _artifact_params(HASH_A, sensitivity_label=None))
+# Classification moved to artifact_occurrences in migration 005 (risk R-7): a sensitivity label
+# describes a project's copy of the bytes, not the bytes. Both invariants still hold, and are
+# asserted against the occurrence table in test_artifact_occurrence_postgres.py. What belongs here
+# is the consequence for `artifacts`: it must no longer be possible to classify the global row.
 
 
 @pytest.mark.requirement("ART-001")
 @pytest.mark.spec_test("T-ART-001")
-def test_database_rejects_an_unknown_sensitivity_label(db):
+def test_the_global_artifact_row_cannot_be_classified(db):
+    """Writing a project-scoped fact onto the content-addressed row must be a hard error.
+
+    Left as a nullable column it would keep being written and read, and a stale label on the global
+    row is worse than none: it looks authoritative. Dropped, the attempt fails loudly.
+    """
     import psycopg
 
-    with pytest.raises(psycopg.errors.CheckViolation):
-        db.execute(_INSERT_ARTIFACT, _artifact_params(HASH_A, sensitivity_label="PROBABLY_FINE"))
+    with pytest.raises(psycopg.errors.UndefinedColumn):
+        db.execute(
+            "INSERT INTO artifacts (artifact_id, content_hash, media_type, uri, lineage_id,"
+            " source_origin, sensitivity_label) VALUES (%s, %s, 'application/octet-stream',"
+            " 'file:///x.bin', %s, 'UPLOAD', 'INTERNAL')",
+            (f"art:{HASH_A}", HASH_A, f"art:{HASH_A}"),
+        )
 
 
 # ---------------------------------------------------------------------------

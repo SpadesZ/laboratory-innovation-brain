@@ -69,9 +69,8 @@ def db_with_attestations(db):  # type: ignore[no-untyped-def]
     )
     db.execute(
         "INSERT INTO artifacts (artifact_id, content_hash, media_type, uri, lineage_id, "
-        "source_origin, sensitivity_label, project_id) "
-        "VALUES (%s, %s, 'application/pdf', 'file:///p.pdf', %s, 'UPLOAD', 'INTERNAL', "
-        "'prj:test')",
+        "source_origin) "
+        "VALUES (%s, %s, 'application/pdf', 'file:///p.pdf', %s, 'UPLOAD')",
         (f"art:{HASH_A}", HASH_A, f"art:{HASH_A}"),
     )
     db.execute("INSERT INTO claims (claim_id, normalized_proposition) VALUES ('clm:1', 'p')")

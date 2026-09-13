@@ -1,0 +1,294 @@
+"""Identical bytes in two projects must not carry one project's clearance into the other.
+
+RISK R-7, and the reason P4 exists. `artifact_id` is globally content-addressed and
+`artifacts.content_hash` is UNIQUE, so the same file ingested into two projects was physically one
+row — carrying one `project_id` and one `sensitivity_label`. Whichever project ingested first owned
+the classification. A `RESTRICTED_NDA` PDK document in project A, re-uploaded into project B by
+someone with no NDA clearance, would have been *the same row*: content-hash duplicate detection
+would hand B a reference to A's artifact, complete with A's label, and any check reading
+`artifact.sensitivity_label` would have been consulting the wrong project's answer.
+
+That is SEC-001 egress in the strict sense — RESTRICTED_NDA material leaving its approved boundary —
+caused not by a missing check but by a data model that cannot represent the question.
+
+So the model splits. `Artifact` is global content identity; `ArtifactOccurrence` is the
+project-scoped facts: which project holds these bytes, under what label, ingested by whom. One
+artifact, N occurrences, N independent labels.
+
+These tests are written before the implementation, on purpose. A fail-closed default that has never
+been observed failing closed is an assumption, and the failures here are the ones that would be
+silent in production.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from lab_brain.core.access import AccessDecision, can_read_artifact
+from lab_brain.core.models import (
+    ArtifactOccurrence,
+    ProjectMembership,
+    SensitivityLabel,
+    artifact_id_for,
+    compute_content_hash,
+)
+
+pytestmark = [pytest.mark.requirement("SEC-002"), pytest.mark.spec_test("T-SEC-002")]
+
+SHARED_BYTES = b"foundry PDK rev 3: ring radius table"
+ARTIFACT = artifact_id_for(compute_content_hash(SHARED_BYTES))
+
+NDA_PROJECT = "proj:photonics-nda"
+OPEN_PROJECT = "proj:teaching"
+ALICE = "actor:alice"
+BOB = "actor:bob"
+
+
+def occurrence(project_id: str, label: SensitivityLabel) -> ArtifactOccurrence:
+    return ArtifactOccurrence(
+        artifact_id=ARTIFACT,
+        project_id=project_id,
+        sensitivity_label=label,
+        ingested_by_actor_id=ALICE,
+    )
+
+
+def membership(actor_id: str, project_id: str, *clearance: SensitivityLabel) -> ProjectMembership:
+    return ProjectMembership(
+        actor_id=actor_id,
+        project_id=project_id,
+        role="researcher",
+        sensitivity_clearance=frozenset(clearance),
+    )
+
+
+# --------------------------------------------------------------------------------------------
+# R-7 proper: the same bytes, two projects, two independent classifications.
+# --------------------------------------------------------------------------------------------
+
+
+def test_the_same_bytes_can_carry_different_labels_in_different_projects():
+    """The representational fix. Without it the rest of this file cannot even be expressed."""
+    nda = occurrence(NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA)
+    teaching = occurrence(OPEN_PROJECT, SensitivityLabel.INTERNAL)
+
+    assert nda.artifact_id == teaching.artifact_id, "content identity is global"
+    assert nda.sensitivity_label is not teaching.sensitivity_label
+    assert nda.occurrence_key != teaching.occurrence_key
+
+
+def test_holding_the_artifact_in_one_project_grants_nothing_in_another():
+    """The leak itself.
+
+    Bob is fully cleared in the teaching project and the artifact exists globally. He must still be
+    refused the NDA project's copy, because the occurrence he is entitled to is not the one he asked
+    for. A check that reasoned "the artifact exists and Bob has clearance somewhere" would allow it.
+    """
+    decision = can_read_artifact(
+        actor_id=BOB,
+        project_id=NDA_PROJECT,
+        occurrence=None,  # no occurrence of these bytes in the NDA project for Bob's request
+        membership=membership(BOB, OPEN_PROJECT, SensitivityLabel.INTERNAL),
+    )
+    assert not decision.allowed
+    assert "not a member" in decision.reason
+
+
+def test_clearance_in_one_project_does_not_carry_into_another():
+    """Clearance is per membership, not per actor.
+
+    Alice holds RESTRICTED_NDA clearance in the NDA project. That must not read across to the
+    teaching project, where her membership grants less.
+    """
+    decision = can_read_artifact(
+        actor_id=ALICE,
+        project_id=OPEN_PROJECT,
+        occurrence=occurrence(OPEN_PROJECT, SensitivityLabel.RESTRICTED_NDA),
+        membership=membership(ALICE, OPEN_PROJECT, SensitivityLabel.INTERNAL),
+    )
+    assert not decision.allowed
+    assert "clearance" in decision.reason
+
+
+# --------------------------------------------------------------------------------------------
+# Fail-closed defaults. Each is a way "no decision" could become "allowed".
+# --------------------------------------------------------------------------------------------
+
+
+def test_no_membership_is_refused():
+    """Absence of a membership row is a denial, not an absence of policy."""
+    decision = can_read_artifact(
+        actor_id=BOB,
+        project_id=NDA_PROJECT,
+        occurrence=occurrence(NDA_PROJECT, SensitivityLabel.PUBLIC),
+        membership=None,
+    )
+    assert not decision.allowed
+    assert "not a member" in decision.reason
+
+
+def test_membership_with_empty_clearance_is_refused_even_for_public():
+    """An empty clearance set means *no* clearance, never *unrestricted*.
+
+    The database default for `sensitivity_clearance` is `'{}'`, so this is the state every
+    membership starts in. If empty meant unrestricted, every new member would begin fully cleared.
+    """
+    decision = can_read_artifact(
+        actor_id=BOB,
+        project_id=OPEN_PROJECT,
+        occurrence=occurrence(OPEN_PROJECT, SensitivityLabel.PUBLIC),
+        membership=membership(BOB, OPEN_PROJECT),
+    )
+    assert not decision.allowed
+    assert "clearance" in decision.reason
+
+
+def test_a_missing_occurrence_is_refused_even_for_a_cleared_member():
+    """The artifact existing globally is not the artifact being present here.
+
+    Alice is cleared for RESTRICTED_NDA in the NDA project. If these bytes have no occurrence in
+    that project, there is nothing for her to read, and the honest answer is a denial rather than a
+    fallback to the artifact's global row.
+    """
+    decision = can_read_artifact(
+        actor_id=ALICE,
+        project_id=NDA_PROJECT,
+        occurrence=None,
+        membership=membership(ALICE, NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
+    )
+    assert not decision.allowed
+    assert "no occurrence" in decision.reason
+
+
+def test_a_membership_for_the_wrong_project_is_refused():
+    """Guard against the check reading the membership without comparing its project."""
+    decision = can_read_artifact(
+        actor_id=ALICE,
+        project_id=NDA_PROJECT,
+        occurrence=occurrence(NDA_PROJECT, SensitivityLabel.PUBLIC),
+        membership=membership(ALICE, OPEN_PROJECT, SensitivityLabel.RESTRICTED_NDA),
+    )
+    assert not decision.allowed
+    assert "not a member" in decision.reason
+
+
+def test_an_occurrence_from_another_project_is_refused():
+    """And the mirror: the occurrence must belong to the project being asked about."""
+    decision = can_read_artifact(
+        actor_id=ALICE,
+        project_id=NDA_PROJECT,
+        occurrence=occurrence(OPEN_PROJECT, SensitivityLabel.PUBLIC),
+        membership=membership(ALICE, NDA_PROJECT, SensitivityLabel.PUBLIC),
+    )
+    assert not decision.allowed
+    assert "different project" in decision.reason
+
+
+def test_an_inactive_membership_is_refused():
+    """Revocation has to take effect without deleting the audit trail of who once had access."""
+    revoked = ProjectMembership(
+        actor_id=ALICE,
+        project_id=NDA_PROJECT,
+        role="researcher",
+        sensitivity_clearance=frozenset({SensitivityLabel.RESTRICTED_NDA}),
+        active=False,
+    )
+    decision = can_read_artifact(
+        actor_id=ALICE,
+        project_id=NDA_PROJECT,
+        occurrence=occurrence(NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
+        membership=revoked,
+    )
+    assert not decision.allowed
+    assert "not active" in decision.reason
+
+
+# --------------------------------------------------------------------------------------------
+# Clearance is exact, not ordered. The enum is ordered most-restrictive-first, which invites the
+# assumption that holding a stricter label implies the looser ones.
+# --------------------------------------------------------------------------------------------
+
+
+def test_clearance_is_a_set_membership_not_a_ranking():
+    """RESTRICTED_NDA clearance alone does not confer INTERNAL access.
+
+    §14.1's labels are categories of handling, not a security ladder: `CONFIDENTIAL_LAB` is
+    unpublished lab work and `INTERNAL` is meeting notes, and neither contains the other. Treating
+    the enum's declaration order as a total order would silently widen every grant.
+    """
+    decision = can_read_artifact(
+        actor_id=ALICE,
+        project_id=NDA_PROJECT,
+        occurrence=occurrence(NDA_PROJECT, SensitivityLabel.INTERNAL),
+        membership=membership(ALICE, NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
+    )
+    assert not decision.allowed
+    assert "clearance" in decision.reason
+
+
+@pytest.mark.parametrize("label", list(SensitivityLabel))
+def test_every_label_requires_its_own_explicit_clearance(label):
+    """No label is exempt. PUBLIC included -- the project boundary applies to all of them."""
+    granted = can_read_artifact(
+        actor_id=ALICE,
+        project_id=NDA_PROJECT,
+        occurrence=occurrence(NDA_PROJECT, label),
+        membership=membership(ALICE, NDA_PROJECT, label),
+    )
+    assert granted.allowed, label
+
+    withheld = can_read_artifact(
+        actor_id=ALICE,
+        project_id=NDA_PROJECT,
+        occurrence=occurrence(NDA_PROJECT, label),
+        membership=membership(ALICE, NDA_PROJECT),
+    )
+    assert not withheld.allowed, label
+
+
+# --------------------------------------------------------------------------------------------
+# The decision must be usable as evidence, and the gate must be passable.
+# --------------------------------------------------------------------------------------------
+
+
+def test_a_cleared_member_reading_their_own_project_is_allowed():
+    """A gate that refuses everything is not a gate."""
+    decision = can_read_artifact(
+        actor_id=ALICE,
+        project_id=NDA_PROJECT,
+        occurrence=occurrence(NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
+        membership=membership(ALICE, NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
+    )
+    assert decision.allowed
+    assert NDA_PROJECT in decision.reason
+
+
+def test_every_decision_records_a_reason():
+    """§17.24: a refusal the user cannot act on is a support ticket.
+
+    Also an audit requirement -- SEC-002 wants the denial recorded, and a bare boolean cannot be
+    recorded as anything useful.
+    """
+    for decision in (
+        can_read_artifact(ALICE, NDA_PROJECT, None, None),
+        can_read_artifact(
+            ALICE,
+            NDA_PROJECT,
+            occurrence(NDA_PROJECT, SensitivityLabel.PUBLIC),
+            membership(ALICE, NDA_PROJECT, SensitivityLabel.PUBLIC),
+        ),
+    ):
+        assert isinstance(decision, AccessDecision)
+        assert decision.reason.strip(), "a decision with no reason cannot be audited"
+
+
+def test_the_decision_is_deterministic():
+    """Same inputs, same verdict and same reason -- otherwise the audit record is not reproducible."""
+    args = (
+        ALICE,
+        NDA_PROJECT,
+        occurrence(NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
+        membership(ALICE, NDA_PROJECT, SensitivityLabel.RESTRICTED_NDA),
+    )
+    first, second = can_read_artifact(*args), can_read_artifact(*args)
+    assert (first.allowed, first.reason) == (second.allowed, second.reason)

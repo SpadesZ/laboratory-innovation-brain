@@ -46,6 +46,9 @@ APPLY_ORDER: tuple[str, ...] = (
     "004b_evidence_bundle_immutability.sql",
     # After 003: the EVI-005 payload triggers attach to observations and attestations.
     "008a_condition_payload_validation.sql",
+    # P4 / M0b-1. Must follow 002 (creates `artifacts`) and 001 (creates `projects` and
+    # `actors`), because it backfills from the first and references the other two.
+    "005_artifact_occurrences.sql",
 )
 
 _BOOTSTRAP = """
