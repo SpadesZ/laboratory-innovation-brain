@@ -114,9 +114,14 @@ No hard-obligation keyword is added to §6–§16, so the §23.5 (2) occurrence 
 - [x] §9.4 `CostVector` gains `token_count`
 - [x] §17.19.1 states `NULL`/absent = uncapped, `0` = zero permitted
 - [x] Version Notes gain the `v3.3-a10` row
-- [ ] Implementation follows in P5-fix Phase B (model, DDL, gate, drift guard, negative tests)
+- [x] Implementation follows in P5-fix Phase B (model, DDL, gate, drift guard, negative tests)
 - [x] This issue closed
 
-The implementation box is deliberately still open at the Phase A commit. The document is closed —
-the conflict has a ruling — and the code has not caught up yet. Ticking it early is how a checklist
-becomes a claim nobody verified.
+The implementation box was deliberately left open at the Phase A commit: the document was closed —
+the conflict had a ruling — and the code had not caught up. Ticking it early is how a checklist
+becomes a claim nobody verified. It is ticked now against P5-fix Phase B
+(`172e42b0752005954b9fc5040de3de6e44b6b95a`): `token_count` reached `CostVector`,
+`CAPPED_DIMENSIONS`, `BudgetCaps` and all three tables via migration `007b`, and
+`cost_dimension_drift()` compares the five places as one closed set so the gap cannot reopen
+silently. `BudgetCaps` gives caps a nullable type, so `NULL` and `0` are distinct values in Python
+exactly as they already were in the DDL.

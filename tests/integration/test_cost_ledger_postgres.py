@@ -29,7 +29,7 @@ from lab_brain.core.budget import (
     authorize_dispatch,
 )
 from lab_brain.core.models import Actor, ActorType, BudgetCaps, CostVector, ProjectMembership
-from lab_brain.core.repositories import SqlBudgetApprovalClaims
+from lab_brain.core.repositories import NonDurableClaimStoreError, SqlBudgetApprovalClaims
 
 pytestmark = [
     pytest.mark.postgres,
@@ -309,6 +309,132 @@ def second_connection() -> Iterator[psycopg.Connection]:
     )
     with connection:
         yield connection
+
+
+@pytest.fixture
+def transactional_connection() -> Iterator[psycopg.Connection]:
+    """psycopg's **default** mode. Not a contrivance -- this is what `psycopg.connect(url)` gives.
+
+    Which is the point: the dangerous configuration is the one a caller gets by not thinking about
+    it, so the guard has to refuse the default rather than trust callers to opt in.
+    """
+    connection = psycopg.connect(
+        os.environ.get("LAB_BRAIN_DATABASE_URL", DEFAULT_URL), connect_timeout=5
+    )
+    try:
+        yield connection
+    finally:
+        connection.rollback()
+        connection.close()
+
+
+# --------------------------------------------------------------------------------------------
+# Durability. Atomic is not the same as spent. §17.17.1.
+#
+# The atomic UPDATE guarantees one winner among concurrent claimers. It guarantees nothing about
+# whether the winner's claim survives, and a claim that a rollback can undo is not a claim: the
+# external side effect it authorised -- the LLM call, the money -- does not roll back with it, so
+# the approval releases a second action.
+#
+# The first test below performs that exact sequence at the raw SQL level, so the hazard is
+# demonstrated rather than asserted. The rest prove the guard refuses to let the claim store be
+# built on top of it.
+# --------------------------------------------------------------------------------------------
+
+
+def test_the_hazard_is_real_an_uncommitted_claim_is_undone_by_rollback(
+    seeded, transactional_connection
+):
+    """Why the guard exists, executed rather than argued.
+
+    The same statement `SqlBudgetApprovalClaims` runs, issued on psycopg's default connection: it
+    reports one row updated -- a caller would take that as permission and go spend the money -- and
+    after a rollback the approval is untouched and fully spendable again.
+    """
+    _approval(seeded)
+    row = transactional_connection.execute(
+        "UPDATE budget_approvals"
+        "   SET consumed_at = %s, consumed_by_action = %s"
+        " WHERE approval_id = %s AND consumed_at IS NULL AND action_ref = %s"
+        " RETURNING approval_id",
+        (NOW, ACTION, "apr:1", ACTION),
+    ).fetchone()
+    assert row is not None, "the claim reported success, which a caller would act on"
+
+    transactional_connection.rollback()
+
+    still_unconsumed = seeded.execute(
+        "SELECT consumed_at FROM budget_approvals WHERE approval_id = 'apr:1'"
+    ).fetchone()
+    assert still_unconsumed[0] is None, (
+        "the approval survived the rollback unconsumed -- so a caller that had already made the "
+        "LLM call could claim it a second time. This is the ONCE violation the guard prevents"
+    )
+    assert SqlBudgetApprovalClaims(seeded).claim("apr:1", ACTION, NOW) is True
+
+
+def test_a_transactional_connection_is_refused_at_construction(transactional_connection):
+    """A real psycopg connection in its default mode, rejected before any dispatch is permitted."""
+    assert transactional_connection.autocommit is False
+    with pytest.raises(NonDurableClaimStoreError, match="autocommit=True"):
+        SqlBudgetApprovalClaims(transactional_connection)
+
+
+def test_a_connection_switched_out_of_autocommit_after_construction_is_refused(
+    seeded, transactional_connection
+):
+    """Checked at claim time too, because `autocommit` is settable.
+
+    A store built on a durable connection is not durable forever; what matters is the state of the
+    connection at the moment the claim is made.
+    """
+    _approval(seeded)
+    transactional_connection.autocommit = True
+    claims = SqlBudgetApprovalClaims(transactional_connection)
+    transactional_connection.autocommit = False
+
+    with pytest.raises(NonDurableClaimStoreError):
+        claims.claim("apr:1", ACTION, NOW)
+
+    unconsumed = seeded.execute(
+        "SELECT consumed_at FROM budget_approvals WHERE approval_id = 'apr:1'"
+    ).fetchone()
+    assert unconsumed[0] is None, "a refused claim must not have written anything"
+
+
+def test_a_claim_that_returned_true_cannot_be_undone_by_a_later_rollback(seeded, second_connection):
+    """The positive half: under the required mode the claim is committed by the statement itself.
+
+    Verified from a *second session*, which is what durable means here -- not "this connection
+    still remembers it" but "every other session sees it, and no rollback recovers it".
+    """
+    _approval(seeded)
+    assert SqlBudgetApprovalClaims(seeded).claim("apr:1", ACTION, NOW) is True
+
+    # A no-op under autocommit, which is exactly the property being asserted.
+    seeded.rollback()
+
+    seen_elsewhere = second_connection.execute(
+        "SELECT consumed_at, consumed_by_action FROM budget_approvals WHERE approval_id = 'apr:1'"
+    ).fetchone()
+    assert seen_elsewhere[0] == NOW
+    assert seen_elsewhere[1] == ACTION
+    assert SqlBudgetApprovalClaims(second_connection).claim("apr:1", ACTION, NOW) is False
+
+
+def test_a_store_cannot_be_built_on_something_with_no_autocommit_at_all(seeded):
+    """Fail closed on an object that cannot be *proven* durable, not just one proven otherwise.
+
+    A hand-rolled wrapper or a mock exposing only `execute` would otherwise sail through and
+    reintroduce the whole defect behind a type that satisfies the Protocol.
+    """
+
+    class BareConnection:
+        def execute(self, query, params=()):  # pragma: no cover - never reached
+            raise AssertionError("must not be reached; the store should refuse to be built")
+
+    with pytest.raises(NonDurableClaimStoreError, match="autocommit=None"):
+        SqlBudgetApprovalClaims(BareConnection())
 
 
 def test_a_claim_records_who_consumed_it_and_when(seeded):

@@ -178,10 +178,71 @@ unchanged at 70 hard MUSTs / 72 classified occurrences.
 
 ---
 
+## Phase E — durability of the approval claim (DONE)
+
+Audit finding on `7420342f5f5da68343e5095ae877f60dfc34e552`, P1 blocker. Fixed before P6.
+
+**The defect** `SqlBudgetApprovalClaims` accepted any object satisfying the connection protocol and
+neither required autocommit nor committed. Handed psycopg's **default** `autocommit=False`
+connection, the atomic UPDATE ran inside the caller's open transaction:
+
+```
+claim() -> True                     row updated, uncommitted
+caller performs the side effect     the LLM call is made, the money is spent
+transaction rolls back              for any reason, including an unrelated error
+approval is unconsumed again        and claimable a second time
+```
+
+Atomicity was never the gap. The atomic `WHERE consumed_at IS NULL` guarantees one winner among
+concurrent claimers; it says nothing about whether the winner's claim survives. The external effect
+is not transactional and does not roll back with it, so one approval releases two actions —
+§17.17.1's ONCE, violated by the configuration a caller gets by *not* thinking about it.
+
+**The fix, smallest coherent** `SqlConnection` gains `autocommit: bool` as part of the contract.
+`_require_durable()` refuses anything whose `autocommit` is not exactly `True`, at construction
+**and** on every claim — `autocommit` is settable, so a store built on a durable connection is not
+durable forever. Fail-closed on absence too: an object that cannot be *proven* to have autocommit
+semantics is rejected, not assumed. Raises `NonDurableClaimStoreError` rather than returning
+`False`, because a false claim is indistinguishable from ordinary contention and would turn a
+wiring error into a retry loop that silently never succeeds.
+
+**Explicitly not done: committing the caller's connection.** The store is handed someone else's
+connection; calling `commit()` on it would durably commit whatever else that caller had in flight,
+including work they intended to roll back. A component that silently commits its owner's
+transaction is a worse bug than the one being fixed. It refuses instead.
+
+**Tests added (5)**
+
+- the hazard itself, executed: the same statement on a default psycopg connection reports success,
+  a rollback follows, and the approval is unconsumed and claimable again
+- a real `autocommit=False` connection is refused at construction
+- a connection switched out of autocommit *after* construction is refused at claim, and writes
+  nothing
+- a claim that returned `True` is visible from a second session and survives a `rollback()`; the
+  second session's re-claim returns `False`
+- an object exposing only `execute` is refused (`autocommit=None`), so a mock or wrapper cannot
+  reintroduce the defect behind a satisfied Protocol
+
+Preserved unchanged: the 2-connection race (exactly one winner) and `claims=None` → BLOCK.
+
+**Mutation** Making `_require_durable` return immediately fails 3 tests. The harness asserted the
+mutation had landed before trusting the result.
+
+**P2 cleanup in the same commit** SPEC-ISSUE-009's implementation checkbox ticked against Phase B's
+SHA with what actually landed; R-3 corrected from "all eight spec issues" to nine.
+
+**Verification** postgres 483 passed · backend-free 386 passed / 97 skipped · durability /
+rollback / concurrency / claim-store targeted set 8 passed · migrations 11 declared / 11 applied /
+0 pending · executed-coverage gate 4/4 under `[postgres]` · obligation inventory 72 in sync ·
+`update_status.py --check` current · ruff + format + mypy strict clean.
+
+---
+
 ## P5-fix complete — stop and await audit
 
 Implementation stops here. The next slice (**P6 / M0b-3**, `OPS-003` first) does not start until
-this returns PASS.
+this returns PASS. Phase E was an audit finding on the Phase D SHA, not a self-directed
+continuation; nothing beyond it has been started.
 
 **Unresolved, carried forward**
 

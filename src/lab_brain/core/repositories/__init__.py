@@ -7,6 +7,7 @@ conformance suite.
 
 from lab_brain.core.repositories.budget import (
     InMemoryBudgetApprovalClaims,
+    NonDurableClaimStoreError,
     SqlBudgetApprovalClaims,
 )
 from lab_brain.core.repositories.memory import (
@@ -44,6 +45,7 @@ __all__ = [
     "InMemoryObservationRepository",
     "InMemoryRelationRepository",
     "InMemorySourceWorkRepository",
+    "NonDurableClaimStoreError",
     "ObservationRepository",
     "RelationRepository",
     "RepositoryError",
