@@ -18,8 +18,27 @@ AN APPROVAL IS NARROW. Scoped to one action in one episode of one project, under
 valid for a window, usable once, and for a stated amount. Each of those is a separate refusal below,
 because an approval that survives any of them is a standing permission nobody granted.
 
+AN APPROVAL IS ALSO *SIGNED BY SOMEONE IN PARTICULAR*. Until P5-fix the only thing checked about
+``approver_actor_id`` was that the string was present, which made the §14.3 supervisor path
+decorative: any caller able to construct a :class:`BudgetApproval` could put any id in that field
+and release any overrun. §14.4 says ACLs must support project membership and **approval
+authority**, and §14.3 says the overrun path is a *supervisor/human* decision, so four independent
+facts are now required and each is refused separately -- the approver is that actor, the actor is
+active and HUMAN, the actor is an active member of *this* project, and the membership carries
+budget authority.
+
+An AGENT_ROLE or SERVICE actor is refused outright. That is the self-signing case: an agent that can
+approve its own overrun has no budget, only a formality.
+
 PURE AND DETERMINISTIC. No clock, no I/O. ``now`` is an input, so a recorded decision can be
 replayed from an audit record instead of re-derived against a system that has moved on.
+
+WHICH IS WHY PURITY IS NOT ENOUGH FOR "ONCE". :func:`evaluate_budget` can only be told which
+approvals were already spent; it cannot make spending one atomic, and two concurrent dispatches
+holding the same approval will both be told yes. Single use is a property of the *record*, so it is
+enforced by an atomic claim in the store -- see :func:`authorize_dispatch` and
+:class:`BudgetApprovalClaims`. Callers that dispatch use that; ``evaluate_budget`` remains available
+for replaying a recorded decision, which is a question about the past and consumes nothing.
 """
 
 from __future__ import annotations
@@ -28,9 +47,24 @@ import datetime as dt
 from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import StrEnum
+from typing import Protocol, runtime_checkable
 
+from lab_brain.core.models.access import Actor, ProjectMembership
 from lab_brain.core.models.base import CoreModel
 from lab_brain.core.models.cost import CAPPED_DIMENSIONS, BudgetCaps, CostVector
+from lab_brain.core.models.enums import ActorType
+
+#: The `ProjectMembership.approval_scopes` entry that authorises releasing a budget overrun
+#: (§14.4 "approval authority", §14.3 "昂貴計算 gate").
+#:
+#: A named scope rather than a role string: §14.4 asks for approval *authority*, and roles drift --
+#: "lead", "pi", "supervisor" and "admin" all end up meaning "probably allowed" in a codebase that
+#: compares role names. A scope is granted explicitly to a membership or it is absent, and the
+#: column defaults to `'{}'` so a membership created in raw SQL starts with no authority at all.
+BUDGET_OVERRUN_SCOPE = "BUDGET_OVERRUN"
+
+#: Actor types that may sign a budget overrun. §14.3 calls it a supervisor/human decision.
+APPROVER_ACTOR_TYPES: frozenset[ActorType] = frozenset({ActorType.HUMAN})
 
 
 class DispatchOutcome(StrEnum):
@@ -107,8 +141,17 @@ class BudgetRequest:
     policy: BudgetPolicy | None
     now: dt.datetime
     approval: BudgetApproval | None = None
-    #: Approvals already spent. Single use is enforced here rather than by mutating the approval,
-    #: so the function stays pure and the caller owns the record.
+    #: The approver's own Actor row, loaded by the caller and passed in like everything else, so
+    #: the decision stays replayable. Required whenever ``approval`` is present: an approval whose
+    #: signer cannot be resolved is an unsigned one.
+    approver: Actor | None = None
+    #: The approver's membership of ``project_id``. Carries the `approval_scopes` that decide
+    #: whether this person may release a budget at all.
+    approver_membership: ProjectMembership | None = None
+    #: Approvals already known to be spent. This is a *hint*, not the enforcement: it lets a replay
+    #: reproduce a recorded refusal, and it short-circuits an obvious re-presentation. Actual single
+    #: use is the atomic claim in :func:`authorize_dispatch` -- a caller passing an empty set here
+    #: must not thereby get a second use out of one approval.
     consumed_approval_ids: frozenset[str] = field(default_factory=frozenset)
 
 
@@ -129,6 +172,73 @@ class BudgetDecision:
     @property
     def budget_permits(self) -> bool:
         return self.outcome in (DispatchOutcome.ALLOWED, DispatchOutcome.ALLOWED_BY_APPROVAL)
+
+
+def _unauthorised(
+    approval: BudgetApproval,
+    approver: Actor | None,
+    membership: ProjectMembership | None,
+    project_id: str,
+) -> str | None:
+    """Why ``approver`` may not sign ``approval``, or ``None`` if they may.
+
+    Fails closed on every path, and each path is a distinct way the previous implementation said
+    yes. It checked that ``approver_actor_id`` was a non-empty string; it did not check that the
+    string named a real actor, that the actor was still employed, that they were a person rather
+    than the agent whose spending they were releasing, that they belonged to the project whose money
+    it was, or that anyone had ever granted them the authority to do it.
+
+    Ordered identity-first, like :func:`lab_brain.core.access.can_read_artifact`: resolve who is
+    signing before saying anything about what they are allowed to sign, so a refusal never describes
+    the project's budget arrangements to an actor with no standing in it.
+    """
+    if approver is None:
+        return (
+            f"its approver {approval.approver_actor_id} could not be resolved to an actor; an "
+            "approval nobody can be identified as having given is an unsigned one (§14.4)"
+        )
+    if approver.actor_id != approval.approver_actor_id:
+        # The gate is the last line. A repository bug that returned a neighbouring row must not
+        # become an authorisation bug, so the supplied record has to be the one being claimed.
+        return (
+            f"the supplied approver record is {approver.actor_id}, not the "
+            f"{approval.approver_actor_id} the approval names"
+        )
+    if not approver.active:
+        return (
+            f"approver {approver.actor_id} is not active; a disabled account's authority is "
+            "suspended everywhere at once, which is the point of disabling it globally"
+        )
+    if approver.actor_type not in APPROVER_ACTOR_TYPES:
+        return (
+            f"approver {approver.actor_id} is a {approver.actor_type.value}, and §14.3 makes the "
+            "overrun path a supervisor/human decision. A non-human actor approving a budget is a "
+            "system signing its own permission slip"
+        )
+
+    if membership is None:
+        return (
+            f"approver {approver.actor_id} has no membership of {project_id}; authority over one "
+            "project's budget is not authority over another's"
+        )
+    if membership.actor_id != approver.actor_id or membership.project_id != project_id:
+        return (
+            f"the supplied membership is {membership.actor_id} in {membership.project_id}, not "
+            f"{approver.actor_id} in {project_id}"
+        )
+    if not membership.active:
+        return (
+            f"approver {approver.actor_id}'s membership of {project_id} is not active; the row is "
+            "retained so the audit trail survives revocation, not so the authority does"
+        )
+    if BUDGET_OVERRUN_SCOPE not in membership.approval_scopes:
+        held = ", ".join(sorted(membership.approval_scopes))
+        return (
+            f"approver {approver.actor_id} holds no {BUDGET_OVERRUN_SCOPE} scope in {project_id} "
+            f"(holds: {held or 'none'}). Being a member is not being an approver, and §14.4 makes "
+            "approval authority a separate grant"
+        )
+    return None
 
 
 def _overruns(
@@ -209,6 +319,15 @@ def evaluate_budget(request: BudgetRequest) -> BudgetDecision:
             escalation_available=True,
         )
 
+    # Authority first. An approval signed by someone with no standing is void whatever it says it
+    # covers, and reporting a scope mismatch instead would describe the project's budget to a
+    # stranger. Order affects the message, never the verdict -- every branch below refuses.
+    unauthorised = _unauthorised(
+        approval, request.approver, request.approver_membership, request.project_id
+    )
+    if unauthorised is not None:
+        return refuse(unauthorised)
+
     if approval.approval_id in request.consumed_approval_ids:
         return refuse("it has already been used, and an approval authorises one action once")
     if approval.action_ref != request.action_ref:
@@ -249,11 +368,88 @@ def evaluate_budget(request: BudgetRequest) -> BudgetDecision:
     )
 
 
+@runtime_checkable
+class BudgetApprovalClaims(Protocol):
+    """Somewhere an approval can be *spent*, atomically, exactly once.
+
+    §17.17.1 says an approval releases one action ONCE. A pure function cannot deliver that. The
+    caller tells :func:`evaluate_budget` which approvals it believes are already spent, and two
+    dispatches that both believe none are will both be told yes -- the same approval released twice,
+    with each decision individually correct on the information it was given.
+
+    So ``ONCE`` lives with the record. An implementation must make the transition from unconsumed to
+    consumed indivisible; the SQL one does it in the ``WHERE`` clause of a single statement.
+    """
+
+    def claim(self, approval_id: str, action_ref: str, now: dt.datetime) -> bool:
+        """Consume ``approval_id`` for ``action_ref``. ``True`` iff **this** call consumed it.
+
+        Every losing caller -- already consumed, consumed by another action, unknown id -- gets
+        ``False``. There is no partial success and no exception for the ordinary contention case,
+        because a caller that must distinguish "I won" from "I lost" should not have to do it by
+        catching.
+        """
+        ...
+
+
+def authorize_dispatch(
+    request: BudgetRequest, claims: BudgetApprovalClaims | None
+) -> BudgetDecision:
+    """Decide, and if the decision spends an approval, spend it -- atomically or not at all.
+
+    The dispatch entry point. :func:`evaluate_budget` answers "what does the budget say", which is a
+    question about the inputs and can be replayed. This answers "may this dispatch proceed now",
+    which requires changing the world, and is therefore the one a caller about to make an
+    LLM/tool call must use.
+
+    ``claims`` has no default. Passing ``None`` is allowed and refuses any approval-dependent
+    dispatch, which is the honest behaviour for a caller with nowhere to record consumption: the
+    alternative is an approval that is single-use in the docstring and unlimited in fact. Making the
+    parameter required means that choice is visible at the call site instead of inherited.
+
+    An in-budget dispatch consumes nothing. The approval is only claimed when it is what makes the
+    difference, so a supervisor's release is not silently burned by a call that did not need it.
+    """
+    decision = evaluate_budget(request)
+    if decision.outcome is not DispatchOutcome.ALLOWED_BY_APPROVAL:
+        return decision
+
+    approval_id = decision.approval_id
+    assert approval_id is not None, "ALLOWED_BY_APPROVAL always names the approval"
+
+    if claims is None:
+        return BudgetDecision(
+            DispatchOutcome.BLOCKED,
+            f"{request.action_ref} is over budget and approval {approval_id} would release it, but "
+            "no claim store was supplied, so single use cannot be enforced. §17.17.1 makes ONCE "
+            "part of what an approval is; an unenforceable ONCE is an unlimited approval",
+            policy_version=decision.policy_version,
+            exceeded_dimensions=decision.exceeded_dimensions,
+            escalation_available=True,
+        )
+
+    if not claims.claim(approval_id, request.action_ref, request.now):
+        return BudgetDecision(
+            DispatchOutcome.BLOCKED,
+            f"{request.action_ref} is over budget and approval {approval_id} could not be claimed: "
+            "it was already consumed. An approval authorises one action once, and a concurrent "
+            "dispatch that lost the race is refused rather than served a second release",
+            policy_version=decision.policy_version,
+            exceeded_dimensions=decision.exceeded_dimensions,
+            escalation_available=True,
+        )
+    return decision
+
+
 __all__ = [
+    "APPROVER_ACTOR_TYPES",
+    "BUDGET_OVERRUN_SCOPE",
     "BudgetApproval",
+    "BudgetApprovalClaims",
     "BudgetDecision",
     "BudgetPolicy",
     "BudgetRequest",
     "DispatchOutcome",
+    "authorize_dispatch",
     "evaluate_budget",
 ]

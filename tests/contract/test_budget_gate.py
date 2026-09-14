@@ -28,21 +28,27 @@ from decimal import Decimal
 import pytest
 
 from lab_brain.core.budget import (
+    BUDGET_OVERRUN_SCOPE,
     BudgetApproval,
     BudgetDecision,
     BudgetPolicy,
     BudgetRequest,
     DispatchOutcome,
+    authorize_dispatch,
     evaluate_budget,
 )
 from lab_brain.core.models import (
     CAPPED_DIMENSIONS,
+    Actor,
+    ActorType,
     BudgetCaps,
     CostEntry,
     CostKind,
     CostVector,
     DependencyRisk,
+    ProjectMembership,
 )
+from lab_brain.core.repositories import InMemoryBudgetApprovalClaims
 
 pytestmark = [pytest.mark.requirement("COST-001"), pytest.mark.spec_test("T-COST-001")]
 
@@ -64,6 +70,17 @@ POLICY = BudgetPolicy(
 )
 
 
+# A competent approver: an active human who is an active member of this project and has been
+# granted budget authority explicitly. Every negative case below removes exactly one of those.
+SUPERVISOR_ACTOR = Actor(actor_id=SUPERVISOR, actor_type=ActorType.HUMAN, display_name="Prof. Lin")
+SUPERVISOR_MEMBERSHIP = ProjectMembership(
+    actor_id=SUPERVISOR,
+    project_id=PROJECT,
+    role="supervisor",
+    approval_scopes=frozenset({BUDGET_OVERRUN_SCOPE}),
+)
+
+
 def request(**overrides: object) -> BudgetRequest:
     defaults: dict[str, object] = {
         "action_ref": ACTION,
@@ -74,10 +91,22 @@ def request(**overrides: object) -> BudgetRequest:
         "consumed": CostVector(),
         "policy": POLICY,
         "approval": None,
+        "approver": SUPERVISOR_ACTOR,
+        "approver_membership": SUPERVISOR_MEMBERSHIP,
         "now": NOW,
     }
     defaults.update(overrides)
     return BudgetRequest(**defaults)  # type: ignore[arg-type]
+
+
+def over_budget(**overrides: object) -> BudgetRequest:
+    """A request that needs an approval, so the approver checks are actually reached."""
+    defaults: dict[str, object] = {
+        "estimate": CostVector(money_estimate=Decimal("75.00")),
+        "approval": approval(),
+    }
+    defaults.update(overrides)
+    return request(**defaults)
 
 
 def approval(**overrides: object) -> BudgetApproval:
@@ -422,6 +451,198 @@ def test_an_approval_is_not_consulted_when_nothing_is_over_budget():
     decision = evaluate_budget(request(approval=approval()))
     assert decision.outcome is DispatchOutcome.ALLOWED
     assert decision.approval_id is None
+
+
+# --------------------------------------------------------------------------------------------
+# Who signed it. §14.3 / §14.4.
+#
+# Before P5-fix the only thing checked about `approver_actor_id` was that the string was there. Any
+# caller able to build a BudgetApproval could name any id and release any overrun, which made the
+# §14.3 supervisor path decorative. Each test below removes exactly one of the four facts an
+# approver needs, leaving the other three intact, so a single check going missing cannot hide
+# behind its neighbours.
+# --------------------------------------------------------------------------------------------
+
+
+def test_an_approval_whose_approver_cannot_be_resolved_is_refused():
+    """An approval nobody can be identified as having given is an unsigned one."""
+    decision = evaluate_budget(over_budget(approver=None, approver_membership=None))
+    assert decision.outcome is DispatchOutcome.BLOCKED
+    assert "could not be resolved" in decision.reason
+
+
+def test_an_approval_naming_one_actor_and_carrying_another_is_refused():
+    """The gate is the last line: a repository returning a neighbouring row is not authorisation."""
+    someone_else = SUPERVISOR_ACTOR.model_copy(update={"actor_id": "actor:someone-else"})
+    decision = evaluate_budget(over_budget(approver=someone_else))
+    assert decision.outcome is DispatchOutcome.BLOCKED
+    assert "not the actor:prof-lin the approval names" in decision.reason
+
+
+def test_an_inactive_approver_is_refused():
+    """Disabling an account suspends its authority everywhere at once. That is what it is for."""
+    decision = evaluate_budget(
+        over_budget(approver=SUPERVISOR_ACTOR.model_copy(update={"active": False}))
+    )
+    assert decision.outcome is DispatchOutcome.BLOCKED
+    assert "not active" in decision.reason
+
+
+@pytest.mark.parametrize("actor_type", [ActorType.SERVICE, ActorType.AGENT_ROLE])
+def test_a_non_human_approver_is_refused(actor_type):
+    """The self-signing case. §14.3 makes the overrun path a supervisor/human decision.
+
+    An agent role that can approve its own overrun has no budget, only a formality -- and it is the
+    agent, not a person, that the cap exists to constrain.
+    """
+    decision = evaluate_budget(
+        over_budget(approver=SUPERVISOR_ACTOR.model_copy(update={"actor_type": actor_type}))
+    )
+    assert decision.outcome is DispatchOutcome.BLOCKED
+    assert actor_type.value in decision.reason
+    assert "supervisor/human" in decision.reason
+
+
+def test_an_approver_with_no_membership_of_the_project_is_refused():
+    """Authority over one project's budget is not authority over another's."""
+    decision = evaluate_budget(over_budget(approver_membership=None))
+    assert decision.outcome is DispatchOutcome.BLOCKED
+    assert "no membership of" in decision.reason
+
+
+def test_an_approver_whose_membership_is_for_another_project_is_refused():
+    """The cross-project case, checked rather than trusted from the caller's lookup."""
+    decision = evaluate_budget(
+        over_budget(
+            approver_membership=SUPERVISOR_MEMBERSHIP.model_copy(update={"project_id": "prj:other"})
+        )
+    )
+    assert decision.outcome is DispatchOutcome.BLOCKED
+    assert "prj:other" in decision.reason
+
+
+def test_an_approver_whose_membership_was_revoked_is_refused():
+    """The row survives revocation so the audit trail does; the authority does not."""
+    decision = evaluate_budget(
+        over_budget(approver_membership=SUPERVISOR_MEMBERSHIP.model_copy(update={"active": False}))
+    )
+    assert decision.outcome is DispatchOutcome.BLOCKED
+    assert "not active" in decision.reason
+
+
+def test_an_approver_without_budget_authority_is_refused():
+    """Being a member is not being an approver. §14.4 makes approval authority a separate grant.
+
+    This is the case a role-name comparison would have let through: a project lead with every
+    clearance and no budget scope is exactly the person who looks authorised and is not.
+    """
+    decision = evaluate_budget(
+        over_budget(
+            approver_membership=SUPERVISOR_MEMBERSHIP.model_copy(
+                update={"approval_scopes": frozenset({"REVIEW_QUEUE"})}
+            )
+        )
+    )
+    assert decision.outcome is DispatchOutcome.BLOCKED
+    assert BUDGET_OVERRUN_SCOPE in decision.reason
+    assert "REVIEW_QUEUE" in decision.reason
+
+
+def test_the_default_membership_grants_no_budget_authority():
+    """Fail closed at construction: `approval_scopes` defaults to empty, as does the DB column."""
+    assert (
+        BUDGET_OVERRUN_SCOPE
+        not in ProjectMembership(
+            actor_id=SUPERVISOR, project_id=PROJECT, role="supervisor"
+        ).approval_scopes
+    )
+
+
+# --------------------------------------------------------------------------------------------
+# ONCE is a property of the record, not of the caller's memory. §17.17.1.
+# --------------------------------------------------------------------------------------------
+
+
+def test_authorize_dispatch_claims_the_approval_it_spends():
+    claims = InMemoryBudgetApprovalClaims()
+    claims.register("apr:1", ACTION)
+    decision = authorize_dispatch(over_budget(), claims)
+    assert decision.outcome is DispatchOutcome.ALLOWED_BY_APPROVAL
+    assert claims.consumed_at("apr:1") == NOW
+
+
+def test_a_second_dispatch_with_the_same_approval_is_refused_even_if_the_caller_forgot():
+    """The bug the `consumed_approval_ids` hint could not close.
+
+    The second call passes the *same* request -- empty `consumed_approval_ids` and all -- so the
+    pure gate has no way to know. Only the store does, and it must be the thing that says no.
+    """
+    claims = InMemoryBudgetApprovalClaims()
+    claims.register("apr:1", ACTION)
+    first = authorize_dispatch(over_budget(), claims)
+    second = authorize_dispatch(over_budget(), claims)
+    assert first.outcome is DispatchOutcome.ALLOWED_BY_APPROVAL
+    assert second.outcome is DispatchOutcome.BLOCKED
+    assert "already consumed" in second.reason
+
+
+def test_concurrent_dispatches_of_one_approval_produce_exactly_one_winner():
+    """Sequential single use is easy. This is the property that needs the lock.
+
+    Eight threads released together onto one approval. Any implementation that checks and then
+    writes -- rather than testing and setting under one lock -- lets more than one through here.
+    """
+    import concurrent.futures
+
+    claims = InMemoryBudgetApprovalClaims()
+    claims.register("apr:1", ACTION)
+    start = __import__("threading").Barrier(8)
+
+    def attempt() -> DispatchOutcome:
+        start.wait()
+        return authorize_dispatch(over_budget(), claims).outcome
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        outcomes = [future.result() for future in [pool.submit(attempt) for _ in range(8)]]
+
+    assert outcomes.count(DispatchOutcome.ALLOWED_BY_APPROVAL) == 1, outcomes
+    assert outcomes.count(DispatchOutcome.BLOCKED) == 7
+
+
+def test_an_approval_cannot_be_claimed_for_an_action_it_was_not_granted_for():
+    """Belt and braces with the gate's own `action_ref` check, at the other end of the path."""
+    claims = InMemoryBudgetApprovalClaims()
+    claims.register("apr:1", "act:something_else#1")
+    assert claims.claim("apr:1", ACTION, NOW) is False
+
+
+def test_claiming_an_unknown_approval_fails_rather_than_succeeding_silently():
+    assert InMemoryBudgetApprovalClaims().claim("apr:ghost", ACTION, NOW) is False
+
+
+def test_dispatch_without_a_claim_store_refuses_an_approval_dependent_call():
+    """Fail closed. An approval that is single-use in the docstring is unlimited in fact."""
+    decision = authorize_dispatch(over_budget(), None)
+    assert decision.outcome is DispatchOutcome.BLOCKED
+    assert "no claim store" in decision.reason
+
+
+def test_an_in_budget_dispatch_consumes_no_approval():
+    """A supervisor's release must not be burned by a call that did not need it."""
+    claims = InMemoryBudgetApprovalClaims()
+    claims.register("apr:1", ACTION)
+    decision = authorize_dispatch(request(approval=approval()), claims)
+    assert decision.outcome is DispatchOutcome.ALLOWED
+    assert claims.consumed_at("apr:1") is None
+
+
+def test_a_refused_approval_is_not_consumed():
+    """Losing on authority must not spend the approval; the overrun was never released."""
+    claims = InMemoryBudgetApprovalClaims()
+    claims.register("apr:1", ACTION)
+    decision = authorize_dispatch(over_budget(approver=None, approver_membership=None), claims)
+    assert decision.outcome is DispatchOutcome.BLOCKED
+    assert claims.consumed_at("apr:1") is None
 
 
 # --------------------------------------------------------------------------------------------

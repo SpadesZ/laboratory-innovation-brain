@@ -10,10 +10,26 @@ tests/contract/test_budget_gate.py, once here against the schema.
 
 from __future__ import annotations
 
+import concurrent.futures
 import datetime as dt
+import os
+import threading
+from collections.abc import Iterator
+from decimal import Decimal
 
 import psycopg
 import pytest
+
+from lab_brain.core.budget import (
+    BUDGET_OVERRUN_SCOPE,
+    BudgetApproval,
+    BudgetPolicy,
+    BudgetRequest,
+    DispatchOutcome,
+    authorize_dispatch,
+)
+from lab_brain.core.models import Actor, ActorType, BudgetCaps, CostVector, ProjectMembership
+from lab_brain.core.repositories import SqlBudgetApprovalClaims
 
 pytestmark = [
     pytest.mark.postgres,
@@ -23,6 +39,7 @@ pytestmark = [
 
 NOW = dt.datetime(2026, 9, 14, 12, 0, tzinfo=dt.UTC)
 ACTION = "act:run_charge_dc_sweep#7"
+DEFAULT_URL = "postgresql://lab_brain:lab_brain@localhost:5433/lab_brain"
 
 
 @pytest.fixture
@@ -273,6 +290,144 @@ def test_an_approval_carries_a_token_overrun_that_defaults_to_zero(seeded):
         "SELECT overrun_token_count FROM budget_approvals WHERE approval_id = 'apr:1'"
     ).fetchone()
     assert row[0] == 0
+
+
+# --------------------------------------------------------------------------------------------
+# ONCE, enforced by the database rather than by the caller's memory. §17.17.1.
+#
+# The Python gate can only be *told* which approvals were already spent. Two dispatches that are
+# both told "none" are both correct on their inputs and both release the same overrun. So the
+# transition from unconsumed to consumed has to be indivisible, and only the store can make it so.
+# --------------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def second_connection() -> Iterator[psycopg.Connection]:
+    """A genuinely separate session, so the race below is a race and not two calls in one client."""
+    connection = psycopg.connect(
+        os.environ.get("LAB_BRAIN_DATABASE_URL", DEFAULT_URL), autocommit=True, connect_timeout=5
+    )
+    with connection:
+        yield connection
+
+
+def test_a_claim_records_who_consumed_it_and_when(seeded):
+    _approval(seeded)
+    assert SqlBudgetApprovalClaims(seeded).claim("apr:1", ACTION, NOW) is True
+    row = seeded.execute(
+        "SELECT consumed_at, consumed_by_action FROM budget_approvals WHERE approval_id = 'apr:1'"
+    ).fetchone()
+    assert row[0] == NOW
+    assert row[1] == ACTION
+
+
+def test_a_second_claim_of_the_same_approval_returns_false(seeded):
+    """Not an exception. A caller that must distinguish winning from losing should not have to
+    do it by catching."""
+    _approval(seeded)
+    claims = SqlBudgetApprovalClaims(seeded)
+    assert claims.claim("apr:1", ACTION, NOW) is True
+    assert claims.claim("apr:1", ACTION, NOW + dt.timedelta(seconds=1)) is False
+
+
+def test_a_claim_for_an_action_the_approval_was_not_granted_for_returns_false(seeded):
+    """The `action_ref` is in the WHERE clause, not only in the table's CHECK constraint."""
+    _approval(seeded)
+    assert SqlBudgetApprovalClaims(seeded).claim("apr:1", "act:something_else#1", NOW) is False
+    row = seeded.execute(
+        "SELECT consumed_at FROM budget_approvals WHERE approval_id = 'apr:1'"
+    ).fetchone()
+    assert row[0] is None, "a refused claim must leave the approval spendable"
+
+
+def test_a_claim_on_an_unknown_approval_returns_false(seeded):
+    assert SqlBudgetApprovalClaims(seeded).claim("apr:ghost", ACTION, NOW) is False
+
+
+def test_two_concurrent_sessions_claiming_one_approval_produce_one_winner(
+    seeded, second_connection
+):
+    """The property the whole module exists for, across two real connections.
+
+    Both statements are released at once by a barrier. PostgreSQL takes a row lock for the duration
+    of the UPDATE, so the loser blocks, re-evaluates `consumed_at IS NULL` against the committed row
+    and matches nothing.
+
+    A SELECT-then-UPDATE would pass every sequential test above and fail here: under READ COMMITTED
+    both sessions can read `consumed_at IS NULL` and both proceed. That is why the condition lives
+    in the write.
+    """
+    _approval(seeded)
+    start = threading.Barrier(2)
+
+    def attempt(connection) -> bool:
+        start.wait(timeout=10)
+        return SqlBudgetApprovalClaims(connection).claim("apr:1", ACTION, NOW)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        results = [
+            f.result(timeout=30)
+            for f in [pool.submit(attempt, c) for c in (seeded, second_connection)]
+        ]
+
+    assert results.count(True) == 1, f"expected exactly one winner, got {results}"
+    rows = seeded.execute(
+        "SELECT count(*) FROM budget_approvals WHERE consumed_at IS NOT NULL"
+    ).fetchone()
+    assert rows[0] == 1
+
+
+def test_authorize_dispatch_over_a_real_ledger_releases_once(seeded):
+    """The gate and the store wired together: one release, then refusal, against real SQL.
+
+    The approver is constructed in Python because the gate is pure and takes the records as inputs
+    -- but the *claim* goes to the database, which is the half that could not be faked.
+    """
+    _approval(seeded)
+    supervisor = Actor(actor_id="act:test", actor_type=ActorType.HUMAN)
+    membership = ProjectMembership(
+        actor_id="act:test",
+        project_id="prj:test",
+        role="supervisor",
+        approval_scopes=frozenset({BUDGET_OVERRUN_SCOPE}),
+    )
+    request = BudgetRequest(
+        action_ref=ACTION,
+        project_id="prj:test",
+        episode_id="ep:1",
+        actor_id="slot:planner",
+        estimate=CostVector(money_estimate=Decimal("75.00")),
+        consumed=CostVector(),
+        policy=BudgetPolicy(
+            policy_id="pol:s",
+            policy_version="1.0.0",
+            project_id="prj:test",
+            caps=BudgetCaps(money_estimate=Decimal("50.00")),
+        ),
+        now=NOW,
+        approval=BudgetApproval(
+            approval_id="apr:1",
+            approver_actor_id="act:test",
+            project_id="prj:test",
+            episode_id="ep:1",
+            action_ref=ACTION,
+            policy_id="pol:s",
+            policy_version="1.0.0",
+            approved_overrun=CostVector(money_estimate=Decimal("100.00")),
+            granted_at=NOW - dt.timedelta(minutes=5),
+            expires_at=NOW + dt.timedelta(minutes=30),
+        ),
+        approver=supervisor,
+        approver_membership=membership,
+    )
+    claims = SqlBudgetApprovalClaims(seeded)
+
+    first = authorize_dispatch(request, claims)
+    second = authorize_dispatch(request, claims)
+
+    assert first.outcome is DispatchOutcome.ALLOWED_BY_APPROVAL
+    assert second.outcome is DispatchOutcome.BLOCKED
+    assert "already consumed" in second.reason
 
 
 def test_a_policy_is_versioned_not_overwritten(seeded):

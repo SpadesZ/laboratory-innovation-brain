@@ -5,6 +5,10 @@ PostgreSQL implementation lives in ``lab_brain.storage.postgres`` and must pass 
 conformance suite.
 """
 
+from lab_brain.core.repositories.budget import (
+    InMemoryBudgetApprovalClaims,
+    SqlBudgetApprovalClaims,
+)
 from lab_brain.core.repositories.memory import (
     InMemoryArtifactRepository,
     InMemoryAttestationRepository,
@@ -34,6 +38,7 @@ __all__ = [
     "EvidenceBundleRepository",
     "InMemoryArtifactRepository",
     "InMemoryAttestationRepository",
+    "InMemoryBudgetApprovalClaims",
     "InMemoryClaimRepository",
     "InMemoryEvidenceBundleRepository",
     "InMemoryObservationRepository",
@@ -43,4 +48,5 @@ __all__ = [
     "RelationRepository",
     "RepositoryError",
     "SourceWorkRepository",
+    "SqlBudgetApprovalClaims",
 ]
