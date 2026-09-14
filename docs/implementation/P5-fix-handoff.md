@@ -136,11 +136,63 @@ ok on all four checks; ruff + format + mypy strict clean.
 
 **Next** Phase D.
 
-## Phase D — governance / verification (PENDING)
+## Phase D — governance / verification (DONE)
 
-Intended scope, not yet done:
+**SHA** `82fbbc38405a2c3f43c001ded117b84db6f426aa`
 
-- AGT-003 recurrent blind spot: the manual header of `IMPLEMENTATION_STATUS.md` (amendments in
-  force, migration count) must be covered by the freshness guard, not retyped.
-- Amendment, migration-count and risk/status synchronisation.
-- Full verification pass across both profiles.
+**Done**
+
+- `spec-baseline` generated block in `IMPLEMENTATION_STATUS.md`: amendments in force (parsed from
+  the Version Notes table) and migrations declared (counted from `migrations/`). Regenerated in
+  `--requirements-only` mode, so the spec-conformance CI job checks it on every push.
+- The "N migrations applied" claim is **removed, not generated**. It is a fact about a running
+  database; a document cannot verify one, and generating a number labelled "applied" would have
+  hidden the false claim behind a marker. A test refuses to let the phrase return.
+- Cross-check re-derives the amendment span with a different parse from the generator's, scoped to
+  the block — the first version searched the whole file and a staleness injection walked past it,
+  because `v3.3-a10` also appears in the invariant-history table.
+- R-10 recorded: the budget gate has no caller, the same shape as R-7 and R-8, with an explicit
+  statement of which half *is* closed.
+- `Next Recommended Task` rewritten to the real state.
+
+**Adversarial checks that actually ran** Three drift injections — stale amendment span, stale
+migration count, and the return of the "applied" claim — each caught. The amendment injection trips
+two independent guards after the scoping fix.
+
+**Full verification**
+
+| Check | Result |
+|---|---|
+| postgres profile | 478 passed |
+| backend-free profile | 386 passed / 92 skipped |
+| migration replay from empty | scratch DB, 0 → 11 applied, then 0 pending |
+| full suite on the replayed DB | 478 passed |
+| idempotency, dev DB | 11 declared / 11 applied / 0 pending |
+| executed-coverage gate | 4/4 ok under `[postgres]` |
+| obligation inventory | 72 occurrences in sync |
+| `update_status.py --check`, both modes | current |
+| ruff / ruff format / mypy strict | clean |
+
+**Invariants** Requirement ↔ Test **59 ↔ 59** unchanged across the whole slice. §23.5 (2) inventory
+unchanged at 70 hard MUSTs / 72 classified occurrences.
+
+---
+
+## P5-fix complete — stop and await audit
+
+Implementation stops here. The next slice (**P6 / M0b-3**, `OPS-003` first) does not start until
+this returns PASS.
+
+**Unresolved, carried forward**
+
+1. **R-10 — no caller.** COST-001's gate is proven and unexercised in a live path. Closes with
+   OPS-003/M1, which is why OPS-003 is next.
+2. **R-7, R-8** — unchanged, same shape.
+3. **R-9** — reclassification history still unrepresentable; waits on `EPI-003`.
+4. **`CHANGELOG.md` stops at M0a-2.** P4, P5 and P5-fix are absent. Deliberately not fixed here:
+   writing entries for other slices from the outside risks inventing history, and it is outside
+   this slice's scope.
+5. **`docs/spec_coverage_audit/M0a_hard_must_counts.yaml` records `spec_amendment: v3.3-a6`.**
+   Informational only — nothing reads it — but it is a stale hand-typed field of exactly the kind
+   Phase D just removed elsewhere. Left alone because changing the audit data file during a slice
+   that does not re-adjudicate the audit would be worse.
