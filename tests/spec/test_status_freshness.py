@@ -19,16 +19,39 @@ something the spec never asked for.
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 
-from lab_brain.spec import repo_root
+from lab_brain.spec import repo_root, spec_path
 
 STATUS = "IMPLEMENTATION_STATUS.md"
 
 
-def test_requirement_status_table_is_current():
-    """Hermetic: the requirement table is derived from the spec, milestones and markers only."""
+def status_text() -> str:
+    return (repo_root() / STATUS).read_text(encoding="utf-8")
+
+
+def spec_baseline_block() -> str:
+    """Just the generated baseline block.
+
+    Scoped deliberately. The first version of the amendment check searched the whole file for the
+    latest amendment id, and a staleness injection walked straight past it: `v3.3-a10` also appears
+    in the invariant-history table lower down, so the assertion passed while the header said a8.
+    A check that can be satisfied by an unrelated part of the document is not checking the header.
+    """
+    text = status_text()
+    begin = text.index("<!-- BEGIN GENERATED: spec-baseline -->")
+    end = text.index("<!-- END GENERATED: spec-baseline -->")
+    return text[begin:end]
+
+
+def test_the_hermetic_blocks_are_current():
+    """The requirement table, the coverage audit and the spec baseline, in one subprocess.
+
+    All three are derived from the spec, the milestones, the markers and the migrations directory,
+    so none needs a whole-suite outcome report and `--requirements-only` regenerates every one.
+    """
     result = subprocess.run(
         [sys.executable, "scripts/update_status.py", "--check", "--requirements-only"],
         cwd=repo_root(),
@@ -37,8 +60,91 @@ def test_requirement_status_table_is_current():
         check=False,
     )
     assert result.returncode == 0, (
-        f"{STATUS} requirement table is stale — run `python scripts/update_status.py`.\n"
+        f"{STATUS} is stale — run `python scripts/update_status.py`.\n"
         f"{result.stdout}{result.stderr}"
+    )
+
+
+# --------------------------------------------------------------------------------------------
+# The manual header. AGT-003's recurrent blind spot.
+#
+# Each generated block in this file was generated only AFTER it had drifted and a human noticed:
+# the requirement table in P1, the test inventory in P4 (it claimed 288 tests against a suite of
+# 307), the coverage audit at M0a rev 6. The header was the last hand-typed surface and it drifted
+# the same way -- twice inside the P5-fix slice alone:
+#
+#     "Spec amendments in force: v3.3-a1 … v3.3-a8"   while a9 had been in force for a day
+#     "9 migrations applied"                          while there were 10, then 11
+#
+# Neither was caught by anything, because `--check` only looked at the blocks it generated, and
+# these facts were not in a block. They are now.
+#
+# The test below re-derives the amendment span with a DIFFERENT parse from the generator's, rather
+# than asserting the file matches what the generator would write -- that comparison is what
+# `--check` above already does, and doing it twice would only prove the generator agrees with
+# itself.
+# --------------------------------------------------------------------------------------------
+
+
+def test_the_spec_baseline_is_generated_not_written_by_hand():
+    """The markers must survive. Losing them silently restores a hand-typed header."""
+    text = status_text()
+    for marker in (
+        "<!-- BEGIN GENERATED: spec-baseline -->",
+        "<!-- END GENERATED: spec-baseline -->",
+    ):
+        assert marker in text, f"{STATUS} lost {marker}; the header is hand-written again"
+
+
+def test_the_stated_amendments_are_the_ones_the_spec_carries():
+    """Independent cross-check of the fact that was wrong.
+
+    Counts `v3.3-aN` rows straight out of the Version Notes table and compares against what the
+    document claims, so a generator bug fails here rather than being ratified by `--check`.
+    """
+    numbers = sorted(
+        {
+            int(match.group(1))
+            for match in re.finditer(
+                r"^\|\s*\*{0,2}v3\.3-a(\d+)\*{0,2}\s*\|",
+                spec_path().read_text(encoding="utf-8"),
+                re.MULTILINE,
+            )
+        }
+    )
+    assert numbers, "no amendment rows parsed from the Version Notes; the table format changed"
+    assert numbers == list(range(1, len(numbers) + 1)), (
+        f"amendment numbering has a gap: {numbers}. An amendment that was withdrawn rather than "
+        "superseded needs a Version Notes row saying so, or the ledger is not a ledger"
+    )
+    block = spec_baseline_block()
+    assert f"`v3.3-a{numbers[-1]}` ({len(numbers)} amendments)" in block, (
+        f"{STATUS}'s spec baseline does not state v3.3-a{numbers[-1]} and {len(numbers)} "
+        f"amendments, which is what the spec carries. Block:\n{block}"
+    )
+
+
+def test_the_stated_migration_count_is_the_number_on_disk():
+    """The other fact that was wrong, cross-checked the same way."""
+    count = len(list((repo_root() / "migrations").glob("*.sql")))
+    assert count > 0, "no migrations found; this check is comparing nothing"
+    assert f"| Migrations declared | {count} —" in spec_baseline_block(), (
+        f"{STATUS} does not state {count} declared migrations"
+    )
+
+
+def test_the_header_makes_no_claim_about_what_a_database_has_applied():
+    """A document cannot verify a running system, so it must not assert one.
+
+    The old header said "N migrations applied", which is a claim about somebody's PostgreSQL. It
+    was wrong twice and could not have been checked even in principle -- `migrate.py --status` is
+    the thing that answers it. Generating a number and calling it "applied" would have preserved
+    the false claim behind a marker, which is worse than leaving it hand-typed.
+    """
+    header = status_text().split("## Requirement Status")[0]
+    assert not re.search(r"\d+\s+migrations applied", header), (
+        f"{STATUS} claims a number of applied migrations again; state what is *declared* and let "
+        "`python scripts/migrate.py --status` answer for a given database"
     )
 
 
