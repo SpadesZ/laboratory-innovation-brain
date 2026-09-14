@@ -92,17 +92,49 @@ it. Out of the stated scope of P5-fix and recorded rather than half-fixed.
 
 **Next** Phase C.
 
-## Phase C — approval security + atomic single-use (PENDING)
+## Phase C — approval security + atomic single-use (DONE)
 
-Intended scope, not yet done:
+**SHA** `df62c16360ff1b57c4a441fe483e6a3e31042a38`
 
-- `BudgetApproval` verified against an active HUMAN/supervisor actor with an active project
-  membership and explicit budget approval authority, with every scope field matching. Inactive
-  actor, non-member, service/agent self-signature, wrong project and absent authority all BLOCK.
-- `ONCE` enforced by an atomic repository claim (conditional `UPDATE ... WHERE consumed_at IS NULL
-  RETURNING`), not by the caller passing `consumed_approval_ids`. Two concurrent dispatches: one
-  wins.
-- A budget approval still releases the budget only — never SEC-002, never the §7.6 critique gate.
+**Done**
+
+- `_unauthorised()` in the gate requires four independent facts of an approver: the record is the
+  actor the approval names, the actor is active, the actor is `HUMAN`, and an active membership of
+  *this* project carries the `BUDGET_OVERRUN` scope. Each is its own refusal with its own reason,
+  ordered identity-first. Blocker 1 closed.
+- `authorize_dispatch(request, claims)` is the dispatch entry point. `BudgetApprovalClaims` is a
+  protocol with two implementations: `SqlBudgetApprovalClaims` (conditional
+  `UPDATE ... WHERE consumed_at IS NULL ... RETURNING`) and `InMemoryBudgetApprovalClaims`
+  (lock-guarded test-and-set). `claims=None` refuses any approval-dependent dispatch rather than
+  falling back to the unenforced path. Blocker 2 closed.
+- `evaluate_budget` stays pure and stays exported for replay; `consumed_approval_ids` is documented
+  as a hint, not the enforcement.
+
+**Deliberate non-rule** No separation-of-duties check between `request.actor_id` and the approver.
+A researcher approving their own overrun is the §14.3 human decision; the self-signing case that
+matters — a non-human actor — is refused by `actor_type`. Inventing the stronger rule would be the
+agent legislating.
+
+**Adversarial checks that actually ran** Bypassing `_unauthorised` fails 10 tests; dropping
+`AND consumed_at IS NULL` fails 3 including the two-connection race; 8 threads on one in-memory
+approval yield exactly 1 winner; 2 real psycopg connections through a barrier yield exactly 1 winner
+and 1 consumed row. One earlier mutation silently failed to apply and reported green — the harness
+now asserts the mutation landed first.
+
+**Tests** postgres profile 474 passed; backend-free 382 passed / 92 skipped; executed-coverage gate
+ok on all four checks; ruff + format + mypy strict clean.
+
+**Open items carried into Phase D**
+
+1. AGT-003: the manual header of `IMPLEMENTATION_STATUS.md` is still hand-typed. It went stale twice
+   during this slice alone — amendments `a1…a8` while a9 was in force, and the migration count,
+   which this slice has already had to bump by hand twice (9 → 10 → 11).
+2. Risk register does not yet record that COST-001's gate, like SEC-002's read gate (R-7) and the
+   critique gate (R-8), has **no live caller**. The rule is proven; its enforcement in a real
+   dispatch path is not, because nothing dispatches until M1/M3.
+3. `CHANGELOG.md` still stops at M0a-2.
+
+**Next** Phase D.
 
 ## Phase D — governance / verification (PENDING)
 
