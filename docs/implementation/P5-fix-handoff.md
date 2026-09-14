@@ -50,17 +50,47 @@ current.
 
 ---
 
-## Phase B — BudgetGate correctness (PENDING)
+## Phase B — BudgetGate correctness (DONE)
 
-Intended scope, not yet done:
+**SHA** `172e42b0752005954b9fc5040de3de6e44b6b95a`
 
-- `cap_for()` must stop reading `0` as unlimited, which means `BudgetPolicy` needs a cap type that
-  can express `NULL` separately from zero rather than reusing `CostVector`'s zero defaults.
-- `token_count` through `CostVector`, `CAPPED_DIMENSIONS`, the DDL and the tests — as its own
-  dimension, never inside `compute_units`.
-- Bind §9.4 into the schema-drift guard so blocker 1 cannot reopen silently.
-- Zero-cap negative fixtures in both the contract and the postgres suites.
-- Cost stays multi-dimensional: no `total()`, no normalized scalar.
+**Done**
+
+- `BudgetCaps` replaces `caps: CostVector` + the `capped` tuple on `BudgetPolicy`. Every dimension
+  is `| None`, one-for-one with the nullable `cap_*` columns, so `None` (not capped) and `0` (zero
+  permitted) are different values rather than one value with two meanings. `cap_for()` no longer
+  guesses. Blocker 2 closed.
+- `token_count` added to `CostVector` (additive in `plus()`), `CAPPED_DIMENSIONS`, `BudgetCaps`, and
+  the three tables via migration `007b_cost_token_dimension.sql`. `007a` untouched — it is applied,
+  and the checksum ledger exists to refuse edits to applied migrations.
+- `cost_dimension_drift()`: §9.4's block, `CostVector`, `CAPPED_DIMENSIONS`, `BudgetCaps` and the
+  `cost_entries` / `cap_*` / `overrun_*` columns are compared as one closed set, plus the rule that
+  qualifiers are cappable nowhere. Blocker 1 closed structurally — §9.4 was the one canonical schema
+  outside §17, which is why a10 could move the document with the suite still green.
+- Zero-cap and token negative fixtures in `tests/contract/test_budget_gate.py` and
+  `tests/integration/test_cost_ledger_postgres.py`.
+
+**Adversarial checks that actually ran** Reinstating `return None if value == 0 else value` fails
+four of the new tests, so they catch the real bug rather than describing it. Both drift directions
+were proven to fire by doctoring the spec text and by removing a dimension from
+`CAPPED_DIMENSIONS`.
+
+**Tests** postgres profile 450 passed; backend-free 364 passed / 86 skipped; migrations applied then
+idempotent (11 declared / 11 applied / 0 pending); executed-coverage gate ok on all four checks
+under `[postgres]`; ruff + format + mypy strict clean; obligation inventory 72 in sync.
+
+**Open blockers carried into Phase C**
+
+1. `BudgetApproval` is authenticated by nothing but the presence of an `actor_id` string. An
+   inactive actor, a non-member, a SERVICE/AGENT_ROLE self-signature and an actor holding no budget
+   authority all currently release an overrun.
+2. `ONCE` is enforced only by the caller passing `consumed_approval_ids`. Two concurrent dispatches
+   presenting the same approval both succeed.
+
+**Known doc gap, not fixed here** `CHANGELOG.md` stops at M0a-2; P4, P5 and this slice are not in
+it. Out of the stated scope of P5-fix and recorded rather than half-fixed.
+
+**Next** Phase C.
 
 ## Phase C — approval security + atomic single-use (PENDING)
 
