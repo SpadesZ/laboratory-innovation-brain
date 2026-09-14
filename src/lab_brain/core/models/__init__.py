@@ -31,6 +31,7 @@ from lab_brain.core.models.condition import (
 )
 from lab_brain.core.models.cost import (
     CAPPED_DIMENSIONS,
+    BudgetCaps,
     CostEntry,
     CostKind,
     CostVector,
@@ -103,6 +104,7 @@ __all__ = [
     "Artifact",
     "ArtifactOccurrence",
     "Attestation",
+    "BudgetCaps",
     "Claim",
     "ClaimIdentityStatus",
     "ConditionMatch",

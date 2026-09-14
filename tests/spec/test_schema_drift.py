@@ -17,10 +17,13 @@ import pytest
 
 from lab_brain.spec.schema_drift import (
     BINDINGS,
+    COST_TABLES,
     UNBOUND,
+    SchemaBinding,
     SchemaDriftError,
     all_drift,
     canonical_fields,
+    cost_dimension_drift,
     drift,
     effective_table_columns,
     model_fields,
@@ -163,6 +166,76 @@ def test_the_completeness_scan_sees_the_schemas_it_should():
     assert len(names) > 20, f"only {len(names)} §17 schema blocks found; format likely changed"
     for expected in ("Artifact", "ArtifactOccurrence", "Claim", "Attestation"):
         assert expected in names, f"§17 scan missed {expected}"
+
+
+# --------------------------------------------------------------------------------------------
+# §9.4's cost dimensions. The one canonical schema outside §17 this guard binds.
+#
+# Amendment v3.3-a10 added `token_count` to §9.4 and the entire suite stayed green with no model
+# field, no column and no cap -- because everything above scans §17 headings only. That is the
+# ADR-0010 drift again, one chapter to the left, and these are the tests that close it.
+# --------------------------------------------------------------------------------------------
+
+
+def test_the_cost_dimensions_agree_across_spec_model_caps_and_ddl():
+    assert cost_dimension_drift() == []
+
+
+def test_the_token_dimension_reached_all_five_places():
+    """Pinned by name, because this is the specific gap v3.3-a10 opened.
+
+    A dimension can be half-landed in four distinct ways and only two of them are visible to a
+    test that writes a ledger row: recorded but not cappable still stores and still reads back.
+    """
+    from lab_brain.core.models.cost import CAPPED_DIMENSIONS, BudgetCaps, CostVector
+
+    assert "token_count" in canonical_fields("CostVector", "9.4")
+    assert "token_count" in CostVector.model_fields
+    assert "token_count" in CAPPED_DIMENSIONS
+    assert "token_count" in BudgetCaps.model_fields
+    for table, prefix, migration in COST_TABLES:
+        columns = effective_table_columns(
+            SchemaBinding(
+                section="9.4",
+                schema_name="CostVector",
+                model_path="lab_brain.core.models.cost:CostVector",
+                table=table,
+                migration=migration,
+            )
+        )
+        assert f"{prefix}token_count" in columns, f"{table} has no {prefix}token_count"
+
+
+def test_a_dimension_declared_in_the_spec_and_nowhere_else_is_detected():
+    """The direction v3.3-a10 actually failed in: the document moved and the code did not."""
+    from lab_brain.spec.parser import spec_path
+
+    doctored = (
+        spec_path()
+        .read_text(encoding="utf-8")
+        .replace("  token_count,", "  token_count,\n  carbon_grams,", 1)
+    )
+    findings = cost_dimension_drift(doctored)
+    assert any(
+        "carbon_grams" in finding and "absent from the model" in finding for finding in findings
+    ), findings
+
+
+def test_a_dimension_that_is_recorded_but_not_cappable_is_detected():
+    """The quiet half. A cost the ledger stores and no policy can limit is not governed.
+
+    Simulated by removing a dimension from `CAPPED_DIMENSIONS` while leaving it everywhere else --
+    which is what forgetting one line of a five-line change looks like.
+    """
+    import lab_brain.core.models.cost as cost_module
+
+    saved = cost_module.CAPPED_DIMENSIONS
+    try:
+        cost_module.CAPPED_DIMENSIONS = tuple(d for d in saved if d != "token_count")
+        findings = cost_dimension_drift()
+        assert any("BudgetCaps and CAPPED_DIMENSIONS disagree" in f for f in findings), findings
+    finally:
+        cost_module.CAPPED_DIMENSIONS = saved
 
 
 def test_an_unbound_unexempted_schema_is_detected():

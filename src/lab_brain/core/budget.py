@@ -30,7 +30,7 @@ from decimal import Decimal
 from enum import StrEnum
 
 from lab_brain.core.models.base import CoreModel
-from lab_brain.core.models.cost import CAPPED_DIMENSIONS, CostVector
+from lab_brain.core.models.cost import CAPPED_DIMENSIONS, BudgetCaps, CostVector
 
 
 class DispatchOutcome(StrEnum):
@@ -43,27 +43,30 @@ class DispatchOutcome(StrEnum):
 
 
 class BudgetPolicy(CoreModel):
-    """Versioned caps for a project's session (§17.17).
+    """Versioned caps for a project's session (§17.17, §17.19.1 as amended by `v3.3-a10`).
 
-    A cap of ``None`` means "not limited in this dimension", which is not the same as a cap of
-    zero. Distinguishing them matters: most policies constrain money and wall-clock and say nothing
-    about human minutes, and reading silence as zero would block every call.
+    ``caps`` is a :class:`BudgetCaps`, not a ``CostVector``. §17.19.1 now states the distinction the
+    gate turns on: an absent / ``None`` cap is *not capped in this dimension*, a cap of ``0`` is
+    *zero permitted*, and they are different facts.
+
+    This class previously carried ``caps: CostVector`` plus a ``capped`` tuple naming which
+    dimensions counted. Because ``CostVector`` defaults every dimension to zero, ``cap_for()`` had
+    to guess which zeros were real, and it guessed *uncapped* -- so a policy that deliberately
+    permitted nothing in a dimension permitted everything. Two representations of one fact, and the
+    tie broken in the failing-open direction. Both are gone: the cap value is the whole answer.
     """
 
     policy_id: str
     policy_version: str
     project_id: str
-    caps: CostVector
-    #: Dimensions this policy actually constrains. Anything absent is uncapped.
-    capped: tuple[str, ...] = CAPPED_DIMENSIONS
+    caps: BudgetCaps
 
     def cap_for(self, dimension: str) -> Decimal | int | None:
-        if dimension not in self.capped:
-            return None
-        value = getattr(self.caps, dimension)
-        # Zero reads as "no cap declared" rather than "nothing permitted": CostVector defaults every
-        # dimension to zero, so a policy capping only money would otherwise block on all the rest.
-        return None if value == 0 else value
+        """The cap in force, or ``None`` when this policy does not constrain ``dimension``.
+
+        A returned ``0`` means zero permitted and must be compared against, not treated as absent.
+        """
+        return self.caps.cap_for(dimension)
 
 
 class BudgetApproval(CoreModel):

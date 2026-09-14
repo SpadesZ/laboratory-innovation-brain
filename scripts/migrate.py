@@ -52,6 +52,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # P5 / M0b-2. The cost half of Appendix A's 007 slot (COST-001); the capabilities
     # half lands with VER-002 in M2. Needs 001 for the project and actor foreign keys.
     "007a_cost_ledger.sql",
+    # P5-fix / v3.3-a10. Adds §9.4's `token_count` to the three cost tables. Separate from 007a
+    # because 007a is applied: an applied migration is checksummed and must not be edited.
+    "007b_cost_token_dimension.sql",
 )
 
 _BOOTSTRAP = """

@@ -69,6 +69,10 @@ class CostVector(CoreModel):
     #: Decimal, never float: money that rounds differently on two machines is not auditable.
     money_estimate: Decimal = Field(default=Decimal(0), ge=0)
     compute_units: int = Field(default=0, ge=0)
+    #: LLM tokens (v3.3-a10). Its own dimension, never inside `compute_units`: COST-001 names
+    #: tokens and solver compute as separate minimum dimensions, and one integer holding both
+    #: answers neither "how many tokens did this episode burn" nor "how much compute did it".
+    token_count: int = Field(default=0, ge=0)
     license_seat_s: int = Field(default=0, ge=0)
 
     #: Waiting time, expressed as the earliest moment the action could complete rather than as a
@@ -91,6 +95,7 @@ class CostVector(CoreModel):
             human_minutes=self.human_minutes + other.human_minutes,
             money_estimate=self.money_estimate + other.money_estimate,
             compute_units=self.compute_units + other.compute_units,
+            token_count=self.token_count + other.token_count,
             license_seat_s=self.license_seat_s + other.license_seat_s,
             earliest_available_at=max(
                 (d for d in (self.earliest_available_at, other.earliest_available_at) if d),
@@ -108,8 +113,53 @@ CAPPED_DIMENSIONS: tuple[str, ...] = (
     "human_minutes",
     "money_estimate",
     "compute_units",
+    "token_count",
     "license_seat_s",
 )
+
+
+class BudgetCaps(CoreModel):
+    """Per-dimension limits for a budget policy (§17.19.1 as amended by `v3.3-a10`).
+
+    WHY THIS IS NOT A ``CostVector``.
+
+    A cost and a cap are different kinds of value, and the difference is exactly the one that
+    produced the bug this class exists to remove. ``CostVector`` defaults every additive dimension
+    to ``0`` so that a *partial estimate* is still a usable vector -- an action consuming no license
+    seat should not have to say so. Reuse that type for caps and zero has to mean two things at
+    once: "this policy says nothing about human minutes" and "this policy permits no human
+    minutes". The previous implementation resolved the collision by reading ``0`` as *uncapped*,
+    which fails in the one direction that matters --
+
+        a budget deliberately frozen at zero admitted everything.
+
+    So every cap is ``| None``, one-for-one with the nullable ``cap_*`` columns in migration 007a:
+
+        ``None``   not capped in this dimension. Most policies constrain money and wall-clock and
+                   say nothing about the rest; reading that silence as zero would block every call.
+        ``0``      zero permitted. The only way to express "not this, not now".
+
+    There is deliberately no second field listing which dimensions are capped. That was the old
+    shape -- a ``capped`` tuple beside zero-defaulted values -- and two sources of truth for one
+    fact is how they drift apart. Here the value *is* the answer.
+    """
+
+    wall_clock_s: int | None = Field(default=None, ge=0)
+    human_minutes: int | None = Field(default=None, ge=0)
+    money_estimate: Decimal | None = Field(default=None, ge=0)
+    compute_units: int | None = Field(default=None, ge=0)
+    token_count: int | None = Field(default=None, ge=0)
+    license_seat_s: int | None = Field(default=None, ge=0)
+
+    def cap_for(self, dimension: str) -> Decimal | int | None:
+        """The cap, or ``None`` for uncapped. ``0`` is returned as ``0``, never as ``None``."""
+        if dimension not in CAPPED_DIMENSIONS:
+            raise ValueError(
+                f"{dimension!r} is not a cappable dimension; §9.4's qualifiers "
+                "(irreversible, earliest_available_at, dependency_risk) are not quotas"
+            )
+        value: Decimal | int | None = getattr(self, dimension)
+        return value
 
 
 class CostEntry(CoreModel):
@@ -137,6 +187,7 @@ class CostEntry(CoreModel):
 
 __all__ = [
     "CAPPED_DIMENSIONS",
+    "BudgetCaps",
     "CostEntry",
     "CostKind",
     "CostVector",

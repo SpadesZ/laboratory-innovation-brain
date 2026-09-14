@@ -278,8 +278,117 @@ def drift(binding: SchemaBinding, text: str | None = None) -> list[str]:
     return findings
 
 
+#: The one canonical schema outside §17 that this guard binds, and the five places a cost dimension
+#: has to appear for the system to actually govern it. See :func:`cost_dimension_drift`.
+COST_VECTOR_SECTION = "9.4"
+COST_TABLES: tuple[tuple[str, str, str], ...] = (
+    # (table, column prefix, migration that creates the table)
+    ("cost_entries", "", "007a_cost_ledger.sql"),
+    ("budget_policies", "cap_", "007a_cost_ledger.sql"),
+    ("budget_approvals", "overrun_", "007a_cost_ledger.sql"),
+)
+
+
+def cost_dimension_drift(text: str | None = None) -> list[str]:
+    """§9.4's dimensions, the ``CostVector`` model, ``CAPPED_DIMENSIONS``, ``BudgetCaps`` and the
+    three cost tables must describe the same set.
+
+    WHY THIS IS SEPARATE FROM ``BINDINGS``.
+
+    ``CostVector`` is a canonical schema that lives at §9.4, and the §17 machinery above cannot see
+    it: ``canonical_schema_names`` scans §17 headings only. So amendment ``v3.3-a10`` could add
+    ``token_count`` to the specification and the whole suite stayed green with no model field, no
+    column and no cap -- which is precisely the ADR-0010 drift, one chapter to the left.
+
+    It is also not a plain ``SchemaBinding``, because a cost dimension is not one field in one
+    table. It has to exist in five places at once, and each absence fails differently:
+
+        §9.4 block            the declaration. Absent -> the dimension is not in the contract.
+        ``CostVector``        what an action costs. Absent -> unrecordable.
+        ``cost_entries``      what was spent. Absent -> recordable in memory, lost on write.
+        ``CAPPED_DIMENSIONS`` whether the gate looks at it. Absent -> recorded, never enforced.
+        ``BudgetCaps`` +      whether a cap can be stated at all. Absent -> enforceable in Python
+        ``cap_*`` columns     against a limit no policy row can hold.
+
+    The fourth and fifth are the quiet ones: a dimension that is recorded but not cappable looks
+    fully implemented in every test that only writes ledger rows.
+
+    Qualifiers (``irreversible``, ``earliest_available_at``, ``dependency_risk``) are checked to be
+    present in the model and the ledger and **absent** from the caps -- they are not quotas, and a
+    cap on irreversibility would be a category error the gate would then have to interpret.
+    """
+    canonical = canonical_fields("CostVector", COST_VECTOR_SECTION, text)
+    model = model_fields("lab_brain.core.models.cost:CostVector")
+    from lab_brain.core.models.cost import CAPPED_DIMENSIONS
+
+    capped = set(CAPPED_DIMENSIONS)
+    caps_model = model_fields("lab_brain.core.models.cost:BudgetCaps")
+
+    findings: list[str] = []
+    if canonical != model:
+        missing = sorted(canonical - model)
+        extra = sorted(model - canonical)
+        if missing:
+            findings.append(
+                f"§{COST_VECTOR_SECTION} CostVector: declared but absent from the model: "
+                + ", ".join(missing)
+            )
+        if extra:
+            findings.append(
+                f"§{COST_VECTOR_SECTION} CostVector: present in the model but not declared in the "
+                "spec: " + ", ".join(extra)
+            )
+
+    if not capped <= model:
+        findings.append(
+            "CAPPED_DIMENSIONS names dimensions CostVector does not have: "
+            + ", ".join(sorted(capped - model))
+        )
+    if caps_model != capped:
+        findings.append(
+            "BudgetCaps and CAPPED_DIMENSIONS disagree; only in BudgetCaps: "
+            f"{sorted(caps_model - capped)}, only in CAPPED_DIMENSIONS: "
+            f"{sorted(capped - caps_model)}"
+        )
+
+    for table, prefix, migration in COST_TABLES:
+        columns = effective_table_columns(
+            SchemaBinding(
+                section=COST_VECTOR_SECTION,
+                schema_name="CostVector",
+                model_path="lab_brain.core.models.cost:CostVector",
+                table=table,
+                migration=migration,
+            )
+        )
+        # The ledger stores every dimension; the cap and overrun tables store the cappable ones.
+        expected = model if prefix == "" else capped
+        absent = sorted(
+            dimension for dimension in expected if f"{prefix}{dimension}" not in columns
+        )
+        if absent:
+            findings.append(
+                f"{table} has no column for: "
+                + ", ".join(f"{prefix}{dimension}" for dimension in absent)
+            )
+        if prefix != "":
+            # A cap on a qualifier would be a category error, so catch it here rather than let the
+            # gate decide what a capped `irreversible` means.
+            uncappable = sorted(
+                dimension for dimension in model - capped if f"{prefix}{dimension}" in columns
+            )
+            if uncappable:
+                findings.append(
+                    f"{table} caps dimensions that are qualifiers, not quotas: "
+                    + ", ".join(f"{prefix}{dimension}" for dimension in uncappable)
+                )
+    return findings
+
+
 def all_drift(text: str | None = None) -> list[str]:
-    return [finding for binding in BINDINGS for finding in drift(binding, text)]
+    return [finding for binding in BINDINGS for finding in drift(binding, text)] + (
+        cost_dimension_drift(text)
+    )
 
 
 def canonical_schema_names(text: str | None = None) -> dict[str, str]:
@@ -330,12 +439,15 @@ def stale_exemptions(text: str | None = None) -> list[str]:
 
 __all__ = [
     "BINDINGS",
+    "COST_TABLES",
+    "COST_VECTOR_SECTION",
     "UNBOUND",
     "SchemaBinding",
     "SchemaDriftError",
     "all_drift",
     "canonical_fields",
     "canonical_schema_names",
+    "cost_dimension_drift",
     "drift",
     "effective_table_columns",
     "model_fields",

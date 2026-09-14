@@ -210,6 +210,71 @@ def test_an_uncapped_dimension_is_null_not_zero(seeded):
     assert row[1] is None, "an unstated cap must be NULL, not 0"
 
 
+def test_a_cap_column_can_hold_zero_and_null_in_the_same_row(seeded):
+    """§17.19.1 / `v3.3-a10`: the schema has to be able to state both, or the rule is unstorable.
+
+    The Python gate used to read `0` as uncapped because `CostVector`'s defaults gave it no way to
+    tell the two apart. The DDL always could -- these columns are nullable -- so the disagreement
+    was one-sided, and this is the half that was already right. Asserted anyway: `BudgetCaps` is
+    now bound to these columns by tests/spec/test_schema_drift.py, and a later migration that made
+    a cap column NOT NULL DEFAULT 0 would silently re-create the ambiguity in the store while the
+    model still claimed to distinguish them.
+    """
+    seeded.execute(
+        "INSERT INTO budget_policies"
+        " (policy_id, policy_version, project_id, cap_token_count, cap_money_estimate)"
+        " VALUES ('pol:frozen', '1.0.0', 'prj:test', 0, NULL)"
+    )
+    row = seeded.execute(
+        "SELECT cap_token_count, cap_money_estimate FROM budget_policies"
+        " WHERE policy_id = 'pol:frozen'"
+    ).fetchone()
+    assert row[0] == 0, "a cap of zero must survive the round trip as 0, not as NULL"
+    assert row[1] is None
+
+
+def test_a_negative_cap_is_rejected(seeded):
+    """A cap below zero is not a cap; the gate would compare against nonsense."""
+    with pytest.raises(psycopg.errors.CheckViolation):
+        seeded.execute(
+            "INSERT INTO budget_policies (policy_id, policy_version, project_id, cap_token_count)"
+            " VALUES ('pol:bad', '1.0.0', 'prj:test', -1)"
+        )
+
+
+# --------------------------------------------------------------------------------------------
+# The token dimension. `v3.3-a10` / COST-001.
+# --------------------------------------------------------------------------------------------
+
+
+def test_the_ledger_records_tokens_as_their_own_column(seeded):
+    """COST-001 names tokens among the minimum dimensions; a value the store drops is not recorded.
+
+    Written against the column rather than the model because that is where the requirement bites:
+    a `token_count` that exists only in Python is recorded until the process exits.
+    """
+    _entry(seeded, "cost:1", "ACTUAL", token_count=12_345, compute_units=7)
+    row = seeded.execute(
+        "SELECT token_count, compute_units FROM cost_entries WHERE cost_entry_id = 'cost:1'"
+    ).fetchone()
+    assert row[0] == 12_345
+    assert row[1] == 7, "tokens and compute units are separate columns, not one number"
+
+
+def test_negative_token_counts_are_rejected(seeded):
+    with pytest.raises(psycopg.errors.CheckViolation):
+        _entry(seeded, "cost:1", "ACTUAL", token_count=-1)
+
+
+def test_an_approval_carries_a_token_overrun_that_defaults_to_zero(seeded):
+    """`approved_overrun` is an amount, so its zero means zero headroom -- not "unlimited"."""
+    _approval(seeded)
+    row = seeded.execute(
+        "SELECT overrun_token_count FROM budget_approvals WHERE approval_id = 'apr:1'"
+    ).fetchone()
+    assert row[0] == 0
+
+
 def test_a_policy_is_versioned_not_overwritten(seeded):
     """Caps change; approvals are granted against a version. Both versions must coexist."""
     seeded.execute(

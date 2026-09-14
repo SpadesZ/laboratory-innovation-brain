@@ -35,7 +35,14 @@ from lab_brain.core.budget import (
     DispatchOutcome,
     evaluate_budget,
 )
-from lab_brain.core.models import CostEntry, CostKind, CostVector, DependencyRisk
+from lab_brain.core.models import (
+    CAPPED_DIMENSIONS,
+    BudgetCaps,
+    CostEntry,
+    CostKind,
+    CostVector,
+    DependencyRisk,
+)
 
 pytestmark = [pytest.mark.requirement("COST-001"), pytest.mark.spec_test("T-COST-001")]
 
@@ -50,7 +57,10 @@ POLICY = BudgetPolicy(
     policy_id="pol:session-default",
     policy_version="1.0.0",
     project_id=PROJECT,
-    caps=CostVector(wall_clock_s=3600, money_estimate=Decimal("50.00"), compute_units=100),
+    # human_minutes, token_count and license_seat_s are left unstated -- `None`, meaning this
+    # policy does not constrain them. That is a different fact from a cap of zero; see
+    # `test_a_cap_of_zero_permits_nothing` below, which is the pair this one must be read with.
+    caps=BudgetCaps(wall_clock_s=3600, money_estimate=Decimal("50.00"), compute_units=100),
 )
 
 
@@ -170,6 +180,127 @@ def test_an_uncapped_dimension_does_not_block():
     """A cap of None is "not limited here", and must not be read as a cap of zero."""
     decision = evaluate_budget(request(estimate=CostVector(human_minutes=600)))
     assert decision.outcome is DispatchOutcome.ALLOWED
+
+
+# --------------------------------------------------------------------------------------------
+# A cap of zero. `v3.3-a10` / §17.19.1.
+#
+# This is the pair of tests the old implementation could not pass, and the reason it could not is
+# worth stating: `caps` was a CostVector, every dimension of which defaults to 0, so `cap_for()`
+# could not tell "this policy says nothing about tokens" from "this policy permits no tokens". It
+# resolved the ambiguity as *uncapped* -- and a budget deliberately frozen at zero admitted
+# everything. The failure is silent, unbounded, and in the one direction a budget exists to prevent.
+# --------------------------------------------------------------------------------------------
+
+
+def test_a_cap_of_zero_permits_nothing():
+    """`0` is a cap, not a missing cap. Any spend in that dimension is over it."""
+    frozen = POLICY.model_copy(update={"caps": BudgetCaps(money_estimate=Decimal("0"))})
+    decision = evaluate_budget(
+        request(estimate=CostVector(money_estimate=Decimal("0.01")), policy=frozen)
+    )
+    assert decision.outcome is DispatchOutcome.BLOCKED
+    assert "money_estimate" in decision.exceeded_dimensions
+
+
+def test_a_cap_of_zero_blocks_every_capped_dimension_independently():
+    """One frozen dimension is enough, and freezing one must not depend on freezing the rest."""
+    for dimension in CAPPED_DIMENSIONS:
+        amount = Decimal("1") if dimension == "money_estimate" else 1
+        frozen = POLICY.model_copy(update={"caps": BudgetCaps(**{dimension: 0})})
+        decision = evaluate_budget(
+            request(estimate=CostVector(**{dimension: amount}), policy=frozen)
+        )
+        assert decision.outcome is DispatchOutcome.BLOCKED, dimension
+        assert dimension in decision.exceeded_dimensions, dimension
+
+
+def test_a_cap_of_zero_admits_a_zero_estimate():
+    """The cap must be satisfiable at zero, or it is a prohibition rather than a cap.
+
+    A free action -- an in-memory lookup with no token, no money and no seat -- is still admissible
+    under a frozen budget. If this failed, "cap of zero" would mean "gate closed", and the two are
+    not the same rule.
+    """
+    frozen = POLICY.model_copy(update={"caps": BudgetCaps(token_count=0)})
+    decision = evaluate_budget(request(estimate=CostVector(), policy=frozen))
+    assert decision.outcome is DispatchOutcome.ALLOWED
+
+
+def test_an_unstated_cap_and_a_zero_cap_are_different_values():
+    """At the model, before any gate logic: the type must be able to hold both."""
+    assert BudgetCaps().cap_for("token_count") is None
+    assert BudgetCaps(token_count=0).cap_for("token_count") == 0
+
+
+def test_caps_are_not_a_cost_vector():
+    """Pinned, because reuse is what caused the bug.
+
+    `CostVector` defaults every additive dimension to zero so a partial *estimate* stays usable.
+    Caps need the opposite default, and a type that has to serve both ends up guessing.
+    """
+    assert not isinstance(POLICY.caps, CostVector)
+    with pytest.raises(ValueError, match="not a cappable dimension"):
+        BudgetCaps().cap_for("irreversible")
+
+
+def test_a_zero_cap_can_still_be_released_by_an_approval():
+    """A frozen budget is a budget, so §14.3's approval path applies to it unchanged."""
+    frozen = POLICY.model_copy(update={"caps": BudgetCaps(money_estimate=Decimal("0"))})
+    decision = evaluate_budget(
+        request(
+            estimate=CostVector(money_estimate=Decimal("10.00")),
+            policy=frozen,
+            approval=approval(approved_overrun=CostVector(money_estimate=Decimal("10.00"))),
+        )
+    )
+    assert decision.outcome is DispatchOutcome.ALLOWED_BY_APPROVAL
+
+
+# --------------------------------------------------------------------------------------------
+# Tokens are a dimension of their own. `v3.3-a10` / COST-001.
+# --------------------------------------------------------------------------------------------
+
+
+def test_tokens_are_capped_and_accumulate():
+    """COST-001 names tokens among the ledger's minimum dimensions, so the gate must see them."""
+    policy = POLICY.model_copy(update={"caps": BudgetCaps(token_count=1000)})
+    decision = evaluate_budget(
+        request(
+            estimate=CostVector(token_count=400),
+            consumed=CostVector(token_count=700),
+            policy=policy,
+        )
+    )
+    assert decision.outcome is DispatchOutcome.BLOCKED
+    assert "token_count" in decision.exceeded_dimensions
+
+
+def test_tokens_are_not_compute_units():
+    """The substitution v3.3-a10 forbids, asserted rather than trusted.
+
+    If tokens were folded into `compute_units`, a token-only estimate would consume the compute cap
+    and a compute cap would silently limit tokens. Both directions are checked, because either
+    would mean one integer is answering two questions.
+    """
+    tokens_only = CostVector(token_count=10_000)
+    assert tokens_only.compute_units == 0
+
+    compute_capped = POLICY.model_copy(update={"caps": BudgetCaps(compute_units=1)})
+    assert (
+        evaluate_budget(request(estimate=tokens_only, policy=compute_capped)).outcome
+        is DispatchOutcome.ALLOWED
+    )
+
+    token_capped = POLICY.model_copy(update={"caps": BudgetCaps(token_count=1)})
+    assert (
+        evaluate_budget(
+            request(estimate=CostVector(compute_units=10_000), policy=token_capped)
+        ).outcome
+        is DispatchOutcome.ALLOWED
+    )
+
+    assert tokens_only.plus(CostVector(token_count=5)).token_count == 10_005
 
 
 # --------------------------------------------------------------------------------------------
@@ -345,12 +476,19 @@ def test_a_budget_approval_does_not_relieve_the_critique_gate():
 
 
 def test_cost_vector_carries_every_spec_dimension():
-    """§9.4's eight dimensions, by name. A missing one is a cost the planner cannot see."""
+    """§9.4's nine dimensions, by name. A missing one is a cost the planner cannot see.
+
+    Nine since `v3.3-a10` added `token_count`. This list is written out rather than read from the
+    spec on purpose -- `tests/spec/test_schema_drift.py` does the derived comparison, and a test
+    that derived its expectation from the same document would agree with any amendment, including
+    one that deleted a dimension.
+    """
     for field in (
         "wall_clock_s",
         "human_minutes",
         "money_estimate",
         "compute_units",
+        "token_count",
         "license_seat_s",
         "earliest_available_at",
         "irreversible",
