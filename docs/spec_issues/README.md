@@ -19,21 +19,30 @@ proposed wording, and the decision is escalated to the spec maintainer.
 
 ## Index
 
+This table is a reading aid. **The `Status:` line inside each issue document is the authority** —
+that is what `lab_brain.spec.outcomes.load_spec_issues` parses and what the executed-coverage gate
+enforces. The two are compared by `tests/spec/test_spec_issue_index.py`, because this table said
+"OPEN" for six issues that had been RESOLVED for two days and nothing objected.
+
 | ID | Severity | Subject | Blocks gate | Status |
 |---|---|---|---|---|
-| [001](SPEC-ISSUE-001-registry-unique-requirement-ids.md) | GATE | T-SPEC-002 "unique Requirement IDs" contradicted the §23.6 example | M0a | **RESOLVED** — Reading B, 2026-09-12 |
-| [002](SPEC-ISSUE-002-gh-namespace-missing.md) | EDITORIAL | `GH-xxx` missing from the §23.2 namespace table | — | OPEN |
-| [003](SPEC-ISSUE-003-typed-tools-no-requirement-id.md) | GATE | §10.2 typed-tools-only had no dedicated Requirement ID | M0a | **RESOLVED** — Option 1, `SIM-003`, 2026-09-12 |
-| [004](SPEC-ISSUE-004-heuristic-approval-no-requirement-id.md) | GATE | P16 heuristic approval governance has no Requirement ID | M7 | OPEN |
-| [005](SPEC-ISSUE-005-novelty-coverage-no-requirement-id.md) | GATE | PriorArtSearchRecord / novelty coverage has no Requirement ID | M3 | OPEN |
-| [006](SPEC-ISSUE-006-no-single-scalar-fom-no-requirement-id.md) | GATE | P10 "no single scalar FoM" has no Requirement ID | M4 | OPEN |
-| [007](SPEC-ISSUE-007-cross-store-unit-of-work-no-requirement-id.md) | GATE | §12.3 cross-store unit of work has no Requirement ID | M1 | OPEN |
-| [008](SPEC-ISSUE-008-fabrication-gate-no-requirement-id.md) | EDITORIAL | §14.3 fabrication human sign-off has no Requirement ID | — | OPEN |
+| [001](SPEC-ISSUE-001-registry-unique-requirement-ids.md) | GATE | T-SPEC-002 "unique Requirement IDs" contradicted the §23.6 example | M0a | **RESOLVED** — Reading B, `v3.3-a1` |
+| [002](SPEC-ISSUE-002-gh-namespace-missing.md) | EDITORIAL | `GH-xxx` missing from the §23.2 namespace table | — | **RESOLVED** — `v3.3-a2` |
+| [003](SPEC-ISSUE-003-typed-tools-no-requirement-id.md) | GATE | §10.2 typed-tools-only had no dedicated Requirement ID | M0a | **RESOLVED** — Option 1, `SIM-003`, `v3.3-a1` |
+| [004](SPEC-ISSUE-004-heuristic-approval-no-requirement-id.md) | GATE | P16 heuristic approval governance has no Requirement ID | M7 | **RESOLVED** — `HEU-001`, `v3.3-a2` |
+| [005](SPEC-ISSUE-005-novelty-coverage-no-requirement-id.md) | GATE | PriorArtSearchRecord / novelty coverage has no Requirement ID | M3 | **RESOLVED** — `SRC-003`, `v3.3-a2` |
+| [006](SPEC-ISSUE-006-no-single-scalar-fom-no-requirement-id.md) | GATE | P10 "no single scalar FoM" has no Requirement ID | M4 | **RESOLVED** — `VER-007`, `v3.3-a2` |
+| [007](SPEC-ISSUE-007-cross-store-unit-of-work-no-requirement-id.md) | GATE | §12.3 cross-store unit of work has no Requirement ID | M1 | **RESOLVED** — `OPS-004`, `v3.3-a2` |
+| [008](SPEC-ISSUE-008-fabrication-gate-no-requirement-id.md) | EDITORIAL | §14.3 fabrication human sign-off has no Requirement ID | — | **RESOLVED** — under `SEC-002`, `v3.3-a2` |
+| [009](SPEC-ISSUE-009-cost-vector-has-no-token-dimension.md) | GATE | COST-001 requires token accounting `CostVector` cannot represent; cap `0` vs `NULL` undefined | M0b | **RESOLVED** — `token_count` + cap semantics, `v3.3-a10` |
 
 Issues 004–008 were all raised by the **M0a Spec Coverage Audit** (§23.5 (2)) — the section-by-section
 review of §6–§16 that a linter cannot perform. Each is a hard MUST in the prose with no Requirement
 ID to map to, so adding one changes the `53 ↔ 53` invariant and is a maintainer decision, not an
 agent decision. None of them blocks M0a.
+
+Issue 009 came from the opposite direction: not a coverage audit but an implementation slice
+(P5 / COST-001) that could not be written without picking between two normative contracts.
 
 ## Enforcement
 

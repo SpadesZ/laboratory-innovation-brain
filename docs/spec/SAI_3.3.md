@@ -711,12 +711,19 @@ CostVector {
   human_minutes,
   money_estimate,
   compute_units,
+  token_count,             # v3.3-a10; LLM tokens, never folded into compute_units
   license_seat_s,
   earliest_available_at,
   irreversible,            # bool
   dependency_risk
 }
 ```
+
+`token_count` 由 `v3.3-a10` 補入（SPEC-ISSUE-009）。COST-001 要求 CostLedger 至少記
+wall-clock/tokens/money/license-seat，而 §17.17 的 `CostEntry.cost` 就是本節這個 `CostVector`：
+原本的八維沒有 token 欄位，ledger 因此被要求記錄一個它唯一可用的型別無法表達的量。token 是可設
+上限的維度（見 §17.19.1），且它與 `compute_units` 是兩件事——把兩者塞進同一個整數，等於讓
+「這個 episode 燒了多少 token」與「燒了多少 solver 計算」變成一個兩題都答不出的數字。
 
 **不得**把全部成本壓縮成單一 `normalized_cost` 作為唯一決策依據（VER-003）。6 週 MPW shuttle 不是「高成本」，是「高延遲 + 不可逆 + 排程耦合」。
 
@@ -1533,6 +1540,21 @@ ExecutionSpan {
   start_time, end_time?, status, cost_entry_ids[], metadata{}
 }
 ```
+
+#### Cap semantics (`v3.3-a10`)
+
+`hard_caps` / `soft_caps` 的鍵是 §9.4 `CostVector` 的可設限維度（`wall_clock_s`、`human_minutes`、
+`money_estimate`、`compute_units`、`token_count`、`license_seat_s`）。缺席與零是兩件不同的事，
+BudgetGate MUST 照下表區分，且 model、DDL 與 gate 三者 MUST 採同一讀法：
+
+| 值 | 意義 | 為什麼不能合併 |
+|---|---|---|
+| 缺席 / `NULL` | 此維度不設限 | 多數 policy 只限金錢與 wall-clock，對人力分鐘什麼都沒說；把沉默讀成 0 會擋下每一次呼叫 |
+| `0` | 此維度允許量為零 | 這是「這個 project 現在不准花這一項」的唯一表達方式；把 0 讀成無上限，會讓一份刻意凍結的預算變成全部放行 |
+
+`CostVector` 的每個加總維度預設為 0（部分估算仍是可用的向量），所以 caps **不可**沿用
+`CostVector` 的預設值當作「未宣告」——caps 必須能表達 `NULL`，否則兩種意義共用一個槽。
+`BudgetApproval.approved_overrun` 不受此規則影響：它是額度而非上限，0 就是零額度。
 
 ### 17.19.2 BenchmarkPolicy / OutcomeSpace / ValidationReport
 
@@ -3146,3 +3168,4 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | **v3.3-a7** | **2026-09-13** | **Maintainer amendment (§7.6 第二個 trigger)**：§7.6 「重大 REJECT / irreversible action 必須經 independent critique path」是一條規則的兩個 trigger，而 v3.3-a6 只綁定了第一個 —— 不造成 belief transition 的 irreversible dispatch（版圖送件、MPW shuttle 訂位）因此無人管。**擴充既有 SRC-002 / T-SRC-002**，不新增 Requirement：irreversible Capability/action 在 independent critique 完成前 MUST NOT dispatch，且 human approval 不可取代 critique。Requirement ↔ Test 維持 **59 ↔ 59**。無架構方向變更。 |
 | **v3.3-a8** | **2026-09-13** | **Maintainer amendment (Artifact / ArtifactOccurrence canonical contract)**：修正 §17.1 與實作之間的 drift。migration 005（現 002a）已將 `project_id` / `sensitivity_label` 移出全域 `artifacts`，但 §17.1 與 Pydantic `Artifact` 仍保留這兩個欄位。本修訂確立：**`Artifact` = global content identity**（只含 bytes 的性質）、**`ArtifactOccurrence` = project-scoped presence/classification**（identity 為 `(artifact_id, project_id)`）。§17.1 移除該二欄位並新增 **§17.1.1 ArtifactOccurrence Schema**；`ART-001` / `T-ART-001` 澄清 content identity 不含 project scope；`SEC-002` / `T-SEC-002` 增列 occurrence-scoped read gate 與 `Actor.active`。決策記錄於 **ADR-0010**。新增 conformance guard：§17 canonical schema 與 Pydantic model 及 migration 欄位漂移時 CI 必須失敗。**未新增 Requirement/Test ID**；Requirement ↔ Test 維持 **59 ↔ 59**。 |
 | **v3.3-a9** | **2026-09-14** | **Maintainer amendment (COST-001 ledger 與 approval contract)**：§17.17 的 `CostEntry` 原本無 `project_id`，也無法區分 estimate 與 actual，而 COST-001 要求成本可追溯到 project 並保留兩者。改為 `project_id` + `cost_kind（ESTIMATED | ACTUAL）` + `cost`（直接引用 §9.4 `CostVector`，避免 ledger 與 planner 對「成本由什麼組成」各自漂移）+ `approval_id?`。新增 **§17.17.1 BudgetApproval Schema**：v3.3-a6 要求超限時存在 supervisor/human approval path 且 approval 本身可歸屬，但未定義其 scope；現明確為 one action / one episode / one project / one policy_version / stated overrun / time window / single use，且**僅解除 budget，不解除 SEC-002、§7.6 critique path 或任何其他 gate**。**未新增 Requirement/Test ID**；Requirement ↔ Test 維持 **59 ↔ 59**。 |
+| **v3.3-a10** | **2026-09-14** | **Maintainer amendment (COST-001 token dimension 與 cap 語意)**：裁決 SPEC-ISSUE-009。（a）§25.3 COST-001 要求 CostLedger 至少記 **wall-clock/tokens/money/license-seat**，而 §17.17 的 `CostEntry.cost` 就是 §9.4 的 `CostVector`，該型別原本沒有 token 維度——ledger 被要求記錄一個唯一可用型別無法表達的量。**§9.4 `CostVector` 新增 `token_count`**（第九維、可設限），並因此自動流入 §17.17 `CostEntry.cost`、§17.17.1 `BudgetApproval.approved_overrun` 與 §17.19.1 budget caps。token 明確**不得**併入 `compute_units`：兩者是不同的量，合併後兩題都答不出，與 §9.4 反對 `normalized_cost` 的理由相同。（b）§17.19.1 原本未定義 cap 的缺席與零之別，導致 DDL（`NULL` = 未設限）與 `BudgetPolicy.cap_for()`（把 `0` 當未設限）對同一份 policy 得出相反結論，且錯在危險的方向——刻意凍結的預算會被讀成全部放行。新增 **§17.19.1 Cap semantics**：缺席/`NULL` = 該維度不設限，`0` = 允許量為零，model/DDL/gate 三者採同一讀法；`approved_overrun` 是額度、不受此規則影響。**未新增 Requirement/Test ID，亦未新增 normative statement**——COST-001 早已同時課予這兩項義務，本修訂使其**可被表達**與**可被唯一解讀**，而非新增義務；§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。Requirement ↔ Test 維持 **59 ↔ 59**。無架構方向變更。 |
