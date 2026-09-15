@@ -31,6 +31,7 @@ from lab_brain.core.belief import (
     quarantined_by_extractor_version,
     record_transition,
     replay,
+    verified_history,
 )
 from lab_brain.core.models import (
     BeliefState,
@@ -192,6 +193,21 @@ def _genesis(store: SqlBeliefEventStore, connection) -> None:  # type: ignore[no
     )
 
 
+def _verified(connection, events):  # type: ignore[no-untyped-def]
+    """The production read seam: stored events -> stores -> re-derived authorization -> replay.
+
+    This is what the P8 audit found missing. Every `replay` below goes through it, so the e2e path
+    exercises the same gate a production projector would rather than a shortcut only tests take.
+    """
+    return verified_history(
+        project_id=PROJECT,
+        target_id=HYP,
+        events=events,
+        decisions=SqlBeliefTransitionDecisionStore(connection),
+        policies=SqlTransitionPolicyStore(connection),
+    )
+
+
 def test_quarantine_then_replay_changes_the_projection_and_keeps_the_history(world):
     """The pass condition, end to end, read back out of PostgreSQL."""
     events = SqlBeliefEventStore(world)
@@ -206,7 +222,7 @@ def test_quarantine_then_replay_changes_the_projection_and_keeps_the_history(wor
             hypothesis_id=HYP, project_id=PROJECT, current_state=BeliefState.ACTIVE
         ),
         candidate_to_state=BeliefState.CHALLENGED,
-        prior=replay(PROJECT, HYP, events.history(PROJECT, HYP)),
+        prior=replay(PROJECT, HYP, _verified(world, events.history(PROJECT, HYP))),
         occurred_at=T0,
         trace_id=TRACE,
         triggering_attestations=(_attestation(world, "att:clean"),),
@@ -221,7 +237,7 @@ def test_quarantine_then_replay_changes_the_projection_and_keeps_the_history(wor
             hypothesis_id=HYP, project_id=PROJECT, current_state=BeliefState.CHALLENGED
         ),
         candidate_to_state=BeliefState.SUPPORTED,
-        prior=replay(PROJECT, HYP, events.history(PROJECT, HYP)),
+        prior=replay(PROJECT, HYP, _verified(world, events.history(PROJECT, HYP))),
         occurred_at=T0 + dt.timedelta(hours=1),
         trace_id=TRACE,
         triggering_attestations=(_attestation(world, "att:tainted"),),
@@ -231,7 +247,7 @@ def test_quarantine_then_replay_changes_the_projection_and_keeps_the_history(wor
     # --- the projection before anything is quarantined ---
     history = SqlBeliefEventStore(world).history(PROJECT, HYP)
     assert [event.event_id for event in history] == ["bre:0", "bre:1", "bre:2"]
-    before = replay(PROJECT, HYP, history)
+    before = replay(PROJECT, HYP, _verified(world, history))
     assert before.current_state is BeliefState.SUPPORTED
     assert before.last_event_id == "bre:2"
     assert before.skipped == ()
@@ -244,7 +260,7 @@ def test_quarantine_then_replay_changes_the_projection_and_keeps_the_history(wor
     assert quarantined == {"att:tainted"}, "selection is on (extractor, version), not version alone"
 
     # --- §6.18 step 2: replay, skipping the quarantined triggers ---
-    after = replay(PROJECT, HYP, history, quarantined_attestation_ids=quarantined)
+    after = replay(PROJECT, HYP, _verified(world, history), quarantined_attestation_ids=quarantined)
     assert after.current_state is BeliefState.CHALLENGED, (
         "the promotion to SUPPORTED rested on evidence from the contaminated extractor version"
     )
@@ -279,7 +295,7 @@ def test_the_current_state_cannot_be_repaired_by_hand(world):
                 hypothesis_id=HYP, project_id=PROJECT, current_state=BeliefState.ACTIVE
             ),
             candidate_to_state=BeliefState.CHALLENGED,
-            prior=replay(PROJECT, HYP, events.history(PROJECT, HYP)),
+            prior=replay(PROJECT, HYP, _verified(world, events.history(PROJECT, HYP))),
             occurred_at=T0,
             trace_id=TRACE,
             triggering_attestations=(_attestation(world, "att:clean"),),

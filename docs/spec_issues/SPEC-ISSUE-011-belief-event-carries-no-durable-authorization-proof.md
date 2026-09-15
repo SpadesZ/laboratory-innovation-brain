@@ -6,7 +6,8 @@ Blocks gate: M0b
 Raised: 2026-09-15
 Raised by: P7 audit (EPI-003, EPI-005)
 Affected: §17.13, §17.14.1 `Decision`, §8.2.1, §25.3 `EPI-005`, §26 `T-EPI-005`, AGT-016
-Resolved: 2026-09-15
+Resolved: 2026-09-16 (first marked resolved 2026-09-15; reopened the same day by the P8 audit
+          because the obligation was discharged on the write path only -- see the history below)
 Resolved by: `v3.3-a12` (maintainer ruling: Option 1 + Option 2, plus re-derivable input)
 
 ## The gap
@@ -168,3 +169,69 @@ because core must not import a DomainPack (§24.2) and the spec forbids storing 
 is a deployment property, not a gap in the record: the comparator is named by identity and version,
 so its absence is detectable and `rederive_decision` refuses rather than guessing. An
 authorization computed with no comparator re-derives from the record alone.
+
+
+---
+
+## Reopened, then closed again (P8 audit, 2026-09-16)
+
+The P8 audit returned **CONDITIONAL FAIL** with one P0, and it was correct. `v3.3-a12` was
+implemented on the **write** path only.
+
+**What was missing.** `record_transition` re-derived the authorization before minting an event, but
+`replay` accepted a bare `BeliefRevisionEvent`. So a Decision could be *semantically* forged while
+remaining perfectly well-formed — canonical six-input snapshot, correct `input_hash`, correct
+project/subject/policy/from→to, `result` recorded as ALLOW — with a snapshot that, actually
+evaluated, returns DENY or a NEED_* outcome. `005d` accepts that row, and **correctly so**:
+deciding otherwise would require running `TransitionPolicy.evaluate` inside PostgreSQL, which
+would mean a second copy of the evaluator and §8.2.1 ceasing to be the single source of semantic
+truth. The limit is real; the conclusion drawn from it was wrong.
+
+**This issue did not need another amendment.** §17.14.1 already said it:
+
+> If it does not [re-derive], or if the inputs cannot be reconstructed, the authorization MUST be
+> treated as absent — the event MUST NOT be created and a stored event MUST NOT be accepted as
+> authorized.
+
+"MUST NOT be created" is the write path. "MUST NOT be accepted as authorized" is the read path,
+and only the first was built. The specification was not deficient, so no spec text changed in this
+round.
+
+**The fix: a production read-side verification seam.**
+
+    stored event -> DecisionStore -> exact TransitionPolicyStore -> AuthorityPolicy resolver
+    -> rederive_decision -> VerifiedBeliefRevision -> replay/projector
+
+`replay` now takes `VerifiedBeliefRevision` and nothing else, so a DB-loaded event cannot reach a
+scientific projection. The pure fold is unchanged and still directly testable; what changed is
+that obtaining the capability requires passing the gate. Making the hole unrepresentable rather
+than discouraged is the whole point — "the caller should verify" is the version of the rule that
+P8 shipped.
+
+Fail-closed, each with its own `VerificationFailure` reason so tests assert on state rather than
+on prose: authorization missing; authorization not found; snapshot not hydratable; wrong decision
+type; not an ALLOW; linkage mismatch (project, subject, policy id, policy version, from_state,
+to_state — parametrized one at a time); policy version not registered; named comparator
+unresolvable; not re-derivable. A named-but-unavailable comparator is a **refusal**, never a
+fallback to `None`: re-deriving without the comparator that was used answers a different question
+and the answer would read as a confirmation. Stored comparison results are never consulted,
+because §17.14.1 forbids storing them (§10.5.1).
+
+`verified_history` refuses a history containing one unverifiable revision rather than filtering it
+out. A history minus a revision is a different history, and returning a projection built from the
+rest would hide that something wrote a belief nobody authorised.
+
+**The adversarial test the audit specified**, in
+`tests/e2e/test_belief_authorization_verification_postgres.py`: forge the Decision by raw SQL,
+assert the database accepts it *and that this is expected*, append the event through
+`belief_revision_event_append`, reload through the real stores, run the real projector, and assert
+`NOT_REDERIVABLE` with the projection unmoved. The "database accepts it" assertion is deliberate —
+without it, a future schema change that started refusing the row would make the read-gate test
+pass for a reason unrelated to the read gate.
+
+**What the mutation run found.** The first pass over eight read-gate guards left five of them
+green: the ALLOW check, the linkage check, the missing-authorization check, the genesis check and
+the capability sentinel. All five are also enforced by `005d` or by the Pydantic model, which is
+why no e2e case could reach them — and is exactly why they still need testing, since `model_copy`
+skips validators in process and a support script writes SQL. A contract module now covers each
+against in-memory stores; all eight mutations go red.

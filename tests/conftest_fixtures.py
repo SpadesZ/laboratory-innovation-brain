@@ -188,6 +188,7 @@ __all__ = [
     "TOY_SCHEMA",
     "TOY_SCHEMA_REF",
     "TOY_SCHEMA_V2",
+    "forged_verification",
     "make_artifact",
     "make_attestation",
     "make_claim",
@@ -197,3 +198,21 @@ __all__ = [
     "make_source_work",
     "registry_with_toy_schema",
 ]
+
+
+def forged_verification(event: Any) -> Any:
+    """Mint a `VerifiedBeliefRevision` without verifying anything.
+
+    FOR REDUCER TESTS ONLY. `replay` is a pure fold and its own tests are about ordering,
+    quarantine skipping and cascade behaviour -- none of which involve authorization. Making those
+    tests stand up a decision store and a policy store would test the seam a dozen more times and
+    the fold less clearly.
+
+    Anything testing *verification* must go through `verify_stored_revision`. Importing the private
+    sentinel is the same deliberate, diff-visible bypass `forged_authorization` is, and for the
+    same reason: the capability is not a security boundary, it is a way to make skipping the gate
+    impossible to do by accident.
+    """
+    from lab_brain.core.belief import _MINTED_HERE, VerifiedBeliefRevision
+
+    return VerifiedBeliefRevision(event=event, origin="TRANSITION", _proof=_MINTED_HERE)

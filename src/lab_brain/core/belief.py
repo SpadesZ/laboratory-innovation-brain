@@ -1,6 +1,8 @@
-"""Creating a belief revision, and replaying them back (EPI-003, EPI-005, §6.18, §8.2.1).
+"""Creating a belief revision, verifying a stored one, and replaying them back.
 
-THREE FUNCTIONS. TWO ARE GATES AND THE THIRD IS THE REPLAY.
+EPI-003, EPI-005, §6.18, §8.2.1, §17.14.1.
+
+TWO WRITE GATES, ONE READ GATE, AND THE REPLAY.
 
 :func:`record_transition` (a §8.2.1 transition) and :func:`admit_hypothesis` (§8's admission) are
 the only ways to obtain an :class:`AuthorizedRevision`, and the event store accepts nothing else.
@@ -36,6 +38,16 @@ So every refusal below is a way an event could claim an authorisation it does no
                             reason `v3.3-a11` added `project_id`: before it, this was not a
                             question the record could even express
 
+:func:`verify_stored_revision` is the read gate, and it exists because the write gate alone was
+not enough. `record_transition` re-derives an authorization before minting an event, but a row
+written by raw SQL never passes through it, and PostgreSQL cannot re-derive one -- doing so would
+mean a second copy of `TransitionPolicy.evaluate` living in SQL, and §8.2.1 is the single source of
+semantic truth. So a Decision can be *semantically* forged while remaining perfectly well-formed:
+correct `input_hash`, correct project/subject/policy/from→to, `result` recorded as ALLOW, and a
+snapshot that really evaluates to DENY. §17.14.1 is explicit that such an event MUST NOT be
+accepted as authorized, which is a statement about reading, not writing. :func:`replay` therefore
+takes :class:`VerifiedBeliefRevision` and nothing else.
+
 :func:`replay` is the other half of EPI-003 -- and §6.18's contamination rollback is the reason it
 exists, not a feature on top of it:
 
@@ -57,7 +69,8 @@ import datetime as dt
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     # Annotation-only. `lab_brain.core.authority` imports `models.enums`, which executes
@@ -65,6 +78,8 @@ if TYPE_CHECKING:
     # runtime import here would enter that cycle from a third side and break collection. The
     # cycle predates this module; importing the Protocol lazily avoids widening it.
     from lab_brain.core.authority import AuthorityPolicy
+
+from pydantic import ValidationError
 
 from lab_brain.core.canonical_json import canonicalize
 from lab_brain.core.models.attestation import Attestation
@@ -179,13 +194,274 @@ class BeliefProjection:
         return self.current_state is None
 
 
-def replay(
+class VerificationFailure(StrEnum):
+    """Why a stored revision could not be accepted as authorized (§17.14.1, `v3.3-a12`).
+
+    An enum rather than a message, because the message is documentation and this is the assertion
+    surface. A test that matched on wording would pass while the code failed closed for the wrong
+    reason -- and "fails closed for the wrong reason" is how a guard rots into a coincidence.
+    """
+
+    AUTHORIZATION_MISSING = "AUTHORIZATION_MISSING"
+    AUTHORIZATION_NOT_FOUND = "AUTHORIZATION_NOT_FOUND"
+    SNAPSHOT_NOT_HYDRATABLE = "SNAPSHOT_NOT_HYDRATABLE"
+    WRONG_DECISION_TYPE = "WRONG_DECISION_TYPE"
+    NOT_AN_ALLOW = "NOT_AN_ALLOW"
+    LINKAGE_MISMATCH = "LINKAGE_MISMATCH"
+    POLICY_NOT_FOUND = "POLICY_NOT_FOUND"
+    COMPARATOR_UNRESOLVED = "COMPARATOR_UNRESOLVED"
+    NOT_REDERIVABLE = "NOT_REDERIVABLE"
+    GENESIS_CLAIMS_AUTHORIZATION = "GENESIS_CLAIMS_AUTHORIZATION"
+
+
+class UnverifiedBeliefRevision(RuntimeError):
+    """A stored event could not be shown to have been authorized, so it changes nothing.
+
+    Carries a :class:`VerificationFailure` so callers and tests can branch on *what* failed
+    without parsing prose.
+    """
+
+    def __init__(self, reason: VerificationFailure, detail: str) -> None:
+        super().__init__(f"{reason.value}: {detail}")
+        self.reason = reason
+
+
+@dataclass(frozen=True)
+class VerifiedBeliefRevision:
+    """A stored revision whose authorization has been re-derived (§17.14.1 (d)).
+
+    The read-side twin of :class:`AuthorizedRevision`, and deliberately the same shape: it cannot
+    be constructed without a module-private sentinel, so the only way to obtain one is
+    :func:`verify_stored_revision`. `replay` accepts nothing else.
+
+    WHY A SEPARATE TYPE RATHER THAN A BOOLEAN. P8 closed the write path and left the read path
+    open: `record_transition` re-derived before minting, but `replay` took a bare
+    `BeliefRevisionEvent`, so an event written by raw SQL went into the projection unchecked.
+    PostgreSQL cannot run `TransitionPolicy.evaluate` -- that limit is real and the policy
+    evaluator must not be duplicated in SQL (§8.2.1 is the single source of semantic truth) -- so
+    a semantically forged Decision with a correct hash and correct linkage is accepted by the
+    database and must be refused here. Making the reducer take this type instead of an event is
+    what turns "remember to verify" into "cannot forget".
+    """
+
+    event: BeliefRevisionEvent
+    origin: str
+    _proof: object = None
+
+    def __post_init__(self) -> None:
+        if self._proof is not _MINTED_HERE:
+            raise UnverifiedBeliefRevision(
+                VerificationFailure.AUTHORIZATION_MISSING,
+                "VerifiedBeliefRevision cannot be constructed directly. Obtain one from "
+                "verify_stored_revision(), which re-derives the authorization the event cites; "
+                "constructing it by hand asserts the very thing it exists to prove",
+            )
+
+
+@runtime_checkable
+class DecisionLookup(Protocol):
+    """Just enough of the decision store for verification, structurally.
+
+    Declared here rather than imported so this module does not depend on the repository layer --
+    `lab_brain.core.repositories` already imports this one, and the seam should not require the
+    cycle to be resolved in order to be testable.
+    """
+
+    def get(self, decision_id: str) -> BeliefTransitionDecision | None: ...
+
+
+@runtime_checkable
+class PolicyLookup(Protocol):
+    """The *exact* policy version, which is the only one §8.2.1's determinism speaks about."""
+
+    def get(self, policy_id: str, version: str) -> TransitionPolicy | None: ...
+
+
+def verify_stored_revision(
+    *,
+    event: BeliefRevisionEvent,
+    decisions: DecisionLookup,
+    policies: PolicyLookup,
+    authority_policies: Mapping[tuple[str, str], AuthorityPolicy] = MappingProxyType({}),
+) -> VerifiedBeliefRevision:
+    """Re-derive a stored event's authorization, or refuse to let it change a belief.
+
+    This is the production read-side gate §17.14.1 (d) requires:
+
+        stored event -> Decision -> exact TransitionPolicy version -> AuthorityPolicy resolver
+        -> rederive_decision -> VerifiedBeliefRevision -> replay
+
+    Every failure below is fail-closed and none of them guesses. In particular a named comparator
+    that cannot be resolved is a refusal, not a fallback to ``None``: evaluating without the
+    comparator that was used answers a different question, and the answer would read as a
+    confirmation. The stored comparison results are never consulted, because §17.14.1 forbids
+    storing them at all -- they would put the authority rules beyond falsification (§10.5.1).
+
+    Genesis is verified too, just against a different rule: admission is §8's separate gate, so a
+    genesis event must carry *no* transition authorization. Letting it carry one is how a dropped
+    predecessor becomes a beginning.
+    """
+    if event.from_state is None:
+        if event.authorization_decision_id is not None:
+            raise UnverifiedBeliefRevision(
+                VerificationFailure.GENESIS_CLAIMS_AUTHORIZATION,
+                f"genesis event {event.event_id} cites authorization "
+                f"{event.authorization_decision_id}, but a BELIEF_TRANSITION Decision authorises "
+                "a transition and admission is not one (§8)",
+            )
+        return VerifiedBeliefRevision(event=event, origin="ADMISSION", _proof=_MINTED_HERE)
+
+    if event.authorization_decision_id is None:
+        raise UnverifiedBeliefRevision(
+            VerificationFailure.AUTHORIZATION_MISSING,
+            f"event {event.event_id} records {event.from_state.value} -> "
+            f"{event.to_state.value} and cites no authorization. `v3.3-a12` requires one for "
+            "every non-genesis event; a policy reference says which policy would have authorised "
+            "this, not that any evaluation did",
+        )
+
+    try:
+        authorization = decisions.get(event.authorization_decision_id)
+    except (ValidationError, ValueError) as exc:
+        # A stored row that no longer satisfies the Decision model -- a snapshot that cannot be
+        # hydrated is indistinguishable from no authorization at all, and must be treated as such
+        # rather than as a transient read error.
+        raise UnverifiedBeliefRevision(
+            VerificationFailure.SNAPSHOT_NOT_HYDRATABLE,
+            f"authorization {event.authorization_decision_id} for event {event.event_id} could "
+            f"not be reconstructed: {exc}",
+        ) from exc
+
+    if authorization is None:
+        raise UnverifiedBeliefRevision(
+            VerificationFailure.AUTHORIZATION_NOT_FOUND,
+            f"event {event.event_id} cites authorization {event.authorization_decision_id}, "
+            "which does not exist",
+        )
+
+    if authorization.decision_type is not DecisionType.BELIEF_TRANSITION:
+        # `!r` rather than `.value`: a Decision that reached this point without going through the
+        # model validator -- `model_copy(update=...)` skips it -- can carry a bare string here,
+        # and a verification gate that raised `AttributeError` while reporting a refusal would
+        # turn a fail-closed path into a crash. Found by the test for this branch.
+        raise UnverifiedBeliefRevision(
+            VerificationFailure.WRONG_DECISION_TYPE,
+            f"{authorization.decision_id} is a {authorization.decision_type!r} decision; "
+            "only a BELIEF_TRANSITION decision authorises a belief transition (§17.14.1)",
+        )
+
+    if not authorization.authorizes_transition:
+        raise UnverifiedBeliefRevision(
+            VerificationFailure.NOT_AN_ALLOW,
+            f"authorization {authorization.decision_id} records {authorization.result.value}; "
+            "only ALLOW authorises, and the other three outcomes record a refusal",
+        )
+
+    stored = (
+        authorization.project_id,
+        authorization.subject_id,
+        authorization.policy_id,
+        authorization.policy_version,
+        authorization.from_state,
+        authorization.to_state,
+    )
+    recorded = (
+        event.project_id,
+        event.target_id,
+        event.policy_id,
+        event.policy_version,
+        event.from_state,
+        event.to_state,
+    )
+    if stored != recorded:
+        raise UnverifiedBeliefRevision(
+            VerificationFailure.LINKAGE_MISMATCH,
+            f"authorization {authorization.decision_id} covers {stored} but event "
+            f"{event.event_id} records {recorded}; an ALLOW is for one subject in one project "
+            "under one policy version and does not transfer",
+        )
+
+    policy = policies.get(authorization.policy_id, authorization.policy_version)
+    if policy is None:
+        raise UnverifiedBeliefRevision(
+            VerificationFailure.POLICY_NOT_FOUND,
+            f"authorization {authorization.decision_id} was computed under "
+            f"{authorization.policy_id}@{authorization.policy_version}, which is not registered. "
+            "An authorization that cannot be re-run is the thing `v3.3-a12` forbids",
+        )
+
+    snapshot = authorization.decision_input_snapshot
+    comparator: AuthorityPolicy | None = None
+    if snapshot.authority_policy_id is not None:
+        key = (snapshot.authority_policy_id, snapshot.authority_policy_version or "")
+        comparator = authority_policies.get(key)
+        if comparator is None:
+            raise UnverifiedBeliefRevision(
+                VerificationFailure.COMPARATOR_UNRESOLVED,
+                f"authorization {authorization.decision_id} was computed with authority "
+                f"comparator {key[0]}@{key[1]}, which is not available. Core cannot reconstruct a "
+                "DomainPack comparator (§24.2) and §17.14.1 forbids storing its results, so this "
+                "refuses rather than re-deriving under a different one",
+            )
+
+    try:
+        rederive_decision(
+            authorization=authorization,
+            policy=policy,
+            authority_policy=comparator,
+        )
+    except AuthorizationNotRederivable as exc:
+        # The case the database cannot reach: a hash-correct, linkage-correct, ALLOW-labelled
+        # Decision whose own snapshot evaluates to DENY or a NEED_* outcome.
+        raise UnverifiedBeliefRevision(
+            VerificationFailure.NOT_REDERIVABLE,
+            f"event {event.event_id} cites {authorization.decision_id}, which does not "
+            f"re-derive: {exc}",
+        ) from exc
+
+    return VerifiedBeliefRevision(event=event, origin="TRANSITION", _proof=_MINTED_HERE)
+
+
+def verified_history(
+    *,
     project_id: str,
     target_id: str,
     events: Sequence[BeliefRevisionEvent],
+    decisions: DecisionLookup,
+    policies: PolicyLookup,
+    authority_policies: Mapping[tuple[str, str], AuthorityPolicy] = MappingProxyType({}),
+) -> tuple[VerifiedBeliefRevision, ...]:
+    """Verify a whole stored history, in order, refusing the first revision that cannot be.
+
+    Refuses rather than filters, for the same reason `replay` refuses mixed-project input: a
+    history containing one unverifiable revision is not a history minus that revision. Dropping it
+    would return a plausible projection and hide that something wrote a belief nobody authorised.
+    """
+    return tuple(
+        verify_stored_revision(
+            event=event,
+            decisions=decisions,
+            policies=policies,
+            authority_policies=authority_policies,
+        )
+        for event in sorted(events, key=lambda e: (e.occurred_at, e.event_id))
+    )
+
+
+def replay(
+    project_id: str,
+    target_id: str,
+    revisions: Sequence[VerifiedBeliefRevision],
     quarantined_attestation_ids: Iterable[str] = (),
 ) -> BeliefProjection:
-    """Fold one project's events for one target into its current state (§6.18).
+    """Fold one project's *verified* revisions for one target into its current state (§6.18).
+
+    TAKES `VerifiedBeliefRevision`, NOT `BeliefRevisionEvent`, AND THAT IS THE POINT. P8 left this
+    function accepting bare events, so a row written by raw SQL reached the projection without its
+    authorization ever being re-derived -- and PostgreSQL cannot re-derive it, because that would
+    mean a second copy of `TransitionPolicy.evaluate` living in SQL. Requiring the capability here
+    moves the obligation from "the caller should verify" to "the caller cannot skip it", which is
+    the only version of the rule that survives a support script.
 
     SCOPED ON ``(project_id, target_id)``, not on the target alone. `v3.3-a11` added `project_id`
     so that "this project's belief history" is expressible, and a replay keyed only on `target_id`
@@ -212,6 +488,7 @@ def replay(
     the running state is dropped too: its precondition was the state the dropped event produced. Not
     cascading would apply a transition from a state the replay never reached.
     """
+    events = [revision.event for revision in revisions]
     foreign = sorted({event.project_id for event in events if event.project_id != project_id})
     if foreign:
         raise BeliefScopeError(
