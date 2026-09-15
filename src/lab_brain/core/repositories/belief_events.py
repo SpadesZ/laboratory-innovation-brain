@@ -24,6 +24,7 @@ import threading
 from collections.abc import Iterable, Sequence
 from typing import Protocol, runtime_checkable
 
+from lab_brain.core.belief import AuthorizedRevision
 from lab_brain.core.models.belief_event import BeliefRevisionEvent
 from lab_brain.core.models.transition import TransitionPolicy
 from lab_brain.core.repositories.budget import SqlConnection, require_durable_connection
@@ -38,14 +39,25 @@ class BeliefEventError(RepositoryError):
 class BeliefEventStore(Protocol):
     """§17.13. Deliberately append-and-read: see the module docstring."""
 
-    def append(self, event: BeliefRevisionEvent) -> BeliefRevisionEvent:
-        """Record one event with its trigger references, atomically. Never overwrites."""
+    def append(self, authorized: AuthorizedRevision) -> BeliefRevisionEvent:
+        """Record one authorised event with its trigger references, atomically.
+
+        Takes an :class:`AuthorizedRevision`, never a bare event. A hand-constructed
+        `BeliefRevisionEvent` is indistinguishable from the output of `record_transition`, so a
+        store that accepted one could not tell an authorised revision from an unevaluated one --
+        the P7 audit's first finding. The capability is in-process only; the durable half is
+        SPEC-ISSUE-011 and risk R-13.
+        """
         ...
 
     def get(self, event_id: str) -> BeliefRevisionEvent | None: ...
 
-    def history(self, target_id: str) -> tuple[BeliefRevisionEvent, ...]:
-        """Every event for one target, in replay order.
+    def history(self, project_id: str, target_id: str) -> tuple[BeliefRevisionEvent, ...]:
+        """Every event for one target **in one project**, in replay order.
+
+        Scoped on the pair, not on the target alone: two projects may legitimately use the same
+        hypothesis id, and a history keyed only on `target_id` would fold both together. That is
+        what `v3.3-a11`'s `project_id` is for.
 
         Ordered by ``occurred_at`` then ``event_id`` so the order is total: two events recorded in
         the same microsecond must still replay identically on every run, or the projection they
@@ -72,7 +84,8 @@ class InMemoryBeliefEventStore:
         self._attestations = set(known_attestation_ids)
         self._relations = set(known_relation_ids)
 
-    def append(self, event: BeliefRevisionEvent) -> BeliefRevisionEvent:
+    def append(self, authorized: AuthorizedRevision) -> BeliefRevisionEvent:
+        event = authorized.event
         unresolved = [
             ref for ref in event.triggering_attestation_ids if ref not in self._attestations
         ] + [ref for ref in event.triggering_relation_ids if ref not in self._relations]
@@ -94,10 +107,14 @@ class InMemoryBeliefEventStore:
     def get(self, event_id: str) -> BeliefRevisionEvent | None:
         return self._by_id.get(event_id)
 
-    def history(self, target_id: str) -> tuple[BeliefRevisionEvent, ...]:
+    def history(self, project_id: str, target_id: str) -> tuple[BeliefRevisionEvent, ...]:
         return tuple(
             sorted(
-                (e for e in self._by_id.values() if e.target_id == target_id),
+                (
+                    e
+                    for e in self._by_id.values()
+                    if e.project_id == project_id and e.target_id == target_id
+                ),
                 key=lambda e: (e.occurred_at, e.event_id),
             )
         )
@@ -131,8 +148,9 @@ class SqlBeliefEventStore:
         require_durable_connection(connection)
         self._connection = connection
 
-    def append(self, event: BeliefRevisionEvent) -> BeliefRevisionEvent:
+    def append(self, authorized: AuthorizedRevision) -> BeliefRevisionEvent:
         require_durable_connection(self._connection)
+        event = authorized.event
         # One statement for the event and both reference sets. See the module docstring.
         self._connection.execute(
             "SELECT belief_revision_event_append("
@@ -163,11 +181,15 @@ class SqlBeliefEventStore:
         ).fetchone()
         return None if row is None else self._hydrate(row)
 
-    def history(self, target_id: str) -> tuple[BeliefRevisionEvent, ...]:
+    def history(self, project_id: str, target_id: str) -> tuple[BeliefRevisionEvent, ...]:
+        # Both columns in the WHERE, not one plus a Python filter: the index is on
+        # (target_id, occurred_at, event_id) and the scope is the pair, so a query that fetched
+        # every project's history and narrowed it afterwards would read rows the caller has no
+        # business seeing (SEC-002) on the way to the right answer.
         rows = self._connection.execute(
-            f"SELECT {_COLUMNS} FROM belief_revision_events WHERE target_id = %s"
-            " ORDER BY occurred_at, event_id",
-            (target_id,),
+            f"SELECT {_COLUMNS} FROM belief_revision_events"
+            " WHERE project_id = %s AND target_id = %s ORDER BY occurred_at, event_id",
+            (project_id, target_id),
         ).fetchall()
         return tuple(self._hydrate(row) for row in rows)
 
@@ -230,8 +252,8 @@ class SqlTransitionPolicyStore:
             " policy_id, version, domain, from_state, candidate_to_state,"
             " required_relation_types, required_authority_rule, required_condition_match,"
             " min_independent_attestations, independence_basis, blocking_conflict_policy,"
-            " human_gate, effective_from, supersedes"
-            ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            " human_gate, is_admission, effective_from, supersedes"
+            ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
             (
                 policy.policy_id,
                 policy.version,
@@ -245,6 +267,7 @@ class SqlTransitionPolicyStore:
                 None if policy.independence_basis is None else policy.independence_basis.value,
                 list(policy.blocking_conflict_policy),
                 policy.human_gate,
+                policy.is_admission,
                 policy.effective_from,
                 policy.supersedes,
             ),
@@ -256,7 +279,7 @@ class SqlTransitionPolicyStore:
             "SELECT policy_id, version, domain, from_state, candidate_to_state,"
             " required_relation_types, required_authority_rule, required_condition_match,"
             " min_independent_attestations, independence_basis, blocking_conflict_policy,"
-            " human_gate, effective_from, supersedes"
+            " human_gate, is_admission, effective_from, supersedes"
             " FROM transition_policies WHERE policy_id = %s AND version = %s",
             (policy_id, version),
         ).fetchone()
@@ -281,8 +304,9 @@ class SqlTransitionPolicyStore:
                 "independence_basis": row[9],
                 "blocking_conflict_policy": array(row[10]),
                 "human_gate": row[11],
-                "effective_from": row[12],
-                "supersedes": row[13],
+                "is_admission": row[12],
+                "effective_from": row[13],
+                "supersedes": row[14],
             }
         )
 

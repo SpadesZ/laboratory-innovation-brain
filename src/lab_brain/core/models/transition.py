@@ -230,6 +230,16 @@ class TransitionPolicy(CoreModel):
     #: account; see `HypothesisView.blocking_conflict_ids` for what is and is not implemented.
     blocking_conflict_policy: tuple[str, ...] = ()
     human_gate: bool = False
+    #: TRUE for a §8 Hypothesis-Admission policy, which backs only a target's *first* event.
+    #:
+    #: Not a §8.2.1 field. It exists because §17.13 makes `from_state?` optional for a target's
+    #: first record while every transition policy declares a `from_state` -- so without the
+    #: distinction, a genesis event could cite any policy and nothing could tell an admission from
+    #: a transition that had quietly dropped its predecessor. `admit_hypothesis` requires it,
+    #: `evaluate`-driven `record_transition` refuses it, and migration 005c enforces the pairing in
+    #: the database. Recorded here rather than inferred per event so it is registered once and
+    #: reviewable.
+    is_admission: bool = False
     effective_from: dt.datetime | None = None
     supersedes: str | None = None
 

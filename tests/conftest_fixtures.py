@@ -77,6 +77,27 @@ def registry_with_toy_schema() -> ConditionSchemaRegistry:
     return registry
 
 
+def forged_authorization(event: Any) -> Any:
+    """Wrap a raw event as authorised, for tests of the **store and schema** rather than the gate.
+
+    `SqlBeliefEventStore.append` accepts only an `AuthorizedRevision`, which only
+    `record_transition` and `admit_hypothesis` can mint (P7-fix). Tests that exercise the table's
+    constraints, the append-only triggers or the history query are not testing the gate and should
+    not have to construct a policy decision to reach the store.
+
+    So this forges the capability, deliberately and in one obvious place. It imports the private
+    sentinel -- which is exactly the "has to be written on purpose and shows up in a diff" property
+    the capability was designed for. `test_belief_transition.py` asserts that the same thing is
+    impossible *without* that import.
+
+    Anything testing *authorisation* must go through the real gates. If a new test reaches for this
+    helper to get past a refusal, that refusal is the thing under test.
+    """
+    from lab_brain.core.belief import _MINTED_HERE, AuthorizedRevision
+
+    return AuthorizedRevision(event=event, origin="TEST_FORGED", _proof=_MINTED_HERE)
+
+
 def make_artifact(data: bytes = b"payload", **overrides: Any) -> Artifact:
     fields: dict[str, Any] = {
         "media_type": "application/octet-stream",

@@ -26,14 +26,13 @@ import pytest
 
 from lab_brain.core.belief import (
     SkipReason,
+    admit_hypothesis,
     quarantined_by_extractor_version,
     record_transition,
     replay,
 )
 from lab_brain.core.models import (
-    BeliefRevisionEvent,
     BeliefState,
-    BeliefTargetType,
     HypothesisView,
     RelationType,
     TransitionDecision,
@@ -55,16 +54,18 @@ PROJECT = "prj:test"
 HYP = "hyp:rs-contact-resistance"
 TRACE = "trc:episode-rs"
 
-#: The policy the genesis event cites. Registered so the event's foreign key resolves, but no
-#: transition is evaluated against it here: a hypothesis with no events has no state to transition
-#: *from*, so §8's Hypothesis Admission Gate assigns the first one -- and that gate is `EPI-001` in
-#: M3. The genesis event below is therefore appended directly, with that stated, rather than
-#: pretending the transition gate produced it.
+#: §8's Hypothesis Admission policy: it backs a target's *first* event and nothing else.
+#:
+#: `is_admission=True` is what makes admission a separate path rather than a hole in the transition
+#: gate -- `admit_hypothesis` requires it, `record_transition` refuses it, and migration 005c
+#: enforces the pairing in the database. The full §8 certificate (mechanism, prediction, falsifier)
+#: is `EPI-001` in M3; this records only the resulting state change.
 GENESIS = TransitionPolicy(
     policy_id="pol:admission",
     version="1.0.0",
     from_state=BeliefState.DRAFT,
     candidate_to_state=BeliefState.ACTIVE,
+    is_admission=True,
 )
 ADMIT = TransitionPolicy(
     policy_id="pol:challenge",
@@ -141,27 +142,23 @@ def world(db):  # type: ignore[no-untyped-def]
     return db
 
 
-def _genesis(store: SqlBeliefEventStore) -> None:
-    """Seed the hypothesis's first state (§8's admission gate, `EPI-001` in M3).
+def _genesis(store: SqlBeliefEventStore, connection) -> None:  # type: ignore[no-untyped-def]
+    """Seed the hypothesis's first state through §8's admission gate.
 
-    Appended directly rather than through `record_transition`, because that function correctly
-    refuses it: a hypothesis with no events has no state, and a `TransitionPolicy` always declares
-    a `from_state`, so a policy-authorised transition always has a predecessor. Stating that here
-    rather than relaxing the gate to make a test pass.
+    Goes through `admit_hypothesis`, not around the store: before P7-fix this had to be appended
+    raw, because `record_transition` correctly refuses a target's first event and there was no
+    other gate. That raw append was the audit's first finding.
     """
     store.append(
-        BeliefRevisionEvent(
+        admit_hypothesis(
             event_id="bre:0",
+            policy=GENESIS,
             project_id=PROJECT,
-            target_type=BeliefTargetType.HYPOTHESIS,
-            target_id=HYP,
-            from_state=None,
-            to_state=BeliefState.ACTIVE,
-            triggering_attestation_ids=("att:clean",),
-            policy_id=GENESIS.policy_id,
-            policy_version=GENESIS.version,
+            hypothesis_id=HYP,
+            prior=replay(PROJECT, HYP, ()),
             occurred_at=T0 - dt.timedelta(hours=1),
             trace_id=TRACE,
+            triggering_attestations=(_attestation(connection, "att:clean"),),
         )
     )
 
@@ -169,7 +166,7 @@ def _genesis(store: SqlBeliefEventStore) -> None:
 def test_quarantine_then_replay_changes_the_projection_and_keeps_the_history(world):
     """The pass condition, end to end, read back out of PostgreSQL."""
     events = SqlBeliefEventStore(world)
-    _genesis(events)
+    _genesis(events, world)
 
     # --- two policy-authorised revisions, appended through the gate ---
     first = record_transition(
@@ -180,7 +177,7 @@ def test_quarantine_then_replay_changes_the_projection_and_keeps_the_history(wor
             hypothesis_id=HYP, project_id=PROJECT, current_state=BeliefState.ACTIVE
         ),
         candidate_to_state=BeliefState.CHALLENGED,
-        prior=replay(HYP, events.history(HYP)),
+        prior=replay(PROJECT, HYP, events.history(PROJECT, HYP)),
         occurred_at=T0,
         trace_id=TRACE,
         triggering_attestations=(_attestation(world, "att:clean"),),
@@ -195,7 +192,7 @@ def test_quarantine_then_replay_changes_the_projection_and_keeps_the_history(wor
             hypothesis_id=HYP, project_id=PROJECT, current_state=BeliefState.CHALLENGED
         ),
         candidate_to_state=BeliefState.SUPPORTED,
-        prior=replay(HYP, events.history(HYP)),
+        prior=replay(PROJECT, HYP, events.history(PROJECT, HYP)),
         occurred_at=T0 + dt.timedelta(hours=1),
         trace_id=TRACE,
         triggering_attestations=(_attestation(world, "att:tainted"),),
@@ -203,9 +200,9 @@ def test_quarantine_then_replay_changes_the_projection_and_keeps_the_history(wor
     events.append(second)
 
     # --- the projection before anything is quarantined ---
-    history = SqlBeliefEventStore(world).history(HYP)
+    history = SqlBeliefEventStore(world).history(PROJECT, HYP)
     assert [event.event_id for event in history] == ["bre:0", "bre:1", "bre:2"]
-    before = replay(HYP, history)
+    before = replay(PROJECT, HYP, history)
     assert before.current_state is BeliefState.SUPPORTED
     assert before.last_event_id == "bre:2"
     assert before.skipped == ()
@@ -218,7 +215,7 @@ def test_quarantine_then_replay_changes_the_projection_and_keeps_the_history(wor
     assert quarantined == {"att:tainted"}, "selection is on (extractor, version), not version alone"
 
     # --- §6.18 step 2: replay, skipping the quarantined triggers ---
-    after = replay(HYP, history, quarantined_attestation_ids=quarantined)
+    after = replay(PROJECT, HYP, history, quarantined_attestation_ids=quarantined)
     assert after.current_state is BeliefState.CHALLENGED, (
         "the promotion to SUPPORTED rested on evidence from the contaminated extractor version"
     )
@@ -226,7 +223,7 @@ def test_quarantine_then_replay_changes_the_projection_and_keeps_the_history(wor
     assert after.skipped == (("bre:2", SkipReason.QUARANTINED_TRIGGER),)
 
     # --- and the history is untouched. This is what makes it a rollback, not a hand edit ---
-    unchanged = SqlBeliefEventStore(world).history(HYP)
+    unchanged = SqlBeliefEventStore(world).history(PROJECT, HYP)
     assert [event.event_id for event in unchanged] == ["bre:0", "bre:1", "bre:2"]
     assert unchanged == history, "replay must not have rewritten a single event"
     rows = world.execute(
@@ -243,7 +240,7 @@ def test_the_current_state_cannot_be_repaired_by_hand(world):
     the state would let the second half be true and the rule still be broken.
     """
     events = SqlBeliefEventStore(world)
-    _genesis(events)
+    _genesis(events, world)
     events.append(
         record_transition(
             event_id="bre:1",
@@ -253,7 +250,7 @@ def test_the_current_state_cannot_be_repaired_by_hand(world):
                 hypothesis_id=HYP, project_id=PROJECT, current_state=BeliefState.ACTIVE
             ),
             candidate_to_state=BeliefState.CHALLENGED,
-            prior=replay(HYP, events.history(HYP)),
+            prior=replay(PROJECT, HYP, events.history(PROJECT, HYP)),
             occurred_at=T0,
             trace_id=TRACE,
             triggering_attestations=(_attestation(world, "att:clean"),),

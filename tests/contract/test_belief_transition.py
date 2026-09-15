@@ -20,7 +20,9 @@ import pytest
 
 from lab_brain.core.belief import (
     BeliefProjection,
+    BeliefScopeError,
     BeliefTransitionRefused,
+    admit_hypothesis,
     record_transition,
 )
 from lab_brain.core.models import (
@@ -54,6 +56,7 @@ def allow(**overrides: object) -> TransitionDecision:
 
 def prior(state: BeliefState | None = BeliefState.ACTIVE, **overrides: object) -> BeliefProjection:
     defaults: dict[str, object] = {
+        "project_id": PROJECT,
         "target_id": HYP,
         "current_state": state,
         "last_event_id": None if state is None else "bre:0",
@@ -63,6 +66,11 @@ def prior(state: BeliefState | None = BeliefState.ACTIVE, **overrides: object) -
 
 
 def create(**overrides: object) -> BeliefRevisionEvent:
+    """The event `record_transition` authorises, unwrapped from its capability.
+
+    Unwrapping here keeps the assertions about the *event*. The capability itself is the subject of
+    `test_the_authorization_capability_cannot_be_forged_by_accident` and of the store tests.
+    """
     defaults: dict[str, object] = {
         "event_id": "bre:1",
         "decision": allow(),
@@ -75,7 +83,7 @@ def create(**overrides: object) -> BeliefRevisionEvent:
         "triggering_relations": (relation(),),
     }
     defaults.update(overrides)
-    return record_transition(**defaults)  # type: ignore[arg-type]
+    return record_transition(**defaults).event  # type: ignore[arg-type]
 
 
 # --------------------------------------------------------------------------------------------
@@ -203,3 +211,138 @@ def test_a_manual_correction_still_goes_through_the_policy():
     created = create(actor_id="act:prof-lin", rationale_artifact_or_record_ref="art:sha256:x")
     assert created.actor_id == "act:prof-lin"
     assert created.policy_id == "pol:hypothesis-default"
+
+
+# --------------------------------------------------------------------------------------------
+# The capability. P7 audit finding 1: the persistence path must be able to tell an authorised
+# revision from an unevaluated one.
+# --------------------------------------------------------------------------------------------
+
+
+def test_the_authorization_capability_cannot_be_forged_by_accident():
+    """Constructing `AuthorizedRevision` beside the gates is refused.
+
+    Not a security boundary -- someone who imports the private sentinel can forge one, and
+    `tests/conftest_fixtures.py::forged_authorization` does exactly that for store tests. The
+    property is that it cannot happen *by accident*, and that the line doing it appears in a diff.
+    """
+    from lab_brain.core.belief import AuthorizedRevision
+
+    with pytest.raises(BeliefTransitionRefused, match="cannot be constructed directly"):
+        AuthorizedRevision(event=create(), origin="TRANSITION")
+
+
+def test_both_gates_mint_the_capability_and_say_which_one_did():
+    """A reader of a call site should be able to see which gate was used."""
+    transition = record_transition(
+        event_id="bre:1",
+        decision=allow(),
+        policy=policy(),
+        hypothesis=hypothesis(),
+        candidate_to_state=BeliefState.SUPPORTED,
+        prior=prior(),
+        occurred_at=T0,
+        trace_id=TRACE,
+        triggering_relations=(relation(),),
+    )
+    assert transition.origin == "TRANSITION"
+
+    admitted = admit_hypothesis(
+        event_id="bre:0",
+        policy=policy(
+            is_admission=True, from_state=BeliefState.DRAFT, candidate_to_state=BeliefState.ACTIVE
+        ),
+        project_id=PROJECT,
+        hypothesis_id=HYP,
+        prior=prior(None),
+        occurred_at=T0,
+        trace_id=TRACE,
+        triggering_relations=(relation(),),
+    )
+    assert admitted.origin == "ADMISSION"
+    assert admitted.event.from_state is None
+    assert admitted.event.to_state is BeliefState.ACTIVE
+
+
+# --------------------------------------------------------------------------------------------
+# Admission is a separate path, not a hole in the transition gate.
+# --------------------------------------------------------------------------------------------
+
+
+def test_a_transition_policy_cannot_back_an_admission():
+    """Otherwise every dropped predecessor could be recorded as a beginning."""
+    with pytest.raises(BeliefTransitionRefused, match="not an admission policy"):
+        admit_hypothesis(
+            event_id="bre:0",
+            policy=policy(),
+            project_id=PROJECT,
+            hypothesis_id=HYP,
+            prior=prior(None),
+            occurred_at=T0,
+            trace_id=TRACE,
+            triggering_relations=(relation(),),
+        )
+
+
+def test_an_admission_policy_cannot_back_a_transition():
+    """The other direction, or admission would just be a second transition gate with no predecessor
+    check."""
+    with pytest.raises(BeliefTransitionRefused, match="is an admission policy"):
+        create(policy=policy(is_admission=True))
+
+
+def test_a_target_with_history_cannot_be_admitted_again():
+    """Admission happens once; a second one rewrites the beginning of an append-only history."""
+    with pytest.raises(BeliefTransitionRefused, match="already has recorded history"):
+        admit_hypothesis(
+            event_id="bre:0",
+            policy=policy(
+                is_admission=True,
+                from_state=BeliefState.DRAFT,
+                candidate_to_state=BeliefState.ACTIVE,
+            ),
+            project_id=PROJECT,
+            hypothesis_id=HYP,
+            prior=prior(BeliefState.ACTIVE),
+            occurred_at=T0,
+            trace_id=TRACE,
+            triggering_relations=(relation(),),
+        )
+
+
+def test_an_emptiness_check_against_the_wrong_history_proves_nothing():
+    """A projection for another project or another target cannot establish that *this* one is new."""
+    for wrong in (prior(None, project_id="prj:other"), prior(None, target_id="hyp:other")):
+        with pytest.raises(BeliefScopeError, match="proves nothing"):
+            admit_hypothesis(
+                event_id="bre:0",
+                policy=policy(
+                    is_admission=True,
+                    from_state=BeliefState.DRAFT,
+                    candidate_to_state=BeliefState.ACTIVE,
+                ),
+                project_id=PROJECT,
+                hypothesis_id=HYP,
+                prior=wrong,
+                occurred_at=T0,
+                trace_id=TRACE,
+                triggering_relations=(relation(),),
+            )
+
+
+def test_an_admission_cannot_cite_another_projects_evidence():
+    with pytest.raises(BeliefTransitionRefused, match="outside prj:photonics"):
+        admit_hypothesis(
+            event_id="bre:0",
+            policy=policy(
+                is_admission=True,
+                from_state=BeliefState.DRAFT,
+                candidate_to_state=BeliefState.ACTIVE,
+            ),
+            project_id=PROJECT,
+            hypothesis_id=HYP,
+            prior=prior(None),
+            occurred_at=T0,
+            trace_id=TRACE,
+            triggering_relations=(relation(project_id="prj:other"),),
+        )

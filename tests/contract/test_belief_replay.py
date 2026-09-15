@@ -22,6 +22,7 @@ import datetime as dt
 import pytest
 
 from lab_brain.core.belief import (
+    BeliefScopeError,
     SkipReason,
     quarantined_by_extractor_version,
     replay,
@@ -77,7 +78,7 @@ def _attested(extractor_id: str, extractor_version: str):
 
 def test_an_empty_history_projects_to_no_state():
     """Distinct from DRAFT, which an event had to produce."""
-    projection = replay(HYP, [])
+    projection = replay(PROJECT, HYP, [])
     assert projection.is_empty
     assert projection.current_state is None
     assert projection.last_event_id is None
@@ -93,7 +94,7 @@ def test_replay_folds_the_chain_in_time_order_not_insertion_order():
         ),
         event(event_id="bre:1", from_state=None, to_state=BeliefState.ACTIVE),
     ]
-    projection = replay(HYP, events)
+    projection = replay(PROJECT, HYP, events)
     assert projection.applied == ("bre:1", "bre:2")
     assert projection.current_state is BeliefState.SUPPORTED
     assert projection.last_event_id == "bre:2"
@@ -109,7 +110,57 @@ def test_replay_ignores_other_targets():
             to_state=BeliefState.CONTRADICTED,
         ),
     ]
-    assert replay(HYP, events).current_state is BeliefState.ACTIVE
+    assert replay(PROJECT, HYP, events).current_state is BeliefState.ACTIVE
+
+
+# --------------------------------------------------------------------------------------------
+# Scope is `(project_id, target_id)`. P7 audit finding 2.
+# --------------------------------------------------------------------------------------------
+
+
+def test_two_projects_may_use_the_same_target_id_without_their_histories_merging():
+    """The collision the audit asked for, and the reason `v3.3-a11` added `project_id`.
+
+    Nothing makes a hypothesis id globally unique -- `target_id` has no foreign key at all (R-12).
+    So two projects reaching the same id is not a pathological case, and a replay keyed on the
+    target alone would fold both histories together and return a state neither project is in.
+    """
+    mine = event(event_id="bre:mine", from_state=None, to_state=BeliefState.ACTIVE)
+    theirs = event(
+        event_id="bre:theirs",
+        project_id="prj:other",
+        from_state=None,
+        to_state=BeliefState.CONTRADICTED,
+    )
+
+    assert replay(PROJECT, HYP, [mine]).current_state is BeliefState.ACTIVE
+    assert replay("prj:other", HYP, [theirs]).current_state is BeliefState.CONTRADICTED
+
+
+def test_mixed_project_input_fails_loudly_rather_than_being_filtered():
+    """Filtering would return a plausible projection built from a query nobody meant to run.
+
+    A caller handing this function two projects' events has already lost track of scope somewhere
+    earlier; silently narrowing to the right ones hides that and answers the wrong question well.
+    """
+    events = [
+        event(event_id="bre:mine", from_state=None, to_state=BeliefState.ACTIVE),
+        event(
+            event_id="bre:theirs",
+            project_id="prj:other",
+            from_state=None,
+            to_state=BeliefState.CONTRADICTED,
+        ),
+    ]
+    with pytest.raises(BeliefScopeError, match="handed events from prj:other"):
+        replay(PROJECT, HYP, events)
+
+
+def test_the_projection_records_which_project_it_is_for():
+    """A projection that does not say whose it is cannot be compared with another safely."""
+    projection = replay(PROJECT, HYP, [event(from_state=None, to_state=BeliefState.ACTIVE)])
+    assert projection.project_id == PROJECT
+    assert projection.target_id == HYP
 
 
 def test_replay_is_deterministic_for_events_in_the_same_microsecond():
@@ -118,8 +169,8 @@ def test_replay_is_deterministic_for_events_in_the_same_microsecond():
         event(event_id="bre:b", from_state=BeliefState.ACTIVE, to_state=BeliefState.SUPPORTED),
         event(event_id="bre:a", from_state=None, to_state=BeliefState.ACTIVE),
     ]
-    first = replay(HYP, events)
-    second = replay(HYP, list(reversed(events)))
+    first = replay(PROJECT, HYP, events)
+    second = replay(PROJECT, HYP, list(reversed(events)))
     assert first == second
     assert first.applied == ("bre:a", "bre:b")
 
@@ -131,7 +182,7 @@ def test_the_projection_is_not_the_full_epistemic_state_projection():
     which need EPI-004 and EPI-006. A type with those fields missing but that name would be read as
     finished, so it does not have that name.
     """
-    projection = replay(HYP, [event(from_state=None, to_state=BeliefState.ACTIVE)])
+    projection = replay(PROJECT, HYP, [event(from_state=None, to_state=BeliefState.ACTIVE)])
     for absent in ("belief_level", "unresolved_conflicts", "projection_version"):
         assert not hasattr(projection, absent), absent
 
@@ -163,10 +214,10 @@ def test_quarantining_a_trigger_changes_the_projection_and_keeps_the_history():
         ),
     ]
 
-    before = replay(HYP, events)
+    before = replay(PROJECT, HYP, events)
     assert before.current_state is BeliefState.SUPPORTED
 
-    after = replay(HYP, events, quarantined_attestation_ids={"att:contaminated"})
+    after = replay(PROJECT, HYP, events, quarantined_attestation_ids={"att:contaminated"})
     assert after.current_state is BeliefState.ACTIVE, "the promotion rested on quarantined evidence"
     assert after.applied == ("bre:1",)
     assert after.skipped == (("bre:2", SkipReason.QUARANTINED_TRIGGER),)
@@ -190,7 +241,7 @@ def test_a_skip_cascades_to_events_whose_predecessor_is_gone():
             occurred_at=T0 + dt.timedelta(minutes=1),
         ),
     ]
-    projection = replay(HYP, events, quarantined_attestation_ids={"att:contaminated"})
+    projection = replay(PROJECT, HYP, events, quarantined_attestation_ids={"att:contaminated"})
     assert projection.is_empty
     assert dict(projection.skipped) == {
         "bre:1": SkipReason.QUARANTINED_TRIGGER,
@@ -213,14 +264,16 @@ def test_an_event_with_any_quarantined_trigger_is_skipped_whole():
             triggering_attestation_ids=("att:clean", "att:contaminated"),
         ),
     ]
-    projection = replay(HYP, events, quarantined_attestation_ids={"att:contaminated"})
+    projection = replay(PROJECT, HYP, events, quarantined_attestation_ids={"att:contaminated"})
     assert projection.is_empty
     assert projection.skipped == (("bre:1", SkipReason.QUARANTINED_TRIGGER),)
 
 
 def test_quarantining_nothing_changes_nothing():
     events = [event(event_id="bre:1", from_state=None, to_state=BeliefState.ACTIVE)]
-    assert replay(HYP, events) == replay(HYP, events, quarantined_attestation_ids=set())
+    assert replay(PROJECT, HYP, events) == replay(
+        PROJECT, HYP, events, quarantined_attestation_ids=set()
+    )
 
 
 # --------------------------------------------------------------------------------------------

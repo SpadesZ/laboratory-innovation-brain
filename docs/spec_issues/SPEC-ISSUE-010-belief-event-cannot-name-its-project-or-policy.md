@@ -100,8 +100,23 @@ here so the next reader does not have to re-derive that conclusion.
 - [x] Maintainer picks an option
 - [x] §17.13 gains `project_id` and `policy_id`
 - [x] Version Notes gain the `v3.3-a11` row
-- [ ] Implementation follows in P7 Phase A (model, migration `005a`, drift binding, negative tests)
+- [x] Implementation landed in P7 Phase A — `9b0724fd9df777d5e0a66c9365b7e5bbe8c16cad`
 - [x] This issue closed
 
-The implementation box stays open until Phase A is committed. The document is closed — the gaps
-have a ruling — and the code has not caught up yet.
+Resolved: 2026-09-15 (same day it was raised; the ruling came back within the slice).
+
+The implementation box was left open at the Phase A commit and is ticked now against that SHA.
+`project_id` and `policy_id` reached §17.13, the Pydantic `BeliefRevisionEvent`, and
+`belief_revision_events` in migration `005a`; the schema-drift guard binds all three, and
+`tests/spec/test_schema_drift.py::test_the_a11_belief_event_fields_reached_the_spec_the_model_and_the_table`
+pins both fields by name so a tidy-up cannot remove them from the canonical block instead.
+
+What the two fields then made possible, which is the test of whether the amendment was worth
+making: `project_id` is what `SqlBeliefEventStore.history(project_id, target_id)` scopes on and what
+migration `005c` uses to make a cross-project trigger reference structurally unrepresentable;
+`policy_id` is what `005b`'s foreign key and `005c`'s governance trigger resolve against.
+
+**A gap this amendment did not close** is recorded separately as
+[SPEC-ISSUE-011](SPEC-ISSUE-011-belief-event-carries-no-durable-authorization-proof.md): the event
+now names the policy that *would have* authorised it, and still carries no durable proof that a
+policy decision actually did.

@@ -48,6 +48,11 @@ APPLY_ORDER: tuple[str, ...] = (
     # P7 / Phase B. The transition-policy half of the 005 slot (EPI-005). After 005a: it adds the
     # foreign key that makes an event cite a *registered* policy version.
     "005b_transition_policies.sql",
+    # P7-fix. Governance hardening found by audit: an admission is a separate path, an event must
+    # record the transition its policy governs, a cross-project trigger reference becomes
+    # unrepresentable, and an orphan event cannot be written by raw SQL. After 005b: the policy
+    # governance trigger reads `transition_policies`.
+    "005c_belief_event_governance.sql",
     # After 003: bundle members reference attestations. `a` suffixes mark additions beyond
     # Appendix A's index, whose 001-012 numbers are reserved for the canonical migrations.
     "004a_evidence_bundles.sql",

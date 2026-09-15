@@ -24,6 +24,7 @@ from lab_brain.core.models import (
     TransitionPolicy,
 )
 from lab_brain.core.repositories import SqlTransitionPolicyStore
+from tests.conftest_fixtures import make_artifact
 
 pytestmark = [
     pytest.mark.postgres,
@@ -149,30 +150,98 @@ def test_an_unmodelled_independence_basis_is_storable(db):
     assert loaded.independence_basis is IndependenceBasis.INSTRUMENT
 
 
+def _evidence(db) -> None:  # type: ignore[no-untyped-def]
+    """One attestation an event may legitimately cite.
+
+    Needed since `005c`: an event with no trigger references is refused, so a test about the
+    *policy* foreign key still has to supply evidence to reach it.
+    """
+    artifact = make_artifact(b"transition policy fixture")
+    db.execute(
+        "INSERT INTO artifacts (artifact_id, content_hash, uri, media_type, source_origin,"
+        " lineage_id, lineage_revision) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (
+            artifact.artifact_id,
+            artifact.content_hash,
+            artifact.uri,
+            artifact.media_type,
+            artifact.source_origin.value,
+            artifact.lineage_id,
+            artifact.lineage_revision,
+        ),
+    )
+    db.execute("INSERT INTO claims (claim_id, normalized_proposition) VALUES ('clm:1', 'x')")
+    db.execute(
+        "INSERT INTO condition_schemas (domain, schema_id, version, json_schema,"
+        " comparator_version) VALUES ('core', 'sch_test', '1.0.0',"
+        ' \'{"type": "object", "properties": {}}\'::jsonb, \'1.0.0\')'
+    )
+    db.execute(
+        "INSERT INTO attestations (attestation_id, claim_id, epistemic_type, source_artifact_id,"
+        " locator, conditions, conditions_schema_version, project_id, extractor_version,"
+        " extraction_provenance)"
+        " VALUES ('att:1', 'clm:1', 'REPORTED', %s, 'p.1', '{}'::jsonb,"
+        " 'core/sch_test@1.0.0', 'prj:test', '1.0.0',"
+        ' \'{"extractor_id": "ext:test", "extractor_version": "1.0.0"}\'::jsonb)',
+        (artifact.artifact_id,),
+    )
+
+
 def test_an_event_cannot_cite_a_policy_version_nobody_registered(db):
     """Migration 005b's foreign key. "Wrong policy version" stops being a Python-side check.
 
     Without it, an event could name `9.9.9` and the replay would have nothing to re-run -- which
     is exactly the unreplayability `v3.3-a11` was raised to remove.
+
+    Refused twice over since `005c`, and the governance trigger reaches it first: a BEFORE INSERT
+    trigger runs before foreign-key checks, so the message names the missing policy rather than the
+    constraint. `belief_revision_events_cite_a_registered_policy` stands behind it -- asserted
+    separately below, against the constraint catalogue, so both layers stay proven.
     """
-    with pytest.raises(psycopg.errors.ForeignKeyViolation, match="registered_policy"):
+    _evidence(db)
+    with pytest.raises(psycopg.errors.RaiseException, match="is not registered"):
         db.execute(
-            "INSERT INTO belief_revision_events (event_id, project_id, target_type, target_id,"
-            " from_state, to_state, policy_id, policy_version, occurred_at, trace_id)"
-            " VALUES ('bre:x', 'prj:test', 'HYPOTHESIS', 'hyp:1', 'ACTIVE', 'SUPPORTED',"
-            " 'pol:nowhere', '9.9.9', %s, 'trc:1')",
+            "SELECT belief_revision_event_append('bre:x', 'prj:test', 'HYPOTHESIS', 'hyp:1',"
+            " 'ACTIVE', 'SUPPORTED', ARRAY['att:1'], ARRAY[]::text[], 'pol:nowhere', '9.9.9',"
+            " NULL, NULL, NULL, %s, 'trc:1')",
             (T0,),
         )
+    assert (
+        db.execute(
+            "SELECT count(*) FROM belief_revision_events WHERE event_id = 'bre:x'"
+        ).fetchone()[0]
+        == 0
+    )
+
+
+def test_the_policy_foreign_key_is_still_in_place_behind_the_trigger(db):
+    """The trigger is a message; the foreign key is the guarantee.
+
+    A trigger can be dropped by one statement and a reviewer would see a friendlier error
+    disappear, not an invariant. Asserting the constraint exists keeps `005b`'s guarantee visible
+    even though `005c`'s trigger now answers first.
+    """
+    row = db.execute(
+        "SELECT pg_get_constraintdef(oid) FROM pg_constraint"
+        " WHERE conname = 'belief_revision_events_cite_a_registered_policy'"
+    ).fetchone()
+    assert row is not None, "005b's policy foreign key has been dropped"
+    assert "transition_policies" in row[0]
 
 
 def test_an_event_citing_a_registered_policy_is_accepted(db):
-    """The constraint has to be satisfiable, or no event could ever be recorded."""
+    """The constraint has to be satisfiable, or no event could ever be recorded.
+
+    Written through `belief_revision_event_append` rather than a bare INSERT: since migration
+    `005c` an event with no trigger references is refused by a deferred constraint trigger, so a
+    raw insert would now fail for that reason and prove nothing about the policy foreign key.
+    """
     SqlTransitionPolicyStore(db).register(policy())
+    _evidence(db)
     db.execute(
-        "INSERT INTO belief_revision_events (event_id, project_id, target_type, target_id,"
-        " from_state, to_state, policy_id, policy_version, occurred_at, trace_id)"
-        " VALUES ('bre:x', 'prj:test', 'HYPOTHESIS', 'hyp:1', 'ACTIVE', 'SUPPORTED',"
-        " 'pol:hypothesis-default', '1.0.0', %s, 'trc:1')",
+        "SELECT belief_revision_event_append('bre:x', 'prj:test', 'HYPOTHESIS', 'hyp:1',"
+        " 'ACTIVE', 'SUPPORTED', ARRAY['att:1'], ARRAY[]::text[], 'pol:hypothesis-default',"
+        " '1.0.0', NULL, NULL, NULL, %s, 'trc:1')",
         (T0,),
     )
     row = db.execute(
