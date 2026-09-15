@@ -61,6 +61,7 @@ if TYPE_CHECKING:
 from lab_brain.core.models.base import CoreModel
 from lab_brain.core.models.belief_event import BeliefState
 from lab_brain.core.models.condition import ConditionMatch
+from lab_brain.core.models.conflict import Conflict
 from lab_brain.core.models.enums import (
     IMPLEMENTED_INDEPENDENCE_BASES,
     AuthorityComparison,
@@ -162,13 +163,18 @@ class HypothesisView(CoreModel):
     current_state: BeliefState
     #: §17.19.1's ReviewItem needs stakes, and §8.2.1 passes `hypothesis.stakes` straight through.
     stakes: str = "NORMAL"
-    #: Conflicts the caller has already determined are blocking under this policy.
+    #: §17.19.3 `Conflict` records attached to this hypothesis (EPI-006).
     #:
-    #: Typing them against §17.19.3's `conflict_type` vocabulary needs the `Conflict` entity, which
-    #: is `EPI-006`. Until then the caller supplies the ids and the policy honours §23.4's rule
-    #: that a blocking conflict prevents ALLOW and appears in the decision. Stated as the partial
-    #: implementation it is rather than left looking complete.
-    blocking_conflict_ids: tuple[str, ...] = ()
+    #: WHAT CHANGED AND WHY IT MATTERED. This was `blocking_conflict_ids: tuple[str, ...]` -- a
+    #: list of opaque ids the *caller* had already decided were blocking, matched against nothing.
+    #: So `blocking_conflict_policy` declared `conflict_type` values that no code compared, and a
+    #: caller who forgot to populate the ids got an ALLOW. §17.19.3 forbids exactly that
+    #: arrangement: a conflict must not be "只以字串或散落旗標表示". Now the policy matches
+    #: declared types against typed records and decides for itself.
+    #:
+    #: Passed in rather than loaded, like `independence_summary`: resolving a project's conflicts
+    #: is a repository read, and a pure policy that performed one would stop being replayable.
+    conflicts: tuple[Conflict, ...] = ()
 
     #: Authority classes of the evidence admitted for this hypothesis, resolved by the caller.
     #:
@@ -235,8 +241,14 @@ class TransitionPolicy(CoreModel):
     required_condition_match: tuple[ConditionMatchState, ...] = ()
     min_independent_attestations: int | None = Field(default=None, ge=0)
     independence_basis: IndependenceBasis | None = None
-    #: §17.19.3 conflict_type values. Non-empty means this policy takes blocking conflicts into
-    #: account; see `HypothesisView.blocking_conflict_ids` for what is and is not implemented.
+    #: §17.19.3 `conflict_type` values this policy treats as blocking (EPI-006).
+    #:
+    #: Typed as strings rather than `tuple[ConflictType, ...]` because §8.2.1 declares the field
+    #: as `conflict_type[]` and a DomainPack registers policies from configuration -- validating
+    #: the vocabulary here would reject a policy at load time with a Pydantic error instead of a
+    #: domain one. `evaluate` matches against `ConflictType.value`, so a typo silently matches
+    #: nothing; `blocking_conflict_policy_is_known_vocabulary()` exists to catch that deliberately
+    #: rather than at the moment a belief is promoted.
     blocking_conflict_policy: tuple[str, ...] = ()
     human_gate: bool = False
     #: TRUE for a §8 Hypothesis-Admission policy, which backs only a target's *first* event.
@@ -335,15 +347,32 @@ class TransitionPolicy(CoreModel):
         ):
             return decide(TransitionOutcome.DENY, TransitionReason.TRANSITION_NOT_GOVERNED)
 
-        # 2. A blocking conflict prevents ALLOW and appears in the decision (§23.4). Human review
-        #    rather than DENY: the conflict is resolvable, and resolving it is a human act.
-        if self.blocking_conflict_policy and hypothesis.blocking_conflict_ids:
-            return decide(
-                TransitionOutcome.NEED_HUMAN_REVIEW,
-                TransitionReason.BLOCKING_CONFLICT,
-                conflicts=tuple(sorted(hypothesis.blocking_conflict_ids)),
-                review=True,
+        # 2. A blocking conflict prevents ALLOW and appears in the decision (§23.4, §17.19.3).
+        #    Human review rather than DENY: the conflict is resolvable, and resolving it is a
+        #    human act.
+        #
+        #    Matched on `conflict_type` against this policy's declared `blocking_conflict_policy`,
+        #    and on the conflict's own `blocking` flag and resolution status -- not on ids the
+        #    caller pre-selected. A resolved blocking conflict is history and an unresolved
+        #    non-blocking one is a recorded disagreement the domain has said does not gate belief;
+        #    only the intersection stops a transition.
+        blocking_types = frozenset(self.blocking_conflict_policy)
+        if blocking_types:
+            matching = tuple(
+                sorted(
+                    conflict.conflict_id
+                    for conflict in hypothesis.conflicts
+                    if conflict.blocks_transitions
+                    and conflict.conflict_type.value in blocking_types
+                )
             )
+            if matching:
+                return decide(
+                    TransitionOutcome.NEED_HUMAN_REVIEW,
+                    TransitionReason.BLOCKING_CONFLICT,
+                    conflicts=matching,
+                    review=True,
+                )
 
         # 3. §6.17 / FIX-6: a declared basis above WORK MUST yield NEED_HUMAN_REVIEW rather than
         #    pretend to be satisfied. Checked before the thresholds, because the count computed

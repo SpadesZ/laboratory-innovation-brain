@@ -34,7 +34,13 @@ from lab_brain.core.models import (
     TransitionReason,
 )
 from lab_brain.core.models.decision import BeliefTransitionDecision
-from tests.contract.test_transition_policy import hypothesis, policy, relation, summary
+from tests.contract.test_transition_policy import (
+    conflict,
+    hypothesis,
+    policy,
+    relation,
+    summary,
+)
 
 pytestmark = [pytest.mark.requirement("EPI-005"), pytest.mark.spec_test("T-EPI-005")]
 
@@ -135,7 +141,8 @@ NON_ALLOW_INPUTS: dict[TransitionOutcome, dict[str, object]] = {
     # The one a human must resolve.
     TransitionOutcome.NEED_HUMAN_REVIEW: {
         "policy": policy(blocking_conflict_policy=("SIM_TO_REAL_CONFLICT",)),
-        "hypothesis": hypothesis(blocking_conflict_ids=("SIM_TO_REAL_CONFLICT",)),
+        # EPI-006: a typed `Conflict` of the declared type, not an id the caller pre-judged.
+        "hypothesis": hypothesis(conflicts=(conflict(),)),
     },
 }
 

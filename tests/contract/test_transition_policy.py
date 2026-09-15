@@ -43,6 +43,7 @@ from lab_brain.core.models import (
     TransitionPolicy,
     TransitionReason,
 )
+from lab_brain.core.models.conflict import Conflict, ConflictType
 from lab_brain.spec import repo_root
 
 pytestmark = [pytest.mark.requirement("EPI-005"), pytest.mark.spec_test("T-EPI-005")]
@@ -119,6 +120,22 @@ def relation(relation_type: RelationType = RelationType.SUPPORTS, **overrides: o
     }
     defaults.update(overrides)
     return RelationJudgment(**defaults)  # type: ignore[arg-type]
+
+
+def conflict(**overrides: object) -> Conflict:
+    """A typed §17.19.3 conflict. Blocking and OPEN unless a case says otherwise."""
+    defaults: dict[str, object] = {
+        "conflict_id": "cfl:1",
+        "project_id": PROJECT,
+        "conflict_type": ConflictType.SIM_TO_REAL_CONFLICT,
+        "subject_refs": (HYP,),
+        "blocking": True,
+        "detected_at": dt.datetime(2026, 9, 16, 9, 0, tzinfo=dt.UTC),
+        "detected_by_actor_or_slot": "act:test",
+        "trace_id": "trc:1",
+    }
+    defaults.update(overrides)
+    return Conflict(**defaults)  # type: ignore[arg-type]
 
 
 def summary(**overrides: object) -> IndependenceSummary:
@@ -302,7 +319,9 @@ def test_a_blocking_conflict_prevents_allow_and_is_named_in_the_decision():
     """§23.4: blocking Conflict 會阻止 ALLOW 並出現在 TransitionDecision.blocking_conflict_ids."""
     decision = run(
         pol=policy(blocking_conflict_policy=("SIM_TO_REAL_CONFLICT",)),
-        hyp=hypothesis(blocking_conflict_ids=("cfl:2", "cfl:1")),
+        hyp=hypothesis(
+            conflicts=(conflict(conflict_id="cfl:2"), conflict(conflict_id="cfl:1")),
+        ),
     )
     assert decision.outcome is TransitionOutcome.NEED_HUMAN_REVIEW
     assert decision.reason_code is TransitionReason.BLOCKING_CONFLICT
@@ -311,7 +330,7 @@ def test_a_blocking_conflict_prevents_allow_and_is_named_in_the_decision():
 
 def test_a_policy_that_ignores_conflicts_is_not_blocked_by_them():
     """The field has to be meaningful in both directions, or it is decoration."""
-    decision = run(hyp=hypothesis(blocking_conflict_ids=("cfl:1",)))
+    decision = run(hyp=hypothesis(conflicts=(conflict(),)))
     assert decision.outcome is TransitionOutcome.ALLOW
 
 
