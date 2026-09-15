@@ -2,10 +2,16 @@
 
 Baseline: `2f9d89ecabc4d05e7a3c49ca857e34185fbb18fa` (P5-fix, HARD PASS, CI run `34806356771`).
 
-Scope boundary, held: `OPS-003` only. No `EPI-003`, no `EPI-005`, no `OPS-002`, no `SYS-001`. One
-migration (`010a`), and it touches no existing table.
+Scope boundary, held: `OPS-003` only. No `EPI-003`, no `EPI-005`, no `OPS-002`, no `SYS-001`. Two
+migrations — `010a` (the slice) and `010b` (the audit fix) — and neither alters an existing table's
+data.
 
 A phase section is written **after** its commit exists, with the real SHA and the real test counts.
+
+| Stage | SHA | Outcome |
+|---|---|---|
+| P6 | `ddcea7123b44565d74ba3fa9f4ab7801db8241b9` | CONDITIONAL FAIL — 2 × P1 |
+| P6-fix | see the P6-fix section below | rework for both blockers |
 
 ---
 
@@ -75,11 +81,13 @@ about something that had not happened; it now states both possibilities.
 
 ## Tests
 
-| Suite | Added | What |
+Counts are after P6-fix, taken from `--collect-only` rather than remembered.
+
+| Suite | Tests | What |
 |---|---|---|
-| `contract/test_execution_span.py` | 29 | model + reconstruction ordering, determinism, orphans, lifecycle |
-| `contract/test_dispatch_seam.py` | 19 | the ordering guarantee, status, cost refs, ONCE through the seam |
-| `integration/test_execution_spans_postgres.py` | 19 | every CHECK, the close-once trigger, FK-backed cost refs |
+| `contract/test_execution_span.py` | 35 | model, reconstruction ordering and determinism, parent rules, lifecycle |
+| `contract/test_dispatch_seam.py` | 20 | the ordering guarantee, status, cost refs, ONCE through the seam |
+| `integration/test_execution_spans_postgres.py` | 28 | every CHECK, close-once trigger, atomic close, FK-backed cost refs |
 | `e2e/test_episode_trace_postgres.py` | 2 | T-OPS-003's reconstruction, and a refused step mid-episode |
 
 The ordering guarantee is tested with an action that **raises if it is ever called**, so a gate that
@@ -127,6 +135,106 @@ discharging half a pass condition, which is precisely the error P2 corrected for
 **`COST-001` — IN_PROGRESS**, per the P5-fix audit ruling, and R-10 stays open for the stated
 reason: the seam's actions are mocks. What changed is the size of the gap, not its existence.
 
+---
+
+## P6-fix — two observability-integrity blockers (DONE)
+
+Audit of `ddcea712` returned CONDITIONAL FAIL on two P1s. Both were real, both reproduced against
+the live schema before being fixed, and neither needed the P6 architecture changed. One migration,
+`010b`; `010a` untouched.
+
+### Blocker 1 — span close and cost refs were not atomic
+
+`SqlSpanRepository.close()` issued the status UPDATE and then one INSERT per cost ref. Under the
+autocommit connection these stores *require*, each statement commits on its own:
+
+```
+close(span, SUCCEEDED, [cost:valid, cost:missing])
+  1. span -> SUCCEEDED     committed
+  2. cost:valid link       committed
+  3. cost:missing          FK violation, raises
+→ span SUCCEEDED, refs partial, and the close-once trigger refuses every retry
+```
+
+The two facts OPS-003 exists to make reliable were exactly the pair that could diverge, and
+permanently — the span can never be closed again. Reproduced before fixing, not reasoned about.
+
+**Fix:** `execution_span_close(span_id, status, end_time, metadata, cost_entry_ids[])` in `010b`
+does the whole close in one statement, so under autocommit the statement's own atomicity is the
+guarantee. Refs are validated before the UPDATE as well, so the ordinary failure writes nothing;
+the FK remains the backstop. Wrapping it in a Python transaction was not available: these stores
+refuse a connection they do not own precisely so they never commit somebody else's work, so the
+atomic unit had to be the statement.
+
+The concurrency property survives — the conditional `UPDATE ... WHERE status = 'RUNNING'` inside
+the function takes the row lock, so of two concurrent closes exactly one returns TRUE.
+
+### Blocker 2 — a parent span was not required to be in the same trace
+
+`010a`'s FK was `parent_span_id REFERENCES execution_spans (span_id)` — parent must exist, nothing
+about which trace. A child in trace B with a parent in trace A was accepted; `trace('B')` then
+returned a child whose parent was absent, and `TraceView.ordered()` treated it as a **root**. A
+corrupt cross-trace edge was silently laundered into a plausible tree. The in-memory store was
+looser still: it validated parents not at all, while the file's docstring claimed both
+implementations enforced the same contract. That claim was false and is now corrected in place.
+
+**Fix:** `010b` adds `UNIQUE (span_id, trace_id)` (needed only as a composite FK target — `span_id`
+is already the primary key) and replaces the FK with `(parent_span_id, trace_id) REFERENCES
+execution_spans (span_id, trace_id)`. MATCH SIMPLE still allows a root with no parent. The old
+constraint is dropped by its exact name, not `IF EXISTS`, so a name mismatch fails loudly instead
+of leaving the weak FK in place while reporting success.
+
+`InMemorySpanRepository.open()` now enforces parent existence and same-trace. `TraceView.ordered()`
+raises `TraceCorruptionError` on an orphan, a foreign-trace span, or a cycle, rather than repairing
+its own input — a reconstruction that silently fixes corruption produces output that reads as
+evidence and is not.
+
+`InMemorySpanRepository(ledger=...)` closes the cost-ref half of the parity gap: given the ledger,
+it validates refs exactly as `execution_span_close` does. Without one it cannot, and that is now a
+documented parameter with a pinning test rather than an unstated asymmetry. The dispatch seam
+passes the ledger it already holds.
+
+### Fixtures added
+
+- invalid second ref → span still RUNNING, **0** links (not 1)
+- refused close → the span is still closable afterwards
+- all refs valid → terminal status and every ref visible together
+- two concurrent closes across two real sessions → exactly one winner
+- the refusal names the missing entry (message quality, asserted separately from state)
+- `execution_span_close` refuses closing to RUNNING
+- cross-trace parent rejected by the DB; same-trace parent accepted
+- in-memory: orphan parent and cross-trace parent both refused at `open()`
+- `ordered()` raises on orphan, foreign-trace span, and cycle
+- in-memory close with an unresolvable ref leaves the span open and retryable
+
+**Mutation, cleanly attributable.** Restoring the pre-`010b` two-step close (exact text, asserted
+to have applied, and compiled before trusting) turns the two atomicity tests red on the right
+assertions: `RUNNING` vs `SUCCEEDED`, and `SpanLifecycleError: span was not open` on the retry —
+i.e. the state and the permanence, not a message regex. The first attempt at this failed only on
+the error wording; the tests were restructured so the state is what is asserted, with message
+quality as its own separate test.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| postgres profile | 568 passed |
+| backend-free profile | 441 passed / 127 skipped |
+| migration replay from empty | scratch DB, 0 → 13 applied, then 0 pending |
+| full suite on the replayed DB | 568 passed |
+| idempotency, dev DB | 13 declared / 13 applied / 0 pending |
+| executed-coverage gate | 4/4 ok under `[postgres]` |
+| `update_status.py --check` | current |
+| ruff / ruff format / mypy strict | clean |
+
+The AGT-003 header guard fired twice more during this fix, on `010b` taking the count to 13 — which
+is what it is for.
+
+`OPS-003` remains **IN_PROGRESS** and `COST-001` remains **IN_PROGRESS**. R-10 stays NARROWED,
+R-11 stays open. No new requirement, no amendment, invariant unchanged at 59 ↔ 59.
+
+---
+
 ## Unresolved, carried forward
 
 1. **R-10** — narrowed: the gate now has a caller, and the caller is proven to refuse before the
@@ -136,11 +244,14 @@ reason: the seam's actions are mocks. What changed is the size of the gap, not i
    `dispatch_action` is where it will attach, and wiring it in now would have been claiming an M3
    requirement (`SRC-002`) from an M0b slice. The extension point is named in the module docstring
    rather than built.
-4. **`ExecutionSpan` is not bound by the schema-drift guard** — added to `UNBOUND` with the reason:
+4. **The in-memory span store does not check cost refs unless given a ledger.** Now a parameter
+   with a pinning test rather than a silence; the dispatch seam supplies one. The default is the
+   weaker behaviour because nothing can resolve a ref without something to resolve it against.
+5. **`ExecutionSpan` is not bound by the schema-drift guard** — added to `UNBOUND` with the reason:
    §17.19.1's `model_call_id?/job_id?/retrieval_id?` alternation is not parseable as three field
    names, so binding it would compare 11 canonical fields against 13 implemented ones and report
    the three subjects as undeclared. Bindable once §17.19.1 states them separately, which is a
    maintainer amendment rather than an agent decision.
-5. **Trace reads are not project-scoped.** §17.19.1 declares no `project_id` on ExecutionSpan and
+6. **Trace reads are not project-scoped.** §17.19.1 declares no `project_id` on ExecutionSpan and
    none was invented. The scope would have to come from the Episode, which is M1.
-6. **`CHANGELOG.md` still stops at M0a-2.** Unchanged from P5-fix; still out of scope.
+7. **`CHANGELOG.md` still stops at M0a-2.** Unchanged from P5-fix; still out of scope.

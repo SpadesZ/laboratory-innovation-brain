@@ -59,6 +59,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # benchmark halves land with OPS-002 and §17.19.2. After 007a/007b: span cost refs are a
     # foreign key into `cost_entries`.
     "010a_execution_spans.sql",
+    # P6-fix. Makes closing a span atomic with its cost refs, and requires a parent span to be in
+    # the same trace. Separate from 010a because 010a is applied.
+    "010b_execution_span_close_atomicity.sql",
 )
 
 _BOOTSTRAP = """

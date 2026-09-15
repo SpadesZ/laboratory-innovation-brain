@@ -20,14 +20,19 @@ import pytest
 from lab_brain.core.models import (
     SUBJECT_FIELD_FOR_TYPE,
     TERMINAL_SPAN_STATUSES,
+    CostEntry,
+    CostKind,
+    CostVector,
     ExecutionSpan,
     SpanStatus,
     SpanType,
     new_id,
 )
 from lab_brain.core.repositories import (
+    InMemoryCostLedger,
     InMemorySpanRepository,
     SpanLifecycleError,
+    TraceCorruptionError,
     TraceView,
 )
 
@@ -250,11 +255,121 @@ def test_reconstruction_is_deterministic_for_simultaneous_siblings():
     assert first == second == ["spn:root", "spn:a", "spn:b"]
 
 
-def test_a_span_whose_parent_is_missing_is_surfaced_not_dropped():
-    """Losing a span because its parent is absent would silently shrink the evidence."""
+def test_an_orphan_parent_cannot_even_be_recorded():
+    """The in-memory store now checks what the composite foreign key checks (010b).
+
+    It previously checked nothing about parents, while the SQL store's FK rejected a dangling one.
+    A fake that accepts what the database refuses is how a conformance suite passes against the
+    fake and fails in production -- the exact claim this module's docstring used to make falsely.
+    """
     spans = InMemorySpanRepository()
-    spans.open(span(span_id="spn:orphan", parent_span_id="spn:nowhere"))
-    assert [s.span_id for s in spans.trace(TRACE).ordered()] == ["spn:orphan"]
+    with pytest.raises(SpanLifecycleError, match="which is not recorded"):
+        spans.open(span(span_id="spn:orphan", parent_span_id="spn:nowhere"))
+
+
+def test_a_parent_in_another_trace_cannot_be_recorded():
+    """A parent is in the same trace as its child, or the edge belongs to neither episode."""
+    spans = InMemorySpanRepository()
+    spans.open(span(span_id="spn:parent", trace_id="trc:A"))
+    with pytest.raises(SpanLifecycleError, match="but its parent"):
+        spans.open(
+            span(
+                span_id="spn:child",
+                trace_id="trc:B",
+                parent_span_id="spn:parent",
+                span_type=SpanType.RETRIEVAL,
+                retrieval_id="bdl:1",
+            )
+        )
+
+
+def test_reconstruction_refuses_a_trace_that_is_not_a_tree():
+    """Built by hand, because both stores now refuse to record one -- which is the point.
+
+    `ordered()` used to treat a span with an absent parent as a root. That is a repair, not a
+    reading: it turns a corrupt cross-trace edge into a plausible tree, and the output then reads
+    as evidence.
+    """
+    orphan = TraceView(
+        trace_id=TRACE,
+        spans=(span(span_id="spn:child", parent_span_id="spn:elsewhere"),),
+    )
+    with pytest.raises(TraceCorruptionError, match="whose parent is not in it"):
+        orphan.ordered()
+
+    foreign = TraceView(trace_id="trc:other", spans=(span(),))
+    with pytest.raises(TraceCorruptionError, match="another trace"):
+        foreign.ordered()
+
+
+def test_reconstruction_refuses_a_parent_cycle():
+    """A "cannot happen" that would otherwise return a silent subset rather than complain."""
+    cycle = TraceView(
+        trace_id=TRACE,
+        spans=(
+            span(span_id="spn:a", parent_span_id="spn:b"),
+            span(span_id="spn:b", parent_span_id="spn:a"),
+        ),
+    )
+    with pytest.raises(TraceCorruptionError, match="not a tree"):
+        cycle.ordered()
+
+
+# --------------------------------------------------------------------------------------------
+# Closing is atomic with the cost refs, in memory too when a ledger is supplied.
+# --------------------------------------------------------------------------------------------
+
+
+def test_closing_with_an_unresolvable_cost_ref_leaves_the_span_open():
+    """Parity with `execution_span_close`: all refs, or the span stays RUNNING."""
+    ledger = InMemoryCostLedger()
+    spans = InMemorySpanRepository(ledger=ledger)
+    spans.open(span())
+    with pytest.raises(SpanLifecycleError, match="do not exist"):
+        spans.close(
+            "spn:1",
+            SpanStatus.SUCCEEDED,
+            T0 + dt.timedelta(seconds=1),
+            cost_entry_ids=("cost:missing",),
+        )
+    assert spans.get("spn:1").status is SpanStatus.RUNNING
+    assert spans.get("spn:1").cost_entry_ids == ()
+
+
+def test_a_span_is_still_closable_after_a_refused_close():
+    ledger = InMemoryCostLedger()
+    ledger.record(
+        CostEntry(
+            cost_entry_id="cost:a",
+            project_id="prj:p",
+            episode_id=EPISODE,
+            actor_or_slot="slot:planner",
+            action_ref="act:1",
+            cost_kind=CostKind.ESTIMATED,
+            cost=CostVector(),
+            recorded_at=T0,
+        )
+    )
+    spans = InMemorySpanRepository(ledger=ledger)
+    spans.open(span())
+    with pytest.raises(SpanLifecycleError):
+        spans.close("spn:1", SpanStatus.SUCCEEDED, T0, cost_entry_ids=("cost:missing",))
+    closed = spans.close("spn:1", SpanStatus.SUCCEEDED, T0 + dt.timedelta(seconds=1), ("cost:a",))
+    assert closed.cost_entry_ids == ("cost:a",)
+
+
+def test_without_a_ledger_cost_refs_are_unchecked_and_that_is_stated():
+    """The one asymmetry with the SQL store, made explicit rather than left as a surprise.
+
+    Pinned deliberately: if this ever starts raising, the default has changed and every caller
+    that relied on it needs to know, rather than discovering it as an unexplained failure.
+    """
+    spans = InMemorySpanRepository()
+    spans.open(span())
+    closed = spans.close(
+        "spn:1", SpanStatus.SUCCEEDED, T0 + dt.timedelta(seconds=1), ("cost:unchecked",)
+    )
+    assert closed.cost_entry_ids == ("cost:unchecked",)
 
 
 def test_a_trace_collects_its_cost_refs_in_reconstruction_order():

@@ -28,6 +28,7 @@ from lab_brain.core.repositories.observability import (
     SpanLifecycleError,
     SpanRepository,
     SqlSpanRepository,
+    TraceCorruptionError,
     TraceView,
 )
 from lab_brain.core.repositories.protocols import (
@@ -69,6 +70,7 @@ __all__ = [
     "SqlBudgetApprovalClaims",
     "SqlCostLedger",
     "SqlSpanRepository",
+    "TraceCorruptionError",
     "TraceView",
     "require_durable_connection",
 ]

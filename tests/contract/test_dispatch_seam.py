@@ -40,6 +40,7 @@ from lab_brain.core.models import (
     BudgetCaps,
     CostKind,
     CostVector,
+    ExecutionSpan,
     ProjectMembership,
     SpanStatus,
     SpanType,
@@ -48,6 +49,7 @@ from lab_brain.core.repositories import (
     InMemoryBudgetApprovalClaims,
     InMemoryCostLedger,
     InMemorySpanRepository,
+    SpanLifecycleError,
 )
 
 pytestmark = [
@@ -155,9 +157,13 @@ def action(perform, **overrides: object) -> DispatchableAction:
 
 
 def seam(**overrides):
+    # The span store is given the ledger, so cost refs are checked here exactly as
+    # `execution_span_close` checks them in SQL. The seam is the caller that can supply it, so it
+    # is the caller that should -- an unchecked ref is only tolerable where nothing can resolve it.
+    ledger = InMemoryCostLedger()
     defaults = {
-        "spans": InMemorySpanRepository(),
-        "ledger": InMemoryCostLedger(),
+        "spans": InMemorySpanRepository(ledger=ledger),
+        "ledger": ledger,
         "claims": InMemoryBudgetApprovalClaims(),
         "now": clock(),
     }
@@ -377,8 +383,28 @@ def test_a_failure_is_failed_and_a_refusal_is_blocked():
 # --------------------------------------------------------------------------------------------
 
 
+def _root(kit) -> None:
+    """The episode span every dispatch below parents itself to.
+
+    Opened explicitly because a parent must exist and be in the same trace (010b). The first
+    version of this file dispatched under a `spn:root` it never created, and the parent check added
+    in P6-fix is what caught it.
+    """
+    kit["spans"].open(
+        ExecutionSpan(
+            span_id="spn:root",
+            trace_id=TRACE,
+            span_type=SpanType.EPISODE,
+            episode_id=EPISODE,
+            start_time=T0,
+            status=SpanStatus.RUNNING,
+        )
+    )
+
+
 def test_the_span_is_parented_and_traced_as_asked():
     kit = seam()
+    _root(kit)
     dispatch_action(
         action(
             Recorder(), parent_span_id="spn:root", span_type=SpanType.LLM_CALL, subject_id="mc:1"
@@ -390,6 +416,15 @@ def test_the_span_is_parented_and_traced_as_asked():
     assert (span.trace_id, span.parent_span_id) == (TRACE, "spn:root")
     assert span.span_type is SpanType.LLM_CALL
     assert span.model_call_id == "mc:1"
+
+
+def test_dispatching_under_a_parent_that_does_not_exist_records_nothing():
+    """A span claiming an absent parent is corrupt, and the seam must not half-record it."""
+    kit = seam()
+    with pytest.raises(SpanLifecycleError, match="which is not recorded"):
+        dispatch_action(action(forbidden, parent_span_id="spn:nowhere"), budget_request(), **kit)
+    assert kit["spans"].get("spn:tool") is None
+    assert kit["ledger"].entry("cost:est-1") is None
 
 
 def test_a_subject_on_a_type_that_takes_none_is_refused_before_anything_is_recorded():

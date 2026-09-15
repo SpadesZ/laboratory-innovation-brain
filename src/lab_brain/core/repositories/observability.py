@@ -12,9 +12,17 @@ exist to describe. So the view is built as a tree, ordered by start time among s
 flattened depth-first -- the order a human reads an episode in.
 
 BOTH IMPLEMENTATIONS ENFORCE THE SAME CONTRACT, per the rule stated in
-``lab_brain.core.repositories.memory``: opened once, closed once, never reopened, never deleted.
-The in-memory one is not a stub, because the conformance tests run against both and a fake that
-allows what the database rejects makes a green suite meaningless.
+``lab_brain.core.repositories.memory``: opened once, closed once, never reopened, never deleted,
+and **a parent span is in the same trace as its child**. The in-memory one is not a stub, because
+the conformance tests run against both and a fake that allows what the database rejects makes a
+green suite meaningless.
+
+That last sentence was false when this module was first written, and the audit of P6 caught it: the
+SQL store's foreign key rejected a dangling parent while ``InMemorySpanRepository.open`` did not
+check parents at all, and *neither* required the parent to be in the same trace. Both now do.
+Cost-ref integrity is the one asymmetry that remains and it is a deliberate parameter rather than a
+silence -- the in-memory store can only resolve refs if it is given the ledger to resolve them
+against, so it takes one.
 """
 
 from __future__ import annotations
@@ -27,12 +35,28 @@ from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 from lab_brain.core.models.execution_span import ExecutionSpan, SpanStatus
-from lab_brain.core.repositories.budget import SqlConnection, require_durable_connection
+from lab_brain.core.repositories.budget import (
+    CostLedger,
+    SqlConnection,
+    require_durable_connection,
+)
 from lab_brain.core.repositories.protocols import RepositoryError
 
 
 class SpanLifecycleError(RepositoryError):
-    """A span was opened twice, closed twice, or closed without being open."""
+    """A span was opened twice, closed twice, closed without being open, or badly parented."""
+
+
+class TraceCorruptionError(RepositoryError):
+    """A trace cannot be reassembled into a tree, so no ordering of it would be honest.
+
+    Raised rather than worked around. The first version of :meth:`TraceView.ordered` treated a span
+    whose parent was absent as a root, on the reasoning that dropping it would shrink the evidence.
+    That was the wrong repair: it turned a corrupt cross-trace edge into a plausible-looking tree,
+    and a reconstruction that silently fixes its own input produces output that reads as evidence
+    and is not. Both stores now make the corruption unrepresentable; if one is seen anyway, the
+    honest answer is to say so.
+    """
 
 
 @dataclass(frozen=True)
@@ -49,15 +73,32 @@ class TraceView:
         microsecond must still reconstruct identically on every run, or a recorded trace is not
         reproducible evidence.
 
-        Orphans -- spans whose declared parent is absent from this trace -- are appended rather
-        than dropped. Losing a span because its parent is missing would silently shrink the
-        evidence, and the parent being absent is itself worth seeing.
+        Raises :class:`TraceCorruptionError` rather than repairing anything -- a span whose parent
+        is not in this trace, a span in the wrong trace, or a parent cycle. See that class for why
+        the earlier "treat it as a root" behaviour was the wrong answer.
         """
-        by_parent: dict[str | None, list[ExecutionSpan]] = {}
         known = {span.span_id for span in self.spans}
+        wrong_trace = sorted(s.span_id for s in self.spans if s.trace_id != self.trace_id)
+        if wrong_trace:
+            raise TraceCorruptionError(
+                f"trace {self.trace_id} was handed spans belonging to another trace: "
+                f"{', '.join(wrong_trace)}"
+            )
+        orphans = sorted(
+            f"{s.span_id}->{s.parent_span_id}"
+            for s in self.spans
+            if s.parent_span_id is not None and s.parent_span_id not in known
+        )
+        if orphans:
+            raise TraceCorruptionError(
+                f"trace {self.trace_id} contains spans whose parent is not in it: "
+                f"{', '.join(orphans)}. Both stores forbid this, so seeing it means the trace was "
+                "assembled from a partial or cross-trace read -- which cannot be ordered honestly"
+            )
+
+        by_parent: dict[str | None, list[ExecutionSpan]] = {}
         for span in self.spans:
-            parent = span.parent_span_id if span.parent_span_id in known else None
-            by_parent.setdefault(parent, []).append(span)
+            by_parent.setdefault(span.parent_span_id, []).append(span)
         for siblings in by_parent.values():
             siblings.sort(key=lambda s: (s.start_time, s.span_id))
 
@@ -69,6 +110,15 @@ class TraceView:
                 walk(span.span_id)
 
         walk(None)
+        if len(out) != len(self.spans):
+            # Unreachable through either store -- a parent must exist when its child is inserted,
+            # and the close trigger forbids repointing one -- but a cycle would otherwise make this
+            # function silently return a subset, which is the failure mode of a "can't happen".
+            unreached = sorted({s.span_id for s in self.spans} - {s.span_id for s in out})
+            raise TraceCorruptionError(
+                f"trace {self.trace_id} is not a tree; unreachable from any root: "
+                f"{', '.join(unreached)}"
+            )
         return tuple(out)
 
     def cost_entry_ids(self) -> tuple[str, ...]:
@@ -111,11 +161,19 @@ class SpanRepository(Protocol):
 
 
 class InMemorySpanRepository:
-    """Spans in a dict, with the same lifecycle rules the table enforces."""
+    """Spans in a dict, with the same rules the table enforces.
 
-    def __init__(self) -> None:
+    ``ledger`` is optional and its absence is the one place this store is weaker than the SQL one:
+    a cost ref can only be verified against something that can resolve it. Pass the ledger the
+    dispatch seam is already using and refs are checked here too; leave it out and they are not.
+    Made a parameter rather than a silence because the P6 audit found the previous docstring
+    claiming parity it did not have.
+    """
+
+    def __init__(self, ledger: CostLedger | None = None) -> None:
         self._lock = threading.Lock()
         self._by_id: dict[str, ExecutionSpan] = {}
+        self._ledger = ledger
 
     def open(self, span: ExecutionSpan) -> ExecutionSpan:
         if span.status is not SpanStatus.RUNNING:
@@ -126,6 +184,24 @@ class InMemorySpanRepository:
         with self._lock:
             if span.span_id in self._by_id:
                 raise SpanLifecycleError(f"span {span.span_id} is already recorded")
+            # Parent existence AND same trace, matching the composite foreign key migration 010b
+            # puts on the table. Checking neither -- which this store did until the P6 audit --
+            # let a fake accept the cross-trace edge the database rejects, which is precisely how
+            # a conformance suite passes against a fake and fails in production.
+            if span.parent_span_id is not None:
+                parent = self._by_id.get(span.parent_span_id)
+                if parent is None:
+                    raise SpanLifecycleError(
+                        f"span {span.span_id} names parent {span.parent_span_id}, which is not "
+                        "recorded; a dangling parent makes the trace unreassemblable"
+                    )
+                if parent.trace_id != span.trace_id:
+                    raise SpanLifecycleError(
+                        f"span {span.span_id} is in trace {span.trace_id} but its parent "
+                        f"{span.parent_span_id} is in {parent.trace_id}; a parent is in the same "
+                        "trace as its child, or the edge crosses two episodes and belongs to "
+                        "neither"
+                    )
             self._by_id[span.span_id] = span
         return span
 
@@ -137,6 +213,18 @@ class InMemorySpanRepository:
         cost_entry_ids: Sequence[str] = (),
         metadata: dict[str, object] | None = None,
     ) -> ExecutionSpan:
+        """Close atomically with respect to its cost refs: all of them, or the span stays open."""
+        refs = tuple(cost_entry_ids)
+        if self._ledger is not None:
+            # Before the mutation, so the failure leaves nothing half-done -- the same ordering
+            # `execution_span_close` uses, for the same reason.
+            missing = [ref for ref in refs if self._ledger.entry(ref) is None]
+            if missing:
+                raise SpanLifecycleError(
+                    f"cost entries {', '.join(sorted(missing))} do not exist, so span {span_id} "
+                    "stays RUNNING with no links. A span whose status is recorded and whose cost "
+                    "refs are not is the one failure OPS-003 must not have"
+                )
         with self._lock:
             existing = self._by_id.get(span_id)
             if existing is None:
@@ -149,7 +237,7 @@ class InMemorySpanRepository:
             closed = existing.closed(
                 status=status,
                 end_time=end_time,
-                cost_entry_ids=tuple(cost_entry_ids),
+                cost_entry_ids=refs,
                 metadata=dict(metadata) if metadata is not None else None,
             )
             self._by_id[span_id] = closed
@@ -229,26 +317,32 @@ class SqlSpanRepository:
             cost_entry_ids=tuple(cost_entry_ids),
             metadata=dict(metadata) if metadata is not None else None,
         )
-        # `AND status = 'RUNNING'` makes the close conditional in the write rather than after a
-        # read, the same reason the approval claim puts `consumed_at IS NULL` in its WHERE: two
-        # concurrent closes must not both succeed. The table's trigger refuses a re-close as well,
-        # so a caller reaching past this class cannot re-decide a finished span either.
+        # ONE STATEMENT, and that is the whole point. This used to be an UPDATE followed by one
+        # INSERT per cost ref; under the autocommit connection these stores require, each of those
+        # committed separately, so an invalid ref left the span permanently terminal with partial
+        # links and the close-once trigger refused every retry. The two facts OPS-003 exists to
+        # make reliable were exactly the pair that could diverge.
+        #
+        # `execution_span_close` (migration 010b) does the close and every link together, so the
+        # statement's own atomicity is the guarantee: any invalid ref aborts it and the span stays
+        # RUNNING. Wrapping this in a Python transaction was not an option -- these stores refuse a
+        # connection they do not own precisely so they never commit somebody else's work.
+        #
+        # It also keeps the concurrency property: the conditional UPDATE inside the function takes
+        # the row lock, so of two concurrent closes exactly one gets TRUE and the loser gets FALSE.
         row = self._connection.execute(
-            "UPDATE execution_spans"
-            "   SET status = %s, end_time = %s, metadata = %s"
-            " WHERE span_id = %s AND status = 'RUNNING'"
-            " RETURNING span_id",
-            (closed.status.value, closed.end_time, json.dumps(closed.metadata), span_id),
+            "SELECT execution_span_close(%s, %s, %s, %s, %s)",
+            (
+                span_id,
+                closed.status.value,
+                closed.end_time,
+                json.dumps(closed.metadata),
+                list(closed.cost_entry_ids),
+            ),
         ).fetchone()
-        if row is None:
+        if row is None or row[0] is not True:
             raise SpanLifecycleError(
                 f"span {span_id} was not open; a closed span is not re-decided (OPS-003)"
-            )
-        for entry_id in closed.cost_entry_ids:
-            self._connection.execute(
-                "INSERT INTO execution_span_cost_entries (span_id, cost_entry_id)"
-                " VALUES (%s, %s) ON CONFLICT DO NOTHING",
-                (span_id, entry_id),
             )
         return closed
 
@@ -297,5 +391,6 @@ __all__ = [
     "SpanLifecycleError",
     "SpanRepository",
     "SqlSpanRepository",
+    "TraceCorruptionError",
     "TraceView",
 ]
