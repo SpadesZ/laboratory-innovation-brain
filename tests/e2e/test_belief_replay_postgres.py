@@ -27,6 +27,7 @@ import pytest
 from lab_brain.core.belief import (
     SkipReason,
     admit_hypothesis,
+    authorize_transition,
     quarantined_by_extractor_version,
     record_transition,
     replay,
@@ -34,13 +35,15 @@ from lab_brain.core.belief import (
 from lab_brain.core.models import (
     BeliefState,
     HypothesisView,
+    IndependenceSummary,
+    RelationJudgment,
     RelationType,
-    TransitionDecision,
     TransitionOutcome,
     TransitionPolicy,
-    TransitionReason,
 )
+from lab_brain.core.models.decision import BeliefTransitionDecision
 from lab_brain.core.repositories import SqlBeliefEventStore, SqlTransitionPolicyStore
+from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
 from tests.conftest_fixtures import make_artifact
 
 pytestmark = [
@@ -83,14 +86,40 @@ PROMOTE = TransitionPolicy(
 )
 
 
-def _allow(policy: TransitionPolicy) -> TransitionDecision:
-    return TransitionDecision(
-        outcome=TransitionOutcome.ALLOW,
-        reason_code=TransitionReason.POLICY_SATISFIED,
-        policy_id=policy.policy_id,
-        policy_version=policy.version,
-        independent_attestation_count=2,
+def _authorize(
+    connection,  # type: ignore[no-untyped-def]
+    policy: TransitionPolicy,
+    decision_id: str,
+) -> BeliefTransitionDecision:
+    """A real §17.14.1 authorization, evaluated and then stored (`v3.3-a12`).
+
+    It has to be a real one end to end: `record_transition` re-derives it, and the database
+    requires the row to exist before the event may reference it. The relation below is built to
+    satisfy whatever `required_relation_types` the policy declares, so the ALLOW is earned rather
+    than asserted -- an `_allow()` helper that fabricated the verdict is exactly what this slice
+    removed.
+    """
+    supporting = RelationJudgment(
+        relation_id=f"rel:{decision_id.split(':')[-1]}",
+        from_entity_id="att:clean",
+        to_entity_id=HYP,
+        relation_type=policy.required_relation_types[0],
+        project_id=PROJECT,
+        supporting_attestation_ids=("att:clean",),
     )
+    decision = authorize_transition(
+        decision_id=decision_id,
+        policy=policy,
+        hypothesis=HypothesisView(
+            hypothesis_id=HYP, project_id=PROJECT, current_state=policy.from_state
+        ),
+        admitted_relations=(supporting,),
+        independence_summary=IndependenceSummary(independent_count=2),
+        candidate_to_state=policy.candidate_to_state,
+        created_at=T0,
+    )
+    assert decision.result is TransitionOutcome.ALLOW, decision.evaluated.reason_code
+    return SqlBeliefTransitionDecisionStore(connection).record(decision)
 
 
 @pytest.fixture
@@ -171,7 +200,7 @@ def test_quarantine_then_replay_changes_the_projection_and_keeps_the_history(wor
     # --- two policy-authorised revisions, appended through the gate ---
     first = record_transition(
         event_id="bre:1",
-        decision=_allow(ADMIT),
+        authorization=_authorize(world, ADMIT, "dec:challenge"),
         policy=ADMIT,
         hypothesis=HypothesisView(
             hypothesis_id=HYP, project_id=PROJECT, current_state=BeliefState.ACTIVE
@@ -186,7 +215,7 @@ def test_quarantine_then_replay_changes_the_projection_and_keeps_the_history(wor
 
     second = record_transition(
         event_id="bre:2",
-        decision=_allow(PROMOTE),
+        authorization=_authorize(world, PROMOTE, "dec:promote"),
         policy=PROMOTE,
         hypothesis=HypothesisView(
             hypothesis_id=HYP, project_id=PROJECT, current_state=BeliefState.CHALLENGED
@@ -244,7 +273,7 @@ def test_the_current_state_cannot_be_repaired_by_hand(world):
     events.append(
         record_transition(
             event_id="bre:1",
-            decision=_allow(ADMIT),
+            authorization=_authorize(world, ADMIT, "dec:challenge"),
             policy=ADMIT,
             hypothesis=HypothesisView(
                 hypothesis_id=HYP, project_id=PROJECT, current_state=BeliefState.ACTIVE

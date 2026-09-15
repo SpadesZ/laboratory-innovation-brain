@@ -1349,6 +1349,7 @@ BeliefRevisionEvent {
   from_state?, to_state,
   triggering_attestation_ids[], triggering_relation_ids[],
   policy_id, policy_version,             # v3.3-a11; §8.2.1 keys a policy on (policy_id, version)
+  authorization_decision_id?,            # v3.3-a12; REQUIRED when from_state is not null
   actor_id?, inference_provenance_id?,
   rationale_artifact_or_record_ref?, occurred_at, trace_id
 }
@@ -1368,6 +1369,15 @@ project，並使「此 event 引用了別的 project 的 attestation」成為 sc
 以 `(policy_id, version)` 為 policy 的鍵，而 EPI-005 的「identical inputs + identical
 policy_version 必得相同 TransitionDecision」只在同一個 policy 內成立——只記 version 的 event 無法
 被重新推導，而可重新推導正是 EPI-003 的目的。
+
+`authorization_decision_id` 由 `v3.3-a12` 補入（SPEC-ISSUE-011）。`v3.3-a11` 之後，event 能指名
+*哪一份 policy 本來會授權它*，但那仍只是一個聲明：`TransitionDecision` 沒有 identity、不落盤，於是
+一個由手工構造、引用真實 policy、且記錄的正是該 policy 所治理之 transition 的 event，與一個真的
+跑過 `evaluate` 並取得 ALLOW 的 event，在記錄上完全無法區分。此處缺的不是檢查，而是**被檢查的對象**
+——沒有任何持久物件可供比對。§17.14.1 的 `Decision` 補上該對象，而 `decision_input_snapshot` 使它
+不只是一枚印章：偽造一份能通過的 Decision，必須提供一組在 immutable policy 下真的 evaluate 成
+ALLOW 的輸入，而那已經不是偽造，就是授權本身。Genesis 不參與此義務——admission 不冒充 transition
+authorization（§8 的 admission gate 是獨立路徑），`target_id` 仍無 foreign key，留給 EPI-001/M3。
 
 ## 17.14 InferenceProvenance Contract
 
@@ -1431,8 +1441,59 @@ ResearchContract {
 
 Decision {
   decision_id, episode_id, decision_type, subject_id,
-  result, policy_refs[], triggering_event_ids[], actor_id?, created_at
+  result, policy_refs[], triggering_event_ids[], actor_id?, created_at,
+
+  # v3.3-a12; REQUIRED when decision_type = BELIEF_TRANSITION
+  project_id,
+  policy_id, policy_version,        # the one policy this authorization was computed under
+  from_state, to_state,             # the transition this authorization covers
+  authority_policy_id?,             # uniquely locatable identity, not a comparison result
+  authority_policy_version?,
+  decision_input_snapshot,          # immutable canonical serialization; see below
+  input_hash                        # sha256 over the exact canonical bytes above
 }
+```
+
+### Decision as durable belief-transition authorization（`v3.3-a12`）
+
+```
+decision_type for belief-transition authorization is fixed to BELIEF_TRANSITION.
+
+result vocabulary (identical to TransitionDecision.outcome, 8.2.1):
+  ALLOW | DENY | NEED_MORE_EVIDENCE | NEED_HUMAN_REVIEW
+
+A BeliefRevisionEvent with a non-null from_state MUST reference a Decision with
+  decision_type = BELIEF_TRANSITION
+  result       = ALLOW
+and the same project_id, subject_id, policy_id, policy_version, from_state and
+to_state as the event itself. A Decision whose result is not ALLOW authorizes
+nothing; it is a record that the transition was refused.
+
+decision_input_snapshot is immutable and MUST be sufficient to reconstruct all
+six inputs of the canonical operator (8.2.1):
+  hypothesis, admitted_relations, authority_policy, condition_matches,
+  independence_summary, candidate_to_state
+
+If an AuthorityPolicy participated, the snapshot MUST record its uniquely
+locatable identity and version, and MUST NOT reduce it to its comparison
+results: storing only the comparisons makes the authority rules unfalsifiable,
+which is what 10.5.1 refuses for INCOMPARABLE.
+
+input_hash MUST be computed over the canonical serialization bytes themselves,
+so that a store can verify the binding without re-serializing and without
+agreeing with the writer about field order.
+
+Re-derivability (fail closed):
+  Re-running TransitionPolicy.evaluate(...) on the reconstructed inputs, under
+  the immutable policy named by (policy_id, policy_version), MUST yield a
+  TransitionDecision whose canonical serialization is identical to the one the
+  stored Decision records. If it does not, or if the inputs cannot be
+  reconstructed, the authorization MUST be treated as absent -- the event MUST
+  NOT be created and a stored event MUST NOT be accepted as authorized.
+
+This is why the snapshot and not the verdict is the durable object: an
+authorization that cannot be recomputed is a claim, and 8.2.1's determinism
+guarantee is precisely what makes recomputation a check rather than a guess.
 ```
 
 ## 17.15 Actor / ACL Contract
@@ -2604,7 +2665,7 @@ EXPECTED RESEARCH LOOP
 | EPI-002 | confirmed root cause 必須可以 trace 回 Run/Evidence/Artifact；LLM statement 不可作為證據。 |
 | EPI-003 | 所有 hypothesis status 變更必須產生 BeliefRevisionEvent；EpistemicState 可由 event replay 重建。 |
 | EPI-004 | DomainPack MUST expose AuthorityPolicy.compare returning STRONGER/WEAKER/EQUIVALENT/INCOMPARABLE. INCOMPARABLE at a required transition gate MUST yield NEED_HUMAN_REVIEW + ReviewItem(AUTHORITY_CONFLICT); no silent promotion/rejection. |
-| EPI-005 | Hypothesis state transition MUST be authorized by versioned TransitionPolicy and emitted as BeliefRevisionEvent; LLM cannot directly mutate status. The canonical operator signature is `TransitionPolicy.evaluate(...) -> TransitionDecision` (§8.2.1); no other name or arity may be used. |
+| EPI-005 | Hypothesis state transition MUST be authorized by versioned TransitionPolicy and emitted as BeliefRevisionEvent; LLM cannot directly mutate status. The canonical operator signature is `TransitionPolicy.evaluate(...) -> TransitionDecision` (§8.2.1); no other name or arity may be used. **The authorization MUST be durable and re-derivable: every non-genesis BeliefRevisionEvent MUST reference a `BELIEF_TRANSITION` Decision with `result=ALLOW` for the same project/subject/policy/from→to, carrying an immutable canonical `decision_input_snapshot` + `input_hash` sufficient to reconstruct all six inputs of the canonical operator; re-evaluating those inputs under the named immutable policy MUST reproduce the stored decision under canonical serialization, and MUST fail closed otherwise (§17.14.1, `v3.3-a12`).** |
 | EPI-006 | Conflicts MUST be first-class typed Conflict records with a declared conflict_type and blocking flag. `blocking_conflict_policy` MUST resolve against conflict_type; a blocking Conflict MUST prevent ALLOW; closing a Conflict MUST record a resolution event. |
 | VER-001 | 下一個 verification action 必須有 predicted discriminatory outcome + estimated cost；若較便宜 evidence 已足夠，不得無理由升級到 simulator。 |
 | VER-002 | Verification Planner 必須使用 Capability descriptors；sufficient candidate 有明確 state-transition/blocked-conflict criterion。 |
@@ -2692,7 +2753,7 @@ Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 
 | EPI-002 | T-EPI-002 | e2e/provenance | confirmed root cause query 必須 trace 到 Relation/Attestation or Observation → Run → Artifact；只有 LLM statement 的 fixture 不得確認 root cause。 |
 | EPI-003 | T-EPI-003 | e2e | 隔離 triggering attestation 後 replay，EpistemicState 投影改變且 history 保留。 |
 | EPI-004 | T-EPI-004 | unit | authority fixtures cover stronger/weaker/equivalent/incomparable; required INCOMPARABLE returns NEED_HUMAN_REVIEW, auto-creates ReviewItem(AUTHORITY_CONFLICT), and blocks belief promotion/rejection. |
-| EPI-005 | T-EPI-005 | contract/e2e | direct LLM status assignment is rejected; admitted RelationJudgments + policy produce event and replayable projection; only `evaluate` signature exists in the codebase (no `should_transition`); **identical inputs + identical `policy_version` MUST yield an identical `TransitionDecision`, compared under canonical serialization -- a policy whose result varies across repeated calls on the same inputs, or which reads wall-clock/random/ambient state, must FAIL (§8.2.1).** |
+| EPI-005 | T-EPI-005 | contract/e2e | direct LLM status assignment is rejected; admitted RelationJudgments + policy produce event and replayable projection; only `evaluate` signature exists in the codebase (no `should_transition`); **identical inputs + identical `policy_version` MUST yield an identical `TransitionDecision`, compared under canonical serialization -- a policy whose result varies across repeated calls on the same inputs, or which reads wall-clock/random/ambient state, must FAIL (§8.2.1).** **A non-genesis event with no `BELIEF_TRANSITION` Decision backing it must be impossible to store -- including via raw SQL -- and a Decision that is forged (`result` not ALLOW, wrong `input_hash`, wrong project/subject/policy/from→to) must be refused; a snapshot that re-evaluates to a different `TransitionDecision` must fail closed. Testing only the authorized path is insufficient (§17.14.1, `v3.3-a12`).** |
 | EPI-006 | T-EPI-006 | contract/e2e | A blocking Conflict of a type listed in blocking_conflict_policy forces TransitionDecision.outcome != ALLOW and appears in blocking_conflict_ids[]; AUTHORITY_CONFLICT from an INCOMPARABLE comparison creates a Conflict linked to the auto-created ReviewItem; resolving a Conflict without a resolution_event_id is rejected. |
 | VER-001 | T-VER-001 | e2e | Planner 先檢查已存在 evidence / cheap actions；只有較便宜層不足時才升級 simulator，並記錄選擇理由。 |
 | VER-002 | T-VER-002 | unit | Planner 對無 capability descriptor 的 backend 不可規劃；有 descriptor 時依 produces/requires match。 |
@@ -3178,3 +3239,4 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | **v3.3-a9** | **2026-09-14** | **Maintainer amendment (COST-001 ledger 與 approval contract)**：§17.17 的 `CostEntry` 原本無 `project_id`，也無法區分 estimate 與 actual，而 COST-001 要求成本可追溯到 project 並保留兩者。改為 `project_id` + `cost_kind（ESTIMATED | ACTUAL）` + `cost`（直接引用 §9.4 `CostVector`，避免 ledger 與 planner 對「成本由什麼組成」各自漂移）+ `approval_id?`。新增 **§17.17.1 BudgetApproval Schema**：v3.3-a6 要求超限時存在 supervisor/human approval path 且 approval 本身可歸屬，但未定義其 scope；現明確為 one action / one episode / one project / one policy_version / stated overrun / time window / single use，且**僅解除 budget，不解除 SEC-002、§7.6 critique path 或任何其他 gate**。**未新增 Requirement/Test ID**；Requirement ↔ Test 維持 **59 ↔ 59**。 |
 | **v3.3-a10** | **2026-09-14** | **Maintainer amendment (COST-001 token dimension 與 cap 語意)**：裁決 SPEC-ISSUE-009。（a）§25.3 COST-001 要求 CostLedger 至少記 **wall-clock/tokens/money/license-seat**，而 §17.17 的 `CostEntry.cost` 就是 §9.4 的 `CostVector`，該型別原本沒有 token 維度——ledger 被要求記錄一個唯一可用型別無法表達的量。**§9.4 `CostVector` 新增 `token_count`**（第九維、可設限），並因此自動流入 §17.17 `CostEntry.cost`、§17.17.1 `BudgetApproval.approved_overrun` 與 §17.19.1 budget caps。token 明確**不得**併入 `compute_units`：兩者是不同的量，合併後兩題都答不出，與 §9.4 反對 `normalized_cost` 的理由相同。（b）§17.19.1 原本未定義 cap 的缺席與零之別，導致 DDL（`NULL` = 未設限）與 `BudgetPolicy.cap_for()`（把 `0` 當未設限）對同一份 policy 得出相反結論，且錯在危險的方向——刻意凍結的預算會被讀成全部放行。新增 **§17.19.1 Cap semantics**：缺席/`NULL` = 該維度不設限，`0` = 允許量為零，model/DDL/gate 三者採同一讀法；`approved_overrun` 是額度、不受此規則影響。**未新增 Requirement/Test ID，亦未新增 normative statement**——COST-001 早已同時課予這兩項義務，本修訂使其**可被表達**與**可被唯一解讀**，而非新增義務；§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。Requirement ↔ Test 維持 **59 ↔ 59**。無架構方向變更。 |
 | **v3.3-a11** | **2026-09-15** | **Maintainer amendment (BeliefRevisionEvent 的 project 與 policy 身分)**：裁決 SPEC-ISSUE-010。§17.13 的 `BeliefRevisionEvent` 原本既無 `project_id` 也無 `policy_id`。（a）**新增 `project_id`**：EPI-003 要求 EpistemicState 可由 replay 重建、SEC-002 要求一切讀取以 project 為範圍，但 event 上沒有 project 時，「某 project 的信念歷史」無從表達，replay 只能是全站範圍，且「此 event 引用了別 project 的 attestation」不是 schema 能敘述、更不能拒絕的事——與 R-7 同形：不是檢查漏了，是問題無法被提出。（b）**新增 `policy_id`**：§8.2.1 的 `TransitionDecision` 同時帶 `policy_id` 與 `policy_version`，`TransitionPolicy` 亦以 `(policy_id, version)` 為鍵，而 event 只記 version；由於 version 是 per-policy，兩份同為 `1.2.0` 的 policy 在記錄中無法區分，EPI-005 的「identical inputs + identical policy_version 必得相同 TransitionDecision」因而失去錨點——稽核者持有 inputs 與 version 卻無法選出要重跑的 policy，而可重新推導正是 EPI-003 的目的。**未新增 Requirement/Test ID，亦未新增 normative statement**——EPI-003 早已課予「可重播」、EPI-005 早已課予「在指名 policy version 下可重現」，本修訂使兩者**可被表達**。§17.13 在 §6–§16 稽核範圍之外，§23.5 (2) occurrence inventory 不變。Requirement ↔ Test 維持 **59 ↔ 59**。無架構方向變更。 |
+| **v3.3-a12** | **2026-09-15** | **Maintainer amendment (belief transition 的 durable authorization proof)**：裁決 SPEC-ISSUE-011，採 Option 1 + Option 2，並加課「授權輸入必須可重新推導」。`v3.3-a11` 之後 event 已能指名*哪一份 policy 本來會授權它*，但那仍只是聲明——§8.2.1 的 `TransitionDecision` 沒有 identity、不落盤，於是一個手工構造、引用真實 policy、且記錄的正是該 policy 所治理之 transition 的 event，與一個真的取得 ALLOW 的 event 在記錄上無從區分；缺的不是檢查而是**被檢查的對象**。（a）**§17.14.1 的 `Decision` 成為 belief transition 的 durable authorization record**：`decision_type` 於此用途固定為 `BELIEF_TRANSITION`，`result` 採 `ALLOW / DENY / NEED_MORE_EVIDENCE / NEED_HUMAN_REVIEW`（與 `TransitionDecision.outcome` 同一詞彙），並補入 `project_id`、`policy_id`/`policy_version`、`from_state`/`to_state`。（b）**必須保存 immutable canonical `decision_input_snapshot` + `input_hash`**，足以重建 §8.2.1 六組輸入；若 AuthorityPolicy 參與，必須保存其可唯一定位的 identity/version，**不得**只保存比較結果——只存結果會使 authority 規則不可反證，正是 §10.5.1 對 INCOMPARABLE 所拒絕的。`input_hash` 必須對 canonical bytes 本身計算，使 store 能在不重新序列化、不與寫入方約定欄位順序的前提下驗證綁定。（c）**§17.13 新增 `authorization_decision_id`**，`from_state` 非 null 時為 required，且該 Decision 必須同 project/subject/policy/from→to 且 `result=ALLOW`。（d）**re-derivability fail-closed**：以 snapshot 重建輸入、在指名的 immutable policy 下重跑 `evaluate`，其 canonical serialization 必須與 stored Decision 完全一致；不一致或無法重建者，該授權即視為不存在。其後果是偽造的門檻改變了性質——要造出一份能通過的 Decision，必須提供一組在 immutable policy 下真的 evaluate 成 ALLOW 的輸入，而那已經不是偽造，就是授權本身。Genesis 不參與此義務：admission 不冒充 transition authorization，`target_id` 仍無 foreign key（R-12），留給 EPI-001/M3。**此義務歸既有 EPI-005 / T-EPI-005；新增 normative registry statement，未新增 Requirement/Test ID**，Requirement ↔ Test 維持 **59 ↔ 59**。§17 與 §25.3/§26 在 §6–§16 稽核範圍之外，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |

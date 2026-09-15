@@ -12,6 +12,7 @@ remembered to look.
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 
 import psycopg
 import pytest
@@ -150,6 +151,28 @@ def test_an_unmodelled_independence_basis_is_storable(db):
     assert loaded.independence_basis is IndependenceBasis.INSTRUMENT
 
 
+def _authorization(db, decision_id: str = "dec:1") -> None:  # type: ignore[no-untyped-def]
+    """The authorization `v3.3-a12` requires a non-genesis event to cite.
+
+    Written straight into the table with a correctly bound hash: this module is about the *policy*
+    foreign key, so the authorization only has to exist and be legitimate, not be the subject.
+    """
+    snapshot = '{"fixture":"transition-policies"}'
+    db.execute(
+        "INSERT INTO belief_transition_decisions (decision_id, project_id, subject_id, result,"
+        " policy_id, policy_version, from_state, to_state, decision_input_snapshot, input_hash,"
+        " evaluated_decision, created_at)"
+        " VALUES (%s, 'prj:test', 'hyp:1', 'ALLOW', 'pol:hypothesis-default', '1.0.0',"
+        " 'ACTIVE', 'SUPPORTED', %s, %s, '{\"outcome\":\"ALLOW\"}', %s)",
+        (
+            decision_id,
+            snapshot,
+            "sha256:" + hashlib.sha256(snapshot.encode("utf-8")).hexdigest(),
+            T0,
+        ),
+    )
+
+
 def _evidence(db) -> None:  # type: ignore[no-untyped-def]
     """One attestation an event may legitimately cite.
 
@@ -203,7 +226,7 @@ def test_an_event_cannot_cite_a_policy_version_nobody_registered(db):
         db.execute(
             "SELECT belief_revision_event_append('bre:x', 'prj:test', 'HYPOTHESIS', 'hyp:1',"
             " 'ACTIVE', 'SUPPORTED', ARRAY['att:1'], ARRAY[]::text[], 'pol:nowhere', '9.9.9',"
-            " NULL, NULL, NULL, %s, 'trc:1')",
+            " NULL, NULL, NULL, %s, 'trc:1', 'dec:1')",
             (T0,),
         )
     assert (
@@ -238,10 +261,11 @@ def test_an_event_citing_a_registered_policy_is_accepted(db):
     """
     SqlTransitionPolicyStore(db).register(policy())
     _evidence(db)
+    _authorization(db)
     db.execute(
         "SELECT belief_revision_event_append('bre:x', 'prj:test', 'HYPOTHESIS', 'hyp:1',"
         " 'ACTIVE', 'SUPPORTED', ARRAY['att:1'], ARRAY[]::text[], 'pol:hypothesis-default',"
-        " '1.0.0', NULL, NULL, NULL, %s, 'trc:1')",
+        " '1.0.0', NULL, NULL, NULL, %s, 'trc:1', 'dec:1')",
         (T0,),
     )
     row = db.execute(

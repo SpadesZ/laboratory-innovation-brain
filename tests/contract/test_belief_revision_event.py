@@ -51,10 +51,18 @@ def event(**overrides: object) -> BeliefRevisionEvent:
         "triggering_relation_ids": ("rel:1",),
         "policy_id": "pol:hypothesis-default",
         "policy_version": "1.0.0",
+        # `v3.3-a12`: required for every non-genesis event. Defaulted here because almost every
+        # case below is about some *other* invariant; the field's own rules have their own tests.
+        "authorization_decision_id": "dec:1",
         "occurred_at": T0,
         "trace_id": TRACE,
     }
     defaults.update(overrides)
+    # Genesis carries no authorization and non-genesis requires one (`v3.3-a12`). Mirrored here so
+    # a case that only wanted to set `from_state=None` does not have to know about the field; the
+    # rule itself is tested directly rather than through this default.
+    if defaults.get("from_state") is None:
+        defaults["authorization_decision_id"] = None
     return BeliefRevisionEvent(**defaults)  # type: ignore[arg-type]
 
 

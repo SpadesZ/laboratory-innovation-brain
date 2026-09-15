@@ -35,6 +35,17 @@ class AuthorityPolicy(Protocol):
     """
 
     @property
+    def policy_id(self) -> str:
+        """Identity, because `v3.3-a12` requires the comparator to be *uniquely locatable*.
+
+        A version alone does not identify a comparator: versions are per-policy, so two
+        DomainPack comparators both at ``1.0.0`` are indistinguishable in a stored authorization.
+        §17.14.1 forbids the cheaper alternative of storing the comparison results instead --
+        that would make the authority rules unfalsifiable, which is what §10.5.1 refuses.
+        """
+        ...
+
+    @property
     def policy_version(self) -> str:
         """Versioned, because a belief transition records which comparator authorised it.
 

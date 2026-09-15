@@ -1,11 +1,13 @@
 # SPEC-ISSUE-011: a stored BeliefRevisionEvent carries no durable proof that a policy authorised it
 
 Severity: GATE
-Status: OPEN
+Status: RESOLVED
 Blocks gate: M0b
 Raised: 2026-09-15
 Raised by: P7 audit (EPI-003, EPI-005)
-Affected: §17.13, §17.14 `Decision`, §8.2.1, §25.3 `EPI-005`, §26 `T-EPI-005`, AGT-016
+Affected: §17.13, §17.14.1 `Decision`, §8.2.1, §25.3 `EPI-005`, §26 `T-EPI-005`, AGT-016
+Resolved: 2026-09-15
+Resolved by: `v3.3-a12` (maintainer ruling: Option 1 + Option 2, plus re-derivable input)
 
 ## The gap
 
@@ -105,3 +107,64 @@ off while this is open — which is the correct consequence, not a workaround.
 - [ ] `docs/normative_statements.yaml` gains an entry for the obligation
 - [ ] Durable enforcement added and proven by a negative test writing raw SQL
 - [ ] This issue closed
+
+
+---
+
+## Ruling and resolution (`v3.3-a12`, 2026-09-15)
+
+**Section locator corrected first.** This issue originally cited §17.14, which is
+`InferenceProvenance`. `Decision` is declared in the §17.14.1 contract block. The maintainer
+caught it; every reference above and in the amendment now says §17.14.1.
+
+**The ruling was Option 1 + Option 2, with a third requirement neither option contained:** the
+authorization must carry inputs from which it can be *re-derived*. That addition is what closes
+the gap rather than relocating it. Option 1 alone (require a `Decision` row) would have moved the
+forgery up one level -- write the Decision too. Option 2 alone (fix the vocabulary) would have
+made a forged row well-formed. Requiring the six inputs of §8.2.1's canonical operator, plus a
+hash that binds them, means a Decision that survives checking has to contain inputs that genuinely
+evaluate to ALLOW under the immutable policy. At that point it is not a forgery; it is an
+authorization. §8.2.1's determinism guarantee is what turns recomputation into a check.
+
+### What the amendment states
+
+1. `Decision` is the durable belief-transition authorization. `decision_type` is fixed to
+   `BELIEF_TRANSITION`; `result` uses `ALLOW / DENY / NEED_MORE_EVIDENCE / NEED_HUMAN_REVIEW`,
+   the same vocabulary as `TransitionDecision.outcome`.
+2. It MUST carry an immutable canonical `decision_input_snapshot` + `input_hash` sufficient to
+   reconstruct all six operator inputs. An `AuthorityPolicy` is recorded by uniquely locatable
+   identity and version, never by its comparison results -- storing the results would put the
+   authority rules beyond falsification, which is what §10.5.1 refuses for INCOMPARABLE.
+3. §17.13 gains `authorization_decision_id`, required for every non-genesis event, which MUST
+   name a Decision with the same project/subject/policy/from→to and `result=ALLOW`.
+4. Re-evaluating the snapshot under the named immutable policy MUST reproduce the stored decision
+   under canonical serialization, and MUST fail closed otherwise.
+5. The obligation belongs to the existing **EPI-005 / T-EPI-005**. A normative registry statement
+   was added; **no Requirement or Test ID was created**, and the traceability count stays 59 ↔ 59.
+
+Genesis is deliberately outside all of this: admission is §8's separate gate and does not borrow
+transition authority. `target_id` still has no foreign key, which remains **R-12** and waits on
+`EPI-001` in M3.
+
+### How it is enforced
+
+| Obligation | Where |
+|---|---|
+| Only a computed ALLOW can authorise | `authorize_transition` derives the verdict; there is no parameter to supply one |
+| The stored snapshot must re-derive | `rederive_decision`, called by `record_transition` before anything is minted |
+| Whole decision compared, not just the outcome | canonical serialization of `TransitionDecision` |
+| Hash binds the inputs | model validator, and a Postgres `CHECK` that recomputes `sha256` over the stored bytes |
+| Non-genesis event must cite an authorization | model validator + `CHECK ((from_state IS NULL) = (authorization_decision_id IS NULL))` |
+| Authorization must be ALLOW, same project/subject/policy/from→to | `belief_revision_events_require_authorization` trigger |
+| Cross-project authorization unrepresentable | composite FK on `(decision_id, project_id)` |
+| Authorization cannot be edited afterwards | `belief_transition_decisions_are_append_only` trigger |
+
+Migration `005d`. `005a`/`005b`/`005c` were applied and are untouched.
+
+### What remains, and it is not this issue
+
+Re-derivation needs the DomainPack comparator to be present when an `AuthorityPolicy` took part,
+because core must not import a DomainPack (§24.2) and the spec forbids storing its results. That
+is a deployment property, not a gap in the record: the comparator is named by identity and version,
+so its absence is detectable and `rederive_decision` refuses rather than guessing. An
+authorization computed with no comparator re-derives from the record alone.

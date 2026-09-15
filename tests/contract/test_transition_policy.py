@@ -59,6 +59,7 @@ class ToyAuthority:
     the whole reason INCOMPARABLE exists, and the case this class is here to produce.
     """
 
+    policy_id = "auth:toy"
     policy_version = "toy-1.0.0"
     _rank: ClassVar[dict[str, int]] = {"SIMULATED": 1, "MEASURED": 2}
 

@@ -222,11 +222,17 @@ def table_columns(migration: str, table: str) -> frozenset[str]:
 
     # Columns the migration adds later with ALTER TABLE -- `project_memberships.active` is one.
     for altered in re.finditer(
-        rf"ALTER TABLE\s+{re.escape(table)}\s+ADD COLUMN\s+([a-z_][a-z0-9_]*)", sql, re.I
+        rf"ALTER TABLE\s+{re.escape(table)}\s+ADD COLUMN"
+        rf"\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)",
+        sql,
+        re.I,
     ):
         columns.add(altered.group(1))
     for dropped in re.finditer(
-        rf"ALTER TABLE\s+{re.escape(table)}\s+DROP COLUMN\s+([a-z_][a-z0-9_]*)", sql, re.I
+        rf"ALTER TABLE\s+{re.escape(table)}\s+DROP COLUMN"
+        rf"\s+(?:IF\s+EXISTS\s+)?([a-z_][a-z0-9_]*)",
+        sql,
+        re.I,
     ):
         columns.discard(dropped.group(1))
 
@@ -247,13 +253,15 @@ def effective_table_columns(binding: SchemaBinding) -> frozenset[str]:
     for path in sorted(directory.glob("*.sql")):
         sql = path.read_text(encoding="utf-8")
         for altered in re.finditer(
-            rf"ALTER TABLE\s+{re.escape(binding.table)}\s+ADD COLUMN\s+([a-z_][a-z0-9_]*)",
+            rf"ALTER TABLE\s+{re.escape(binding.table)}\s+ADD COLUMN"
+            rf"\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)",
             sql,
             re.I,
         ):
             columns.add(altered.group(1))
         for dropped in re.finditer(
-            rf"ALTER TABLE\s+{re.escape(binding.table)}\s+DROP COLUMN\s+([a-z_][a-z0-9_]*)",
+            rf"ALTER TABLE\s+{re.escape(binding.table)}\s+DROP COLUMN"
+            rf"\s+(?:IF\s+EXISTS\s+)?([a-z_][a-z0-9_]*)",
             sql,
             re.I,
         ):

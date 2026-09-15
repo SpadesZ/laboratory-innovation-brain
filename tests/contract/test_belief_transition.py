@@ -19,20 +19,22 @@ import datetime as dt
 import pytest
 
 from lab_brain.core.belief import (
+    AuthorizationNotRederivable,
     BeliefProjection,
     BeliefScopeError,
     BeliefTransitionRefused,
     admit_hypothesis,
+    authorize_transition,
     record_transition,
 )
 from lab_brain.core.models import (
     BeliefRevisionEvent,
     BeliefState,
-    TransitionDecision,
     TransitionOutcome,
     TransitionReason,
 )
-from tests.contract.test_transition_policy import hypothesis, policy, relation
+from lab_brain.core.models.decision import BeliefTransitionDecision
+from tests.contract.test_transition_policy import hypothesis, policy, relation, summary
 
 pytestmark = [pytest.mark.requirement("EPI-005"), pytest.mark.spec_test("T-EPI-005")]
 
@@ -42,16 +44,25 @@ HYP = "hyp:rs-contact-resistance"
 TRACE = "trc:episode-1"
 
 
-def allow(**overrides: object) -> TransitionDecision:
+def authorized(**overrides: object) -> BeliefTransitionDecision:
+    """A real §17.14.1 authorization, produced by actually evaluating the policy.
+
+    There is deliberately no way to hand in the outcome you want. `v3.3-a12` makes the stored
+    inputs the authorization, so a test that wants a DENY has to supply inputs that genuinely
+    deny -- which is the same constraint a forger now faces, and the reason this slice closes
+    R-13 rather than moving it.
+    """
     defaults: dict[str, object] = {
-        "outcome": TransitionOutcome.ALLOW,
-        "reason_code": TransitionReason.POLICY_SATISFIED,
-        "policy_id": "pol:hypothesis-default",
-        "policy_version": "1.0.0",
-        "independent_attestation_count": 2,
+        "decision_id": "dec:1",
+        "policy": policy(),
+        "hypothesis": hypothesis(),
+        "admitted_relations": (relation(),),
+        "independence_summary": summary(),
+        "candidate_to_state": BeliefState.SUPPORTED,
+        "created_at": T0,
     }
     defaults.update(overrides)
-    return TransitionDecision(**defaults)  # type: ignore[arg-type]
+    return authorize_transition(**defaults)  # type: ignore[arg-type]
 
 
 def prior(state: BeliefState | None = BeliefState.ACTIVE, **overrides: object) -> BeliefProjection:
@@ -73,7 +84,6 @@ def create(**overrides: object) -> BeliefRevisionEvent:
     """
     defaults: dict[str, object] = {
         "event_id": "bre:1",
-        "decision": allow(),
         "policy": policy(),
         "hypothesis": hypothesis(),
         "candidate_to_state": BeliefState.SUPPORTED,
@@ -83,6 +93,19 @@ def create(**overrides: object) -> BeliefRevisionEvent:
         "triggering_relations": (relation(),),
     }
     defaults.update(overrides)
+    # The authorization defaults to one computed from the *same* policy, hypothesis and target
+    # state this event will record. Building it from independent defaults would make every
+    # override fail for the wrong reason -- an overridden hypothesis would trip the subject check
+    # before reaching whatever the test was actually about.
+    defaults.setdefault(
+        "authorization",
+        authorized(
+            policy=defaults["policy"],
+            hypothesis=defaults["hypothesis"],
+            candidate_to_state=defaults["candidate_to_state"],
+            admitted_relations=defaults.get("triggering_relations", ()),
+        ),
+    )
     return record_transition(**defaults).event  # type: ignore[arg-type]
 
 
@@ -101,39 +124,75 @@ def test_an_allow_decision_produces_the_event_it_authorises():
     assert created.triggering_relation_ids == ("rel:1",)
 
 
-@pytest.mark.parametrize(
-    "outcome",
-    [
-        TransitionOutcome.DENY,
-        TransitionOutcome.NEED_MORE_EVIDENCE,
-        TransitionOutcome.NEED_HUMAN_REVIEW,
-    ],
-)
+# Each case below produces its outcome from real inputs rather than by asserting one. Since
+# `v3.3-a12` that is the only way to build a non-ALLOW authorization at all: the snapshot is the
+# authorization, so "give me a DENY" means "give me inputs that deny".
+NON_ALLOW_INPUTS: dict[TransitionOutcome, dict[str, object]] = {
+    # A transition this policy does not govern at all.
+    TransitionOutcome.DENY: {"candidate_to_state": BeliefState.CONTRADICTED},
+    # The threshold a planner could still go and satisfy.
+    TransitionOutcome.NEED_MORE_EVIDENCE: {"independence_summary": summary(independent_count=0)},
+    # The one a human must resolve.
+    TransitionOutcome.NEED_HUMAN_REVIEW: {
+        "policy": policy(blocking_conflict_policy=("SIM_TO_REAL_CONFLICT",)),
+        "hypothesis": hypothesis(blocking_conflict_ids=("SIM_TO_REAL_CONFLICT",)),
+    },
+}
+
+
+@pytest.mark.parametrize("outcome", list(NON_ALLOW_INPUTS))
 def test_no_event_may_be_created_from_a_non_allow_decision(outcome):
     """The commonest bypass: run `evaluate`, ignore the answer, write the event anyway.
 
     NEED_HUMAN_REVIEW is the dangerous one -- it reads as progress, so a caller that treats
     "not DENY" as permission promotes exactly the beliefs a human was supposed to look at.
     """
+    inputs = NON_ALLOW_INPUTS[outcome]
+    authorization = authorized(**inputs)
+    assert authorization.result is outcome, "the inputs must really produce this outcome"
+    assert not authorization.authorizes_transition
+
     with pytest.raises(BeliefTransitionRefused, match="no belief revision"):
-        create(decision=allow(outcome=outcome, reason_code=TransitionReason.HUMAN_GATE_REQUIRED))
+        create(
+            authorization=authorization,
+            policy=inputs.get("policy", policy()),
+            hypothesis=inputs.get("hypothesis", hypothesis()),
+            candidate_to_state=inputs.get("candidate_to_state", BeliefState.SUPPORTED),
+        )
+
+
+def test_a_non_allow_authorization_is_still_a_record_worth_keeping():
+    """§17.14.1 keeps DENY rows deliberately: "considered and refused" is an auditable fact.
+
+    The distinction that matters is not whether the row exists but whether it authorises, so this
+    pins both halves -- the record is well-formed, and it permits nothing.
+    """
+    refused = authorized(independence_summary=summary(independent_count=0))
+    assert refused.result is TransitionOutcome.NEED_MORE_EVIDENCE
+    assert refused.input_hash == refused.decision_input_snapshot.input_hash()
+    assert not refused.authorizes_transition
 
 
 def test_an_allow_from_another_policy_does_not_carry_over():
-    with pytest.raises(BeliefTransitionRefused, match="does not carry over"):
-        create(decision=allow(policy_id="pol:something-else"))
+    """A real ALLOW, computed under a different policy, offered for this event."""
+    elsewhere = policy(policy_id="pol:something-else")
+    with pytest.raises(BeliefTransitionRefused, match=r"does not carry over|computed under"):
+        create(authorization=authorized(policy=elsewhere))
 
 
 def test_an_allow_from_another_version_of_the_same_policy_does_not_carry_over():
     """Versions exist because the rules changed. An ALLOW under 1.0.0 is not one under 2.0.0."""
-    with pytest.raises(BeliefTransitionRefused, match="does not carry over"):
-        create(decision=allow(policy_version="2.0.0"))
+    with pytest.raises(BeliefTransitionRefused, match=r"does not carry over|computed under"):
+        create(authorization=authorized(policy=policy(version="2.0.0")))
 
 
 def test_an_allow_for_one_transition_cannot_justify_another():
     """An ALLOW for ACTIVE -> SUPPORTED reused to record ACTIVE -> CONTRADICTED."""
-    with pytest.raises(BeliefTransitionRefused, match="authorises ACTIVE -> SUPPORTED"):
-        create(candidate_to_state=BeliefState.CONTRADICTED)
+    with pytest.raises(BeliefTransitionRefused, match=r"ACTIVE -> SUPPORTED"):
+        create(
+            authorization=authorized(),
+            candidate_to_state=BeliefState.CONTRADICTED,
+        )
 
 
 def test_an_invalid_predecessor_is_refused():
@@ -187,7 +246,7 @@ def test_cross_project_evidence_cannot_justify_a_belief():
 def test_an_event_with_no_triggers_at_all_is_refused():
     """The model refuses it; going through the gate must not be a way around that."""
     with pytest.raises(ValueError, match="no triggering"):
-        create(triggering_relations=())
+        create(authorization=authorized(), triggering_relations=())
 
 
 def test_the_created_event_lists_its_triggers_sorted_and_deduplicated():
@@ -236,7 +295,7 @@ def test_both_gates_mint_the_capability_and_say_which_one_did():
     """A reader of a call site should be able to see which gate was used."""
     transition = record_transition(
         event_id="bre:1",
-        decision=allow(),
+        authorization=authorized(),
         policy=policy(),
         hypothesis=hypothesis(),
         candidate_to_state=BeliefState.SUPPORTED,
@@ -345,4 +404,272 @@ def test_an_admission_cannot_cite_another_projects_evidence():
             occurred_at=T0,
             trace_id=TRACE,
             triggering_relations=(relation(project_id="prj:other"),),
+        )
+
+
+# --------------------------------------------------------------------------------------------
+# `v3.3-a12` / SPEC-ISSUE-011: the authorization is durable and must re-derive.
+# --------------------------------------------------------------------------------------------
+
+
+def forge(authorization: BeliefTransitionDecision, **overrides: object) -> BeliefTransitionDecision:
+    """Build a Decision the honest path would never produce.
+
+    This is what an attacker can still do in process, and the point of the tests below is that
+    doing it no longer helps. `BeliefTransitionDecision` deliberately does *not* re-run `evaluate`
+    in its validator -- re-derivation belongs to the gate, so the model stays a plain record and
+    the refusal happens in one place a reader can find.
+    """
+    return authorization.model_copy(update=overrides)
+
+
+def test_the_event_names_the_authorization_that_produced_it():
+    """Without the back-reference there is nothing to re-derive against (§17.13, `v3.3-a12`)."""
+    created = create()
+    assert created.authorization_decision_id == "dec:1"
+
+
+def test_a_decision_records_the_inputs_it_was_computed_from():
+    """The snapshot, not the verdict, is what makes the authorization durable."""
+    authorization = authorized()
+    snapshot = authorization.decision_input_snapshot
+
+    assert snapshot.hypothesis.hypothesis_id == HYP
+    assert snapshot.candidate_to_state is BeliefState.SUPPORTED
+    assert tuple(r.relation_id for r in snapshot.admitted_relations) == ("rel:1",)
+    assert authorization.input_hash.startswith("sha256:")
+    assert authorization.input_hash == snapshot.input_hash()
+
+
+def test_the_input_hash_covers_every_input_not_just_some_of_them():
+    """A hash over part of the inputs looks like a binding and is not one.
+
+    Each perturbation below moves a different one of the operator's inputs, and each must move the
+    hash. A hash that ignored, say, `independence_summary` would let a threshold be swapped out
+    after the fact while the record still verified.
+    """
+    baseline = authorized().input_hash
+    perturbations = {
+        "hypothesis": authorized(hypothesis=hypothesis(stakes="LOW")),
+        "admitted_relations": authorized(admitted_relations=(relation(relation_id="rel:2"),)),
+        "independence_summary": authorized(independence_summary=summary(independent_count=3)),
+        "candidate_to_state": authorized(candidate_to_state=BeliefState.CONTRADICTED),
+    }
+    for name, perturbed in perturbations.items():
+        assert perturbed.input_hash != baseline, f"{name} does not reach the input_hash"
+
+
+def test_a_decision_whose_hash_does_not_match_its_inputs_cannot_be_built():
+    """Caught at construction, so the error lands on the line that got it wrong."""
+    honest = authorized()
+    with pytest.raises(ValueError, match="input_hash"):
+        BeliefTransitionDecision.model_validate(
+            honest.model_dump() | {"input_hash": "sha256:" + "0" * 64}
+        )
+
+
+def test_the_gate_re_checks_the_hash_because_model_copy_skips_validators():
+    """The validator is not the only line of defence here, and it must not be.
+
+    `model_copy(update=...)` does not re-run Pydantic validators, so a Decision carrying a
+    mismatched `input_hash` *can* exist in process -- the test above holds only for the honest
+    constructor. Found by writing that test and watching it not raise, not by review. The gate
+    therefore verifies the binding itself rather than trusting that construction did.
+    """
+    tampered = forge(authorized(), input_hash="sha256:" + "0" * 64)
+    assert tampered.input_hash != tampered.decision_input_snapshot.input_hash()
+
+    with pytest.raises(AuthorizationNotRederivable, match="altered since the authorization"):
+        create(authorization=tampered)
+
+
+def test_an_authorization_that_does_not_re_derive_is_refused():
+    """The consistent forgery R-13 recorded, now closed.
+
+    The Decision is internally consistent -- `result` agrees with `evaluated`, the hash agrees
+    with the snapshot, the policy and the transition line up -- and it is still refused, because
+    re-evaluating its own snapshot under the named policy does not produce what it claims.
+    """
+    refused = authorized(independence_summary=summary(independent_count=0))
+    claimed = forge(
+        refused,
+        result=TransitionOutcome.ALLOW,
+        evaluated=refused.evaluated.model_copy(
+            update={
+                "outcome": TransitionOutcome.ALLOW,
+                "reason_code": TransitionReason.POLICY_SATISFIED,
+            }
+        ),
+    )
+    assert claimed.authorizes_transition, "the forgery must look valid on its face"
+    assert claimed.input_hash == claimed.decision_input_snapshot.input_hash()
+
+    with pytest.raises(AuthorizationNotRederivable, match="re-evaluating its own snapshot"):
+        create(authorization=claimed)
+
+
+def test_a_policy_mutated_after_the_fact_cannot_launder_an_old_authorization():
+    """Same mechanism from the other side: the inputs are honest and the policy moved.
+
+    `TransitionPolicy` is immutable in memory and versioned in the table, so this is the shape the
+    attack takes -- reuse the id and version with different rules. Re-derivation catches it
+    because it compares the whole decision rather than the outcome.
+    """
+    authorization = authorized()
+    stricter = policy(min_independent_attestations=99)
+
+    with pytest.raises(AuthorizationNotRederivable, match="re-evaluating its own snapshot"):
+        create(authorization=authorization, policy=stricter)
+
+
+def test_re_derivation_compares_the_whole_decision_not_only_the_outcome():
+    """An ALLOW that agrees on the verdict and disagrees on the reason is still a disagreement.
+
+    If this passed, a stored decision could keep its ALLOW while its `reason_code` and
+    `blocking_conflict_ids` were rewritten -- and those are the fields an auditor reads to find
+    out *why* a belief changed.
+    """
+    authorization = authorized()
+    relabelled = forge(
+        authorization,
+        evaluated=authorization.evaluated.model_copy(
+            update={"reason_code": TransitionReason.HUMAN_GATE_REQUIRED}
+        ),
+    )
+    assert relabelled.result is TransitionOutcome.ALLOW
+
+    with pytest.raises(AuthorizationNotRederivable, match="re-evaluating its own snapshot"):
+        create(authorization=relabelled)
+
+
+def test_an_authorization_for_another_project_authorises_nothing_here():
+    """SEC-002 scopes every read by project, and an authorization is a read like any other."""
+    foreign = authorized(hypothesis=hypothesis(project_id="prj:other"))
+    with pytest.raises(BeliefTransitionRefused, match=r"does not transfer|outside"):
+        create(authorization=foreign)
+
+
+def test_an_authorization_for_another_subject_authorises_nothing_here():
+    """An ALLOW is for one hypothesis. Reusing it for a sibling is the cheapest bypass of all."""
+    sibling = authorized(hypothesis=hypothesis(hypothesis_id="hyp:something-else"))
+    with pytest.raises(BeliefTransitionRefused, match="does not transfer"):
+        create(authorization=sibling)
+
+
+def test_re_derivation_refuses_a_different_authority_comparator():
+    """Core cannot reconstruct a DomainPack comparator (§24.2), so it must be the same one.
+
+    Re-deriving under a *different* comparator answers a different question, and answering it
+    would be worse than refusing, because the result reads as a confirmation.
+    """
+    from tests.contract.test_transition_policy import ToyAuthority
+
+    class OtherAuthority(ToyAuthority):
+        policy_id = "auth:other"
+
+    authorization = authorize_transition(
+        decision_id="dec:1",
+        policy=policy(),
+        hypothesis=hypothesis(),
+        admitted_relations=(relation(),),
+        authority_policy=ToyAuthority(),
+        independence_summary=summary(),
+        candidate_to_state=BeliefState.SUPPORTED,
+        created_at=T0,
+    )
+    assert authorization.decision_input_snapshot.authority_policy_id == "auth:toy"
+
+    with pytest.raises(AuthorizationNotRederivable, match="authority comparator"):
+        create(authorization=authorization, authority_policy=OtherAuthority())
+
+
+def test_the_authority_comparator_is_stored_by_identity_never_by_result():
+    """§17.14.1 forbids storing the comparisons: it would put the rules beyond falsification."""
+    from tests.contract.test_transition_policy import ToyAuthority
+
+    snapshot = authorize_transition(
+        decision_id="dec:1",
+        policy=policy(),
+        hypothesis=hypothesis(),
+        admitted_relations=(relation(),),
+        authority_policy=ToyAuthority(),
+        independence_summary=summary(),
+        candidate_to_state=BeliefState.SUPPORTED,
+        created_at=T0,
+    ).decision_input_snapshot
+
+    assert (snapshot.authority_policy_id, snapshot.authority_policy_version) == (
+        "auth:toy",
+        "toy-1.0.0",
+    )
+    recorded = str(snapshot.canonical_form())
+    assert "STRONGER" not in recorded and "INCOMPARABLE" not in recorded
+
+
+def test_half_an_authority_identity_cannot_locate_a_comparator():
+    """An id without a version identifies nothing; a version without an id names nothing."""
+    from lab_brain.core.models.decision import DecisionInputSnapshot
+
+    with pytest.raises(ValueError, match="must be given together"):
+        DecisionInputSnapshot(
+            hypothesis=hypothesis(),
+            admitted_relations=(relation(),),
+            independence_summary=summary(),
+            candidate_to_state=BeliefState.SUPPORTED,
+            authority_policy_id="auth:toy",
+        )
+
+
+def test_genesis_carries_no_transition_authorization():
+    """Admission is a separate gate and must not borrow transition authority (§8)."""
+    admitted = admit_hypothesis(
+        event_id="bre:0",
+        policy=policy(
+            is_admission=True, from_state=BeliefState.DRAFT, candidate_to_state=BeliefState.ACTIVE
+        ),
+        project_id=PROJECT,
+        hypothesis_id=HYP,
+        prior=prior(None),
+        occurred_at=T0,
+        trace_id=TRACE,
+        triggering_relations=(relation(),),
+    )
+    assert admitted.event.from_state is None
+    assert admitted.event.authorization_decision_id is None
+
+
+def test_a_non_genesis_event_cannot_be_built_without_an_authorization():
+    """The model refuses it, so even a caller that skips the gate cannot assemble one."""
+    with pytest.raises(ValueError, match="no authorization_decision_id"):
+        BeliefRevisionEvent(
+            event_id="bre:x",
+            project_id=PROJECT,
+            target_type=create().target_type,
+            target_id=HYP,
+            from_state=BeliefState.ACTIVE,
+            to_state=BeliefState.SUPPORTED,
+            triggering_relation_ids=("rel:1",),
+            policy_id="pol:hypothesis-default",
+            policy_version="1.0.0",
+            occurred_at=T0,
+            trace_id=TRACE,
+        )
+
+
+def test_a_genesis_event_cannot_claim_a_transition_authorization():
+    """The other direction: genesis with an authorization would make admission a transition."""
+    with pytest.raises(ValueError, match="admission is not one"):
+        BeliefRevisionEvent(
+            event_id="bre:x",
+            project_id=PROJECT,
+            target_type=create().target_type,
+            target_id=HYP,
+            from_state=None,
+            to_state=BeliefState.ACTIVE,
+            triggering_relation_ids=("rel:1",),
+            policy_id="pol:genesis",
+            policy_version="1.0.0",
+            authorization_decision_id="dec:1",
+            occurred_at=T0,
+            trace_id=TRACE,
         )

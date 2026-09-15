@@ -57,18 +57,33 @@ import datetime as dt
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    # Annotation-only. `lab_brain.core.authority` imports `models.enums`, which executes
+    # `models/__init__`, which imports `models.transition`, which imports `authority` -- so a
+    # runtime import here would enter that cycle from a third side and break collection. The
+    # cycle predates this module; importing the Protocol lazily avoids widening it.
+    from lab_brain.core.authority import AuthorityPolicy
+
+from lab_brain.core.canonical_json import canonicalize
 from lab_brain.core.models.attestation import Attestation
 from lab_brain.core.models.belief_event import (
     BeliefRevisionEvent,
     BeliefState,
     BeliefTargetType,
 )
+from lab_brain.core.models.condition import ConditionMatch
+from lab_brain.core.models.decision import (
+    BeliefTransitionDecision,
+    DecisionInputSnapshot,
+    DecisionType,
+)
 from lab_brain.core.models.relation import RelationJudgment
 from lab_brain.core.models.transition import (
     HypothesisView,
+    IndependenceSummary,
     TransitionDecision,
-    TransitionOutcome,
     TransitionPolicy,
 )
 
@@ -238,11 +253,168 @@ def replay(
     )
 
 
+class AuthorizationNotRederivable(BeliefTransitionRefused):
+    """A stored authorization did not reproduce when re-evaluated (§17.14.1, `v3.3-a12`).
+
+    Its own class because it is the one refusal that is never a caller mistake. Every other
+    refusal in this module means someone assembled an event wrongly; this one means the record
+    and the policy disagree about what was authorised, which is either a forged Decision or a
+    policy that was mutated after the fact. Both need a human, and neither should be caught and
+    retried.
+    """
+
+
+def authorize_transition(
+    *,
+    decision_id: str,
+    policy: TransitionPolicy,
+    hypothesis: HypothesisView,
+    admitted_relations: Sequence[RelationJudgment] = (),
+    authority_policy: AuthorityPolicy | None = None,
+    condition_matches: Sequence[ConditionMatch] = (),
+    independence_summary: IndependenceSummary,
+    candidate_to_state: BeliefState,
+    created_at: dt.datetime,
+    episode_id: str | None = None,
+    actor_id: str | None = None,
+    triggering_event_ids: Sequence[str] = (),
+) -> BeliefTransitionDecision:
+    """Evaluate a transition and record the authorization durably (§17.14.1, `v3.3-a12`).
+
+    This is the only supported way to obtain a :class:`BeliefTransitionDecision`, and it does not
+    take a `TransitionDecision` as an argument -- it *computes* one. That asymmetry is the whole
+    mechanism: a caller cannot hand in the verdict it wants, because the verdict is derived here
+    from the six inputs, and those same six inputs are what gets stored.
+
+    Non-ALLOW outcomes are returned rather than raised. A DENY is a real and useful record -- it
+    says this transition was considered and refused -- and §17.14.1 keeps it for exactly that
+    reason. What it cannot do is authorise anything; :func:`record_transition` refuses it.
+    """
+    snapshot = DecisionInputSnapshot(
+        hypothesis=hypothesis,
+        admitted_relations=tuple(admitted_relations),
+        condition_matches=tuple(condition_matches),
+        independence_summary=independence_summary,
+        candidate_to_state=candidate_to_state,
+        authority_policy_id=None if authority_policy is None else authority_policy.policy_id,
+        authority_policy_version=(
+            None if authority_policy is None else authority_policy.policy_version
+        ),
+    )
+
+    evaluated = policy.evaluate(
+        hypothesis,
+        tuple(admitted_relations),
+        authority_policy,
+        tuple(condition_matches),
+        independence_summary,
+        candidate_to_state,
+    )
+
+    return BeliefTransitionDecision(
+        decision_id=decision_id,
+        project_id=hypothesis.project_id,
+        subject_id=hypothesis.hypothesis_id,
+        decision_type=DecisionType.BELIEF_TRANSITION,
+        result=evaluated.outcome,
+        evaluated=evaluated,
+        policy_id=policy.policy_id,
+        policy_version=policy.version,
+        from_state=hypothesis.current_state,
+        to_state=candidate_to_state,
+        decision_input_snapshot=snapshot,
+        input_hash=snapshot.input_hash(),
+        episode_id=episode_id,
+        actor_id=actor_id,
+        policy_refs=(f"{policy.policy_id}@{policy.version}",),
+        triggering_event_ids=tuple(triggering_event_ids),
+        created_at=created_at,
+    )
+
+
+def rederive_decision(
+    *,
+    authorization: BeliefTransitionDecision,
+    policy: TransitionPolicy,
+    authority_policy: AuthorityPolicy | None = None,
+) -> TransitionDecision:
+    """Re-run `evaluate` on the stored snapshot and insist it reproduces (`v3.3-a12` (d)).
+
+    Fail-closed, and the comparison is over the **whole** `TransitionDecision` under canonical
+    serialization, not just `outcome`. A re-evaluation that agreed on ALLOW but disagreed on
+    `reason_code` or `blocking_conflict_ids` would mean the policy has changed underneath the
+    record, and accepting it would let a mutated policy launder an old authorization.
+
+    Raises :class:`AuthorizationNotRederivable` on any disagreement, including a comparator whose
+    identity does not match the one the snapshot recorded -- re-deriving under a *different*
+    DomainPack comparator answers a different question, and answering it would be worse than
+    refusing because the result looks like a confirmation.
+    """
+    snapshot = authorization.decision_input_snapshot
+
+    if authorization.input_hash != snapshot.input_hash():
+        raise AuthorizationNotRederivable(
+            f"{authorization.decision_id} records input_hash {authorization.input_hash} but its "
+            f"snapshot canonicalizes to {snapshot.input_hash()}; the inputs have been altered "
+            "since the authorization was computed, so there is nothing left to re-derive"
+        )
+
+    if (policy.policy_id, policy.version) != (
+        authorization.policy_id,
+        authorization.policy_version,
+    ):
+        raise AuthorizationNotRederivable(
+            f"{authorization.decision_id} was computed under {authorization.policy_id}@"
+            f"{authorization.policy_version}, but re-derivation was attempted with "
+            f"{policy.policy_id}@{policy.version}. §8.2.1's determinism guarantee holds within one "
+            "policy version and says nothing across two"
+        )
+
+    supplied = (
+        (None, None)
+        if authority_policy is None
+        else (authority_policy.policy_id, authority_policy.policy_version)
+    )
+    recorded = (snapshot.authority_policy_id, snapshot.authority_policy_version)
+    if supplied != recorded:
+        raise AuthorizationNotRederivable(
+            f"{authorization.decision_id} was computed with authority comparator "
+            f"{recorded[0]}@{recorded[1]} but re-derivation supplied {supplied[0]}@{supplied[1]}. "
+            "Core cannot reconstruct a DomainPack comparator from a record (§24.2), so it must be "
+            "the same one -- and §17.14.1 forbids storing its results instead, because that would "
+            "put the authority rules beyond falsification (§10.5.1)"
+        )
+
+    replayed = policy.evaluate(
+        snapshot.hypothesis,
+        snapshot.admitted_relations,
+        authority_policy,
+        snapshot.condition_matches,
+        snapshot.independence_summary,
+        snapshot.candidate_to_state,
+    )
+
+    if canonicalize(replayed.model_dump(mode="json")) != canonicalize(
+        authorization.evaluated.model_dump(mode="json")
+    ):
+        raise AuthorizationNotRederivable(
+            f"{authorization.decision_id} records a {authorization.result.value} "
+            f"({authorization.evaluated.reason_code.value}) but re-evaluating its own snapshot "
+            f"under {policy.policy_id}@{policy.version} yields {replayed.outcome.value} "
+            f"({replayed.reason_code.value}). Either the authorization was never computed from "
+            "these inputs, or the policy changed after it was -- in both cases the transition is "
+            "unauthorised and this fails closed"
+        )
+
+    return replayed
+
+
 def record_transition(
     *,
     event_id: str,
-    decision: TransitionDecision,
+    authorization: BeliefTransitionDecision,
     policy: TransitionPolicy,
+    authority_policy: AuthorityPolicy | None = None,
     hypothesis: HypothesisView,
     candidate_to_state: BeliefState,
     prior: BeliefProjection,
@@ -263,13 +435,42 @@ def record_transition(
     ``prior`` is the replayed projection, passed in rather than loaded: the check it enables --
     that the hypothesis has not moved since the decision was computed -- is meaningless against a
     projection this function derived itself from the same stale view.
+
+    Since `v3.3-a12` the authorization is a stored :class:`BeliefTransitionDecision` and is
+    **re-derived here before anything is minted**. That ordering matters: re-deriving first means
+    a Decision that cannot reproduce never reaches the other checks, so no event can be built on
+    an authorization whose inputs no longer evaluate to what it claims.
     """
-    if decision.outcome is not TransitionOutcome.ALLOW:
+    rederive_decision(
+        authorization=authorization,
+        policy=policy,
+        authority_policy=authority_policy,
+    )
+    decision = authorization.evaluated
+
+    if authorization.decision_type is not DecisionType.BELIEF_TRANSITION:
         raise BeliefTransitionRefused(
-            f"decision for {hypothesis.hypothesis_id} is "
-            f"{decision.outcome.value} ({decision.reason_code.value}), so no belief revision "
+            f"{authorization.decision_id} is a {authorization.decision_type.value} decision; only "
+            "a BELIEF_TRANSITION decision authorises a belief transition (§17.14.1)"
+        )
+
+    if not authorization.authorizes_transition:
+        raise BeliefTransitionRefused(
+            f"authorization {authorization.decision_id} for {hypothesis.hypothesis_id} records "
+            f"{authorization.result.value} ({decision.reason_code.value}), so no belief revision "
             "event may be created. Running `evaluate` and then writing the event regardless is "
             "the bypass EPI-005 and AGT-016 exist to forbid"
+        )
+
+    if (authorization.project_id, authorization.subject_id) != (
+        hypothesis.project_id,
+        hypothesis.hypothesis_id,
+    ):
+        raise BeliefTransitionRefused(
+            f"authorization {authorization.decision_id} authorises "
+            f"{authorization.subject_id} in {authorization.project_id}, but the event would "
+            f"record {hypothesis.hypothesis_id} in {hypothesis.project_id}. An ALLOW is for one "
+            "subject in one project and does not transfer to another"
         )
 
     if (decision.policy_id, decision.policy_version) != (policy.policy_id, policy.version):
@@ -277,6 +478,16 @@ def record_transition(
             f"the decision was made by {decision.policy_id}@{decision.policy_version} but the "
             f"event would cite {policy.policy_id}@{policy.version}; an ALLOW does not carry over "
             "to another policy or another version of the same one"
+        )
+
+    if (authorization.from_state, authorization.to_state) != (
+        hypothesis.current_state,
+        candidate_to_state,
+    ):
+        raise BeliefTransitionRefused(
+            f"authorization {authorization.decision_id} covers "
+            f"{authorization.from_state.value} -> {authorization.to_state.value}, but the event "
+            f"would record {hypothesis.current_state.value} -> {candidate_to_state.value}"
         )
 
     if (
@@ -341,6 +552,7 @@ def record_transition(
             ),
             policy_id=policy.policy_id,
             policy_version=policy.version,
+            authorization_decision_id=authorization.decision_id,
             actor_id=actor_id,
             inference_provenance_id=inference_provenance_id,
             rationale_artifact_or_record_ref=rationale_artifact_or_record_ref,

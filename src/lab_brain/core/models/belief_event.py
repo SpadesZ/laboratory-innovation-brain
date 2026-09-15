@@ -106,6 +106,12 @@ class BeliefRevisionEvent(CoreModel):
     policy_id: str
     policy_version: str
 
+    #: `v3.3-a12`: the §17.14.1 `Decision` that actually authorised this, REQUIRED for every
+    #: non-genesis event. Before it, naming a policy was only a claim -- the policy row says what
+    #: *would* authorise this transition, not that anything ever did. Genesis is exempt because
+    #: admission is a separate gate (§8) and must not borrow transition authority.
+    authorization_decision_id: str | None = None
+
     #: Set when a human is the author of the revision -- §6.18's manual correction, which is an
     #: event like any other rather than an edit to the projection.
     actor_id: str | None = None
@@ -117,6 +123,22 @@ class BeliefRevisionEvent(CoreModel):
 
     @model_validator(mode="after")
     def _check_transition(self) -> Self:
+        if self.from_state is None:
+            if self.authorization_decision_id is not None:
+                raise ValueError(
+                    f"genesis event {self.event_id} names authorization "
+                    f"{self.authorization_decision_id}, but a BELIEF_TRANSITION Decision "
+                    "authorises a transition and admission is not one (§8). Letting genesis carry "
+                    "transition authority is how a dropped predecessor becomes a beginning"
+                )
+        elif self.authorization_decision_id is None:
+            raise ValueError(
+                f"event {self.event_id} records {self.from_state.value} -> {self.to_state.value} "
+                "with no authorization_decision_id. `v3.3-a12` makes it required for every "
+                "non-genesis event: citing a policy says which policy *would* have authorised "
+                "this, not that any evaluation ever did"
+            )
+
         if self.from_state is not None:
             if self.from_state == self.to_state:
                 raise ValueError(

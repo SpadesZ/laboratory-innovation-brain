@@ -254,6 +254,11 @@ def test_the_a11_belief_event_fields_reached_the_spec_the_model_and_the_table():
         assert field in model, f"the model carries {field}"
         assert field in table, f"belief_revision_events carries {field}"
 
+    # `v3.3-a12`: the required back-reference to the authorization that produced the event.
+    assert "authorization_decision_id" in canonical, "§17.13 declares it (v3.3-a12)"
+    assert "authorization_decision_id" in model, "the model carries it"
+    assert "authorization_decision_id" in table, "belief_revision_events carries it"
+
     # The two triggering arrays are the declared exemption: join tables, not columns.
     from lab_brain.spec.schema_drift import STRUCTURAL_ONLY
 
@@ -277,3 +282,19 @@ def test_an_unbound_unexempted_schema_is_detected():
     finally:
         module.UNBOUND.clear()
         module.UNBOUND.update(saved)
+
+
+def test_the_column_parser_understands_idempotent_alter_table():
+    """`ADD COLUMN IF NOT EXISTS x` must yield `x`, not `IF`.
+
+    It yielded `IF` until `v3.3-a12` added the project's first idempotent column, which produced
+    two wrong answers at once: a phantom column named `IF`, and the real column reported missing.
+    A guard that mis-parses valid DDL fails in whichever direction the mistake happens to point,
+    so this pins the parse rather than the symptom.
+    """
+    from lab_brain.spec.schema_drift import effective_table_columns
+
+    binding = next(b for b in BINDINGS if b.table == "belief_revision_events")
+    columns = effective_table_columns(binding)
+    assert "authorization_decision_id" in columns
+    assert "IF" not in columns and "if" not in columns

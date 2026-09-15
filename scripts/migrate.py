@@ -53,6 +53,11 @@ APPLY_ORDER: tuple[str, ...] = (
     # unrepresentable, and an orphan event cannot be written by raw SQL. After 005b: the policy
     # governance trigger reads `transition_policies`.
     "005c_belief_event_governance.sql",
+    # P8 / `v3.3-a12`. SPEC-ISSUE-011: the §17.14.1 Decision that authorised a transition, stored
+    # with the six §8.2.1 inputs that produced it, plus the event's required back-reference. After
+    # 005c: the linkage trigger is named to fire *after* 005c's policy trigger, so a policy
+    # mismatch is still reported by the guard that owns it.
+    "005d_belief_transition_decisions.sql",
     # After 003: bundle members reference attestations. `a` suffixes mark additions beyond
     # Appendix A's index, whose 001-012 numbers are reserved for the canonical migrations.
     "004a_evidence_bundles.sql",

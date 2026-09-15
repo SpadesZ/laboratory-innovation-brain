@@ -12,18 +12,27 @@ the schema.
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import os
 
 import psycopg
 import pytest
 
-from lab_brain.core.models import BeliefRevisionEvent, BeliefState, BeliefTargetType
+from lab_brain.core.belief import authorize_transition, rederive_decision
+from lab_brain.core.models import (
+    BeliefRevisionEvent,
+    BeliefState,
+    BeliefTargetType,
+    TransitionOutcome,
+)
+from lab_brain.core.models.decision import BeliefTransitionDecision
 from lab_brain.core.repositories import (
     BeliefEventError,
     InMemoryBeliefEventStore,
     NonDurableClaimStoreError,
     SqlBeliefEventStore,
 )
+from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
 from tests.conftest_fixtures import forged_authorization, make_artifact
 
 pytestmark = [
@@ -91,7 +100,33 @@ def seeded(db):  # type: ignore[no-untyped-def]
         "INSERT INTO transition_policies (policy_id, version, from_state, candidate_to_state)"
         " VALUES ('pol:hypothesis-default', '1.0.0', 'ACTIVE', 'SUPPORTED')"
     )
+    # `v3.3-a12` makes a non-genesis event's authorization required, so the fixture has to record
+    # one. Computed by actually evaluating the policy rather than hand-written: a fixture that
+    # asserted its own ALLOW would be the forgery these tests are about.
+    _real_authorization(db)
     return db
+
+
+def _real_authorization(
+    db,  # type: ignore[no-untyped-def]
+    decision_id: str = "dec:1",
+    **overrides: object,
+) -> BeliefTransitionDecision:
+    """An authorization produced by `authorize_transition` and stored through its real store."""
+    from tests.contract.test_transition_policy import hypothesis, policy, relation, summary
+
+    defaults: dict[str, object] = {
+        "decision_id": decision_id,
+        "policy": policy(),
+        "hypothesis": hypothesis(project_id=PROJECT, hypothesis_id=TARGET),
+        "admitted_relations": (relation(project_id=PROJECT, to_entity_id=TARGET),),
+        "independence_summary": summary(),
+        "candidate_to_state": BeliefState.SUPPORTED,
+        "created_at": T0,
+    }
+    defaults.update(overrides)
+    decision = authorize_transition(**defaults)  # type: ignore[arg-type]
+    return SqlBeliefTransitionDecisionStore(db).record(decision)
 
 
 def event(**overrides: object) -> BeliefRevisionEvent:
@@ -105,10 +140,13 @@ def event(**overrides: object) -> BeliefRevisionEvent:
         "triggering_relation_ids": ("rel:1",),
         "policy_id": "pol:hypothesis-default",
         "policy_version": "1.0.0",
+        "authorization_decision_id": "dec:1",
         "occurred_at": T0,
         "trace_id": TRACE,
     }
     defaults.update(overrides)
+    if defaults.get("from_state") is None:
+        defaults["authorization_decision_id"] = None
     return BeliefRevisionEvent(**defaults)  # type: ignore[arg-type]
 
 
@@ -137,6 +175,7 @@ def _raw(db, event_id: str = "bre:1", **overrides: object) -> None:  # type: ign
         "to_state": "SUPPORTED",
         "policy_id": "pol:hypothesis-default",
         "policy_version": "1.0.0",
+        "authorization_decision_id": "dec:1",
         "occurred_at": T0,
         "trace_id": TRACE,
     }
@@ -240,9 +279,32 @@ def test_an_unknown_target_type_is_rejected(seeded):
 
 
 def test_an_event_requires_a_real_project(seeded):
-    """`v3.3-a11`: the project is what makes a scoped replay expressible at all."""
-    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+    """`v3.3-a11`: the project is what makes a scoped replay expressible at all.
+
+    Since `v3.3-a12` the authorization trigger reaches this row first -- an authorization for
+    `prj:test` does not cover an event in `prj:nowhere` -- so the refusal is reported there and
+    the project foreign key sits behind it. Both are asserted: the message here, the constraint's
+    continued existence in `test_the_project_foreign_key_is_still_in_place_behind_the_trigger`.
+    """
+    with pytest.raises(
+        (psycopg.errors.ForeignKeyViolation, psycopg.errors.RaiseException),
+        match=r"violates foreign key|does not transfer",
+    ):
         _raw(seeded, project_id="prj:nowhere")
+
+
+def test_the_project_foreign_key_is_still_in_place_behind_the_trigger(seeded):
+    """The trigger fires first, so the constraint is asserted by name rather than by behaviour.
+
+    Without this, dropping the foreign key would leave the suite green: the trigger would keep
+    refusing the one case the test above exercises, and a row that slipped past the trigger would
+    have nothing left to check it.
+    """
+    found = seeded.execute(
+        "SELECT 1 FROM pg_constraint WHERE conrelid = 'belief_revision_events'::regclass"
+        " AND contype = 'f' AND confrelid = 'projects'::regclass"
+    ).fetchone()
+    assert found is not None, "belief_revision_events no longer references projects"
 
 
 def test_an_event_requires_a_real_actor_when_one_is_named(seeded):
@@ -287,8 +349,8 @@ def test_an_event_with_no_triggers_is_refused_by_the_database(seeded):
     with pytest.raises(psycopg.errors.RaiseException, match="cites no triggering"):
         seeded.execute(
             "SELECT belief_revision_event_append(%s, %s, 'HYPOTHESIS', %s, 'ACTIVE',"
-            " 'SUPPORTED', ARRAY[]::text[], ARRAY[]::text[], 'pol:p', '1.0.0', NULL, NULL,"
-            " NULL, %s, %s)",
+            " 'SUPPORTED', ARRAY[]::text[], ARRAY[]::text[], 'pol:hypothesis-default', '1.0.0',"
+            " NULL, NULL, NULL, %s, %s, 'dec:1')",
             ("bre:empty", PROJECT, TARGET, T0, TRACE),
         )
     rows = seeded.execute("SELECT count(*) FROM belief_revision_events").fetchone()
@@ -327,6 +389,7 @@ def test_history_is_ordered_and_scoped_to_its_target(seeded):
         " VALUES ('pol:challenge', '1.0.0', 'ACTIVE', 'CHALLENGED')"
     )
     store = SqlBeliefEventStore(seeded)
+    _forged_decision(seeded, "dec:challenge", policy_id="pol:challenge", to_state="CHALLENGED")
     store.append(
         forged_authorization(
             event(
@@ -334,6 +397,7 @@ def test_history_is_ordered_and_scoped_to_its_target(seeded):
                 from_state=BeliefState.ACTIVE,
                 to_state=BeliefState.CHALLENGED,
                 policy_id="pol:challenge",
+                authorization_decision_id="dec:challenge",
                 occurred_at=T0 + dt.timedelta(minutes=2),
             )
         )
@@ -342,6 +406,13 @@ def test_history_is_ordered_and_scoped_to_its_target(seeded):
         "INSERT INTO transition_policies (policy_id, version, from_state, candidate_to_state)"
         " VALUES ('pol:activate', '1.0.0', 'ADMITTED', 'ACTIVE')"
     )
+    _forged_decision(
+        seeded,
+        "dec:activate",
+        policy_id="pol:activate",
+        from_state="ADMITTED",
+        to_state="ACTIVE",
+    )
     store.append(
         forged_authorization(
             event(
@@ -349,10 +420,24 @@ def test_history_is_ordered_and_scoped_to_its_target(seeded):
                 from_state=BeliefState.ADMITTED,
                 to_state=BeliefState.ACTIVE,
                 policy_id="pol:activate",
+                authorization_decision_id="dec:activate",
             )
         )
     )
-    store.append(forged_authorization(event(event_id="bre:other", target_id="hyp:something-else")))
+    _forged_decision(
+        seeded,
+        "dec:other",
+        subject_id="hyp:something-else",
+    )
+    store.append(
+        forged_authorization(
+            event(
+                event_id="bre:other",
+                target_id="hyp:something-else",
+                authorization_decision_id="dec:other",
+            )
+        )
+    )
 
     assert [e.event_id for e in store.history(PROJECT, TARGET)] == ["bre:1", "bre:2"]
     assert [e.event_id for e in store.history(PROJECT, "hyp:something-else")] == ["bre:other"]
@@ -423,6 +508,13 @@ def test_an_event_must_record_the_transition_its_policy_governs(seeded):
     seeded.execute(
         "INSERT INTO transition_policies (policy_id, version, from_state, candidate_to_state)"
         " VALUES ('pol:activate', '1.0.0', 'ADMITTED', 'ACTIVE')"
+    )
+    _forged_decision(
+        seeded,
+        "dec:activate",
+        policy_id="pol:activate",
+        from_state="ADMITTED",
+        to_state="ACTIVE",
     )
     with pytest.raises(psycopg.errors.RaiseException, match="never authorised by it"):
         _raw(seeded, from_state="ADMITTED", to_state="ACTIVE")
@@ -537,12 +629,15 @@ def test_raw_sql_cannot_create_an_orphan_event(seeded):
     in one statement. A non-deferred trigger would refuse both, because the event row necessarily
     exists before its references do.
     """
+    # A *fully authorised* orphan, so the only thing wrong with it is the missing evidence. An
+    # unauthorised one would now be refused earlier and this test would pass for the wrong reason.
     with pytest.raises(psycopg.errors.RaiseException, match="cites no triggering"):
         seeded.execute(
             "INSERT INTO belief_revision_events (event_id, project_id, target_type, target_id,"
-            " from_state, to_state, policy_id, policy_version, occurred_at, trace_id)"
+            " from_state, to_state, policy_id, policy_version, authorization_decision_id,"
+            " occurred_at, trace_id)"
             " VALUES ('bre:orphan', %s, 'HYPOTHESIS', %s, 'ACTIVE', 'SUPPORTED',"
-            " 'pol:hypothesis-default', '1.0.0', %s, %s)",
+            " 'pol:hypothesis-default', '1.0.0', 'dec:1', %s, %s)",
             (PROJECT, TARGET, T0, TRACE),
         )
     rows = seeded.execute(
@@ -599,3 +694,251 @@ def test_the_governance_objects_are_present_in_the_database(seeded, kind, name, 
     assert seeded.execute(catalog, (name,)).fetchone() is not None, (
         f"{kind} {name} is missing, so nothing enforces that {guards}"
     )
+
+
+# --------------------------------------------------------------------------------------------
+# `v3.3-a12` / SPEC-ISSUE-011. The authorization is enforced by the database, not only by the
+# gate. Every case below writes raw SQL, because that is the caller the gate cannot reach: a
+# support script, a migration, a future service. "Only a legal ALLOW authorises" has to survive
+# all of them or it is a Python convention wearing a schema's clothes.
+# --------------------------------------------------------------------------------------------
+
+
+def _forged_decision(
+    db,  # type: ignore[no-untyped-def]
+    decision_id: str = "dec:forged",
+    **overrides: object,
+) -> str:
+    """Write a decision row straight into the table, bypassing `authorize_transition`.
+
+    The snapshot is arbitrary text with a *correct* hash, so the row satisfies the hash CHECK and
+    the refusal under test has to come from somewhere else. A forgery that failed the hash check
+    would prove only that the hash check works, which is a different test (below).
+    """
+    snapshot = f'{{"forged":"{decision_id}"}}'
+    values: dict[str, object] = {
+        "decision_id": decision_id,
+        "project_id": PROJECT,
+        "subject_id": TARGET,
+        "decision_type": "BELIEF_TRANSITION",
+        "result": "ALLOW",
+        "policy_id": "pol:hypothesis-default",
+        "policy_version": "1.0.0",
+        "from_state": "ACTIVE",
+        "to_state": "SUPPORTED",
+        "decision_input_snapshot": snapshot,
+        "input_hash": "sha256:" + hashlib.sha256(snapshot.encode("utf-8")).hexdigest(),
+        "evaluated_decision": '{"outcome":"ALLOW"}',
+        "created_at": T0,
+    }
+    values.update(overrides)
+    columns = ", ".join(values)
+    placeholders = ", ".join(f"%({k})s" for k in values)
+    db.execute(
+        f"INSERT INTO belief_transition_decisions ({columns}) VALUES ({placeholders})", values
+    )
+    return str(values["decision_id"])
+
+
+def test_a_non_genesis_event_with_no_authorization_cannot_exist(seeded):
+    """The headline case the maintainer named: everything legal except the ALLOW.
+
+    Legal policy, legal transition, legal evidence, correct project -- and no authorization. Before
+    `v3.3-a12` this row was writable and indistinguishable from an evaluated transition. The
+    CHECK refuses it, so the absence is not merely unchecked, it is unrepresentable.
+    """
+    with pytest.raises(psycopg.errors.RaiseException, match="no authorization_decision_id"):
+        _raw(seeded, "bre:unauthorised", authorization_decision_id=None)
+
+    assert (
+        seeded.execute(
+            "SELECT count(*) FROM belief_revision_events WHERE event_id = 'bre:unauthorised'"
+        ).fetchone()[0]
+        == 0
+    )
+
+
+def test_an_event_citing_an_authorization_that_does_not_exist_is_refused(seeded):
+    """Naming a decision is not the same as there being one."""
+    with pytest.raises(psycopg.errors.RaiseException, match="does not exist"):
+        _raw(seeded, "bre:dangling", authorization_decision_id="dec:nonexistent")
+
+
+@pytest.mark.parametrize("result", ["DENY", "NEED_MORE_EVIDENCE", "NEED_HUMAN_REVIEW"])
+def test_a_forged_non_allow_authorization_does_not_authorise(seeded, result):
+    """A stored Decision that refused the transition cannot be used to record it.
+
+    NEED_HUMAN_REVIEW is the one worth naming: it reads as progress, so a caller treating
+    "not DENY" as permission would promote exactly the beliefs a human was meant to see.
+    """
+    decision_id = _forged_decision(seeded, f"dec:{result.lower()}", result=result)
+    with pytest.raises(psycopg.errors.RaiseException, match="Only ALLOW authorises"):
+        _raw(seeded, "bre:forged", authorization_decision_id=decision_id)
+
+
+def test_a_decision_whose_hash_does_not_bind_its_snapshot_cannot_be_stored(seeded):
+    """The database recomputes the hash rather than trusting it.
+
+    This is why the snapshot column is TEXT and not jsonb: jsonb would normalise the bytes, and
+    the check would have to accept whatever hash the writer supplied.
+    """
+    with pytest.raises(psycopg.errors.CheckViolation, match="input_hash_binds_the_snapshot"):
+        _forged_decision(seeded, "dec:badhash", input_hash="sha256:" + "0" * 64)
+
+
+def test_an_authorization_from_another_project_cannot_be_cited(seeded):
+    """Composite foreign key, so the cross-project reference is unrepresentable.
+
+    Refused from both directions in one test: the decision genuinely exists, and it is genuinely
+    an ALLOW for this subject and this transition. Only the project differs.
+    """
+    seeded.execute(
+        "INSERT INTO projects (project_id, name) VALUES ('prj:other', 'other')"
+        " ON CONFLICT DO NOTHING"
+    )
+    _forged_decision(seeded, "dec:elsewhere", project_id="prj:other")
+
+    with pytest.raises(
+        (psycopg.errors.RaiseException, psycopg.errors.ForeignKeyViolation),
+        match=r"does not transfer|violates foreign key",
+    ):
+        _raw(seeded, "bre:crossproject", authorization_decision_id="dec:elsewhere")
+
+
+def test_an_authorization_for_another_subject_cannot_be_cited(seeded):
+    """An ALLOW is for one hypothesis; the sibling reuse is the cheapest bypass there is."""
+    _forged_decision(seeded, "dec:sibling", subject_id="hyp:something-else")
+    with pytest.raises(psycopg.errors.RaiseException, match="does not transfer"):
+        _raw(seeded, "bre:sibling", authorization_decision_id="dec:sibling")
+
+
+def test_an_authorization_computed_under_another_policy_cannot_be_cited(seeded):
+    """§8.2.1's determinism holds within one policy version and says nothing across two."""
+    seeded.execute(
+        "INSERT INTO transition_policies (policy_id, version, from_state, candidate_to_state)"
+        " VALUES ('pol:other', '1.0.0', 'ACTIVE', 'SUPPORTED')"
+    )
+    _forged_decision(seeded, "dec:otherpolicy", policy_id="pol:other")
+    with pytest.raises(psycopg.errors.RaiseException, match="does not carry over"):
+        _raw(seeded, "bre:otherpolicy", authorization_decision_id="dec:otherpolicy")
+
+
+def test_an_authorization_for_another_transition_cannot_be_cited(seeded):
+    """An ALLOW for ACTIVE -> SUPPORTED reused to record ACTIVE -> CONTRADICTED."""
+    # Same policy on both sides, so the policy check cannot fire and the state check is what is
+    # actually under test. The decision is internally wrong -- it names a policy governing
+    # ACTIVE -> SUPPORTED while claiming to cover ACTIVE -> CHALLENGED -- which is precisely the
+    # shape of a hand-written authorization.
+    _forged_decision(seeded, "dec:otherstate", to_state="CHALLENGED")
+    with pytest.raises(psycopg.errors.RaiseException, match=r"covers ACTIVE -> CHALLENGED"):
+        _raw(seeded, "bre:otherstate", authorization_decision_id="dec:otherstate")
+
+
+def test_a_genesis_event_cannot_carry_a_transition_authorization(seeded):
+    """Admission is a separate gate (§8); letting it borrow transition authority reopens P7's gap.
+
+    Without this, `authorization_decision_id` would be optional in practice -- write a genesis
+    event with one and the exemption becomes a general bypass again, which is exactly the shape of
+    the finding 005c was written to close.
+    """
+    seeded.execute(
+        "INSERT INTO transition_policies"
+        " (policy_id, version, from_state, candidate_to_state, is_admission)"
+        " VALUES ('pol:genesis', '1.0.0', 'DRAFT', 'ACTIVE', TRUE)"
+    )
+    _forged_decision(seeded, "dec:forgenesis")
+    with pytest.raises(psycopg.errors.CheckViolation, match="genesis_has_no_authorization"):
+        _raw(
+            seeded,
+            "bre:genesisauth",
+            from_state=None,
+            to_state="ACTIVE",
+            policy_id="pol:genesis",
+            authorization_decision_id="dec:forgenesis",
+        )
+
+
+def test_a_stored_authorization_cannot_be_edited_or_removed(seeded):
+    """Append-only, for the same reason the events are.
+
+    An authorization that can be rewritten afterwards is not evidence that anything was
+    authorised -- and the attack it enables is quieter than editing the event, because nobody
+    reads the decision table expecting it to change.
+    """
+    _forged_decision(seeded, "dec:immutable")
+
+    for statement in (
+        "UPDATE belief_transition_decisions SET result = 'DENY' WHERE decision_id = 'dec:immutable'",
+        "DELETE FROM belief_transition_decisions WHERE decision_id = 'dec:immutable'",
+    ):
+        with pytest.raises(psycopg.errors.RaiseException, match="append-only"):
+            seeded.execute(statement)
+
+    assert (
+        seeded.execute(
+            "SELECT result FROM belief_transition_decisions WHERE decision_id = 'dec:immutable'"
+        ).fetchone()[0]
+        == "ALLOW"
+    )
+
+
+def test_a_decision_must_name_a_registered_policy_version(seeded):
+    """Same reason `005b` made the event's policy a foreign key: an unregistered policy cannot
+    be re-run, and an authorization that cannot be re-run is the thing `v3.3-a12` forbids."""
+    with pytest.raises(psycopg.errors.ForeignKeyViolation, match="policy_fkey"):
+        _forged_decision(seeded, "dec:ghostpolicy", policy_version="9.9.9")
+
+
+def test_a_decision_that_revises_nothing_is_refused(seeded):
+    """A transition from a state to itself is not a transition (same rule as §17.13's events)."""
+    with pytest.raises(psycopg.errors.CheckViolation, match="change_state"):
+        _forged_decision(seeded, "dec:noop", from_state="SUPPORTED", to_state="SUPPORTED")
+
+
+def test_only_belief_transition_decisions_live_in_this_table(seeded):
+    """§17.14.1 reserves `Decision` for other decision types; they must not land here silently."""
+    with pytest.raises(psycopg.errors.CheckViolation, match="decision_type"):
+        _forged_decision(seeded, "dec:othertype", decision_type="BUDGET_APPROVAL")
+
+
+def test_half_an_authority_identity_is_refused_by_the_schema_too(seeded):
+    """Asserted in the model and here, because a support script writes SQL."""
+    with pytest.raises(psycopg.errors.CheckViolation, match="authority_identity_is_whole"):
+        _forged_decision(seeded, "dec:halfauth", authority_policy_id="auth:toy")
+
+
+def test_the_supported_path_still_writes_an_authorized_event(seeded):
+    """The battery above must not have made the legal path impossible.
+
+    Written through `authorize_transition` and the two real stores, so this is the end-to-end
+    shape: evaluate, record the authorization, append the event that cites it.
+    """
+    decision = _real_authorization(seeded, decision_id="dec:supported")
+    SqlBeliefEventStore(seeded).append(
+        forged_authorization(event(authorization_decision_id=decision.decision_id))
+    )
+
+    loaded = SqlBeliefEventStore(seeded).get("bre:1")
+    assert loaded is not None
+    assert loaded.authorization_decision_id == decision.decision_id
+
+    stored = SqlBeliefTransitionDecisionStore(seeded).get(decision.decision_id)
+    assert stored is not None
+    assert stored.result is TransitionOutcome.ALLOW
+    assert stored.input_hash == stored.decision_input_snapshot.input_hash()
+
+
+def test_a_stored_authorization_still_re_derives_after_a_round_trip(seeded):
+    """The point of storing the inputs: they survive the database and still reproduce.
+
+    A snapshot that round-tripped into something that no longer evaluates the same way would make
+    the whole record ceremonial, and canonical serialization is what this is here to check.
+    """
+    from tests.contract.test_transition_policy import policy as toy_policy
+
+    _real_authorization(seeded, decision_id="dec:roundtrip")
+    reloaded = SqlBeliefTransitionDecisionStore(seeded).get("dec:roundtrip")
+    assert reloaded is not None
+
+    replayed = rederive_decision(authorization=reloaded, policy=toy_policy())
+    assert replayed == reloaded.evaluated

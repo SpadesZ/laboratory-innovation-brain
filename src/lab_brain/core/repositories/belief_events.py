@@ -20,12 +20,15 @@ production.
 
 from __future__ import annotations
 
+import json
 import threading
 from collections.abc import Iterable, Sequence
 from typing import Protocol, runtime_checkable
 
 from lab_brain.core.belief import AuthorizedRevision
+from lab_brain.core.canonical_json import canonicalize
 from lab_brain.core.models.belief_event import BeliefRevisionEvent
+from lab_brain.core.models.decision import BeliefTransitionDecision
 from lab_brain.core.models.transition import TransitionPolicy
 from lab_brain.core.repositories.budget import SqlConnection, require_durable_connection
 from lab_brain.core.repositories.protocols import RepositoryError
@@ -132,7 +135,8 @@ class InMemoryBeliefEventStore:
 _COLUMNS = (
     "event_id, project_id, target_type, target_id, from_state, to_state, "
     "policy_id, policy_version, actor_id, inference_provenance_id, "
-    "rationale_artifact_or_record_ref, occurred_at, trace_id"
+    "rationale_artifact_or_record_ref, occurred_at, trace_id, "
+    "authorization_decision_id"
 )
 
 
@@ -154,7 +158,7 @@ class SqlBeliefEventStore:
         # One statement for the event and both reference sets. See the module docstring.
         self._connection.execute(
             "SELECT belief_revision_event_append("
-            " %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            " %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
             (
                 event.event_id,
                 event.project_id,
@@ -171,6 +175,7 @@ class SqlBeliefEventStore:
                 event.rationale_artifact_or_record_ref,
                 event.occurred_at,
                 event.trace_id,
+                event.authorization_decision_id,
             ),
         )
         return event
@@ -230,6 +235,7 @@ class SqlBeliefEventStore:
                 "rationale_artifact_or_record_ref": row[10],
                 "occurred_at": row[11],
                 "trace_id": row[12],
+                "authorization_decision_id": row[13],
             }
         )
 
@@ -318,3 +324,110 @@ __all__ = [
     "SqlBeliefEventStore",
     "SqlTransitionPolicyStore",
 ]
+
+
+class InMemoryBeliefTransitionDecisionStore:
+    """§17.14.1 authorizations, held in process. Append-only, like the table.
+
+    Records the ``decision_id`` collision as a refusal rather than an overwrite. A second
+    authorization under an id that already exists is either a bug or an attempt to replace the
+    reason a belief changed, and neither should silently win.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._by_id: dict[str, BeliefTransitionDecision] = {}
+
+    def record(self, decision: BeliefTransitionDecision) -> BeliefTransitionDecision:
+        with self._lock:
+            existing = self._by_id.get(decision.decision_id)
+            if existing is not None:
+                raise BeliefEventError(
+                    f"authorization {decision.decision_id} already exists; "
+                    "belief_transition_decisions is append-only, so an authorization is never "
+                    "replaced -- a re-evaluation is a new Decision with a new id"
+                )
+            self._by_id[decision.decision_id] = decision
+        return decision
+
+    def get(self, decision_id: str) -> BeliefTransitionDecision | None:
+        return self._by_id.get(decision_id)
+
+
+_DECISION_COLUMNS = (
+    "decision_id, project_id, subject_id, decision_type, result, policy_id, policy_version, "
+    "from_state, to_state, authority_policy_id, authority_policy_version, "
+    "decision_input_snapshot, input_hash, evaluated_decision, episode_id, actor_id, created_at"
+)
+
+
+class SqlBeliefTransitionDecisionStore:
+    """The same contract against PostgreSQL (`v3.3-a12`).
+
+    ``decision_input_snapshot`` and ``evaluated_decision`` are stored as the canonical JSON *text*
+    the model produced, not as jsonb. That is deliberate and the migration says why: ``input_hash``
+    is verified by the database against these exact bytes, and jsonb would normalise them, leaving
+    the check with nothing to do but trust the writer.
+    """
+
+    def __init__(self, connection: SqlConnection) -> None:
+        require_durable_connection(connection)
+        self._connection = connection
+
+    def record(self, decision: BeliefTransitionDecision) -> BeliefTransitionDecision:
+        require_durable_connection(self._connection)
+        snapshot = decision.decision_input_snapshot
+        self._connection.execute(
+            f"INSERT INTO belief_transition_decisions ({_DECISION_COLUMNS})"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (
+                decision.decision_id,
+                decision.project_id,
+                decision.subject_id,
+                decision.decision_type.value,
+                decision.result.value,
+                decision.policy_id,
+                decision.policy_version,
+                decision.from_state.value,
+                decision.to_state.value,
+                snapshot.authority_policy_id,
+                snapshot.authority_policy_version,
+                snapshot.canonical_bytes_text(),
+                decision.input_hash,
+                canonicalize(decision.evaluated.model_dump(mode="json")),
+                decision.episode_id,
+                decision.actor_id,
+                decision.created_at,
+            ),
+        )
+        return decision
+
+    def get(self, decision_id: str) -> BeliefTransitionDecision | None:
+        row = self._connection.execute(
+            f"SELECT {_DECISION_COLUMNS} FROM belief_transition_decisions WHERE decision_id = %s",
+            (decision_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return BeliefTransitionDecision.model_validate(
+            {
+                "decision_id": row[0],
+                "project_id": row[1],
+                "subject_id": row[2],
+                "decision_type": row[3],
+                "result": row[4],
+                "policy_id": row[5],
+                "policy_version": row[6],
+                "from_state": row[7],
+                "to_state": row[8],
+                # The snapshot round-trips through its own model, so a stored snapshot that no
+                # longer satisfies the model's invariants fails here rather than being handed to
+                # a caller as if it were valid.
+                "decision_input_snapshot": json.loads(str(row[11])),
+                "input_hash": row[12],
+                "evaluated": json.loads(str(row[13])),
+                "episode_id": row[14],
+                "actor_id": row[15],
+                "created_at": row[16],
+            }
+        )
