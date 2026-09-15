@@ -45,6 +45,11 @@ _ID_PREFIXES: Final[dict[str, str]] = {
     "actor": "act",
     "project": "prj",
     "lineage": "lin",
+    # P6 / OPS-003. A trace is minted once per episode and threaded through every span; a span id
+    # is minted per execution interval. Separate kinds because they are separate identities --
+    # reusing one id for both would make a trace indistinguishable from its own root span.
+    "trace": "trc",
+    "execution_span": "spn",
 }
 
 

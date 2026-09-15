@@ -6,9 +6,13 @@ conformance suite.
 """
 
 from lab_brain.core.repositories.budget import (
+    CostLedger,
     InMemoryBudgetApprovalClaims,
+    InMemoryCostLedger,
     NonDurableClaimStoreError,
     SqlBudgetApprovalClaims,
+    SqlCostLedger,
+    require_durable_connection,
 )
 from lab_brain.core.repositories.memory import (
     InMemoryArtifactRepository,
@@ -18,6 +22,13 @@ from lab_brain.core.repositories.memory import (
     InMemoryObservationRepository,
     InMemoryRelationRepository,
     InMemorySourceWorkRepository,
+)
+from lab_brain.core.repositories.observability import (
+    InMemorySpanRepository,
+    SpanLifecycleError,
+    SpanRepository,
+    SqlSpanRepository,
+    TraceView,
 )
 from lab_brain.core.repositories.protocols import (
     ArtifactRepository,
@@ -35,20 +46,29 @@ __all__ = [
     "ArtifactRepository",
     "AttestationRepository",
     "ClaimRepository",
+    "CostLedger",
     "DuplicateIdentityError",
     "EvidenceBundleRepository",
     "InMemoryArtifactRepository",
     "InMemoryAttestationRepository",
     "InMemoryBudgetApprovalClaims",
     "InMemoryClaimRepository",
+    "InMemoryCostLedger",
     "InMemoryEvidenceBundleRepository",
     "InMemoryObservationRepository",
     "InMemoryRelationRepository",
     "InMemorySourceWorkRepository",
+    "InMemorySpanRepository",
     "NonDurableClaimStoreError",
     "ObservationRepository",
     "RelationRepository",
     "RepositoryError",
     "SourceWorkRepository",
+    "SpanLifecycleError",
+    "SpanRepository",
     "SqlBudgetApprovalClaims",
+    "SqlCostLedger",
+    "SqlSpanRepository",
+    "TraceView",
+    "require_durable_connection",
 ]

@@ -66,6 +66,13 @@ from lab_brain.core.models.evidence_bundle import (
     EvidenceBundle,
     ResearchIntent,
 )
+from lab_brain.core.models.execution_span import (
+    SUBJECT_FIELD_FOR_TYPE,
+    TERMINAL_SPAN_STATUSES,
+    ExecutionSpan,
+    SpanStatus,
+    SpanType,
+)
 from lab_brain.core.models.identifiers import (
     ContentHashError,
     artifact_id_for,
@@ -99,6 +106,8 @@ __all__ = [
     "IDENTITY_EXCLUDED_FIELDS",
     "IDENTITY_RELATION_TYPES",
     "IMPLEMENTED_INDEPENDENCE_BASES",
+    "SUBJECT_FIELD_FOR_TYPE",
+    "TERMINAL_SPAN_STATUSES",
     "Actor",
     "ActorType",
     "Artifact",
@@ -122,6 +131,7 @@ __all__ = [
     "EpistemicType",
     "EvidenceBundle",
     "EvidenceField",
+    "ExecutionSpan",
     "ExtractionProvenance",
     "ExtractionStatus",
     "FieldStatus",
@@ -141,6 +151,8 @@ __all__ = [
     "SourceWork",
     "SourceWorkStatus",
     "SourceWorkType",
+    "SpanStatus",
+    "SpanType",
     "TrustClass",
     "Uncertainty",
     "VerificationStatus",

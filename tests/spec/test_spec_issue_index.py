@@ -1,6 +1,6 @@
 """`docs/spec_issues/README.md`'s index must agree with the issue documents (AGT-003).
 
-The index is a hand-written table beside eight machine-read documents, which is the shape of every
+The index is a hand-written table beside nine machine-read documents, which is the shape of every
 staleness bug this repository has already had once. It duly went stale: six issues were RESOLVED in
 their own headers and in IMPLEMENTATION_STATUS.md on 2026-09-12/13, and the index still said OPEN
 when P5 opened it on 2026-09-14.

@@ -44,10 +44,12 @@ DEFAULT_URL = "postgresql://lab_brain:lab_brain@localhost:5433/lab_brain"
 
 @pytest.fixture
 def seeded(db):  # type: ignore[no-untyped-def]
-    """A project, an actor and one versioned policy. `db` truncates the core tables per test."""
-    db.execute("DELETE FROM cost_entries")
-    db.execute("DELETE FROM budget_approvals")
-    db.execute("DELETE FROM budget_policies")
+    """A project, an actor and one versioned policy.
+
+    `db` truncates the cost tables along with everything else -- by TRUNCATE, which is the only
+    way to clear an append-only table, since `DELETE FROM cost_entries` fires the trigger that
+    exists to stop exactly that.
+    """
     db.execute(
         "INSERT INTO budget_policies (policy_id, policy_version, project_id, cap_money_estimate)"
         " VALUES ('pol:s', '1.0.0', 'prj:test', 50.00)"

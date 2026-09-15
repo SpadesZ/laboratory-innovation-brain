@@ -114,6 +114,12 @@ UNBOUND: dict[str, str] = {
     "Actor": "§17.15's block is not parseable as a standalone `Actor { ... }` schema; the section "
     "describes the ACL model in prose. Bindable once §17.15 states a schema block.",
     "ProjectMembership": "Same as Actor -- §17.15 has no standalone block.",
+    "ExecutionSpan": "§17.19.1 writes the subject reference as one slash alternation, "
+    "`model_call_id?/job_id?/retrieval_id?`, which this parser cannot read as three field names: "
+    "it would compare a canonical set of 11 fields against an implementation of 13 and report the "
+    "three subjects as undeclared. The model and the DDL implement the literal reading (at most "
+    "one of the three, matching `span_type`) and enforce it in both places. Bindable once §17.19.1 "
+    "states them as separate optional fields.",
 }
 
 

@@ -12,6 +12,15 @@ import os
 
 import pytest
 
+# Re-exported so every suite sees them, not only tests/integration. T-OPS-003 is declared `e2e`
+# in §26, and a fixture defined in a sibling conftest is invisible across suites. See
+# tests/postgres_fixtures.py for why they moved rather than being duplicated.
+from tests.postgres_fixtures import (  # noqa: F401  (fixtures are used by name, not by reference)
+    database_url,
+    db,
+    postgres_connection,
+)
+
 #: Records the real outcome of every traceability-marked test. Registered here because the
 #: skip logic below is itself a coverage hazard: it turns a backend-gated test into SKIPPED,
 #: which a collection-based coverage count would have read as "covered".

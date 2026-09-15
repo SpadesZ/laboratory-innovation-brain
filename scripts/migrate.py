@@ -55,6 +55,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # P5-fix / v3.3-a10. Adds §9.4's `token_count` to the three cost tables. Separate from 007a
     # because 007a is applied: an applied migration is checksummed and must not be edited.
     "007b_cost_token_dimension.sql",
+    # P6 / M0b-3. The observability third of Appendix A's 010 slot (OPS-003); the review and
+    # benchmark halves land with OPS-002 and §17.19.2. After 007a/007b: span cost refs are a
+    # foreign key into `cost_entries`.
+    "010a_execution_spans.sql",
 )
 
 _BOOTSTRAP = """

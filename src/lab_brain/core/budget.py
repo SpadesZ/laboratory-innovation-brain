@@ -432,8 +432,9 @@ def authorize_dispatch(
         return BudgetDecision(
             DispatchOutcome.BLOCKED,
             f"{request.action_ref} is over budget and approval {approval_id} could not be claimed: "
-            "it was already consumed. An approval authorises one action once, and a concurrent "
-            "dispatch that lost the race is refused rather than served a second release",
+            "it was already consumed, or no unconsumed approval with that id exists. An approval "
+            "authorises one action once, and a concurrent dispatch that lost the race is refused "
+            "rather than served a second release",
             policy_version=decision.policy_version,
             exceeded_dimensions=decision.exceeded_dimensions,
             escalation_available=True,
