@@ -83,6 +83,14 @@ def seeded(db):  # type: ignore[no-untyped-def]
         " VALUES ('rel:1', 'att:1', 'clm:1', 'SUPPORTS', %s, 'act:test')",
         (PROJECT,),
     )
+    # The policy every event below cites. Registered because migration 005b made an event's
+    # `(policy_id, policy_version)` a foreign key into `transition_policies` -- an event whose
+    # authorising policy version does not exist cannot be re-derived, which is the whole point of
+    # `v3.3-a11`. This fixture predates that constraint and the constraint is what broke it.
+    db.execute(
+        "INSERT INTO transition_policies (policy_id, version, from_state, candidate_to_state)"
+        " VALUES ('pol:hypothesis-default', '1.0.0', 'ACTIVE', 'SUPPORTED')"
+    )
     return db
 
 

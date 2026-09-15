@@ -10,6 +10,7 @@ from lab_brain.core.repositories.belief_events import (
     BeliefEventStore,
     InMemoryBeliefEventStore,
     SqlBeliefEventStore,
+    SqlTransitionPolicyStore,
 )
 from lab_brain.core.repositories.budget import (
     CostLedger,
@@ -80,6 +81,7 @@ __all__ = [
     "SqlBudgetApprovalClaims",
     "SqlCostLedger",
     "SqlSpanRepository",
+    "SqlTransitionPolicyStore",
     "TraceCorruptionError",
     "TraceView",
     "require_durable_connection",

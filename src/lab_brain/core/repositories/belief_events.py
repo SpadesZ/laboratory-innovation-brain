@@ -25,6 +25,7 @@ from collections.abc import Iterable, Sequence
 from typing import Protocol, runtime_checkable
 
 from lab_brain.core.models.belief_event import BeliefRevisionEvent
+from lab_brain.core.models.transition import TransitionPolicy
 from lab_brain.core.repositories.budget import SqlConnection, require_durable_connection
 from lab_brain.core.repositories.protocols import RepositoryError
 
@@ -211,9 +212,85 @@ class SqlBeliefEventStore:
         )
 
 
+class SqlTransitionPolicyStore:
+    """Registered policy versions (§8.2.1, migration 005b).
+
+    Register and read only. A policy version is immutable once registered -- the table enforces it
+    by trigger -- because re-running version 1.0.0 to re-derive a past decision requires 1.0.0 to
+    still be exactly what it was. A changed rule is a new version.
+    """
+
+    def __init__(self, connection: SqlConnection) -> None:
+        require_durable_connection(connection)
+        self._connection = connection
+
+    def register(self, policy: TransitionPolicy) -> TransitionPolicy:
+        self._connection.execute(
+            "INSERT INTO transition_policies ("
+            " policy_id, version, domain, from_state, candidate_to_state,"
+            " required_relation_types, required_authority_rule, required_condition_match,"
+            " min_independent_attestations, independence_basis, blocking_conflict_policy,"
+            " human_gate, effective_from, supersedes"
+            ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (
+                policy.policy_id,
+                policy.version,
+                policy.domain,
+                policy.from_state.value,
+                policy.candidate_to_state.value,
+                [member.value for member in policy.required_relation_types],
+                policy.required_authority_rule,
+                [member.value for member in policy.required_condition_match],
+                policy.min_independent_attestations,
+                None if policy.independence_basis is None else policy.independence_basis.value,
+                list(policy.blocking_conflict_policy),
+                policy.human_gate,
+                policy.effective_from,
+                policy.supersedes,
+            ),
+        )
+        return policy
+
+    def get(self, policy_id: str, version: str) -> TransitionPolicy | None:
+        row = self._connection.execute(
+            "SELECT policy_id, version, domain, from_state, candidate_to_state,"
+            " required_relation_types, required_authority_rule, required_condition_match,"
+            " min_independent_attestations, independence_basis, blocking_conflict_policy,"
+            " human_gate, effective_from, supersedes"
+            " FROM transition_policies WHERE policy_id = %s AND version = %s",
+            (policy_id, version),
+        ).fetchone()
+        if row is None:
+            return None
+
+        def array(value: object) -> tuple[object, ...]:
+            """A TEXT[] column arrives as a list; an empty one may arrive as NULL."""
+            return tuple(value) if isinstance(value, list) else ()
+
+        return TransitionPolicy.model_validate(
+            {
+                "policy_id": row[0],
+                "version": row[1],
+                "domain": row[2],
+                "from_state": row[3],
+                "candidate_to_state": row[4],
+                "required_relation_types": array(row[5]),
+                "required_authority_rule": row[6],
+                "required_condition_match": array(row[7]),
+                "min_independent_attestations": row[8],
+                "independence_basis": row[9],
+                "blocking_conflict_policy": array(row[10]),
+                "human_gate": row[11],
+                "effective_from": row[12],
+                "supersedes": row[13],
+            }
+        )
+
+
 __all__ = [
     "BeliefEventError",
     "BeliefEventStore",
     "InMemoryBeliefEventStore",
     "SqlBeliefEventStore",
+    "SqlTransitionPolicyStore",
 ]

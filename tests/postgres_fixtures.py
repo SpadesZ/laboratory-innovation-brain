@@ -36,6 +36,7 @@ _TABLES = (
     "belief_revision_event_attestations",
     "belief_revision_event_relations",
     "belief_revision_events",
+    "transition_policies",
     "evidence_bundle_members",
     "evidence_bundles",
     "evidence_independence",

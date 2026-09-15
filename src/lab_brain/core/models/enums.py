@@ -236,6 +236,21 @@ class IndependenceBasis(StrEnum):
 IMPLEMENTED_INDEPENDENCE_BASES = frozenset({IndependenceBasis.WORK})
 
 
+class AuthorityComparison(StrEnum):
+    """§10.5.1. Evidence authority is a **partial** order.
+
+    ``INCOMPARABLE`` is a legitimate result and MUST NOT be silently coerced into an ordering: a
+    calibrated measurement outside its validated range and a simulation inside its own genuinely do
+    not rank, and a comparator that returned WEAKER there would be inventing the ranking a belief
+    transition then rests on. §8.2.1 routes it to NEED_HUMAN_REVIEW.
+    """
+
+    STRONGER = "STRONGER"
+    WEAKER = "WEAKER"
+    EQUIVALENT = "EQUIVALENT"
+    INCOMPARABLE = "INCOMPARABLE"
+
+
 class ConditionMatchState(StrEnum):
     """§17.19. ``UNKNOWN`` is distinct from ``INCOMPATIBLE`` on purpose.
 
@@ -255,6 +270,7 @@ __all__ = [
     "FAIL_CLOSED_SENSITIVITY",
     "HIGH_WEIGHT_FIELD_STATUSES",
     "IMPLEMENTED_INDEPENDENCE_BASES",
+    "AuthorityComparison",
     "ClaimIdentityStatus",
     "ConditionMatchState",
     "EpistemicType",
