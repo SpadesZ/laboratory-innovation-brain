@@ -41,6 +41,10 @@ APPLY_ORDER: tuple[str, ...] = (
     "008_conditions.sql",
     "003_claims_observations_attestations.sql",
     "004_relations.sql",
+    # P7 / M0b-4. The events half of Appendix A's 005 slot (EPI-003); the transition-policy half
+    # lands as 005b. After 003/004: a triggering reference is a foreign key into `attestations`
+    # and `relation_judgments`, so those tables must exist first.
+    "005a_belief_revision_events.sql",
     # After 003: bundle members reference attestations. `a` suffixes mark additions beyond
     # Appendix A's index, whose 001-012 numbers are reserved for the canonical migrations.
     "004a_evidence_bundles.sql",

@@ -35,14 +35,19 @@ enforces. The two are compared by `tests/spec/test_spec_issue_index.py`, because
 | [007](SPEC-ISSUE-007-cross-store-unit-of-work-no-requirement-id.md) | GATE | §12.3 cross-store unit of work has no Requirement ID | M1 | **RESOLVED** — `OPS-004`, `v3.3-a2` |
 | [008](SPEC-ISSUE-008-fabrication-gate-no-requirement-id.md) | EDITORIAL | §14.3 fabrication human sign-off has no Requirement ID | — | **RESOLVED** — under `SEC-002`, `v3.3-a2` |
 | [009](SPEC-ISSUE-009-cost-vector-has-no-token-dimension.md) | GATE | COST-001 requires token accounting `CostVector` cannot represent; cap `0` vs `NULL` undefined | M0b | **RESOLVED** — `token_count` + cap semantics, `v3.3-a10` |
+| [010](SPEC-ISSUE-010-belief-event-cannot-name-its-project-or-policy.md) | GATE | `BeliefRevisionEvent` names neither its project nor the policy that authorised it, so EPI-003 replay is unscoped and EPI-005 determinism has no anchor | M0b | **RESOLVED** — `project_id` + `policy_id`, `v3.3-a11` |
 
 Issues 004–008 were all raised by the **M0a Spec Coverage Audit** (§23.5 (2)) — the section-by-section
 review of §6–§16 that a linter cannot perform. Each is a hard MUST in the prose with no Requirement
 ID to map to, so adding one changes the `53 ↔ 53` invariant and is a maintainer decision, not an
 agent decision. None of them blocks M0a.
 
-Issue 009 came from the opposite direction: not a coverage audit but an implementation slice
-(P5 / COST-001) that could not be written without picking between two normative contracts.
+Issues 009 and 010 came from the opposite direction: not a coverage audit but an implementation
+slice that could not be written honestly without a ruling — 009 from P5 / `COST-001`, where a
+requirement named a dimension its own type could not hold, and 010 from P7 / `EPI-003`+`EPI-005`,
+where the event the requirements are about could name neither its project nor its authorising
+policy. Both are the same shape: an obligation that the schema made unrepresentable rather than
+merely unchecked.
 
 ## Enforcement
 

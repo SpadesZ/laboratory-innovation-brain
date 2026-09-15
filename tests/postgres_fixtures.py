@@ -33,6 +33,9 @@ DEFAULT_URL = "postgresql://lab_brain:lab_brain@localhost:5433/lab_brain"
 #: RAISE the moment any row survives from an earlier test. TRUNCATE does not fire row-level DELETE
 #: triggers, so naming them here is both correct and the only safe way to clear them.
 _TABLES = (
+    "belief_revision_event_attestations",
+    "belief_revision_event_relations",
+    "belief_revision_events",
     "evidence_bundle_members",
     "evidence_bundles",
     "evidence_independence",

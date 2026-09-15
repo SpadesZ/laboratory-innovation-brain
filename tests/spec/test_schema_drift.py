@@ -238,6 +238,34 @@ def test_a_dimension_that_is_recorded_but_not_cappable_is_detected():
         cost_module.CAPPED_DIMENSIONS = saved
 
 
+def test_the_a11_belief_event_fields_reached_the_spec_the_model_and_the_table():
+    """Pinned by name, because these two fields are the whole of amendment `v3.3-a11`.
+
+    Asserted in all three places rather than trusting `all_drift()`: the binding would also be
+    satisfied by removing them from the canonical block, which is the direction a "tidy-up" takes.
+    """
+    binding = next(b for b in BINDINGS if b.schema_name == "BeliefRevisionEvent")
+    canonical = canonical_fields("BeliefRevisionEvent", "17.13")
+    model = model_fields(binding.model_path)
+    table = effective_table_columns(binding)
+
+    for field in ("project_id", "policy_id", "policy_version"):
+        assert field in canonical, f"§17.13 declares {field} (v3.3-a11)"
+        assert field in model, f"the model carries {field}"
+        assert field in table, f"belief_revision_events carries {field}"
+
+    # The two triggering arrays are the declared exemption: join tables, not columns.
+    from lab_brain.spec.schema_drift import STRUCTURAL_ONLY
+
+    assert STRUCTURAL_ONLY["BeliefRevisionEvent"] == {
+        "triggering_attestation_ids",
+        "triggering_relation_ids",
+    }
+    for field in STRUCTURAL_ONLY["BeliefRevisionEvent"]:
+        assert field in canonical and field in model
+        assert field not in table, f"{field} is stored as a join, so it is not a column"
+
+
 def test_an_unbound_unexempted_schema_is_detected():
     """Prove the completeness guard fires, by removing an exemption it depends on."""
     import lab_brain.spec.schema_drift as module

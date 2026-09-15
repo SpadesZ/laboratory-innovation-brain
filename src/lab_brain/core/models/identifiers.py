@@ -50,6 +50,9 @@ _ID_PREFIXES: Final[dict[str, str]] = {
     # reusing one id for both would make a trace indistinguishable from its own root span.
     "trace": "trc",
     "execution_span": "spn",
+    # P7 / EPI-003, EPI-005.
+    "belief_revision_event": "bre",
+    "hypothesis": "hyp",
 }
 
 

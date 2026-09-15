@@ -35,7 +35,16 @@ from lab_brain.spec.parser import repo_root, spec_path
 #: Fields a schema block may declare that no column or model field corresponds to, because they are
 #: expressed structurally instead. Kept explicit and tiny: every entry is a place the guard is
 #: deliberately blind, so it has to be argued for rather than discovered.
-STRUCTURAL_ONLY: dict[str, frozenset[str]] = {}
+STRUCTURAL_ONLY: dict[str, frozenset[str]] = {
+    # §17.13's two triggering arrays are stored as join tables, not TEXT[] columns, so that a
+    # trigger reference is a foreign key that resolves. §6.18's contamination rollback *is* the
+    # query "which events were triggered by an Attestation from extractor version X", and an
+    # array that can name a row which does not exist makes that rollback silently incomplete.
+    # The model keeps them as tuples; the table spreads them across
+    # `belief_revision_event_attestations` / `_relations`. Both are faithful, and declaring the
+    # relationship lets the guard check the rest of the schema instead of being told to skip it.
+    "BeliefRevisionEvent": frozenset({"triggering_attestation_ids", "triggering_relation_ids"}),
+}
 
 
 @dataclass(frozen=True)
@@ -72,6 +81,13 @@ BINDINGS: tuple[SchemaBinding, ...] = (
         model_path="lab_brain.core.models.access:ArtifactOccurrence",
         table="artifact_occurrences",
         migration="002a_artifact_occurrences.sql",
+    ),
+    SchemaBinding(
+        section="17.13",
+        schema_name="BeliefRevisionEvent",
+        model_path="lab_brain.core.models.belief_event:BeliefRevisionEvent",
+        table="belief_revision_events",
+        migration="005a_belief_revision_events.sql",
     ),
     SchemaBinding(
         section="17.17",

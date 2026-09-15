@@ -21,6 +21,12 @@ from lab_brain.core.models.attestation import (
     Uncertainty,
 )
 from lab_brain.core.models.base import CoreModel, utc_now
+from lab_brain.core.models.belief_event import (
+    BELIEF_TERMINAL_STATES,
+    BeliefRevisionEvent,
+    BeliefState,
+    BeliefTargetType,
+)
 from lab_brain.core.models.claim import Claim
 from lab_brain.core.models.condition import (
     ConditionMatch,
@@ -96,6 +102,7 @@ from lab_brain.core.models.source_work import (
 )
 
 __all__ = [
+    "BELIEF_TERMINAL_STATES",
     "BUNDLE_SCHEMA_VERSION",
     "CAPPED_DIMENSIONS",
     "EPISTEMIC_RELATION_TYPES",
@@ -113,6 +120,9 @@ __all__ = [
     "Artifact",
     "ArtifactOccurrence",
     "Attestation",
+    "BeliefRevisionEvent",
+    "BeliefState",
+    "BeliefTargetType",
     "BudgetCaps",
     "Claim",
     "ClaimIdentityStatus",

@@ -1345,10 +1345,11 @@ Belief revision 採 append-only event；EpistemicState projector 可由全量 ev
 
 ```
 BeliefRevisionEvent {
-  event_id, target_type, target_id,
+  event_id, project_id, target_type, target_id,
   from_state?, to_state,
   triggering_attestation_ids[], triggering_relation_ids[],
-  policy_version, actor_id?, inference_provenance_id?,
+  policy_id, policy_version,             # v3.3-a11; §8.2.1 keys a policy on (policy_id, version)
+  actor_id?, inference_provenance_id?,
   rationale_artifact_or_record_ref?, occurred_at, trace_id
 }
 
@@ -1360,6 +1361,13 @@ EpistemicStateProjection {
 unresolved_conflicts[] holds conflict_id references (17.19.3),
 not inline conflict payloads.
 ```
+
+`project_id` 與 `policy_id` 由 `v3.3-a11` 補入（SPEC-ISSUE-010）。前者使 replay 可限定在單一
+project，並使「此 event 引用了別的 project 的 attestation」成為 schema 能夠拒絕的敘述；缺少它時
+該問題不是沒被檢查，而是無法被表達（同 R-7）。後者使 event 能指名授權它的那一份 policy：§8.2.1
+以 `(policy_id, version)` 為 policy 的鍵，而 EPI-005 的「identical inputs + identical
+policy_version 必得相同 TransitionDecision」只在同一個 policy 內成立——只記 version 的 event 無法
+被重新推導，而可重新推導正是 EPI-003 的目的。
 
 ## 17.14 InferenceProvenance Contract
 
@@ -3169,3 +3177,4 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | **v3.3-a8** | **2026-09-13** | **Maintainer amendment (Artifact / ArtifactOccurrence canonical contract)**：修正 §17.1 與實作之間的 drift。migration 005（現 002a）已將 `project_id` / `sensitivity_label` 移出全域 `artifacts`，但 §17.1 與 Pydantic `Artifact` 仍保留這兩個欄位。本修訂確立：**`Artifact` = global content identity**（只含 bytes 的性質）、**`ArtifactOccurrence` = project-scoped presence/classification**（identity 為 `(artifact_id, project_id)`）。§17.1 移除該二欄位並新增 **§17.1.1 ArtifactOccurrence Schema**；`ART-001` / `T-ART-001` 澄清 content identity 不含 project scope；`SEC-002` / `T-SEC-002` 增列 occurrence-scoped read gate 與 `Actor.active`。決策記錄於 **ADR-0010**。新增 conformance guard：§17 canonical schema 與 Pydantic model 及 migration 欄位漂移時 CI 必須失敗。**未新增 Requirement/Test ID**；Requirement ↔ Test 維持 **59 ↔ 59**。 |
 | **v3.3-a9** | **2026-09-14** | **Maintainer amendment (COST-001 ledger 與 approval contract)**：§17.17 的 `CostEntry` 原本無 `project_id`，也無法區分 estimate 與 actual，而 COST-001 要求成本可追溯到 project 並保留兩者。改為 `project_id` + `cost_kind（ESTIMATED | ACTUAL）` + `cost`（直接引用 §9.4 `CostVector`，避免 ledger 與 planner 對「成本由什麼組成」各自漂移）+ `approval_id?`。新增 **§17.17.1 BudgetApproval Schema**：v3.3-a6 要求超限時存在 supervisor/human approval path 且 approval 本身可歸屬，但未定義其 scope；現明確為 one action / one episode / one project / one policy_version / stated overrun / time window / single use，且**僅解除 budget，不解除 SEC-002、§7.6 critique path 或任何其他 gate**。**未新增 Requirement/Test ID**；Requirement ↔ Test 維持 **59 ↔ 59**。 |
 | **v3.3-a10** | **2026-09-14** | **Maintainer amendment (COST-001 token dimension 與 cap 語意)**：裁決 SPEC-ISSUE-009。（a）§25.3 COST-001 要求 CostLedger 至少記 **wall-clock/tokens/money/license-seat**，而 §17.17 的 `CostEntry.cost` 就是 §9.4 的 `CostVector`，該型別原本沒有 token 維度——ledger 被要求記錄一個唯一可用型別無法表達的量。**§9.4 `CostVector` 新增 `token_count`**（第九維、可設限），並因此自動流入 §17.17 `CostEntry.cost`、§17.17.1 `BudgetApproval.approved_overrun` 與 §17.19.1 budget caps。token 明確**不得**併入 `compute_units`：兩者是不同的量，合併後兩題都答不出，與 §9.4 反對 `normalized_cost` 的理由相同。（b）§17.19.1 原本未定義 cap 的缺席與零之別，導致 DDL（`NULL` = 未設限）與 `BudgetPolicy.cap_for()`（把 `0` 當未設限）對同一份 policy 得出相反結論，且錯在危險的方向——刻意凍結的預算會被讀成全部放行。新增 **§17.19.1 Cap semantics**：缺席/`NULL` = 該維度不設限，`0` = 允許量為零，model/DDL/gate 三者採同一讀法；`approved_overrun` 是額度、不受此規則影響。**未新增 Requirement/Test ID，亦未新增 normative statement**——COST-001 早已同時課予這兩項義務，本修訂使其**可被表達**與**可被唯一解讀**，而非新增義務；§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。Requirement ↔ Test 維持 **59 ↔ 59**。無架構方向變更。 |
+| **v3.3-a11** | **2026-09-15** | **Maintainer amendment (BeliefRevisionEvent 的 project 與 policy 身分)**：裁決 SPEC-ISSUE-010。§17.13 的 `BeliefRevisionEvent` 原本既無 `project_id` 也無 `policy_id`。（a）**新增 `project_id`**：EPI-003 要求 EpistemicState 可由 replay 重建、SEC-002 要求一切讀取以 project 為範圍，但 event 上沒有 project 時，「某 project 的信念歷史」無從表達，replay 只能是全站範圍，且「此 event 引用了別 project 的 attestation」不是 schema 能敘述、更不能拒絕的事——與 R-7 同形：不是檢查漏了，是問題無法被提出。（b）**新增 `policy_id`**：§8.2.1 的 `TransitionDecision` 同時帶 `policy_id` 與 `policy_version`，`TransitionPolicy` 亦以 `(policy_id, version)` 為鍵，而 event 只記 version；由於 version 是 per-policy，兩份同為 `1.2.0` 的 policy 在記錄中無法區分，EPI-005 的「identical inputs + identical policy_version 必得相同 TransitionDecision」因而失去錨點——稽核者持有 inputs 與 version 卻無法選出要重跑的 policy，而可重新推導正是 EPI-003 的目的。**未新增 Requirement/Test ID，亦未新增 normative statement**——EPI-003 早已課予「可重播」、EPI-005 早已課予「在指名 policy version 下可重現」，本修訂使兩者**可被表達**。§17.13 在 §6–§16 稽核範圍之外，§23.5 (2) occurrence inventory 不變。Requirement ↔ Test 維持 **59 ↔ 59**。無架構方向變更。 |
