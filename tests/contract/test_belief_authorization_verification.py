@@ -24,6 +24,7 @@ import datetime as dt
 import pytest
 
 from lab_brain.core.belief import (
+    BeliefScopeError,
     UnverifiedBeliefRevision,
     VerificationFailure,
     VerifiedBeliefRevision,
@@ -350,3 +351,67 @@ def test_a_verified_history_is_ordered_by_occurrence():
         policies=stores(),
     )
     assert [r.event.event_id for r in revisions] == ["bre:1", "bre:2"]
+
+
+# --------------------------------------------------------------------------------------------
+# Request scope. `verified_history` answers a question about one target in one project, and it
+# must refuse anything else rather than narrowing to it.
+# --------------------------------------------------------------------------------------------
+
+
+def history(project_id: str, target_id: str, events: list[BeliefRevisionEvent]):  # type: ignore[no-untyped-def]
+    return verified_history(
+        project_id=project_id,
+        target_id=target_id,
+        events=events,
+        decisions=stores(),
+        policies=stores(),
+    )
+
+
+def test_a_verified_history_refuses_a_wrong_target_request():
+    """Same project, and not the requested target.
+
+    The dangerous case, because narrowing would return an empty tuple and an empty history is a
+    legitimate answer -- "this hypothesis has no events yet" -- so the caller would get a
+    confident wrong result rather than an error.
+    """
+    with pytest.raises(BeliefScopeError, match="target"):
+        history(PROJECT, "hyp:not-this-one", [event()])
+
+
+def test_a_verified_history_refuses_a_wrong_project_request():
+    """The other single-axis case, so neither guard can be standing in for the other."""
+    with pytest.raises(BeliefScopeError, match="project"):
+        history("prj:not-this-one", HYP, [event()])
+
+
+def test_a_verified_history_refuses_mixed_targets():
+    """One requested target present, one not. Partial narrowing is still narrowing."""
+    mine = event(event_id="bre:1")
+    theirs = event(event_id="bre:2", target_id="hyp:other")
+
+    with pytest.raises(BeliefScopeError, match="target"):
+        history(PROJECT, HYP, [mine, theirs])
+
+
+def test_a_verified_history_refuses_mixed_projects():
+    mine = event(event_id="bre:1")
+    theirs = event(event_id="bre:2", project_id="prj:other")
+
+    with pytest.raises(BeliefScopeError, match="project"):
+        history(PROJECT, HYP, [mine, theirs])
+
+
+def test_scope_is_checked_before_authorization():
+    """An out-of-scope event is a wrong query, not an unauthorised belief.
+
+    Ordering matters for the reader: reporting this as `NOT_REDERIVABLE` or
+    `AUTHORIZATION_NOT_FOUND` would send whoever sees it looking for a forgery. The event below
+    would fail verification too -- its authorization does not exist -- and the scope error must
+    still win.
+    """
+    out_of_scope = event(target_id="hyp:other", authorization_decision_id="dec:missing")
+
+    with pytest.raises(BeliefScopeError):
+        history(PROJECT, HYP, [out_of_scope])

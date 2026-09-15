@@ -277,6 +277,41 @@ class PolicyLookup(Protocol):
     def get(self, policy_id: str, version: str) -> TransitionPolicy | None: ...
 
 
+def _enforce_requested_scope(
+    project_id: str,
+    target_id: str,
+    events: Sequence[BeliefRevisionEvent],
+    operation: str,
+) -> None:
+    """Refuse events outside the requested `(project_id, target_id)`, in both dimensions.
+
+    `v3.3-a11` added `project_id` and the mixed-project case has failed loudly since. The
+    *target* half did not: `replay` filtered on `target_id`, so asking for a hypothesis whose
+    events were not in the sequence returned an empty projection rather than an error -- and an
+    empty projection is a perfectly plausible answer, indistinguishable from "this hypothesis has
+    no history yet". A caller that passed the wrong target got a confident wrong answer.
+
+    Both dimensions are reported together. A caller that got the project *and* the target wrong
+    should not have to fix one, re-run, and discover the other.
+    """
+    wrong_project = sorted({event.project_id for event in events if event.project_id != project_id})
+    wrong_target = sorted({event.target_id for event in events if event.target_id != target_id})
+    if not wrong_project and not wrong_target:
+        return
+
+    problems = []
+    if wrong_project:
+        problems.append(f"events from project(s) {', '.join(wrong_project)}")
+    if wrong_target:
+        problems.append(f"events for target(s) {', '.join(wrong_target)}")
+    raise BeliefScopeError(
+        f"{operation} of {target_id} in {project_id} was handed {' and '.join(problems)}. "
+        "Two projects may legitimately use the same target id, so folding mismatched histories "
+        "together produces a state none of them is in -- and filtering silently would return a "
+        "plausible projection built from a query nobody meant to run"
+    )
+
+
 def verify_stored_revision(
     *,
     event: BeliefRevisionEvent,
@@ -437,6 +472,9 @@ def verified_history(
     history containing one unverifiable revision is not a history minus that revision. Dropping it
     would return a plausible projection and hide that something wrote a belief nobody authorised.
     """
+    # Scope first. An event outside the requested scope is a wrong query, not an unauthorised
+    # belief, and reporting it as `NOT_REDERIVABLE` would send the reader looking for a forgery.
+    _enforce_requested_scope(project_id, target_id, events, "verified_history")
     return tuple(
         verify_stored_revision(
             event=event,
@@ -489,20 +527,12 @@ def replay(
     cascading would apply a transition from a state the replay never reached.
     """
     events = [revision.event for revision in revisions]
-    foreign = sorted({event.project_id for event in events if event.project_id != project_id})
-    if foreign:
-        raise BeliefScopeError(
-            f"replay of {target_id} in {project_id} was handed events from "
-            f"{', '.join(foreign)}. Two projects may legitimately use the same target id, so "
-            "folding their histories together would produce a state neither is in -- and "
-            "filtering them out silently would hide that the query was wrong"
-        )
+    _enforce_requested_scope(project_id, target_id, events, "replay")
 
     quarantined = frozenset(quarantined_attestation_ids)
-    ordered = sorted(
-        (event for event in events if event.target_id == target_id),
-        key=lambda event: (event.occurred_at, event.event_id),
-    )
+    # No `target_id` filter. Filtering here was how a wrong-target request produced an empty
+    # projection that read as "no history yet" -- the scope check above refuses it instead.
+    ordered = sorted(events, key=lambda event: (event.occurred_at, event.event_id))
 
     state: BeliefState | None = None
     last: str | None = None

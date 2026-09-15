@@ -118,7 +118,14 @@ def test_replay_folds_the_chain_in_time_order_not_insertion_order():
     assert projection.last_event_id == "bre:2"
 
 
-def test_replay_ignores_other_targets():
+def test_events_for_another_target_fail_loudly_rather_than_being_filtered():
+    """This test previously asserted the opposite, and the opposite was wrong.
+
+    `replay` used to filter on `target_id`, so a sequence containing another hypothesis's events
+    quietly narrowed to the right ones. That reads like robustness and is the same mistake as
+    filtering by project: the caller assembled a sequence it did not understand, and narrowing
+    answers a question nobody asked while looking like success.
+    """
     events = [
         event(event_id="bre:1", from_state=None, to_state=BeliefState.ACTIVE),
         event(
@@ -128,7 +135,40 @@ def test_replay_ignores_other_targets():
             to_state=BeliefState.CONTRADICTED,
         ),
     ]
-    assert replay(PROJECT, HYP, verified(*events)).current_state is BeliefState.ACTIVE
+    with pytest.raises(BeliefScopeError, match="target"):
+        replay(PROJECT, HYP, verified(*events))
+
+
+def test_a_wrong_target_request_is_refused_rather_than_answered_as_empty():
+    """The dangerous shape: every event is same-project and none is the requested target.
+
+    Filtering returned an empty projection here, which is indistinguishable from "this hypothesis
+    has no history yet" -- a confident wrong answer rather than an error. Same project throughout,
+    so only the target is wrong and nothing else can account for the refusal.
+    """
+    events = [event(event_id="bre:1", from_state=None, to_state=BeliefState.ACTIVE)]
+
+    with pytest.raises(BeliefScopeError, match="target"):
+        replay(PROJECT, "hyp:not-this-one", verified(*events))
+
+
+def test_a_wrong_project_request_is_refused_even_when_the_target_matches():
+    """The other single-axis case, so neither guard can be carrying the other."""
+    events = [event(event_id="bre:1", from_state=None, to_state=BeliefState.ACTIVE)]
+
+    with pytest.raises(BeliefScopeError, match="project"):
+        replay("prj:not-this-one", HYP, verified(*events))
+
+
+def test_both_scope_problems_are_reported_together():
+    """A caller who got both wrong should not have to fix one and re-run to find the other."""
+    events = [
+        event(event_id="bre:1", project_id="prj:other", target_id="hyp:other", from_state=None)
+    ]
+
+    with pytest.raises(BeliefScopeError) as caught:
+        replay(PROJECT, HYP, verified(*events))
+    assert "project" in str(caught.value) and "target" in str(caught.value)
 
 
 # --------------------------------------------------------------------------------------------
@@ -170,7 +210,7 @@ def test_mixed_project_input_fails_loudly_rather_than_being_filtered():
             to_state=BeliefState.CONTRADICTED,
         ),
     ]
-    with pytest.raises(BeliefScopeError, match="handed events from prj:other"):
+    with pytest.raises(BeliefScopeError, match=r"project\(s\) prj:other"):
         replay(PROJECT, HYP, verified(*events))
 
 
