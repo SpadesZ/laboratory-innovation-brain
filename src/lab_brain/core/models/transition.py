@@ -45,10 +45,19 @@ from __future__ import annotations
 
 import datetime as dt
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from pydantic import Field
 
-from lab_brain.core.authority import AuthorityPolicy
+if TYPE_CHECKING:
+    # Annotation-only, and that is what breaks a cycle rather than merely surviving it.
+    # `lab_brain.core.authority` imports `models.enums`, which executes `models/__init__`,
+    # which imports this module -- so a runtime import here made the whole cycle depend on
+    # which side was imported first. `import lab_brain.core.authority` failed outright while
+    # `import lab_brain.core.models` worked, which is the kind of latent breakage that only
+    # shows up when someone imports the module you did not expect. EPI-004 added a registry
+    # to `authority`, tests import it directly, and that is when it showed up.
+    from lab_brain.core.authority import AuthorityPolicy
 from lab_brain.core.models.base import CoreModel
 from lab_brain.core.models.belief_event import BeliefState
 from lab_brain.core.models.condition import ConditionMatch

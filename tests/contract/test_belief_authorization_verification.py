@@ -415,3 +415,55 @@ def test_scope_is_checked_before_authorization():
 
     with pytest.raises(BeliefScopeError):
         history(PROJECT, HYP, [out_of_scope])
+
+
+# --------------------------------------------------------------------------------------------
+# EPI-004 x v3.3-a12: the registry resolving a real stored authorization's comparator.
+# --------------------------------------------------------------------------------------------
+
+
+def test_a_registered_comparator_resolves_for_a_stored_authorization():
+    """The two halves wired together, rather than each tested against its own stub.
+
+    EPI-004 owns resolution and `v3.3-a12` owns re-derivation; the failure this pins is the one
+    where both work and they disagree about the key. It would surface as
+    `COMPARATOR_UNRESOLVED`, which reads like a missing DomainPack rather than a wiring bug.
+    """
+    from lab_brain.core.authority import AuthorityPolicyRegistry
+    from tests.toy_authority import ToyAuthorityPolicy
+
+    registry = AuthorityPolicyRegistry()
+    comparator = registry.register(ToyAuthorityPolicy())
+    with_comparator = authorization(authority_policy=comparator)
+
+    verified = verify(
+        event(),
+        stores(decision=with_comparator),
+        authority_policies=registry.as_mapping(),
+    )
+    assert verified.origin == "TRANSITION"
+
+
+def test_a_comparator_registered_only_at_another_version_does_not_resolve():
+    """The quiet failure: the right comparator id, the wrong version, and it really does differ.
+
+    `ToyAuthorityPolicyV2` ranks `SIDEBAND` where 1.0.0 leaves it INCOMPARABLE, so substituting
+    versions would not merely be untidy -- it would re-derive to a different answer and report
+    agreement.
+    """
+    from lab_brain.core.authority import AuthorityPolicyRegistry
+    from tests.toy_authority import ToyAuthorityPolicy, ToyAuthorityPolicyV2
+
+    with_comparator = authorization(authority_policy=ToyAuthorityPolicy())
+
+    registry = AuthorityPolicyRegistry()
+    registry.register(ToyAuthorityPolicyV2())
+
+    assert (
+        failure(
+            event(),
+            stores(decision=with_comparator),
+            authority_policies=registry.as_mapping(),
+        )
+        is VerificationFailure.COMPARATOR_UNRESOLVED
+    )
