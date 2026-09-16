@@ -628,10 +628,18 @@ identical TransitionDecision.
 ```
 If any required AuthorityPolicy.compare() result is INCOMPARABLE:
   -> outcome = NEED_HUMAN_REVIEW
+  -> auto-create Conflict(conflict_type=AUTHORITY_CONFLICT,
+                          subject_refs=[hypothesis_id],
+                          blocking=true)                      # v3.3-a14
   -> auto-create ReviewItem(subject_type=AUTHORITY_CONFLICT,
-                            subject_id=hypothesis_id,
+                            subject_id=conflict_id,           # v3.3-a14; see 17.19.3
                             stakes=hypothesis.stakes)
+  -> link Conflict.review_id to that ReviewItem
   -> no BeliefRevisionEvent may promote/reject until the review resolves
+
+The hypothesis is reachable in one hop through Conflict.subject_refs.
+For what "until the review resolves" means, see 17.19.1 -- it is defined there
+rather than restated here, so this section carries no new obligation.
 ```
 
 ---
@@ -1603,6 +1611,42 @@ ReviewItem {
   assigned_actor_id?, decision_ref?, estimated_human_minutes
 }
 
+### Review resolution is durable (`v3.3-a14`)
+
+```
+decision_ref is the durable record of how a ReviewItem was resolved.
+
+A ReviewItem in a terminal status (APPROVED | CORRECTED | REJECTED | EXPIRED)
+MUST carry a decision_ref. A terminal review with no decision_ref is a human
+decision with no record of what was decided, which cannot be audited and MUST
+be refused.
+
+OUTSTANDING REVIEW INVARIANT:
+  A ReviewItem in QUEUED or ASSIGNED is *outstanding*. While an outstanding
+  ReviewItem is linked to a blocking Conflict, that Conflict MUST NOT reach
+  RESOLVED, ACCEPTED_AS_OPEN_QUESTION or EXPIRED.
+
+  ASSIGNED counts as outstanding: somebody having picked the task up is not
+  somebody having answered it.
+
+CLOSURE TRACEABILITY:
+  Where a Conflict is linked to a ReviewItem, the Conflict's
+  resolution_event_id (17.19.3) MUST be the event produced by *that*
+  ReviewItem's resolution. An arbitrary event that merely belongs to the same
+  project MUST NOT be accepted as closure proof, and neither MUST another
+  ReviewItem's resolution.
+
+ATOMICITY:
+  Resolving a ReviewItem and closing its linked Conflict MUST NOT be able to
+  leave a half-completed state -- neither "review terminal, conflict still
+  open" nor "review outstanding, conflict closed" may be observable after a
+  crash or under concurrency.
+
+This obligation is on the persistence and creation paths. TransitionPolicy.
+evaluate() and scientific belief semantics MUST NOT be duplicated into SQL
+(v3.3-a13).
+```
+
 ExecutionSpan {
   span_id, trace_id, parent_span_id?, span_type,
   episode_id?, actor_id?, model_call_id?/job_id?/retrieval_id?,
@@ -1694,6 +1738,8 @@ resolution_status:
 Rules:
 - EpistemicStateProjection.unresolved_conflicts[] holds conflict_id references.
 - ReviewItem(subject_type=CONFLICT | AUTHORITY_CONFLICT).subject_id is a conflict_id.
+  This is canonical and 8.2.1 defers to it (`v3.3-a14`): the review names the conflict, and
+  the hypothesis is one hop away through Conflict.subject_refs.
 - TransitionPolicy.blocking_conflict_policy is a list of conflict_type values that
   force outcome != ALLOW while any matching Conflict has blocking = true.
 - Conflicts are never silently deleted. Closing a Conflict is a state change and MUST
@@ -3241,3 +3287,4 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | **v3.3-a11** | **2026-09-15** | **Maintainer amendment (BeliefRevisionEvent 的 project 與 policy 身分)**：裁決 SPEC-ISSUE-010。§17.13 的 `BeliefRevisionEvent` 原本既無 `project_id` 也無 `policy_id`。（a）**新增 `project_id`**：EPI-003 要求 EpistemicState 可由 replay 重建、SEC-002 要求一切讀取以 project 為範圍，但 event 上沒有 project 時，「某 project 的信念歷史」無從表達，replay 只能是全站範圍，且「此 event 引用了別 project 的 attestation」不是 schema 能敘述、更不能拒絕的事——與 R-7 同形：不是檢查漏了，是問題無法被提出。（b）**新增 `policy_id`**：§8.2.1 的 `TransitionDecision` 同時帶 `policy_id` 與 `policy_version`，`TransitionPolicy` 亦以 `(policy_id, version)` 為鍵，而 event 只記 version；由於 version 是 per-policy，兩份同為 `1.2.0` 的 policy 在記錄中無法區分，EPI-005 的「identical inputs + identical policy_version 必得相同 TransitionDecision」因而失去錨點——稽核者持有 inputs 與 version 卻無法選出要重跑的 policy，而可重新推導正是 EPI-003 的目的。**未新增 Requirement/Test ID，亦未新增 normative statement**——EPI-003 早已課予「可重播」、EPI-005 早已課予「在指名 policy version 下可重現」，本修訂使兩者**可被表達**。§17.13 在 §6–§16 稽核範圍之外，§23.5 (2) occurrence inventory 不變。Requirement ↔ Test 維持 **59 ↔ 59**。無架構方向變更。 |
 | **v3.3-a12** | **2026-09-15** | **Maintainer amendment (belief transition 的 durable authorization proof)**：裁決 SPEC-ISSUE-011，採 Option 1 + Option 2，並加課「授權輸入必須可重新推導」。`v3.3-a11` 之後 event 已能指名*哪一份 policy 本來會授權它*，但那仍只是聲明——§8.2.1 的 `TransitionDecision` 沒有 identity、不落盤，於是一個手工構造、引用真實 policy、且記錄的正是該 policy 所治理之 transition 的 event，與一個真的取得 ALLOW 的 event 在記錄上無從區分；缺的不是檢查而是**被檢查的對象**。（a）**§17.14.1 的 `Decision` 成為 belief transition 的 durable authorization record**：`decision_type` 於此用途固定為 `BELIEF_TRANSITION`，`result` 採 `ALLOW / DENY / NEED_MORE_EVIDENCE / NEED_HUMAN_REVIEW`（與 `TransitionDecision.outcome` 同一詞彙），並補入 `project_id`、`policy_id`/`policy_version`、`from_state`/`to_state`。（b）**必須保存 immutable canonical `decision_input_snapshot` + `input_hash`**，足以重建 §8.2.1 六組輸入；若 AuthorityPolicy 參與，必須保存其可唯一定位的 identity/version，**不得**只保存比較結果——只存結果會使 authority 規則不可反證，正是 §10.5.1 對 INCOMPARABLE 所拒絕的。`input_hash` 必須對 canonical bytes 本身計算，使 store 能在不重新序列化、不與寫入方約定欄位順序的前提下驗證綁定。（c）**§17.13 新增 `authorization_decision_id`**，`from_state` 非 null 時為 required，且該 Decision 必須同 project/subject/policy/from→to 且 `result=ALLOW`。（d）**re-derivability fail-closed**：以 snapshot 重建輸入、在指名的 immutable policy 下重跑 `evaluate`，其 canonical serialization 必須與 stored Decision 完全一致；不一致或無法重建者，該授權即視為不存在。其後果是偽造的門檻改變了性質——要造出一份能通過的 Decision，必須提供一組在 immutable policy 下真的 evaluate 成 ALLOW 的輸入，而那已經不是偽造，就是授權本身。Genesis 不參與此義務：admission 不冒充 transition authorization，`target_id` 仍無 foreign key（R-12），留給 EPI-001/M3。**此義務歸既有 EPI-005 / T-EPI-005；新增 normative registry statement，未新增 Requirement/Test ID**，Requirement ↔ Test 維持 **59 ↔ 59**。§17 與 §25.3/§26 在 §6–§16 稽核範圍之外，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |
 | **v3.3-a13** | **2026-09-16** | **Maintainer clarification (兩類 forgery 的分工)**：不新增義務，只使 `v3.3-a12` 既有義務的**執行位置**不再可誤讀。P9 audit 顯示 T-EPI-005 原本的 "must be impossible to **store**" 讀起來像是把全部責任放在 persistence 層，於是「只建寫入 gate」看似已達標——而 §17.14.1 同時要求「a stored event MUST NOT be accepted as authorized」，那是讀取側的義務。本次明確區分：（a）**storage-checkable forgery**——缺少 Decision、`result` 非 ALLOW、`input_hash` 不綁定 snapshot、project/subject/policy/from→to 不符——**MUST** 在 persistence／raw SQL 層即被拒絕；（b）**semantic forgery**——metadata／hash／linkage 全合法，但 snapshot 真正 re-evaluate 與 stored Decision 不同——**不要求** PostgreSQL 重做 evaluator，store **MAY** 接受該 row，因為在 SQL 中複製一份 §8.2.1 會使 semantic truth 從一份變成兩份會漂移的定義；改由 **production scientific read/replay path MUST re-derive 並在進入任何 projection 前 fail closed**。T-EPI-005 因此必須包含一個 adversarial e2e：raw SQL 寫入語意偽造的 Decision → DB **接受** → 經 production stores 重新載入 → verifier **拒絕** → projection 不變。**未新增 Requirement/Test ID、未新增 normative statement**——EPI-005 的語意不變，本修訂只使其已有義務的落點可被唯一解讀；Requirement ↔ Test 維持 **59 ↔ 59**。SPEC-ISSUE-011 維持 **RESOLVED**，不因本次澄清而重開。§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |
+| **v3.3-a14** | **2026-09-16** | **Maintainer clarification（review resolution 的 durable linkage，與 `subject_id` 的規範衝突）**：不新增義務，解掉兩處使既有義務無法被唯一執行的地方。（a）**`subject_id` 的矛盾**：§8.2.1 原寫 `ReviewItem(...subject_id=hypothesis_id)`，§17.19.3 則寫 `ReviewItem(subject_type=CONFLICT | AUTHORITY_CONFLICT).subject_id` 是 **conflict_id**；兩者皆 normative 且互相矛盾。裁決採 §17.19.3——它是 Conflict contract 本身，也是讓 `unresolved_conflicts[]` 與 `blocking_conflict_policy` 共用單一物件的那條。§8.2.1 的 INCOMPARABLE 流程改為：先建 `Conflict(AUTHORITY_CONFLICT, subject_refs=[hypothesis_id], blocking=true)`，再建 `ReviewItem(subject_id=conflict_id)` 並回連 `Conflict.review_id`；hypothesis 經 `Conflict.subject_refs` 一跳可達。（b）**review 何謂「resolved」**：§17.19.1 的 `decision_ref?` 原本只出現在欄位列表中、無任何 prose 定義它指向什麼、何時必填，於是「no BeliefRevisionEvent may promote/reject until the review resolves」無法被唯一執行——實作可以讓 review 停在 QUEUED，卻拿任意一筆同 project 的既存 event 當 closure proof，而那不是 review resolve。本次明定：terminal review（`APPROVED|CORRECTED|REJECTED|EXPIRED`）**MUST** 帶 `decision_ref`；**outstanding review invariant**——`QUEUED|ASSIGNED` 的 review 只要連著 blocking Conflict，該 Conflict **MUST NOT** 進入 `RESOLVED|ACCEPTED_AS_OPEN_QUESTION|EXPIRED`（`ASSIGNED` 算 outstanding：有人接手不等於有人回答）；**closure traceability**——Conflict 的 `resolution_event_id` 必須是*該* review 決議所產生的 event，任意同 project event 與另一筆 review 的決議皆 **MUST NOT** 被接受；**atomicity**——review 決議與 conflict 關閉不得留下半完成狀態，crash 或併發後皆不得觀察到「review terminal 而 conflict open」或 「review outstanding 而 conflict closed」。此義務落在 persistence／creation path；`TransitionPolicy.evaluate()` 與 scientific belief semantics **不得**複製進 SQL（承 `v3.3-a13`）。**未新增 Requirement/Test ID、未新增 normative statement**——EPI-004 早已課予「INCOMPARABLE 必須 escalate 並阻擋 promote/reject」、EPI-006 早已課予「關閉 Conflict 必須記錄 resolution event」，本修訂只使兩者**可被唯一執行**；Requirement ↔ Test 維持 **59 ↔ 59**。§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |
