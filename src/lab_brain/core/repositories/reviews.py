@@ -11,8 +11,9 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from lab_brain.core.models.conflict import Conflict
+from lab_brain.core.models.conflict import Conflict, ConflictResolutionStatus
 from lab_brain.core.models.review import ReviewItem
+from lab_brain.core.models.review_resolution import ReviewResolution
 from lab_brain.core.repositories.budget import SqlConnection, require_durable_connection
 from lab_brain.core.repositories.protocols import RepositoryError
 
@@ -50,7 +51,7 @@ class SqlReviewItemStore:
                 "conflict_id, and a mismatch would queue a review that cannot clear its block"
             )
         try:
-            self._connection.execute(
+            row = self._connection.execute(
                 "SELECT authority_conflict_escalate( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (
                     review.review_id,
@@ -70,10 +71,87 @@ class SqlReviewItemStore:
                 f"escalation of {conflict.conflict_id} in {conflict.project_id} was refused: {exc}"
             ) from exc
 
-        stored = self.get(conflict.project_id, review.review_id)
+        # IDEMPOTENT, AND THE RETURNED ID IS THE ONE THAT MATTERS. A retried episode gets the
+        # review that already gates this conflict, not the one it just proposed -- so the caller
+        # must read the function's answer rather than assume its own `review_id` won. Returning
+        # the proposed id here would make a duplicate escalation look successful.
+        linked_review_id = str(row.fetchone()[0])  # type: ignore[index]
+        stored = self.get(conflict.project_id, linked_review_id)
         if stored is None:  # pragma: no cover - the function raises before this is reachable
-            raise ReviewStoreError(f"{review.review_id} vanished between writing and reading back")
+            raise ReviewStoreError(f"{linked_review_id} vanished between writing and reading back")
         return stored
+
+    def resolve_and_close_conflict(
+        self,
+        *,
+        resolution: ReviewResolution,
+        conflict_status: ConflictResolutionStatus,
+    ) -> ReviewResolution:
+        """Record the resolution, terminalize the review and close its conflict, atomically.
+
+        One database statement, so neither half-state `v3.3-a14` names is observable: not "review
+        terminal, conflict still open" and not "review outstanding, conflict closed". The close
+        inside it is conditioned on the conflict still being unresolved, which is what makes two
+        concurrent resolutions produce exactly one winner.
+
+        This is the only supported way to resolve a review that gates a conflict. There is
+        deliberately no `resolve_review` that stops short of the conflict: a review terminalized
+        on its own would satisfy the audit trail and leave the belief blocked forever.
+        """
+        require_durable_connection(self._connection)
+        if conflict_status in (
+            ConflictResolutionStatus.OPEN,
+            ConflictResolutionStatus.UNDER_REVIEW,
+        ):
+            raise ReviewStoreError(
+                f"{conflict_status.value} is not a closure. Resolving a review moves its conflict "
+                "to a terminal status; leaving it open would record a human decision that changed "
+                "nothing"
+            )
+        try:
+            self._connection.execute(
+                "SELECT review_resolve_and_close_conflict( %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (
+                    resolution.resolution_id,
+                    resolution.review_id,
+                    resolution.project_id,
+                    resolution.outcome.value,
+                    resolution.resolved_by_actor_id,
+                    resolution.rationale,
+                    resolution.belief_revision_event_id,
+                    conflict_status.value,
+                    resolution.resolved_at,
+                ),
+            )
+        except Exception as exc:
+            raise ReviewStoreError(
+                f"resolving review {resolution.review_id} in {resolution.project_id} was "
+                f"refused: {exc}"
+            ) from exc
+        return resolution
+
+    def resolution_for(self, project_id: str, review_id: str) -> ReviewResolution | None:
+        """The durable resolution for a review, or None while it is still outstanding."""
+        row = self._connection.execute(
+            "SELECT resolution_id, review_id, project_id, outcome, resolved_by_actor_id,"
+            " resolved_at, rationale, belief_revision_event_id FROM review_resolutions"
+            " WHERE project_id = %s AND review_id = %s",
+            (project_id, review_id),
+        ).fetchone()
+        if row is None:
+            return None
+        return ReviewResolution.model_validate(
+            {
+                "resolution_id": row[0],
+                "review_id": row[1],
+                "project_id": row[2],
+                "outcome": row[3],
+                "resolved_by_actor_id": row[4],
+                "resolved_at": row[5],
+                "rationale": row[6],
+                "belief_revision_event_id": row[7],
+            }
+        )
 
     def get(self, project_id: str, review_id: str) -> ReviewItem | None:
         row = self._connection.execute(

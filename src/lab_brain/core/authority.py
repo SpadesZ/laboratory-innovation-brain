@@ -316,14 +316,45 @@ def _meets_violations(policy: AuthorityPolicy, ordered: Sequence[str]) -> list[s
         for candidate in ordered:
             comparison = policy.compare(candidate, required)
             expected = comparison in _DOMINATES
-            actual = policy.meets(required, candidate)
-            if bool(actual) is not expected:
+
+            # Typed as `object`, like `compare`'s result: the Protocol's `-> bool` is a request to
+            # code core does not own, not a guarantee.
+            actual: object = policy.meets(required, candidate)
+
+            # EXACT BOOL, NOT TRUTHY. `1`, `"yes"` and a non-empty list are all truthy, and a
+            # `meets` returning one of them would pass a `bool(actual)` comparison while telling
+            # the caller nothing checkable. The P11 version compared `bool(actual)` and would have
+            # accepted every one of them.
+            if not isinstance(actual, bool):
+                violations.append(
+                    f"meets({required!r}, {candidate!r}) returned {actual!r}, which is not a "
+                    "bool. §10.5.1's comparator answers a yes/no question, and a truthy stand-in "
+                    "makes the answer depend on the caller's coercion rather than the domain's "
+                    "rules"
+                )
+                continue
+
+            if actual is not expected:
                 violations.append(
                     f"meets({required!r}, {candidate!r}) is {actual!r} but "
                     f"compare({candidate!r}, {required!r}) is {comparison}, which means "
                     f"{expected!r}. `evaluate` checks INCOMPARABLE with `compare` and then asks "
                     "`meets` for the threshold, so a disagreement between them is a silent "
                     "promotion on insufficient authority, not a cosmetic inconsistency"
+                )
+                continue
+
+            # DETERMINISTIC. Asked twice, the same pair must answer the same way -- a comparator
+            # that answered correctly on the registration call and differently afterwards would
+            # register cleanly and then decide beliefs inconsistently, which no amount of
+            # single-call checking would catch.
+            repeated: object = policy.meets(required, candidate)
+            if repeated is not actual:
+                violations.append(
+                    f"meets({required!r}, {candidate!r}) returned {actual!r} and then "
+                    f"{repeated!r}; it is not deterministic. A comparator that answers correctly "
+                    "when registered and differently later passes conformance and then decides "
+                    "beliefs inconsistently"
                 )
     return violations
 

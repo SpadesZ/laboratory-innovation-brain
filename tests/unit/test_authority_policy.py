@@ -649,3 +649,101 @@ def test_registration_is_deterministic_in_the_declared_order():
     assert partial_order_violations(Reordered(), TOY_AUTHORITY_CLASSES) == partial_order_violations(
         Reordered(), tuple(reversed(TOY_AUTHORITY_CLASSES))
     )
+
+
+# --------------------------------------------------------------------------------------------
+# `meets` must answer with an exact bool, and answer the same way twice.
+# --------------------------------------------------------------------------------------------
+
+
+class MeetsReturnsTruthy(Pairwise):
+    """Correct in substance, wrong in type: `1` and `0` instead of True and False.
+
+    The P11 checker compared `bool(actual)` and would have accepted this -- along with `"yes"`,
+    `[1]` and anything else truthy. A yes/no answer whose meaning depends on the caller's
+    coercion is not an answer the domain gave.
+    """
+
+    pairs: ClassVar[dict[tuple[str, str], AuthorityComparison]] = {
+        ("A", "B"): AuthorityComparison.STRONGER,
+    }
+
+    def meets(self, required_rule: str, candidate: str):  # type: ignore[no-untyped-def]
+        return (
+            1
+            if self.compare(candidate, required_rule)
+            in (
+                AuthorityComparison.STRONGER,
+                AuthorityComparison.EQUIVALENT,
+            )
+            else 0
+        )
+
+
+class MeetsFlipsAfterFirstCall(Pairwise):
+    """Answers correctly when registered, then flips.
+
+    The adversarial case the audit named: single-call checking cannot catch it, and it would
+    register cleanly and then decide beliefs inconsistently.
+    """
+
+    pairs: ClassVar[dict[tuple[str, str], AuthorityComparison]] = {
+        ("A", "B"): AuthorityComparison.STRONGER,
+    }
+
+    def __init__(self) -> None:
+        self._asked: set[tuple[str, str]] = set()
+
+    def meets(self, required_rule: str, candidate: str) -> bool:
+        honest = self.compare(candidate, required_rule) in (
+            AuthorityComparison.STRONGER,
+            AuthorityComparison.EQUIVALENT,
+        )
+        key = (required_rule, candidate)
+        if key in self._asked:
+            return not honest
+        self._asked.add(key)
+        return honest
+
+
+def test_the_laws_catch_meets_returning_a_truthy_non_bool():
+    violations = partial_order_violations(MeetsReturnsTruthy(), ("A", "B"))
+    assert any("not a bool" in v for v in violations), violations
+
+
+def test_the_laws_catch_meets_flipping_after_the_first_call():
+    violations = partial_order_violations(MeetsFlipsAfterFirstCall(), ("A", "B"))
+    assert any("not deterministic" in v for v in violations), violations
+
+
+@pytest.mark.parametrize("broken", [MeetsReturnsTruthy, MeetsFlipsAfterFirstCall])
+def test_the_registry_refuses_a_comparator_whose_meets_is_unreliable(broken):
+    """Registration is where this has to be caught, because there is no second chance.
+
+    A comparator that registers and then misbehaves is resolvable for a stored Decision, so its
+    answers reach `evaluate` and `rederive_decision` -- and a re-derivation that disagreed with
+    the original would look like a forged authorization rather than an unreliable comparator.
+    """
+    registry = AuthorityPolicyRegistry()
+    with pytest.raises(AuthorityConformanceError):
+        registry.register(broken())
+    assert registry.registered() == ()
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [("TIER_A", "TIER_B"), ("TIER_B", "TIER_A"), ("TIER_A", "TIER_A"), ("SIDEBAND", "TIER_A")],
+)
+def test_the_toy_comparator_answers_meets_with_an_exact_bool(a, b):
+    """The four cases, including INCOMPARABLE -- which is `False`, not `None`.
+
+    `evaluate` checks INCOMPARABLE via `compare` *before* asking `meets`, so the question never
+    reaches `meets` in that state on the real path. It still has to answer, and it has to answer
+    `False` rather than inventing a third value the caller would coerce.
+    """
+    answer = ToyAuthorityPolicy().meets(b, a)
+    assert isinstance(answer, bool)
+    assert answer is (
+        ToyAuthorityPolicy().compare(a, b)
+        in (AuthorityComparison.STRONGER, AuthorityComparison.EQUIVALENT)
+    )

@@ -89,6 +89,12 @@ APPLY_ORDER: tuple[str, ...] = (
     # that makes an AUTHORITY_CONFLICT review name a conflict in the same project. A shared
     # foundation with UX-005, which it does NOT discharge -- see the migration header.
     "011b_review_items.sql",
+    # P12 / `v3.3-a14`. The P11 audit's P0: a review had to actually resolve before its conflict
+    # could close. Adds `review_resolutions` (what §17.19.1's `decision_ref` points at), makes
+    # `conflict_close` consult the linked review, and adds the atomic resolve-and-close path.
+    # Also completes 011a's immutability and makes 011b's escalation idempotent. After 011b:
+    # `decision_ref` becomes a deferred composite foreign key into the new table.
+    "011c_review_resolutions.sql",
 )
 
 _BOOTSTRAP = """
