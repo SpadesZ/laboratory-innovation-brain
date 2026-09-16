@@ -24,9 +24,12 @@ ranking shipped in core would become the default §10.5 exists to forbid (AGT-01
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import pytest
 
 from lab_brain.core.authority import (
+    AuthorityConformanceError,
     AuthorityPolicyRegistry,
     AuthorityResolutionError,
     partial_order_violations,
@@ -406,3 +409,243 @@ def test_the_registry_view_reflects_later_registrations():
     registry.register(ToyAuthorityPolicy())
 
     assert ("auth:toy", "1.0.0") in view
+
+
+# --------------------------------------------------------------------------------------------
+# Transitivity. The P10 audit's finding: the earlier version declined this check and said so.
+# --------------------------------------------------------------------------------------------
+
+
+class Pairwise:
+    """Declare the STRONGER/EQUIVALENT pairs; everything else is INCOMPARABLE.
+
+    The converse is derived rather than declared, so these fixtures cannot fail the converse law
+    by accident -- each one fails exactly the law it is written to fail.
+    """
+
+    policy_id = "auth:probe"
+    policy_version = "1.0.0"
+    authority_classes: ClassVar[tuple[str, ...]] = ("A", "B", "C")
+    pairs: ClassVar[dict[tuple[str, str], AuthorityComparison]] = {}
+
+    def compare(self, a: str, b: str) -> AuthorityComparison:
+        if a == b:
+            return AuthorityComparison.EQUIVALENT
+        if (a, b) in self.pairs:
+            return self.pairs[(a, b)]
+        if (b, a) in self.pairs:
+            forward = self.pairs[(b, a)]
+            return (
+                AuthorityComparison.WEAKER if forward is AuthorityComparison.STRONGER else forward
+            )
+        return AuthorityComparison.INCOMPARABLE
+
+    def meets(self, required_rule: str, candidate: str) -> bool:
+        return self.compare(candidate, required_rule) in (
+            AuthorityComparison.STRONGER,
+            AuthorityComparison.EQUIVALENT,
+        )
+
+
+class Cyclic(Pairwise):
+    """`A>B, B>C, C>A`. Passed the old checker and is not an order under any reading."""
+
+    pairs: ClassVar[dict[tuple[str, str], AuthorityComparison]] = {
+        ("A", "B"): AuthorityComparison.STRONGER,
+        ("B", "C"): AuthorityComparison.STRONGER,
+        ("C", "A"): AuthorityComparison.STRONGER,
+    }
+
+
+class BrokenChain(Pairwise):
+    """`A>B, B>C`, and `A` INCOMPARABLE to `C`. The chain exists and does not compose."""
+
+    pairs: ClassVar[dict[tuple[str, str], AuthorityComparison]] = {
+        ("A", "B"): AuthorityComparison.STRONGER,
+        ("B", "C"): AuthorityComparison.STRONGER,
+    }
+
+
+class InconsistentEquivalence(Pairwise):
+    """`A~B, B~C`, and `A` INCOMPARABLE to `C`. Equivalence used as close-enough."""
+
+    pairs: ClassVar[dict[tuple[str, str], AuthorityComparison]] = {
+        ("A", "B"): AuthorityComparison.EQUIVALENT,
+        ("B", "C"): AuthorityComparison.EQUIVALENT,
+    }
+
+
+class MixedChainNotStrict(Pairwise):
+    """`A>B, B~C`, and `A~C`. Dominating via a STRONGER step must stay strict."""
+
+    pairs: ClassVar[dict[tuple[str, str], AuthorityComparison]] = {
+        ("A", "B"): AuthorityComparison.STRONGER,
+        ("B", "C"): AuthorityComparison.EQUIVALENT,
+        ("A", "C"): AuthorityComparison.EQUIVALENT,
+    }
+
+
+class GenuinePartialOrder(Pairwise):
+    """`A>B`, and `C` unrankable against both. Must remain legal.
+
+    The control case. Without it, a transitivity check that simply demanded every pair rank would
+    pass every test above while forbidding the partial orders §10.5.1 exists to permit.
+    """
+
+    pairs: ClassVar[dict[tuple[str, str], AuthorityComparison]] = {
+        ("A", "B"): AuthorityComparison.STRONGER,
+    }
+
+
+@pytest.mark.parametrize(
+    ("broken", "expected_in_message"),
+    [
+        (Cyclic, "must be STRONGER -- it is WEAKER"),
+        (BrokenChain, "must be STRONGER -- it is INCOMPARABLE"),
+        (InconsistentEquivalence, "must be EQUIVALENT -- it is INCOMPARABLE"),
+        (MixedChainNotStrict, "must be STRONGER -- it is EQUIVALENT"),
+    ],
+)
+def test_the_laws_catch_a_comparator_whose_chains_do_not_compose(broken, expected_in_message):
+    """Each of these passed the previous checker, which declined transitivity entirely.
+
+    The old docstring argued that INCOMPARABLE pairs break naive chains. That is true and it was
+    beside the point: the fix is to require transitivity *conditionally*. The audit was right that
+    the argument was a rationalisation for not doing the harder thing.
+    """
+    violations = partial_order_violations(broken(), broken.authority_classes)
+    assert violations, f"{broken.__name__} is not an order and must be refused"
+    assert any("transitivity" in v for v in violations)
+    assert any(expected_in_message in v for v in violations), violations
+
+
+def test_an_incomparable_pair_generates_no_chain_requirement():
+    """The control. A genuine partial order must stay legal.
+
+    This is the test that keeps the transitivity check honest: without it, demanding that every
+    pair rank would satisfy every case above while forbidding exactly what §10.5.1 permits.
+    """
+    assert partial_order_violations(GenuinePartialOrder(), ("A", "B", "C")) == ()
+
+
+def test_the_declared_toy_comparators_are_transitive():
+    """`SIDEBAND` is INCOMPARABLE to both tiers, so it forms no chains -- which is allowed."""
+    assert partial_order_violations(ToyAuthorityPolicy(), TOY_AUTHORITY_CLASSES) == ()
+    assert partial_order_violations(ToyAuthorityPolicyV2(), TOY_AUTHORITY_CLASSES) == ()
+
+
+# --------------------------------------------------------------------------------------------
+# `meets` must agree with `compare`. A divergence is a silent promotion, not an untidiness.
+# --------------------------------------------------------------------------------------------
+
+
+class MeetsAlwaysTrue(Pairwise):
+    """`compare(B, A) = WEAKER` but `meets(A, B) = True`.
+
+    §10.5.1 declares `meets` as well as `compare`, so it is not this project's to delete -- the
+    maintainer ruling is to keep it and add the law. This fixture is why the law matters:
+    `evaluate` checks INCOMPARABLE with `compare` and then asks `meets` for the threshold, so a
+    divergence produces an ALLOW on insufficient authority.
+    """
+
+    pairs: ClassVar[dict[tuple[str, str], AuthorityComparison]] = {
+        ("A", "B"): AuthorityComparison.STRONGER,
+    }
+
+    def meets(self, required_rule: str, candidate: str) -> bool:
+        return True
+
+
+class MeetsRefusesEquivalent(Pairwise):
+    """The other direction: `compare` says EQUIVALENT and `meets` says no.
+
+    Under-permissive rather than over-permissive, and still a divergence: it would DENY a
+    transition the authority rules allow, and a DENY reads as a decision rather than a bug.
+    """
+
+    pairs: ClassVar[dict[tuple[str, str], AuthorityComparison]] = {
+        ("A", "B"): AuthorityComparison.EQUIVALENT,
+    }
+
+    def meets(self, required_rule: str, candidate: str) -> bool:
+        return self.compare(candidate, required_rule) is AuthorityComparison.STRONGER
+
+
+@pytest.mark.parametrize("diverging", [MeetsAlwaysTrue, MeetsRefusesEquivalent])
+def test_the_laws_catch_meets_diverging_from_compare(diverging):
+    violations = partial_order_violations(diverging(), ("A", "B"))
+    assert any("meets(" in v for v in violations), violations
+
+
+def test_a_meets_divergence_cannot_reach_an_allow():
+    """The consequence, not only the law.
+
+    A comparator whose `meets` over-permits must not be registerable, so it cannot be resolved for
+    a stored Decision and cannot reach `evaluate`. Asserted on the registry rather than by calling
+    `evaluate` with it: the point is that the divergence is stopped before it decides anything.
+    """
+    registry = AuthorityPolicyRegistry()
+    with pytest.raises(AuthorityConformanceError, match="meets"):
+        registry.register(MeetsAlwaysTrue())
+    assert registry.registered() == ()
+
+
+# --------------------------------------------------------------------------------------------
+# Registration enforces conformance, rather than a suite a DomainPack may choose to run.
+# --------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [Cyclic, BrokenChain, InconsistentEquivalence, MixedChainNotStrict, MeetsAlwaysTrue],
+)
+def test_the_registry_refuses_a_non_conformant_comparator(broken):
+    """A conformance suite a DomainPack is merely encouraged to run is one it will not run."""
+    registry = AuthorityPolicyRegistry()
+    with pytest.raises(AuthorityConformanceError):
+        registry.register(broken())
+    assert registry.registered() == (), "a refused comparator must not be half-registered"
+
+
+def test_the_registry_refuses_a_comparator_declaring_no_classes():
+    """An empty declaration passes every law trivially, which is worse than failing one."""
+
+    class Undeclared(Pairwise):
+        authority_classes: ClassVar[tuple[str, ...]] = ()
+
+    with pytest.raises(AuthorityConformanceError, match="declares no authority_classes"):
+        AuthorityPolicyRegistry().register(Undeclared())
+
+
+def test_conformance_is_checked_over_the_comparators_own_declared_classes():
+    """Core cannot enumerate a domain's vocabulary, so the DomainPack declares it.
+
+    A comparator may narrow its declaration and pass -- over `("A", "B")` this one really is an
+    order. What it cannot do is narrow it *invisibly*: the declaration is a field in the
+    comparator, so shipping a set smaller than the classes it handles shows up in a diff rather
+    than in a belief transition.
+    """
+
+    class NarrowDeclaration(Cyclic):
+        authority_classes: ClassVar[tuple[str, ...]] = ("A", "B")
+
+    registry = AuthorityPolicyRegistry()
+    registry.register(NarrowDeclaration())
+
+    assert partial_order_violations(NarrowDeclaration(), ("A", "B", "C")), (
+        "still broken over the full set, which is why the declaration is the DomainPack's "
+        "responsibility"
+    )
+
+
+def test_registration_is_deterministic_in_the_declared_order():
+    """`partial_order_violations` sorts and de-duplicates, so the listing order cannot decide."""
+
+    class Reordered(ToyAuthorityPolicy):
+        policy_version: ClassVar[str] = "1.0.0-reordered"
+        authority_classes: ClassVar[tuple[str, ...]] = tuple(reversed(TOY_AUTHORITY_CLASSES))
+
+    assert AuthorityPolicyRegistry().register(Reordered()) is not None
+    assert partial_order_violations(Reordered(), TOY_AUTHORITY_CLASSES) == partial_order_violations(
+        Reordered(), tuple(reversed(TOY_AUTHORITY_CLASSES))
+    )

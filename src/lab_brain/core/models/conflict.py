@@ -66,6 +66,11 @@ class ConflictResolutionStatus(StrEnum):
 
 #: The statuses under which a conflict can still stop a transition.
 #:
+#: This set is the **single** definition of "still blocking", and `Conflict`'s validator derives
+#: the closure-event requirement from its complement. Keeping one definition is deliberate: the
+#: P10 audit found the two had been written separately, so `EXPIRED` unblocked a conflict without
+#: requiring the event that `RESOLVED` required.
+#:
 #: `UNDER_REVIEW` is included deliberately: a human looking at a conflict has not resolved it, and
 #: treating "someone is on it" as cleared is how a blocking conflict stops blocking exactly when
 #: it matters most. `ACCEPTED_AS_OPEN_QUESTION` is *excluded* deliberately too -- that status is a
@@ -110,31 +115,43 @@ class Conflict(CoreModel):
     def _closing_requires_an_event(self) -> Self:
         """§25.3 EPI-006: "closing a Conflict MUST record a resolution event".
 
-        Enforced at construction rather than in a service method, so there is no code path that
-        produces a RESOLVED conflict without the event that resolved it -- including a support
-        script building the model directly.
-        """
-        terminal = self.resolution_status not in UNRESOLVED_CONFLICT_STATUSES
+        THE P10 AUDIT FOUND THIS APPLIED TO ONE STATUS INSTEAD OF THREE. The earlier version
+        required a `resolution_event_id` only for `RESOLVED`, while `blocks_transitions` treated
+        `EXPIRED` and `ACCEPTED_AS_OPEN_QUESTION` as not-blocking too. So a blocking conflict
+        could be unblocked by setting its status to `EXPIRED` with no event and no timestamp --
+        which is precisely "只改 enum 就解除 block", and precisely what the obligation exists to
+        prevent. The rule is now stated over the *consequence* rather than over one enum member:
+        **any status that stops a conflict blocking must carry the event that put it there.**
 
-        if self.resolution_status is ConflictResolutionStatus.RESOLVED:
+        Derived from `UNRESOLVED_CONFLICT_STATUSES` rather than listed separately, so adding an
+        eighth status cannot quietly create a fourth unblocking state with no closure
+        requirement -- the two definitions cannot drift because there is only one.
+
+        Enforced at construction rather than in a service method, so there is no code path that
+        produces an unblocked conflict without its closure event, including a support script
+        building the model directly.
+        """
+        closes_the_block = self.resolution_status not in UNRESOLVED_CONFLICT_STATUSES
+
+        if closes_the_block:
             if self.resolution_event_id is None:
                 raise ValueError(
-                    f"conflict {self.conflict_id} is RESOLVED with no resolution_event_id. A "
-                    "conflict does not stop blocking because a field was set: closing it must "
-                    "record the event that closed it, or the reason a belief became promotable "
-                    "again is unrecoverable (§25.3 EPI-006)"
+                    f"conflict {self.conflict_id} is {self.resolution_status.value} with no "
+                    "resolution_event_id. That status stops the conflict blocking, and a conflict "
+                    "does not stop blocking because a field was set: closing it must record the "
+                    "event that closed it, or the reason a belief became promotable again is "
+                    "unrecoverable (§25.3 EPI-006)"
                 )
             if self.resolved_at is None:
                 raise ValueError(
-                    f"conflict {self.conflict_id} is RESOLVED with no resolved_at; an as_of "
-                    "replay cannot place it in time"
+                    f"conflict {self.conflict_id} is {self.resolution_status.value} with no "
+                    "resolved_at; an as_of replay cannot place the closure in time"
                 )
-
-        if not terminal and (self.resolved_at is not None or self.resolution_event_id is not None):
+        elif self.resolved_at is not None or self.resolution_event_id is not None:
             raise ValueError(
                 f"conflict {self.conflict_id} is {self.resolution_status.value} but carries "
-                "resolution details. A conflict that is still open must not look half-closed -- "
-                "a reader checking `resolution_event_id` would conclude it had been dealt with"
+                "closure details. A conflict that is still open must not look half-closed -- a "
+                "reader checking `resolution_event_id` would conclude it had been dealt with"
             )
 
         return self

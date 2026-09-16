@@ -62,9 +62,17 @@ class ToyAuthority:
 
     policy_id = "auth:toy"
     policy_version = "toy-1.0.0"
+    authority_classes: ClassVar[tuple[str, ...]] = ("HEURISTIC", "MEASURED", "SIMULATED")
     _rank: ClassVar[dict[str, int]] = {"SIMULATED": 1, "MEASURED": 2}
 
     def compare(self, a: str, b: str) -> AuthorityComparison:
+        # Reflexivity before the ranking lookup, so an unranked class still ranks with itself --
+        # the same law that caught a bug in `tests/toy_authority.py`.
+        if a == b:
+            return AuthorityComparison.EQUIVALENT
+        return self._compare(a, b)
+
+    def _compare(self, a: str, b: str) -> AuthorityComparison:
         if a not in self._rank or b not in self._rank:
             return AuthorityComparison.INCOMPARABLE
         if self._rank[a] == self._rank[b]:
@@ -485,7 +493,12 @@ def test_an_acceptable_condition_match_allows():
 def test_repeated_calls_on_identical_inputs_give_an_identical_decision():
     """Compared under canonical serialization, as §26 requires -- not by field spot-checks."""
     args = {
-        "pol": policy(required_authority_rule="MEASURED", blocking_conflict_policy=("X",)),
+        # A real §17.19.3 type: `"X"` was a placeholder here and is now refused at construction,
+        # which is the vocabulary guard EPI-006 added doing its job on this project's own tests.
+        "pol": policy(
+            required_authority_rule="MEASURED",
+            blocking_conflict_policy=("SIM_TO_REAL_CONFLICT",),
+        ),
         "hyp": hypothesis(admitted_authority_classes=("MEASURED", "SIMULATED")),
         "authority": ToyAuthority(),
         "matches": (_match(ConditionMatchState.EXACT),),

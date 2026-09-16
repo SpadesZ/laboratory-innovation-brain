@@ -45,9 +45,9 @@ from __future__ import annotations
 
 import datetime as dt
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final, Self
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 if TYPE_CHECKING:
     # Annotation-only, and that is what breaks a cycle rather than merely surviving it.
@@ -61,7 +61,7 @@ if TYPE_CHECKING:
 from lab_brain.core.models.base import CoreModel
 from lab_brain.core.models.belief_event import BeliefState
 from lab_brain.core.models.condition import ConditionMatch
-from lab_brain.core.models.conflict import Conflict
+from lab_brain.core.models.conflict import Conflict, ConflictType
 from lab_brain.core.models.enums import (
     IMPLEMENTED_INDEPENDENCE_BASES,
     AuthorityComparison,
@@ -71,6 +71,9 @@ from lab_brain.core.models.enums import (
     RelationType,
 )
 from lab_brain.core.models.relation import RelationJudgment
+
+#: The declared §17.19.3 vocabulary, as the strings `blocking_conflict_policy` carries.
+_CONFLICT_TYPE_VALUES: Final[frozenset[str]] = frozenset(kind.value for kind in ConflictType)
 
 
 class TransitionOutcome(StrEnum):
@@ -243,12 +246,17 @@ class TransitionPolicy(CoreModel):
     independence_basis: IndependenceBasis | None = None
     #: §17.19.3 `conflict_type` values this policy treats as blocking (EPI-006).
     #:
-    #: Typed as strings rather than `tuple[ConflictType, ...]` because §8.2.1 declares the field
-    #: as `conflict_type[]` and a DomainPack registers policies from configuration -- validating
-    #: the vocabulary here would reject a policy at load time with a Pydantic error instead of a
-    #: domain one. `evaluate` matches against `ConflictType.value`, so a typo silently matches
-    #: nothing; `blocking_conflict_policy_is_known_vocabulary()` exists to catch that deliberately
-    #: rather than at the moment a belief is promoted.
+    #: VALIDATED HERE, AND THE COMMENT THAT SAID OTHERWISE WAS WRONG. An earlier version of this
+    #: field carried a docstring claiming a `blocking_conflict_policy_is_known_vocabulary()`
+    #: helper existed to catch typos. **It did not exist.** The P10 audit caught the claim, and it
+    #: was the worst kind of error in this codebase: a comment asserting a guard that was never
+    #: written, which is more dangerous than no comment at all because it stops the next reader
+    #: looking.
+    #:
+    #: The consequence was real. `evaluate` matches against `ConflictType.value`, so
+    #: `"SIM_TO_REAL_CONFLIC"` matched nothing and the policy silently declared *no* blocking
+    #: types -- a fail-open typo, discovered at the moment a belief was promoted rather than when
+    #: the policy was written. It is now rejected at construction.
     blocking_conflict_policy: tuple[str, ...] = ()
     human_gate: bool = False
     #: TRUE for a §8 Hypothesis-Admission policy, which backs only a target's *first* event.
@@ -263,6 +271,33 @@ class TransitionPolicy(CoreModel):
     is_admission: bool = False
     effective_from: dt.datetime | None = None
     supersedes: str | None = None
+
+    @model_validator(mode="after")
+    def _blocking_conflict_policy_is_known_vocabulary(self) -> Self:
+        """Every declared blocking type must be a §17.19.3 `conflict_type`.
+
+        Fail closed at construction, which is the only point where the mistake is cheap. A typo
+        here produces a policy that blocks nothing, and "blocks nothing" is indistinguishable from
+        a policy that deliberately ignores conflicts -- so the failure surfaces as an unexpected
+        ALLOW on a hypothesis with an open blocking conflict, long after the typo.
+
+        The field stays `tuple[str, ...]` rather than `tuple[ConflictType, ...]` because §8.2.1
+        declares it as `conflict_type[]` and a DomainPack may load policies from configuration;
+        what matters is that an unknown value is refused, not which type the field has.
+        """
+        unknown = sorted(
+            declared
+            for declared in self.blocking_conflict_policy
+            if declared not in _CONFLICT_TYPE_VALUES
+        )
+        if unknown:
+            raise ValueError(
+                f"policy {self.policy_id}@{self.version} declares blocking conflict type(s) "
+                f"{unknown}, which are not §17.19.3 conflict_type values. Known values: "
+                f"{sorted(_CONFLICT_TYPE_VALUES)}. An unknown type matches no conflict, so the "
+                "policy would silently block nothing -- a fail-open typo"
+            )
+        return self
 
     def evaluate(
         self,

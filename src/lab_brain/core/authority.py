@@ -60,8 +60,25 @@ class AuthorityPolicy(Protocol):
         """Rank two ``authority_class`` values, or report that they do not rank."""
         ...
 
+    @property
+    def authority_classes(self) -> tuple[str, ...]:
+        """Every ``authority_class`` this comparator claims to rank.
+
+        Declared by the DomainPack, because core cannot enumerate a domain's vocabulary -- and
+        needed because conformance has to quantify over *something*. A comparator that declared no
+        classes would pass every law trivially, which is why `AuthorityPolicyRegistry.register`
+        refuses an empty declaration rather than treating it as "nothing to check".
+        """
+        ...
+
     def meets(self, required_rule: str, candidate: str) -> bool:
-        """Whether ``candidate`` satisfies ``required_rule`` (§10.5.1)."""
+        """Whether ``candidate`` satisfies ``required_rule`` (§10.5.1).
+
+        MUST agree with ``compare``: true exactly when ``compare(candidate, required_rule)`` is
+        STRONGER or EQUIVALENT. `partial_order_violations` checks this, because `evaluate` tests
+        INCOMPARABLE via ``compare`` and then asks ``meets`` for the threshold -- so a divergence
+        is a silent promotion on insufficient authority.
+        """
         ...
 
 
@@ -71,6 +88,16 @@ class AuthorityResolutionError(RuntimeError):
     Raised rather than returning ``None`` at the registry boundary. A caller handed ``None`` has
     to remember to check it, and the one place that forgets is the place a belief transition
     proceeds without the authority rules it was supposed to be judged under.
+    """
+
+
+class AuthorityConformanceError(AuthorityResolutionError):
+    """A comparator does not satisfy §10.5.1's laws, so it may not be registered.
+
+    A subclass of :class:`AuthorityResolutionError` so a caller that fails closed on resolution
+    problems does not have to learn a second exception to keep failing closed -- and because from
+    the transition gate's point of view an unregisterable comparator and an unresolvable one have
+    the same consequence.
     """
 
 
@@ -98,6 +125,16 @@ class AuthorityPolicyRegistry:
         The identity is read off the comparator rather than passed in, so a registry entry cannot
         disagree with the object it holds -- that disagreement is what would let a stored
         `Decision` resolve to something reporting a different version than it has.
+
+        CONFORMANCE IS CHECKED HERE, NOT LEFT TO A TEST. §10.5.1's laws are verified over the
+        comparator's *own* declared `authority_classes` before it is accepted, so a comparator
+        that is not an order cannot be resolved by `verify_stored_revision` and cannot reach
+        `evaluate`. A conformance suite a DomainPack is merely encouraged to run is a suite the
+        DomainPack under deadline does not run.
+
+        Deterministic: the declared classes are de-duplicated and sorted inside
+        `partial_order_violations`, so registering the same comparator twice performs the same
+        checks in the same order and either always succeeds or always fails.
         """
         key = (policy.policy_id, policy.policy_version)
         existing = self._by_identity.get(key)
@@ -107,6 +144,22 @@ class AuthorityPolicyRegistry:
                 "rules are versioned precisely so that a change gets a new version; replacing one "
                 "in place would make every past decision re-derive against rules it never saw"
             )
+
+        declared = tuple(policy.authority_classes)
+        if not declared:
+            raise AuthorityConformanceError(
+                f"{key[0]}@{key[1]} declares no authority_classes. Conformance has to quantify "
+                "over something, and an empty declaration passes every law trivially -- so it "
+                "would register a comparator nothing had checked"
+            )
+
+        violations = partial_order_violations(policy, declared)
+        if violations:
+            raise AuthorityConformanceError(
+                f"{key[0]}@{key[1]} is not a valid authority comparator over its own declared "
+                f"classes {sorted(set(declared))}: " + "; ".join(violations)
+            )
+
         self._by_identity[key] = policy
         return policy
 
@@ -179,6 +232,102 @@ _CONVERSE: Final[Mapping[object, AuthorityComparison]] = MappingProxyType(
 )
 
 
+#: `a` dominates `b` when it ranks at or above it. The antecedent of every transitivity
+#: requirement below, and the same set `meets` must agree with.
+_DOMINATES: Final = frozenset({AuthorityComparison.STRONGER, AuthorityComparison.EQUIVALENT})
+
+
+def _transitivity_violations(policy: AuthorityPolicy, ordered: Sequence[str]) -> list[str]:
+    """Transitivity, required only where a chain actually exists.
+
+    THE P10 AUDIT CAUGHT A RATIONALISATION HERE. The previous version of this module declined to
+    check transitivity at all, on the grounds that "a partial order may legitimately contain
+    INCOMPARABLE pairs that break naive chains". That is true and it is beside the point: the fix
+    is to require transitivity *conditionally*, not to skip it. `A>B, B>C, C>A` passed the old
+    checker and is not an order in any sense, and neither is `A>B, B>C` with `A` INCOMPARABLE to
+    `C`. Both are now refused.
+
+    The rule, stated once: if `a` dominates `b` and `b` dominates `c`, then `a` must dominate `c`,
+    and the result must be STRONGER unless *both* steps were EQUIVALENT.
+
+    - A chain requirement arises only when both antecedent comparisons are STRONGER or EQUIVALENT.
+      An INCOMPARABLE pair therefore generates no requirement of its own -- which is what keeps
+      genuine partial orders legal, and is the distinction the earlier version failed to make.
+    - EQUIVALENT is transitive in its own right: `a ~ b` and `b ~ c` requires `a ~ c`. Without
+      this, a comparator could treat equivalence as "close enough" pairwise and produce a
+      three-way set no threshold could be evaluated against consistently.
+    - A mixed chain is strict: dominating via one STRONGER step means the endpoints cannot come
+      back EQUIVALENT, or the ranking would depend on the path taken through it.
+    """
+    violations: list[str] = []
+
+    for a in ordered:
+        for b in ordered:
+            if a == b:
+                continue
+            first = policy.compare(a, b)
+            if first not in _DOMINATES:
+                continue
+            for c in ordered:
+                if c in (a, b):
+                    continue
+                second = policy.compare(b, c)
+                if second not in _DOMINATES:
+                    continue
+
+                # Both steps dominate, so the endpoints must too -- strictly, unless the chain
+                # was equivalence all the way through.
+                expected = (
+                    AuthorityComparison.EQUIVALENT
+                    if first is AuthorityComparison.EQUIVALENT
+                    and second is AuthorityComparison.EQUIVALENT
+                    else AuthorityComparison.STRONGER
+                )
+                actual = policy.compare(a, c)
+                if actual is not expected:
+                    violations.append(
+                        f"transitivity: compare({a!r}, {b!r}) is {first} and "
+                        f"compare({b!r}, {c!r}) is {second}, so compare({a!r}, {c!r}) must be "
+                        f"{expected} -- it is {actual}. A chain that does not compose means the "
+                        "authority of a piece of evidence depends on which comparison happened "
+                        "to be made"
+                    )
+    return violations
+
+
+def _meets_violations(policy: AuthorityPolicy, ordered: Sequence[str]) -> list[str]:
+    """``meets`` must agree with ``compare`` on every pair.
+
+    WHY BOTH EXIST AND WHY THEY MUST AGREE. §10.5.1 declares `meets(required_rule, candidate)`
+    alongside `compare`, so it is not this project's to delete. But nothing tied the two together,
+    and a DomainPack whose `meets` returned True where `compare` said WEAKER would produce an
+    **ALLOW on insufficient authority** -- `evaluate` checks INCOMPARABLE via `compare` and then
+    asks `meets` for the threshold, so a divergence is not a cosmetic inconsistency, it is a
+    silent promotion.
+
+    The law: `meets(required, candidate)` is true exactly when `compare(candidate, required)` is
+    STRONGER or EQUIVALENT. INCOMPARABLE is neither met nor unmet -- it is unanswerable, and
+    `evaluate` routes it to NEED_HUMAN_REVIEW before `meets` is consulted -- so the law requires
+    `meets` to report False there rather than inventing an answer.
+    """
+    violations: list[str] = []
+
+    for required in ordered:
+        for candidate in ordered:
+            comparison = policy.compare(candidate, required)
+            expected = comparison in _DOMINATES
+            actual = policy.meets(required, candidate)
+            if bool(actual) is not expected:
+                violations.append(
+                    f"meets({required!r}, {candidate!r}) is {actual!r} but "
+                    f"compare({candidate!r}, {required!r}) is {comparison}, which means "
+                    f"{expected!r}. `evaluate` checks INCOMPARABLE with `compare` and then asks "
+                    "`meets` for the threshold, so a disagreement between them is a silent "
+                    "promotion on insufficient authority, not a cosmetic inconsistency"
+                )
+    return violations
+
+
 def partial_order_violations(policy: AuthorityPolicy, classes: Sequence[str]) -> tuple[str, ...]:
     """Check the laws that make a comparator an order at all, over ``classes``.
 
@@ -198,12 +347,16 @@ def partial_order_violations(policy: AuthorityPolicy, classes: Sequence[str]) ->
       or a bare string gets coerced by the caller into whichever branch it falls through to,
       which is the silent coercion §10.5.1 forbids.
 
+    - **transitive where a chain exists** -- see `_transitivity_violations`. Required
+      conditionally: an INCOMPARABLE pair generates no chain requirement, which is what keeps a
+      genuine partial order legal. The previous version of this function declined the check
+      entirely and said so in its own docstring; the P10 audit was right that this was a
+      rationalisation, because `A>B, B>C, C>A` is not an order under any reading.
+    - **consistent with `meets`** -- see `_meets_violations`. §10.5.1 declares both, and a
+      divergence is a silent promotion on insufficient authority rather than an untidiness.
+
     Returns descriptions rather than raising, so a conformance test reports every violation at
     once instead of the first.
-
-    NOT CHECKED: transitivity. It needs every triple, and a partial order may legitimately contain
-    INCOMPARABLE pairs that break naive chains -- asserting it would forbid exactly the partial
-    orders §10.5.1 exists to permit.
     """
     violations: list[str] = []
     ordered = sorted(set(classes))
@@ -245,10 +398,14 @@ def partial_order_violations(policy: AuthorityPolicy, classes: Sequence[str]) ->
                     "made first would decide the belief"
                 )
 
+    violations.extend(_transitivity_violations(policy, ordered))
+    violations.extend(_meets_violations(policy, ordered))
+
     return tuple(violations)
 
 
 __all__ = [
+    "AuthorityConformanceError",
     "AuthorityPolicy",
     "AuthorityPolicyRegistry",
     "AuthorityResolutionError",

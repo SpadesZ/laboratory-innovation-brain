@@ -487,3 +487,155 @@ def test_the_unresolved_view_is_what_a_hypothesis_view_is_built_from():
         ),
     )
     assert decision.blocking_conflict_ids == ("cfl:open",)
+
+
+# --------------------------------------------------------------------------------------------
+# Terminal states. The P10 audit found the closure obligation applied to one status of three.
+# --------------------------------------------------------------------------------------------
+
+#: Every status that stops a conflict blocking. Derived from the module's own set rather than
+#: listed, so an eighth status cannot be added without appearing here.
+UNBLOCKING_STATUSES = tuple(
+    sorted(
+        status for status in ConflictResolutionStatus if status not in UNRESOLVED_CONFLICT_STATUSES
+    )
+)
+
+
+def test_every_unblocking_status_is_covered_by_this_module():
+    """The set under test is derived, not transcribed.
+
+    A hand-written list of terminal statuses is how the hole appeared in the first place: the
+    validator named `RESOLVED` while `blocks_transitions` treated three statuses as closing.
+    """
+    assert set(UNBLOCKING_STATUSES) == {
+        ConflictResolutionStatus.RESOLVED,
+        ConflictResolutionStatus.ACCEPTED_AS_OPEN_QUESTION,
+        ConflictResolutionStatus.EXPIRED,
+    }
+
+
+@pytest.mark.parametrize("status", UNBLOCKING_STATUSES)
+def test_no_unblocking_status_may_be_reached_without_a_closure_event(status):
+    """The audit's finding, as a parametrized rule rather than a case per enum member.
+
+    Before this, `EXPIRED` and `ACCEPTED_AS_OPEN_QUESTION` unblocked a conflict with no event and
+    no timestamp -- exactly "只改 enum 就解除 block". Only `RESOLVED` was guarded, so the
+    obligation was satisfied for the status people wrote tests about and absent for the two they
+    did not.
+    """
+    with pytest.raises(ValueError, match="no resolution_event_id"):
+        conflict(resolution_status=status)
+
+
+@pytest.mark.parametrize("status", UNBLOCKING_STATUSES)
+def test_no_unblocking_status_may_be_reached_without_a_timestamp(status):
+    """An as_of replay cannot place an untimed closure, whichever status did the closing."""
+    with pytest.raises(ValueError, match="no resolved_at"):
+        conflict(resolution_status=status, resolution_event_id="bre:1")
+
+
+@pytest.mark.parametrize("status", UNBLOCKING_STATUSES)
+def test_a_properly_closed_conflict_stops_blocking(status):
+    """The rule has to be satisfiable in all three, or a project could never move past one."""
+    closed = conflict(
+        resolution_status=status,
+        resolution_event_id="bre:closure",
+        resolved_at=T0,
+    )
+    assert not closed.blocks_transitions
+    assert not closed.is_unresolved
+
+
+@pytest.mark.parametrize("status", sorted(UNRESOLVED_CONFLICT_STATUSES))
+def test_no_unresolved_status_may_carry_closure_details(status):
+    """The other direction: a conflict that still blocks must not look half-closed."""
+    with pytest.raises(ValueError, match="closure details"):
+        conflict(resolution_status=status, resolution_event_id="bre:1", resolved_at=T0)
+
+
+@pytest.mark.parametrize("status", UNBLOCKING_STATUSES)
+def test_the_store_closes_every_terminal_status_through_the_event_path(status):
+    """`resolve` is the only way in, and it requires the event for all three."""
+    store = InMemoryConflictStore()
+    store.record(conflict())
+
+    closed = store.resolve(
+        project_id=PROJECT,
+        conflict_id="cfl:1",
+        resolution_event_id="bre:closure",
+        resolved_at=T0,
+        status=status,
+    )
+    assert closed.resolution_status is status
+    assert not closed.blocks_transitions
+
+
+@pytest.mark.parametrize("status", UNBLOCKING_STATUSES)
+def test_an_expired_or_accepted_conflict_no_longer_blocks_a_transition(status):
+    """End to end: the closure reaches `evaluate` and the block lifts.
+
+    Asserted through the policy rather than on the model, because the failure that matters is a
+    conflict that is closed in the record and still blocking -- or still blocking in the record
+    and closed in the policy.
+    """
+    decision = run(
+        pol=policy(blocking_conflict_policy=("SIM_TO_REAL_CONFLICT",)),
+        hyp=hypothesis(
+            conflicts=(
+                conflict(
+                    resolution_status=status,
+                    resolution_event_id="bre:closure",
+                    resolved_at=T0,
+                ),
+            )
+        ),
+    )
+    assert decision.outcome is TransitionOutcome.ALLOW
+
+
+# --------------------------------------------------------------------------------------------
+# `blocking_conflict_policy` vocabulary. The comment claimed a guard that did not exist.
+# --------------------------------------------------------------------------------------------
+
+
+def test_an_unknown_blocking_conflict_type_is_refused_at_policy_construction():
+    """The audit's second finding.
+
+    `transition.py` carried a comment saying
+    `blocking_conflict_policy_is_known_vocabulary()` existed to catch typos. It did not. The
+    consequence was fail-open: `evaluate` matches on `ConflictType.value`, so
+    `"SIM_TO_REAL_CONFLIC"` matched nothing and the policy silently declared no blocking types at
+    all -- surfacing as an unexpected ALLOW long after the typo was written.
+    """
+    with pytest.raises(ValueError, match=r"not §17\.19\.3 conflict_type values"):
+        policy(blocking_conflict_policy=("SIM_TO_REAL_CONFLIC",))
+
+
+def test_the_refusal_names_the_unknown_value_and_the_known_ones():
+    """A vocabulary error is only actionable if it says what was expected."""
+    with pytest.raises(ValueError) as caught:
+        policy(blocking_conflict_policy=("NOT_A_CONFLICT_TYPE",))
+    message = str(caught.value)
+    assert "NOT_A_CONFLICT_TYPE" in message
+    assert "SIM_TO_REAL_CONFLICT" in message, "the known vocabulary has to be listed"
+
+
+def test_one_bad_value_among_good_ones_is_still_refused():
+    """A policy that was 'mostly right' would block some types and silently drop one."""
+    with pytest.raises(ValueError, match="AUTHORITY_CONFLIC"):
+        policy(
+            blocking_conflict_policy=("SIM_TO_REAL_CONFLICT", "AUTHORITY_CONFLIC"),
+        )
+
+
+@pytest.mark.parametrize("kind", sorted(ConflictType))
+def test_every_declared_conflict_type_is_accepted_as_a_blocking_policy(kind):
+    """All seven, so the guard cannot be over-strict in a way no test would notice."""
+    declared = policy(blocking_conflict_policy=(kind.value,))
+    assert declared.blocking_conflict_policy == (kind.value,)
+
+
+def test_an_empty_blocking_policy_remains_legal():
+    """Declaring no blocking types is a real choice and must not be confused with a typo."""
+    assert policy(blocking_conflict_policy=()).blocking_conflict_policy == ()

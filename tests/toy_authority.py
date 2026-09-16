@@ -35,6 +35,10 @@ class ToyAuthorityPolicy:
 
     policy_id: ClassVar[str] = "auth:toy"
     policy_version: ClassVar[str] = "1.0.0"
+    #: Declared by the DomainPack, because conformance has to quantify over something and core
+    #: cannot enumerate a domain's vocabulary. `AuthorityPolicyRegistry.register` checks
+    #: §10.5.1's laws over exactly this set.
+    authority_classes: ClassVar[tuple[str, ...]] = TOY_AUTHORITY_CLASSES
 
     #: `SIDEBAND` is absent on purpose -- absence from the ranking is how INCOMPARABLE arises.
     _rank: ClassVar[dict[str, int]] = {"TIER_B": 1, "TIER_A": 2}
@@ -83,6 +87,7 @@ class ToyAuthorityPolicyV2(ToyAuthorityPolicy):
     """
 
     policy_version: ClassVar[str] = "2.0.0"
+    authority_classes: ClassVar[tuple[str, ...]] = TOY_AUTHORITY_CLASSES
     _rank: ClassVar[dict[str, int]] = {"TIER_B": 1, "TIER_A": 2, "SIDEBAND": 3}
 
 
