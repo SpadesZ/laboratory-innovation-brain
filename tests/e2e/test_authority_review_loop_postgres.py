@@ -86,6 +86,29 @@ REJECT = PROMOTE.model_copy(
 )
 
 
+def _queue_policy(db, project_id: str, policy_id: str = "rqp:test") -> None:  # type: ignore[no-untyped-def]
+    """Register the §14.4 SLA/expiry policy every escalation is priced from since `011e`.
+
+    Not optional and not a convenience: `authority_conflict_escalate` refuses a project with no
+    active queue policy, because an item with no deadline is the state §14.4 exists to forbid.
+    """
+    from lab_brain.core.repositories.reviews import SqlReviewQueuePolicyStore
+    from lab_brain.core.review_queue import ReviewQueuePolicy
+
+    SqlReviewQueuePolicyStore(db).register(
+        ReviewQueuePolicy(
+            policy_id=policy_id,
+            version="1.0.0",
+            project_id=project_id,
+            capacity=16,
+            default_sla_minutes=24 * 60,
+            default_expiry_minutes=72 * 60,
+            reviewer_minutes_per_day=240,
+            effective_from=T0,
+        )
+    )
+
+
 @pytest.fixture
 def world(db):  # type: ignore[no-untyped-def]
     """One attestation, one genesis event a closure may cite, and the two policies registered."""
@@ -129,6 +152,7 @@ def world(db):  # type: ignore[no-untyped-def]
     # review had resolved -- while the review sat at QUEUED. Every event a closure cites is now
     # created by `_event_from_review`, after the escalation, and recorded as that review's
     # product.
+    _queue_policy(db, PROJECT)
     policies = SqlTransitionPolicyStore(db)
     policies.register(PROMOTE)
     policies.register(REJECT)
@@ -881,13 +905,18 @@ def test_a_repeated_escalation_returns_the_existing_review(world):
 
 
 def test_a_conflicts_review_link_cannot_be_replaced(world):
-    """Written once, from NULL. Raw SQL too, since the function is not the only writer."""
+    """Written once, from NULL. Raw SQL too, since the function is not the only writer.
+
+    The usurper is fully priced -- policy, due_at and expires_at -- so `011e`'s deadline trigger is
+    satisfied and the refusal under test is `011a`'s one-time link rather than a missing SLA.
+    """
     _escalate(world, _evaluate())
     world.execute(
         "INSERT INTO review_items (review_id, project_id, subject_type, subject_id, stakes,"
-        " reason, trace_id, created_at) VALUES ('rvw:usurper', %s, 'AUTHORITY_CONFLICT',"
-        " 'cfl:authority', 'HIGH', 'AUTHORITY_INCOMPARABLE', %s, %s)",
-        (PROJECT, TRACE, T0),
+        " reason, trace_id, created_at, queue_policy_id, queue_policy_version, due_at, expires_at)"
+        " VALUES ('rvw:usurper', %s, 'AUTHORITY_CONFLICT', 'cfl:authority', 'HIGH',"
+        " 'AUTHORITY_INCOMPARABLE', %s, %s, 'rqp:test', '1.0.0', %s, %s)",
+        (PROJECT, TRACE, T0, T0 + dt.timedelta(hours=24), T0 + dt.timedelta(hours=72)),
     )
 
     with pytest.raises(psycopg.errors.RaiseException, match="already gated by review"):

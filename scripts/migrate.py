@@ -102,6 +102,12 @@ APPLY_ORDER: tuple[str, ...] = (
     # valid operation pass through its necessary intermediate half-state. After 011c: it reads
     # `review_resolutions` and the `decision_ref` reference that migration created.
     "011d_review_conflict_commit_invariant.sql",
+    # M0b closure / OPS-002. §14.4's ReviewQueue: capacity, stakes and an SLA/expiry policy, so an
+    # uncertain item cannot park in PENDING forever. `011b` shipped `review_items` as a minimum
+    # schema with nullable `due_at`/`expires_at` and nothing setting them, and said so. After 011c:
+    # it replaces `authority_conflict_escalate` again to price the item from the declared policy,
+    # preserving that version's idempotence and one-winner concurrency guarantees unchanged.
+    "011e_review_queue_policy.sql",
 )
 
 _BOOTSTRAP = """

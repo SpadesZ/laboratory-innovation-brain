@@ -9,13 +9,15 @@ worse here, because neither row can be deleted afterwards.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 
 from lab_brain.core.models.conflict import Conflict, ConflictResolutionStatus
-from lab_brain.core.models.review import ReviewItem
+from lab_brain.core.models.review import OUTSTANDING_REVIEW_STATUSES, ReviewItem
 from lab_brain.core.models.review_resolution import ReviewResolution
 from lab_brain.core.repositories.budget import SqlConnection, require_durable_connection
 from lab_brain.core.repositories.protocols import RepositoryError
+from lab_brain.core.review_queue import ReviewQueuePolicy
 
 
 class ReviewStoreError(RepositoryError):
@@ -27,6 +29,85 @@ _REVIEW_COLUMNS = (
     "trace_id, required_authority, required_role, assigned_actor_id, decision_ref, "
     "estimated_human_minutes, created_at, due_at, expires_at"
 )
+
+_QUEUE_POLICY_COLUMNS = (
+    "policy_id, version, project_id, capacity, default_sla_minutes, default_expiry_minutes, "
+    "sla_minutes_by_stakes, expiry_minutes_by_stakes, reviewer_minutes_per_day, effective_from, "
+    "active"
+)
+
+
+class SqlReviewQueuePolicyStore:
+    """§14.4's queue policy against the `011e` table (OPS-002).
+
+    `active_for` is the read that matters, and it returns at most one row by construction: `011e`
+    carries a partial unique index on `(project_id) WHERE active`, so "which deadline applies" can
+    never depend on read order. A second active policy is not something this class has to choose
+    between -- it cannot exist.
+    """
+
+    def __init__(self, connection: SqlConnection) -> None:
+        require_durable_connection(connection)
+        self._connection = connection
+
+    def register(self, policy: ReviewQueuePolicy) -> ReviewQueuePolicy:
+        require_durable_connection(self._connection)
+        try:
+            self._connection.execute(
+                f"INSERT INTO review_queue_policies ({_QUEUE_POLICY_COLUMNS})"
+                " VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s)",
+                (
+                    policy.policy_id,
+                    policy.version,
+                    policy.project_id,
+                    policy.capacity,
+                    policy.default_sla_minutes,
+                    policy.default_expiry_minutes,
+                    json.dumps(policy.sla_minutes_by_stakes, sort_keys=True),
+                    json.dumps(policy.expiry_minutes_by_stakes, sort_keys=True),
+                    policy.reviewer_minutes_per_day,
+                    policy.effective_from,
+                    policy.active,
+                ),
+            )
+        except Exception as exc:
+            raise ReviewStoreError(
+                f"queue policy {policy.policy_id}@{policy.version} was refused: {exc}"
+            ) from exc
+        return policy
+
+    def active_for(self, project_id: str) -> ReviewQueuePolicy | None:
+        row = self._connection.execute(
+            f"SELECT {_QUEUE_POLICY_COLUMNS} FROM review_queue_policies"
+            " WHERE project_id = %s AND active",
+            (project_id,),
+        ).fetchone()
+        return None if row is None else self._hydrate(row)
+
+    def get(self, policy_id: str, version: str) -> ReviewQueuePolicy | None:
+        row = self._connection.execute(
+            f"SELECT {_QUEUE_POLICY_COLUMNS} FROM review_queue_policies"
+            " WHERE policy_id = %s AND version = %s",
+            (policy_id, version),
+        ).fetchone()
+        return None if row is None else self._hydrate(row)
+
+    def _hydrate(self, row: Sequence[object]) -> ReviewQueuePolicy:
+        return ReviewQueuePolicy.model_validate(
+            {
+                "policy_id": row[0],
+                "version": row[1],
+                "project_id": row[2],
+                "capacity": row[3],
+                "default_sla_minutes": row[4],
+                "default_expiry_minutes": row[5],
+                "sla_minutes_by_stakes": row[6],
+                "expiry_minutes_by_stakes": row[7],
+                "reviewer_minutes_per_day": row[8],
+                "effective_from": row[9],
+                "active": row[10],
+            }
+        )
 
 
 class SqlReviewItemStore:
@@ -169,6 +250,25 @@ class SqlReviewItemStore:
         ).fetchall()
         return tuple(self._hydrate(row) for row in rows)
 
+    def outstanding(self, project_id: str) -> tuple[ReviewItem, ...]:
+        """Everything a human still owes an answer for, oldest first (OPS-002, §14.4.1).
+
+        Filtered in SQL on the same two statuses `OUTSTANDING_REVIEW_STATUSES` names, so the
+        database and the model cannot disagree about what "depth" counts -- the same arrangement
+        `SqlConflictStore.unresolved_for_subject` uses and for the same reason.
+
+        `ASSIGNED` is included. A queue that stopped counting picked-up items would report depth 0
+        while forty reviews sat half-done, which is the distinction `v3.3-a14` draws when it makes
+        ASSIGNED outstanding.
+        """
+        rows = self._connection.execute(
+            f"SELECT {_REVIEW_COLUMNS} FROM review_items"
+            " WHERE project_id = %s AND status = ANY (%s)"
+            " ORDER BY created_at, review_id",
+            (project_id, sorted(status.value for status in OUTSTANDING_REVIEW_STATUSES)),
+        ).fetchall()
+        return tuple(self._hydrate(row) for row in rows)
+
     def _hydrate(self, row: Sequence[object]) -> ReviewItem:
         return ReviewItem.model_validate(
             {
@@ -193,4 +293,4 @@ class SqlReviewItemStore:
         )
 
 
-__all__ = ["ReviewStoreError", "SqlReviewItemStore"]
+__all__ = ["ReviewStoreError", "SqlReviewItemStore", "SqlReviewQueuePolicyStore"]

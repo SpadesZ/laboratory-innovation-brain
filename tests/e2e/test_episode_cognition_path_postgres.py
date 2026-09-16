@@ -156,6 +156,29 @@ class CountingIds:
         return self._next("rvw")
 
 
+def _queue_policy(db, project_id: str, policy_id: str = "rqp:test") -> None:  # type: ignore[no-untyped-def]
+    """Register the §14.4 SLA/expiry policy every escalation is priced from since `011e`.
+
+    Not optional and not a convenience: `authority_conflict_escalate` refuses a project with no
+    active queue policy, because an item with no deadline is the state §14.4 exists to forbid.
+    """
+    from lab_brain.core.repositories.reviews import SqlReviewQueuePolicyStore
+    from lab_brain.core.review_queue import ReviewQueuePolicy
+
+    SqlReviewQueuePolicyStore(db).register(
+        ReviewQueuePolicy(
+            policy_id=policy_id,
+            version="1.0.0",
+            project_id=project_id,
+            capacity=16,
+            default_sla_minutes=24 * 60,
+            default_expiry_minutes=72 * 60,
+            reviewer_minutes_per_day=240,
+            effective_from=T0,
+        )
+    )
+
+
 @pytest.fixture
 def world(db):  # type: ignore[no-untyped-def]
     """An artifact, a claim, a condition schema and the four policies -- through the real stores."""
@@ -179,6 +202,7 @@ def world(db):  # type: ignore[no-untyped-def]
         " comparator_version) VALUES ('core', 'sch_test', '1.0.0', %s::jsonb, '1.0.0')",
         ('{"type": "object", "properties": {}}',),
     )
+    _queue_policy(db, PROJECT)
     policies = SqlTransitionPolicyStore(db)
     for policy in (GENESIS, PROMOTE, PROMOTE_AUTHORITY, PROMOTE_INDEPENDENT, CONTRADICT, UNRELATED):
         policies.register(policy)

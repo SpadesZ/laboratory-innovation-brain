@@ -78,6 +78,29 @@ def _url() -> str:
     return os.environ.get("LAB_BRAIN_DATABASE_URL", DEFAULT_URL)
 
 
+def _queue_policy(db, project_id: str, policy_id: str = "rqp:test") -> None:  # type: ignore[no-untyped-def]
+    """Register the §14.4 SLA/expiry policy every escalation is priced from since `011e`.
+
+    Not optional and not a convenience: `authority_conflict_escalate` refuses a project with no
+    active queue policy, because an item with no deadline is the state §14.4 exists to forbid.
+    """
+    from lab_brain.core.repositories.reviews import SqlReviewQueuePolicyStore
+    from lab_brain.core.review_queue import ReviewQueuePolicy
+
+    SqlReviewQueuePolicyStore(db).register(
+        ReviewQueuePolicy(
+            policy_id=policy_id,
+            version="1.0.0",
+            project_id=project_id,
+            capacity=16,
+            default_sla_minutes=24 * 60,
+            default_expiry_minutes=72 * 60,
+            reviewer_minutes_per_day=240,
+            effective_from=T0,
+        )
+    )
+
+
 @pytest.fixture
 def raw(db) -> Iterator[psycopg.Connection]:  # type: ignore[no-untyped-def]
     """A transactional session: `commit()` is the boundary under test.
@@ -194,6 +217,8 @@ def world(db):  # type: ignore[no-untyped-def]
             " is_admission) VALUES (%s, '1.0.0', 'DRAFT', 'ACTIVE', TRUE) ON CONFLICT DO NOTHING",
             (f"pol:genesis-{project}",),
         )
+    _queue_policy(db, PROJECT)
+    _queue_policy(db, OTHER, policy_id="rqp:other")
     return db
 
 
