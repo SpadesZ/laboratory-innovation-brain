@@ -84,6 +84,11 @@ APPLY_ORDER: tuple[str, ...] = (
     # foreign key into `belief_revision_events (event_id, project_id)`, and that UNIQUE came from
     # 005c. After 001: `project_id` references `projects`.
     "011a_conflicts.sql",
+    # P11 / EPI-004. §26's M0b row lists "ReviewItem minimum schema" in this range. After 011a:
+    # it turns `conflicts.review_id` into a checked composite foreign key and adds the trigger
+    # that makes an AUTHORITY_CONFLICT review name a conflict in the same project. A shared
+    # foundation with UX-005, which it does NOT discharge -- see the migration header.
+    "011b_review_items.sql",
 )
 
 _BOOTSTRAP = """

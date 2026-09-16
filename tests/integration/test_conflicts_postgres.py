@@ -358,9 +358,13 @@ def test_raw_update_cannot_close_a_conflict_by_status_alone(seeded):
 def test_escalating_to_under_review_is_allowed_and_keeps_the_block(seeded):
     """§8.2.1: the review resolving is what lifts the block, not the review starting."""
     SqlConflictStore(seeded).record(conflict())
+    # Status only. `review_id` is a checked composite foreign key since `011b`, so setting it to
+    # an id no review has is refused -- which is the constraint working, and why escalation goes
+    # through `authority_conflict_escalate` rather than a bare UPDATE. The earlier version of
+    # this test set `review_id = 'rvw:1'` and started failing the moment the reference became
+    # real.
     seeded.execute(
-        "UPDATE conflicts SET resolution_status = 'UNDER_REVIEW', review_id = 'rvw:1'"
-        " WHERE conflict_id = 'cfl:1'"
+        "UPDATE conflicts SET resolution_status = 'UNDER_REVIEW' WHERE conflict_id = 'cfl:1'"
     )
 
     escalated = SqlConflictStore(seeded).get(PROJECT, "cfl:1")
