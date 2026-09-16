@@ -79,6 +79,11 @@ APPLY_ORDER: tuple[str, ...] = (
     # P6-fix. Makes closing a span atomic with its cost refs, and requires a parent span to be in
     # the same trace. Separate from 010a because 010a is applied.
     "010b_execution_span_close_atomicity.sql",
+    # P11 / EPI-006. Appendix A's `011_predictions_conflicts.sql` slot, conflict half only --
+    # Prediction is a later migration. After 005c: `conflicts.resolution_event_id` is a composite
+    # foreign key into `belief_revision_events (event_id, project_id)`, and that UNIQUE came from
+    # 005c. After 001: `project_id` references `projects`.
+    "011a_conflicts.sql",
 )
 
 _BOOTSTRAP = """
