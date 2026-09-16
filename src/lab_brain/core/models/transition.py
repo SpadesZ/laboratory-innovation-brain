@@ -330,6 +330,65 @@ class TransitionPolicy(CoreModel):
         )
         return verdict
 
+    def evaluate_hypothetical(
+        self,
+        hypothesis: HypothesisView,
+        admitted_relations: tuple[RelationJudgment, ...],
+        hypothetical_relations: tuple[RelationJudgment, ...],
+        authority_policy: AuthorityPolicy | None,
+        condition_matches: tuple[ConditionMatch, ...],
+        independence_summary: IndependenceSummary,
+        candidate_to_state: BeliefState,
+    ) -> TransitionDecision:
+        """§17.5.1's side-effect-free "what if", used by §9.1's sufficiency (VER-006).
+
+            §17.5.1  evaluate_hypothetical MUST be side-effect free: it MUST NOT persist
+                     RelationJudgment, MUST NOT emit BeliefRevisionEvent, and MUST NOT mutate any
+                     projection.
+                     hypothetical_relations MUST be instantiated from declared Predictions, never
+                     invented by the planner or by an LLM at planning time.
+
+        IT IS SIDE-EFFECT FREE BY CONSTRUCTION, NOT BY DISCIPLINE, and that distinction is the
+        reason this lives on the model. `TransitionPolicy` holds no repository, no connection and
+        no store; it is a frozen Pydantic object whose only capability is arithmetic over its
+        arguments. There is no `self._events` to append to and no session to flush. A planner that
+        wanted to persist the hypothetical relations would have to go and find a store itself,
+        which is a line in a diff rather than an accident.
+
+        NOT A SECOND TRANSITION OPERATOR. `evaluate` remains the only thing that can authorise a
+        belief revision -- §26's T-EPI-005 requires that only its signature exists, and nothing
+        downstream accepts a `TransitionDecision` produced here: `authorize_transition` computes
+        its own from the six real inputs and `record_transition` re-derives before minting. This
+        answers "would it change the answer", which is a planning question, and §17.5.1 gives it
+        its own name for exactly that reason.
+
+        THE UNION IS ORDERED, WHICH MATTERS MORE THAN IT LOOKS. The two sequences are concatenated
+        admitted-first and then sorted on `relation_id`, so the same prediction evaluated twice
+        produces an identical `TransitionDecision` -- §26 requires that, and `evaluate` reaches
+        into `admitted_relations` for the required relation types, where an unstable order would
+        change nothing today and change `blocking_conflict_ids` ordering the moment it does.
+
+        A hypothetical relation is **not** counted as an independent attestation. `sufficiency` is
+        about whether an outcome would change the verdict, and inflating the independence count
+        would answer a different question -- one where the evidence has already been gathered.
+        `independence_summary` is passed through untouched; a caller modelling the independence a
+        new measurement would add says so by passing a different summary.
+        """
+        combined = tuple(
+            sorted(
+                (*admitted_relations, *hypothetical_relations),
+                key=lambda relation: relation.relation_id,
+            )
+        )
+        return self._decide(
+            hypothesis,
+            combined,
+            authority_policy,
+            condition_matches,
+            independence_summary,
+            candidate_to_state,
+        )
+
     # ---------------------------------------------------------------------------------------
     # The body is split out only so `evaluate` keeps §8.2.1's signature visible and unpolluted.
     # ---------------------------------------------------------------------------------------

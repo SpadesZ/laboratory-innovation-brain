@@ -91,6 +91,13 @@ from lab_brain.core.models.identifiers import (
     parse_content_hash,
 )
 from lab_brain.core.models.observation import Observation
+from lab_brain.core.models.prediction import (
+    PREDICTION_EFFECT_TYPES,
+    OutcomeSpace,
+    Prediction,
+    PredictionAdmissionError,
+    RelationJudgmentTemplate,
+)
 from lab_brain.core.models.relation import (
     EPISTEMIC_RELATION_TYPES,
     IDENTITY_RELATION_TYPES,
@@ -123,6 +130,7 @@ __all__ = [
     "IDENTITY_EXCLUDED_FIELDS",
     "IDENTITY_RELATION_TYPES",
     "IMPLEMENTED_INDEPENDENCE_BASES",
+    "PREDICTION_EFFECT_TYPES",
     "SUBJECT_FIELD_FOR_TYPE",
     "TERMINAL_SPAN_STATUSES",
     "Actor",
@@ -162,8 +170,12 @@ __all__ = [
     "IndependenceSummary",
     "LicenseClass",
     "Observation",
+    "OutcomeSpace",
+    "Prediction",
+    "PredictionAdmissionError",
     "ProjectMembership",
     "RelationJudgment",
+    "RelationJudgmentTemplate",
     "RelationType",
     "ResearchIntent",
     "RetractionCheck",

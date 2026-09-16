@@ -124,6 +124,14 @@ UNBOUND: dict[str, str] = {
     "computed fields that this guard does not yet have.",
     "EvidenceField": "§17.9's block describes a value object embedded in Observation, not a table, "
     "so there is no DDL side to compare against.",
+    "Prediction": "§17.5.1's Prediction is not persisted in M0b -- VER-006's §26 row is "
+    "contract/unit, and the table is the other half of Appendix A's 011 slot, landing with the "
+    "Verification Planner. The model also carries project_id, which §17.5.1 omits for the same "
+    "reason §17.8 omits it on RelationJudgment. Bindable when that migration lands.",
+    "OutcomeSpace": "§17.19.2 declares it and M0b uses it as an in-memory admission check for "
+    "VER-006, storing none, so there is no DDL side. Bindable with the BenchmarkPolicy tables.",
+    "RelationJudgmentTemplate": "§17.5.1's block describes a value object embedded in Prediction, "
+    "not a table -- the same shape as EvidenceField.",
     "ConditionSchemaRegistration": "§17.19 describes the registration payload; the table stores it "
     "decomposed across condition_schemas.",
     "ConditionMatch": "§17.19's block is a return value, not stored state.",
