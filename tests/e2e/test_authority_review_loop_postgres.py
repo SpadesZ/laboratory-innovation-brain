@@ -257,6 +257,130 @@ def _escalate(world, decision):  # type: ignore[no-untyped-def]
 
 
 # --------------------------------------------------------------------------------------------
+# §26's T-EPI-004 says the ReviewItem is **auto**-created, and until M0b closure nothing in this
+# module proved the "auto": every test above calls `_escalate` by hand. `core.escalation` built the
+# objects and a human test invoked it, which is the seam existing and not the automation.
+#
+# The test below calls no escalation function. It runs the episode, and the Conflict and the
+# ReviewItem appear because an INCOMPARABLE comparison happened.
+# --------------------------------------------------------------------------------------------
+
+
+def test_the_review_item_is_created_automatically_by_the_episode(world):
+    """T-EPI-004's "auto-creates ReviewItem(AUTHORITY_CONFLICT)", with nobody creating one.
+
+    `BeliefEpisode.attempt_transition` is handed a hypothesis, a policy and a comparator. It is not
+    handed a conflict, a review, or any instruction to escalate. What makes them exist is the
+    comparator returning INCOMPARABLE at a required gate -- which is the sentence §8.2.1 writes.
+    """
+    from lab_brain.core.authority import AuthorityPolicyRegistry
+    from lab_brain.core.belief import EpistemicStateProjection, admit_hypothesis
+    from lab_brain.core.episode import BeliefEpisode
+    from lab_brain.core.repositories import (
+        SqlAttestationStore,
+        SqlBeliefEventStore,
+        SqlRelationStore,
+    )
+    from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
+
+    world.execute(
+        "UPDATE attestations SET authority_class = 'SIDEBAND' WHERE attestation_id = 'att:1'"
+    )
+    SqlRelationStore(world).add(
+        RelationJudgment(
+            relation_id="rel:1",
+            from_entity_id="att:1",
+            to_entity_id=HYP,
+            relation_type=RelationType.SUPPORTS,
+            project_id=PROJECT,
+            supporting_attestation_ids=("att:1",),
+            valid_from=T0,
+            created_at=T0,
+        )
+    )
+    SqlBeliefEventStore(world).append(
+        admit_hypothesis(
+            event_id="bre:genesis",
+            policy=TransitionPolicy(
+                policy_id="pol:genesis",
+                version="1.0.0",
+                from_state=BeliefState.DRAFT,
+                candidate_to_state=BeliefState.ACTIVE,
+                is_admission=True,
+            ),
+            project_id=PROJECT,
+            hypothesis_id=HYP,
+            prior=EpistemicStateProjection(
+                project_id=PROJECT, target_id=HYP, current_state=None, last_event_id=None
+            ),
+            occurred_at=T0,
+            trace_id=TRACE,
+            triggering_attestations=(SqlAttestationStore(world).get(PROJECT, "att:1"),),  # type: ignore[arg-type]
+        )
+    )
+
+    registry = AuthorityPolicyRegistry()
+    registry.register(ToyAuthorityPolicy())
+
+    class _Ids:
+        def decision_id(self) -> str:
+            return "dec:auto"
+
+        def event_id(self) -> str:
+            return "bre:auto"
+
+        def conflict_id(self) -> str:
+            return "cfl:auto"
+
+        def review_id(self) -> str:
+            return "rvw:auto"
+
+    assert world.execute("SELECT count(*) FROM review_items").fetchone()[0] == 0
+
+    result = BeliefEpisode(
+        policies=SqlTransitionPolicyStore(world),
+        decisions=SqlBeliefTransitionDecisionStore(world),
+        events=SqlBeliefEventStore(world),
+        relations=SqlRelationStore(world),
+        authority_classes=SqlAttestationStore(world),
+        conflicts=SqlConflictStore(world),
+        reviews=SqlReviewItemStore(world),
+        ids=_Ids(),
+        authority_policies=registry.as_mapping(),
+    ).attempt_transition(
+        project_id=PROJECT,
+        hypothesis_id=HYP,
+        policy_id="pol:promote",
+        policy_version="1.0.0",
+        candidate_to_state=BeliefState.SUPPORTED,
+        stakes="HIGH",
+        occurred_at=T0 + dt.timedelta(hours=1),
+        trace_id=TRACE,
+        authority_policy_ref=(ToyAuthorityPolicy().policy_id, ToyAuthorityPolicy().policy_version),
+    )
+
+    assert result.decision.outcome is TransitionOutcome.NEED_HUMAN_REVIEW
+    assert result.decision.reason_code is TransitionReason.AUTHORITY_INCOMPARABLE
+
+    queued = SqlReviewItemStore(world).for_subject(PROJECT, "cfl:auto")
+    assert [item.review_id for item in queued] == ["rvw:auto"], (
+        "the ReviewItem must exist without anyone having asked for one"
+    )
+    assert queued[0].subject_type is ReviewSubjectType.AUTHORITY_CONFLICT
+    assert queued[0].status is ReviewStatus.QUEUED
+    assert queued[0].required_authority == "TIER_A"
+
+    conflict = SqlConflictStore(world).get(PROJECT, "cfl:auto")
+    assert conflict is not None
+    assert conflict.review_id == "rvw:auto", "and it must be linked"
+    assert conflict.blocks_transitions
+
+    # And no belief moved: §8.2.1 blocks promotion and rejection until the review resolves.
+    assert not result.transitioned
+    assert [e.event_id for e in SqlBeliefEventStore(world).history(PROJECT, HYP)] == ["bre:genesis"]
+
+
+# --------------------------------------------------------------------------------------------
 # The loop.
 # --------------------------------------------------------------------------------------------
 

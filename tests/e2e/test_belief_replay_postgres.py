@@ -13,9 +13,17 @@ differs -- and the event log is byte-for-byte what it was.
 The last clause is the one that distinguishes a rollback from a hand edit, so it is asserted rather
 than assumed.
 
-WHAT THIS DOES NOT YET DISCHARGE. §26 says "EpistemicState 投影" and this produces
-`BeliefProjection`, which has no `belief_level` and no `unresolved_conflicts` -- those need EPI-004
-and EPI-006. EPI-003 therefore stays IN_PROGRESS; see IMPLEMENTATION_STATUS.md.
+WHAT THIS USED TO SAY, AND WHY IT NO LONGER DOES. Until M0b closure this docstring recorded that
+the module produced `BeliefProjection` -- a type with no `belief_level` and no
+`unresolved_conflicts` -- and that §26's "EpistemicState 投影" was therefore only half met. EPI-004
+and EPI-006 landed, the reducer now returns §17.13's `EpistemicStateProjection` with every field it
+declares, and the note is kept in this form rather than deleted so the change is visible.
+
+`belief_level` is present and always `None`. §17.13 marks it optional, §8.1 only *建議s* an ordinal
+LOW/MEDIUM/HIGH and declares no thresholds, and "evidence quality dimensions" is a DomainPack
+judgment -- so a level computed in core would be a scientific verdict in prose rather than in a
+versioned policy (AGT-016). Recorded as a known limitation in `docs/implementation/M0b-readiness.md`
+rather than papered over here.
 """
 
 from __future__ import annotations

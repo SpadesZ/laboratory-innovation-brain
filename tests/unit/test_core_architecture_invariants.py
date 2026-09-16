@@ -46,6 +46,28 @@ def test_no_core_entity_carries_a_parallel_support_array(model):
     )
 
 
+def test_the_hypothesis_view_carries_no_support_array_either():
+    """§26's T-SYS-001 names Attestation **and Hypothesis**, and the second half needs saying.
+
+    `Hypothesis` (§8.1) does not exist as an entity until EPI-001 in M3, so the only
+    hypothesis-shaped object in core is `HypothesisView` -- the thing `TransitionPolicy.evaluate`
+    actually reads. If a support array were ever going to appear anywhere, it would appear here:
+    it is the object a caller assembles right before asking whether a belief may move, and
+    "just pass the supporting ids along" is the shortest path to the arrangement §17.19.3 forbids.
+
+    `conflicts` is present and is not an exception. It holds typed `Conflict` records that the
+    policy matches against its own declared `blocking_conflict_policy`; a support array would be
+    the caller's *conclusion*, which is exactly the difference.
+    """
+    from lab_brain.core.models.transition import HypothesisView
+
+    offending = sorted(set(HypothesisView.model_fields) & FORBIDDEN_RELATION_FIELDS)
+    assert not offending, (
+        f"HypothesisView declares {offending}; support and contradiction reach the policy only as "
+        "RelationJudgment, resolved from the relation table rather than asserted by the caller"
+    )
+
+
 @pytest.mark.parametrize("model", CORE_ENTITIES, ids=lambda m: m.__name__)
 def test_core_entities_are_frozen(model):
     """P2 append-only. Correcting a record writes a new one; it does not mutate the old."""

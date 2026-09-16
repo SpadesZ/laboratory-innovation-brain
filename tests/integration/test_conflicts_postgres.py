@@ -505,3 +505,174 @@ def test_the_store_refuses_a_non_durable_connection(db):  # type: ignore[no-unty
     finally:
         db.rollback()
         db.autocommit = True
+
+
+# --------------------------------------------------------------------------------------------
+# §26's T-EPI-006 has a clause nothing in this module proved until M0b closure:
+#
+#     AUTHORITY_CONFLICT from an INCOMPARABLE comparison creates a Conflict linked to the
+#     auto-created ReviewItem
+#
+# Every test above records its conflicts with `store.record(conflict(...))`. That proves the table
+# holds them; it says nothing about a Conflict *arising* from a comparison. The test below records
+# no conflict and creates no review -- an INCOMPARABLE comparison does both.
+# --------------------------------------------------------------------------------------------
+
+
+def test_an_incomparable_comparison_creates_a_linked_conflict_and_review(seeded):
+    """The automatic half of EPI-006, driven by the episode rather than by the test.
+
+    Nothing here names a conflict_id or a review_id as *input*. The episode is given a hypothesis,
+    a policy whose `required_authority_rule` cannot be satisfied and a comparator that answers
+    INCOMPARABLE; the typed `AUTHORITY_CONFLICT` and its queued reviewer are the consequence.
+    """
+    import datetime as dt
+
+    from lab_brain.core.authority import AuthorityPolicyRegistry
+    from lab_brain.core.belief import EpistemicStateProjection, admit_hypothesis
+    from lab_brain.core.episode import BeliefEpisode
+    from lab_brain.core.models import (
+        BeliefState,
+        RelationJudgment,
+        RelationType,
+        TransitionOutcome,
+        TransitionPolicy,
+        TransitionReason,
+    )
+    from lab_brain.core.repositories import (
+        SqlAttestationStore,
+        SqlBeliefEventStore,
+        SqlRelationStore,
+        SqlTransitionPolicyStore,
+    )
+    from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
+    from lab_brain.core.repositories.reviews import (
+        SqlReviewItemStore,
+        SqlReviewQueuePolicyStore,
+    )
+    from lab_brain.core.review_queue import ReviewQueuePolicy
+    from tests.toy_authority import ToyAuthorityPolicy
+
+    promote = TransitionPolicy(
+        policy_id="pol:promote",
+        version="1.0.0",
+        from_state=BeliefState.ACTIVE,
+        candidate_to_state=BeliefState.SUPPORTED,
+        required_relation_types=(RelationType.SUPPORTS,),
+        required_authority_rule="TIER_A",
+        blocking_conflict_policy=("AUTHORITY_CONFLICT",),
+    )
+    SqlTransitionPolicyStore(seeded).register(promote)
+    SqlReviewQueuePolicyStore(seeded).register(
+        ReviewQueuePolicy(
+            policy_id="rqp:test",
+            version="1.0.0",
+            project_id=PROJECT,
+            capacity=8,
+            default_sla_minutes=24 * 60,
+            default_expiry_minutes=72 * 60,
+            effective_from=T0,
+        )
+    )
+    # SIDEBAND is the class the toy comparator cannot rank against TIER_A -- INCOMPARABLE, not a
+    # shortfall, which is the distinction this clause turns on.
+    seeded.execute(
+        "UPDATE attestations SET authority_class = 'SIDEBAND' WHERE attestation_id = %s",
+        (f"att:{PROJECT}",),
+    )
+    SqlRelationStore(seeded).add(
+        RelationJudgment(
+            relation_id="rel:1",
+            from_entity_id=f"att:{PROJECT}",
+            to_entity_id=HYP,
+            relation_type=RelationType.SUPPORTS,
+            project_id=PROJECT,
+            supporting_attestation_ids=(f"att:{PROJECT}",),
+            valid_from=T0,
+            created_at=T0,
+        )
+    )
+    SqlBeliefEventStore(seeded).append(
+        admit_hypothesis(
+            event_id="bre:admit",
+            policy=TransitionPolicy(
+                policy_id=f"pol:genesis-{PROJECT}",
+                version="1.0.0",
+                from_state=BeliefState.DRAFT,
+                candidate_to_state=BeliefState.ACTIVE,
+                is_admission=True,
+            ),
+            project_id=PROJECT,
+            hypothesis_id=HYP,
+            prior=EpistemicStateProjection(
+                project_id=PROJECT, target_id=HYP, current_state=None, last_event_id=None
+            ),
+            occurred_at=T0,
+            trace_id=TRACE,
+            triggering_attestations=(SqlAttestationStore(seeded).get(PROJECT, f"att:{PROJECT}"),),  # type: ignore[arg-type]
+        )
+    )
+
+    registry = AuthorityPolicyRegistry()
+    registry.register(ToyAuthorityPolicy())
+
+    class _Ids:
+        def decision_id(self) -> str:
+            return "dec:auto"
+
+        def event_id(self) -> str:
+            return "bre:auto"
+
+        def conflict_id(self) -> str:
+            return "cfl:auto"
+
+        def review_id(self) -> str:
+            return "rvw:auto"
+
+    assert seeded.execute("SELECT count(*) FROM conflicts").fetchone()[0] == 0
+
+    result = BeliefEpisode(
+        policies=SqlTransitionPolicyStore(seeded),
+        decisions=SqlBeliefTransitionDecisionStore(seeded),
+        events=SqlBeliefEventStore(seeded),
+        relations=SqlRelationStore(seeded),
+        authority_classes=SqlAttestationStore(seeded),
+        conflicts=SqlConflictStore(seeded),
+        reviews=SqlReviewItemStore(seeded),
+        ids=_Ids(),
+        authority_policies=registry.as_mapping(),
+    ).attempt_transition(
+        project_id=PROJECT,
+        hypothesis_id=HYP,
+        policy_id="pol:promote",
+        policy_version="1.0.0",
+        candidate_to_state=BeliefState.SUPPORTED,
+        stakes="HIGH",
+        occurred_at=T0 + dt.timedelta(hours=1),
+        trace_id=TRACE,
+        authority_policy_ref=(ToyAuthorityPolicy().policy_id, ToyAuthorityPolicy().policy_version),
+    )
+
+    assert result.decision.outcome is TransitionOutcome.NEED_HUMAN_REVIEW
+    assert result.decision.reason_code is TransitionReason.AUTHORITY_INCOMPARABLE
+
+    created = SqlConflictStore(seeded).get(PROJECT, "cfl:auto")
+    assert created is not None, "the Conflict must exist without the test recording one"
+    assert created.conflict_type is ConflictType.AUTHORITY_CONFLICT
+    assert created.blocking is True
+    assert created.subject_refs == (HYP,), "the hypothesis is one hop away (§17.19.3)"
+    assert created.resolution_status is ConflictResolutionStatus.UNDER_REVIEW
+    assert created.blocks_transitions, "UNDER_REVIEW still blocks; the resolution lifts it"
+
+    # Linked to the auto-created ReviewItem, which is the clause in full.
+    linked = SqlReviewItemStore(seeded).get(PROJECT, created.review_id)  # type: ignore[arg-type]
+    assert linked is not None
+    assert linked.subject_id == "cfl:auto", "§17.19.3: the review's subject is the conflict_id"
+    assert linked.is_outstanding
+
+    # And the conflict now reaches the next HypothesisView and keeps the belief where it was.
+    assert [
+        c.conflict_id for c in SqlConflictStore(seeded).unresolved_for_subject(PROJECT, HYP)
+    ] == ["cfl:auto"]
+    assert result.projection.current_state is BeliefState.ACTIVE
+    assert result.projection.unresolved_conflicts == ("cfl:auto",)
