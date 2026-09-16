@@ -95,6 +95,13 @@ APPLY_ORDER: tuple[str, ...] = (
     # Also completes 011a's immutability and makes 011b's escalation idempotent. After 011b:
     # `decision_ref` becomes a deferred composite foreign key into the new table.
     "011c_review_resolutions.sql",
+    # P13 / `v3.3-a14`. The P12 audit's P0: every guard `011c` added lives inside a function, and a
+    # writer can decline to call one -- so raw SQL could still commit a terminal review beside an
+    # unresolved conflict, or a closed conflict behind a QUEUED review. Moves the whole cross-table
+    # invariant to the COMMIT boundary with deferred constraint triggers, which is what lets the one
+    # valid operation pass through its necessary intermediate half-state. After 011c: it reads
+    # `review_resolutions` and the `decision_ref` reference that migration created.
+    "011d_review_conflict_commit_invariant.sql",
 )
 
 _BOOTSTRAP = """

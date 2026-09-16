@@ -29,6 +29,8 @@ the *resolution* lifts the block, and a conflict UNDER_REVIEW still blocks.
 from __future__ import annotations
 
 import datetime as dt
+import os
+from collections.abc import Iterator
 
 import psycopg
 import pytest
@@ -54,6 +56,7 @@ from lab_brain.core.repositories import SqlTransitionPolicyStore
 from lab_brain.core.repositories.conflicts import ConflictStoreError, SqlConflictStore
 from lab_brain.core.repositories.reviews import ReviewStoreError, SqlReviewItemStore
 from tests.conftest_fixtures import make_artifact
+from tests.postgres_fixtures import DEFAULT_URL
 from tests.toy_authority import ToyAuthorityPolicy
 
 pytestmark = [
@@ -130,6 +133,40 @@ def world(db):  # type: ignore[no-untyped-def]
     policies.register(PROMOTE)
     policies.register(REJECT)
     return db
+
+
+@pytest.fixture
+def uncommitted(world) -> Iterator[psycopg.Connection]:  # type: ignore[no-untyped-def]
+    """A transactional session, for the two tests that need a review to be terminal *mid-flight*.
+
+    `conflict_close`'s traceability branch can only be reached by a caller whose review has already
+    resolved -- and once `011d` enforces the pair at COMMIT, that state exists only inside an
+    unfinished transaction. Which is correct, and is how the supported path reaches it too: the
+    review is terminalized before the conflict is closed. See the section header below for what
+    these tests used to do instead.
+    """
+    connection = psycopg.connect(
+        os.environ.get("LAB_BRAIN_DATABASE_URL", DEFAULT_URL), connect_timeout=5
+    )
+    try:
+        yield connection
+    finally:
+        connection.rollback()
+        connection.close()
+
+
+def _resolve_mid_transaction(cursor, review_id: str, resolution_id: str, event_id: str) -> None:
+    """Terminalize a review against a genuine resolution, without closing its conflict yet."""
+    cursor.execute(
+        "INSERT INTO review_resolutions (resolution_id, review_id, project_id, outcome,"
+        " resolved_by_actor_id, resolved_at, rationale, belief_revision_event_id)"
+        " VALUES (%s, %s, %s, 'APPROVED', 'act:test', %s, 'the reviewer decided', %s)",
+        (resolution_id, review_id, PROJECT, T0, event_id),
+    )
+    cursor.execute(
+        "UPDATE review_items SET status = 'APPROVED', decision_ref = %s WHERE review_id = %s",
+        (resolution_id, review_id),
+    )
 
 
 def _supporting() -> RelationJudgment:
@@ -496,7 +533,21 @@ def test_an_assigned_review_will_not_let_its_conflict_close_either(world):
         )
 
 
-def test_an_unrelated_same_project_event_is_not_closure_proof(world):
+# THESE TWO TESTS USED TO COMMIT A STATE THE SPEC FORBIDS, AS SETUP. Both needed a review that
+# had genuinely resolved so `conflict_close` would reach its traceability branch, and both got
+# there by committing `status='APPROVED', decision_ref=...` while the conflict sat at
+# UNDER_REVIEW -- which is P0-A, the exact half-state `v3.3-a14` forbids. They passed because
+# nothing enforced the pair; `011d` enforces it at COMMIT, and a test may not depend on a
+# spec-invalid committed state to reach its assertion.
+#
+# The rewrite keeps the review's resolution completely genuine and simply never commits it: the
+# terminal review lives inside an unfinished transaction, which is where the supported path puts
+# it too. `conflict_close` raises on the substituted event before COMMIT is ever attempted, so the
+# assertion is stronger than before -- the old version proved the substitution was refused from a
+# state the database should not have allowed to exist.
+
+
+def test_an_unrelated_same_project_event_is_not_closure_proof(world, uncommitted):
     """Exactly the substitution P11 made, now refused.
 
     The review really is resolved and the event really does exist in this project -- it is simply
@@ -505,107 +556,35 @@ def test_an_unrelated_same_project_event_is_not_closure_proof(world):
     _escalate(world, _evaluate())
     produced = _event_from_review(world)
     unrelated = _event_from_review(world, "bre:unrelated")
-    SqlReviewItemStore(world).resolve_and_close_conflict(
-        resolution=_resolution(event_id=produced),
-        conflict_status=ConflictResolutionStatus.RESOLVED,
-    )
 
-    # The conflict closed legitimately above, so re-open the scenario on a second conflict to
-    # isolate the substitution rather than the double-close.
-    second = authority_conflict_for(
-        conflict_id="cfl:second",
-        decision=_evaluate(),
-        hypothesis=_view(),
-        detected_at=T0,
-        detected_by_actor_or_slot="act:test",
-        trace_id=TRACE,
-    )
-    SqlConflictStore(world).record(second)
-    SqlReviewItemStore(world).escalate_authority_conflict(
-        conflict=second,
-        review=review_item_for(
-            review_id="rvw:second", conflict=second, decision=_evaluate(), created_at=T0
-        ),
-    )
-    SqlReviewItemStore(world).resolve_and_close_conflict(
-        resolution=_resolution(
-            resolution_id="res:second",
-            review_id="rvw:second",
-            event_id=_event_from_review(world, "bre:second"),
-        ),
-        conflict_status=ConflictResolutionStatus.RESOLVED,
-    )
+    with uncommitted.cursor() as cursor:
+        _resolve_mid_transaction(cursor, "rvw:authority-1", "res:1", produced)
+        with pytest.raises(
+            psycopg.errors.RaiseException, match="is not proof that this review resolved"
+        ):
+            cursor.execute(
+                "SELECT conflict_close('cfl:authority', %s, 'RESOLVED', %s, %s)",
+                (PROJECT, unrelated, T0),
+            )
+    uncommitted.rollback()
 
-    # Now a third, whose review resolved producing `bre:third`, closed against `bre:unrelated`.
-    third = authority_conflict_for(
-        conflict_id="cfl:third",
-        decision=_evaluate(),
-        hypothesis=_view(),
-        detected_at=T0,
-        detected_by_actor_or_slot="act:test",
-        trace_id=TRACE,
-    )
-    SqlConflictStore(world).record(third)
-    SqlReviewItemStore(world).escalate_authority_conflict(
-        conflict=third,
-        review=review_item_for(
-            review_id="rvw:third", conflict=third, decision=_evaluate(), created_at=T0
-        ),
-    )
-    SqlReviewItemStore(world).resolve_and_close_conflict(
-        resolution=_resolution(
-            resolution_id="res:third",
-            review_id="rvw:third",
-            event_id=_event_from_review(world, "bre:third"),
-        ),
-        conflict_status=ConflictResolutionStatus.RESOLVED,
-    )
-
-    # And a fourth, resolved, where the closure is attempted against the unrelated event.
-    fourth = authority_conflict_for(
-        conflict_id="cfl:fourth",
-        decision=_evaluate(),
-        hypothesis=_view(),
-        detected_at=T0,
-        detected_by_actor_or_slot="act:test",
-        trace_id=TRACE,
-    )
-    SqlConflictStore(world).record(fourth)
-    SqlReviewItemStore(world).escalate_authority_conflict(
-        conflict=fourth,
-        review=review_item_for(
-            review_id="rvw:fourth", conflict=fourth, decision=_evaluate(), created_at=T0
-        ),
-    )
-    world.execute(
-        "INSERT INTO review_resolutions (resolution_id, review_id, project_id, outcome,"
-        " resolved_by_actor_id, resolved_at, rationale, belief_revision_event_id)"
-        " VALUES ('res:fourth', 'rvw:fourth', %s, 'APPROVED', 'act:test', %s, 'r',"
-        " %s)",
-        (PROJECT, T0, _event_from_review(world, "bre:fourth")),
-    )
-    world.execute(
-        "UPDATE review_items SET status = 'APPROVED', decision_ref = 'res:fourth'"
-        " WHERE review_id = 'rvw:fourth'"
-    )
-
-    with pytest.raises(ConflictStoreError, match="is not proof that this review resolved"):
-        SqlConflictStore(world).resolve(
-            project_id=PROJECT,
-            conflict_id="cfl:fourth",
-            resolution_event_id=unrelated,
-            resolved_at=T0,
-        )
-    assert SqlConflictStore(world).get(PROJECT, "cfl:fourth").blocks_transitions  # type: ignore[union-attr]
+    assert SqlConflictStore(world).get(PROJECT, "cfl:authority").blocks_transitions  # type: ignore[union-attr]
+    assert SqlReviewItemStore(world).get(PROJECT, "rvw:authority-1").is_outstanding  # type: ignore[union-attr]
 
 
-def test_another_reviews_resolution_event_is_not_closure_proof(world):
-    """Two conflicts, two reviews, and the second closed against the first's event."""
+def test_another_reviews_resolution_event_is_not_closure_proof(world, uncommitted):
+    """Two conflicts, two reviews, and the second closed against the first's event.
+
+    The first conflict resolves through the supported path and stays resolved, so the event being
+    substituted is not merely unrelated -- it is a real resolution event, belonging to a real
+    review, which simply did not resolve *this* one.
+    """
     first, _ = _escalate(world, _evaluate())
     SqlReviewItemStore(world).resolve_and_close_conflict(
         resolution=_resolution(event_id=_event_from_review(world)),
         conflict_status=ConflictResolutionStatus.RESOLVED,
     )
+    assert first.conflict_id == "cfl:authority"
 
     other = authority_conflict_for(
         conflict_id="cfl:other",
@@ -622,25 +601,20 @@ def test_another_reviews_resolution_event_is_not_closure_proof(world):
             review_id="rvw:other", conflict=other, decision=_evaluate(), created_at=T0
         ),
     )
-    world.execute(
-        "INSERT INTO review_resolutions (resolution_id, review_id, project_id, outcome,"
-        " resolved_by_actor_id, resolved_at, rationale, belief_revision_event_id)"
-        " VALUES ('res:other', 'rvw:other', %s, 'APPROVED', 'act:test', %s, 'r', %s)",
-        (PROJECT, T0, _event_from_review(world, "bre:other")),
-    )
-    world.execute(
-        "UPDATE review_items SET status = 'APPROVED', decision_ref = 'res:other'"
-        " WHERE review_id = 'rvw:other'"
-    )
+    own_event = _event_from_review(world, "bre:other")
 
-    with pytest.raises(ConflictStoreError, match="is not proof that this review resolved"):
-        SqlConflictStore(world).resolve(
-            project_id=PROJECT,
-            conflict_id="cfl:other",
-            resolution_event_id="bre:from-review",
-            resolved_at=T0,
-        )
-    assert first.conflict_id == "cfl:authority"
+    with uncommitted.cursor() as cursor:
+        _resolve_mid_transaction(cursor, "rvw:other", "res:other", own_event)
+        with pytest.raises(
+            psycopg.errors.RaiseException, match="is not proof that this review resolved"
+        ):
+            cursor.execute(
+                "SELECT conflict_close('cfl:other', %s, 'RESOLVED', %s, %s)",
+                (PROJECT, "bre:from-review", T0),
+            )
+    uncommitted.rollback()
+
+    assert SqlConflictStore(world).get(PROJECT, "cfl:other").blocks_transitions  # type: ignore[union-attr]
 
 
 def test_a_terminal_review_with_no_decision_ref_is_refused(world):
