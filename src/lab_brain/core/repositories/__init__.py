@@ -21,6 +21,11 @@ from lab_brain.core.repositories.budget import (
     SqlCostLedger,
     require_durable_connection,
 )
+from lab_brain.core.repositories.evidence import (
+    EvidenceStoreError,
+    SqlAttestationStore,
+    SqlRelationStore,
+)
 from lab_brain.core.repositories.memory import (
     InMemoryArtifactRepository,
     InMemoryAttestationRepository,
@@ -59,6 +64,7 @@ __all__ = [
     "CostLedger",
     "DuplicateIdentityError",
     "EvidenceBundleRepository",
+    "EvidenceStoreError",
     "InMemoryArtifactRepository",
     "InMemoryAttestationRepository",
     "InMemoryBeliefEventStore",
@@ -77,9 +83,11 @@ __all__ = [
     "SourceWorkRepository",
     "SpanLifecycleError",
     "SpanRepository",
+    "SqlAttestationStore",
     "SqlBeliefEventStore",
     "SqlBudgetApprovalClaims",
     "SqlCostLedger",
+    "SqlRelationStore",
     "SqlSpanRepository",
     "SqlTransitionPolicyStore",
     "TraceCorruptionError",

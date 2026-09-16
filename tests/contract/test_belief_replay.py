@@ -22,6 +22,7 @@ import datetime as dt
 import pytest
 
 from lab_brain.core.belief import (
+    PROJECTION_VERSION,
     BeliefScopeError,
     SkipReason,
     VerifiedBeliefRevision,
@@ -233,16 +234,62 @@ def test_replay_is_deterministic_for_events_in_the_same_microsecond():
     assert first.applied == ("bre:a", "bre:b")
 
 
-def test_the_projection_is_not_the_full_epistemic_state_projection():
-    """Named `BeliefProjection` on purpose.
+def test_the_projection_carries_every_field_17_13_declares():
+    """The inversion of a test that used to assert the opposite, and the inversion is the point.
 
-    §17.13's `EpistemicStateProjection` also carries `belief_level` and `unresolved_conflicts`,
-    which need EPI-004 and EPI-006. A type with those fields missing but that name would be read as
-    finished, so it does not have that name.
+    Until M0b closure this type was called `BeliefProjection` and this test asserted that
+    `belief_level`, `unresolved_conflicts` and `projection_version` were **absent** -- because they
+    needed EPI-004 and EPI-006, and a type carrying §17.13's name with two of its fields missing
+    would have been read as finished. Those requirements landed, so the fields are real and the
+    name is earned.
+
+    `belief_level` is asserted to be None rather than merely present. §17.13 marks it optional,
+    §8.1 only *建議s* an ordinal LOW/MEDIUM/HIGH and declares no thresholds, and "evidence quality
+    dimensions" is a DomainPack judgment -- so core computing one would be a scientific verdict in
+    core prose rather than in a versioned policy (AGT-016). Absent and explained beats invented.
     """
     projection = replay(PROJECT, HYP, verified(event(from_state=None, to_state=BeliefState.ACTIVE)))
-    for absent in ("belief_level", "unresolved_conflicts", "projection_version"):
-        assert not hasattr(projection, absent), absent
+    for declared in (
+        "target_id",
+        "current_state",
+        "belief_level",
+        "unresolved_conflicts",
+        "last_event_id",
+        "projection_version",
+        "projected_at",
+    ):
+        assert hasattr(projection, declared), f"§17.13 declares {declared}"
+
+    assert projection.belief_level is None, "core must not invent an ordinal belief level"
+    assert projection.projection_version == PROJECTION_VERSION
+    assert projection.unresolved_conflicts == ()
+
+
+def test_unresolved_conflicts_are_supplied_and_deterministically_ordered():
+    """§17.13: conflict_id references, not inline payloads -- and stable across two reads.
+
+    Supplied rather than folded out of the events, because §17.19.3 conflicts are their own table
+    with their own lifecycle and no fold over the belief log can know them. Sorted here because the
+    caller gets them from a repository, and a projection whose conflict order depended on query
+    planning would compare unequal to itself between two runs.
+    """
+    revisions = verified(event(from_state=None, to_state=BeliefState.ACTIVE))
+    projection = replay(PROJECT, HYP, revisions, unresolved_conflicts=["cfl:b", "cfl:a", "cfl:b"])
+    assert projection.unresolved_conflicts == ("cfl:a", "cfl:b")
+    assert projection.has_unresolved_conflicts
+    assert projection == replay(PROJECT, HYP, revisions, unresolved_conflicts=["cfl:b", "cfl:a"])
+
+
+def test_the_projector_reads_no_clock():
+    """`projected_at` is an argument. A projector that stamped `now()` would make two replays of
+    one immutable history compare unequal, which is the whole claim EPI-003 makes."""
+    revisions = verified(event(from_state=None, to_state=BeliefState.ACTIVE))
+    assert replay(PROJECT, HYP, revisions).projected_at is None
+    assert replay(PROJECT, HYP, revisions) == replay(PROJECT, HYP, revisions)
+
+    stamped = replay(PROJECT, HYP, revisions, projected_at=T0)
+    assert stamped.projected_at == T0
+    assert stamped != replay(PROJECT, HYP, revisions)
 
 
 # --------------------------------------------------------------------------------------------

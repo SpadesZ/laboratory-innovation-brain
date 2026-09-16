@@ -57,10 +57,19 @@ exists, not a feature on top of it:
       -> 得到可驗證的新 EpistemicStateProjection
       -> 不得靠手改 current status
 
-WHAT THIS REDUCER IS NOT. It produces :class:`BeliefProjection`, deliberately **not** §17.13's
-``EpistemicStateProjection``: there is no ``belief_level`` and no ``unresolved_conflicts``, because
-those need `EPI-004` and `EPI-006`. Naming it differently is the point -- a type called
-``EpistemicStateProjection`` with two of its fields missing would be read as finished.
+WHAT THIS REDUCER PRODUCES. §17.13's :class:`EpistemicStateProjection`, in full. It was called
+``BeliefProjection`` until M0b closure and deliberately so: it had no ``belief_level`` and no
+``unresolved_conflicts``, both of which needed `EPI-004` and `EPI-006` to exist, and a type named
+after the canonical schema with two of its fields missing would have been read as finished.
+
+``unresolved_conflicts`` is **passed in**, not derived from the events, and that is not a shortcut.
+§17.19.3 conflicts are their own table with their own lifecycle; they are not event-sourced through
+`BeliefRevisionEvent`, so no fold over the event log can know them. Resolving them is a repository
+read, and this reducer must stay pure for the same reason `TransitionPolicy.evaluate` does --
+`HypothesisView.conflicts` arrives the same way, for the same reason.
+
+``projected_at`` is passed in too. A projector that stamped ``now()`` would read a clock, and
+EPI-003's whole claim is that replaying the same history twice gives the same answer.
 """
 
 from __future__ import annotations
@@ -172,19 +181,59 @@ class BeliefScopeError(RuntimeError):
     """
 
 
+class BeliefLevel(StrEnum):
+    """§8.1's ordinal belief, and the reason this reducer never assigns one.
+
+        §8.1  Confidence 在 v1 **不使用** 0.58 這類未校準機率。建議先用 ordinal belief：
+              `LOW / MEDIUM / HIGH` + support/contradiction counts + evidence quality dimensions。
+
+    The enum exists so `EpistemicStateProjection.belief_level` is typed rather than free text when
+    something does populate it. Nothing in M0b does, and that is deliberate: §8.1 *建議s* an
+    approach and declares no thresholds, §17.13 marks the field optional (`belief_level?`), and
+    "evidence quality dimensions" is a DomainPack judgment a domain-agnostic core cannot make.
+    Deriving a level here would put a scientific verdict in core prose instead of in a versioned
+    policy, which is precisely what AGT-016 forbids -- so the field stays `None` and says why.
+    """
+
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+
+#: Version of *this projector*, recorded on every projection it produces (§17.13).
+#:
+#: Bumped when the fold changes meaning -- the cascade rule, the quarantine rule, or the set of
+#: events considered. A projection is a derived artefact, so two of them disagreeing is only
+#: diagnosable if each says which projector made it.
+PROJECTION_VERSION = "1.0.0"
+
+
 @dataclass(frozen=True)
-class BeliefProjection:
-    """The minimal replay result: what one project's events say the state is now.
+class EpistemicStateProjection:
+    """§17.13's projection: what one project's verified events say the state is now.
 
     ``skipped`` is carried rather than discarded, and it is the interesting half. After a
     contamination rollback, "the state is ACTIVE" is much less useful than "the state is ACTIVE
     because these four events were dropped" -- the second is reviewable, the first is an assertion.
+
+    ``project_id``, ``applied`` and ``skipped`` are beyond §17.13's field list. The first is
+    `v3.3-a11`'s scope key, without which "this project's belief history" is not expressible; the
+    other two are the audit trail that makes a rollback reviewable. §17.13's block is a sketch of
+    what a projection *holds*, not a closed schema -- and unlike `Artifact`, there is no table to
+    drift against, because a projection is derived and never stored.
     """
 
     project_id: str
     target_id: str
     current_state: BeliefState | None
     last_event_id: str | None
+    #: §17.19.3 conflict_id references, **not** inline payloads (§17.13). Supplied by the caller
+    #: from the conflict store; see the module docstring for why a pure fold cannot derive them.
+    unresolved_conflicts: tuple[str, ...] = ()
+    #: Always `None` in M0b. See :class:`BeliefLevel`.
+    belief_level: BeliefLevel | None = None
+    projection_version: str = PROJECTION_VERSION
+    projected_at: dt.datetime | None = None
     applied: tuple[str, ...] = ()
     skipped: tuple[tuple[str, SkipReason], ...] = ()
 
@@ -192,6 +241,16 @@ class BeliefProjection:
     def is_empty(self) -> bool:
         """No event applied. Distinct from a state of DRAFT, which an event had to produce."""
         return self.current_state is None
+
+    @property
+    def has_unresolved_conflicts(self) -> bool:
+        """Whether anything in `unresolved_conflicts` is still outstanding.
+
+        A convenience for readers of a projection, **not** a gate. Whether a given conflict blocks
+        a given transition is `TransitionPolicy.blocking_conflict_policy`'s answer and depends on
+        `conflict_type`; a projection cannot know which policy is about to be asked.
+        """
+        return bool(self.unresolved_conflicts)
 
 
 class VerificationFailure(StrEnum):
@@ -491,7 +550,9 @@ def replay(
     target_id: str,
     revisions: Sequence[VerifiedBeliefRevision],
     quarantined_attestation_ids: Iterable[str] = (),
-) -> BeliefProjection:
+    unresolved_conflicts: Iterable[str] = (),
+    projected_at: dt.datetime | None = None,
+) -> EpistemicStateProjection:
     """Fold one project's *verified* revisions for one target into its current state (§6.18).
 
     TAKES `VerifiedBeliefRevision`, NOT `BeliefRevisionEvent`, AND THAT IS THE POINT. P8 left this
@@ -550,11 +611,18 @@ def replay(
         last = event.event_id
         applied.append(event.event_id)
 
-    return BeliefProjection(
+    return EpistemicStateProjection(
         project_id=project_id,
         target_id=target_id,
         current_state=state,
         last_event_id=last,
+        # Sorted and de-duplicated: the caller supplies these from a repository read, and a
+        # projection whose conflict order depended on query planning would compare unequal to
+        # itself across two runs.
+        unresolved_conflicts=tuple(sorted(set(unresolved_conflicts))),
+        belief_level=None,
+        projection_version=PROJECTION_VERSION,
+        projected_at=projected_at,
         applied=tuple(applied),
         skipped=tuple(skipped),
     )
@@ -724,7 +792,7 @@ def record_transition(
     authority_policy: AuthorityPolicy | None = None,
     hypothesis: HypothesisView,
     candidate_to_state: BeliefState,
-    prior: BeliefProjection,
+    prior: EpistemicStateProjection,
     occurred_at: dt.datetime,
     trace_id: str,
     triggering_attestations: Sequence[Attestation] = (),
@@ -877,7 +945,7 @@ def admit_hypothesis(
     policy: TransitionPolicy,
     project_id: str,
     hypothesis_id: str,
-    prior: BeliefProjection,
+    prior: EpistemicStateProjection,
     occurred_at: dt.datetime,
     trace_id: str,
     triggering_attestations: Sequence[Attestation] = (),
@@ -990,9 +1058,10 @@ def quarantined_by_extractor_version(
 
 __all__ = [
     "AuthorizedRevision",
-    "BeliefProjection",
+    "BeliefLevel",
     "BeliefScopeError",
     "BeliefTransitionRefused",
+    "EpistemicStateProjection",
     "SkipReason",
     "admit_hypothesis",
     "quarantined_by_extractor_version",

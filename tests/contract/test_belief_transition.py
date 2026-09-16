@@ -20,9 +20,9 @@ import pytest
 
 from lab_brain.core.belief import (
     AuthorizationNotRederivable,
-    BeliefProjection,
     BeliefScopeError,
     BeliefTransitionRefused,
+    EpistemicStateProjection,
     admit_hypothesis,
     authorize_transition,
     record_transition,
@@ -71,7 +71,9 @@ def authorized(**overrides: object) -> BeliefTransitionDecision:
     return authorize_transition(**defaults)  # type: ignore[arg-type]
 
 
-def prior(state: BeliefState | None = BeliefState.ACTIVE, **overrides: object) -> BeliefProjection:
+def prior(
+    state: BeliefState | None = BeliefState.ACTIVE, **overrides: object
+) -> EpistemicStateProjection:
     defaults: dict[str, object] = {
         "project_id": PROJECT,
         "target_id": HYP,
@@ -79,7 +81,7 @@ def prior(state: BeliefState | None = BeliefState.ACTIVE, **overrides: object) -
         "last_event_id": None if state is None else "bre:0",
     }
     defaults.update(overrides)
-    return BeliefProjection(**defaults)  # type: ignore[arg-type]
+    return EpistemicStateProjection(**defaults)  # type: ignore[arg-type]
 
 
 def create(**overrides: object) -> BeliefRevisionEvent:
