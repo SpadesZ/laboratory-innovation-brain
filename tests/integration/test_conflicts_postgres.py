@@ -419,7 +419,7 @@ def test_the_close_function_is_project_scoped(seeded):
     # `011c` split this message: the lookup now distinguishes "no such conflict in this project"
     # from "already closed", which is more precise and is what a project-scoped miss actually is.
     with pytest.raises(
-        psycopg.errors.RaiseException, match="does not exist|absent or already closed"
+        psycopg.errors.RaiseException, match=r"does not exist|absent or already closed"
     ):
         seeded.execute(
             "SELECT conflict_close('cfl:1', %s, 'RESOLVED', %s, %s)",
