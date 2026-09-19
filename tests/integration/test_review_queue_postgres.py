@@ -15,6 +15,12 @@ that resolution's own event. So an expiry closes a conflict and unblocks a belie
 adjudicated -- a real governance act, with a real record. Anything cheaper would be the half-state
 P12/P13 spent two slices closing.
 
+LIVENESS IS GATED BY SPEC-ISSUE-012, AND THAT IS WHY THERE IS NO PRODUCTION SWEEP HERE. The
+third clause needs a closure event, `v3.3-a14` routes it through a `BeliefRevisionEvent`, and a
+timeout is not a belief transition. See `_placeholder_closure_event` below for what the fixture
+actually writes and why no caller was added. Every test in this file is about the seam, the
+deadlines, or the Capability -- none of them claims the obligation is discharged.
+
 NOT UX-005. T-UX-005 additionally requires the NEEDS_REVIEW user experience, which does not exist.
 This file discharges the governance/backend contract and nothing else.
 """
@@ -153,7 +159,25 @@ def _queue(world) -> ReviewQueue:  # type: ignore[no-untyped-def]
     return ReviewQueue(policy=policy, reviews=SqlReviewItemStore(world))
 
 
-def _event(world, event_id: str) -> str:  # type: ignore[no-untyped-def]
+def _placeholder_closure_event(world, event_id: str) -> str:  # type: ignore[no-untyped-def]
+    """A stand-in closure event. **It is not a defensible production event** — SPEC-ISSUE-012.
+
+    Read the `target_id` below: `f"hyp:{event_id}"` is a hypothesis that **does not exist**. This
+    writes a genesis `BeliefRevisionEvent` for an invented subject, purely to satisfy the foreign
+    key `011a` and `011c` place on `resolution_event_id`.
+
+    That is deliberate and it is named, because the alternative was to leave it looking ordinary.
+    The audit question "what event may an automatic expiry author?" has no answer in SAI 3.3: a
+    timeout is not a belief transition, `005b` makes a no-op transition policy unrepresentable
+    (`CHECK (from_state <> candidate_to_state)`), and a real transition is either circular (a
+    policy honouring the blocking conflict returns NEED_HUMAN_REVIEW, so no ALLOW, so no event) or
+    a scheduler declaring a hypothesis INCONCLUSIVE on no evidence.
+
+    So the tests below prove the **seam**: that `ReviewQueue.expire` routes through the locked
+    `011c` resolve-and-close path, refuses an item that has not expired, refuses one already
+    resolved, and leaves no `011d` half-state. They prove nothing about *which* event a real
+    expiry may cite, and no production caller was added for that reason.
+    """
     world.execute(
         "SELECT belief_revision_event_append(%s, %s, 'HYPOTHESIS', %s, NULL, 'ACTIVE',"
         " %s, ARRAY[]::text[], 'pol:genesis', '1.0.0', NULL, NULL, NULL, %s, %s, NULL)",
@@ -428,7 +452,7 @@ def test_an_expired_item_leaves_the_queue_through_the_declared_policy(world):
         now=now,
         resolutions=store,
         resolution_id="res:expired",
-        closure_event_id=_event(world, "bre:expiry"),
+        closure_event_id=_placeholder_closure_event(world, "bre:expiry"),
         resolved_by_actor_id="act:test",
     )
 
@@ -467,7 +491,7 @@ def test_an_item_that_has_not_expired_cannot_be_swept(world):
             now=T0 + dt.timedelta(hours=5),
             resolutions=SqlReviewItemStore(world),
             resolution_id="res:early",
-            closure_event_id=_event(world, "bre:early"),
+            closure_event_id=_placeholder_closure_event(world, "bre:early"),
             resolved_by_actor_id="act:test",
         )
     assert SqlReviewItemStore(world).get(PROJECT, "rvw:1").is_outstanding  # type: ignore[union-attr]
@@ -484,7 +508,7 @@ def test_an_already_resolved_item_cannot_be_expired_over(world):
         now=now,
         resolutions=SqlReviewItemStore(world),
         resolution_id="res:1",
-        closure_event_id=_event(world, "bre:1"),
+        closure_event_id=_placeholder_closure_event(world, "bre:1"),
         resolved_by_actor_id="act:test",
     )
 
@@ -496,7 +520,7 @@ def test_an_already_resolved_item_cannot_be_expired_over(world):
             now=now,
             resolutions=SqlReviewItemStore(world),
             resolution_id="res:2",
-            closure_event_id=_event(world, "bre:2"),
+            closure_event_id=_placeholder_closure_event(world, "bre:2"),
             resolved_by_actor_id="act:test",
         )
 
@@ -515,7 +539,7 @@ def test_the_expiry_leaves_no_forbidden_review_conflict_pair(world):
         now=now,
         resolutions=SqlReviewItemStore(world),
         resolution_id="res:1",
-        closure_event_id=_event(world, "bre:1"),
+        closure_event_id=_placeholder_closure_event(world, "bre:1"),
         resolved_by_actor_id="act:test",
     )
 
@@ -580,3 +604,50 @@ def test_a_retried_escalation_succeeds_even_if_the_policy_was_retired(world):
         ),
     )
     assert again.review_id == "rvw:1"
+
+
+def test_earliest_available_at_is_never_in_the_past(world):
+    """A full queue whose items are ALL already breached must not report a moment that has gone.
+
+    Found by the M0b sign-off audit. Unclamped, `min(due_at)` over a saturated, entirely-overdue
+    queue returns a timestamp behind `now` -- and a planner reading it would schedule against the
+    queue on the strength of a date that proves the opposite: those items are not nearly done, they
+    are late.
+
+    §14.4.1 says depth, availability, SLA and expiry *feed* `earliest_available_at` and defines no
+    formula, so the floor is a stated implementation rule, not a derived one: whatever else the
+    capability reports, human review cannot have become available in the past.
+    """
+    _escalate(world, "rvw:1", "cfl:1")
+    _escalate(world, "rvw:2", "cfl:2")
+
+    # Capacity is 2 and both items are HIGH, so both were due 4h after T0. Ask 10 days later.
+    now = T0 + dt.timedelta(days=10)
+    capability = _queue(world).capability(PROJECT, now)
+
+    assert capability.depth == 2 and capability.capacity == 2
+    assert capability.available is False, "the queue is full"
+    assert capability.breached == 2, "and every item is past its SLA"
+    assert capability.earliest_available_at >= now, (
+        f"earliest_available_at {capability.earliest_available_at.isoformat()} is before "
+        f"now {now.isoformat()}; human review cannot have become available in the past"
+    )
+    assert capability.earliest_available_at == now, "the floor, reported as a bound"
+
+
+def test_a_full_but_unbreached_queue_still_reports_its_real_next_slot(world):
+    """The clamp must not flatten the useful case into `now`.
+
+    Same saturated queue, asked *before* the SLA runs out: the answer is the genuine earliest
+    `due_at`, which is later than `now` and is the number a planner actually wants.
+    """
+    _escalate(world, "rvw:1", "cfl:1")
+    _escalate(world, "rvw:2", "cfl:2")
+
+    now = T0 + dt.timedelta(hours=1)
+    capability = _queue(world).capability(PROJECT, now)
+
+    assert capability.available is False
+    assert capability.breached == 0
+    assert capability.earliest_available_at == T0 + dt.timedelta(hours=4)
+    assert capability.earliest_available_at > now

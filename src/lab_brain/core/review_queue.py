@@ -210,9 +210,22 @@ class ReviewQueue:
         * full with no dated items -> `now` plus the policy's default SLA, because there is nothing
           to read a date off and reporting `now` would again be the optimistic lie.
 
+        IT IS A LOWER BOUND, AND IT IS NEVER IN THE PAST. The M0b sign-off audit found the case:
+        a queue that is full **and already entirely breached** has every `due_at` behind `now`, so
+        the unclamped `min(dated)` reports a moment that has already gone. A planner reading it
+        would schedule against a saturated queue on the strength of a date that proves the opposite
+        -- the items are not nearly done, they are late.
+
+        §14.4.1 says depth, availability, SLA and expiry *feed* `earliest_available_at` and defines
+        no formula, so the floor is stated here rather than derived from the spec: whatever else it
+        reports, human review cannot have become available in the past. When everything is breached
+        the honest answer is "not before now, and the queue cannot say when" -- `available=False`
+        carries that, and this timestamp is the bound, not a promise.
+
         Items already past their expiry are *not* discounted from depth. They are still occupying
         the queue until something sweeps them, and a capability that assumed the sweep had happened
-        would report room that does not exist.
+        would report room that does not exist. Since SPEC-ISSUE-012 leaves the sweep ungated, that
+        is currently the only honest reading.
         """
         items = self.outstanding(project_id)
         depth = len(items)
@@ -223,11 +236,12 @@ class ReviewQueue:
             earliest = now
         else:
             dated = [item.due_at for item in items if item.due_at is not None]
-            earliest = (
+            projected = (
                 min(dated)
                 if dated
                 else now + dt.timedelta(minutes=self._policy.default_sla_minutes)
             )
+            earliest = max(now, projected)
 
         return HumanReviewCapability(
             project_id=project_id,

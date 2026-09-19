@@ -124,6 +124,13 @@ UNBOUND: dict[str, str] = {
     "computed fields that this guard does not yet have.",
     "EvidenceField": "§17.9's block describes a value object embedded in Observation, not a table, "
     "so there is no DDL side to compare against.",
+    "Hypothesis": "§17.5 declares `status_projection` and `belief_level_projection`, and the same "
+    "block four lines later says status is rebuilt from BeliefRevisionEvent + TransitionPolicy. "
+    "The model deliberately omits both: a stored, writable status is the bypass T-SYS-001 requires "
+    "be rejected, so the projection lives in EpistemicStateProjection where it is derived. The "
+    "model also carries project_id, which §17.5 omits, and there is no DDL side -- the Hypothesis "
+    "table lands with EPI-001's admission gate in M3. Bindable once §17.5 states the two "
+    "projections as derived references and the table exists.",
     "Prediction": "§17.5.1's Prediction is not persisted in M0b -- VER-006's §26 row is "
     "contract/unit, and the table is the other half of Appendix A's 011 slot, landing with the "
     "Verification Planner. The model also carries project_id, which §17.5.1 omits for the same "

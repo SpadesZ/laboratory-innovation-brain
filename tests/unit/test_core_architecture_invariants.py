@@ -1,10 +1,21 @@
-"""Architecture invariants for the core scientific entities.
+"""Architecture invariants that are **not** SYS-001's pass condition.
 
-Deliberately unmarked. These guard the design from the moment the models exist, but the
-Requirement they serve -- SYS-001 -- is allocated to M0b: its §26 pass condition names
-EpistemicState and Hypothesis, neither of which exists yet, so claiming it here would discharge
-half a pass condition. The marked T-SYS-001 in M0b asserts both halves and will reuse these
-checks.
+Deliberately unmarked, and the reason changed at M0b closure -- the old docstring is preserved in
+outline below because it was right for two milestones and is now wrong.
+
+WHAT IT USED TO SAY. "These guard the design from the moment the models exist, but the Requirement
+they serve -- SYS-001 -- is allocated to M0b: its §26 pass condition names EpistemicState and
+Hypothesis, neither of which exists yet." True in M0a. Both exist now
+(`lab_brain.core.belief.EpistemicStateProjection`, `lab_brain.core.models.hypothesis.Hypothesis`),
+so the support-array and no-stored-status assertions moved to
+`tests/unit/test_sys001_static_conformance.py`, where they execute **under** SYS-001/T-SYS-001.
+The M0b sign-off audit found they had been executing under no requirement at all.
+
+WHY THIS MODULE IS STILL UNMARKED. What is left is genuinely not SYS-001's clause. Frozen models
+and `extra="forbid"` are P2's append-only design; the DomainPack import direction is §24.2, whose
+acceptance test is T-EXT-001 in M2; the migration-ordering checks validate the schema-delivery
+harness. Marking any of them SYS-001 would inflate the traceability matrix with tests that do not
+discharge it.
 """
 
 from __future__ import annotations
@@ -15,7 +26,6 @@ from pathlib import Path
 
 import pytest
 
-from lab_brain.core.models import FORBIDDEN_RELATION_FIELDS
 from lab_brain.core.models.artifact import Artifact
 from lab_brain.core.models.attestation import Attestation
 from lab_brain.core.models.claim import Claim
@@ -29,43 +39,6 @@ CORE_ENTITIES = (Artifact, SourceWork, Claim, Observation, Attestation, Relation
 
 def core_package() -> Path:
     return repo_root() / "src" / "lab_brain" / "core"
-
-
-@pytest.mark.parametrize("model", CORE_ENTITIES, ids=lambda m: m.__name__)
-def test_no_core_entity_carries_a_parallel_support_array(model):
-    """Support and contradiction live only in RelationJudgment (§17.2, §17.5, SYS-001).
-
-    A parallel array is a second store of the same fact that nothing keeps in step with the
-    relation table, and when the two disagree there is no way to tell which one the belief state
-    was computed from.
-    """
-    offending = sorted(set(model.model_fields) & FORBIDDEN_RELATION_FIELDS)
-    assert not offending, (
-        f"{model.__name__} declares {offending}; support/contradiction is resolved only "
-        "through RelationJudgment"
-    )
-
-
-def test_the_hypothesis_view_carries_no_support_array_either():
-    """§26's T-SYS-001 names Attestation **and Hypothesis**, and the second half needs saying.
-
-    `Hypothesis` (§8.1) does not exist as an entity until EPI-001 in M3, so the only
-    hypothesis-shaped object in core is `HypothesisView` -- the thing `TransitionPolicy.evaluate`
-    actually reads. If a support array were ever going to appear anywhere, it would appear here:
-    it is the object a caller assembles right before asking whether a belief may move, and
-    "just pass the supporting ids along" is the shortest path to the arrangement §17.19.3 forbids.
-
-    `conflicts` is present and is not an exception. It holds typed `Conflict` records that the
-    policy matches against its own declared `blocking_conflict_policy`; a support array would be
-    the caller's *conclusion*, which is exactly the difference.
-    """
-    from lab_brain.core.models.transition import HypothesisView
-
-    offending = sorted(set(HypothesisView.model_fields) & FORBIDDEN_RELATION_FIELDS)
-    assert not offending, (
-        f"HypothesisView declares {offending}; support and contradiction reach the policy only as "
-        "RelationJudgment, resolved from the relation table rather than asserted by the caller"
-    )
 
 
 @pytest.mark.parametrize("model", CORE_ENTITIES, ids=lambda m: m.__name__)

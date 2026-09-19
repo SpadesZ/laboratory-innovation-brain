@@ -80,6 +80,11 @@ from lab_brain.core.models.execution_span import (
     SpanStatus,
     SpanType,
 )
+from lab_brain.core.models.hypothesis import (
+    FORBIDDEN_HYPOTHESIS_FIELDS,
+    FORBIDDEN_STATUS_FIELDS,
+    Hypothesis,
+)
 from lab_brain.core.models.identifiers import (
     ContentHashError,
     artifact_id_for,
@@ -125,7 +130,9 @@ __all__ = [
     "EPISTEMIC_RELATION_TYPES",
     "FACTUAL_EPISTEMIC_TYPES",
     "FAIL_CLOSED_SENSITIVITY",
+    "FORBIDDEN_HYPOTHESIS_FIELDS",
     "FORBIDDEN_RELATION_FIELDS",
+    "FORBIDDEN_STATUS_FIELDS",
     "HIGH_WEIGHT_FIELD_STATUSES",
     "IDENTITY_EXCLUDED_FIELDS",
     "IDENTITY_RELATION_TYPES",
@@ -164,6 +171,7 @@ __all__ = [
     "ExtractionProvenance",
     "ExtractionStatus",
     "FieldStatus",
+    "Hypothesis",
     "HypothesisView",
     "IndependenceBasis",
     "IndependenceRelation",

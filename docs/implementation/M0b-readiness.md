@@ -1,10 +1,90 @@
 # M0b — Execution/Governance Foundation: readiness for maintainer sign-off
 
 Baseline: `6fd8093bab8a9c54fed9b618eced14ba86d20ee2` (P13, independent maintainer **HARD PASS**).
+Revised after the M0b sign-off audit returned **CONDITIONAL FAIL** on
+`37c33fce96364daacc8121bf88937001536bcea5` with two P1 closure gaps.
 
-**Status: READY_FOR_MAINTAINER_SIGNOFF.** All ten M0b requirements are READY against their exact
-§26 pass conditions. `docs/milestones.yaml` still records M0b as `IN_PROGRESS` and is deliberately
-not edited — sign-off is the maintainer's act, not this session's.
+**Status: NOT READY — 9 of 10 requirements READY, `OPS-002` blocked by
+[SPEC-ISSUE-012](../spec_issues/SPEC-ISSUE-012-review-expiry-has-no-authorable-closure-event.md)
+(GATE, OPEN).**
+
+`docs/milestones.yaml` still records M0b as `IN_PROGRESS` and is deliberately not edited — sign-off
+is the maintainer's act, not this session's.
+
+---
+
+## Audit response — what changed since `37c33fc`
+
+### P1-A — OPS-002 expiry liveness: **escalated, not implemented**
+
+The audit was right that the seam exists with no production caller. Adding the caller was four
+lines, and the instruction to first determine *who may author the expiry closure event* is what
+stopped it. The determination came back negative, so no caller was written.
+
+The chain is rigid and every link is locked: an expired item must leave PENDING → terminal
+ReviewItem → `decision_ref` → durable `ReviewResolution` → `belief_revision_event_id` **NOT NULL**
+(`011c`) → `Conflict.resolution_event_id` FK to `belief_revision_events` (`011a`). So an automatic
+expiry must author a **`BeliefRevisionEvent`**, and §17.13 gives that object exactly one meaning:
+a hypothesis's belief state changed. **An unanswered timeout is not a transition.**
+
+Probed against the real schema rather than argued:
+
+| Construction | Result |
+|---|---|
+| No-op `TransitionPolicy(ACTIVE → ACTIVE)` to cite | **unrepresentable** — `005b` `CHECK (from_state <> candidate_to_state)` |
+| Non-genesis event citing the admission policy | refused by `005c` |
+| Real transition `ACTIVE → INCONCLUSIVE`, policy honouring the conflict | `NEED_HUMAN_REVIEW` → no ALLOW → no event → **circular** |
+| Real transition, policy ignoring the conflict | `ALLOW` with *no required relation types* — a scheduler declaring a hypothesis INCONCLUSIVE on no evidence |
+| Genesis event for a fabricated hypothesis id | accepted — **and this is what the M0b fixture does** |
+
+The last row is the finding that settles it. `tests/integration/test_review_queue_postgres.py`
+passed because its closure-event helper wrote a genesis event for `f"hyp:{event_id}"` — a
+hypothesis that does not exist — to satisfy the foreign key. That helper is now named
+`_placeholder_closure_event`, documents exactly what it fabricates and why, and points at the gate.
+The expiry tests therefore prove the **seam** (routes through the locked `011c` path, refuses a
+not-yet-expired item, refuses an already-resolved one, leaves no `011d` half-state) and prove
+nothing about which event a real expiry may cite.
+
+Five readings, producing different scientific outcomes for the same hypothesis, are set out in the
+spec issue with a proposed wording (a `GovernanceEvent` distinct from a belief revision).
+
+### P1-B — SYS-001 exact conformance/traceability: **fixed**
+
+Two things, both real.
+
+**The static obligation was executing under no requirement.** §26 types T-SYS-001 `architecture`
+and names "static/conformance test rejects … support arrays on Attestation/Hypothesis". Those
+assertions lived in `tests/unit/test_core_architecture_invariants.py`, deliberately unmarked, while
+the marked SYS-001 module was an e2e that performed none of them. They now live in
+`tests/unit/test_sys001_static_conformance.py` under SYS-001/T-SYS-001 — one module, one pair, no
+cross-product — and carry **no `postgres` marker**, because a static conformance check that needed
+a database would be skipped by the very run that proves AGT-007.
+
+**Hypothesis vs HypothesisView is resolved by building the model, not by asserting equivalence.**
+`docs/milestones.yaml` moved SYS-001 to M0b precisely so "Hypothesis and EpistemicStateProjection
+could both be tested", and the previous revision of this document contradicted it by calling
+`Hypothesis` an M3 concern and using `HypothesisView` as a surrogate. The milestone record was
+right: §8.1's certificate is a **data contract**, and what belongs to EPI-001/M3 is the *admission
+gate* that judges its contents. `lab_brain.core.models.hypothesis.Hypothesis` is that certificate —
+frozen, `extra="forbid"`, typed `prediction_ids` pointing at VER-006's `Prediction`, a required
+falsifier, and no support arrays.
+
+It **omits `status_projection` and `belief_level_projection`**, which §17.5 lists four lines above
+"Status is rebuilt from BeliefRevisionEvent + TransitionPolicy". The second sentence wins: a stored,
+writable status is exactly the bypass T-SYS-001 requires be rejected. Declared in `UNBOUND` with
+that reason, and asserted — `FORBIDDEN_STATUS_FIELDS` is pinned exactly, and a mutation emptying it
+goes red.
+
+### P2 — both done
+
+- **Stale documentation corrected.** `test_core_architecture_invariants.py`'s docstring claimed
+  SYS-001 was unexercisable because "EpistemicState and Hypothesis … do not exist yet". Both exist;
+  the docstring now records what it used to say and why it changed.
+- **`earliest_available_at` can no longer report the past.** A full queue whose items are *all*
+  breached returned `min(due_at)`, a moment already gone — a planner would have scheduled against a
+  saturated queue on the strength of a date proving the opposite. §14.4.1 defines no formula, so the
+  floor is a stated implementation rule: `max(now, projected)`. Two fixtures pin it, including the
+  positive control that a full-but-unbreached queue still reports its real next slot.
 
 M0b exit gate: *event replay + transition/authority tests + ACL/budget/trace contracts pass;
 testable without a DomainPack.* The suite is green with no backend at all (712 passed / 342
@@ -35,10 +115,10 @@ snapshot.
 | | |
 |---|---|
 | **§26 pass condition** | static/conformance test rejects bypass from cognition directly to EpistemicState update or support arrays on Attestation/Hypothesis |
-| **Implementation** | `src/lab_brain/core/episode.py` (the path); `src/lab_brain/core/repositories/evidence.py` (the Attestation → RelationJudgment leg); `src/lab_brain/core/belief.py` (event → projection) |
-| **Test** | `tests/unit/test_core_architecture_invariants.py` (static half); `tests/e2e/test_episode_cognition_path_postgres.py` (17 tests, dynamic half) |
-| **PostgreSQL** | Yes. The bypasses are *attempted* against the real schema rather than assumed impossible: no writable belief-status column anywhere, no projection table, `AuthorizedRevision` unconstructable, an LLM verdict with nowhere to go |
-| **Known limitations** | `Hypothesis` (§8.1) does not exist as an entity until EPI-001 in M3. The clause's "Hypothesis" half is discharged against `HypothesisView` — the only hypothesis-shaped object in core and the one `evaluate` reads — which carries no support array. `stakes` is a parameter for the same reason |
+| **Implementation** | `src/lab_brain/core/episode.py` (the path); `src/lab_brain/core/models/hypothesis.py` (§8.1 certificate); `src/lab_brain/core/repositories/evidence.py` (the Attestation → RelationJudgment leg); `src/lab_brain/core/belief.py` (event → projection) |
+| **Test** | `tests/unit/test_sys001_static_conformance.py` (static half, **under SYS-001/T-SYS-001**, no backend); `tests/e2e/test_episode_cognition_path_postgres.py` (17 tests, dynamic half) |
+| **PostgreSQL** | Dynamic half yes — the bypasses are *attempted* against the real schema rather than assumed impossible: no writable belief-status column anywhere, no projection table, `AuthorizedRevision` unconstructable, an LLM verdict with nowhere to go. Static half deliberately backend-free (§26 types it `architecture`) |
+| **Known limitations** | §8's **Hypothesis Admission Gate** — judging whether a mechanism is a mechanism or a falsifier could falsify — is EPI-001 in M3. The certificate is held here; its contents are not judged. `Hypothesis` omits §17.5's `status_projection` / `belief_level_projection` by design (see the audit response above) and is listed in `UNBOUND` with that reason. `stakes` is an episode parameter until EPI-001 |
 | **Verdict** | **READY** |
 
 ### SEC-002 — Actor/ACL, project-scoped artifact access
@@ -124,10 +204,10 @@ snapshot.
 |---|---|
 | **§26 pass condition** | queue depth/capacity changes human-review capability availability and planner `earliest_available_at`; a ReviewItem without `stakes` or without an SLA/expiry policy is refused at creation; an item past its expiry leaves PENDING via the declared policy rather than parking there indefinitely |
 | **Implementation** | migration `011e` (`review_queue_policies`, the deadline trigger, escalation re-priced); `src/lab_brain/core/review_queue.py` (`ReviewQueuePolicy`, `HumanReviewCapability`, `ReviewQueue`, `price_review`); `SqlReviewQueuePolicyStore` |
-| **Test** | `tests/integration/test_review_queue_postgres.py` (22 tests) |
+| **Test** | `tests/integration/test_review_queue_postgres.py` (24 tests) |
 | **PostgreSQL** | Yes. The "refused at creation" clause is a trigger, tested by raw SQL for all four shapes: blank stakes, no policy, policy named but unpriced, expiry before due |
-| **Known limitations** | Capacity **does not** refuse an escalation, and the asymmetry is deliberate: §26 says depth and capacity change *availability*. A full queue that rejected a blocking conflict's review would leave it OPEN with nobody assigned — still blocking the belief, and now invisible to the queue meant to report the backlog. `earliest_available_at` is computed from the earliest outstanding `due_at` and the declared default SLA; there is no per-reviewer calendar, which §14.4.1's "actor schedule" would eventually want. `reviewer_minutes_per_day` is declared and stored but not yet consumed by a planner — there is no planner in M0b |
-| **Verdict** | **READY** |
+| **Known limitations** | **The liveness clause is not discharged — [SPEC-ISSUE-012](../spec_issues/SPEC-ISSUE-012-review-expiry-has-no-authorable-closure-event.md), GATE, OPEN.** `ReviewQueue.expire` exists and preserves `v3.3-a14`, and no production caller invokes it, because invoking it means choosing which event a timeout may author and the spec does not say. Capacity **does not** refuse an escalation, deliberately: §26 says depth and capacity change *availability*, and a full queue rejecting a blocking conflict's review would leave it OPEN with nobody assigned. `earliest_available_at` is a **lower bound** clamped to `now`, computed from the earliest outstanding `due_at`; there is no per-reviewer calendar, which §14.4.1's "actor schedule" would eventually want, and `reviewer_minutes_per_day` is stored but unconsumed until a planner exists |
+| **Verdict** | **NOT_READY** — depth, capacity, `earliest_available_at`, stakes and the SLA/expiry policy at creation are all discharged; liveness is gated |
 
 ### OPS-003 — execution trace linking episode → retrieval/LLM/job/run/artifact with costs
 
@@ -144,7 +224,15 @@ snapshot.
 
 ## Requirements NOT ready
 
-**None.** All ten are READY.
+**`OPS-002`** — the only one, and only its third clause. Blocked by SPEC-ISSUE-012 (GATE, OPEN,
+blocks M0b). Depth/capacity → availability is discharged; `earliest_available_at` is discharged and
+now clamped; stakes and the SLA/expiry policy are refused at creation by a trigger with four
+negative fixtures. What is missing is a production sweep, and writing one requires the maintainer
+to choose what event an automatic expiry may author.
+
+**Unblocking it needs a ruling, not code.** Once the reading is chosen, the implementation is small
+— the seam, the deadlines, the idempotence and the `011d` half-state guard are all in place and
+tested.
 
 Two requirements that a reader might expect to see promoted are deliberately absent:
 
@@ -158,8 +246,16 @@ Two requirements that a reader might expect to see promoted are deliberately abs
 
 ## Spec contradictions and AGT-015 gates discovered
 
-**None.** No spec amendment was needed and none was written. Three places where the spec required
-a reading rather than a change, all resolved against existing amendments and recorded in code:
+**One, raised: [SPEC-ISSUE-012](../spec_issues/SPEC-ISSUE-012-review-expiry-has-no-authorable-closure-event.md)** (GATE, OPEN, blocks M0b) — an
+automatically expired ReviewItem has no closure event anyone may author. Five readings with
+different scientific outcomes, a proposed wording, and the probe evidence are in the issue.
+
+The milestones.yaml-vs-readiness contradiction the audit flagged on `Hypothesis` was **not** a spec
+ambiguity and is not escalated: the milestone record was right, the previous readiness text was
+wrong, and the fix was to build the certificate (see P1-B above).
+
+Three further places where the spec required a reading rather than a change, all resolved against
+existing amendments and recorded in code:
 
 1. **`belief_level`** — §17.13 marks it optional and §8.1 only 建議s an ordinal scheme with no
    thresholds. Read as: the field exists and core does not populate it. Not escalated, because
@@ -182,17 +278,17 @@ reads is the one from the run that enabled the gate.
 | gate | result |
 |---|---|
 | `ruff check src tests scripts` | clean |
-| `ruff format --check` | clean, 116 files |
-| `mypy` (strict) | clean, 55 source files |
-| Backend-free suite | **712 passed / 342 skipped** (AGT-007) |
+| `ruff format --check` | clean, 118 files |
+| `mypy` (strict) | clean, 56 source files |
+| Backend-free suite | **722 passed / 344 skipped** (AGT-007) |
 | Migrations from empty | **22** declared, 22 applied |
 | Migration idempotency | `pending 0` on re-run |
-| Full suite, `postgres` profile | **1054 passed**, 0 failed |
-| Executed-coverage ratchet | exit 0 — 849 marked tests, 16 requirements with a passing test |
+| Full suite, `postgres` profile | **1066 passed**, 0 failed |
+| Executed-coverage ratchet | exit 0 — 868 marked tests, 16 requirements with a passing test |
 | `update_status.py --check` | up to date |
 | Spec conformance / traceability | 149 passed, **59 ↔ 59** |
 | Obligation inventory | 72 occurrences, in sync |
-| Mutations | **7 SQL on `011e`, all red** (each guard deleted, the one-active-policy index downgraded to non-unique, and the idempotence check moved after the policy lookup) |
+| Mutations | **7 SQL on `011e`** (P13 slice) + **5 Python on the P1-B/P2 guards**, all red. The fifth needed two attempts: emptying `FORBIDDEN_STATUS_FIELDS` survived at first, because the vocabulary itself had no test. It does now, pinned exactly |
 
 ---
 

@@ -37,6 +37,7 @@ enforces. The two are compared by `tests/spec/test_spec_issue_index.py`, because
 | [009](SPEC-ISSUE-009-cost-vector-has-no-token-dimension.md) | GATE | COST-001 requires token accounting `CostVector` cannot represent; cap `0` vs `NULL` undefined | M0b | **RESOLVED** — `token_count` + cap semantics, `v3.3-a10` |
 | [010](SPEC-ISSUE-010-belief-event-cannot-name-its-project-or-policy.md) | GATE | `BeliefRevisionEvent` names neither its project nor the policy that authorised it, so EPI-003 replay is unscoped and EPI-005 determinism has no anchor | M0b | **RESOLVED** — `project_id` + `policy_id`, `v3.3-a11` |
 | [011](SPEC-ISSUE-011-belief-event-carries-no-durable-authorization-proof.md) | GATE | A stored belief event carries no durable proof a policy decision authorised it; §17.14.1's `Decision` could hold it but no obligation, vocabulary or Requirement ID is stated | M0b | RESOLVED |
+| [012](SPEC-ISSUE-012-review-expiry-has-no-authorable-closure-event.md) | GATE | T-OPS-002 requires an expired ReviewItem to leave PENDING, but `v3.3-a14` routes that closure through a `BeliefRevisionEvent` and a timeout is not a belief transition — no event exists that a scheduler may legitimately author | M0b | OPEN |
 
 Issues 004–008 were all raised by the **M0a Spec Coverage Audit** (§23.5 (2)) — the section-by-section
 review of §6–§16 that a linter cannot perform. Each is a hard MUST in the prose with no Requirement
