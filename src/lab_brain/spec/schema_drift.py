@@ -90,6 +90,13 @@ BINDINGS: tuple[SchemaBinding, ...] = (
         migration="005a_belief_revision_events.sql",
     ),
     SchemaBinding(
+        section="17.19.1",
+        schema_name="GovernanceEvent",
+        model_path="lab_brain.core.models.governance_event:GovernanceEvent",
+        table="governance_events",
+        migration="011f_governance_event_closure.sql",
+    ),
+    SchemaBinding(
         section="17.17",
         schema_name="CostEntry",
         model_path="lab_brain.core.models.cost:CostEntry",
@@ -212,7 +219,15 @@ def table_columns(migration: str, table: str) -> frozenset[str]:
     if not path.is_file():
         raise SchemaDriftError(f"migration {migration} not found")
     sql = path.read_text(encoding="utf-8")
-    block = re.search(rf"CREATE TABLE\s+{re.escape(table)}\s*\((.*?)\n\);", sql, re.S | re.I)
+    # `IF NOT EXISTS` is optional because the repository uses both forms: the early migrations
+    # create a table once, and the later ones are written to be re-appliable against an
+    # already-migrated database. A guard that only recognised one spelling would report a bound
+    # table as missing -- which is how `governance_events` first failed this check.
+    block = re.search(
+        rf"CREATE TABLE\s+(?:IF NOT EXISTS\s+)?{re.escape(table)}\s*\((.*?)\n\);",
+        sql,
+        re.S | re.I,
+    )
     if block is None:
         raise SchemaDriftError(f"{migration} contains no `CREATE TABLE {table}`")
 

@@ -108,6 +108,13 @@ APPLY_ORDER: tuple[str, ...] = (
     # it replaces `authority_conflict_escalate` again to price the item from the declared policy,
     # preserving that version's idempotence and one-winner concurrency guarantees unchanged.
     "011e_review_queue_policy.sql",
+    # M0b gate / `v3.3-a15` (SPEC-ISSUE-012). An automatically expired ReviewItem had no
+    # closure event anyone could author: `v3.3-a14` routes every closure through a
+    # BeliefRevisionEvent, and a timeout is not a belief transition. Adds `governance_events`,
+    # generalises the closure reference to a typed (kind, id) pair on both
+    # `review_resolutions` and `conflicts`, and adds the atomic `review_expire`. After 011e:
+    # the GovernanceEvent cites the exact queue policy version the item was priced by.
+    "011f_governance_event_closure.sql",
 )
 
 _BOOTSTRAP = """

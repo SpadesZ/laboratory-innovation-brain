@@ -1647,6 +1647,90 @@ evaluate() and scientific belief semantics MUST NOT be duplicated into SQL
 (v3.3-a13).
 ```
 
+### GovernanceEvent, and what a closure event may be (`v3.3-a15`)
+
+```
+CANONICAL DISTINCTION
+
+  BeliefRevisionEvent (17.13)
+      a scientific epistemic-state transition. 8.2: "Every accepted transition
+      emits BeliefRevisionEvent."
+
+  GovernanceEvent
+      a governance/operational state change that does NOT itself alter
+      scientific belief.
+
+A GovernanceEvent MUST NOT be accepted as BeliefRevisionEvent evidence, MUST
+NOT appear in a belief replay, and MUST NOT mutate EpistemicStateProjection.
+A scheduler or maintenance process MUST NOT author a BeliefRevisionEvent.
+
+GovernanceEvent {
+  event_id, project_id,
+  event_type,                      # REVIEW_EXPIRY  (this slice only)
+  subject_type,                    # REVIEW_ITEM
+  subject_id,                      # review_id
+  related_conflict_id?,
+  policy_id, policy_version,       # the standing policy that authorised this
+  declared_by_actor_id?,           # who declared that policy
+  actor_id,                        # who/what executed it (human|service|agent)
+  reason_code, rationale?,
+  occurred_at, trace_id, episode_id?
+}
+
+GovernanceEvent is append-only, immutable and project-scoped.
+
+event_type is deliberately a closed vocabulary of one. A generic unlimited
+audit-event type would become a second way to close anything, which is the
+hole this amendment exists to avoid rather than open.
+
+RESOLUTION EVENT REFERENCE
+
+  17.19.1's resolution reference and 17.19.3's Conflict.resolution_event_id
+  are generalised to a typed pair:
+
+      resolution_event_kind = BELIEF_REVISION | GOVERNANCE
+      resolution_event_id
+
+  A Conflict and the ReviewResolution that closed it MUST reference the exact
+  same (resolution_event_kind, resolution_event_id), in the same project, for
+  the same review/conflict chain.
+
+  GOVERNANCE is permitted for exactly one combination:
+
+      ReviewResolution.outcome  = EXPIRED
+      GovernanceEvent.event_type = REVIEW_EXPIRY
+
+  Any other Conflict closure MUST be BELIEF_REVISION. A human resolution
+  (APPROVED | CORRECTED | REJECTED) MUST NOT close against a GovernanceEvent,
+  and an automatic expiry MUST NOT close against a BeliefRevisionEvent.
+
+AUTOMATIC EXPIRY
+
+  An expired outstanding ReviewItem leaves PENDING through exactly this path:
+
+      expired QUEUED|ASSIGNED ReviewItem
+        -> GovernanceEvent(REVIEW_EXPIRY)
+        -> ReviewResolution(outcome = EXPIRED)
+        -> ReviewItem EXPIRED
+        -> linked Conflict ACCEPTED_AS_OPEN_QUESTION
+        -> EpistemicStateProjection unchanged
+
+  ACCEPTED_AS_OPEN_QUESTION closes this review/conflict INSTANCE. It does not
+  mean the authority became comparable: a later episode over the same
+  INCOMPARABLE comparison MUST still return NEED_HUMAN_REVIEW and MAY create a
+  new Conflict and ReviewItem.
+
+  The expiry MUST use the queue policy version the ReviewItem was priced by,
+  not whichever policy is currently active. An expiry re-interpreted under a
+  policy the reviewer never saw is not the deadline they were given.
+
+  ReviewQueuePolicy carries declared_by_actor_id: the standing authority for
+  automatic expiry is the actor who declared the policy, and it MUST NOT be
+  inferred from the service account that executes the sweep. The two are
+  recorded separately, and an executing SERVICE actor does not thereby become
+  a scientific decision-maker.
+```
+
 ExecutionSpan {
   span_id, trace_id, parent_span_id?, span_type,
   episode_id?, actor_id?, model_call_id?/job_id?/retrieval_id?,
@@ -1744,6 +1828,11 @@ Rules:
   force outcome != ALLOW while any matching Conflict has blocking = true.
 - Conflicts are never silently deleted. Closing a Conflict is a state change and MUST
   record resolution_event_id.
+- `v3.3-a15`: the closure reference is the typed pair
+  (resolution_event_kind = BELIEF_REVISION | GOVERNANCE, resolution_event_id), and it
+  MUST equal the pair recorded by the ReviewResolution that closed it. GOVERNANCE is
+  permitted only for an EXPIRED resolution against a REVIEW_EXPIRY GovernanceEvent; see
+  17.19.1.
 ```
 
 ## 17.20 PriorArtSearchRecord
@@ -3288,3 +3377,4 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | **v3.3-a12** | **2026-09-15** | **Maintainer amendment (belief transition 的 durable authorization proof)**：裁決 SPEC-ISSUE-011，採 Option 1 + Option 2，並加課「授權輸入必須可重新推導」。`v3.3-a11` 之後 event 已能指名*哪一份 policy 本來會授權它*，但那仍只是聲明——§8.2.1 的 `TransitionDecision` 沒有 identity、不落盤，於是一個手工構造、引用真實 policy、且記錄的正是該 policy 所治理之 transition 的 event，與一個真的取得 ALLOW 的 event 在記錄上無從區分；缺的不是檢查而是**被檢查的對象**。（a）**§17.14.1 的 `Decision` 成為 belief transition 的 durable authorization record**：`decision_type` 於此用途固定為 `BELIEF_TRANSITION`，`result` 採 `ALLOW / DENY / NEED_MORE_EVIDENCE / NEED_HUMAN_REVIEW`（與 `TransitionDecision.outcome` 同一詞彙），並補入 `project_id`、`policy_id`/`policy_version`、`from_state`/`to_state`。（b）**必須保存 immutable canonical `decision_input_snapshot` + `input_hash`**，足以重建 §8.2.1 六組輸入；若 AuthorityPolicy 參與，必須保存其可唯一定位的 identity/version，**不得**只保存比較結果——只存結果會使 authority 規則不可反證，正是 §10.5.1 對 INCOMPARABLE 所拒絕的。`input_hash` 必須對 canonical bytes 本身計算，使 store 能在不重新序列化、不與寫入方約定欄位順序的前提下驗證綁定。（c）**§17.13 新增 `authorization_decision_id`**，`from_state` 非 null 時為 required，且該 Decision 必須同 project/subject/policy/from→to 且 `result=ALLOW`。（d）**re-derivability fail-closed**：以 snapshot 重建輸入、在指名的 immutable policy 下重跑 `evaluate`，其 canonical serialization 必須與 stored Decision 完全一致；不一致或無法重建者，該授權即視為不存在。其後果是偽造的門檻改變了性質——要造出一份能通過的 Decision，必須提供一組在 immutable policy 下真的 evaluate 成 ALLOW 的輸入，而那已經不是偽造，就是授權本身。Genesis 不參與此義務：admission 不冒充 transition authorization，`target_id` 仍無 foreign key（R-12），留給 EPI-001/M3。**此義務歸既有 EPI-005 / T-EPI-005；新增 normative registry statement，未新增 Requirement/Test ID**，Requirement ↔ Test 維持 **59 ↔ 59**。§17 與 §25.3/§26 在 §6–§16 稽核範圍之外，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |
 | **v3.3-a13** | **2026-09-16** | **Maintainer clarification (兩類 forgery 的分工)**：不新增義務，只使 `v3.3-a12` 既有義務的**執行位置**不再可誤讀。P9 audit 顯示 T-EPI-005 原本的 "must be impossible to **store**" 讀起來像是把全部責任放在 persistence 層，於是「只建寫入 gate」看似已達標——而 §17.14.1 同時要求「a stored event MUST NOT be accepted as authorized」，那是讀取側的義務。本次明確區分：（a）**storage-checkable forgery**——缺少 Decision、`result` 非 ALLOW、`input_hash` 不綁定 snapshot、project/subject/policy/from→to 不符——**MUST** 在 persistence／raw SQL 層即被拒絕；（b）**semantic forgery**——metadata／hash／linkage 全合法，但 snapshot 真正 re-evaluate 與 stored Decision 不同——**不要求** PostgreSQL 重做 evaluator，store **MAY** 接受該 row，因為在 SQL 中複製一份 §8.2.1 會使 semantic truth 從一份變成兩份會漂移的定義；改由 **production scientific read/replay path MUST re-derive 並在進入任何 projection 前 fail closed**。T-EPI-005 因此必須包含一個 adversarial e2e：raw SQL 寫入語意偽造的 Decision → DB **接受** → 經 production stores 重新載入 → verifier **拒絕** → projection 不變。**未新增 Requirement/Test ID、未新增 normative statement**——EPI-005 的語意不變，本修訂只使其已有義務的落點可被唯一解讀；Requirement ↔ Test 維持 **59 ↔ 59**。SPEC-ISSUE-011 維持 **RESOLVED**，不因本次澄清而重開。§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |
 | **v3.3-a14** | **2026-09-16** | **Maintainer clarification（review resolution 的 durable linkage，與 `subject_id` 的規範衝突）**：不新增義務，解掉兩處使既有義務無法被唯一執行的地方。（a）**`subject_id` 的矛盾**：§8.2.1 原寫 `ReviewItem(...subject_id=hypothesis_id)`，§17.19.3 則寫 `ReviewItem(subject_type=CONFLICT | AUTHORITY_CONFLICT).subject_id` 是 **conflict_id**；兩者皆 normative 且互相矛盾。裁決採 §17.19.3——它是 Conflict contract 本身，也是讓 `unresolved_conflicts[]` 與 `blocking_conflict_policy` 共用單一物件的那條。§8.2.1 的 INCOMPARABLE 流程改為：先建 `Conflict(AUTHORITY_CONFLICT, subject_refs=[hypothesis_id], blocking=true)`，再建 `ReviewItem(subject_id=conflict_id)` 並回連 `Conflict.review_id`；hypothesis 經 `Conflict.subject_refs` 一跳可達。（b）**review 何謂「resolved」**：§17.19.1 的 `decision_ref?` 原本只出現在欄位列表中、無任何 prose 定義它指向什麼、何時必填，於是「no BeliefRevisionEvent may promote/reject until the review resolves」無法被唯一執行——實作可以讓 review 停在 QUEUED，卻拿任意一筆同 project 的既存 event 當 closure proof，而那不是 review resolve。本次明定：terminal review（`APPROVED|CORRECTED|REJECTED|EXPIRED`）**MUST** 帶 `decision_ref`；**outstanding review invariant**——`QUEUED|ASSIGNED` 的 review 只要連著 blocking Conflict，該 Conflict **MUST NOT** 進入 `RESOLVED|ACCEPTED_AS_OPEN_QUESTION|EXPIRED`（`ASSIGNED` 算 outstanding：有人接手不等於有人回答）；**closure traceability**——Conflict 的 `resolution_event_id` 必須是*該* review 決議所產生的 event，任意同 project event 與另一筆 review 的決議皆 **MUST NOT** 被接受；**atomicity**——review 決議與 conflict 關閉不得留下半完成狀態，crash 或併發後皆不得觀察到「review terminal 而 conflict open」或 「review outstanding 而 conflict closed」。此義務落在 persistence／creation path；`TransitionPolicy.evaluate()` 與 scientific belief semantics **不得**複製進 SQL（承 `v3.3-a13`）。**未新增 Requirement/Test ID、未新增 normative statement**——EPI-004 早已課予「INCOMPARABLE 必須 escalate 並阻擋 promote/reject」、EPI-006 早已課予「關閉 Conflict 必須記錄 resolution event」，本修訂只使兩者**可被唯一執行**；Requirement ↔ Test 維持 **59 ↔ 59**。§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |
+| **v3.3-a15** | **2026-09-19** | **Maintainer ruling（SPEC-ISSUE-012：自動 expiry 沒有任何人可以撰寫的 closure event）**：採 Reading B，新增一個窄口徑的 `GovernanceEvent`。**問題**：T-OPS-002 要求逾期 ReviewItem 必須離開 PENDING，而 `v3.3-a14` 把該關閉路由到 `ReviewResolution` 的 closure event；§17.13 的 `BeliefRevisionEvent` 只有一種語意——hypothesis 的 belief state 改變了——但**逾期不是 transition**。實測下每一條可行構造都不合法：no-op policy 被 `005b` 的 `CHECK (from_state <> candidate_to_state)` 擋住、非 genesis event 引用 admission policy 被 `005c` 擋住、`ACTIVE→INCONCLUSIVE` 若 policy 尊重 blocking conflict 則得到 NEED_HUMAN_REVIEW 而無 ALLOW（循環），若忽略該 conflict 則等於排程器在無證據下判定 hypothesis 為 INCONCLUSIVE。**裁決**：§17.19.1 新增 `GovernanceEvent`——**governance/operational 狀態變更，本身不改動科學信念**；append-only、immutable、project-scoped；**不得**被當作 BeliefRevisionEvent 證據、不得進入 belief replay、不得改動 `EpistemicStateProjection`；排程器**不得**撰寫 `BeliefRevisionEvent`。`event_type` 本次只開放 `REVIEW_EXPIRY` 一個值——刻意不建立泛用 audit-event 詞彙，否則就成了第二條可以關閉任何東西的路徑。closure reference 一般化為 typed pair `(resolution_event_kind = BELIEF_REVISION | GOVERNANCE, resolution_event_id)`；Conflict 與關閉它的 ReviewResolution **MUST** 引用完全相同的一組值；`GOVERNANCE` 僅允許 `outcome = EXPIRED` 搭配 `event_type = REVIEW_EXPIRY`，人工決議（APPROVED|CORRECTED|REJECTED）**不得**以 GovernanceEvent 關閉，自動 expiry 亦**不得**以 BeliefRevisionEvent 關閉。`ACCEPTED_AS_OPEN_QUESTION` 只關閉**此一** review/conflict 實例，不代表 authority 變得可比——後續 episode 遇到同一個 INCOMPARABLE 仍**必須**回 NEED_HUMAN_REVIEW 並**得**另建 Conflict/ReviewItem。expiry **必須**採該 ReviewItem 當初定價的 queue policy 版本，不得以現行 policy 重新詮釋舊 review。`ReviewQueuePolicy` 新增 `declared_by_actor_id`：自動 expiry 的 standing authority 是宣告該 policy 的 actor，**不得**由執行 sweep 的 service account 推得；兩者分開記錄，執行者為 SERVICE actor 並不因此成為科學決策者。**未新增 Requirement/Test ID**——OPS-002 / T-OPS-002 既有的 expiry liveness 與 EPI-006 / T-EPI-006 既有的 typed Conflict closure-event integrity 本就課予這些義務，本修訂只使其**可被唯一執行**；Requirement ↔ Test 維持 **59 ↔ 59**。§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |

@@ -348,7 +348,9 @@ def test_raw_update_cannot_close_a_conflict_by_status_alone(seeded):
     """The trigger says it before the CHECK does, in language an operator can act on."""
     SqlConflictStore(seeded).record(conflict())
 
-    with pytest.raises(psycopg.errors.RaiseException, match="without a resolution_event_id"):
+    # The wording widened with `v3.3-a15`: a closure now needs an event **and its kind**, since
+    # a governance closure populates a different column. The obligation is unchanged.
+    with pytest.raises(psycopg.errors.RaiseException, match="without a closure event"):
         seeded.execute(
             "UPDATE conflicts SET resolution_status = 'EXPIRED' WHERE conflict_id = 'cfl:1'"
         )
@@ -571,6 +573,8 @@ def test_an_incomparable_comparison_creates_a_linked_conflict_and_review(seeded)
             capacity=8,
             default_sla_minutes=24 * 60,
             default_expiry_minutes=72 * 60,
+            # `v3.3-a15`: who declared the SLA an automatic expiry would execute.
+            declared_by_actor_id="act:test",
             effective_from=T0,
         )
     )

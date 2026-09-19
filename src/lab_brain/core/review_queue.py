@@ -18,14 +18,13 @@ the belief, and now invisible to the very queue that is supposed to report the b
 escalation always succeeds and always prices the item, and the planner reads `available` before it
 decides to spend a human.
 
-WHAT `expire` DOES NOT DO, WHICH IS THE PART WORTH READING TWICE. It does not set
-`status = 'EXPIRED'`. §17.19.1 as amended by `v3.3-a14` makes EXPIRED a *terminal* review status,
-and migrations `011c`/`011d` require every terminal review to carry a durable `ReviewResolution`
-whose linked Conflict is terminal against that resolution's own event. An expiry is therefore a
-real governance act with a real record, not a status flip -- which is correct: letting a review
-lapse *unblocks a belief nobody adjudicated*, and §6.18 says unblocking is itself recordable. The
-closure event is a required argument for exactly that reason. There is deliberately no convenience
-overload that invents one.
+THIS CLASS REPORTS; IT DOES NOT EXPIRE. It had an `expire()` seam until `v3.3-a15`, and that
+seam is gone rather than adapted. It built the `ReviewResolution` itself, which meant a caller
+could produce an EXPIRED resolution citing a *belief revision* -- and §17.19.1 as amended is
+explicit that an automatic expiry closes against a `GovernanceEvent`. A second expiry path that
+writes the wrong kind of event is the "second way to close anything" the closed vocabulary
+exists to prevent, so the production path is `lab_brain.core.review_expiry` and there is only
+one of it. `overdue()` below is what that processor selects on.
 """
 
 from __future__ import annotations
@@ -38,13 +37,11 @@ from typing import Any, Protocol, Self, runtime_checkable
 from pydantic import Field, model_validator
 
 from lab_brain.core.models.base import CoreModel
-from lab_brain.core.models.conflict import ConflictResolutionStatus
 from lab_brain.core.models.review import OUTSTANDING_REVIEW_STATUSES, ReviewItem
-from lab_brain.core.models.review_resolution import ReviewOutcome, ReviewResolution
 
 
 class ReviewQueueError(RuntimeError):
-    """An item could not be priced, or an expiry was asked for that the policy does not justify."""
+    """An item could not be priced against the declared policy."""
 
 
 class ReviewQueuePolicy(CoreModel):
@@ -71,6 +68,11 @@ class ReviewQueuePolicy(CoreModel):
     expiry_minutes_by_stakes: dict[str, int] = Field(default_factory=dict)
     #: §14.4.1's "actor schedule", as the one number a planner can actually use.
     reviewer_minutes_per_day: int = Field(default=0, ge=0)
+    #: `v3.3-a15`: the actor whose standing decision authorises automatic expiry under this
+    #: policy. Required, and deliberately **not** inferrable: §17.19.1 forbids reading it off
+    #: the service account that executes the sweep, because carrying out a governance decision
+    #: is not making one. The executor is recorded separately on the GovernanceEvent.
+    declared_by_actor_id: str
     effective_from: dt.datetime
     active: bool = True
 
@@ -145,17 +147,8 @@ class ReviewItemSource(Protocol):
     def outstanding(self, project_id: str) -> tuple[ReviewItem, ...]: ...
 
 
-@runtime_checkable
-class ResolutionSink(Protocol):
-    """The locked `011c` resolve-and-close path. Expiry goes through it and nothing else."""
-
-    def resolve_and_close_conflict(
-        self, *, resolution: ReviewResolution, conflict_status: ConflictResolutionStatus
-    ) -> ReviewResolution: ...
-
-
 class ReviewQueue:
-    """Depth, availability and expiry for one project's human ReviewQueue."""
+    """Depth and availability for one project's human ReviewQueue."""
 
     def __init__(self, *, policy: ReviewQueuePolicy, reviews: ReviewItemSource) -> None:
         self._policy = policy
@@ -254,68 +247,6 @@ class ReviewQueue:
             policy_ref=f"{self._policy.policy_id}@{self._policy.version}",
         )
 
-    def expire(
-        self,
-        *,
-        item: ReviewItem,
-        now: dt.datetime,
-        resolutions: ResolutionSink,
-        resolution_id: str,
-        closure_event_id: str,
-        resolved_by_actor_id: str,
-        rationale: str | None = None,
-    ) -> ReviewResolution:
-        """Take one expired item out of the queue, through the locked resolution path.
-
-        `closure_event_id` IS REQUIRED AND THERE IS NO OVERLOAD THAT INVENTS ONE. An expiry closes
-        the linked Conflict, which unblocks a belief that no human adjudicated -- §6.18 makes that
-        a recordable act and `011c` makes the event NOT NULL for all four outcomes precisely so no
-        status can stop a conflict blocking without one. A queue sweep that minted its own event
-        would be a background job quietly authoring the record of a governance decision.
-
-        Refuses an item that is not actually expired. A sweep that could expire anything on request
-        is a way to clear an inconvenient review, and the deadline the policy declared is the only
-        thing that makes an expiry legitimate.
-        """
-        if item.status not in OUTSTANDING_REVIEW_STATUSES:
-            raise ReviewQueueError(
-                f"review {item.review_id} is {item.status.value} and has already left the queue. "
-                "Expiring it again would overwrite the record of how it was actually resolved"
-            )
-        if item.expires_at is None:
-            raise ReviewQueueError(
-                f"review {item.review_id} carries no expires_at, so no policy has priced it and "
-                "there is no declared moment at which it lapses (§14.4)"
-            )
-        if item.expires_at > now:
-            raise ReviewQueueError(
-                f"review {item.review_id} expires at {item.expires_at.isoformat()}, which is after "
-                f"{now.isoformat()}. Expiring an item early is a way to clear an inconvenient "
-                "review, and the declared deadline is what makes an expiry legitimate"
-            )
-
-        return resolutions.resolve_and_close_conflict(
-            resolution=ReviewResolution(
-                resolution_id=resolution_id,
-                review_id=item.review_id,
-                project_id=item.project_id,
-                outcome=ReviewOutcome.EXPIRED,
-                resolved_by_actor_id=resolved_by_actor_id,
-                resolved_at=now,
-                rationale=rationale
-                or (
-                    f"expired unanswered at {now.isoformat()} under queue policy "
-                    f"{self._policy.policy_id}@{self._policy.version}; the item was due at "
-                    f"{item.due_at.isoformat() if item.due_at else 'an undeclared time'}"
-                ),
-                belief_revision_event_id=closure_event_id,
-            ),
-            # §17.19.3's honest status for a disagreement nobody settled. Not RESOLVED: the
-            # authority question is exactly as open as it was, and recording it as resolved would
-            # claim an answer the timeout did not produce.
-            conflict_status=ConflictResolutionStatus.ACCEPTED_AS_OPEN_QUESTION,
-        )
-
 
 def price_review(
     *, review: ReviewItem, policy: ReviewQueuePolicy, now: dt.datetime | None = None
@@ -360,7 +291,6 @@ def outstanding_of(items: Sequence[ReviewItem]) -> tuple[ReviewItem, ...]:
 
 __all__ = [
     "HumanReviewCapability",
-    "ResolutionSink",
     "ReviewItemSource",
     "ReviewQueue",
     "ReviewQueueError",

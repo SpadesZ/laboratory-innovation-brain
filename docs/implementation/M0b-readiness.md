@@ -4,9 +4,11 @@ Baseline: `6fd8093bab8a9c54fed9b618eced14ba86d20ee2` (P13, independent maintaine
 Revised after the M0b sign-off audit returned **CONDITIONAL FAIL** on
 `37c33fce96364daacc8121bf88937001536bcea5` with two P1 closure gaps.
 
-**Status: NOT READY — 9 of 10 requirements READY, `OPS-002` blocked by
+Revised again after the maintainer ruled on SPEC-ISSUE-012 (adopt Reading B, `v3.3-a15`).
+
+**Status: READY_FOR_MAINTAINER_SIGNOFF — all ten requirements READY.**
 [SPEC-ISSUE-012](../spec_issues/SPEC-ISSUE-012-review-expiry-has-no-authorable-closure-event.md)
-(GATE, OPEN).**
+is **RESOLVED**; no GATE issue is open against M0b.
 
 `docs/milestones.yaml` still records M0b as `IN_PROGRESS` and is deliberately not edited — sign-off
 is the maintainer's act, not this session's.
@@ -15,11 +17,17 @@ is the maintainer's act, not this session's.
 
 ## Audit response — what changed since `37c33fc`
 
-### P1-A — OPS-002 expiry liveness: **escalated, not implemented**
+### P1-A — OPS-002 expiry liveness: **escalated, ruled on, then implemented**
 
-The audit was right that the seam exists with no production caller. Adding the caller was four
+The audit was right that the seam existed with no production caller. Adding the caller was four
 lines, and the instruction to first determine *who may author the expiry closure event* is what
-stopped it. The determination came back negative, so no caller was written.
+stopped it. The determination came back negative, the gate was raised, and the maintainer ruled:
+adopt Reading B with a narrow `GovernanceEvent`. `v3.3-a15`, migration `011f` and
+`lab_brain.core.review_expiry.ReviewExpiryProcessor` implement that ruling — see
+"`v3.3-a15`: what the ruling changed" below.
+
+The evidence that produced the gate is kept here because it is what makes the shape of the fix
+legible.
 
 The chain is rigid and every link is locked: an expired item must leave PENDING → terminal
 ReviewItem → `decision_ref` → durable `ReviewResolution` → `belief_revision_event_id` **NOT NULL**
@@ -37,16 +45,44 @@ Probed against the real schema rather than argued:
 | Real transition, policy ignoring the conflict | `ALLOW` with *no required relation types* — a scheduler declaring a hypothesis INCONCLUSIVE on no evidence |
 | Genesis event for a fabricated hypothesis id | accepted — **and this is what the M0b fixture does** |
 
-The last row is the finding that settles it. `tests/integration/test_review_queue_postgres.py`
-passed because its closure-event helper wrote a genesis event for `f"hyp:{event_id}"` — a
-hypothesis that does not exist — to satisfy the foreign key. That helper is now named
-`_placeholder_closure_event`, documents exactly what it fabricates and why, and points at the gate.
-The expiry tests therefore prove the **seam** (routes through the locked `011c` path, refuses a
-not-yet-expired item, refuses an already-resolved one, leaves no `011d` half-state) and prove
-nothing about which event a real expiry may cite.
+The last row is the finding that settled it. The old OPS-002 tests passed because their
+closure-event helper wrote a genesis event for `f"hyp:{event_id}"` — a hypothesis that does not
+exist — to satisfy the foreign key. **That helper is now deleted, not adapted**, and
+`test_the_expiry_writes_no_belief_revision_event_and_leaves_the_projection_alone` counts the belief
+log to prove nothing invents a subject any more.
 
-Five readings, producing different scientific outcomes for the same hypothesis, are set out in the
-spec issue with a proposed wording (a `GovernanceEvent` distinct from a belief revision).
+### `v3.3-a15`: what the ruling changed
+
+`GovernanceEvent` under §17.19.1 — *a governance/operational state change that does NOT itself
+alter scientific belief*. It may not be accepted as `BeliefRevisionEvent` evidence, may not appear
+in a belief replay, and may not mutate `EpistemicStateProjection`; a scheduler may not author a
+belief revision at all.
+
+Three bounds are what keep the fix narrow, and each is enforced rather than asserted:
+
+- **One event type.** `REVIEW_EXPIRY` and nothing else. A generic audit-event vocabulary would be a
+  second way to close any Conflict without moving a belief. Opening the CHECK goes red.
+- **One permitted combination.** `GOVERNANCE` requires `outcome = EXPIRED`; a human resolution
+  (APPROVED | CORRECTED | REJECTED) may not close against one, and a conflict with no review may
+  not close against one at all. Both go red when removed.
+- **Two actors, recorded separately.** `ReviewQueuePolicy.declared_by_actor_id` is the standing
+  authority; the event's `actor_id` is the executor. §17.19.1 forbids inferring the first from the
+  second, so an executing SERVICE actor does not become a decision-maker.
+
+The closure reference is generalised to the typed pair
+`(resolution_event_kind, resolution_event_id)` on both `review_resolutions` and `conflicts`, with a
+composite FK per kind — SQL has no polymorphic foreign key, and those composites are what make a
+cross-project closure *unrepresentable* rather than merely wrong. The canonical id is a
+`GENERATED ALWAYS AS` column so the pair cannot disagree with itself. `011d`'s commit-boundary
+invariant was widened to compare the pair, not just the id.
+
+`ReviewExpiryProcessor` is the production caller. It reads each item's **own** queue-policy
+version rather than whichever policy is active — an expiry re-interpreted under a policy the
+reviewer never saw is not the deadline they were given, and `review_expire` refuses a mismatch.
+`now`, `actor_id` and the id source are parameters, so the sweep reads no clock and a retry
+proposes the same primary keys. `ReviewQueue.expire` is **deleted**: it built the resolution
+itself and so could produce an EXPIRED closure citing a belief revision, which is a second path
+writing the wrong kind of event.
 
 ### P1-B — SYS-001 exact conformance/traceability: **fixed**
 
@@ -204,7 +240,7 @@ snapshot.
 |---|---|
 | **§26 pass condition** | queue depth/capacity changes human-review capability availability and planner `earliest_available_at`; a ReviewItem without `stakes` or without an SLA/expiry policy is refused at creation; an item past its expiry leaves PENDING via the declared policy rather than parking there indefinitely |
 | **Implementation** | migration `011e` (`review_queue_policies`, the deadline trigger, escalation re-priced); `src/lab_brain/core/review_queue.py` (`ReviewQueuePolicy`, `HumanReviewCapability`, `ReviewQueue`, `price_review`); `SqlReviewQueuePolicyStore` |
-| **Test** | `tests/integration/test_review_queue_postgres.py` (24 tests) |
+| **Test** | `tests/integration/test_review_expiry_postgres.py` (32 tests, liveness through the production caller); `tests/integration/test_review_queue_postgres.py` (20 tests, creation-time refusals and the Capability) |
 | **PostgreSQL** | Yes. The "refused at creation" clause is a trigger, tested by raw SQL for all four shapes: blank stakes, no policy, policy named but unpriced, expiry before due |
 | **Known limitations** | **The liveness clause is not discharged — [SPEC-ISSUE-012](../spec_issues/SPEC-ISSUE-012-review-expiry-has-no-authorable-closure-event.md), GATE, OPEN.** `ReviewQueue.expire` exists and preserves `v3.3-a14`, and no production caller invokes it, because invoking it means choosing which event a timeout may author and the spec does not say. Capacity **does not** refuse an escalation, deliberately: §26 says depth and capacity change *availability*, and a full queue rejecting a blocking conflict's review would leave it OPEN with nobody assigned. `earliest_available_at` is a **lower bound** clamped to `now`, computed from the earliest outstanding `due_at`; there is no per-reviewer calendar, which §14.4.1's "actor schedule" would eventually want, and `reviewer_minutes_per_day` is stored but unconsumed until a planner exists |
 | **Verdict** | **NOT_READY** — depth, capacity, `earliest_available_at`, stakes and the SLA/expiry policy at creation are all discharged; liveness is gated |
@@ -224,15 +260,11 @@ snapshot.
 
 ## Requirements NOT ready
 
-**`OPS-002`** — the only one, and only its third clause. Blocked by SPEC-ISSUE-012 (GATE, OPEN,
-blocks M0b). Depth/capacity → availability is discharged; `earliest_available_at` is discharged and
-now clamped; stakes and the SLA/expiry policy are refused at creation by a trigger with four
-negative fixtures. What is missing is a production sweep, and writing one requires the maintainer
-to choose what event an automatic expiry may author.
+**None.** All ten are READY.
 
-**Unblocking it needs a ruling, not code.** Once the reading is chosen, the implementation is small
-— the seam, the deadlines, the idempotence and the `011d` half-state guard are all in place and
-tested.
+`UX-005` stays `TODO` in M1 and is not one of the ten: `review_items`, `review_queue_policies` and
+now `governance_events` are a shared foundation, and T-UX-005 additionally requires the
+NEEDS_REVIEW *user experience*. `EPI-001` (§8's admission gate) stays M3.
 
 Two requirements that a reader might expect to see promoted are deliberately absent:
 
@@ -246,9 +278,10 @@ Two requirements that a reader might expect to see promoted are deliberately abs
 
 ## Spec contradictions and AGT-015 gates discovered
 
-**One, raised: [SPEC-ISSUE-012](../spec_issues/SPEC-ISSUE-012-review-expiry-has-no-authorable-closure-event.md)** (GATE, OPEN, blocks M0b) — an
-automatically expired ReviewItem has no closure event anyone may author. Five readings with
-different scientific outcomes, a proposed wording, and the probe evidence are in the issue.
+**One, raised and now resolved: [SPEC-ISSUE-012](../spec_issues/SPEC-ISSUE-012-review-expiry-has-no-authorable-closure-event.md)** — an
+automatically expired ReviewItem had no closure event anyone could author. Five readings with
+different scientific outcomes, the probe evidence and the maintainer's ruling are in the issue.
+Resolved by `v3.3-a15`. No GATE issue is open against M0b.
 
 The milestones.yaml-vs-readiness contradiction the audit flagged on `Hypothesis` was **not** a spec
 ambiguity and is not escalated: the milestone record was right, the previous readiness text was
@@ -278,17 +311,29 @@ reads is the one from the run that enabled the gate.
 | gate | result |
 |---|---|
 | `ruff check src tests scripts` | clean |
-| `ruff format --check` | clean, 118 files |
-| `mypy` (strict) | clean, 56 source files |
-| Backend-free suite | **722 passed / 344 skipped** (AGT-007) |
-| Migrations from empty | **22** declared, 22 applied |
+| `ruff format --check` | clean, 121 files |
+| `mypy` (strict) | clean, 58 source files |
+| Backend-free suite | **722 passed / 372 skipped** (AGT-007) |
+| Migrations from empty | **23** declared, 23 applied |
 | Migration idempotency | `pending 0` on re-run |
-| Full suite, `postgres` profile | **1066 passed**, 0 failed |
-| Executed-coverage ratchet | exit 0 — 868 marked tests, 16 requirements with a passing test |
+| Full suite, `postgres` profile | **1094 passed**, 0 failed |
+| Executed-coverage ratchet | exit 0 — 896 marked tests, 16 requirements with a passing test |
 | `update_status.py --check` | up to date |
-| Spec conformance / traceability | 149 passed, **59 ↔ 59** |
-| Obligation inventory | 72 occurrences, in sync |
-| Mutations | **7 SQL on `011e`** (P13 slice) + **5 Python on the P1-B/P2 guards**, all red. The fifth needed two attempts: emptying `FORBIDDEN_STATUS_FIELDS` survived at first, because the vocabulary itself had no test. It does now, pinned exactly |
+| Spec conformance / traceability | 149 passed, **59 ↔ 59** (`v3.3-a15` adds no Requirement/Test ID) |
+| Obligation inventory | 72 occurrences, in sync — `v3.3-a15` adds no §6–§16 hard-obligation keyword |
+
+### The five mutations that survived first
+
+Every one of them was reached only through the production caller, which never asks for the
+forbidden shape -- so the guard behind it was exercised by the happy path and held by nothing.
+That is the P12 blank-rationale lesson in a new place, and it cost five tests:
+
+- kind/column agreement (`011f` CHECK), raw SQL, both directions;
+- `conflict_close`'s (kind, id) pair check, via a mid-transaction mismatch;
+- `011d`'s commit-boundary pair check, generalised;
+- `review_expire`'s deadline guard, reached directly rather than through the sweep;
+- `declared_by_actor_id` NOT NULL on a queue policy.
+| Mutations | **12 on the `v3.3-a15` guards, all red** (9 SQL + 3 Python), plus 7 SQL on `011e` and 5 Python on the P1-B/P2 guards. Five of the twelve survived a first pass and are the reason five new tests exist — see below |
 
 ---
 

@@ -104,6 +104,9 @@ def _queue_policy(db, project_id: str, policy_id: str = "rqp:test") -> None:  # 
             default_sla_minutes=24 * 60,
             default_expiry_minutes=72 * 60,
             reviewer_minutes_per_day=240,
+            # `v3.3-a15`: the standing authority an automatic expiry executes. Required,
+            # and never inferred from whoever runs the sweep.
+            declared_by_actor_id="act:test",
             effective_from=T0,
         )
     )

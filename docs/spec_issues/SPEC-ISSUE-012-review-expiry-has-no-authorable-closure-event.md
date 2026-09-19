@@ -1,10 +1,12 @@
 # SPEC-ISSUE-012: an automatically expired ReviewItem has no closure event anyone may author
 
 Severity: GATE
-Status: OPEN
+Status: RESOLVED
 Blocks gate: M0b
 Raised: 2026-09-19
 Raised by: M0b sign-off audit (P1-A, OPS-002 expiry liveness)
+Resolved: 2026-09-19
+Resolved by: `v3.3-a15` (maintainer ruling: Reading B, with a narrow GovernanceEvent contract)
 Affected: §14.4, §14.4.1, §17.19.1 (`v3.3-a14`), §17.19.3, §17.13, §8.2, §25.3 `OPS-002`,
           §26 `T-OPS-002`, AGT-016
 
@@ -153,9 +155,33 @@ locked `011c` path, refuses a not-yet-expired item, refuses an already-resolved 
 `011d` half-state) and prove **nothing** about which event a real expiry may cite. The helper is
 renamed and documented in place rather than quietly left, so the next reader sees the placeholder.
 
-## Effect on M0b
+## Resolution
 
-**OPS-002 is NOT_READY** until this is resolved. Depth, capacity, `earliest_available_at`, stakes
+The maintainer adopted **Reading B** and bounded it: a `GovernanceEvent` whose `event_type`
+vocabulary is one value, `REVIEW_EXPIRY`. `v3.3-a15` adds it under §17.19.1, generalises the
+closure reference to the typed pair `(resolution_event_kind, resolution_event_id)`, and permits
+`GOVERNANCE` for exactly one combination -- an `EXPIRED` resolution against a `REVIEW_EXPIRY`
+event. Migration `011f` implements it; `lab_brain.core.review_expiry.ReviewExpiryProcessor` is
+the production caller that was missing.
+
+Three parts of the ruling are worth recording because they are what keeps the fix narrow:
+
+- **The vocabulary stays at one value.** A generic audit-event type would become a second way
+  to close any Conflict without moving a belief -- the hole this issue exists to avoid rather
+  than open. Adding a kind is a spec amendment.
+- **Two actors, recorded separately.** `ReviewQueuePolicy.declared_by_actor_id` is the standing
+  authority; the GovernanceEvent's `actor_id` is the executor. §17.19.1 forbids inferring the
+  first from the second, so an executing SERVICE actor does not become a decision-maker.
+- **The item's own policy version.** The expiry cites the version the ReviewItem was *priced
+  by*, not whichever policy is active when the sweep runs. `review_expire` refuses a mismatch.
+
+The fabricated-hypothesis fixture named below is deleted, not adapted, and
+`test_the_expiry_writes_no_belief_revision_event_and_leaves_the_projection_alone` counts the
+belief log to prove nothing invents a subject any more.
+
+## Effect on M0b (at the time of raising)
+
+**OPS-002 was NOT_READY** until this was resolved. Depth, capacity, `earliest_available_at`, stakes
 and the SLA/expiry policy at creation are all discharged; the liveness clause is not. No production
 expiry caller was added, because adding one means choosing a reading above.
 

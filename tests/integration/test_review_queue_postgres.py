@@ -15,11 +15,13 @@ that resolution's own event. So an expiry closes a conflict and unblocks a belie
 adjudicated -- a real governance act, with a real record. Anything cheaper would be the half-state
 P12/P13 spent two slices closing.
 
-LIVENESS IS GATED BY SPEC-ISSUE-012, AND THAT IS WHY THERE IS NO PRODUCTION SWEEP HERE. The
-third clause needs a closure event, `v3.3-a14` routes it through a `BeliefRevisionEvent`, and a
-timeout is not a belief transition. See `_placeholder_closure_event` below for what the fixture
-actually writes and why no caller was added. Every test in this file is about the seam, the
-deadlines, or the Capability -- none of them claims the obligation is discharged.
+LIVENESS LIVES NEXT DOOR. SPEC-ISSUE-012 gated it until `v3.3-a15` gave an expiry an event it
+could honestly author; the proof now runs through the production caller in
+`test_review_expiry_postgres.py`. This module keeps the other two clauses -- what a queue
+refuses at creation, and how depth and capacity become Capability availability.
+
+The fabricated-hypothesis fixture that used to stand in for a closure event is deleted, not
+adapted. `011f` means nothing here has to invent a subject to satisfy a foreign key.
 
 NOT UX-005. T-UX-005 additionally requires the NEEDS_REVIEW user experience, which does not exist.
 This file discharges the governance/backend contract and nothing else.
@@ -37,7 +39,7 @@ from lab_brain.core.models.conflict import (
     ConflictResolutionStatus,
     ConflictType,
 )
-from lab_brain.core.models.review import ReviewItem, ReviewStatus, ReviewSubjectType
+from lab_brain.core.models.review import ReviewItem, ReviewSubjectType
 from lab_brain.core.repositories.conflicts import SqlConflictStore
 from lab_brain.core.repositories.reviews import (
     ReviewStoreError,
@@ -74,6 +76,9 @@ POLICY = ReviewQueuePolicy(
     # in two days is a different fact from a routine one still waiting.
     sla_minutes_by_stakes={"HIGH": 4 * 60},
     expiry_minutes_by_stakes={"HIGH": 48 * 60},
+    # `v3.3-a15`: who declared this SLA. The standing authority an automatic expiry
+    # executes, recorded separately from whoever runs the sweep.
+    declared_by_actor_id="act:test",
     reviewer_minutes_per_day=120,
     effective_from=T0,
 )
@@ -157,33 +162,6 @@ def _queue(world) -> ReviewQueue:  # type: ignore[no-untyped-def]
     policy = SqlReviewQueuePolicyStore(world).active_for(PROJECT)
     assert policy is not None
     return ReviewQueue(policy=policy, reviews=SqlReviewItemStore(world))
-
-
-def _placeholder_closure_event(world, event_id: str) -> str:  # type: ignore[no-untyped-def]
-    """A stand-in closure event. **It is not a defensible production event** — SPEC-ISSUE-012.
-
-    Read the `target_id` below: `f"hyp:{event_id}"` is a hypothesis that **does not exist**. This
-    writes a genesis `BeliefRevisionEvent` for an invented subject, purely to satisfy the foreign
-    key `011a` and `011c` place on `resolution_event_id`.
-
-    That is deliberate and it is named, because the alternative was to leave it looking ordinary.
-    The audit question "what event may an automatic expiry author?" has no answer in SAI 3.3: a
-    timeout is not a belief transition, `005b` makes a no-op transition policy unrepresentable
-    (`CHECK (from_state <> candidate_to_state)`), and a real transition is either circular (a
-    policy honouring the blocking conflict returns NEED_HUMAN_REVIEW, so no ALLOW, so no event) or
-    a scheduler declaring a hypothesis INCONCLUSIVE on no evidence.
-
-    So the tests below prove the **seam**: that `ReviewQueue.expire` routes through the locked
-    `011c` resolve-and-close path, refuses an item that has not expired, refuses one already
-    resolved, and leaves no `011d` half-state. They prove nothing about *which* event a real
-    expiry may cite, and no production caller was added for that reason.
-    """
-    world.execute(
-        "SELECT belief_revision_event_append(%s, %s, 'HYPOTHESIS', %s, NULL, 'ACTIVE',"
-        " %s, ARRAY[]::text[], 'pol:genesis', '1.0.0', NULL, NULL, NULL, %s, %s, NULL)",
-        (event_id, PROJECT, f"hyp:{event_id}", ["att:1"], T0, TRACE),
-    )
-    return event_id
 
 
 # --------------------------------------------------------------------------------------------
@@ -432,127 +410,6 @@ def test_an_item_past_its_expiry_is_reported_as_overdue(world):
 
     overdue = queue.overdue(PROJECT, T0 + dt.timedelta(hours=49))
     assert [item.review_id for item in overdue] == ["rvw:1"]
-
-
-def test_an_expired_item_leaves_the_queue_through_the_declared_policy(world):
-    """The clause in full, and it is expensive on purpose.
-
-    The review becomes terminal, a durable `ReviewResolution` records why, and the linked Conflict
-    closes as ACCEPTED_AS_OPEN_QUESTION against that resolution's own event -- because letting a
-    review lapse unblocks a belief nobody adjudicated, and §6.18 makes that recordable.
-    """
-    _escalate(world, "rvw:1", "cfl:1")
-    queue = _queue(world)
-    now = T0 + dt.timedelta(hours=49)
-    item = queue.overdue(PROJECT, now)[0]
-    store = SqlReviewItemStore(world)
-
-    resolution = queue.expire(
-        item=item,
-        now=now,
-        resolutions=store,
-        resolution_id="res:expired",
-        closure_event_id=_placeholder_closure_event(world, "bre:expiry"),
-        resolved_by_actor_id="act:test",
-    )
-
-    assert resolution.outcome.value == "EXPIRED"
-    assert not resolution.settled_the_question, "a timeout did not answer the question"
-    assert "expired unanswered" in resolution.rationale
-
-    reviewed = store.get(PROJECT, "rvw:1")
-    assert reviewed is not None
-    assert reviewed.status is ReviewStatus.EXPIRED
-    assert not reviewed.is_outstanding, "it has left PENDING"
-    assert reviewed.decision_ref == "res:expired"
-
-    conflict = SqlConflictStore(world).get(PROJECT, "cfl:1")
-    assert conflict is not None
-    assert conflict.resolution_status is ConflictResolutionStatus.ACCEPTED_AS_OPEN_QUESTION, (
-        "§17.19.3's honest status: the authority question is exactly as open as it was, and "
-        "RESOLVED would claim an answer the timeout did not produce"
-    )
-    assert conflict.resolution_event_id == "bre:expiry"
-
-    # And the queue is empty, which is the whole point of §14.4.
-    assert queue.depth(PROJECT) == 0
-    assert queue.capability(PROJECT, now).available is True
-
-
-def test_an_item_that_has_not_expired_cannot_be_swept(world):
-    """A sweep that could expire anything on request is a way to clear an inconvenient review."""
-    _escalate(world, "rvw:1", "cfl:1")
-    queue = _queue(world)
-    item = queue.outstanding(PROJECT)[0]
-
-    with pytest.raises(ReviewQueueError, match="which is after"):
-        queue.expire(
-            item=item,
-            now=T0 + dt.timedelta(hours=5),
-            resolutions=SqlReviewItemStore(world),
-            resolution_id="res:early",
-            closure_event_id=_placeholder_closure_event(world, "bre:early"),
-            resolved_by_actor_id="act:test",
-        )
-    assert SqlReviewItemStore(world).get(PROJECT, "rvw:1").is_outstanding  # type: ignore[union-attr]
-
-
-def test_an_already_resolved_item_cannot_be_expired_over(world):
-    """Expiring it again would overwrite the record of how it was actually resolved."""
-    _escalate(world, "rvw:1", "cfl:1")
-    queue = _queue(world)
-    now = T0 + dt.timedelta(hours=49)
-    item = queue.overdue(PROJECT, now)[0]
-    queue.expire(
-        item=item,
-        now=now,
-        resolutions=SqlReviewItemStore(world),
-        resolution_id="res:1",
-        closure_event_id=_placeholder_closure_event(world, "bre:1"),
-        resolved_by_actor_id="act:test",
-    )
-
-    stale = SqlReviewItemStore(world).get(PROJECT, "rvw:1")
-    assert stale is not None
-    with pytest.raises(ReviewQueueError, match="already left the queue"):
-        queue.expire(
-            item=stale,
-            now=now,
-            resolutions=SqlReviewItemStore(world),
-            resolution_id="res:2",
-            closure_event_id=_placeholder_closure_event(world, "bre:2"),
-            resolved_by_actor_id="act:test",
-        )
-
-
-def test_the_expiry_leaves_no_forbidden_review_conflict_pair(world):
-    """`011d`'s commit-boundary invariant still holds after a sweep.
-
-    An expiry is the one path that terminalizes a review without a human deciding, so it is the
-    most likely place for the half-state P12/P13 closed to come back.
-    """
-    _escalate(world, "rvw:1", "cfl:1")
-    queue = _queue(world)
-    now = T0 + dt.timedelta(hours=49)
-    queue.expire(
-        item=queue.overdue(PROJECT, now)[0],
-        now=now,
-        resolutions=SqlReviewItemStore(world),
-        resolution_id="res:1",
-        closure_event_id=_placeholder_closure_event(world, "bre:1"),
-        resolved_by_actor_id="act:test",
-    )
-
-    offending = world.execute(
-        "SELECT r.review_id, r.status, c.conflict_id, c.resolution_status"
-        "  FROM conflicts c JOIN review_items r"
-        "    ON r.review_id = c.review_id AND r.project_id = c.project_id"
-        " WHERE (r.status IN ('QUEUED', 'ASSIGNED')"
-        "        AND c.resolution_status NOT IN ('OPEN', 'UNDER_REVIEW'))"
-        "    OR (r.status NOT IN ('QUEUED', 'ASSIGNED')"
-        "        AND c.resolution_status IN ('OPEN', 'UNDER_REVIEW'))"
-    ).fetchall()
-    assert offending == []
 
 
 def test_a_retried_escalation_is_still_idempotent_after_the_policy_landed(world):

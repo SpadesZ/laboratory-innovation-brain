@@ -9,10 +9,12 @@ worse here, because neither row can be deleted afterwards.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 from collections.abc import Sequence
 
 from lab_brain.core.models.conflict import Conflict, ConflictResolutionStatus
+from lab_brain.core.models.governance_event import GovernanceEvent
 from lab_brain.core.models.review import OUTSTANDING_REVIEW_STATUSES, ReviewItem
 from lab_brain.core.models.review_resolution import ReviewResolution
 from lab_brain.core.repositories.budget import SqlConnection, require_durable_connection
@@ -27,13 +29,20 @@ class ReviewStoreError(RepositoryError):
 _REVIEW_COLUMNS = (
     "review_id, project_id, subject_type, subject_id, stakes, reason, status, episode_id, "
     "trace_id, required_authority, required_role, assigned_actor_id, decision_ref, "
-    "estimated_human_minutes, created_at, due_at, expires_at"
+    "estimated_human_minutes, created_at, due_at, expires_at, queue_policy_id, "
+    "queue_policy_version"
+)
+
+_GOVERNANCE_EVENT_COLUMNS = (
+    "event_id, project_id, event_type, subject_type, subject_id, related_conflict_id, "
+    "policy_id, policy_version, declared_by_actor_id, actor_id, reason_code, rationale, "
+    "occurred_at, trace_id, episode_id"
 )
 
 _QUEUE_POLICY_COLUMNS = (
     "policy_id, version, project_id, capacity, default_sla_minutes, default_expiry_minutes, "
-    "sla_minutes_by_stakes, expiry_minutes_by_stakes, reviewer_minutes_per_day, effective_from, "
-    "active"
+    "sla_minutes_by_stakes, expiry_minutes_by_stakes, reviewer_minutes_per_day, "
+    "declared_by_actor_id, effective_from, active"
 )
 
 
@@ -55,7 +64,7 @@ class SqlReviewQueuePolicyStore:
         try:
             self._connection.execute(
                 f"INSERT INTO review_queue_policies ({_QUEUE_POLICY_COLUMNS})"
-                " VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s)",
+                " VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s)",
                 (
                     policy.policy_id,
                     policy.version,
@@ -66,6 +75,7 @@ class SqlReviewQueuePolicyStore:
                     json.dumps(policy.sla_minutes_by_stakes, sort_keys=True),
                     json.dumps(policy.expiry_minutes_by_stakes, sort_keys=True),
                     policy.reviewer_minutes_per_day,
+                    policy.declared_by_actor_id,
                     policy.effective_from,
                     policy.active,
                 ),
@@ -104,8 +114,9 @@ class SqlReviewQueuePolicyStore:
                 "sla_minutes_by_stakes": row[6],
                 "expiry_minutes_by_stakes": row[7],
                 "reviewer_minutes_per_day": row[8],
-                "effective_from": row[9],
-                "active": row[10],
+                "declared_by_actor_id": row[9],
+                "effective_from": row[10],
+                "active": row[11],
             }
         )
 
@@ -215,7 +226,8 @@ class SqlReviewItemStore:
         """The durable resolution for a review, or None while it is still outstanding."""
         row = self._connection.execute(
             "SELECT resolution_id, review_id, project_id, outcome, resolved_by_actor_id,"
-            " resolved_at, rationale, belief_revision_event_id FROM review_resolutions"
+            " resolved_at, rationale, belief_revision_event_id, governance_event_id,"
+            " resolution_event_kind FROM review_resolutions"
             " WHERE project_id = %s AND review_id = %s",
             (project_id, review_id),
         ).fetchone()
@@ -231,6 +243,115 @@ class SqlReviewItemStore:
                 "resolved_at": row[5],
                 "rationale": row[6],
                 "belief_revision_event_id": row[7],
+                "governance_event_id": row[8],
+                "resolution_event_kind": row[9],
+            }
+        )
+
+    # -- OPS-002 automatic expiry (`v3.3-a15`) ----------------------------------------------
+
+    def overdue(self, project_id: str, now: dt.datetime) -> tuple[ReviewItem, ...]:
+        """Outstanding items whose declared expiry has passed, oldest first.
+
+        Filtered in SQL on the same two statuses `OUTSTANDING_REVIEW_STATUSES` names, so the
+        database and the model cannot disagree about what is still owed. Ordered on
+        `(expires_at, review_id)` -- a total order, so a sweep over the same window twice visits
+        the same items in the same sequence and two runs can be compared.
+        """
+        rows = self._connection.execute(
+            f"SELECT {_REVIEW_COLUMNS} FROM review_items"
+            " WHERE project_id = %s AND status = ANY (%s)"
+            "   AND expires_at IS NOT NULL AND expires_at <= %s"
+            " ORDER BY expires_at, review_id",
+            (project_id, sorted(status.value for status in OUTSTANDING_REVIEW_STATUSES), now),
+        ).fetchall()
+        return tuple(self._hydrate(row) for row in rows)
+
+    def expire(
+        self,
+        *,
+        review: ReviewItem,
+        governance_event_id: str,
+        resolution_id: str,
+        actor_id: str,
+        reason_code: str,
+        rationale: str | None,
+        now: dt.datetime,
+        trace_id: str,
+    ) -> GovernanceEvent:
+        """Expire one review through `011f`'s atomic path, and read the event back.
+
+        THE POLICY VERSION COMES OFF THE ITEM. `review.queue_policy_id/@version` is the row this
+        item was *priced by*, not whichever policy is active now -- `v3.3-a15` is explicit that an
+        expiry re-interpreted under a policy the reviewer never saw is not the deadline they were
+        given. `review_expire` re-checks the pair against the stored item and refuses a mismatch,
+        so a caller cannot pass a convenient version instead.
+
+        One statement, so the GovernanceEvent, the EXPIRED resolution, the terminal review and the
+        conflict closure are all or none -- the `v3.3-a14` atomicity clause, which an expiry is the
+        most likely path to break because nobody is watching it run.
+        """
+        require_durable_connection(self._connection)
+        if review.queue_policy_id is None or review.queue_policy_version is None:
+            raise ReviewStoreError(
+                f"review {review.review_id} names no queue policy, so no declared deadline "
+                "authorises expiring it (§14.4)"
+            )
+        try:
+            self._connection.execute(
+                "SELECT review_expire(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (
+                    resolution_id,
+                    governance_event_id,
+                    review.review_id,
+                    review.project_id,
+                    review.queue_policy_id,
+                    review.queue_policy_version,
+                    actor_id,
+                    reason_code,
+                    rationale,
+                    now,
+                    trace_id,
+                ),
+            )
+        except Exception as exc:
+            raise ReviewStoreError(
+                f"expiry of review {review.review_id} in {review.project_id} was refused: {exc}"
+            ) from exc
+
+        written = self.governance_event(review.project_id, governance_event_id)
+        if written is None:  # pragma: no cover - `review_expire` raises before this is reachable
+            raise ReviewStoreError(
+                f"{governance_event_id} vanished between writing and reading it back"
+            )
+        return written
+
+    def governance_event(self, project_id: str, event_id: str) -> GovernanceEvent | None:
+        """Read a §17.19.1 governance event back through the model's validator."""
+        row = self._connection.execute(
+            f"SELECT {_GOVERNANCE_EVENT_COLUMNS} FROM governance_events"
+            " WHERE project_id = %s AND event_id = %s",
+            (project_id, event_id),
+        ).fetchone()
+        if row is None:
+            return None
+        return GovernanceEvent.model_validate(
+            {
+                "event_id": row[0],
+                "project_id": row[1],
+                "event_type": row[2],
+                "subject_type": row[3],
+                "subject_id": row[4],
+                "related_conflict_id": row[5],
+                "policy_id": row[6],
+                "policy_version": row[7],
+                "declared_by_actor_id": row[8],
+                "actor_id": row[9],
+                "reason_code": row[10],
+                "rationale": row[11],
+                "occurred_at": row[12],
+                "trace_id": row[13],
+                "episode_id": row[14],
             }
         )
 
@@ -289,6 +410,8 @@ class SqlReviewItemStore:
                 "created_at": row[14],
                 "due_at": row[15],
                 "expires_at": row[16],
+                "queue_policy_id": row[17],
+                "queue_policy_version": row[18],
             }
         )
 

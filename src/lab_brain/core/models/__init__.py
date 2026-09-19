@@ -80,6 +80,12 @@ from lab_brain.core.models.execution_span import (
     SpanStatus,
     SpanType,
 )
+from lab_brain.core.models.governance_event import (
+    GovernanceEvent,
+    GovernanceEventType,
+    GovernanceSubjectType,
+    ResolutionEventKind,
+)
 from lab_brain.core.models.hypothesis import (
     FORBIDDEN_HYPOTHESIS_FIELDS,
     FORBIDDEN_STATUS_FIELDS,
@@ -171,6 +177,9 @@ __all__ = [
     "ExtractionProvenance",
     "ExtractionStatus",
     "FieldStatus",
+    "GovernanceEvent",
+    "GovernanceEventType",
+    "GovernanceSubjectType",
     "Hypothesis",
     "HypothesisView",
     "IndependenceBasis",
@@ -186,6 +195,7 @@ __all__ = [
     "RelationJudgmentTemplate",
     "RelationType",
     "ResearchIntent",
+    "ResolutionEventKind",
     "RetractionCheck",
     "ReviewItemSpec",
     "RightsMetadata",

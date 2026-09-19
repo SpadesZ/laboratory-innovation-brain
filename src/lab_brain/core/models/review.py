@@ -77,6 +77,19 @@ class ReviewItem(CoreModel):
     due_at: dt.datetime | None = None
     expires_at: dt.datetime | None = None
 
+    #: The `ReviewQueuePolicy` version that priced this item's `due_at` and `expires_at` (`011e`).
+    #:
+    #: CARRIED ON THE ITEM, NOT LOOKED UP BY PROJECT, AND `v3.3-a15` IS EXPLICIT ABOUT WHY: an
+    #: expiry re-interpreted under a policy the reviewer never saw is not the deadline they were
+    #: given. A lab that tightens its SLA must not thereby retro-expire everything already queued,
+    #: so the automatic sweep reads these two fields and `review_expire` refuses a mismatch.
+    #:
+    #: Optional on the model and required by the database, which is the usual split: `011e`'s
+    #: trigger refuses an INSERT without them, and leaving them optional here keeps a `ReviewItem`
+    #: constructible *before* it has been priced -- which is exactly what `price_review` does.
+    queue_policy_id: str | None = None
+    queue_policy_version: str | None = None
+
     @model_validator(mode="after")
     def _an_assigned_review_names_its_reviewer(self) -> Self:
         """`ASSIGNED` without an actor is a task nobody owns that looks owned.
