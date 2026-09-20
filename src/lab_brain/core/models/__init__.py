@@ -78,6 +78,7 @@ from lab_brain.core.models.evidence_bundle import (
 )
 from lab_brain.core.models.evidence_unit import (
     EvidenceUnit,
+    EvidenceUnitOccurrence,
     FigureContext,
     RetrievalCandidate,
     RetrievalRepresentation,
@@ -113,6 +114,7 @@ from lab_brain.core.models.identifiers import (
     evidence_unit_id_for,
     new_id,
     parse_content_hash,
+    segmentation_witness_for,
 )
 from lab_brain.core.models.observation import Observation
 from lab_brain.core.models.prediction import (
@@ -187,6 +189,7 @@ __all__ = [
     "EvidenceBundle",
     "EvidenceField",
     "EvidenceUnit",
+    "EvidenceUnitOccurrence",
     "EvidenceUnitType",
     "ExecutionSpan",
     "ExtractionProvenance",
@@ -246,5 +249,6 @@ __all__ = [
     "evidence_unit_id_for",
     "new_id",
     "parse_content_hash",
+    "segmentation_witness_for",
     "utc_now",
 ]

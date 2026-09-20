@@ -136,6 +136,20 @@ APPLY_ORDER: tuple[str, ...] = (
     # EVI-007's dense index will later add columns -- nowhere near 003a. After 003a: the foreign
     # key points from the index to the evidence, never the reverse.
     "009a_retrieval_representations.sql",
+    # M1-P1 repair / `v3.3-a18` (SPEC-ISSUE-014, SPEC-ISSUE-015). Splits project scope off the
+    # content-derived evidence identity -- the ADR-0010 move one layer down -- and adds the
+    # segmentation witness. After 003a and 002a: it backfills occurrences from the column it then
+    # drops, and its occurrence trigger checks `artifact_occurrences`.
+    "003b_evidence_unit_occurrences.sql",
+    # M1-P1 repair / `v3.3-a18`. Consequence of the split: 009a's UNIQUE (unit, index) permitted
+    # only one project to index evidence that several may now hold, and its trigger read the
+    # column 003b drops. Must run after 003b for both reasons.
+    "009b_representation_project_scope.sql",
+    # M1-P1 repair / `v3.3-a18`. §17.25's durable-reference clause: the Attestation->EvidenceUnit
+    # link existed only as an admission-call parameter, so a reloaded attestation could not name
+    # the passage it read. After 003b: the column references `evidence_units` and its trigger
+    # reads `evidence_unit_occurrences`.
+    "003c_attestation_evidence_unit.sql",
 )
 
 _BOOTSTRAP = """

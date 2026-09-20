@@ -122,6 +122,13 @@ BINDINGS: tuple[SchemaBinding, ...] = (
         ),
     ),
     SchemaBinding(
+        section="17.25.1",
+        schema_name="EvidenceUnitOccurrence",
+        model_path="lab_brain.core.models.evidence_unit:EvidenceUnitOccurrence",
+        table="evidence_unit_occurrences",
+        migration="003b_evidence_unit_occurrences.sql",
+    ),
+    SchemaBinding(
         section="17.25",
         schema_name="RetrievalRepresentation",
         model_path="lab_brain.core.models.evidence_unit:RetrievalRepresentation",

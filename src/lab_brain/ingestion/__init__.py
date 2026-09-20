@@ -29,6 +29,7 @@ from lab_brain.ingestion.pipeline import (
     StageResult,
     StageStatus,
 )
+from lab_brain.ingestion.reverification import SegmentationReverifier
 from lab_brain.ingestion.secret_scanner import SecretScanner, SecretScanResult
 from lab_brain.ingestion.segmentation import (
     EvidenceAwareSegmenter,
@@ -57,6 +58,7 @@ __all__ = [
     "SecretScanner",
     "SegmentationError",
     "SegmentationResult",
+    "SegmentationReverifier",
     "SourceWorkResolution",
     "SourceWorkResolver",
     "StageResult",

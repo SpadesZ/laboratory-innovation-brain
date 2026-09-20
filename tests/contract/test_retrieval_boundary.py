@@ -35,8 +35,15 @@ from lab_brain.ingestion.admission_gate import (
     RefusalReason,
 )
 from lab_brain.ingestion.fixed_token_baseline import BaselineRun, FixedTokenBaselineSegmenter
+from lab_brain.ingestion.reverification import SegmentationReverifier
 from tests.conftest_fixtures import TOY_SCHEMA_REF
-from tests.evidence_fixtures import RESULT_SENTENCE, parse_fixture, segment_fixture
+from tests.evidence_fixtures import (
+    RESULT_SENTENCE,
+    fixture_artifact_id,
+    fixture_bytes,
+    parse_fixture,
+    segment_fixture,
+)
 
 PROJECT = "prj:test"
 OTHER_PROJECT = "prj:other"
@@ -47,9 +54,9 @@ FORGED = "The junction capacitance increased to 9.999 pF/mm under forward bias."
 @pytest.fixture
 def indexed():
     """The locked fixture, segmented and indexed. Returns (units, index, resolver)."""
-    units = {unit.evidence_unit_id: unit for unit in segment_fixture(project_id=PROJECT).units}
+    units = {unit.evidence_unit_id: unit for unit in segment_fixture().units}
     index = LexicalEvidenceIndex()
-    index.add_all(units.values())
+    index.add_all(units.values(), project_id=PROJECT)
     return units, index, CandidateResolver(lambda key: units.get(key))
 
 
@@ -68,6 +75,30 @@ def _attestation(**extra) -> Attestation:
         ),
         **extra,
     )
+
+
+def _reverifier():
+    """Re-segment the locked fixture from its own bytes (SPEC-ISSUE-015's semantic layer)."""
+    return SegmentationReverifier(
+        lambda artifact_id: fixture_bytes() if artifact_id == fixture_artifact_id() else None
+    )
+
+
+def _gate(units, **overrides):
+    """A gate wired the way a deployment is, with one seam swappable per test.
+
+    Presence and re-derivation default to *working*, so a test that wants a specific refusal
+    disables exactly one thing and the refusal it gets names that thing. Defaulting them to
+    absent would make every test here pass on SEGMENTATION_NOT_VERIFIABLE and prove nothing.
+    """
+    kwargs = {
+        "load_artifact": lambda _: None,
+        "load_evidence_unit": lambda key: units.get(key),
+        "resegment": _reverifier(),
+        "is_present_in": lambda _unit, project: project == PROJECT,
+    }
+    kwargs.update(overrides)
+    return EvidenceAdmissionGate(**kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -132,14 +163,10 @@ def test_a_forged_body_is_refused_at_admission(indexed):
     """The second line. Even submitted directly, a non-canonical body does not become evidence."""
     units, _, _ = indexed
     target = next(iter(units))
-    gate = EvidenceAdmissionGate(
-        load_artifact=lambda _: None,
-        load_evidence_unit=lambda key: units.get(key),
-    )
     with pytest.raises(AdmissionRefusal) as caught:
-        gate.admit(
+        _gate(units).admit(
             AdmissionRequest(
-                attestation=_attestation(),
+                attestation=_attestation(evidence_unit_id=target),
                 evidence_unit_id=target,
                 claimed_body=FORGED,
             )
@@ -150,21 +177,23 @@ def test_a_forged_body_is_refused_at_admission(indexed):
 @pytest.mark.requirement("EVI-010")
 @pytest.mark.spec_test("T-EVI-010")
 def test_the_canonical_body_is_admitted(indexed):
-    """The positive control for the test above."""
+    """The positive control, and it now exercises the whole admission contract.
+
+    Canonical body, durable link on the record, presence in the project, and a unit that
+    re-segmentation actually reproduces. Every one of those is a separate refusal elsewhere in
+    this file; here they all hold, which is what keeps the negatives from passing vacuously.
+    """
     units, _, _ = indexed
     target = next(iter(units))
-    gate = EvidenceAdmissionGate(
-        load_artifact=lambda _: None,
-        load_evidence_unit=lambda key: units.get(key),
-    )
-    admitted = gate.admit(
+    admitted = _gate(units).admit(
         AdmissionRequest(
-            attestation=_attestation(),
+            attestation=_attestation(evidence_unit_id=target),
             evidence_unit_id=target,
             claimed_body=units[target].body,
         )
     )
     assert admitted is not None
+    assert admitted.evidence_unit_id == target
 
 
 @pytest.mark.requirement("EVI-010")
@@ -189,17 +218,18 @@ def test_a_candidate_pointing_at_a_unit_that_does_not_resolve_is_refused():
 def test_a_benchmark_baseline_unit_is_refused_at_admission():
     """§6.22 rule 3(b). Baseline units exist to be measured against, never to be admitted."""
     baseline = FixedTokenBaselineSegmenter(window=40, overlap=5).segment(
-        parse_fixture(), project_id=PROJECT, run=BaselineRun(reason="T-EVI-010 comparison")
+        parse_fixture(), run=BaselineRun(reason="T-EVI-010 comparison")
     )
     units = {unit.evidence_unit_id: unit for unit in baseline}
     target = next(iter(units))
     assert units[target].subdivision_reason is SubdivisionReason.BENCHMARK_BASELINE
 
-    gate = EvidenceAdmissionGate(
-        load_artifact=lambda _: None, load_evidence_unit=lambda key: units.get(key)
-    )
     with pytest.raises(AdmissionRefusal) as caught:
-        gate.admit(AdmissionRequest(attestation=_attestation(), evidence_unit_id=target))
+        _gate(units).admit(
+            AdmissionRequest(
+                attestation=_attestation(evidence_unit_id=target), evidence_unit_id=target
+            )
+        )
     assert caught.value.reason is RefusalReason.BASELINE_UNIT_NOT_ADMISSIBLE
 
 
@@ -224,7 +254,6 @@ def test_retrieval_never_ranks_a_unit_from_another_project(indexed):
     """SEC-002 / R-7 on the retrieval path. Filtered before scoring, not after."""
     _, index, _ = indexed
     foreign = EvidenceUnit.build(
-        project_id=OTHER_PROJECT,
         artifact_id="art:sha256:" + "7" * 64,
         unit_type=EvidenceUnitType.PROSE,
         structural_path="1/prose:0/0",
@@ -237,7 +266,7 @@ def test_retrieval_never_ranks_a_unit_from_another_project(indexed):
             parser_version="1.0.0",
         ),
     )
-    index.add(foreign)
+    index.add(foreign, project_id=OTHER_PROJECT)
 
     candidates = index.search("junction capacitance", project_id=PROJECT, limit=50)
     assert foreign.evidence_unit_id not in {c.evidence_unit_id for c in candidates}
@@ -249,7 +278,6 @@ def test_retrieval_never_ranks_a_unit_from_another_project(indexed):
 def test_admission_refuses_an_evidence_unit_from_another_project():
     """Presence in one project grants nothing in another, at the admission boundary."""
     foreign = EvidenceUnit.build(
-        project_id=OTHER_PROJECT,
         artifact_id="art:sha256:" + "7" * 64,
         unit_type=EvidenceUnitType.PROSE,
         structural_path="1/prose:0/0",
@@ -259,13 +287,16 @@ def test_admission_refuses_an_evidence_unit_from_another_project():
             segmenter_id="s", segmenter_version="1", parser_id="p", parser_version="1"
         ),
     )
-    gate = EvidenceAdmissionGate(
-        load_artifact=lambda _: None,
-        load_evidence_unit=lambda _: foreign,
-    )
+    units = {foreign.evidence_unit_id: foreign}
     with pytest.raises(AdmissionRefusal) as caught:
-        gate.admit(
-            AdmissionRequest(attestation=_attestation(), evidence_unit_id=foreign.evidence_unit_id)
+        # Presence says no: the unit exists globally and has no occurrence in PROJECT. That is
+        # now the whole check -- after ADR-0012 the unit carries no project of its own to
+        # disagree with, so asking the occurrence is asking the authority on presence.
+        _gate(units, is_present_in=lambda _unit, _project: False).admit(
+            AdmissionRequest(
+                attestation=_attestation(evidence_unit_id=foreign.evidence_unit_id),
+                evidence_unit_id=foreign.evidence_unit_id,
+            )
         )
     assert caught.value.reason is RefusalReason.CROSS_PROJECT_UNIT
 
@@ -287,13 +318,12 @@ def test_admission_consults_the_existing_read_gate(indexed):
         refused.append((artifact_id, project_id))
         return False
 
-    gate = EvidenceAdmissionGate(
-        load_artifact=lambda _: None,
-        load_evidence_unit=lambda key: units.get(key),
-        can_read=deny,
-    )
     with pytest.raises(AdmissionRefusal) as caught:
-        gate.admit(AdmissionRequest(attestation=_attestation(), evidence_unit_id=target))
+        _gate(units, can_read=deny).admit(
+            AdmissionRequest(
+                attestation=_attestation(evidence_unit_id=target), evidence_unit_id=target
+            )
+        )
     assert caught.value.reason is RefusalReason.READ_NOT_PERMITTED
     assert refused == [(units[target].artifact_id, PROJECT)], (
         "the read gate was not consulted with the unit's artifact and the attestation's project"

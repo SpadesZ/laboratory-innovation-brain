@@ -258,7 +258,7 @@ def test_a_retry_reuses_the_stored_bytes_rather_than_requiring_re_upload():
     # The retry: same bytes, read back out of the store by the id the first attempt recorded.
     retried_text = store.open(first.artifact.content_hash).decode("utf-8")
     parsed = parser.parse(retried_text, artifact_id=first.artifact.artifact_id)
-    units = EvidenceAwareSegmenter().segment(parsed, project_id=PROJECT).units
+    units = EvidenceAwareSegmenter().segment(parsed).units
 
     assert parser.calls == 2
     assert units, "the retry produced no evidence units"

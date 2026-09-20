@@ -73,9 +73,7 @@ class FixedTokenBaselineSegmenter:
         self._window = window
         self._overlap = overlap
 
-    def segment(
-        self, document: ParsedDocument, *, project_id: str, run: BaselineRun
-    ) -> tuple[EvidenceUnit, ...]:
+    def segment(self, document: ParsedDocument, *, run: BaselineRun) -> tuple[EvidenceUnit, ...]:
         """Produce baseline units from the document's flat text.
 
         Note what is thrown away: section paths, table headers, figure captions, block types.
@@ -108,7 +106,6 @@ class FixedTokenBaselineSegmenter:
             path = f"_/baseline:{index}"
             units.append(
                 EvidenceUnit.build(
-                    project_id=project_id,
                     artifact_id=document.artifact_id,
                     # Everything is PROSE: the splitter has no idea a table was a table, which is
                     # itself one of the findings the benchmark reports.

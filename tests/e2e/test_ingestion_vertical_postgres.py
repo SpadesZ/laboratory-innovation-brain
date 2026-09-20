@@ -21,6 +21,7 @@ import json
 
 import psycopg
 import pytest
+from pydantic import ValidationError
 
 from lab_brain.core.access import can_read_artifact
 from lab_brain.core.models import (
@@ -32,6 +33,8 @@ from lab_brain.core.models import (
     ExtractionProvenance,
     ProjectMembership,
     SensitivityLabel,
+    compute_content_hash,
+    segmentation_witness_for,
 )
 from lab_brain.evidence.retriever import CandidateResolver, LexicalEvidenceIndex
 from lab_brain.ingestion.admission_gate import (
@@ -41,6 +44,7 @@ from lab_brain.ingestion.admission_gate import (
     RefusalReason,
 )
 from lab_brain.ingestion.pipeline import IngestionError, IngestionPipeline, IngestionStage
+from lab_brain.ingestion.reverification import SegmentationReverifier
 from lab_brain.storage.artifacts.local import LocalArtifactStore
 from tests.conftest_fixtures import TOY_SCHEMA_REF
 from tests.evidence_fixtures import (
@@ -113,19 +117,19 @@ def _rollback_rows(connection):
     return rollback
 
 
-def _persist_units(connection, units) -> None:
+def _persist_units(connection, units, occurrences) -> None:
+    """Write the global units, then place them in this project (§17.25.1, ADR-0012)."""
     for unit in units:
         connection.execute(
-            "INSERT INTO evidence_units (evidence_unit_id, project_id, artifact_id, unit_type, "
+            "INSERT INTO evidence_units (evidence_unit_id, artifact_id, unit_type, "
             "structural_path, locator, body, content_digest, parent_unit_id, subdivision_index, "
             "subdivision_reason, inherited_context, conditions, bound_condition_texts, "
-            "table_context, figure_context, parser_id, parser_version, segmenter_id, "
-            "segmenter_version, token_limit) "
+            "segmentation_witness, table_context, figure_context, parser_id, parser_version, "
+            "segmenter_id, segmenter_version, token_limit) "
             "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
             "%s, %s, %s)",
             (
                 unit.evidence_unit_id,
-                unit.project_id,
                 unit.artifact_id,
                 unit.unit_type.value,
                 unit.structural_path,
@@ -138,6 +142,7 @@ def _persist_units(connection, units) -> None:
                 list(unit.inherited_context),
                 json.dumps(unit.conditions),
                 list(unit.bound_condition_texts),
+                unit.segmentation_witness,
                 unit.table_context.model_dump_json() if unit.table_context else None,
                 unit.figure_context.model_dump_json() if unit.figure_context else None,
                 unit.provenance.parser_id,
@@ -145,6 +150,17 @@ def _persist_units(connection, units) -> None:
                 unit.provenance.segmenter_id,
                 unit.provenance.segmenter_version,
                 unit.provenance.token_limit,
+            ),
+        )
+    for occurrence in occurrences:
+        connection.execute(
+            "INSERT INTO evidence_unit_occurrences (evidence_unit_id, project_id, artifact_id, "
+            "ingested_by_actor_id) VALUES (%s, %s, %s, %s)",
+            (
+                occurrence.evidence_unit_id,
+                occurrence.project_id,
+                occurrence.artifact_id,
+                occurrence.ingested_by_actor_id,
             ),
         )
 
@@ -162,8 +178,24 @@ def ingested(db, tmp_path):
         uri="file:///rs_anomaly_report.md",
     )
     assert outcome.artifact is not None
-    _persist_units(db, outcome.evidence_units)
+    _persist_units(db, outcome.evidence_units, outcome.evidence_occurrences)
     return outcome, store, db
+
+
+def _is_present_in(db):
+    """§17.25.1 presence, read from the occurrence table rather than from the unit."""
+
+    def present(evidence_unit_id: str, project_id: str) -> bool:
+        return (
+            db.execute(
+                "SELECT 1 FROM evidence_unit_occurrences "
+                "WHERE evidence_unit_id = %s AND project_id = %s",
+                (evidence_unit_id, project_id),
+            ).fetchone()
+            is not None
+        )
+
+    return present
 
 
 def _load_unit(db):
@@ -177,31 +209,35 @@ def _load_unit(db):
 
     def load(evidence_unit_id: str):
         row = db.execute(
-            "SELECT evidence_unit_id, project_id, artifact_id, unit_type, structural_path, "
+            "SELECT evidence_unit_id, artifact_id, unit_type, structural_path, "
             "locator, body, content_digest, parent_unit_id, subdivision_index, "
             "subdivision_reason, inherited_context, conditions, bound_condition_texts, "
-            "table_context, figure_context, parser_id, parser_version, segmenter_id, "
-            "segmenter_version, token_limit "
+            "segmentation_witness, table_context, figure_context, parser_id, parser_version, "
+            "segmenter_id, segmenter_version, token_limit "
             "FROM evidence_units WHERE evidence_unit_id = %s",
             (evidence_unit_id,),
         ).fetchone()
         if row is None:
             return None
+        # Rebuilt through the model, not handed back as a row. Every validator runs again:
+        # identity is recomputed from (artifact, path, digest), the digest is recomputed from the
+        # body, the witness is recomputed from the conformance fields, and the rule-1 declaration
+        # is re-checked. A row that drifted in storage cannot reach a caller looking like evidence.
         return EvidenceUnit(
             evidence_unit_id=row[0],
-            project_id=row[1],
-            artifact_id=row[2],
-            unit_type=EvidenceUnitType(row[3]),
-            structural_path=row[4],
-            locator=SourceLocator.model_validate(row[5]),
-            body=row[6],
-            content_digest=row[7],
-            parent_unit_id=row[8],
-            subdivision_index=row[9],
-            subdivision_reason=row[10],
-            inherited_context=tuple(row[11]),
-            conditions=row[12],
-            bound_condition_texts=tuple(row[13]),
+            artifact_id=row[1],
+            unit_type=EvidenceUnitType(row[2]),
+            structural_path=row[3],
+            locator=SourceLocator.model_validate(row[4]),
+            body=row[5],
+            content_digest=row[6],
+            parent_unit_id=row[7],
+            subdivision_index=row[8],
+            subdivision_reason=row[9],
+            inherited_context=tuple(row[10]),
+            conditions=row[11],
+            bound_condition_texts=tuple(row[12]),
+            segmentation_witness=row[13],
             table_context=TableContext.model_validate(row[14]) if row[14] else None,
             figure_context=FigureContext.model_validate(row[15]) if row[15] else None,
             provenance=SegmenterProvenance(
@@ -253,7 +289,9 @@ def test_no_critical_evidence_boundary_was_split(ingested):
     """The condition and its result survived the round trip in one unit (§6.22 rule 1)."""
     _, _, connection = ingested
     rows = connection.execute(
-        "SELECT body, inherited_context FROM evidence_units WHERE project_id = %s", (PROJECT,)
+        "SELECT u.body, u.inherited_context FROM evidence_units u "
+        "JOIN evidence_unit_occurrences o USING (evidence_unit_id) WHERE o.project_id = %s",
+        (PROJECT,),
     ).fetchall()
     holding = [
         body
@@ -269,7 +307,9 @@ def test_table_and_figure_context_survived_persistence(ingested):
     _, _, connection = ingested
 
     table = connection.execute(
-        "SELECT table_context FROM evidence_units WHERE unit_type = 'TABLE' AND project_id = %s",
+        "SELECT u.table_context FROM evidence_units u "
+        "JOIN evidence_unit_occurrences o USING (evidence_unit_id) "
+        "WHERE u.unit_type = 'TABLE' AND o.project_id = %s",
         (PROJECT,),
     ).fetchone()
     assert table is not None
@@ -279,7 +319,9 @@ def test_table_and_figure_context_survived_persistence(ingested):
     assert context["rows"], "the table round-tripped without its rows"
 
     figure = connection.execute(
-        "SELECT figure_context FROM evidence_units WHERE unit_type = 'FIGURE' AND project_id = %s",
+        "SELECT u.figure_context FROM evidence_units u "
+        "JOIN evidence_unit_occurrences o USING (evidence_unit_id) "
+        "WHERE u.unit_type = 'FIGURE' AND o.project_id = %s",
         (PROJECT,),
     ).fetchone()
     assert figure is not None
@@ -293,7 +335,9 @@ def test_the_locator_round_trips_to_the_stored_document(ingested):
     source = store.open(outcome.artifact.content_hash).decode("utf-8")
 
     rows = connection.execute(
-        "SELECT structural_path, locator FROM evidence_units WHERE project_id = %s", (PROJECT,)
+        "SELECT u.structural_path, u.locator FROM evidence_units u "
+        "JOIN evidence_unit_occurrences o USING (evidence_unit_id) WHERE o.project_id = %s",
+        (PROJECT,),
     ).fetchall()
     assert rows
     for path, locator in rows:
@@ -311,7 +355,9 @@ def test_no_scientific_default_was_invented(ingested):
     """
     _, _, connection = ingested
     rows = connection.execute(
-        "SELECT conditions, body FROM evidence_units WHERE project_id = %s", (PROJECT,)
+        "SELECT u.conditions, u.body FROM evidence_units u "
+        "JOIN evidence_unit_occurrences o USING (evidence_unit_id) WHERE o.project_id = %s",
+        (PROJECT,),
     ).fetchall()
     for conditions, body in rows:
         for field in MISSING_FIELDS:
@@ -325,7 +371,7 @@ def test_retrieval_resolves_back_to_the_canonical_stored_unit(ingested):
     """Candidate retrieval, then re-resolution from the database by identity."""
     outcome, _, connection = ingested
     index = LexicalEvidenceIndex()
-    index.add_all(outcome.evidence_units)
+    index.add_all(outcome.evidence_units, project_id=PROJECT)
 
     candidates = index.search("junction capacitance reverse bias", project_id=PROJECT, limit=5)
     assert candidates
@@ -347,7 +393,7 @@ def test_a_tampered_candidate_cannot_alter_the_stored_evidence_body(ingested):
     """The attack, end to end and against the database."""
     outcome, _, connection = ingested
     index = LexicalEvidenceIndex()
-    index.add_all(outcome.evidence_units)
+    index.add_all(outcome.evidence_units, project_id=PROJECT)
 
     target = next(
         unit.evidence_unit_id for unit in outcome.evidence_units if RESULT_SENTENCE in unit.body
@@ -400,6 +446,12 @@ def test_admission_refuses_a_body_that_is_not_the_stored_one(ingested):
         load_artifact=lambda _: None,
         load_evidence_unit=_load_unit(connection),
         can_read=can_read,
+        resegment=SegmentationReverifier(
+            lambda artifact_id: (
+                fixture_bytes() if artifact_id == outcome.artifact.artifact_id else None
+            )
+        ),
+        is_present_in=_is_present_in(connection),
     )
     attestation = Attestation(
         claim_id="clm:cj-falls",
@@ -413,6 +465,7 @@ def test_admission_refuses_a_body_that_is_not_the_stored_one(ingested):
         extraction_provenance=ExtractionProvenance(
             extractor_id="local_markdown", extractor_version="1.0.0"
         ),
+        evidence_unit_id=target,
     )
 
     with pytest.raises(AdmissionRefusal) as caught:
@@ -463,6 +516,12 @@ def test_the_project_acl_is_enforced_on_the_new_read_path(ingested):
         can_read=lambda artifact_id, project_id: bool(
             can_read_artifact(outsider, artifact_id, project_id, None, elsewhere)
         ),
+        resegment=SegmentationReverifier(
+            lambda artifact_id: (
+                fixture_bytes() if artifact_id == outcome.artifact.artifact_id else None
+            )
+        ),
+        is_present_in=_is_present_in(connection),
     )
     attestation = Attestation(
         claim_id="clm:cj-falls",
@@ -476,6 +535,7 @@ def test_the_project_acl_is_enforced_on_the_new_read_path(ingested):
         extraction_provenance=ExtractionProvenance(
             extractor_id="local_markdown", extractor_version="1.0.0"
         ),
+        evidence_unit_id=target,
     )
     with pytest.raises(AdmissionRefusal) as caught:
         gate.admit(AdmissionRequest(attestation=attestation, evidence_unit_id=target))
@@ -520,3 +580,146 @@ def test_a_stored_unit_that_severs_its_condition_is_rejected_by_postgresql(inges
             "UPDATE evidence_units SET bound_condition_texts = %s WHERE evidence_unit_id = %s",
             (["A condition this unit does not contain at all."], unit.evidence_unit_id),
         )
+
+
+def test_an_attestation_recovers_its_evidence_unit_after_reload(ingested):
+    """§17.25 / `v3.3-a18`: the evidence reference is durable, not a parameter of one call.
+
+    THE audit finding, closed end to end. The reference used to live only on
+    ``AdmissionRequest``, so persisting an attestation and reloading it left a record that could
+    not say which passage it read -- and the locator does not settle it, because a document
+    routinely has several units at one human-facing position.
+
+    Here the attestation is written to PostgreSQL, read back **without the admission request in
+    scope**, and used to recover the exact unit.
+    """
+    outcome, _, connection = ingested
+    target = next(
+        unit.evidence_unit_id
+        for unit in outcome.evidence_units
+        if CONDITION_SENTENCE in unit.interpretive_text
+    )
+    attestation = Attestation(
+        claim_id="clm:cj-falls",
+        epistemic_type=EpistemicType.REPORTED,
+        source_work_id="swk:rs-anomaly-report",
+        locator="§3",
+        conditions={},
+        conditions_schema_version=TOY_SCHEMA_REF,
+        project_id=PROJECT,
+        extractor_version="1.0.0",
+        extraction_provenance=ExtractionProvenance(
+            extractor_id="local_markdown", extractor_version="1.0.0"
+        ),
+        evidence_unit_id=target,
+    )
+
+    # EVI-005: an attestation's condition schema must be registered before it can be written.
+    connection.execute(
+        "INSERT INTO condition_schemas "
+        "(domain, schema_id, version, json_schema, comparator_version) "
+        "VALUES ('toy', 'basic', '1.0.0', %s::jsonb, 'toy-comparator-1.0.0') "
+        "ON CONFLICT DO NOTHING",
+        ('{"type": "object", "properties": {}}',),
+    )
+    connection.execute(
+        "INSERT INTO claims (claim_id, normalized_proposition, identity_status) "
+        "VALUES (%s, %s, 'PROVISIONAL') ON CONFLICT DO NOTHING",
+        (attestation.claim_id, "cj falls with reverse bias"),
+    )
+    connection.execute(
+        "INSERT INTO source_works (source_work_id, work_type, title, trust_class) "
+        "VALUES (%s, 'TECHNICAL_REPORT', %s, 'PEER_REVIEWED') ON CONFLICT DO NOTHING",
+        (attestation.source_work_id, "Bias-dependent Cj and Rs"),
+    )
+    connection.execute(
+        "INSERT INTO attestations (attestation_id, claim_id, epistemic_type, source_work_id, "
+        "locator, conditions, conditions_schema_version, project_id, extractor_version, "
+        "extraction_provenance, evidence_unit_id) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+        (
+            attestation.attestation_id,
+            attestation.claim_id,
+            attestation.epistemic_type.value,
+            attestation.source_work_id,
+            attestation.locator,
+            json.dumps(attestation.conditions),
+            attestation.conditions_schema_version,
+            attestation.project_id,
+            attestation.extractor_version,
+            attestation.extraction_provenance.model_dump_json(),
+            attestation.evidence_unit_id,
+        ),
+    )
+
+    # Reload. Nothing from the admission call is in scope any more -- this is what a later
+    # session, or an auditor, actually has.
+    stored_unit_id = connection.execute(
+        "SELECT evidence_unit_id FROM attestations WHERE attestation_id = %s",
+        (attestation.attestation_id,),
+    ).fetchone()[0]
+    assert stored_unit_id == target, "the attestation did not record its evidence unit"
+
+    recovered = _load_unit(connection)(stored_unit_id)
+    assert recovered is not None
+    assert recovered.evidence_unit_id == target
+    assert CONDITION_SENTENCE in recovered.interpretive_text
+
+
+def test_a_canonical_read_rebuilds_and_verifies_the_unit_identity(ingested):
+    """The read guard: a row is rebuilt through the model, never trusted as a row.
+
+    ``_load_unit`` constructs an ``EvidenceUnit``, so identity is recomputed from
+    (artifact, path, digest), the digest from the body, and the witness from the conformance
+    fields. A row that drifted in storage -- by a repair script, a partial restore, a bad
+    migration -- cannot reach a caller still looking like evidence.
+    """
+    outcome, _, connection = ingested
+    target = outcome.evidence_units[0].evidence_unit_id
+
+    # Sanity: the honest row rebuilds.
+    assert _load_unit(connection)(target) is not None
+
+    # Now corrupt the stored body *and* its digest and witness, so every row-level guard the
+    # database holds is satisfied and only the identity derivation disagrees. The row is written
+    # under a NEW id so the unique path index does not intercept it first.
+    forged_body = "Cj increased to 9.999 pF/mm."
+    forged_digest = compute_content_hash(forged_body.encode("utf-8"))
+    row = connection.execute(
+        "SELECT artifact_id, structural_path, parser_id, parser_version, segmenter_id, "
+        "segmenter_version FROM evidence_units WHERE evidence_unit_id = %s",
+        (target,),
+    ).fetchone()
+    witness = segmentation_witness_for(
+        artifact_id=row[0],
+        structural_path=row[1] + "#forged",
+        body=forged_body,
+        inherited_context=(),
+        bound_condition_texts=(),
+        parser_id=row[2],
+        parser_version=row[3],
+        segmenter_id=row[4],
+        segmenter_version=row[5],
+    )
+    # The id deliberately does NOT match the content: this is the row a drifted store would hold.
+    connection.execute(
+        "INSERT INTO evidence_units (evidence_unit_id, artifact_id, unit_type, structural_path, "
+        "locator, body, content_digest, segmentation_witness, parser_id, parser_version, "
+        "segmenter_id, segmenter_version) "
+        "VALUES (%s, %s, 'PROSE', %s, '{\"label\": \"forged\"}', %s, %s, %s, %s, %s, %s, %s)",
+        (
+            "evu:sha256:" + "b" * 64,
+            row[0],
+            row[1] + "#forged",
+            forged_body,
+            forged_digest,
+            witness,
+            row[2],
+            row[3],
+            row[4],
+            row[5],
+        ),
+    )
+
+    with pytest.raises(ValidationError, match="not the derived identity"):
+        _load_unit(connection)("evu:sha256:" + "b" * 64)

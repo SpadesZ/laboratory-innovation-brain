@@ -38,7 +38,7 @@ def reports():
     document = parse_fixture()
     aware = evaluate(
         "evidence-aware",
-        segment_fixture(project_id=PROJECT).units,
+        segment_fixture().units,
         PROBES,
         document,
         project_id=PROJECT,
@@ -46,7 +46,7 @@ def reports():
     baseline = evaluate(
         "fixed-token",
         FixedTokenBaselineSegmenter().segment(
-            document, project_id=PROJECT, run=BaselineRun(reason="T-EVI-010 comparison")
+            document, run=BaselineRun(reason="T-EVI-010 comparison")
         ),
         PROBES,
         document,

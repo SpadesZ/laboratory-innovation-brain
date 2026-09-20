@@ -106,7 +106,7 @@ def build_report() -> str:
 
     aware = evaluate(
         "evidence-aware",
-        segment_fixture(project_id=PROJECT).units,
+        segment_fixture().units,
         PROBES,
         document,
         project_id=PROJECT,
@@ -115,7 +115,6 @@ def build_report() -> str:
         "fixed-token",
         FixedTokenBaselineSegmenter().segment(
             document,
-            project_id=PROJECT,
             run=BaselineRun(reason="T-EVI-010 published comparison"),
         ),
         PROBES,

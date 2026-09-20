@@ -51,7 +51,6 @@ def _unit(
     body: str = "Cj fell to 0.345 pF/mm.", path: str = "3/prose:1/0", **extra
 ) -> EvidenceUnit:
     return EvidenceUnit.build(
-        project_id=PROJECT,
         artifact_id=ARTIFACT,
         unit_type=EvidenceUnitType.PROSE,
         structural_path=path,
@@ -149,12 +148,12 @@ def test_rebuilding_an_index_changes_no_evidence_identity():
     digests_before = [unit.content_digest for unit in units]
 
     index = LexicalEvidenceIndex()
-    index.add_all(units)
+    index.add_all(units, project_id=PROJECT)
     assert index.size == 4
 
     index.drop()
     assert index.size == 0
-    index.add_all(units)
+    index.add_all(units, project_id=PROJECT)
 
     assert [unit.evidence_unit_id for unit in units] == before
     assert [unit.content_digest for unit in units] == digests_before
@@ -167,8 +166,8 @@ def test_two_indexes_over_the_same_unit_share_its_identity():
     unit = _unit()
     lexical = LexicalEvidenceIndex("idx:a")
     other = LexicalEvidenceIndex("idx:b")
-    first = lexical.add(unit)
-    second = other.add(unit)
+    first = lexical.add(unit, project_id=PROJECT)
+    second = other.add(unit, project_id=PROJECT)
 
     assert first.representation_id != second.representation_id
     assert first.evidence_unit_id == second.evidence_unit_id == unit.evidence_unit_id
@@ -287,7 +286,6 @@ def test_a_table_unit_without_table_context_is_refused():
     """Rule 5: without headers, units and row/column context the values cannot be read."""
     with pytest.raises(ValidationError, match="TABLE evidence unit must carry table_context"):
         EvidenceUnit.build(
-            project_id=PROJECT,
             artifact_id=ARTIFACT,
             unit_type=EvidenceUnitType.TABLE,
             structural_path="3/table:2",
@@ -303,7 +301,6 @@ def test_a_figure_unit_without_figure_context_is_refused():
     """Rule 6: a caption alone is not sufficient to read a figure."""
     with pytest.raises(ValidationError, match="FIGURE evidence unit must carry figure_context"):
         EvidenceUnit.build(
-            project_id=PROJECT,
             artifact_id=ARTIFACT,
             unit_type=EvidenceUnitType.FIGURE,
             structural_path="3/figure:4",

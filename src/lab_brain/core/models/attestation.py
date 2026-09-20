@@ -152,6 +152,18 @@ class Attestation(CoreModel):
     #: Where in the source. A claim without a locator cannot be re-checked by a human.
     locator: str
 
+    #: §17.25 / `v3.3-a18`. The canonical evidence unit this witness was read from.
+    #:
+    #: **Durable, not transient.** §17.25 already required an Attestation citing an EvidenceUnit
+    #: to record `evidence_unit_id`; M1-P1 implemented that only as a parameter of the admission
+    #: call, so a reloaded Attestation could not answer "which passage did this read" -- the one
+    #: question the locator alone cannot settle when a document has several units at the same
+    #: human-facing position.
+    #:
+    #: Optional because §17.2's one-source rule is unchanged: an Attestation may witness a Run or
+    #: a SourceWork rather than a parsed document unit, and those have no evidence unit to name.
+    evidence_unit_id: str | None = None
+
     conditions: dict[str, Any] = Field(default_factory=dict)
     conditions_schema_version: str
     #: Per-field status, keyed by field name (§6.3).
@@ -172,6 +184,23 @@ class Attestation(CoreModel):
     extractor_version: str
     extraction_provenance: ExtractionProvenance
     created_at: dt.datetime = Field(default_factory=utc_now)
+
+    @model_validator(mode="after")
+    def _evidence_unit_reference_is_wellformed(self) -> Self:
+        """A stored reference must be shaped like a derived evidence identity.
+
+        Cheap, and it catches the realistic error rather than an exotic one: a caller passing a
+        retrieval `representation_id` or a raw content digest here would otherwise persist a
+        reference that resolves to nothing, and the failure would surface much later as an
+        Attestation whose evidence "disappeared".
+        """
+        if self.evidence_unit_id is not None and not self.evidence_unit_id.startswith("evu:"):
+            raise ValueError(
+                f"evidence_unit_id {self.evidence_unit_id!r} is not an evidence unit identity; "
+                "expected an 'evu:' identifier (§17.25). A representation id or a content digest "
+                "would persist a reference that resolves to nothing"
+            )
+        return self
 
     @model_validator(mode="after")
     def _exactly_one_subject(self) -> Self:

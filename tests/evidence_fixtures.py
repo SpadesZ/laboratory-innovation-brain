@@ -68,15 +68,13 @@ def parse_fixture() -> ParsedDocument:
     )
 
 
-def segment_fixture(
-    *, project_id: str = "prj:test", token_limit: int | None = None
-) -> SegmentationResult:
+def segment_fixture(*, token_limit: int | None = None) -> SegmentationResult:
     segmenter = (
         EvidenceAwareSegmenter(token_limit=token_limit)
         if token_limit is not None
         else EvidenceAwareSegmenter()
     )
-    return segmenter.segment(parse_fixture(), project_id=project_id)
+    return segmenter.segment(parse_fixture())
 
 
 __all__ = [

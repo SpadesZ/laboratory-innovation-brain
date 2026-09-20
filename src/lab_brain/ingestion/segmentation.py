@@ -318,7 +318,7 @@ class EvidenceAwareSegmenter:
     def token_limit(self) -> int:
         return self._token_limit
 
-    def segment(self, document: ParsedDocument, *, project_id: str) -> SegmentationResult:
+    def segment(self, document: ParsedDocument) -> SegmentationResult:
         provenance = SegmenterProvenance(
             segmenter_id=SEGMENTER_ID,
             segmenter_version=SEGMENTER_VERSION,
@@ -335,9 +335,7 @@ class EvidenceAwareSegmenter:
                 # and `locator.label`; emitting it as its own unit would put a retrievable record
                 # with no content into the corpus.
                 continue
-            produced = self._segment_block(
-                document, block, project_id=project_id, provenance=provenance
-            )
+            produced = self._segment_block(document, block, provenance=provenance)
             units.extend(produced)
             subdivided.update(unit.evidence_unit_id for unit in produced if unit.is_subdivision)
 
@@ -350,18 +348,17 @@ class EvidenceAwareSegmenter:
         document: ParsedDocument,
         block: ParsedBlock,
         *,
-        project_id: str,
         provenance: SegmenterProvenance,
     ) -> list[EvidenceUnit]:
         if block.block_type is EvidenceUnitType.TABLE:
-            return [self._table_unit(document, block, project_id, provenance)]
+            return [self._table_unit(document, block, provenance)]
         if block.block_type is EvidenceUnitType.FIGURE:
-            return [self._figure_unit(document, block, project_id, provenance)]
+            return [self._figure_unit(document, block, provenance)]
         if block.block_type in {EvidenceUnitType.CODE, EvidenceUnitType.LOG}:
             # Never sentence-split: a code block or a log is one artefact, and cutting it between
             # two lines produces two things that each look like a complete listing.
-            return self._atomic_units(document, block, project_id, provenance, group_index=0)
-        return self._prose_units(document, block, project_id, provenance)
+            return self._atomic_units(document, block, provenance, group_index=0)
+        return self._prose_units(document, block, provenance)
 
     def _locator(self, block: ParsedBlock, suffix: str = "") -> SourceLocator:
         label = block.section_label
@@ -378,7 +375,6 @@ class EvidenceAwareSegmenter:
         self,
         document: ParsedDocument,
         block: ParsedBlock,
-        project_id: str,
         provenance: SegmenterProvenance,
     ) -> list[EvidenceUnit]:
         groups = bind_condition_result_groups(block.text)
@@ -391,7 +387,6 @@ class EvidenceAwareSegmenter:
                 self._emit(
                     document=document,
                     block=block,
-                    project_id=project_id,
                     provenance=provenance,
                     body=group.text,
                     group_index=group_index,
@@ -404,14 +399,12 @@ class EvidenceAwareSegmenter:
         self,
         document: ParsedDocument,
         block: ParsedBlock,
-        project_id: str,
         provenance: SegmenterProvenance,
         group_index: int,
     ) -> list[EvidenceUnit]:
         return self._emit(
             document=document,
             block=block,
-            project_id=project_id,
             provenance=provenance,
             body=block.text,
             group_index=group_index,
@@ -423,7 +416,6 @@ class EvidenceAwareSegmenter:
         *,
         document: ParsedDocument,
         block: ParsedBlock,
-        project_id: str,
         provenance: SegmenterProvenance,
         body: str,
         group_index: int,
@@ -435,7 +427,6 @@ class EvidenceAwareSegmenter:
         if token_count(body) <= self._token_limit:
             return [
                 EvidenceUnit.build(
-                    project_id=project_id,
                     artifact_id=document.artifact_id,
                     unit_type=block.block_type,
                     structural_path=base_path,
@@ -465,7 +456,6 @@ class EvidenceAwareSegmenter:
             )
             units.append(
                 EvidenceUnit.build(
-                    project_id=project_id,
                     artifact_id=document.artifact_id,
                     unit_type=block.block_type,
                     structural_path=f"{base_path}#sub{position}",
@@ -485,7 +475,6 @@ class EvidenceAwareSegmenter:
         self,
         document: ParsedDocument,
         block: ParsedBlock,
-        project_id: str,
         provenance: SegmenterProvenance,
     ) -> EvidenceUnit:
         """One unit per table (rule 5). Never one per row.
@@ -508,7 +497,6 @@ class EvidenceAwareSegmenter:
                 "produce an evidence unit whose values cannot be read (§6.22 rule 5)"
             )
         return EvidenceUnit.build(
-            project_id=project_id,
             artifact_id=document.artifact_id,
             unit_type=EvidenceUnitType.TABLE,
             structural_path=block.structural_key,
@@ -522,7 +510,6 @@ class EvidenceAwareSegmenter:
         self,
         document: ParsedDocument,
         block: ParsedBlock,
-        project_id: str,
         provenance: SegmenterProvenance,
     ) -> EvidenceUnit:
         """One unit per figure, carrying the prose that explains it (rule 6)."""
@@ -542,7 +529,6 @@ class EvidenceAwareSegmenter:
         # one piece of text the spec says is insufficient.
         body = "\n".join([block.text, *prose])
         return EvidenceUnit.build(
-            project_id=project_id,
             artifact_id=document.artifact_id,
             unit_type=EvidenceUnitType.FIGURE,
             structural_path=block.structural_key,

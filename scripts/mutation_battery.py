@@ -169,14 +169,11 @@ MUTATIONS: tuple[Mutation, ...] = (
         new="        if False:",
         tests=("tests/contract/test_retrieval_boundary.py",),
     ),
-    Mutation(
-        name="cross_project_unit_admitted",
-        guards="SEC-002 / R-7 — presence in one project grants nothing in another",
-        path="src/lab_brain/ingestion/admission_gate.py",
-        old="        if unit.project_id != attestation.project_id:",
-        new="        if False:",
-        tests=("tests/contract/test_retrieval_boundary.py",),
-    ),
+    # `cross_project_unit_admitted` lived here until the M1-P1 repair. It anchored on
+    # `unit.project_id != attestation.project_id`, a line ADR-0012 deleted: a unit no longer
+    # carries a project, and presence is resolved through the occurrence. Superseded by
+    # `presence_is_not_consulted` below. Removed rather than left reporting ANCHOR NOT FOUND
+    # forever -- a permanently failing entry trains the reader to ignore the output.
     Mutation(
         name="retrieval_ignores_project_scope",
         guards="SEC-002 — retrieval filters by project before scoring",
@@ -192,6 +189,75 @@ MUTATIONS: tuple[Mutation, ...] = (
         old="        if self.evidence_unit_id != expected:",
         new="        if False:",
         tests=("tests/contract/test_evidence_unit_identity.py",),
+    ),
+    # --- M1-P1 repair (v3.3-a18). One entry per audit finding. -------------------------
+    Mutation(
+        name="evi003_trusts_the_caller_flag",
+        guards="EVI-003 (P0) -- inference status is derived from provenance, not asserted",
+        path="src/lab_brain/ingestion/admission_gate.py",
+        old="        is_inference = canonical_inference or bool(request.llm_derived)",
+        new="        is_inference = bool(request.llm_derived)",
+        tests=("tests/contract/test_evidence_repair_probes.py",),
+    ),
+    Mutation(
+        name="evi003_flag_contradiction_ignored",
+        guards="EVI-003 (P0) -- a flag contradicting canonical provenance fails closed",
+        path="src/lab_brain/ingestion/admission_gate.py",
+        old="        if canonical_inference and request.llm_derived is False:",
+        new="        if False:",
+        tests=("tests/contract/test_evidence_repair_probes.py",),
+    ),
+    Mutation(
+        name="evidence_link_need_not_be_durable",
+        guards="17.25 (P1) -- the Attestation must record the unit, not just the call",
+        path="src/lab_brain/ingestion/admission_gate.py",
+        # Anchored on the COMPARISON, not on the `is None` branch above it. Disabling that branch
+        # alone survives, and correctly so: `None != unit.evidence_unit_id` is true, so the
+        # comparison still refuses. The branch names the defect precisely; it does not catch a
+        # case the comparison misses -- see the note in `_check_durable_link`.
+        old="        if attestation.evidence_unit_id != unit.evidence_unit_id:",
+        new="        if False:",
+        tests=("tests/contract/test_evidence_repair_probes.py",),
+    ),
+    Mutation(
+        name="segmentation_conformance_self_attested",
+        guards="SPEC-ISSUE-015 (P1) -- admission re-derives rather than trusting the row",
+        path="src/lab_brain/ingestion/admission_gate.py",
+        old="        if match is None:",
+        new="        if False:",
+        tests=("tests/contract/test_evidence_repair_probes.py",),
+    ),
+    Mutation(
+        name="re_derivation_may_be_skipped",
+        guards="SPEC-ISSUE-015 (P1) -- an unverifiable admission fails closed",
+        path="src/lab_brain/ingestion/admission_gate.py",
+        old="        if self._resegment is None:",
+        new="        if False and self._resegment is None:",
+        tests=("tests/contract/test_evidence_repair_probes.py",),
+    ),
+    Mutation(
+        name="stored_bindings_need_not_match_segmentation",
+        guards="SPEC-ISSUE-015 (P1) -- stripped bindings are caught by re-derivation",
+        path="src/lab_brain/ingestion/admission_gate.py",
+        old="        if match.bound_condition_texts != unit.bound_condition_texts:",
+        new="        if False:",
+        tests=("tests/contract/test_evidence_repair_probes.py",),
+    ),
+    Mutation(
+        name="witness_does_not_bind_contents",
+        guards="17.25 (P1) -- the storage-checkable half rejects a partial forgery",
+        path="src/lab_brain/core/models/evidence_unit.py",
+        old="        if self.segmentation_witness != expected:",
+        new="        if False:",
+        tests=("tests/contract/test_evidence_repair_probes.py",),
+    ),
+    Mutation(
+        name="presence_is_not_consulted",
+        guards="SEC-002 / 17.25.1 (P1) -- project scope resolves through the occurrence",
+        path="src/lab_brain/ingestion/admission_gate.py",
+        old="        if self._is_present_in is not None and not self._is_present_in(",
+        new="        if False and self._is_present_in is not None and not self._is_present_in(",
+        tests=("tests/contract/test_retrieval_boundary.py",),
     ),
     Mutation(
         name="subdivision_lineage_may_be_partial",

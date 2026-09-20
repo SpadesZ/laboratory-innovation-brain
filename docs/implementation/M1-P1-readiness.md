@@ -1,9 +1,9 @@
 # M1-P1 Readiness — Research Memory Foundation + Evidence-Aware Hierarchical Chunking
 
-Date: 2026-09-20
+Date: 2026-09-20; **revised 2026-09-21 after the independent audit** (see §10)
 Milestone: **M1 — Research Memory**, `NOT_STARTED` → `IN_PROGRESS`
 Slice scope: `EVI-002`, `EVI-003`, `EVI-004`, `EVI-009`, `EVI-010`, `SEC-003`, `OPS-004`, `UX-004`
-Spec: SAI 3.3, amendments `v3.3-a1` … `v3.3-a17`
+Spec: SAI 3.3, amendments `v3.3-a1` … `v3.3-a18`
 Baseline: `72391aa6af850324fe141d7c9585783fbdaca5dd` (M0a DONE, M0b DONE, both hard-locked)
 
 > **This is not an M1 sign-off.** M1's exit gate names a delayed mock job resuming an episode
@@ -224,3 +224,84 @@ requirements READY, not a milestone. Three things are worth an auditor's attenti
    If that is wrong, the per-case pass condition loses its justification.
 3. **the three "READY (half)" entries** in §3 and §6, which are the places this slice's claim is
    narrower than its requirement's full §26 text.
+
+## 10. Audit repair (2026-09-21)
+
+The independent audit returned four findings. All four were **reproduced against the running
+system before anything was changed**, and the reproductions are kept as permanent probes in
+`tests/contract/test_evidence_repair_probes.py` — the same reasoning
+`tests/spec/test_conformance_guards.py` gives about itself.
+
+Governance: **`SPEC-ISSUE-014`** and **`SPEC-ISSUE-015`**, both RESOLVED by **`v3.3-a18`**, with
+**ADR-0012**. Each applies an existing precedent rather than inventing a shape, and **no
+Requirement or Test ID is added** — the invariant stays **60 ↔ 60**, because all four are
+obligations `EVI-003`, `EVI-010` and `SEC-002` already imposed and that the implementation had
+made unenforceable.
+
+| # | Finding, as reproduced | Ruling | Precedent applied |
+|---|---|---|---|
+| **P0** | `MEASURED` + `inference_provenance_id` + flag omitted → **ADMITTED**, ×3 types | inference status is derived from `extraction_provenance`; the flag may widen, never narrow; contradiction fails closed | — (clarification of EVI-003) |
+| **P1** | `'evidence_unit_id' on Attestation? -> False` | the §17.25 reference becomes a durable column (`003c`), enforced at admission | — (§17.25 already required it) |
+| **P1** | `insert into prj:a: OK` / `insert into prj:b: UniqueViolation` | global identity, project-scoped presence: `EvidenceUnitOccurrence` (§17.25.1, `003b`) | **ADR-0010**, one layer down |
+| **P1** | severed body + `bound_condition_texts: []` → stored, nothing objected | two layers: a byte-level witness in SQL, and admission **re-running the segmenter** over the artifact's pinned bytes | **`v3.3-a13`**, its two forgery classes |
+
+### What each ruling refused, and why
+
+- **Not** `project_id` in the identity derivation. ADR-0010 rejected the identical move for
+  `Artifact`: one measurement cited by two projects would become two identities and `EVI-004`
+  would count it twice.
+- **Not** a composite primary key. It stores the canonical body once per project, so "resolve by
+  identity, get *the* body" becomes "get *a* body", and two rows under one identity can diverge
+  while each stays internally consistent.
+- **Not** natural language in SQL. `v3.3-a13` refused a second copy of `evaluate` in PostgreSQL
+  for the reason that applies verbatim to `bind_condition_result_groups`.
+- The witness **does not** stop a complete forgery and is not claimed to. It is `input_hash`'s
+  analogue: it rejects a *partial* forgery cheaply. Re-derivation is what closes the hole.
+
+### Verification after repair
+
+| Gate | Result |
+|---|---|
+| `ruff format --check` / `ruff check` | 159 files unchanged / all checks passed |
+| `mypy` (strict) | no issues in 77 source files |
+| backend-free suite | **923 passed**, 440 skipped |
+| migration replay from empty | **29 applied** |
+| migration idempotency | `applied: 29, pending: 0` |
+| full PostgreSQL profile | **1363 passed** |
+| executed-coverage ratchet | ok ×4; DONE `['M0a','M0b']`, IN_PROGRESS `['M1']` |
+| spec conformance | 205 passed; **60 ↔ 60**; drift/unbound/stale all empty |
+| obligation inventory | 84 occurrences, in sync |
+| mutation battery | **25/25 killed** |
+| benchmark report | current, **framing unchanged** |
+
+### Two mutation findings worth recording
+
+The battery found defects in the repair itself, which is what it is for:
+
+1. `cross_project_unit_admitted` reported **ANCHOR NOT FOUND** — it targeted a line ADR-0012
+   deleted. Removed rather than left permanently failing; superseded by `presence_is_not_consulted`.
+2. `evidence_link_need_not_be_durable` **survived** as originally written. Disabling the
+   `evidence_unit_id is None` branch changes nothing, because `None != unit_id` means the
+   comparison below still refuses. The branch is a message refinement, not an independent guard.
+   The battery now anchors on the comparison and `_check_durable_link` says so, so nobody later
+   "simplifies away" a guard believing it was one.
+
+### Known limitations added by the repair
+
+- **Admission re-parses the artifact.** Sub-millisecond on the locked fixture, not free on a large
+  document, per admission. Scoped to scientific admission (rare) rather than retrieval (not rare).
+  If it must get cheaper the answer is a verified cache keyed on
+  `(artifact_id, parser_version, segmenter_version)` — **not** trusting the witness alone, which
+  would delete the semantic layer and restore `SPEC-ISSUE-015`.
+- **Per-project divergence of the same evidence stays unrepresentable**, deliberately. Redaction
+  produces different bytes, hence a different Artifact, hence different units.
+- **`_check_durable_link` enforces a conditional obligation.** `attestations.evidence_unit_id` is
+  nullable because §17.2's one-source rule is unchanged: an Attestation may witness a Run or a
+  SourceWork. A NOT NULL column could not express that without forbidding the other two.
+
+### Unchanged by the repair
+
+`EVI-004`, `SEC-003` and `OPS-004` were not refactored — they passed the audit and had no finding
+against them. The benchmark framing is untouched: the fixed-token baseline still scores **1.00
+boundary, 1.00 condition, higher precision@5** while zeroing all three structural metrics, and
+that remains the measured justification for §26's per-case pass condition.

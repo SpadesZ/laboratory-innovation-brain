@@ -15,6 +15,7 @@ import psycopg
 import pytest
 
 from lab_brain.core.models import compute_content_hash, evidence_unit_id_for
+from lab_brain.core.models.identifiers import segmentation_witness_for
 
 pytestmark = [
     pytest.mark.postgres,
@@ -39,27 +40,59 @@ def _artifact(db, content: bytes = b"the locked fixture") -> str:
         "ON CONFLICT (artifact_id) DO NOTHING",
         (artifact_id, digest, artifact_id),
     )
+    # The artifact must be PRESENT in the project, not merely exist: `003b` refuses to place
+    # evidence in a project that does not hold the bytes it came from, because evidence readable
+    # where its source is not would be R-7 one layer down.
+    db.execute(
+        "INSERT INTO artifact_occurrences (artifact_id, project_id, sensitivity_label) "
+        "VALUES (%s, %s, 'INTERNAL') ON CONFLICT DO NOTHING",
+        (artifact_id, PROJECT),
+    )
     return artifact_id
 
 
 def _insert_unit(db, artifact_id: str, **overrides):
+    """Insert one evidence unit by raw SQL.
+
+    No `project_id`: after `v3.3-a18` presence is an occurrence, not a column (ADR-0012). The
+    witness is computed rather than passed so that a test overriding one conformance field gets a
+    row the storage layer accepts -- the tests that want a witness mismatch pass it explicitly.
+    """
     body = overrides.pop("body", BODY)
     path = overrides.pop("structural_path", "3/prose:1/0")
     digest = overrides.pop("content_digest", compute_content_hash(body.encode("utf-8")))
     unit_id = overrides.pop("evidence_unit_id", evidence_unit_id_for(artifact_id, path, digest))
+    inherited = overrides.pop("inherited_context", [])
+    bound = overrides.pop("bound_condition_texts", [])
+    provenance = {
+        "parser_id": overrides.pop("parser_id", "local_markdown"),
+        "parser_version": overrides.pop("parser_version", "1.0.0"),
+        "segmenter_id": overrides.pop("segmenter_id", "evidence_aware_hierarchical"),
+        "segmenter_version": overrides.pop("segmenter_version", "1.0.0"),
+    }
+    witness = overrides.pop(
+        "segmentation_witness",
+        segmentation_witness_for(
+            artifact_id=artifact_id,
+            structural_path=path,
+            body=body,
+            inherited_context=inherited,
+            bound_condition_texts=bound,
+            **provenance,
+        ),
+    )
     row = {
         "evidence_unit_id": unit_id,
-        "project_id": PROJECT,
         "artifact_id": artifact_id,
         "unit_type": "PROSE",
         "structural_path": path,
         "locator": '{"label": "\\u00a73"}',
         "body": body,
         "content_digest": digest,
-        "parser_id": "local_markdown",
-        "parser_version": "1.0.0",
-        "segmenter_id": "evidence_aware_hierarchical",
-        "segmenter_version": "1.0.0",
+        "inherited_context": inherited,
+        "bound_condition_texts": bound,
+        "segmentation_witness": witness,
+        **provenance,
     }
     row.update(overrides)
     columns = ", ".join(row)
@@ -201,6 +234,15 @@ def test_an_unknown_unit_type_is_rejected(db):
 # ---------------------------------------------------------------------------
 
 
+def _place(db, unit_id: str, artifact_id: str, project_id: str = PROJECT) -> None:
+    """§17.25.1 presence. 009b refuses to index evidence a project does not hold."""
+    db.execute(
+        "INSERT INTO evidence_unit_occurrences (evidence_unit_id, project_id, artifact_id) "
+        "VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+        (unit_id, project_id, artifact_id),
+    )
+
+
 def _insert_representation(db, unit_id: str, **overrides):
     row = {
         "representation_id": overrides.pop("representation_id", f"rrp:{unit_id[-12:]}"),
@@ -228,6 +270,7 @@ def test_dropping_every_representation_for_an_index_changes_no_evidence_unit(db)
     """
     artifact = _artifact(db)
     unit_id = _insert_unit(db, artifact)
+    _place(db, unit_id, artifact)
     _insert_representation(db, unit_id)
 
     before = db.execute(
@@ -247,6 +290,7 @@ def test_a_lexical_representation_naming_an_embedding_space_is_rejected(db):
     """Nothing was embedded, so the name describes no space (EVI-007)."""
     artifact = _artifact(db)
     unit_id = _insert_unit(db, artifact)
+    _place(db, unit_id, artifact)
     with pytest.raises(psycopg.errors.CheckViolation, match="embedding_space_is_complete"):
         _insert_representation(
             db, unit_id, embedding_model="text-embedding-3-large", embedding_version="1"
@@ -257,6 +301,7 @@ def test_a_dense_representation_without_a_complete_space_is_rejected(db):
     """An unidentified space cannot be filtered on, so mixing spaces becomes possible."""
     artifact = _artifact(db)
     unit_id = _insert_unit(db, artifact)
+    _place(db, unit_id, artifact)
     with pytest.raises(psycopg.errors.CheckViolation, match="embedding_space_is_complete"):
         _insert_representation(
             db, unit_id, index_kind="DENSE", embedding_model="text-embedding-3-large"
@@ -271,7 +316,8 @@ def test_a_representation_in_another_project_than_its_unit_is_rejected(db):
     )
     artifact = _artifact(db)
     unit_id = _insert_unit(db, artifact)
-    with pytest.raises(psycopg.errors.CheckViolation, match="grants nothing in another"):
+    _place(db, unit_id, artifact)
+    with pytest.raises(psycopg.errors.CheckViolation, match="cannot be indexed for retrieval"):
         _insert_representation(db, unit_id, project_id="prj:other")
 
 
@@ -286,6 +332,7 @@ def test_one_representation_per_unit_per_index(db):
     """Two rows would mean a rebuild appended rather than replaced, ranking a unit twice."""
     artifact = _artifact(db)
     unit_id = _insert_unit(db, artifact)
+    _place(db, unit_id, artifact)
     _insert_representation(db, unit_id, representation_id="rrp:1")
     with pytest.raises(psycopg.errors.UniqueViolation):
         _insert_representation(db, unit_id, representation_id="rrp:2")
@@ -295,16 +342,17 @@ def test_two_indexes_may_hold_the_same_unit(db):
     """The positive control for the constraint above: per-index, not global."""
     artifact = _artifact(db)
     unit_id = _insert_unit(db, artifact)
+    _place(db, unit_id, artifact)
     _insert_representation(db, unit_id, representation_id="rrp:1", index_id="idx:a")
     _insert_representation(db, unit_id, representation_id="rrp:2", index_id="idx:b")
     assert db.execute("SELECT count(*) FROM retrieval_representations").fetchone()[0] == 2
 
 
-def test_the_same_structural_path_cannot_be_occupied_twice_in_one_project(db):
-    """Re-segmentation is a known limitation (ADR-0011); attempting it fails loudly.
+def test_the_same_structural_path_cannot_be_occupied_twice(db):
+    """Re-segmentation is a known limitation (ADR-0011/0012); attempting it fails loudly.
 
-    Without this a second segmenter version would write a parallel set of units at the same
-    paths, and a query by path would silently return whichever came back first.
+    Global now, not per project: after the split the body lives once, so two different boundary
+    sets at one structural path is a contradiction anywhere rather than only within a project.
     """
     artifact = _artifact(db)
     _insert_unit(db, artifact, body="First boundary.")

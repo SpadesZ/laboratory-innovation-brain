@@ -81,8 +81,12 @@ class LexicalEvidenceIndex:
 
     def __init__(self, index_id: str = "idx:lexical:v1") -> None:
         self._index_id = index_id
-        self._representations: dict[str, RetrievalRepresentation] = {}
-        self._tokens: dict[str, list[str]] = {}
+        #: Keyed on (evidence_unit_id, project_id), mirroring `retrieval_representations`'
+        #: unique index. A unit-only key was correct while a unit belonged to one project; after
+        #: ADR-0012 the same evidence is legitimately present in several, and a unit-only key
+        #: would silently let the second project's add() overwrite the first's.
+        self._representations: dict[tuple[str, str], RetrievalRepresentation] = {}
+        self._tokens: dict[tuple[str, str], list[str]] = {}
         self._document_frequency: Counter[str] = Counter()
         self._total_length = 0
 
@@ -94,8 +98,14 @@ class LexicalEvidenceIndex:
     def size(self) -> int:
         return len(self._representations)
 
-    def add(self, unit: EvidenceUnit) -> RetrievalRepresentation:
-        """Index one canonical unit.
+    def add(self, unit: EvidenceUnit, *, project_id: str) -> RetrievalRepresentation:
+        """Index one canonical unit, into one project's scope.
+
+        ``project_id`` is a parameter rather than something read off the unit, because a unit no
+        longer has one: it is global, and *which projects hold it* lives on
+        ``EvidenceUnitOccurrence`` (ADR-0012). Indexing is therefore an explicit act of placing
+        known-present evidence into a project's index, and a caller that has not established
+        presence cannot get it from here by accident.
 
         The representation records the digest of what was indexed. Note that it indexes
         ``interpretive_text`` -- body plus inherited context -- so a fallback sub-unit is findable
@@ -104,21 +114,24 @@ class LexicalEvidenceIndex:
         indexed_text = unit.interpretive_text
         representation = RetrievalRepresentation(
             evidence_unit_id=unit.evidence_unit_id,
-            project_id=unit.project_id,
+            project_id=project_id,
             index_id=self._index_id,
             index_kind=RetrievalIndexKind.LEXICAL,
             payload_digest=compute_content_hash(indexed_text.encode("utf-8")),
         )
+        key = (unit.evidence_unit_id, project_id)
         tokens = tokenize(indexed_text)
-        self._representations[unit.evidence_unit_id] = representation
-        self._tokens[unit.evidence_unit_id] = tokens
+        self._representations[key] = representation
+        self._tokens[key] = tokens
         self._total_length += len(tokens)
         for term in set(tokens):
             self._document_frequency[term] += 1
         return representation
 
-    def add_all(self, units: Iterable[EvidenceUnit]) -> tuple[RetrievalRepresentation, ...]:
-        return tuple(self.add(unit) for unit in units)
+    def add_all(
+        self, units: Iterable[EvidenceUnit], *, project_id: str
+    ) -> tuple[RetrievalRepresentation, ...]:
+        return tuple(self.add(unit, project_id=project_id) for unit in units)
 
     def drop(self) -> None:
         """Delete the whole index.
@@ -144,8 +157,8 @@ class LexicalEvidenceIndex:
             raise ValueError("limit must be positive; traversal MUST be bounded (§17.12)")
 
         scoped = {
-            unit_id: representation
-            for unit_id, representation in self._representations.items()
+            key: representation
+            for key, representation in self._representations.items()
             if representation.project_id == project_id
         }
         if not scoped:
@@ -155,8 +168,8 @@ class LexicalEvidenceIndex:
         average_length = self._total_length / max(len(self._representations), 1)
         scored: list[tuple[float, str]] = []
 
-        for unit_id in scoped:
-            tokens = self._tokens[unit_id]
+        for key in scoped:
+            tokens = self._tokens[key]
             counts = Counter(tokens)
             length = len(tokens)
             score = 0.0
@@ -175,7 +188,7 @@ class LexicalEvidenceIndex:
                 )
                 score += idf * (frequency * (_BM25_K1 + 1)) / denominator
             if score > 0:
-                scored.append((score, unit_id))
+                scored.append((score, key[0]))
 
         # Sort by score then by id: ties must break the same way on every run, or a locked
         # fixture's expected ranking is not actually locked.
@@ -183,7 +196,7 @@ class LexicalEvidenceIndex:
         return tuple(
             RetrievalCandidate(
                 evidence_unit_id=unit_id,
-                representation_id=scoped[unit_id].representation_id,
+                representation_id=scoped[(unit_id, project_id)].representation_id,
                 project_id=project_id,
                 score=score,
                 rank=position + 1,
@@ -191,8 +204,10 @@ class LexicalEvidenceIndex:
             for position, (score, unit_id) in enumerate(scored[:limit])
         )
 
-    def representation_for(self, evidence_unit_id: str) -> RetrievalRepresentation | None:
-        return self._representations.get(evidence_unit_id)
+    def representation_for(
+        self, evidence_unit_id: str, project_id: str
+    ) -> RetrievalRepresentation | None:
+        return self._representations.get((evidence_unit_id, project_id))
 
     def tamper(self, evidence_unit_id: str, replacement: str) -> None:
         """Overwrite what the index holds for a unit, leaving the canonical unit untouched.
@@ -207,13 +222,14 @@ class LexicalEvidenceIndex:
         rewrote the index but politely left a digest that convicts them, and the resulting test
         would pass while proving nothing about detection.
         """
-        representation = self._representations.get(evidence_unit_id)
-        if representation is None:
+        keys = [key for key in self._representations if key[0] == evidence_unit_id]
+        if not keys:
             raise KeyError(evidence_unit_id)
-        self._tokens[evidence_unit_id] = tokenize(replacement)
-        self._representations[evidence_unit_id] = representation.model_copy(
-            update={"payload_digest": compute_content_hash(replacement.encode("utf-8"))}
-        )
+        for key in keys:
+            self._tokens[key] = tokenize(replacement)
+            self._representations[key] = self._representations[key].model_copy(
+                update={"payload_digest": compute_content_hash(replacement.encode("utf-8"))}
+            )
 
 
 @dataclass(frozen=True)
@@ -237,8 +253,17 @@ class CandidateResolver:
     change, because it never asked the index for content in the first place.
     """
 
-    def __init__(self, load_unit: Callable[[str], EvidenceUnit | None]) -> None:
+    def __init__(
+        self,
+        load_unit: Callable[[str], EvidenceUnit | None],
+        is_present_in: Callable[[str, str], bool] | None = None,
+    ) -> None:
         self._load_unit = load_unit
+        #: §17.25.1 presence lookup. Optional so in-memory callers that hold a single project's
+        #: units need not build an occurrence table; when absent, presence is not re-checked here
+        #: and the index's own project filter is the only scope control -- which is why the
+        #: PostgreSQL path always supplies it.
+        self._is_present_in = is_present_in or (lambda _unit, _project: True)
 
     def resolve(
         self,
@@ -260,15 +285,18 @@ class CandidateResolver:
             unit = self._load_unit(candidate.evidence_unit_id)
             if unit is None:
                 continue
-            if unit.project_id != candidate.project_id:
-                # Defence in depth: the index already filters by project. A candidate that
-                # disagrees means an index built against another project's units, and answering
-                # it would be the R-7 leak through a different door.
+            if not self._is_present_in(unit.evidence_unit_id, candidate.project_id):
+                # Defence in depth: the index already filters by project, and this asks the
+                # authority on presence (§17.25.1) rather than re-reading a project column the
+                # unit no longer has. An index row surviving a revoked occurrence would
+                # otherwise keep answering -- the R-7 leak through a different door.
                 continue
             resolved.append(ResolvedCandidate(candidate=candidate, unit=unit))
 
             if index is not None:
-                representation = index.representation_for(unit.evidence_unit_id)
+                representation = index.representation_for(
+                    unit.evidence_unit_id, candidate.project_id
+                )
                 if representation is None:
                     continue
                 canonical = compute_content_hash(unit.interpretive_text.encode("utf-8"))

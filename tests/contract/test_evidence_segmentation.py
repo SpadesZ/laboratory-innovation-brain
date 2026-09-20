@@ -150,7 +150,7 @@ def test_a_headerless_table_is_refused_rather_than_emitted():
         }
     )
     with pytest.raises(SegmentationError, match="no headers or no rows"):
-        EvidenceAwareSegmenter().segment(stripped, project_id=PROJECT)
+        EvidenceAwareSegmenter().segment(stripped)
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +189,7 @@ def test_a_figure_with_no_explanatory_prose_is_refused():
     )
     assert figure.figure_label
     with pytest.raises(SegmentationError, match="caption alone is not sufficient"):
-        EvidenceAwareSegmenter().segment(orphaned, project_id=PROJECT)
+        EvidenceAwareSegmenter().segment(orphaned)
 
 
 # ---------------------------------------------------------------------------
@@ -295,7 +295,7 @@ def test_the_baseline_splits_the_condition_from_its_result_and_is_stamped_as_bas
     """
     document = parse_fixture()
     units = FixedTokenBaselineSegmenter(window=12, overlap=0).segment(
-        document, project_id=PROJECT, run=BaselineRun(reason="T-EVI-010 comparison")
+        document, run=BaselineRun(reason="T-EVI-010 comparison")
     )
     assert units
     assert all(unit.subdivision_reason is SubdivisionReason.BENCHMARK_BASELINE for unit in units)
@@ -334,7 +334,7 @@ def test_every_unit_resolves_back_to_its_source_text():
     """§6.22 rule 7's locator half: offsets must actually index the document they came from."""
     source = load_fixture_document()
     document = MarkdownDocumentParser().parse(source, artifact_id="art:sha256:" + "f" * 64)
-    result = EvidenceAwareSegmenter().segment(document, project_id=PROJECT)
+    result = EvidenceAwareSegmenter().segment(document)
 
     for unit in result.units:
         locator = unit.locator

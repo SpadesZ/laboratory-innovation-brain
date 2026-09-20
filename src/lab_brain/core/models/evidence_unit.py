@@ -1,11 +1,17 @@
-"""EvidenceUnit and RetrievalRepresentation — §6.22, §17.25, EVI-010, ADR-0011.
+"""EvidenceUnit and RetrievalRepresentation — §6.22, §17.25, EVI-010, ADR-0011, ADR-0012.
 
-Two objects that a conventional retrieval stack would make one, and the whole requirement is the
-separation.
+Three objects that a conventional retrieval stack would make one, and the whole requirement is
+keeping them apart.
 
-    EvidenceUnit               what the evidence IS. Canonical, project-scoped, identity derived
+    EvidenceUnit               what the evidence IS. Canonical and **global**, identity derived
                                from (artifact_id, structural_path, content_digest).
+    EvidenceUnitOccurrence     which projects HOLD it. Identity (evidence_unit_id, project_id).
     RetrievalRepresentation    what an INDEX holds about it. Derived, disposable, per index.
+
+The first split is ADR-0011 (evidence vs index). The second is ADR-0012 (identity vs presence),
+and is the same shape as ADR-0010's `Artifact` / `ArtifactOccurrence` one layer down: a
+project column on a content-derived identity row made the same evidence in a second project
+unrepresentable, not merely unchecked.
 
 Merged into a single "chunk", the row's lifetime becomes the index's lifetime: re-embedding is an
 UPDATE on scientific data, and "drop the index and rebuild" becomes a destructive operation on
@@ -43,6 +49,7 @@ from lab_brain.core.models.identifiers import (
     evidence_unit_id_for,
     new_id,
     parse_content_hash,
+    segmentation_witness_for,
 )
 
 
@@ -196,9 +203,16 @@ class EvidenceUnit(CoreModel):
     """
 
     evidence_unit_id: str
-    project_id: str
     artifact_id: str
     source_work_id: str | None = None
+
+    #: `project_id` is deliberately ABSENT (§17.25, §17.25.1, ADR-0012, amendment `v3.3-a18`).
+    #: Identity is derived from content and is project-independent, so a project column on this
+    #: row made the same evidence in a second project unrepresentable -- it collided on the
+    #: primary key, and the first project to ingest a document owned its evidence. Presence lives
+    #: on `EvidenceUnitOccurrence`, keyed on (evidence_unit_id, project_id), exactly as
+    #: `ArtifactOccurrence` carries what `Artifact` must not. `CoreModel` forbids extra fields, so
+    #: passing `project_id` here is a ValidationError rather than a silently ignored kwarg.
 
     unit_type: EvidenceUnitType
     #: Position in the document's structure: ``"3/3.2/table:2"``. Part of identity, so the same
@@ -225,6 +239,15 @@ class EvidenceUnit(CoreModel):
     #: this list: a unit naming a bound condition whose text it does not contain has been split.
     bound_condition_texts: tuple[str, ...] = ()
 
+    #: §17.25 / `v3.3-a18`. Digest binding the fields segmentation conformance depends on, so a
+    #: partially forged row -- body edited, witness left behind -- is rejected by the store without
+    #: re-serializing. Derived like the id: recomputed on construction, mismatch refused.
+    #:
+    #: It does NOT stop a complete forgery, and is not claimed to; see
+    #: :func:`segmentation_witness_for` and ADR-0012. The layer that closes SPEC-ISSUE-015 is
+    #: admission re-running the segmenter over the artifact's bytes.
+    segmentation_witness: str
+
     table_context: TableContext | None = None
     figure_context: FigureContext | None = None
 
@@ -246,6 +269,34 @@ class EvidenceUnit(CoreModel):
                 f"(artifact={self.artifact_id!r}, path={self.structural_path!r}, "
                 f"digest={self.content_digest!r}); expected {expected!r}. Evidence identity is "
                 "computed from content, never assigned (§17.25, ADR-0011)"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _witness_binds_this_units_contents(self) -> Self:
+        """The witness must be the digest of *these* conformance fields (§17.25, `v3.3-a18`).
+
+        Recomputed rather than merely shape-checked, for the same reason the id is: a witness
+        that is only well-formed binds nothing, and the partial forgery this layer exists to
+        catch -- edit the body, leave the witness -- produces a perfectly well-formed one.
+        """
+        parse_content_hash(self.segmentation_witness)
+        expected = segmentation_witness_for(
+            artifact_id=self.artifact_id,
+            structural_path=self.structural_path,
+            body=self.body,
+            inherited_context=self.inherited_context,
+            bound_condition_texts=self.bound_condition_texts,
+            parser_id=self.provenance.parser_id,
+            parser_version=self.provenance.parser_version,
+            segmenter_id=self.provenance.segmenter_id,
+            segmenter_version=self.provenance.segmenter_version,
+        )
+        if self.segmentation_witness != expected:
+            raise ValueError(
+                "segmentation_witness does not bind this unit's contents; the body, its bound "
+                "conditions, its inherited context or its parser/segmenter identity has been "
+                "changed without re-deriving the witness (§17.25, `v3.3-a18`)"
             )
         return self
 
@@ -339,7 +390,6 @@ class EvidenceUnit(CoreModel):
     def build(
         cls,
         *,
-        project_id: str,
         artifact_id: str,
         unit_type: EvidenceUnitType,
         structural_path: str,
@@ -348,23 +398,57 @@ class EvidenceUnit(CoreModel):
         provenance: SegmenterProvenance,
         **extra: Any,
     ) -> EvidenceUnit:
-        """Construct a unit, deriving the digest and identity from ``body``.
+        """Construct a unit, deriving digest, identity and witness from its own contents.
 
         The only ergonomic constructor, for the same reason ``Artifact.from_bytes`` is: the
         ordinary path then cannot produce a unit whose identity disagrees with its content.
+
+        Takes no ``project_id``. A unit exists globally and is *placed* in a project by
+        :meth:`occurrence_in`, mirroring ``Artifact.occurrence_in`` (ADR-0010, ADR-0012).
         """
         digest = compute_content_hash(body.encode("utf-8"))
+        witness = segmentation_witness_for(
+            artifact_id=artifact_id,
+            structural_path=structural_path,
+            body=body,
+            inherited_context=extra.get("inherited_context", ()),
+            bound_condition_texts=extra.get("bound_condition_texts", ()),
+            parser_id=provenance.parser_id,
+            parser_version=provenance.parser_version,
+            segmenter_id=provenance.segmenter_id,
+            segmenter_version=provenance.segmenter_version,
+        )
         return cls(
             evidence_unit_id=evidence_unit_id_for(artifact_id, structural_path, digest),
-            project_id=project_id,
             artifact_id=artifact_id,
             unit_type=unit_type,
             structural_path=structural_path,
             locator=locator,
             body=body,
             content_digest=digest,
+            segmentation_witness=witness,
             provenance=provenance,
             **extra,
+        )
+
+    def occurrence_in(
+        self,
+        project_id: str,
+        *,
+        ingested_by_actor_id: str | None = None,
+    ) -> EvidenceUnitOccurrence:
+        """Record this unit's presence in one project (§17.25.1).
+
+        The evidence-layer twin of ``Artifact.occurrence_in``. Unlike that one this takes no
+        sensitivity label: classification is a property of the *bytes* a project holds and already
+        lives on ``ArtifactOccurrence``; re-stating it per evidence unit would create a second
+        answer to "how is this classified here" that nothing keeps in step with the first.
+        """
+        return EvidenceUnitOccurrence(
+            evidence_unit_id=self.evidence_unit_id,
+            project_id=project_id,
+            artifact_id=self.artifact_id,
+            ingested_by_actor_id=ingested_by_actor_id,
         )
 
     @property
@@ -377,6 +461,33 @@ class EvidenceUnit(CoreModel):
         if not self.inherited_context:
             return self.body
         return self.body + "\n" + "\n".join(self.inherited_context)
+
+
+class EvidenceUnitOccurrence(CoreModel):
+    """One evidence unit's presence in one project (§17.25.1, ADR-0012).
+
+    Identity is the PAIR ``(evidence_unit_id, project_id)``; neither half alone identifies an
+    occurrence. Structurally identical to ``ArtifactOccurrence``, and for the identical reason:
+    ``evidence_unit_id`` is derived from content and is project-independent, so a project column
+    on the identity row made the same evidence in a second project unrepresentable.
+
+    A unit with no occurrence in a project is **not present** there, and must not be retrievable
+    or admissible there however well cleared the requester is elsewhere (SEC-002).
+    """
+
+    evidence_unit_id: str
+    project_id: str
+    #: Redundant against the unit, and deliberately so. Every occurrence check also needs to ask
+    #: "may this actor read the artifact this evidence came from", and carrying the artifact here
+    #: means that question is answerable from the occurrence alone rather than requiring the unit
+    #: to be loaded first -- which would mean reading the evidence to decide whether it may be read.
+    artifact_id: str
+    ingested_by_actor_id: str | None = None
+    first_seen_at: dt.datetime = Field(default_factory=utc_now)
+
+    @property
+    def occurrence_key(self) -> tuple[str, str]:
+        return (self.evidence_unit_id, self.project_id)
 
 
 class RetrievalRepresentation(CoreModel):
@@ -452,6 +563,7 @@ class RetrievalCandidate(CoreModel):
 
 __all__ = [
     "EvidenceUnit",
+    "EvidenceUnitOccurrence",
     "FigureContext",
     "RetrievalCandidate",
     "RetrievalRepresentation",

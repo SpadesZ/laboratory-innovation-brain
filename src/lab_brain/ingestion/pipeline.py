@@ -40,7 +40,7 @@ from lab_brain.core.models.enums import (
     SensitivityLabel,
     SourceOrigin,
 )
-from lab_brain.core.models.evidence_unit import EvidenceUnit
+from lab_brain.core.models.evidence_unit import EvidenceUnit, EvidenceUnitOccurrence
 from lab_brain.core.models.identifiers import artifact_id_for, compute_content_hash, new_id
 from lab_brain.ingestion.parsers.documents import MarkdownDocumentParser
 from lab_brain.ingestion.parsers.structure import ParsedDocument
@@ -114,6 +114,7 @@ class IngestionOutcome:
 
     item_id: str
     project_id: str
+    actor_id: str | None = None
     stage_results: list[StageResult] = field(default_factory=list)
     artifact: Artifact | None = None
     occurrence: ArtifactOccurrence | None = None
@@ -121,6 +122,8 @@ class IngestionOutcome:
     segmentation: SegmentationResult | None = None
     scan: SecretScanResult | None = None
     quarantined: bool = False
+    #: §17.25.1. One per segmented unit, placing globally-identified evidence in this project.
+    evidence_occurrences: tuple[EvidenceUnitOccurrence, ...] = ()
 
     @property
     def evidence_units(self) -> tuple[EvidenceUnit, ...]:
@@ -204,7 +207,9 @@ class IngestionPipeline:
         source_origin: SourceOrigin = SourceOrigin.UPLOAD,
         source_metadata: dict[str, str] | None = None,
     ) -> IngestionOutcome:
-        outcome = IngestionOutcome(item_id=new_id("ingestion_item"), project_id=project_id)
+        outcome = IngestionOutcome(
+            item_id=new_id("ingestion_item"), project_id=project_id, actor_id=actor_id
+        )
 
         # --- 1. SECRET_SCAN, before anything becomes addressable (SEC-003) -----------------
         scan = self._run_secret_scan(data, outcome)
@@ -437,7 +442,7 @@ class IngestionPipeline:
 
         segment_started = utc_now()
         try:
-            segmentation = self._segmenter.segment(parsed, project_id=outcome.project_id)
+            segmentation = self._segmenter.segment(parsed)
         except Exception:
             outcome.stage_results.append(
                 StageResult(
@@ -452,6 +457,13 @@ class IngestionPipeline:
             return
 
         outcome.segmentation = segmentation
+        # Units are global (ADR-0012); this is where they become present in *this* project.
+        # Recorded here rather than inside the segmenter because segmentation is a property of
+        # the bytes and presence is a property of the ingest.
+        outcome.evidence_occurrences = tuple(
+            unit.occurrence_in(outcome.project_id, ingested_by_actor_id=outcome.actor_id)
+            for unit in segmentation.units
+        )
         outcome.stage_results.append(
             StageResult(
                 stage=IngestionStage.SEGMENT,

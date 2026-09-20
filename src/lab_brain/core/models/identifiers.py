@@ -175,6 +175,60 @@ def evidence_unit_id_for(artifact_id: str, structural_path: str, content_digest:
     return f"{EVIDENCE_UNIT_ID_PREFIX}:{compute_content_hash(payload)}"
 
 
+def segmentation_witness_for(
+    *,
+    artifact_id: str,
+    structural_path: str,
+    body: str,
+    inherited_context: Iterable[str],
+    bound_condition_texts: Iterable[str],
+    parser_id: str,
+    parser_version: str,
+    segmenter_id: str,
+    segmenter_version: str,
+) -> str:
+    """Digest binding an evidence unit's conformance-relevant fields (§17.25, `v3.3-a18`).
+
+    WHAT THIS IS FOR, and what it is emphatically not for.
+
+    It is the storage-checkable half of SPEC-ISSUE-015's two-layer answer, and the exact analogue
+    of `input_hash` in `v3.3-a12`: it lets the *store* reject a partially forged row -- body edited,
+    witness left behind -- without re-serializing and without agreeing with the writer about field
+    order. PostgreSQL can recompute it with `sha256()`, which is a byte operation; nothing has to
+    read the prose.
+
+    It does **not** stop a complete forgery. Anyone who knows this function can compute a
+    consistent witness for any row they like. That is expected, it is stated in ADR-0012, and it is
+    why the semantic layer exists: scientific admission re-runs the recorded segmenter over the
+    artifact's content-addressed bytes and requires the unit to be among what comes out. Treating
+    this digest as sufficient on its own would delete that layer and restore the issue.
+
+    The field list is the conformance surface, not the whole row. `created_at` and
+    `source_work_id` are excluded because they are not outputs of segmentation -- binding them
+    would make the witness un-recomputable by a re-derivation that legitimately produces the same
+    evidence at a different time.
+    """
+    parts = (
+        artifact_id,
+        structural_path,
+        body,
+        # Length-prefixed inside the sequence too: two adjacent context strings must not be able
+        # to impersonate one longer string, which a plain join would permit.
+        _length_prefixed(inherited_context),
+        _length_prefixed(bound_condition_texts),
+        parser_id,
+        parser_version,
+        segmenter_id,
+        segmenter_version,
+    )
+    payload = "".join(f"{len(part)}:{part}" for part in parts).encode("utf-8")
+    return compute_content_hash(payload)
+
+
+def _length_prefixed(values: Iterable[str]) -> str:
+    return "".join(f"{len(value)}:{value}" for value in values)
+
+
 def new_id(kind: str) -> str:
     """Mint a random identifier for an event-addressed entity.
 
@@ -205,4 +259,5 @@ __all__ = [
     "evidence_unit_id_for",
     "new_id",
     "parse_content_hash",
+    "segmentation_witness_for",
 ]

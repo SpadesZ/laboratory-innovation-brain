@@ -122,7 +122,7 @@ def evaluate(
         return report
 
     index = LexicalEvidenceIndex(index_id=f"idx:{strategy}")
-    index.add_all(units)
+    index.add_all(units, project_id=project_id)
     by_id = {unit.evidence_unit_id: unit for unit in units}
 
     boundary_hits = 0

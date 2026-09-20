@@ -1222,6 +1222,7 @@ Observation {
 Attestation {
   attestation_id, claim_id?/observation_id?, epistemic_type,
   source_artifact_id?/source_work_id?/run_id?, locator,
+  evidence_unit_id?,                  # v3.3-a18; §17.25 的 durable 引用,非 transient
   conditions{}, conditions_schema_version, field_states{},
   units?, uncertainty?, method{}, extraction_status, verification_status,
   authority_class?, created_at, extractor_version, extraction_provenance
@@ -2146,7 +2147,7 @@ window 改變。
 
 ```
 EvidenceUnit {
-  evidence_unit_id, project_id, artifact_id, source_work_id?,
+  evidence_unit_id, artifact_id, source_work_id?,
   unit_type,                        # SECTION | PROSE | TABLE | FIGURE | CODE | LOG
   structural_path,                  # 在文件結構中的位置,人類可讀
   locator,                          # 回到來源的可重查位址
@@ -2156,13 +2157,15 @@ EvidenceUnit {
   inherited_context[],              # 規則 4:fallback sub-unit 繼承的解讀 context
   conditions{}, conditions_schema_version?,
   bound_condition_texts[],          # 規則 1:本 unit 宣告「離開它即無法解讀」的條件原文
+  segmentation_witness,             # v3.3-a18;見下方「Segmentation conformance」
   table_context?, figure_context?,
   provenance,                       # parser + segmenter identity/version + 當時的 token limit
   created_at
 }
 
 evidence_unit_id 的 identity 由 (artifact_id, structural_path, content_digest) 決定,
-與 embedding model / version / dimension / reranker / token window strategy 無關。
+與 embedding model / version / dimension / reranker / token window strategy 無關,
+**亦與 project 無關**(`v3.3-a18`;見 §17.25.1)。
 
 parent_unit_id 非 null 時,該 unit 是 6.22 規則 3(a) 的 fallback 細分結果;
 subdivision_reason 記錄為什麼細分是必要的,而不是預設行為。
@@ -2176,6 +2179,40 @@ bound_condition_texts 是使規則 1 可被執行的欄位。unit 自行宣告�
 寫入時驗證「宣告了卻不包含」即拒絕。沒有它,規則 1 只是對 segmenter 行為的期望而非紀錄的
 性質——而下游無從偵測,因為切散條件不會使任何欄位缺失。
 ```
+
+### Segmentation conformance（`v3.3-a18`，SPEC-ISSUE-015）
+
+上述 `bound_condition_texts` 檢查由**寫入者自行宣告**觸發：不宣告即不檢查。因此一個 raw SQL
+writer 可以寫入「被切散的結果 + 省略 binding」，該列滿足全部 constraint、擁有合法 derived
+identity 與可解析 locator，而使其可被解讀的條件不存在於任何地方——這正是 §6.22 開篇描述的
+失效（沒有任何欄位缺失，故下游無從偵測）。
+
+不得令 PostgreSQL 判讀自然語言。承 `v3.3-a13` 對 belief transition 的裁決（在 SQL 中複製
+`TransitionPolicy.evaluate` 會使 semantic truth 從一份變成兩份會漂移的定義），本規格同樣拒絕
+在 SQL 中複製 segmenter。改採同一種兩層分工：
+
+```
+storage-checkable
+  EvidenceUnit MUST 持有 segmentation_witness:對本 unit 之 conformance 相關欄位
+  (artifact_id, structural_path, body, inherited_context[], bound_condition_texts[],
+   parser_id, parser_version, segmenter_id, segmenter_version)
+  之 canonical bytes 取 SHA-256。
+  persistence 層 MUST 重算並比對 —— 這是位元組運算,不是語言判讀。
+  witness 與內容不符者 MUST 於寫入時拒絕。
+
+semantic
+  scientific admission path MUST 以記錄的 parser/segmenter 版本,對該 Artifact 的
+  content-addressed bytes 重跑 segmentation,並確認待 admit 之 unit 確實為該次
+  segmentation 的產物(相同 evidence_unit_id、相同 body、相同 bound_condition_texts)。
+  無法重現者 MUST 拒絕;Artifact bytes 無法取得者亦 MUST 拒絕(fail closed),
+  不得因取不到而略過本檢查。
+```
+
+storage-checkable 層**不足以**阻擋完整偽造——知道演算法者可自行算出 witness。它的作用與
+`v3.3-a12` 的 `input_hash` 相同：使 store 能在不重新序列化、不與寫入方約定欄位順序的前提下
+拒絕「改了 body 卻留著舊 witness」的半套偽造。真正關門的是 semantic 層：Artifact 是
+content-addressed(bytes 已被釘死)、segmenter 為 deterministic 且版本已記錄,故「此處
+segmentation 會產生什麼」在 admission 時可計算,而被切散的 unit 不在其產物之中。
 
 ```
 RetrievalRepresentation {
@@ -2203,7 +2240,35 @@ Rules:
   屬 retrieval provenance,不屬 scientific provenance。
 - Attestation 引用 EvidenceUnit 時以 evidence_unit_id 記錄,並保留既有的
   source_artifact_id / source_work_id / run_id 擇一規則(17.2)不變。
+  該引用 MUST 為 durable(`v3.3-a18`):persist 後重新載入的 Attestation,
+  MUST 能在不持有原 admission request 的前提下,精確還原它所依據的 EvidenceUnit。
+  僅存在於 admission 呼叫參數中的 transient 引用不滿足本條——重啟後該 Attestation
+  即無法回答「這筆見證讀的是哪一段證據」,而那正是 locator 以外唯一的回溯路徑。
+- 檢索與 admission 的 project scope MUST 經 EvidenceUnitOccurrence(17.25.1)解析,
+  不得讀取 EvidenceUnit 上的 project 欄位——該欄位已於 `v3.3-a18` 移除。
 ```
+
+## 17.25.1 EvidenceUnitOccurrence Schema — project-scoped presence
+
+```
+EvidenceUnitOccurrence {
+  evidence_unit_id, project_id,
+  artifact_id,                      # 該 unit 所屬 Artifact,冗餘但為 occurrence 檢查所需
+  ingested_by_actor_id?, first_seen_at
+}
+
+Identity is the PAIR (evidence_unit_id, project_id)。兩者單獨皆不構成 occurrence identity。
+一個 EvidenceUnit MAY 有多個 EvidenceUnitOccurrence。
+在某 project 無 occurrence 的 EvidenceUnit 即**不存在於該 project**,
+MUST NOT 於該 project 被檢索或 admit,不論請求者在他處的 clearance 為何(SEC-002)。
+```
+
+與 §17.1 / §17.1.1 完全同構，理由亦同（ADR-0010、ADR-0012）：`evidence_unit_id` 由內容決定且
+project-independent，若 `project_id` 掛在同一列，相同 bytes 的同一段證據在第二個 project 就
+無法被表示——不是漏了檢查，而是「這段證據存在於**哪些** project」這個問題無法被提出。
+
+canonical evidence body 只有一份。occurrence 記錄的是**存在**，不是內容；因此不會出現兩列
+同 identity 而 body 已分歧的情形（`v3.3-a18` 拒絕 SPEC-ISSUE-014 的 Reading B 正是為此）。
 
 ---
 
@@ -3559,3 +3624,4 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | **v3.3-a15** | **2026-09-19** | **Maintainer ruling（SPEC-ISSUE-012：自動 expiry 沒有任何人可以撰寫的 closure event）**：採 Reading B，新增一個窄口徑的 `GovernanceEvent`。**問題**：T-OPS-002 要求逾期 ReviewItem 必須離開 PENDING，而 `v3.3-a14` 把該關閉路由到 `ReviewResolution` 的 closure event；§17.13 的 `BeliefRevisionEvent` 只有一種語意——hypothesis 的 belief state 改變了——但**逾期不是 transition**。實測下每一條可行構造都不合法：no-op policy 被 `005b` 的 `CHECK (from_state <> candidate_to_state)` 擋住、非 genesis event 引用 admission policy 被 `005c` 擋住、`ACTIVE→INCONCLUSIVE` 若 policy 尊重 blocking conflict 則得到 NEED_HUMAN_REVIEW 而無 ALLOW（循環），若忽略該 conflict 則等於排程器在無證據下判定 hypothesis 為 INCONCLUSIVE。**裁決**：§17.19.1 新增 `GovernanceEvent`——**governance/operational 狀態變更，本身不改動科學信念**；append-only、immutable、project-scoped；**不得**被當作 BeliefRevisionEvent 證據、不得進入 belief replay、不得改動 `EpistemicStateProjection`；排程器**不得**撰寫 `BeliefRevisionEvent`。`event_type` 本次只開放 `REVIEW_EXPIRY` 一個值——刻意不建立泛用 audit-event 詞彙，否則就成了第二條可以關閉任何東西的路徑。closure reference 一般化為 typed pair `(resolution_event_kind = BELIEF_REVISION | GOVERNANCE, resolution_event_id)`；Conflict 與關閉它的 ReviewResolution **MUST** 引用完全相同的一組值；`GOVERNANCE` 僅允許 `outcome = EXPIRED` 搭配 `event_type = REVIEW_EXPIRY`，人工決議（APPROVED|CORRECTED|REJECTED）**不得**以 GovernanceEvent 關閉，自動 expiry 亦**不得**以 BeliefRevisionEvent 關閉。`ACCEPTED_AS_OPEN_QUESTION` 只關閉**此一** review/conflict 實例，不代表 authority 變得可比——後續 episode 遇到同一個 INCOMPARABLE 仍**必須**回 NEED_HUMAN_REVIEW 並**得**另建 Conflict/ReviewItem。expiry **必須**採該 ReviewItem 當初定價的 queue policy 版本，不得以現行 policy 重新詮釋舊 review。`ReviewQueuePolicy` 新增 `declared_by_actor_id`：自動 expiry 的 standing authority 是宣告該 policy 的 actor，**不得**由執行 sweep 的 service account 推得；兩者分開記錄，執行者為 SERVICE actor 並不因此成為科學決策者。**未新增 Requirement/Test ID**——OPS-002 / T-OPS-002 既有的 expiry liveness 與 EPI-006 / T-EPI-006 既有的 typed Conflict closure-event integrity 本就課予這些義務，本修訂只使其**可被唯一執行**；Requirement ↔ Test 維持 **59 ↔ 59**。§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |
 | **v3.3-a16** | **2026-09-20** | **Maintainer clarification（GovernanceEvent 必須屬於它所關閉的那條 chain）**：不新增義務，解掉一處使 `v3.3-a14` closure traceability 在 `v3.3-a15` 的 typed pair 下仍無法被唯一執行的地方。**問題**：`v3.3-a15` 要求 Conflict 與關閉它的 ReviewResolution 引用完全相同的 `(resolution_event_kind, resolution_event_id)`，而該句已寫明須「for the same review/conflict chain」——但「same chain」未被定義，persistence 層因而只驗證兩半互相一致，未曾載入被引用的 GovernanceEvent 反問它是否為**該** review 而寫。於是一筆為 Review A 合法產生的 `REVIEW_EXPIRY` event，可被 raw SQL 當成同一 project 內 Review B 的 closure proof：resolution 屬於 B、outcome 與 status 一致、Conflict 與 resolution 的 (kind, id) 相同、event 亦確為同 project 的真實 REVIEW_EXPIRY——每一項既有檢查皆通過，而一個 block 以從未為它授予的 authority 被解除。這正是 `v3.3-a14`「任意同 project event 不得作為 closure proof」在多一層 indirection 後重現。**裁決**：§17.19.1 明定 chain binding——`resolution_event_kind = GOVERNANCE` 時，被引用的 GovernanceEvent **MUST** 同時滿足 `event_type = REVIEW_EXPIRY`、`subject_type = REVIEW_ITEM`、`project_id` 等同 ReviewItem／ReviewResolution／linked Conflict 三者、`subject_id` 等同該 ReviewItem 的 `review_id`、`related_conflict_id` 等同且僅等同該 ReviewItem 所連的 Conflict、`policy_id` 與 `policy_version` 等同該 ReviewItem 被定價的 queue policy、該 `ReviewQueuePolicy(policy_id, version, project_id)` **MUST** 存在、`declared_by_actor_id` 等同該 policy 的 `declared_by_actor_id`、`actor_id` 等同該 ReviewResolution 的 `resolved_by_actor_id`。滿足某一 ReviewItem 全部條件的 GovernanceEvent，**不得**被接受為另一 ReviewItem 的 closure proof，即使同 project、同 queue policy 亦然。另明定兩項窄口徑事實：（a）`declared_by_actor_id` 在 `REVIEW_EXPIRY` 上為**必填**——`v3.3-a15` 已使 `ReviewQueuePolicy.declared_by_actor_id` NOT NULL，故此 event type 恆有正確值，缺席只可能表示未被記錄；（b）`actor_id` **MUST** 為 ACTIVE actor，未知 executor 既已被拒，停用者亦**必須**被拒且 ReviewItem 維持 outstanding；「是否 active」於 expiry **寫入時**判定，**不得**事後重判——停用一個 service account 是阻止它繼續 expire，而非使它已完成的 expiry 失效。義務落在 persistence path，**未**新增 scientific-authority 或 approval-scope 系統，`GovernanceEvent` 詞彙仍僅 `REVIEW_EXPIRY` 一值，`TransitionPolicy.evaluate()` 與 scientific belief semantics **不得**複製進 SQL（承 `v3.3-a13`）。**未新增 Requirement/Test ID、未新增 normative statement**——OPS-002 / T-OPS-002 既有的 expiry liveness 與 EPI-006 / T-EPI-006 既有的 typed Conflict closure-event integrity 本就課予這些義務，本修訂只使其**可被唯一執行**；Requirement ↔ Test 維持 **59 ↔ 59**。§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |
 | **v3.3-a17** | **2026-09-20** | **Maintainer ruling（SPEC-ISSUE-013：切分邊界與 retrieval representation 無人所有）**：採 Reading D，新增 **EVI-010 / T-EVI-010**，配置 M1。**問題**：一份科學文件必須先被切開才能檢索，而切在哪裡決定了系統之後能相信什麼——最小可獨立支撐一個 claim 的單位，是「結果 **連同** 使其可被解讀的條件」。把「Reverse bias 0 → -2 V」與「Cj 0.515 → 0.345 pF/mm」切成兩個 unit，兩半各自仍為真、仍可歸屬、仍 well-formed，而這筆量測已不再是對任何東西的量測；retrieval 之後沒有任何一步查得出來，因為**沒有欄位缺失**：條件沒有被丟棄，只是被歸檔到別處。此義務在實質上是 hard，在文件上不是：§6.7 是全篇唯一談及處，且為 `不應`（SHOULD-NOT），`M0a_hard_must_counts.yaml` 早已記為 `hard_must: 0 / basis: SHOULD only`，registry 在 §6.7 **完全沒有條目**。鄰近的 requirement 各自止步：EVI-002 管**缺失**欄位（條件被切走時無一欄缺失）、EVI-005 管 conditions schema 版本（不管它是否還黏著）、EVI-006 對送進來的任何 bundle 都一樣可決定性地 hash、EVI-009 管 reference（不管被指向的 body）。**EVI-007 是最具啟發性的一條**：§6.13 / §6.20 對「哪個 vector space 可被比較」極精確，對「vector 可以**是**什麼」全然沉默——一個實作可以滿足 EVI-007 每一句（不混 space、dual-index cutover、可回答用了哪個 version），同時把取回的 payload 當作 evidence body。§23.4 已禁止該結果（「把 Evidence semantics 改成單純 vector chunk」），但那條寫在約束 **agent 行為**的表中，沒有任何 Requirement/Test 使**做了這件事的系統**在 CI 失敗。**為何不能由 agent 以暫定讀法實作**：benchmark 除非刻意為此而寫，否則分不出 fixed-token-primary 與 structure-first——一般問答語料上的 recall/precision 對「條件是否與結果同行」幾乎不敏感，因為檢索通常連鄰近 chunk 一起取回；失效在稍後的 belief path 上才現形，成為一筆從未成立的 corroboration。故「挑分數高的那個」不是可用的裁決方式，而該裁決屬 §23.4 保留給 maintainer 的 scientific semantics。**裁決**：（a）新增 **§6.22**，於 §6.7 的 SHOULD **旁邊**陳述 hard 義務而非就地改寫它——審計軌跡因此顯示為一條新 statement，而非一條被悄悄加強的舊 statement，obligation inventory 亦據此新增 12 筆 occurrence（10 REGISTERED + 2 RESTATEMENT_OF）；內容為 Minimum Evidence Boundary、structure-first、fixed-token **MUST NOT** 為主要切分器（僅容許單一超限 evidence unit 的次級細分，且 sub-unit MUST 保留 parent identity/context，或作為明示 benchmark baseline）、table header/unit/row-column context、figure caption + 周邊說明、canonical evidence unit MUST 可解析回 occurrence/Artifact/SourceWork/locator/parser provenance/conditions/units。（b）新增 **§17.25 EvidenceUnit / RetrievalRepresentation Contract**，把兩個物件分開宣告，理由與 §17.1 / §17.1.1 相同：合成一個「chunk」之後，「這段證據是什麼」與「這次檢索取回了什麼」成為同一列，而後者隨 embedding model、reranker 與 token window 改變。`evidence_unit_id` 的 identity 由 `(artifact_id, structural_path, content_digest)` 決定，**獨立於** embedding model/version/dimension/reranker/token window strategy；刪除或重建 index **MUST NOT** 改動任何 EvidenceUnit，更換 embedding model **MUST NOT** 改寫 Attestation；EvidenceUnit **不**持有 vector，vector 只存在於 RetrievalRepresentation，屬 retrieval provenance 而非 scientific provenance。`payload_digest` 存在的目的不是信任它，而是使「索引內容與 canonical body 已分歧」**可被偵測**，分歧時 canonical body 為準。（c）**T-EVI-010 的 pass condition 是 per-case，不是 corpus 門檻**：鎖定的 fixture 涵蓋 condition/result 切分陷阱、需 header+unit+row/column 才可解讀的 table、caption 單獨不足的 figure、超限 valid unit 的 fallback 細分、以及缺值必須為 UNKNOWN/NOT_REPORTED；報告 MUST 同時公布兩種策略（evidence-aware 與 fixed-token baseline）的 evidence-boundary completeness / locator recovery / condition retention / table-context / figure-context / recall / precision。刻意**不**訂定通用生產優越性門檻——規格未提供，且門檻正是唯一無法分辨兩種策略的形式。（d）另含一項編輯性校正：§25.3 的導言自 `v3.3-a6` 起停留在「57 條 + EXT-001 = 58」，與表格實際列數不符；本次一併更新為「59 條 + EXT-001 = 60」，並註明該行是散文而非 parser 讀取的不變式來源。**EVI-007 與 EVI-010 維持為兩條不同的規則**：前者管 embedding space 相容性，後者管 evidence 身分邊界；`v3.3-a17` 不改動 EVI-007 的任何一句。Requirement ↔ Test：**59 ↔ 59 → 60 ↔ 60**。無架構方向變更。 |
+| **v3.3-a18** | **2026-09-21** | **Maintainer ruling（M1-P1 audit：SPEC-ISSUE-014 與 SPEC-ISSUE-015）**：`v3.3-a17` 建立的 EvidenceUnit 契約有兩處無法被唯一執行，本修訂各採一個既有先例的同構解，**不新增 Requirement/Test ID**。**（a）SPEC-ISSUE-014 — 同一段證據無法同時存在於兩個 project。** §17.25 同時寫著 `EvidenceUnit { evidence_unit_id, project_id, ... }` 與「identity 由 (artifact_id, structural_path, content_digest) 決定」，而 `003a` 以 `evidence_unit_id` 為 PRIMARY KEY。identity 是 project-independent（刻意且正確），列卻是 project-scoped，於是同一份文件出現在兩個 project 時第二次寫入必然 `UniqueViolation`——已於 PostgreSQL 重現。其後果不是「拋了錯」，而是**先 ingest 的 project 獨佔該文件的證據**，第二個 project 的 `SEGMENT` stage 回報成功而 evidence rows 全數失敗，最終持有一份讀得到的 artifact 與一批不存在的證據。此與 **R-7** 同形，只低一層：R-7 是「`sensitivity_label` 掛在全域 artifact 列，使『這份東西在**這個** project 標記為什麼』無法被表示」，本件是「**哪些** project 持有這段證據」無法被表示；兩者都不是漏檢查，而是問題無法被提出。**裁決採 Reading C（ADR-0010 的同構拆分）**：§17.25 的 `EvidenceUnit` **移除 `project_id`**，新增 **§17.25.1 `EvidenceUnitOccurrence`**，identity 為 `(evidence_unit_id, project_id)`；migration `003b` 執行 forward split；SEC-002 對證據讀取的 project scope 改由 occurrence 解析。明確**拒絕** Reading A（把 `project_id` 併入 identity 推導）——ADR-0010 已對 `Artifact` 拒絕過同一步，理由是「同一次量測被兩個 project 引用就會變成兩個 artifact，而所有依賴『同 bytes 同 artifact』的 independence／corroboration 計算（EVI-004）會靜默地把一次量測算成兩次」，證據單位完全承襲此理由；亦**拒絕** Reading B（複合主鍵、每個 project 各存一份 body）——canonical body 將不再唯一，兩列同 identity 可因修補腳本或部分遷移而分歧，且各自內部自洽故無從偵測。**（b）SPEC-ISSUE-015 — segmentation 合規性由寫入者自證。** `003a` 的 rule 1 trigger 僅在 unit **自行宣告** `bound_condition_texts` 時才觸發，故「不宣告即不檢查」：raw SQL 可寫入被切散的結果並省略 binding，該列滿足全部 constraint、擁有合法 derived identity、可解析 locator 與任意 `segmenter_id`，而使其可被解讀的條件不存在於任何地方——已重現。`v3.3-a17` 自身的用語即是控訴：「沒有它,規則 1 只是對 segmenter 行為的期望而非紀錄的性質」；該修訂使規則對**願意 opt-in 的 unit** 可執行，而攻擊者不會 opt-in。**不得令 PostgreSQL 判讀自然語言**：承 `v3.3-a13` 拒絕在 SQL 中複製 `TransitionPolicy.evaluate` 的同一理由，本規格拒絕在 SQL 中複製 segmenter。**裁決採同一種兩層分工**：**storage-checkable** —— `EvidenceUnit` 新增 `segmentation_witness`，為 conformance 相關欄位 canonical bytes 的 SHA-256，persistence 層重算比對（位元組運算，非語言判讀），witness 與內容不符即於寫入時拒絕；**semantic** —— scientific admission path **MUST** 以記錄的 parser/segmenter 版本對該 Artifact 的 content-addressed bytes **重跑 segmentation**，確認待 admit 之 unit 確為該次產物（同 id、同 body、同 bound_condition_texts），無法重現者拒絕，Artifact bytes 無法取得者亦拒絕（fail closed），不得因取不到而略過。storage 層明確**不足以**阻擋完整偽造（知道演算法者可自行算出 witness），其作用與 `v3.3-a12` 的 `input_hash` 相同：使 store 能廉價拒絕「改了 body 卻留著舊 witness」的半套偽造；真正關門的是 semantic 層，因 Artifact content-addressed 使 bytes 被釘死、segmenter deterministic 且版本已記錄，故「此處 segmentation 會產生什麼」在 admission 時可計算。**（c）§17.25 既有規則「Attestation 引用 EvidenceUnit 時以 evidence_unit_id 記錄」於 M1-P1 僅實作為 `AdmissionRequest` 的 transient 參數**，persist 後重新載入即無法回答「這筆見證讀的是哪一段證據」。明定該引用 **MUST 為 durable**，並於 §17.2 `Attestation` block 補上 `evidence_unit_id?`。**（d）另記 EVI-003 的 trust boundary**：admission 判定 inference 與否 **MUST** 以 `extraction_provenance.inference_provenance_id` 為準，caller 提供的旗標僅得 widen 不得 narrow；旗標與 canonical provenance 相牴觸時 **MUST** fail closed。此為既有 EVI-003 的澄清而非新義務——原實作以 caller 旗標提前 return，使 EVI-003 成為提交者可 opt-out 的檢查。**未新增 Requirement/Test ID，亦未新增 normative statement**——EVI-010 早已課予證據身分穩定與 project scope、SEC-002 早已課予 occurrence-scoped 讀取、EVI-003 早已課予 inference 不得為事實型，本修訂只使四者**可被表示與唯一執行**（同 `v3.3-a11` 與 `v3.3-a13` 的性質）。決策記於 **ADR-0012**。Requirement ↔ Test 維持 **60 ↔ 60**。§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |
