@@ -436,6 +436,106 @@ def test_an_unknown_executor_fails_closed(world):
     assert _forbidden_pairs(world) == []
 
 
+def test_an_active_service_executor_is_allowed(world):
+    """The positive control for the guard below, and it is not redundant.
+
+    `v3.3-a16` requires the executor to be ACTIVE. A guard that refused every executor would turn
+    the two negative tests around it green, so the permitted case is asserted explicitly: a SERVICE
+    actor that is active expires the review, and §17.19.1 is clear that executing one does not make
+    it a scientific decision-maker.
+    """
+    _escalate(world, "rvw:1", "cfl:1")
+    assert world.execute("SELECT active FROM actors WHERE actor_id = %s", (EXECUTOR,)).fetchone()[0]
+
+    result = _sweep(world)
+
+    assert result.count == 1 and not result.refused
+    assert result.expired[0].actor_id == EXECUTOR
+    assert result.expired[0].declared_by_actor_id == DECLARER, (
+        "still not inferred from the executor"
+    )
+    assert SqlReviewItemStore(world).get(PROJECT, "rvw:1").status is ReviewStatus.EXPIRED  # type: ignore[union-attr]
+
+
+def test_an_inactive_executor_fails_closed(world):
+    """`v3.3-a16`: an actor row that exists and is switched off may not expire a review.
+
+    The gap the unknown-executor test above does not cover. A decommissioned scheduler, a departed
+    reviewer's automation and a revoked integration are all represented as `active = FALSE`, and
+    the actors foreign key is satisfied by every one of them -- so before this guard a
+    decommissioned service account could keep lifting blocks with nobody accountable.
+
+    Fail-closed means the item stays in the queue: a human still owes an answer, which is a state
+    somebody can act on, rather than a block that lifted on a revoked authority.
+    """
+    _escalate(world, "rvw:1", "cfl:1")
+    world.execute("UPDATE actors SET active = FALSE WHERE actor_id = %s", (EXECUTOR,))
+
+    result = _sweep(world)
+
+    assert result.count == 0
+    assert "rvw:1" in result.refused
+    assert "not active" in result.refused["rvw:1"]
+
+    review = SqlReviewItemStore(world).get(PROJECT, "rvw:1")
+    assert review is not None and review.is_outstanding, "the review must still be owed an answer"
+    assert SqlConflictStore(world).get(PROJECT, "cfl:1").blocks_transitions, (  # type: ignore[union-attr]
+        "and the conflict must still block"
+    )
+    assert world.execute("SELECT count(*) FROM governance_events").fetchone()[0] == 0
+    assert world.execute("SELECT count(*) FROM review_resolutions").fetchone()[0] == 0, (
+        "no resolution either -- the whole statement is atomic"
+    )
+    assert _forbidden_pairs(world) == []
+
+
+def test_raw_sql_cannot_write_an_expiry_for_an_inactive_executor_either(world):
+    """The same guard reached without the processor, because support scripts are writers too.
+
+    A migration, a backfill or an operator at a psql prompt never calls `review_expire`. The guard
+    is a trigger on `governance_events` rather than a check inside that function for exactly this
+    reason -- it is the sentence "an inactive actor does not execute expiries", not "the supported
+    path declines to let it".
+    """
+    _escalate(world, "rvw:1", "cfl:1")
+    world.execute("UPDATE actors SET active = FALSE WHERE actor_id = %s", (EXECUTOR,))
+
+    with pytest.raises(psycopg.errors.RaiseException, match="is not active"):
+        world.execute(
+            "INSERT INTO governance_events (event_id, project_id, event_type, subject_type,"
+            " subject_id, policy_id, policy_version, declared_by_actor_id, actor_id, reason_code,"
+            " occurred_at, trace_id)"
+            " VALUES ('gev:revoked', %s, 'REVIEW_EXPIRY', 'REVIEW_ITEM', 'rvw:1', 'rqp:lab',"
+            " '1.0.0', %s, %s, 'REVIEW_SLA_EXPIRED', %s, %s)",
+            (PROJECT, DECLARER, EXECUTOR, LATER, TRACE),
+        )
+    assert world.execute("SELECT count(*) FROM governance_events").fetchone()[0] == 0
+
+
+def test_deactivating_an_executor_does_not_invalidate_the_expiries_it_already_ran(world):
+    """Judged when the expiry is written, and deliberately never re-judged.
+
+    The guard lives in a BEFORE INSERT trigger rather than in the deferred commit-boundary
+    invariant, and this is the case that decides between them: if "is the executor active" were
+    re-asked at every later commit, decommissioning a service account would retroactively invalidate
+    every expiry it ever ran -- turning an ordinary operational act into history corruption, and
+    wedging the next transaction that happened to touch one of those reviews.
+    """
+    _escalate(world, "rvw:1", "cfl:1")
+    assert _sweep(world).count == 1
+
+    world.execute("UPDATE actors SET active = FALSE WHERE actor_id = %s", (EXECUTOR,))
+
+    # The chain is still readable, still consistent, and still re-assertable at a commit boundary:
+    # a fresh escalation in the same project writes rows whose deferred triggers run over it.
+    _escalate(world, "rvw:2", "cfl:2")
+
+    review = SqlReviewItemStore(world).get(PROJECT, "rvw:1")
+    assert review is not None and review.status is ReviewStatus.EXPIRED
+    assert world.execute("SELECT count(*) FROM governance_events").fetchone()[0] == 1
+    assert _forbidden_pairs(world) == []
+
+
 def test_the_expiry_cites_the_policy_version_the_item_was_priced_by(world):
     """`v3.3-a15`: an expiry re-interpreted under a policy the reviewer never saw is not the
     deadline they were given.
@@ -562,13 +662,16 @@ def test_a_wrong_event_type_cannot_be_written_at_all(world):
     """The vocabulary is closed at one value, so a general-purpose governance event does not
     exist to close anything with."""
     _escalate(world, "rvw:1", "cfl:1")
+    # Every other field is valid, `declared_by_actor_id` included, so the only thing this row can
+    # be refused for is the vocabulary -- which is what the test is about.
     with pytest.raises(psycopg.errors.CheckViolation, match="event_type"):
         world.execute(
             "INSERT INTO governance_events (event_id, project_id, event_type, subject_type,"
-            " subject_id, policy_id, policy_version, actor_id, reason_code, occurred_at, trace_id)"
+            " subject_id, policy_id, policy_version, declared_by_actor_id, actor_id, reason_code,"
+            " occurred_at, trace_id)"
             " VALUES ('gev:x', %s, 'CONFLICT_WITHDRAWN', 'REVIEW_ITEM', 'rvw:1', 'rqp:lab',"
-            " '1.0.0', %s, 'r', %s, %s)",
-            (PROJECT, EXECUTOR, LATER, TRACE),
+            " '1.0.0', %s, %s, 'r', %s, %s)",
+            (PROJECT, DECLARER, EXECUTOR, LATER, TRACE),
         )
 
 
@@ -745,12 +848,17 @@ def test_one_unexpireable_item_does_not_abandon_the_rest_of_the_queue(world):
     # Pre-write the governance event id `rvw:1` will propose, so its expiry collides.
     world.execute(
         "INSERT INTO governance_events (event_id, project_id, event_type, subject_type,"
-        " subject_id, policy_id, policy_version, actor_id, reason_code, occurred_at, trace_id)"
-        " VALUES (%s, %s, 'REVIEW_EXPIRY', 'REVIEW_ITEM', 'rvw:1', 'rqp:lab', '1.0.0', %s,"
+        " subject_id, policy_id, policy_version, declared_by_actor_id, actor_id, reason_code,"
+        " occurred_at, trace_id)"
+        " VALUES (%s, %s, 'REVIEW_EXPIRY', 'REVIEW_ITEM', 'rvw:1', 'rqp:lab', '1.0.0', %s, %s,"
         " 'squatter', %s, %s)",
         (
             DefaultExpiryIdSource().governance_event_id("rvw:1"),
             PROJECT,
+            # `v3.3-a16` requires it on a REVIEW_EXPIRY. Supplied correctly so that the collision
+            # under test is the primary key one -- an event refused for a second reason would
+            # prove the sweep survives a different fault than the one this test names.
+            DECLARER,
             EXECUTOR,
             LATER,
             TRACE,

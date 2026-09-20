@@ -29,6 +29,14 @@ stakes lapse after this long; `actor_id` is who or what executed this particular
 the minimal actor model human / service account / agent role, so an automated executor is
 expressible -- and recording it in the same slot as the author would let a service account look
 like the source of a governance decision it only carried out.
+
+THE EVENT ALONE PROVES NOTHING (`v3.3-a16`). Nothing on this object says which review it may close;
+the fields say which review it *describes*. A genuine `REVIEW_EXPIRY` for one review is therefore
+presentable as closure proof for another in the same project, and the model cannot see it because
+the model only ever holds one row. That binding -- subject, conflict, exact policy version, policy
+declarer and executor all agreeing with the chain being closed -- is enforced at the commit
+boundary by `011g`, which is the only writer-independent place it can live. What the model does
+hold is the one fact that is local to this row: a `REVIEW_EXPIRY` names the authority it executed.
 """
 
 from __future__ import annotations
@@ -86,6 +94,13 @@ class GovernanceEvent(CoreModel):
     policy_id: str
     policy_version: str
     #: Who declared that policy. Carried from the policy, never from the executor.
+    #:
+    #: `v3.3-a16` made it **optional-in-shape and required-in-substance for REVIEW_EXPIRY**, the
+    #: same arrangement `ReviewResolution.belief_revision_event_id` carries. `v3.3-a15` made
+    #: `ReviewQueuePolicy.declared_by_actor_id` NOT NULL, so for the only event type in the
+    #: vocabulary there is always a correct value and "absent" can only mean the writer declined to
+    #: record it. Kept nullable in shape because the field is keyed on `event_type`: a second kind
+    #: would have to state its own provenance rule rather than inherit this one by accident.
     declared_by_actor_id: str | None = None
     #: Who or what executed this sweep. Required: §14.4 puts `actor_id` on every governance action.
     actor_id: str
@@ -111,6 +126,32 @@ class GovernanceEvent(CoreModel):
                 f"governance event {self.event_id} records no reason_code. It is the only account "
                 "of why a block lifted with nobody having decided, and a blank one makes the "
                 "closure unauditable while looking complete"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _an_expiry_names_the_authority_it_executed(self) -> Self:
+        """`v3.3-a16`: a REVIEW_EXPIRY records who declared the policy it executed.
+
+        The model half of `011g`'s CHECK, and it says the same thing. Both exist for the reason
+        this project has written down repeatedly: a model guard holds for callers who go through
+        the model, and a migration or a support script writes SQL. This one catches it earlier and
+        explains it; the CHECK is the one that actually holds.
+
+        Blank is refused alongside absent. A required field satisfied by an empty string is an
+        optional field with extra steps, and this is the record that says an expiry executed a
+        standing decision rather than a service account's own.
+        """
+        if (
+            self.event_type is GovernanceEventType.REVIEW_EXPIRY
+            and not (self.declared_by_actor_id or "").strip()
+        ):
+            raise ValueError(
+                f"governance event {self.event_id} expires review {self.subject_id} without "
+                "naming who declared the queue policy that authorised it. §17.19.1 makes the "
+                "policy author the standing authority for automatic expiry and forbids inferring "
+                f"it from the executor -- recording {self.actor_id} alone would make a service "
+                "account look like the source of a governance decision it only carried out"
             )
         return self
 

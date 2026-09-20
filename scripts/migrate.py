@@ -115,6 +115,15 @@ APPLY_ORDER: tuple[str, ...] = (
     # `review_resolutions` and `conflicts`, and adds the atomic `review_expire`. After 011e:
     # the GovernanceEvent cites the exact queue policy version the item was priced by.
     "011f_governance_event_closure.sql",
+    # M0b gate / `v3.3-a16`. `011f` checks that the Conflict and the ReviewResolution agree on
+    # (kind, id); it never loads the referenced GovernanceEvent to ask whether that event was
+    # written for *this* review. So a genuine REVIEW_EXPIRY event for review A could be presented
+    # as closure proof for review B in the same project -- the `v3.3-a14` substitution, one
+    # indirection further out. Binds the event to the exact review, conflict, queue-policy version,
+    # policy declarer and executor, requires `declared_by_actor_id` on a REVIEW_EXPIRY, and refuses
+    # an inactive executor. After 011f: it extends that migration's commit-boundary invariant
+    # rather than adding a second notion of closure validity.
+    "011g_governance_event_chain_binding.sql",
 )
 
 _BOOTSTRAP = """
