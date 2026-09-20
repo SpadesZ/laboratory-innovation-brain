@@ -8,7 +8,7 @@ ifeq ($(OS),Windows_NT)
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help install spec test test-all coverage-gate lint typecheck fmt check db-up db-down migrate clean
+.PHONY: help install hooks spec test test-all coverage-gate commit-hygiene lint typecheck fmt check db-up db-down migrate clean
 
 help:  ## Show available tasks
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
@@ -17,6 +17,10 @@ install:  ## Create the venv and install the project with dev extras
 	python -m venv .venv
 	$(PY) -m pip install --upgrade pip
 	$(PY) -m pip install -e ".[dev,postgres]"
+
+hooks:  ## Install the tracked git hooks (commit-msg: no AI authorship attribution)
+	git config core.hooksPath .githooks
+	@echo "core.hooksPath -> .githooks (fast local feedback; CI commit-hygiene is the gate)"
 
 spec:  ## Spec conformance only (T-SPEC-001 / T-SPEC-002) — blocks every slice
 	$(PY) -m pytest tests/spec -q
@@ -32,6 +36,9 @@ test-all:  ## Full suite including backend-dependent tests
 
 coverage-gate:  ## Executed-coverage gate alone (reads the last pytest run's outcomes)
 	$(PY) scripts/check_requirement_coverage.py
+
+commit-hygiene:  ## No AI authorship attribution in any enforced commit message
+	$(PY) scripts/check_commit_messages.py
 
 lint:  ## Ruff lint
 	$(PY) -m ruff check src tests

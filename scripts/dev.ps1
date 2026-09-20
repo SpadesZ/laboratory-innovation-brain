@@ -8,8 +8,9 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('install', 'spec', 'test', 'test-all', 'coverage-gate', 'lint', 'fmt',
-                 'typecheck', 'check', 'db-up', 'db-down', 'migrate', 'clean', 'help')]
+    [ValidateSet('install', 'hooks', 'spec', 'test', 'test-all', 'coverage-gate',
+                 'commit-hygiene', 'lint', 'fmt', 'typecheck', 'check', 'db-up', 'db-down',
+                 'migrate', 'clean', 'help')]
     [string]$Task = 'help'
 )
 
@@ -68,6 +69,11 @@ try {
             if ($LASTEXITCODE -ne 0) { throw 'executed-coverage gate failed' }
             Write-Host 'all checks passed' -ForegroundColor Green
         }
+        'hooks'     {
+            git config core.hooksPath .githooks
+            Write-Host 'core.hooksPath -> .githooks (fast local feedback; CI commit-hygiene is the gate)'
+        }
+        'commit-hygiene' { Assert-Venv; & $py scripts/check_commit_messages.py }
         'db-up'     { docker compose up -d }
         'db-down'   { docker compose down }
         'migrate'   { Assert-Venv; & $py scripts/migrate.py }
@@ -81,10 +87,12 @@ try {
             @'
 Tasks:
   install    Create .venv and install with dev extras
+  hooks          Install the tracked git hooks (core.hooksPath -> .githooks)
   spec          Spec conformance only (T-SPEC-001 / T-SPEC-002)
   test          Default suite: no Postgres / Lumerical / network (AGT-007)
   test-all      Full suite including backend-dependent tests
   coverage-gate Executed-coverage gate alone (reads the last pytest run)
+  commit-hygiene No AI authorship attribution in enforced commit messages
   lint          Ruff lint
   fmt        Ruff format
   typecheck  mypy strict

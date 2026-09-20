@@ -10,12 +10,20 @@ Revised a third time after independent maintainer review of `v3.3-a15` passed it
 returned one remaining P0 at the database persistence boundary, closed here by `v3.3-a16` and
 migration `011g` — see "`v3.3-a16`: the closure-proof substitution" below.
 
-**Status: READY_FOR_MAINTAINER_SIGNOFF — all ten requirements READY.**
+**Status: SIGNED OFF — independent maintainer HARD PASS on `1fc43c28a58225480505997896edd586291227fa`
+(2026-09-20). All ten requirements DONE.**
 [SPEC-ISSUE-012](../spec_issues/SPEC-ISSUE-012-review-expiry-has-no-authorable-closure-event.md)
 is **RESOLVED**; no GATE issue is open against M0b.
 
-`docs/milestones.yaml` still records M0b as `IN_PROGRESS` and is deliberately not edited — sign-off
-is the maintainer's act, not this session's.
+`docs/milestones.yaml` records `M0b: DONE` as of that sign-off. It was deliberately left at
+`IN_PROGRESS` until then — the readiness case is the implementer's to make and the sign-off is the
+maintainer's to give, and a session that marked its own work DONE would be making both.
+
+The document below is kept as the readiness case that was accepted, not rewritten into a report of
+a decision already taken. What changed on sign-off is the milestone status and the requirement
+table derived from it; **from this point the executed-coverage ratchet binds M0b on every CI run**,
+so each of the ten requirements now needs a traceability test that actually executed and passed
+under `gate_profile: [postgres]`.
 
 ---
 

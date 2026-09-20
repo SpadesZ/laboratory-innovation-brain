@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# Refuse a commit message that attributes authorship to an AI.
+#
+# THIS IS THE FAST FEEDBACK, NOT THE GATE. Hooks are advice: `core.hooksPath` is opt-in, a fresh
+# clone has it unset, `--no-verify` skips it, and a commit made through a web UI never runs one.
+# The authority is the `commit-hygiene` job in .github/workflows/ci.yml, which re-checks every
+# commit in the enforced range. This file exists so the answer arrives in two seconds at the
+# keyboard instead of two minutes in CI.
+#
+# Install with `make hooks` (or `.\scripts\dev.ps1 hooks` on Windows), which sets
+# `core.hooksPath` to this directory. Git cannot ship hooks in a clone by itself -- .git/hooks is
+# not version controlled -- so a tracked directory plus one config line is the supported way.
+
+set -e
+
+repo="$(git rev-parse --show-toplevel)"
+
+# Prefer the project venv, so the hook uses the same interpreter as the rest of the tooling and
+# keeps working when no system `python` is on PATH.
+if [ -x "$repo/.venv/Scripts/python.exe" ]; then
+    python="$repo/.venv/Scripts/python.exe"
+elif [ -x "$repo/.venv/bin/python" ]; then
+    python="$repo/.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+    python=python3
+elif command -v python >/dev/null 2>&1; then
+    python=python
+else
+    # FAIL OPEN, AND ONLY HERE. A contributor with no interpreter must still be able to commit;
+    # refusing would make the hook an obstacle people uninstall. The CI job is what actually holds
+    # the rule, and it does not depend on anyone's local setup.
+    echo "commit-msg: no Python interpreter found; skipping the AI-attribution check." >&2
+    echo "            CI will still enforce it." >&2
+    exit 0
+fi
+
+exec "$python" "$repo/scripts/check_commit_messages.py" --message-file "$1"

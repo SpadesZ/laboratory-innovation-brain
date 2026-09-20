@@ -49,11 +49,20 @@ milestones:
 
   - id: M0b
     name: Execution/Governance Foundation
-    # IN_PROGRESS since P4 (2026-09-13). SEC-002's read gate and the R-7 split landed; the rest of
-    # the milestone has not started. IN_PROGRESS rather than NOT_STARTED because work has begun --
-    # the ratchet only binds at DONE, so this status is a statement to readers, and leaving it at
-    # NOT_STARTED while a migration and a gate exist is simply false.
-    status: IN_PROGRESS
+    # IN_PROGRESS from P4 (2026-09-13) to 2026-09-20.
+    #
+    # DONE 2026-09-20 on independent maintainer HARD PASS / sign-off at
+    # 1fc43c28a58225480505997896edd586291227fa. The closure the sign-off was waiting on was
+    # SPEC-ISSUE-012 -- an automatically expired ReviewItem had no closure event anyone could
+    # author -- resolved by `v3.3-a15` (GovernanceEvent, migration 011f) and made uniquely
+    # enforceable by `v3.3-a16` (chain binding, migration 011g). Readiness evidence and the
+    # per-requirement matrix are in docs/implementation/M0b-readiness.md.
+    #
+    # From this point the executed-coverage ratchet enforces M0b on every CI run, the same way it
+    # has enforced M0a since 2026-09-13: each of the ten requirements below needs a traceability
+    # test that actually executed and passed under gate_profile [postgres]. Collection is not
+    # execution.
+    status: DONE
     exit_gate: >-
       event replay + transition/authority tests + ACL/budget/trace contracts pass;
       testable without a DomainPack.

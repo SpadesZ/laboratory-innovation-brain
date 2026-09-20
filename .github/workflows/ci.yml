@@ -23,9 +23,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  commit-hygiene:
+    # THE AUTHORITATIVE no-AI-attribution GATE. `.githooks/commit-msg` checks the same rule at the
+    # keyboard, and a hook is advice: opt-in through core.hooksPath, skippable with --no-verify,
+    # unset in a fresh clone, never run by a web-UI commit. This job is what actually holds it --
+    # the same sentence 011a, 011c, 011d and 011g each had to write about SQL guards.
+    #
+    # A repository contribution rule, NOT a SAI Requirement. It adds no Requirement or Test ID and
+    # leaves the 59 <-> 59 traceability invariant untouched, which is why it is its own job rather
+    # than a step inside `spec-conformance`: that job is about normative conformance, and folding
+    # repository governance into it would blur a distinction this project keeps deliberately.
+    #
+    # Depends on nothing and runs first. It is the cheapest check in the workflow and the one whose
+    # fix is an amend rather than a code change.
+    name: Commit hygiene (no AI authorship attribution)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The gate walks a commit RANGE, so a default depth-1 checkout would have nothing to
+          # walk. Full history is small here and makes the check independent of which event
+          # triggered it -- no reliance on `github.event.before`, which is all-zeros for a new
+          # branch and rewritten by a force-push.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # No install step, deliberately: the checker imports only the standard library so it stays
+      # runnable from a git hook on a machine where the project is not installed.
+      - name: Commit messages carry no AI authorship attribution
+        run: python scripts/check_commit_messages.py
+
   spec-conformance:
-    # Runs first and alone. A normative conflict or a traceability break BLOCKS the slice
-    # (AGT-015), so there is no value in reporting lint noise from a slice that cannot ship.
+    # A normative conflict or a traceability break BLOCKS the slice (AGT-015), so there is no value
+    # in reporting lint noise from a slice that cannot ship.
     name: Spec conformance (T-SPEC-001 / T-SPEC-002)
     runs-on: ubuntu-latest
     steps:

@@ -61,7 +61,9 @@ docker compose up -d
 
 ## 規格治理
 
-52 requirements ↔ 52 tests。兩條 spec 測試守住這個不變式：
+59 requirements ↔ 59 tests（`v3.3-a6` 新增 EVI-009 後由 58 改為 59；權威數字由
+`scripts/update_status.py` 自規格推導寫入 `IMPLEMENTATION_STATUS.md`，此處僅為轉述）。
+兩條 spec 測試守住這個不變式：
 
 | Test | 檢查 |
 |---|---|
@@ -73,3 +75,29 @@ docker compose up -d
 T-SPEC-002 通過**不得**被推論為 registry 完整。
 
 遇到規格內部衝突時，依 AGT-015：**block 當前 slice、建立 spec issue**，不得選「看起來比較新」的那段繼續施工。
+
+## 貢獻規則：commit 不得標註 AI 作者
+
+這是**儲存庫貢獻規則**，不是 SAI Requirement——它不新增 Requirement/Test ID，59 ↔ 59 不受影響。
+
+commit message **不得**出現把此次 commit 的作者身分歸給 AI 的 trailer 或署名行
+（AI 身分的 `Co-Authored-By:`、`Generated-by:`、`AI-generated:`、`Assisted-by:` 等，
+以及 `Generated with <模型>` 這類 footer）。
+
+規則刻意窄：
+
+- **人類的 `Co-Authored-By:` 不受影響**，包含 GitHub 的 `@users.noreply.github.com` 私密信箱；
+- **在內文討論 AI 完全可以**——提到 provider adapter、benchmark 用了哪個模型、甚至討論這條規則本身，
+  都不會被擋。被擋的只有「署名」。
+
+```powershell
+.\scripts\dev.ps1 hooks            # 安裝 commit-msg hook（core.hooksPath -> .githooks）
+.\scripts\dev.ps1 commit-hygiene   # 手動檢查目前 enforced 範圍
+```
+
+**hook 只是即時回饋,CI 才是閘門。** `core.hooksPath` 需手動開啟、`--no-verify` 可略過、
+新 clone 預設沒有、網頁介面 commit 根本不會跑 hook——所以 `.github/workflows/ci.yml` 的
+`commit-hygiene` job 才是權威,它重跑 `ENFORCED_FROM..HEAD` 全範圍。
+
+**向前適用。** `ENFORCED_FROM` 是規則建立前的最後一個 commit;既有歷史已逐筆驗證乾淨,
+**不為了套用事後規則而改寫已發佈的歷史**。
