@@ -104,6 +104,30 @@ BINDINGS: tuple[SchemaBinding, ...] = (
         migration="007a_cost_ledger.sql",
         decomposed=(("cost", "lab_brain.core.models.cost:CostVector"),),
     ),
+    # M1-P1 / EVI-010. Bound field-for-field rather than exempted, because `v3.3-a17` wrote
+    # §17.25's blocks to be exact for exactly this reason -- the same move `v3.3-a8` made for
+    # §17.1. ADR-0011's guarantee is that no embedding field ever appears on the evidence side,
+    # and a guard that could not read the canonical block would not be able to hold it.
+    SchemaBinding(
+        section="17.25",
+        schema_name="EvidenceUnit",
+        model_path="lab_brain.core.models.evidence_unit:EvidenceUnit",
+        table="evidence_units",
+        migration="003a_evidence_units.sql",
+        decomposed=(
+            (
+                "provenance",
+                "lab_brain.core.models.evidence_unit:SegmenterProvenance",
+            ),
+        ),
+    ),
+    SchemaBinding(
+        section="17.25",
+        schema_name="RetrievalRepresentation",
+        model_path="lab_brain.core.models.evidence_unit:RetrievalRepresentation",
+        table="retrieval_representations",
+        migration="009a_retrieval_representations.sql",
+    ),
 )
 
 
@@ -146,6 +170,10 @@ UNBOUND: dict[str, str] = {
     "VER-006, storing none, so there is no DDL side. Bindable with the BenchmarkPolicy tables.",
     "RelationJudgmentTemplate": "§17.5.1's block describes a value object embedded in Prediction, "
     "not a table -- the same shape as EvidenceField.",
+    "RetrievalCandidate": "§17.25's block describes a retrieval result, not stored state -- the "
+    "same shape as ConditionMatch. It is deliberately the smallest object in the codebase: "
+    "giving it a body field would let admission read evidence out of the retriever's output, "
+    "which is what EVI-010 forbids, so there is nothing to persist and nothing to compare.",
     "ConditionSchemaRegistration": "§17.19 describes the registration payload; the table stores it "
     "decomposed across condition_schemas.",
     "ConditionMatch": "§17.19's block is a return value, not stored state.",

@@ -2140,6 +2140,10 @@ A Lumerical seat shortage surfaces as degraded availability, not as an error.
 什麼」與「這次檢索取回了什麼」就變成同一列，而後者會隨 embedding model、reranker 與 token
 window 改變。
 
+本節兩個 schema block 依 `v3.3-a8` 對 §17.1 的作法寫成**精確可綁定**而非 sketch：§23.5 的 CI
+半邊逐欄比對 canonical block、Pydantic model 與 migration DDL，而只有 exact block 能被這樣比對。
+欄位列表即契約。
+
 ```
 EvidenceUnit {
   evidence_unit_id, project_id, artifact_id, source_work_id?,
@@ -2147,12 +2151,14 @@ EvidenceUnit {
   structural_path,                  # 在文件結構中的位置,人類可讀
   locator,                          # 回到來源的可重查位址
   body,                             # canonical evidence body
+  content_digest,
   parent_unit_id?, subdivision_index?, subdivision_reason?,
+  inherited_context[],              # 規則 4:fallback sub-unit 繼承的解讀 context
   conditions{}, conditions_schema_version?,
-  field_states{},                   # EvidenceField[] (17.9)
+  bound_condition_texts[],          # 規則 1:本 unit 宣告「離開它即無法解讀」的條件原文
   table_context?, figure_context?,
-  parser_id, parser_version, segmenter_id, segmenter_version,
-  content_digest, created_at
+  provenance,                       # parser + segmenter identity/version + 當時的 token limit
+  created_at
 }
 
 evidence_unit_id 的 identity 由 (artifact_id, structural_path, content_digest) 決定,
@@ -2160,6 +2166,15 @@ evidence_unit_id 的 identity 由 (artifact_id, structural_path, content_digest)
 
 parent_unit_id 非 null 時,該 unit 是 6.22 規則 3(a) 的 fallback 細分結果;
 subdivision_reason 記錄為什麼細分是必要的,而不是預設行為。
+
+EvidenceUnit 不持有 field_states。§17.9 的 EvidenceField 屬 Attestation / Observation:
+EvidenceUnit 記錄「文件在這個位置說了什麼」,per-field status 記錄「某來源對某 Claim 的見證
+把哪些欄位填到什麼程度」。合為一列會使同一段文字在不同 Attestation 下得到互相衝突的
+field status。
+
+bound_condition_texts 是使規則 1 可被執行的欄位。unit 自行宣告它必須包含哪些條件原文,
+寫入時驗證「宣告了卻不包含」即拒絕。沒有它,規則 1 只是對 segmenter 行為的期望而非紀錄的
+性質——而下游無從偵測,因為切散條件不會使任何欄位缺失。
 ```
 
 ```

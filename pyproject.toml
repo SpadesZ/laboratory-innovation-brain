@@ -81,6 +81,12 @@ known-first-party = ["lab_brain", "tests"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["E501"]
+# The mutation battery's `old=` fields are verbatim excerpts of the source lines they anchor on.
+# Wrapping them with implicit concatenation would keep the line length and make the anchor
+# unreadable -- and an anchor a reviewer cannot compare against the source by eye is the one
+# thing this file must not have, because a mis-typed anchor reports ANCHOR NOT FOUND rather than
+# a false kill only as long as someone can tell what it was meant to say.
+"scripts/mutation_battery.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

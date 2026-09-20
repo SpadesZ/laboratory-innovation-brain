@@ -81,7 +81,17 @@ milestones:
 
   - id: M1
     name: Research Memory
-    status: NOT_STARTED
+    # IN_PROGRESS from M1-P1 (2026-09-20). That slice owns the ingestion/evidence foundation --
+    # EVI-002, EVI-003, EVI-004, EVI-009, EVI-010, SEC-003, OPS-004, UX-004 -- and nothing else.
+    # The remaining twelve requirements are untouched and have no tests; see
+    # docs/implementation/M1-P1-readiness.md for the per-requirement matrix.
+    #
+    # NOT DONE, and deliberately not close to it. The exit gate names a delayed mock job resuming
+    # an episode (OPS-001), scientific LLM calls persisting bundle+provenance (LLM-001) and all of
+    # UX-001~007. None of those exists. IN_PROGRESS means the ratchet does not yet enforce M1 --
+    # it enforces a milestone only once it is DONE -- so the eight requirements above are covered
+    # because their tests exist and pass, not because a gate is holding them.
+    status: IN_PROGRESS
     exit_gate: >-
       local document/run ingest; source-work dedup; delayed mock job resumes episode;
       all scientific LLM calls persist bundle+provenance; UX-001~007 tests pass.

@@ -124,6 +124,18 @@ APPLY_ORDER: tuple[str, ...] = (
     # an inactive executor. After 011f: it extends that migration's commit-boundary invariant
     # rather than adding a second notion of closure validity.
     "011g_governance_event_chain_binding.sql",
+    # M1-P1 / EVI-010 (`v3.3-a17`). The canonical evidence body. Extends 003 rather than taking
+    # Appendix A's 012, which is reserved for `ingestion_items_errors` (UX-001, a later slice).
+    # After 002 and 003: foreign keys into `artifacts` and `source_works`, and it is what an
+    # Attestation is made from.
+    "003a_evidence_units.sql",
+    # M1-P1 / EVI-010, ADR-0011. What an index holds about a unit. A SEPARATE migration on
+    # purpose: dropping every row for an `index_id` must be expressible without touching
+    # `evidence_units`, which is the schema-level form of "rebuilding an index changes no
+    # scientific evidence identity". The 'a' extension of Appendix A's 009 `vectors` slot, where
+    # EVI-007's dense index will later add columns -- nowhere near 003a. After 003a: the foreign
+    # key points from the index to the evidence, never the reverse.
+    "009a_retrieval_representations.sql",
 )
 
 _BOOTSTRAP = """
