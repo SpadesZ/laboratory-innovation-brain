@@ -119,6 +119,17 @@ sections:
   basis: retraction/erratum check status recorded even when UNKNOWN; a novelty status with no coverage
     record is unauditable. The section's third registry entry is SHOULD-level (the check itself) and is
     excluded from this count
+- section: '6.22'
+  hard_must: 10
+  basis: 'Added by v3.3-a17 (SPEC-ISSUE-013). Ten distinct obligations over twelve keyword occurrences.
+    REGISTERED: 6.22#1 minimum evidence boundary, #3 structure-first, #4 fixed-token not primary, #5
+    fallback sub-units retain parent identity, #6 table header/unit/row-column context, #7 figure
+    caption + surrounding prose, #8 canonical unit resolves to its provenance, #9 admission re-resolves
+    canonical records, #10 a retrieved payload is not an Attestation, #11 identity independent of the
+    index. The two remaining occurrences restate rather than add: #2 is #1 stated as its negative half,
+    #12 is #11 stated for changing the model rather than rebuilding the index. No keyword_free entries
+    -- every obligation in this section is stated with an explicit MUST / MUST NOT, because the section
+    exists precisely to give §6.7''s 不應 a hard counterpart and a soft restatement would defeat it.'
 - section: '7'
   hard_must: 0
   basis: chapter heading

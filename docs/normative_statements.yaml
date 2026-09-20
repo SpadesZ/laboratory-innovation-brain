@@ -240,6 +240,81 @@ normative_statements:
     tests: [T-EVI-007]
 
   # ---------------------------------------------------------------------------
+  # §6.22 Evidence-aware segmentation and retrieval representation (v3.3-a17)
+  #
+  # SPEC-ISSUE-013. §6.7 states the same idea as 不應 -- a SHOULD -- and has no
+  # entry in this file at all. It is left exactly as it was: §6.22 states the hard
+  # obligation BESIDE it rather than promoting it in place, so the audit trail
+  # shows a new statement instead of a silently strengthened old one.
+  #
+  # These are deliberately ten separate keys rather than one "segmentation is
+  # correct" entry. Each names a distinct way the boundary can be lost, and
+  # T-EVI-010's locked fixture has a case per key; collapsing them would let a
+  # benchmark pass on aggregate while one failure mode went unexercised -- the
+  # shape v3.3-a6 refused when it declined to read §14.3's artifact-reference
+  # obligation into EPI-002.
+  # ---------------------------------------------------------------------------
+  - key: evidence.segmentation.minimum_boundary
+    section: "6.22"
+    level: MUST
+    requirement_id: EVI-010
+    tests: [T-EVI-010]
+
+  - key: evidence.segmentation.structure_first
+    section: "6.22"
+    level: MUST
+    requirement_id: EVI-010
+    tests: [T-EVI-010]
+
+  - key: evidence.segmentation.fixed_token_not_primary
+    section: "6.22"
+    level: MUST
+    requirement_id: EVI-010
+    tests: [T-EVI-010]
+
+  - key: evidence.segmentation.fallback_retains_parent
+    section: "6.22"
+    level: MUST
+    requirement_id: EVI-010
+    tests: [T-EVI-010]
+
+  - key: evidence.segmentation.table_context
+    section: "6.22"
+    level: MUST
+    requirement_id: EVI-010
+    tests: [T-EVI-010]
+
+  - key: evidence.segmentation.figure_context
+    section: "6.22"
+    level: MUST
+    requirement_id: EVI-010
+    tests: [T-EVI-010]
+
+  - key: evidence.unit.resolvable_provenance
+    section: "6.22"
+    level: MUST
+    requirement_id: EVI-010
+    tests: [T-EVI-010]
+
+  - key: retrieval.admission.resolves_canonical
+    section: "6.22"
+    level: MUST
+    requirement_id: EVI-010
+    tests: [T-EVI-010]
+
+  - key: retrieval.payload.not_attestation
+    section: "6.22"
+    level: MUST
+    requirement_id: EVI-010
+    tests: [T-EVI-010]
+
+  - key: evidence.unit.identity_independent_of_index
+    section: "6.22"
+    level: MUST
+    requirement_id: EVI-010
+    tests: [T-EVI-010]
+
+  # ---------------------------------------------------------------------------
   # §6.16 External source boundary
   # ---------------------------------------------------------------------------
   - key: source.provider_agnostic_boundary

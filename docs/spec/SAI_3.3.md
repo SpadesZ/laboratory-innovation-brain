@@ -25,7 +25,7 @@
 | FIX-7 | Lumerical seat 與 ground-truth benchmark 兩項外部依賴進 Risk Register |
 | FIX-8 | 新增 Frontend Error & Recovery Contract：§17.22–17.24、§27、`UX-xxx` namespace、UX-001~007 |
 
-**Requirement ↔ Test 不變式：59 ↔ 59。**
+**Requirement ↔ Test 不變式：60 ↔ 60。**
 
 ---
 
@@ -433,6 +433,70 @@ ConditionSchemaRegistration { domain, schema_id, version, json_schema_ref, compa
 ```
 
 `PriorArtSearchRecord`（§17.20）保存 novelty 判斷的搜尋覆蓋範圍。**沒有覆蓋率記錄的 novelty status 不可稽核。**
+
+## 6.22 Evidence-Aware Segmentation & Retrieval Representation
+
+文件被切成什麼形狀，決定系統之後能相信什麼。§6.7 的 layout-aware parsing 是 SHOULD；本節是它的
+hard 對應（EVI-010，`v3.3-a17`）。
+
+**Minimum Evidence Boundary** = 能獨立支撐一個 claim / observation / measurement，且仍保有解讀
+該結果所必要條件的最小完整單位。
+
+```
+把這兩句切開,兩半都仍然為真、仍可歸屬、仍然 well-formed:
+
+    Reverse bias increased from 0 to -2 V.
+    The junction capacitance decreased from 0.515 to 0.345 pF/mm.
+
+而這筆量測已不再是對任何東西的量測。retrieval 之後沒有一步查得出來 ——
+因為沒有任何欄位缺失:條件沒有被丟棄,只是被歸檔到別處。
+```
+
+**切分規則**：
+
+```
+1. 切分 MUST 保留 Minimum Evidence Boundary。
+   結果離開其條件即無法被正確解讀時,兩者 MUST NOT 被切散。
+
+2. 切分 MUST 是 structure-first:section / subsection / paragraph /
+   semantic prose block / table / figure + caption / code block / log block
+   等 parser 明示結構,優先於 token 數。
+
+3. Fixed-token splitting MUST NOT 作為主要切分器。僅允許兩種用途:
+   (a) 單一合法 evidence unit 超過宣告的 safety/token 上限時的次級細分;
+   (b) 明示的 benchmark baseline。
+
+4. 依 3(a) 細分產生的 sub-unit MUST 保留 parent evidence unit 的 identity
+   與解讀所需 context。
+
+5. Table MUST 保留 headers、units、row/column context 與 locator。
+
+6. Figure MUST 保留 figure identity、caption、相關周邊說明文字與 locator ——
+   caption 單獨不足以解讀一張圖。
+
+7. 每個 canonical evidence unit MUST 保留足以解析回下列各項的資訊:
+   project-scoped source occurrence(適用時)、Artifact / SourceWork、
+   source locator、parser/extractor provenance、conditions、units(適用時)。
+```
+
+**Vector chunk 不是 evidence identity**：
+
+```
+embedding / vector representation 是指回 canonical evidence unit 的 derived
+retrieval artefact,不是 evidence 本身。candidate retrieval MAY 使用 vector。
+
+8. scientific evidence admission 與最終 EvidenceBundle 構成 MUST 解析回
+   canonical evidence / source 紀錄,並繼續通過適用的 condition / source /
+   independence / authority / policy filters。
+
+9. 一個 embedding payload 或被取回的 vector chunk MUST NOT 僅因為它被取回
+   就成為 Attestation。
+```
+
+canonical evidence unit 的 identity 獨立於 embedding model、version、vector dimension、reranker
+與 token window strategy。刪除或重建 embedding index MUST NOT 改變科學 evidence identity；更換
+embedding model/version 亦 MUST NOT 改寫 Attestation 或 canonical evidence body。schema 見
+§17.25；embedding space 相容性仍由 EVI-007（§6.13 / §6.20）治理，與本節是兩條不同的規則。
 
 ---
 
@@ -2070,6 +2134,62 @@ component status <- Capability.availability (17.18)
 A Lumerical seat shortage surfaces as degraded availability, not as an error.
 ```
 
+## 17.25 EvidenceUnit / RetrievalRepresentation Contract
+
+§6.22 的兩個物件。分開宣告的理由與 §17.1 / §17.1.1 相同：合成一個「chunk」之後，「這段證據是
+什麼」與「這次檢索取回了什麼」就變成同一列，而後者會隨 embedding model、reranker 與 token
+window 改變。
+
+```
+EvidenceUnit {
+  evidence_unit_id, project_id, artifact_id, source_work_id?,
+  unit_type,                        # SECTION | PROSE | TABLE | FIGURE | CODE | LOG
+  structural_path,                  # 在文件結構中的位置,人類可讀
+  locator,                          # 回到來源的可重查位址
+  body,                             # canonical evidence body
+  parent_unit_id?, subdivision_index?, subdivision_reason?,
+  conditions{}, conditions_schema_version?,
+  field_states{},                   # EvidenceField[] (17.9)
+  table_context?, figure_context?,
+  parser_id, parser_version, segmenter_id, segmenter_version,
+  content_digest, created_at
+}
+
+evidence_unit_id 的 identity 由 (artifact_id, structural_path, content_digest) 決定,
+與 embedding model / version / dimension / reranker / token window strategy 無關。
+
+parent_unit_id 非 null 時,該 unit 是 6.22 規則 3(a) 的 fallback 細分結果;
+subdivision_reason 記錄為什麼細分是必要的,而不是預設行為。
+```
+
+```
+RetrievalRepresentation {
+  representation_id, evidence_unit_id, project_id,
+  index_id, index_kind,             # LEXICAL | DENSE | HYBRID
+  embedding_model?, embedding_version?, dimensions?,
+  payload_digest,                   # 索引當時 body 的 digest
+  built_at
+}
+
+RetrievalCandidate {
+  evidence_unit_id, representation_id, score, rank, retrieval_trace_id
+}
+```
+
+```
+Rules:
+- RetrievalRepresentation 與 RetrievalCandidate 皆不是 evidence。兩者只攜帶
+  evidence_unit_id;最終 evidence 解析 MUST 以該 id 重新載入 EvidenceUnit,
+  MUST NOT 使用 candidate 或 index payload 攜帶的 body。
+- payload_digest 存在的目的不是信任它,而是使「索引內容與 canonical body 已分歧」
+  可被偵測並回報。分歧時 canonical body 為準。
+- 刪除某個 index_id 的全部 RetrievalRepresentation,MUST NOT 改動任何 EvidenceUnit。
+- EvidenceUnit 不持有 embedding vector。vector 只存在於 RetrievalRepresentation,
+  屬 retrieval provenance,不屬 scientific provenance。
+- Attestation 引用 EvidenceUnit 時以 evidence_unit_id 記錄,並保留既有的
+  source_artifact_id / source_work_id / run_id 擇一規則(17.2)不變。
+```
+
 ---
 
 # 18. Final Repository Tree
@@ -2818,7 +2938,9 @@ EXPECTED RESEARCH LOOP
 
 ## 25.3 First Vertical Requirements
 
-> EXT-001 定義於 §24.5，不在本表重複。本表 57 條 + EXT-001 = **58 條 normative requirements**。
+> EXT-001 定義於 §24.5，不在本表重複。本表 59 條 + EXT-001 = **60 條 normative requirements**。
+> （此行在 `v3.3-a6` 新增 EVI-009 時漏未更新，停留在 57 + EXT-001 = 58；`v3.3-a17` 一併校正。
+> 它是散文，不是 parser 讀的不變式來源——後者在本章開頭與 §26，兩處皆由 CI 對表格實際列數驗證。）
 
 | Requirement | MUST |
 |---|---|
@@ -2836,6 +2958,7 @@ EXPECTED RESEARCH LOOP
 | EVI-007 | Vector retrieval MUST filter by compatible embedding model/version; embedding migration uses dual-index + verified cutover. |
 | EVI-008 | Major belief revision from external reported evidence SHOULD pass source-work version/retraction/erratum check; check status MUST be recorded. |
 | EVI-009 | Evidence admitted as MEASURED or SIMULATED MUST reference the Run and/or Artifact it was derived from; a record without that reference is refused at admission and MUST NOT be admitted first and back-filled later（§14.3 memory admission gate）。 |
+| EVI-010 | Scientific document segmentation MUST preserve the Minimum Evidence Boundary — the smallest complete unit that can independently support a claim/observation/measurement while retaining the conditions required to interpret it — and MUST be structure-first. Fixed-token splitting MUST NOT be the primary splitter; it is permitted only to subdivide one oversized valid evidence unit (sub-units retaining the parent's identity and context) or as a declared benchmark baseline. Tables MUST retain headers/units/row-column context/locator; figures MUST retain identity/caption/surrounding prose/locator. Every canonical evidence unit MUST resolve back to source occurrence / Artifact / SourceWork / locator / parser provenance / conditions / units. **A vector or index chunk is NOT evidence identity and is NOT the canonical evidence body**: candidate retrieval MAY use vectors, but admission and EvidenceBundle construction MUST resolve back to canonical records and continue through the applicable condition/source/independence/authority filters, and a retrieved payload MUST NOT become an Attestation by virtue of having been retrieved. Evidence identity MUST be independent of embedding model/version/dimension/reranker/token-window strategy（§6.22, §17.25）。 |
 | EPI-001 | 至少維護 2 個 competing hypotheses；單一看似合理原因不得直接被升級成 confirmed root cause。 |
 | EPI-002 | confirmed root cause 必須可以 trace 回 Run/Evidence/Artifact；LLM statement 不可作為證據。 |
 | EPI-003 | 所有 hypothesis status 變更必須產生 BeliefRevisionEvent；EpistemicState 可由 event replay 重建。 |
@@ -2906,7 +3029,7 @@ VS-SP-001 只有在以下條件全部成立才算完成：
 
 Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 將需求直接綁到測試；IMPLEMENTATION_STATUS.md 應引用這些 Requirement IDs 與 Test IDs。
 
-**59 requirements ↔ 59 tests。**
+**60 requirements ↔ 60 tests。**
 
 | Requirement | Test ID | Test type | Pass condition |
 |---|---|---|---|
@@ -2924,6 +3047,7 @@ Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 
 | EVI-007 | T-EVI-007 | integration | mixed embedding versions are never compared; dual-index migration preserves benchmark recall within threshold before cutover. |
 | EVI-008 | T-EVI-008 | integration | retracted/erratum fixture records source status and blocks/flags major belief promotion per SourcePolicy. |
 | EVI-009 | T-EVI-009 | contract | a MEASURED/SIMULATED evidence fixture with no run/artifact reference is refused at admission; one with a reference round-trips and the reference resolves to an existing Artifact; admitting first and back-filling the reference is refused; an INFERRED record is not subject to the reference requirement but still cannot be typed MEASURED/SIMULATED (EVI-003). |
+| EVI-010 | T-EVI-010 | benchmark/integration | A **fixed, locked** benchmark fixture drives both the evidence-aware segmenter and an explicit fixed-token baseline over the same document set, and the pass condition is **per case, not a corpus-level score threshold** — a fixed-token-primary implementation that happens to score well is non-conformant by construction. The fixture MUST contain at least: (a) a condition/result pair whose halves are individually well-formed and jointly required, which MUST land in one evidence unit; (b) a table whose value cannot be interpreted without its header, unit and row/column context, all of which MUST be retrievable with it; (c) a figure whose caption alone is insufficient, bound to the surrounding prose that explains it; (d) one valid evidence unit exceeding the declared token limit, which MUST demonstrate fixed-token subdivision used *only* as fallback, with every sub-unit retaining the parent's identity and interpretive context; (e) a record whose scientific value is absent, which MUST surface as UNKNOWN/NOT_REPORTED and MUST NOT be filled with a typical value (EVI-002). The report MUST publish evidence-boundary completeness, source-locator recovery, condition retention, table-context retention, figure-context retention, candidate recall and candidate precision **for both strategies**, so regression against the locked fixture is visible. Separately: a retrieval candidate whose index payload has been altered MUST NOT change the admitted evidence body — final resolution reloads the canonical unit by identity; deleting and rebuilding an index changes no `evidence_unit_id`; and a retrieved payload cannot be admitted as an Attestation without passing the ordinary admission gates (§6.22, §17.25). |
 | EPI-001 | T-EPI-001 | e2e | root-cause episode 在驗證前保留至少兩個 active/competing hypotheses。 |
 | EPI-002 | T-EPI-002 | e2e/provenance | confirmed root cause query 必須 trace 到 Relation/Attestation or Observation → Run → Artifact；只有 LLM statement 的 fixture 不得確認 root cause。 |
 | EPI-003 | T-EPI-003 | e2e | 隔離 triggering attestation 後 replay，EpistemicState 投影改變且 history 保留。 |
@@ -2976,7 +3100,7 @@ Agent 寫出很多 code 不等於系統完成。SAI 3.3 以 traceability matrix 
 |---|---|---|
 | **M0a Scientific Identity Foundation** | Postgres migrations 001–004、008；Artifact/SourceWork/Claim/Observation/Attestation/Relation schema；canonical EvidenceBundle；condition schema version；CI + T-SPEC-001/002 | artifact/claim identity + bundle hash + schema/spec conformance pass；**無 Actor/LLM/Simulator 也可測** |
 | **M0b Execution/Governance Foundation** | Actor/ACL、Budget/CostLedger、BeliefRevisionEvent + TransitionPolicy/AuthorityPolicy、Prediction/Conflict、trace/span、Job primitives、ReviewItem minimum schema；migrations 005–007、010–011 | event replay + transition/authority tests + ACL/budget/trace contracts pass；**無 DomainPack 也可測** |
-| **M1 Research Memory** | Evidence ingestion、SourcePolicy、Claim/source-work resolution、GraphRepository(as_of/bounded)、InferenceProvenance、async Job suspend/resume wiring、**IngestionItem/ErrorRecord/MessageCatalog + CLI inbox**；migration 012 | local document/run ingest；source-work dedup；delayed mock job resumes episode；all scientific LLM calls persist bundle+provenance；**UX-001~007 tests pass** |
+| **M1 Research Memory** | Evidence ingestion、**evidence-aware segmentation + EvidenceUnit/RetrievalRepresentation（§6.22 / §17.25）**、SourcePolicy、Claim/source-work resolution、GraphRepository(as_of/bounded)、InferenceProvenance、async Job suspend/resume wiring、**IngestionItem/ErrorRecord/MessageCatalog + CLI inbox**；migration 012 | local document/run ingest；source-work dedup；delayed mock job resumes episode；all scientific LLM calls persist bundle+provenance；**UX-001~007 tests pass** |
 | **M2 Silicon Photonics Tool Layer** | Silicon Photonics DomainPack、Capability registry、Lumerical mock/`run_*`、backend-agnostic `extract_cj_rs`、backend validity | simulated + measured fixtures use same extractor contract；license/resource queue mock pass |
 | **M3 Hypothesis Brain** | 6 core roles、selected Domain Specialists、PRIMARY/FAST/EMBEDDING minimum routing、stake-adaptive debate、Critic inverted retrieval | role I/O + Position/Critique contracts pass；Critic bundle divergence measurable；benchmark thresholds are calibrated and stored in BenchmarkPolicy before gate enforcement |
 | **M4 First Vertical** | VS-SP-001 full loop：intent-aware retrieval → competing hypotheses → capability/cost planning → Job → evidence → belief event → failure/heuristic candidate | fixed benchmark set (**not cherry-picked**) demonstrates root-cause correctness and avoids unnecessary high-cost action in predefined cases |
@@ -3419,3 +3543,4 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / DONE / DEFERRED
 | **v3.3-a14** | **2026-09-16** | **Maintainer clarification（review resolution 的 durable linkage，與 `subject_id` 的規範衝突）**：不新增義務，解掉兩處使既有義務無法被唯一執行的地方。（a）**`subject_id` 的矛盾**：§8.2.1 原寫 `ReviewItem(...subject_id=hypothesis_id)`，§17.19.3 則寫 `ReviewItem(subject_type=CONFLICT | AUTHORITY_CONFLICT).subject_id` 是 **conflict_id**；兩者皆 normative 且互相矛盾。裁決採 §17.19.3——它是 Conflict contract 本身，也是讓 `unresolved_conflicts[]` 與 `blocking_conflict_policy` 共用單一物件的那條。§8.2.1 的 INCOMPARABLE 流程改為：先建 `Conflict(AUTHORITY_CONFLICT, subject_refs=[hypothesis_id], blocking=true)`，再建 `ReviewItem(subject_id=conflict_id)` 並回連 `Conflict.review_id`；hypothesis 經 `Conflict.subject_refs` 一跳可達。（b）**review 何謂「resolved」**：§17.19.1 的 `decision_ref?` 原本只出現在欄位列表中、無任何 prose 定義它指向什麼、何時必填，於是「no BeliefRevisionEvent may promote/reject until the review resolves」無法被唯一執行——實作可以讓 review 停在 QUEUED，卻拿任意一筆同 project 的既存 event 當 closure proof，而那不是 review resolve。本次明定：terminal review（`APPROVED|CORRECTED|REJECTED|EXPIRED`）**MUST** 帶 `decision_ref`；**outstanding review invariant**——`QUEUED|ASSIGNED` 的 review 只要連著 blocking Conflict，該 Conflict **MUST NOT** 進入 `RESOLVED|ACCEPTED_AS_OPEN_QUESTION|EXPIRED`（`ASSIGNED` 算 outstanding：有人接手不等於有人回答）；**closure traceability**——Conflict 的 `resolution_event_id` 必須是*該* review 決議所產生的 event，任意同 project event 與另一筆 review 的決議皆 **MUST NOT** 被接受；**atomicity**——review 決議與 conflict 關閉不得留下半完成狀態，crash 或併發後皆不得觀察到「review terminal 而 conflict open」或 「review outstanding 而 conflict closed」。此義務落在 persistence／creation path；`TransitionPolicy.evaluate()` 與 scientific belief semantics **不得**複製進 SQL（承 `v3.3-a13`）。**未新增 Requirement/Test ID、未新增 normative statement**——EPI-004 早已課予「INCOMPARABLE 必須 escalate 並阻擋 promote/reject」、EPI-006 早已課予「關閉 Conflict 必須記錄 resolution event」，本修訂只使兩者**可被唯一執行**；Requirement ↔ Test 維持 **59 ↔ 59**。§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |
 | **v3.3-a15** | **2026-09-19** | **Maintainer ruling（SPEC-ISSUE-012：自動 expiry 沒有任何人可以撰寫的 closure event）**：採 Reading B，新增一個窄口徑的 `GovernanceEvent`。**問題**：T-OPS-002 要求逾期 ReviewItem 必須離開 PENDING，而 `v3.3-a14` 把該關閉路由到 `ReviewResolution` 的 closure event；§17.13 的 `BeliefRevisionEvent` 只有一種語意——hypothesis 的 belief state 改變了——但**逾期不是 transition**。實測下每一條可行構造都不合法：no-op policy 被 `005b` 的 `CHECK (from_state <> candidate_to_state)` 擋住、非 genesis event 引用 admission policy 被 `005c` 擋住、`ACTIVE→INCONCLUSIVE` 若 policy 尊重 blocking conflict 則得到 NEED_HUMAN_REVIEW 而無 ALLOW（循環），若忽略該 conflict 則等於排程器在無證據下判定 hypothesis 為 INCONCLUSIVE。**裁決**：§17.19.1 新增 `GovernanceEvent`——**governance/operational 狀態變更，本身不改動科學信念**；append-only、immutable、project-scoped；**不得**被當作 BeliefRevisionEvent 證據、不得進入 belief replay、不得改動 `EpistemicStateProjection`；排程器**不得**撰寫 `BeliefRevisionEvent`。`event_type` 本次只開放 `REVIEW_EXPIRY` 一個值——刻意不建立泛用 audit-event 詞彙，否則就成了第二條可以關閉任何東西的路徑。closure reference 一般化為 typed pair `(resolution_event_kind = BELIEF_REVISION | GOVERNANCE, resolution_event_id)`；Conflict 與關閉它的 ReviewResolution **MUST** 引用完全相同的一組值；`GOVERNANCE` 僅允許 `outcome = EXPIRED` 搭配 `event_type = REVIEW_EXPIRY`，人工決議（APPROVED|CORRECTED|REJECTED）**不得**以 GovernanceEvent 關閉，自動 expiry 亦**不得**以 BeliefRevisionEvent 關閉。`ACCEPTED_AS_OPEN_QUESTION` 只關閉**此一** review/conflict 實例，不代表 authority 變得可比——後續 episode 遇到同一個 INCOMPARABLE 仍**必須**回 NEED_HUMAN_REVIEW 並**得**另建 Conflict/ReviewItem。expiry **必須**採該 ReviewItem 當初定價的 queue policy 版本，不得以現行 policy 重新詮釋舊 review。`ReviewQueuePolicy` 新增 `declared_by_actor_id`：自動 expiry 的 standing authority 是宣告該 policy 的 actor，**不得**由執行 sweep 的 service account 推得；兩者分開記錄，執行者為 SERVICE actor 並不因此成為科學決策者。**未新增 Requirement/Test ID**——OPS-002 / T-OPS-002 既有的 expiry liveness 與 EPI-006 / T-EPI-006 既有的 typed Conflict closure-event integrity 本就課予這些義務，本修訂只使其**可被唯一執行**；Requirement ↔ Test 維持 **59 ↔ 59**。§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |
 | **v3.3-a16** | **2026-09-20** | **Maintainer clarification（GovernanceEvent 必須屬於它所關閉的那條 chain）**：不新增義務，解掉一處使 `v3.3-a14` closure traceability 在 `v3.3-a15` 的 typed pair 下仍無法被唯一執行的地方。**問題**：`v3.3-a15` 要求 Conflict 與關閉它的 ReviewResolution 引用完全相同的 `(resolution_event_kind, resolution_event_id)`，而該句已寫明須「for the same review/conflict chain」——但「same chain」未被定義，persistence 層因而只驗證兩半互相一致，未曾載入被引用的 GovernanceEvent 反問它是否為**該** review 而寫。於是一筆為 Review A 合法產生的 `REVIEW_EXPIRY` event，可被 raw SQL 當成同一 project 內 Review B 的 closure proof：resolution 屬於 B、outcome 與 status 一致、Conflict 與 resolution 的 (kind, id) 相同、event 亦確為同 project 的真實 REVIEW_EXPIRY——每一項既有檢查皆通過，而一個 block 以從未為它授予的 authority 被解除。這正是 `v3.3-a14`「任意同 project event 不得作為 closure proof」在多一層 indirection 後重現。**裁決**：§17.19.1 明定 chain binding——`resolution_event_kind = GOVERNANCE` 時，被引用的 GovernanceEvent **MUST** 同時滿足 `event_type = REVIEW_EXPIRY`、`subject_type = REVIEW_ITEM`、`project_id` 等同 ReviewItem／ReviewResolution／linked Conflict 三者、`subject_id` 等同該 ReviewItem 的 `review_id`、`related_conflict_id` 等同且僅等同該 ReviewItem 所連的 Conflict、`policy_id` 與 `policy_version` 等同該 ReviewItem 被定價的 queue policy、該 `ReviewQueuePolicy(policy_id, version, project_id)` **MUST** 存在、`declared_by_actor_id` 等同該 policy 的 `declared_by_actor_id`、`actor_id` 等同該 ReviewResolution 的 `resolved_by_actor_id`。滿足某一 ReviewItem 全部條件的 GovernanceEvent，**不得**被接受為另一 ReviewItem 的 closure proof，即使同 project、同 queue policy 亦然。另明定兩項窄口徑事實：（a）`declared_by_actor_id` 在 `REVIEW_EXPIRY` 上為**必填**——`v3.3-a15` 已使 `ReviewQueuePolicy.declared_by_actor_id` NOT NULL，故此 event type 恆有正確值，缺席只可能表示未被記錄；（b）`actor_id` **MUST** 為 ACTIVE actor，未知 executor 既已被拒，停用者亦**必須**被拒且 ReviewItem 維持 outstanding；「是否 active」於 expiry **寫入時**判定，**不得**事後重判——停用一個 service account 是阻止它繼續 expire，而非使它已完成的 expiry 失效。義務落在 persistence path，**未**新增 scientific-authority 或 approval-scope 系統，`GovernanceEvent` 詞彙仍僅 `REVIEW_EXPIRY` 一值，`TransitionPolicy.evaluate()` 與 scientific belief semantics **不得**複製進 SQL（承 `v3.3-a13`）。**未新增 Requirement/Test ID、未新增 normative statement**——OPS-002 / T-OPS-002 既有的 expiry liveness 與 EPI-006 / T-EPI-006 既有的 typed Conflict closure-event integrity 本就課予這些義務，本修訂只使其**可被唯一執行**；Requirement ↔ Test 維持 **59 ↔ 59**。§6–§16 未新增 hard-obligation 關鍵字，§23.5 (2) occurrence inventory 不變。無架構方向變更。 |
+| **v3.3-a17** | **2026-09-20** | **Maintainer ruling（SPEC-ISSUE-013：切分邊界與 retrieval representation 無人所有）**：採 Reading D，新增 **EVI-010 / T-EVI-010**，配置 M1。**問題**：一份科學文件必須先被切開才能檢索，而切在哪裡決定了系統之後能相信什麼——最小可獨立支撐一個 claim 的單位，是「結果 **連同** 使其可被解讀的條件」。把「Reverse bias 0 → -2 V」與「Cj 0.515 → 0.345 pF/mm」切成兩個 unit，兩半各自仍為真、仍可歸屬、仍 well-formed，而這筆量測已不再是對任何東西的量測；retrieval 之後沒有任何一步查得出來，因為**沒有欄位缺失**：條件沒有被丟棄，只是被歸檔到別處。此義務在實質上是 hard，在文件上不是：§6.7 是全篇唯一談及處，且為 `不應`（SHOULD-NOT），`M0a_hard_must_counts.yaml` 早已記為 `hard_must: 0 / basis: SHOULD only`，registry 在 §6.7 **完全沒有條目**。鄰近的 requirement 各自止步：EVI-002 管**缺失**欄位（條件被切走時無一欄缺失）、EVI-005 管 conditions schema 版本（不管它是否還黏著）、EVI-006 對送進來的任何 bundle 都一樣可決定性地 hash、EVI-009 管 reference（不管被指向的 body）。**EVI-007 是最具啟發性的一條**：§6.13 / §6.20 對「哪個 vector space 可被比較」極精確，對「vector 可以**是**什麼」全然沉默——一個實作可以滿足 EVI-007 每一句（不混 space、dual-index cutover、可回答用了哪個 version），同時把取回的 payload 當作 evidence body。§23.4 已禁止該結果（「把 Evidence semantics 改成單純 vector chunk」），但那條寫在約束 **agent 行為**的表中，沒有任何 Requirement/Test 使**做了這件事的系統**在 CI 失敗。**為何不能由 agent 以暫定讀法實作**：benchmark 除非刻意為此而寫，否則分不出 fixed-token-primary 與 structure-first——一般問答語料上的 recall/precision 對「條件是否與結果同行」幾乎不敏感，因為檢索通常連鄰近 chunk 一起取回；失效在稍後的 belief path 上才現形，成為一筆從未成立的 corroboration。故「挑分數高的那個」不是可用的裁決方式，而該裁決屬 §23.4 保留給 maintainer 的 scientific semantics。**裁決**：（a）新增 **§6.22**，於 §6.7 的 SHOULD **旁邊**陳述 hard 義務而非就地改寫它——審計軌跡因此顯示為一條新 statement，而非一條被悄悄加強的舊 statement，obligation inventory 亦據此新增 12 筆 occurrence（10 REGISTERED + 2 RESTATEMENT_OF）；內容為 Minimum Evidence Boundary、structure-first、fixed-token **MUST NOT** 為主要切分器（僅容許單一超限 evidence unit 的次級細分，且 sub-unit MUST 保留 parent identity/context，或作為明示 benchmark baseline）、table header/unit/row-column context、figure caption + 周邊說明、canonical evidence unit MUST 可解析回 occurrence/Artifact/SourceWork/locator/parser provenance/conditions/units。（b）新增 **§17.25 EvidenceUnit / RetrievalRepresentation Contract**，把兩個物件分開宣告，理由與 §17.1 / §17.1.1 相同：合成一個「chunk」之後，「這段證據是什麼」與「這次檢索取回了什麼」成為同一列，而後者隨 embedding model、reranker 與 token window 改變。`evidence_unit_id` 的 identity 由 `(artifact_id, structural_path, content_digest)` 決定，**獨立於** embedding model/version/dimension/reranker/token window strategy；刪除或重建 index **MUST NOT** 改動任何 EvidenceUnit，更換 embedding model **MUST NOT** 改寫 Attestation；EvidenceUnit **不**持有 vector，vector 只存在於 RetrievalRepresentation，屬 retrieval provenance 而非 scientific provenance。`payload_digest` 存在的目的不是信任它，而是使「索引內容與 canonical body 已分歧」**可被偵測**，分歧時 canonical body 為準。（c）**T-EVI-010 的 pass condition 是 per-case，不是 corpus 門檻**：鎖定的 fixture 涵蓋 condition/result 切分陷阱、需 header+unit+row/column 才可解讀的 table、caption 單獨不足的 figure、超限 valid unit 的 fallback 細分、以及缺值必須為 UNKNOWN/NOT_REPORTED；報告 MUST 同時公布兩種策略（evidence-aware 與 fixed-token baseline）的 evidence-boundary completeness / locator recovery / condition retention / table-context / figure-context / recall / precision。刻意**不**訂定通用生產優越性門檻——規格未提供，且門檻正是唯一無法分辨兩種策略的形式。（d）另含一項編輯性校正：§25.3 的導言自 `v3.3-a6` 起停留在「57 條 + EXT-001 = 58」，與表格實際列數不符；本次一併更新為「59 條 + EXT-001 = 60」，並註明該行是散文而非 parser 讀取的不變式來源。**EVI-007 與 EVI-010 維持為兩條不同的規則**：前者管 embedding space 相容性，後者管 evidence 身分邊界；`v3.3-a17` 不改動 EVI-007 的任何一句。Requirement ↔ Test：**59 ↔ 59 → 60 ↔ 60**。無架構方向變更。 |

@@ -3,10 +3,10 @@
 # Gate order and exit gates are transcribed from SAI 3.3 §26.1. The per-milestone
 # `requirements` allocation is an implementation decision, not spec text: each
 # requirement is assigned to the milestone at which its §26 pass condition can be
-# fully satisfied. The union of all allocations MUST equal the 59 requirements the
+# fully satisfied. The union of all allocations MUST equal the 60 requirements the
 # spec declares -- enforced by T-SPEC-001 against the parsed §25.3 table, so this
 # number is documentation and the check does not depend on it being retyped
-# correctly. It has moved with the amendments (v3.3-a1 .. a8); §0's amendment
+# correctly. It has moved with the amendments (v3.3-a1 .. a17); §0's amendment
 # ledger is the record.
 #
 # `status` drives the CI ratchet. Once a milestone is DONE, every requirement allocated to it
@@ -95,6 +95,14 @@ milestones:
       # v3.3-a6. Admission-time obligation, so it sits with EVI-003's
       # admission gate rather than waiting for M4's root-cause vertical.
       - EVI-009
+      # v3.3-a17 (SPEC-ISSUE-013). Allocated here rather than to M2 because
+      # where evidence boundaries fall is not domain-specific -- §24.1 puts
+      # Artifact/Claim/Observation/Attestation in the core column, and a
+      # DomainPack re-deciding it per domain is the extension-boundary failure
+      # EXT-001 exists to detect. It also has to land WITH the ingestion path
+      # it governs: a segmenter added after evidence already exists would need
+      # a re-segmentation migration whose provenance nobody can honestly state.
+      - EVI-010
       - LLM-001
       - OPS-001
       - OPS-004
