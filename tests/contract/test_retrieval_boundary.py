@@ -199,12 +199,16 @@ def test_the_canonical_body_is_admitted(indexed):
 @pytest.mark.requirement("EVI-010")
 @pytest.mark.spec_test("T-EVI-010")
 def test_a_candidate_pointing_at_a_unit_that_does_not_resolve_is_refused():
-    """A candidate that cannot be re-loaded by identity cannot become evidence."""
-    gate = EvidenceAdmissionGate(load_artifact=lambda _: None, load_evidence_unit=lambda _: None)
+    """A candidate that cannot be re-loaded by identity cannot become evidence.
+
+    Stated through the DURABLE reference. This test used to name the unit only in the request,
+    which Repair-2 made a refusal in its own right -- the request field is a consistency
+    assertion and may not stand in for the record. The claim being made here is about
+    resolution, so the record names the unit and the store returns nothing for it.
+    """
+    missing = "evu:sha256:" + "9" * 64
     with pytest.raises(AdmissionRefusal) as caught:
-        gate.admit(
-            AdmissionRequest(attestation=_attestation(), evidence_unit_id="evu:sha256:" + "9" * 64)
-        )
+        _gate({}).admit(AdmissionRequest(attestation=_attestation(evidence_unit_id=missing)))
     assert caught.value.reason is RefusalReason.EVIDENCE_UNIT_NOT_FOUND
 
 

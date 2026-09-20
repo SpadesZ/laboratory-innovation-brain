@@ -39,6 +39,7 @@ from lab_brain.core.models.enums import (
     SubdivisionReason,
 )
 from lab_brain.core.models.evidence_unit import EvidenceUnit
+from lab_brain.ingestion.reverification import Reverification, ReverificationFailure
 
 #: EVI-009's scope. These two epistemic types assert that something was *done* -- an instrument
 #: read a value, a solver computed one -- so the record must name the Run or Artifact it came
@@ -81,11 +82,18 @@ class RefusalReason(StrEnum):
     #: what it produces from the artifact's own bytes.
     SEGMENTATION_NOT_VERIFIABLE = "SEGMENTATION_NOT_VERIFIABLE"
     SEGMENTATION_NOT_REPRODUCIBLE = "SEGMENTATION_NOT_REPRODUCIBLE"
+    #: EVI-010 / §17.25. The unit records a parser/segmenter this build cannot construct, so its
+    #: provenance cannot be re-run. Distinct from NOT_VERIFIABLE because the remedy differs: that
+    #: one is an unreachable store, this one is a retired or mistyped implementation version.
+    RECORDED_IMPLEMENTATION_UNAVAILABLE = "RECORDED_IMPLEMENTATION_UNAVAILABLE"
     #: §17.25 / `v3.3-a18`. The durable reference on the record disagrees with the one being
     #: submitted, or is absent while an evidence unit is claimed.
     EVIDENCE_LINK_NOT_DURABLE = "EVIDENCE_LINK_NOT_DURABLE"
-    #: SEC-002
+    #: SEC-002 / §17.25.1
     CROSS_PROJECT_UNIT = "CROSS_PROJECT_UNIT"
+    #: SEC-002 / §17.25.1. No occurrence resolver is configured, so project scope cannot be
+    #: established at all. Fails closed: an unverifiable scope is not a permitted one.
+    PROJECT_SCOPE_NOT_VERIFIABLE = "PROJECT_SCOPE_NOT_VERIFIABLE"
     READ_NOT_PERMITTED = "READ_NOT_PERMITTED"
 
 
@@ -109,6 +117,17 @@ class AdmissionRequest:
     """
 
     attestation: Attestation
+    #: An optional **consistency assertion** about which unit this admission concerns.
+    #:
+    #: It is NOT the trigger for evidence verification and MUST NOT be able to narrow, suppress
+    #: or disable it. The canonical reference is ``attestation.evidence_unit_id``; this field may
+    #: only agree with it. Supplying it when the record names nothing, or naming a different
+    #: unit, fails closed.
+    #:
+    #: Repair-2 found the opposite: verification keyed off this field, so an attestation with a
+    #: durable reference and an omitted request field skipped the durable-link check, the project
+    #: occurrence check, the ACL check and segmentation re-derivation -- every EVI-010 guard, by
+    #: leaving out an optional parameter.
     evidence_unit_id: str | None = None
     claimed_body: str | None = None
     #: What the CALLER says about the text's origin. **Not a source of truth** (EVI-003).
@@ -141,15 +160,15 @@ class EvidenceAdmissionGate:
         load_evidence_unit: Callable[[str], EvidenceUnit | None],
         already_admitted: Callable[[str], bool] | None = None,
         can_read: Callable[[str, str], bool] | None = None,
-        resegment: Callable[[str], tuple[EvidenceUnit, ...] | None] | None = None,
+        resegment: Callable[[EvidenceUnit], Reverification] | None = None,
         is_present_in: Callable[[str, str], bool] | None = None,
     ) -> None:
         self._load_artifact = load_artifact
         self._load_evidence_unit = load_evidence_unit
         self._already_admitted = already_admitted or (lambda _: False)
-        #: SPEC-ISSUE-015's semantic layer. Given an artifact id, re-runs the recorded parser and
-        #: segmenter over that artifact's content-addressed bytes and returns what segmentation
-        #: produces, or ``None`` when the bytes cannot be loaded.
+        #: SPEC-ISSUE-015's semantic layer. Given the UNIT, resolves the parser and segmenter
+        #: its provenance records, re-runs them over the artifact's content-addressed bytes, and
+        #: reports what segmentation produces -- or why it could not.
         #:
         #: Left unset, admission of any unit FAILS CLOSED rather than skipping the check. That is
         #: the whole point: a deployment that cannot re-derive cannot verify, and an unverifiable
@@ -170,10 +189,10 @@ class EvidenceAdmissionGate:
         self._check_backfill(attestation)
         self._check_inference(request)
         self._check_reference(attestation)
+        self._check_link_assertion_agrees(request)
         unit = self._check_evidence_unit(request)
         self._check_no_invented_values(attestation)
         if unit is not None:
-            self._check_durable_link(request, unit)
             self._check_read_permitted(attestation, unit)
             # Last, and deliberately: it is the only expensive check, so every cheap refusal has
             # already had its chance. Ordering does not change any verdict -- each guard is
@@ -335,14 +354,16 @@ class EvidenceAdmissionGate:
         distinguishes it from a legitimate admission is that the body does not match the unit it
         claims to come from -- so the unit is re-loaded by identity and compared.
         """
-        if request.evidence_unit_id is None:
+        # THE RECORD decides, not the call. See `_check_link_assertion_agrees` for why.
+        evidence_unit_id = request.attestation.evidence_unit_id
+        if evidence_unit_id is None:
             return None
 
-        unit = self._load_evidence_unit(request.evidence_unit_id)
+        unit = self._load_evidence_unit(evidence_unit_id)
         if unit is None:
             raise AdmissionRefusal(
                 RefusalReason.EVIDENCE_UNIT_NOT_FOUND,
-                f"evidence unit {request.evidence_unit_id} does not resolve; a candidate that "
+                f"evidence unit {evidence_unit_id} does not resolve; a candidate that "
                 "cannot be re-loaded by identity cannot become evidence (§6.22, EVI-010)",
             )
 
@@ -366,38 +387,44 @@ class EvidenceAdmissionGate:
 
     # -- SEC-002 ------------------------------------------------------------
 
-    def _check_durable_link(self, request: AdmissionRequest, unit: EvidenceUnit) -> None:
-        """The evidence reference must be ON THE RECORD, not only in the call (17.25, v3.3-a18).
+    def _check_link_assertion_agrees(self, request: AdmissionRequest) -> None:
+        """The request may assert which unit this is about; it may not decide whether to check.
 
-        17.25 always required an Attestation citing an EvidenceUnit to record
-        ``evidence_unit_id``. Implementing that as an admission-call parameter satisfied the
-        sentence and not the requirement: persist the attestation, restart, reload it, and it can
-        no longer say which passage it read. The locator does not close that gap -- a document
-        routinely has several units at one human-facing position, which is exactly why
-        ``structural_path`` is part of evidence identity and the locator is not.
+        THE TRUST BOUNDARY, and the thing Repair-2 found inverted. Verification used to key off
+        ``request.evidence_unit_id``, so omitting an optional call parameter skipped the durable
+        link check, the occurrence check, the ACL check and segmentation re-derivation -- while
+        the attestation being admitted named a forged unit on its own record.
 
-        So an admission that names a unit must submit an attestation that names the same one.
+        ``attestation.evidence_unit_id`` is canonical because it is the half that *survives*: it
+        is what a reloaded record, an auditor, or a replay has. A call parameter is what the
+        caller chose to mention this time.
+
+        This method therefore only rejects DISAGREEMENT. The decision to verify is made in
+        :meth:`_check_evidence_unit` from the record alone.
         """
         attestation = request.attestation
-        # NOT an independent guard, and the mutation battery says so: disabling this branch alone
-        # survives, because `None != unit.evidence_unit_id` means the comparison below refuses
-        # anyway. It is kept to name the defect precisely -- "records none" and "records a
-        # different one" send an operator to different places -- and the battery therefore
-        # anchors on the comparison, which is the part that actually holds the rule.
-        if attestation.evidence_unit_id is None:
+        asserted = request.evidence_unit_id
+        durable = attestation.evidence_unit_id
+
+        if asserted is None:
+            # Silence asserts nothing, and -- since Repair-2 -- suppresses nothing either.
+            return
+
+        if durable is None:
             raise AdmissionRefusal(
                 RefusalReason.EVIDENCE_LINK_NOT_DURABLE,
-                f"admission cites evidence unit {unit.evidence_unit_id} but attestation "
+                f"admission cites evidence unit {asserted} but attestation "
                 f"{attestation.attestation_id} records no evidence_unit_id. The reference must be "
                 "durable: a reloaded attestation that cannot name its evidence has lost the only "
-                "precise route back to it (17.25, v3.3-a18)",
+                "precise route back to it (§17.25, `v3.3-a18`). Recording it on the attestation "
+                "is the fix; asserting it in the call is not",
             )
-        if attestation.evidence_unit_id != unit.evidence_unit_id:
+        if asserted != durable:
             raise AdmissionRefusal(
                 RefusalReason.EVIDENCE_LINK_NOT_DURABLE,
-                f"attestation {attestation.attestation_id} records evidence unit "
-                f"{attestation.evidence_unit_id} but admission cites {unit.evidence_unit_id}; "
-                "the durable reference and the submitted one must be the same unit",
+                f"attestation {attestation.attestation_id} records evidence unit {durable} but "
+                f"admission cites {asserted}; the durable reference and the asserted one must be "
+                "the same unit",
             )
 
     def _check_segmentation_reproducible(self, unit: EvidenceUnit) -> None:
@@ -427,14 +454,25 @@ class EvidenceAdmissionGate:
                 "skipped (SPEC-ISSUE-015)",
             )
 
-        produced = self._resegment(unit.artifact_id)
-        if produced is None:
+        # The UNIT is passed, not its artifact id: the unit is the only thing that knows which
+        # parser and segmenter version are supposed to have produced it, and re-running the
+        # current ones would prove that *some* implementation yields this body -- not the
+        # recorded one (§17.25, ADR-0012).
+        outcome = self._resegment(unit)
+        if outcome.failure is ReverificationFailure.IMPLEMENTATION_NOT_REGISTERED:
+            raise AdmissionRefusal(
+                RefusalReason.RECORDED_IMPLEMENTATION_UNAVAILABLE,
+                f"evidence unit {unit.evidence_unit_id} records provenance this build cannot "
+                f"re-run: {outcome.detail}",
+            )
+        if outcome.units is None:
             raise AdmissionRefusal(
                 RefusalReason.SEGMENTATION_NOT_VERIFIABLE,
-                f"the bytes of artifact {unit.artifact_id} could not be loaded, so evidence unit "
-                f"{unit.evidence_unit_id} cannot be re-derived. An admission that cannot be "
-                "verified is refused",
+                f"evidence unit {unit.evidence_unit_id} could not be re-derived "
+                f"({outcome.failure}): {outcome.detail}. An admission that cannot be verified is "
+                "refused",
             )
+        produced = outcome.units
 
         match = next(
             (c for c in produced if c.evidence_unit_id == unit.evidence_unit_id),
@@ -477,9 +515,16 @@ class EvidenceAdmissionGate:
         project-independent, so the unit has no project to compare against and presence is a
         separate fact. Then ``can_read_artifact``, if the caller supplied it.
         """
-        if self._is_present_in is not None and not self._is_present_in(
-            unit.evidence_unit_id, attestation.project_id
-        ):
+        if self._is_present_in is None:
+            raise AdmissionRefusal(
+                RefusalReason.PROJECT_SCOPE_NOT_VERIFIABLE,
+                f"evidence unit {unit.evidence_unit_id} cannot be admitted: this gate has no "
+                "occurrence resolver, so whether the evidence is present in project "
+                f"{attestation.project_id} cannot be established. `v3.3-a18` requires admission "
+                "scope to resolve through EvidenceUnitOccurrence (§17.25.1); an unverifiable "
+                "scope is refused, not assumed",
+            )
+        if not self._is_present_in(unit.evidence_unit_id, attestation.project_id):
             raise AdmissionRefusal(
                 RefusalReason.CROSS_PROJECT_UNIT,
                 f"evidence unit {unit.evidence_unit_id} has no occurrence in project "

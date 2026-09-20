@@ -21,7 +21,6 @@ import json
 
 import psycopg
 import pytest
-from pydantic import ValidationError
 
 from lab_brain.core.access import can_read_artifact
 from lab_brain.core.models import (
@@ -29,7 +28,6 @@ from lab_brain.core.models import (
     ActorType,
     Attestation,
     EpistemicType,
-    EvidenceUnitType,
     ExtractionProvenance,
     ProjectMembership,
     SensitivityLabel,
@@ -46,6 +44,7 @@ from lab_brain.ingestion.admission_gate import (
 from lab_brain.ingestion.pipeline import IngestionError, IngestionPipeline, IngestionStage
 from lab_brain.ingestion.reverification import SegmentationReverifier
 from lab_brain.storage.artifacts.local import LocalArtifactStore
+from lab_brain.storage.postgres import EvidenceUnitReadError, PostgresEvidenceUnitReader
 from tests.conftest_fixtures import TOY_SCHEMA_REF
 from tests.evidence_fixtures import (
     CONDITION_SENTENCE,
@@ -165,6 +164,23 @@ def _persist_units(connection, units, occurrences) -> None:
         )
 
 
+def _load_unit(db):
+    """The canonical read boundary (§17.25).
+
+    Was an inline row->model rebuild; Repair-2 promoted that pattern to
+    ``PostgresEvidenceUnitReader`` so "did this call site remember to revalidate" stops being
+    a per-call-site question. Every invariant still runs on load -- identity, digest, witness,
+    rule 1, typed context -- which is what keeps a drifted row from reaching a caller still
+    looking like evidence.
+    """
+    return PostgresEvidenceUnitReader(db).load
+
+
+def _is_present_in(db):
+    """§17.25.1 presence, resolved through the occurrence rather than a column on the unit."""
+    return PostgresEvidenceUnitReader(db).present_in
+
+
 @pytest.fixture
 def ingested(db, tmp_path):
     """Run the whole vertical once, persisting to PostgreSQL. Returns the pieces it produced."""
@@ -180,76 +196,6 @@ def ingested(db, tmp_path):
     assert outcome.artifact is not None
     _persist_units(db, outcome.evidence_units, outcome.evidence_occurrences)
     return outcome, store, db
-
-
-def _is_present_in(db):
-    """§17.25.1 presence, read from the occurrence table rather than from the unit."""
-
-    def present(evidence_unit_id: str, project_id: str) -> bool:
-        return (
-            db.execute(
-                "SELECT 1 FROM evidence_unit_occurrences "
-                "WHERE evidence_unit_id = %s AND project_id = %s",
-                (evidence_unit_id, project_id),
-            ).fetchone()
-            is not None
-        )
-
-    return present
-
-
-def _load_unit(db):
-    from lab_brain.core.models import (
-        EvidenceUnit,
-        FigureContext,
-        SegmenterProvenance,
-        SourceLocator,
-        TableContext,
-    )
-
-    def load(evidence_unit_id: str):
-        row = db.execute(
-            "SELECT evidence_unit_id, artifact_id, unit_type, structural_path, "
-            "locator, body, content_digest, parent_unit_id, subdivision_index, "
-            "subdivision_reason, inherited_context, conditions, bound_condition_texts, "
-            "segmentation_witness, table_context, figure_context, parser_id, parser_version, "
-            "segmenter_id, segmenter_version, token_limit "
-            "FROM evidence_units WHERE evidence_unit_id = %s",
-            (evidence_unit_id,),
-        ).fetchone()
-        if row is None:
-            return None
-        # Rebuilt through the model, not handed back as a row. Every validator runs again:
-        # identity is recomputed from (artifact, path, digest), the digest is recomputed from the
-        # body, the witness is recomputed from the conformance fields, and the rule-1 declaration
-        # is re-checked. A row that drifted in storage cannot reach a caller looking like evidence.
-        return EvidenceUnit(
-            evidence_unit_id=row[0],
-            artifact_id=row[1],
-            unit_type=EvidenceUnitType(row[2]),
-            structural_path=row[3],
-            locator=SourceLocator.model_validate(row[4]),
-            body=row[5],
-            content_digest=row[6],
-            parent_unit_id=row[7],
-            subdivision_index=row[8],
-            subdivision_reason=row[9],
-            inherited_context=tuple(row[10]),
-            conditions=row[11],
-            bound_condition_texts=tuple(row[12]),
-            segmentation_witness=row[13],
-            table_context=TableContext.model_validate(row[14]) if row[14] else None,
-            figure_context=FigureContext.model_validate(row[15]) if row[15] else None,
-            provenance=SegmenterProvenance(
-                parser_id=row[16],
-                parser_version=row[17],
-                segmenter_id=row[18],
-                segmenter_version=row[19],
-                token_limit=row[20],
-            ),
-        )
-
-    return load
 
 
 # ---------------------------------------------------------------------------
@@ -721,5 +667,8 @@ def test_a_canonical_read_rebuilds_and_verifies_the_unit_identity(ingested):
         ),
     )
 
-    with pytest.raises(ValidationError, match="not the derived identity"):
+    # `EvidenceUnitReadError`, not the bare `ValidationError`: the read boundary catches the
+    # revalidation failure and re-raises it naming the unit, because "some model failed to
+    # validate" is not actionable and "stored row for evu:... does not revalidate" is.
+    with pytest.raises(EvidenceUnitReadError, match="does not revalidate"):
         _load_unit(connection)("evu:sha256:" + "b" * 64)

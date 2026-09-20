@@ -1,6 +1,7 @@
 # M1-P1 Readiness — Research Memory Foundation + Evidence-Aware Hierarchical Chunking
 
-Date: 2026-09-20; **revised 2026-09-21 after the independent audit** (see §10)
+Date: 2026-09-20; revised 2026-09-21 after the independent audit (§10); **revised again after
+Repair-2 (§11)**
 Milestone: **M1 — Research Memory**, `NOT_STARTED` → `IN_PROGRESS`
 Slice scope: `EVI-002`, `EVI-003`, `EVI-004`, `EVI-009`, `EVI-010`, `SEC-003`, `OPS-004`, `UX-004`
 Spec: SAI 3.3, amendments `v3.3-a1` … `v3.3-a18`
@@ -305,3 +306,112 @@ The battery found defects in the repair itself, which is what it is for:
 against them. The benchmark framing is untouched: the fixed-token baseline still scores **1.00
 boundary, 1.00 condition, higher precision@5** while zeroing all three structural metrics, and
 that remains the measured justification for §26's per-case pass condition.
+
+## 11. Repair-2 (2026-09-21)
+
+The audit of the Repair-1 SHA returned **three blockers and two regression gaps**. All three
+blockers were **fail-opens of the same shape**: the guard was correct, was tested, and had an
+input that turned it off. Each was reproduced against the running system before anything changed,
+and the reproductions are permanent probes in `tests/contract/test_evidence_repair2_probes.py`.
+
+**Governance: no spec amendment, no new Requirement/Test ID. 60 ↔ 60 unchanged.** All three are
+already derivable from `v3.3-a18`, `EVI-010` and `SEC-002` — the specification determined the
+required behaviour and the implementation did not deliver it, which is a code defect and not an
+ambiguity. Using a clarification to redefine behaviour around an implementation shortcut is
+exactly what the brief forbade, and nothing here needed one.
+
+### Attack before / after
+
+| Blocker | Attack, as reproduced on `23b47dd` | After |
+|---|---|---|
+| **P0** durable reference bypass | forged unit on `Attestation.evidence_unit_id`, request field omitted → **ADMITTED** (durable-link, occurrence, ACL and re-derivation all skipped) | `SEGMENTATION_NOT_REPRODUCIBLE` — and the probe asserts the *far-end* guard fired, so the whole chain provably ran |
+| **P0** request may not substitute | — | request names a unit the record does not → `EVIDENCE_LINK_NOT_DURABLE`; the two disagree → `EVIDENCE_LINK_NOT_DURABLE` |
+| **P1** occurrence fail-open | gate built without `is_present_in` → **ADMITTED**, project scope never established | `PROJECT_SCOPE_NOT_VERIFIABLE`; wrong project → `CROSS_PROJECT_UNIT`; correct project → proceeds |
+| **P1** provenance not bound | unit recording `some_other_segmenter 99.0.0` → **ADMITTED**, because the *current* segmenter reproduced the body | `RECORDED_IMPLEMENTATION_UNAVAILABLE` |
+
+### What changed, and why in that shape
+
+**`Attestation.evidence_unit_id` is the trigger.** It is the half that *survives* — what a
+reloaded record, an auditor or a replay has. `AdmissionRequest.evidence_unit_id` is now a
+consistency assertion that may only agree; it can neither narrow nor suppress. The decision to
+verify is made from the record alone in `_check_evidence_unit`.
+
+**Occurrence resolution fails closed.** `if resolver is not None` made SEC-002 opt-in for whoever
+constructed the gate. A missing resolver now refuses with its own reason, distinct from "the
+resolver said no" — different remedies, so different codes. `project_id` is **not** back on
+`EvidenceUnit`; ADR-0012 stands.
+
+**Re-derivation resolves the recorded implementation.** `SegmentationReverifier` now takes the
+**unit**, looks its `(parser_id, version)` and `(segmenter_id, version)` up in a
+`SegmentationRegistry`, and refuses when either is absent. It never substitutes the current
+version. The registry has two entries today, and that is precisely why it must exist: with one
+implementation and no registry, every historical unit silently verifies against today's code.
+The recorded `token_limit` travels too, or a unit subdivided under a tighter limit would not
+reproduce.
+
+### Regression gaps
+
+**Full-vertical duplicate ingest** (`tests/e2e/test_duplicate_ingest_postgres.py`, 10 tests).
+Repair-1 proved schema behaviour with raw `INSERT`s, which says nothing about running
+`IngestionPipeline.ingest()` twice. Case A (same bytes, same project) — no duplicate artifact, no
+duplicate unit, occurrence still valid and singular, second ingest does not fail on the existing
+content-addressed artifact, provenance and witness preserved. Case B (same bytes, two projects) —
+one global artifact identity, one canonical body per evidence identity, one occurrence each,
+independent retrieval, and **neither project loses access because the other ingested first**.
+
+**Canonical read boundary** — closed, modestly. `PostgresEvidenceUnitReader` is a reader, not a
+repository layer: no cache, no unit of work, no write path. Every load rebuilds through the model,
+so identity, digest, witness, rule 1 and typed context are all re-checked, and a drifted row
+raises `EvidenceUnitReadError` naming the unit rather than being returned as evidence. The e2e
+now uses it instead of an inline rebuild.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| `ruff format --check` / `ruff check` | 163 files formatted / all checks passed |
+| `mypy` (strict) | no issues in **79** source files |
+| backend-free suite | **941 passed**, 450 skipped |
+| migration replay from empty | **29 applied** |
+| migration idempotency | `applied: 29, pending: 0` |
+| full PostgreSQL profile | **1391 passed** |
+| executed-coverage ratchet | ok ×4; DONE `['M0a','M0b']`, IN_PROGRESS `['M1']` |
+| status freshness | up to date |
+| spec conformance | 205 passed |
+| Requirement ↔ Test | **60 ↔ 60** |
+| obligation inventory | 84 occurrences, in sync |
+| schema drift / unbound / stale | all empty |
+| mutation battery | **29/29 killed** |
+| benchmark | current, **framing unchanged** |
+
+### What the mutation battery found in Repair-2 itself
+
+Two stale anchors (`evidence_link_need_not_be_durable`, `presence_is_not_consulted`) reported
+**ANCHOR NOT FOUND** because Repair-2 had moved the guards they targeted; both re-anchored on the
+new ones. More usefully, `reverification_token_limit_not_restored` **genuinely survived**:
+replacing `factory(provenance.token_limit)` with `factory(None)` broke nothing, because no test
+re-verified a unit segmented under a non-default limit. That is the same defect class as the three
+blockers — a correct guard nothing exercised — so two probes were added and it now dies.
+
+### Remaining P2 limitations
+
+Stated so they are not read as closed:
+
+1. **There is still no production repository contract for artifacts or evidence units.** The
+   duplicate-ingest tests supply their own `commit_rows` / `_persist` helpers. `IngestionPipeline`
+   takes `commit_rows` as an injected callable because OPS-004 needed the fault-injection point
+   to be a parameter, and nothing has since supplied a production writer. So what is proven is
+   that **the pipeline is idempotent and the schema accepts what it produces** — not that a
+   production writer exists which does this correctly. The read side now has a boundary
+   (`PostgresEvidenceUnitReader`); the write side does not.
+2. **Admission re-parses the artifact**, now with a registry lookup on top. Unchanged in
+   character from Repair-1: scoped to scientific admission, and the only safe optimisation is a
+   cache *of the re-derivation* keyed on
+   `(artifact_id, parser_version, segmenter_version, token_limit)`.
+3. **`EVI-009`'s Run half and `UX-004`'s Job-level retry** remain bound to `OPS-001`, unchanged.
+4. **Re-segmentation is still not representable**, by design (ADR-0012).
+5. **The registry holds one parser version and one segmenter version.** Historical verification
+   across versions is *structurally* supported and is exercised only by a synthetic second
+   version in the probes. The first real second version will be the first genuine test of it.
+
+**M1-P1 is not claimed hard-locked.** M1 stays `IN_PROGRESS`; M0a and M0b are untouched and DONE.

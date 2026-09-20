@@ -211,11 +211,10 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="evidence_link_need_not_be_durable",
         guards="17.25 (P1) -- the Attestation must record the unit, not just the call",
         path="src/lab_brain/ingestion/admission_gate.py",
-        # Anchored on the COMPARISON, not on the `is None` branch above it. Disabling that branch
-        # alone survives, and correctly so: `None != unit.evidence_unit_id` is true, so the
-        # comparison still refuses. The branch names the defect precisely; it does not catch a
-        # case the comparison misses -- see the note in `_check_durable_link`.
-        old="        if attestation.evidence_unit_id != unit.evidence_unit_id:",
+        # Anchored on the COMPARISON in `_check_link_assertion_agrees`. Repair-2 moved this
+        # guard: the request field is now an assertion that may only agree with the record, so
+        # what has to hold is that a disagreement refuses.
+        old="        if asserted != durable:",
         new="        if False:",
         tests=("tests/contract/test_evidence_repair_probes.py",),
     ),
@@ -253,11 +252,57 @@ MUTATIONS: tuple[Mutation, ...] = (
     ),
     Mutation(
         name="presence_is_not_consulted",
-        guards="SEC-002 / 17.25.1 (P1) -- project scope resolves through the occurrence",
+        guards="SEC-002 / 17.25.1 (P1) -- a resolver answering 'not here' is obeyed",
         path="src/lab_brain/ingestion/admission_gate.py",
-        old="        if self._is_present_in is not None and not self._is_present_in(",
-        new="        if False and self._is_present_in is not None and not self._is_present_in(",
-        tests=("tests/contract/test_retrieval_boundary.py",),
+        # The companion to `occurrence_check_is_optional`: that one proves a MISSING resolver
+        # refuses, this one proves a resolver that answers NO is not ignored. Repair-2 split the
+        # single `if resolver is not None and not resolver(...)` into those two cases, so one
+        # anchor can no longer cover both.
+        old="        if not self._is_present_in(unit.evidence_unit_id, attestation.project_id):",
+        new="        if False:",
+        tests=(
+            "tests/contract/test_retrieval_boundary.py",
+            "tests/contract/test_evidence_repair2_probes.py",
+        ),
+    ),
+    # --- Repair-2 (three fail-open blockers). Each anchors on the GUARD, not on a message
+    # branch: every one of these was a case where the rule was correct and an input turned it off.
+    Mutation(
+        name="request_field_decides_whether_to_verify",
+        guards="EVI-010 (P0) -- the DURABLE reference triggers verification, not the call",
+        path="src/lab_brain/ingestion/admission_gate.py",
+        old="        evidence_unit_id = request.attestation.evidence_unit_id",
+        new="        evidence_unit_id = request.evidence_unit_id",
+        tests=("tests/contract/test_evidence_repair2_probes.py",),
+    ),
+    Mutation(
+        name="occurrence_check_is_optional",
+        guards="SEC-002 / 17.25.1 (P1) -- a missing occurrence resolver fails closed",
+        path="src/lab_brain/ingestion/admission_gate.py",
+        old="        if self._is_present_in is None:",
+        new="        if False:",
+        tests=("tests/contract/test_evidence_repair2_probes.py",),
+    ),
+    Mutation(
+        name="recorded_provenance_ignored_for_reverification",
+        guards="17.25 / ADR-0012 (P1) -- re-derivation resolves the RECORDED implementation",
+        path="src/lab_brain/ingestion/reverification.py",
+        # Substituting the current default is precisely the defect: the body reproduces, so
+        # without the registry lookup a unit claiming any segmenter version verifies.
+        old="        segmenter = self._registry.segmenter_for(provenance)",
+        new="        segmenter = EvidenceAwareSegmenter()",
+        tests=("tests/contract/test_evidence_repair2_probes.py",),
+    ),
+    Mutation(
+        name="reverification_token_limit_not_restored",
+        guards="17.25 (P1) -- the recorded token limit travels with the segmenter version",
+        path="src/lab_brain/ingestion/reverification.py",
+        old="        return factory(provenance.token_limit) if factory is not None else None",
+        new="        return factory(None) if factory is not None else None",
+        tests=(
+            "tests/contract/test_evidence_segmentation.py",
+            "tests/contract/test_evidence_repair2_probes.py",
+        ),
     ),
     Mutation(
         name="subdivision_lineage_may_be_partial",
