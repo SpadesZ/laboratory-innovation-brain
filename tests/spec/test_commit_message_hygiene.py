@@ -351,11 +351,54 @@ def test_the_message_file_mode_rejects_an_offending_message(tmp_path):
 # --------------------------------------------------------------------------------------------
 
 
+def _history_reaches_the_enforcement_floor() -> bool:
+    """Whether this working copy actually contains the commit the range starts from.
+
+    A shallow clone does not. `actions/checkout` defaults to `fetch-depth: 1`, so in the two jobs
+    that run the whole suite the floor is simply not an object here -- and `git rev-list` reports
+    "Invalid revision range", which is a fact about the checkout rather than about the history.
+    """
+    return (
+        subprocess.run(
+            ["git", "cat-file", "-e", f"{_checker().ENFORCED_FROM}^{{commit}}"],
+            cwd=repo_root(),
+            capture_output=True,
+            text=True,
+        ).returncode
+        == 0
+    )
+
+
+#: SKIPPED ON A SHALLOW CLONE, AND THAT IS NOT A HOLE -- BUT IT IS THE KIND OF THING THAT USUALLY
+#: IS, so the reasoning is written down rather than assumed.
+#:
+#: These two tests walk real history. The whole suite runs in `quality` and `backend`, both of
+#: which check out at depth 1, so the floor is not present there and the walk cannot be performed.
+#: Asserting anyway is what failed CI the first time this landed; asserting *nothing* and passing
+#: would have been worse, because a green test that checked no commits is believed.
+#:
+#: What makes the skip safe is that neither test is the enforcement. The enforcement is the
+#: `commit-hygiene` job, which checks out at `fetch-depth: 0` and runs the gate over the whole
+#: enforced range -- and the two workflow tests below read YAML, never skip, and fail if that job
+#: stops existing or its checkout is shallowed. So the chain is: these confirm the history locally
+#: when it is available; the workflow tests confirm that a run which *always* has the history is
+#: what actually holds the rule.
+_needs_history = pytest.mark.skipif(
+    not _history_reaches_the_enforcement_floor(),
+    reason=(
+        "shallow checkout: the enforcement floor is not present, so the range cannot be walked "
+        "here. The commit-hygiene CI job checks out full history and is what enforces this; "
+        "test_the_ci_job_checks_out_enough_history_to_walk_a_range holds that."
+    ),
+)
+
+
+@_needs_history
 def test_this_repositorys_enforced_history_is_clean():
     """The rule, applied to this repository, right now.
 
     The audit that prompted this gate was done by hand. This is the machine-checked version of the
-    same claim, and unlike the audit it re-runs on every commit.
+    same claim, and unlike the audit it re-runs on every commit that has the history to check.
     """
     result = subprocess.run(
         [sys.executable, str(repo_root() / GATE)],
@@ -365,8 +408,12 @@ def test_this_repositorys_enforced_history_is_clean():
         encoding="utf-8",
     )
     assert result.returncode == 0, result.stdout + result.stderr
+    assert "nothing to check" not in result.stdout, (
+        "the range walked no commits, so this asserted nothing"
+    )
 
 
+@_needs_history
 def test_the_enforcement_floor_is_a_real_commit_in_this_repository():
     """A floor that resolves to nothing would make the range empty and the gate vacuous."""
     floor = _checker().ENFORCED_FROM
