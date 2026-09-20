@@ -34,8 +34,17 @@ _CHUNK_SIZE: Final = 1024 * 1024
 
 ARTIFACT_ID_PREFIX: Final = "art"
 
+#: §17.25 / ADR-0011. Like `art`, a derived prefix rather than a minted one -- see
+#: :func:`evidence_unit_id_for`.
+EVIDENCE_UNIT_ID_PREFIX: Final = "evu"
+
 _ID_PREFIXES: Final[dict[str, str]] = {
     "source_work": "swk",
+    # M1 / EVI-010. A RetrievalRepresentation is event-addressed on purpose: re-indexing the same
+    # unit produces a genuinely new artefact with its own build time, and collapsing two builds
+    # into one identity would hide exactly the rebuild ADR-0011 requires be observable.
+    "retrieval_representation": "rrp",
+    "ingestion_item": "ing",
     "claim": "clm",
     "observation": "obs",
     "attestation": "att",
@@ -127,6 +136,45 @@ def content_hash_for(artifact_id: str) -> str:
     return remainder
 
 
+def evidence_unit_id_for(artifact_id: str, structural_path: str, content_digest: str) -> str:
+    """Derive an ``EvidenceUnit`` identity from the three things §17.25 says determine it.
+
+    A third kind of identity, and it is here rather than in ``new_id`` for the reason ADR-0011
+    exists: if a unit's identity were minted, re-running the segmenter over unchanged bytes would
+    produce different ids for the same evidence, and every Attestation referencing the old ones
+    would quietly point at nothing. Deriving it makes "the same evidence" a computable fact.
+
+    The three inputs are exactly §17.25's, and each is load-bearing:
+
+        artifact_id       which bytes. Two documents saying the same sentence are two units.
+        structural_path   where in those bytes. The same sentence repeated in an abstract and a
+                          conclusion is two units, and a reader needs to know which one was cited.
+        content_digest    what the unit actually holds. Re-segmenting with different boundaries
+                          yields a different body and therefore a different unit, rather than
+                          silently redefining an existing one under its old id.
+
+    Note what is absent: no embedding model, no version, no dimensionality, no reranker, no token
+    window. That absence is the contract (§6.22, EVI-010) -- deleting and rebuilding an index
+    cannot change any value this function returns.
+    """
+    parse_content_hash(content_digest)
+    if not artifact_id.startswith(f"{ARTIFACT_ID_PREFIX}:"):
+        raise ContentHashError(
+            f"evidence unit identity needs an artifact id, got {artifact_id!r}; a unit that "
+            "cannot name the bytes it came from is unauditable (§6.22)"
+        )
+    if not structural_path.strip():
+        raise ContentHashError(
+            "evidence unit identity needs a non-empty structural_path; without it two units from "
+            "the same document with identical text would collapse into one"
+        )
+    # A length-prefixed join rather than a delimiter. `a|bc` and `ab|c` must not hash alike, and a
+    # structural path is user-visible text that could contain any separator chosen here.
+    parts = (artifact_id, structural_path, content_digest)
+    payload = "".join(f"{len(part)}:{part}" for part in parts).encode("utf-8")
+    return f"{EVIDENCE_UNIT_ID_PREFIX}:{compute_content_hash(payload)}"
+
+
 def new_id(kind: str) -> str:
     """Mint a random identifier for an event-addressed entity.
 
@@ -145,6 +193,7 @@ def new_id(kind: str) -> str:
 
 __all__ = [
     "ARTIFACT_ID_PREFIX",
+    "EVIDENCE_UNIT_ID_PREFIX",
     "HASH_ALGORITHM",
     "ContentHashError",
     "artifact_id_for",
@@ -153,6 +202,7 @@ __all__ = [
     "compute_content_hash_from_path",
     "compute_content_hash_from_stream",
     "content_hash_for",
+    "evidence_unit_id_for",
     "new_id",
     "parse_content_hash",
 ]
