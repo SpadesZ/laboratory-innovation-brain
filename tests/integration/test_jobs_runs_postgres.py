@@ -25,7 +25,7 @@ import pytest
 
 from lab_brain.core.models.job import JobState, RunStatus
 from lab_brain.core.repositories.jobs import SqlJobStore
-from tests.job_fixtures import OTHER_PROJECT, SCENARIOS, at, make_job, make_run
+from tests.job_fixtures import CAPABILITY, OTHER_PROJECT, SCENARIOS, at, make_job, make_run
 from tests.postgres_fixtures import database_url
 
 pytestmark = [
@@ -157,22 +157,20 @@ def test_raw_sql_cannot_rewrite_which_run_a_job_resolved_to(jobs_db):
 
     Rewriting it would move every attestation citing that run onto a different execution, and
     every one of those attestations would still look perfectly well-formed.
+
+    NOTE ON THE SETUP. An earlier version of this test built its second Run with a raw INSERT and
+    left it unclaimed. `006a`'s deferred trigger now refuses that, so the setup itself became
+    illegal -- which is the guard working on the test that was quietly depending on the defect.
+    Both runs are now created through the one completion path.
     """
     store = SqlJobStore(jobs_db)
     store.submit(make_job("job:wo"))
     store.transition("job:wo", JobState.RUNNING, at(1))
     store.complete("job:wo", "idem:1", make_run("run:wo", job_id="job:wo"))
-    jobs_db.execute(
-        "INSERT INTO jobs (job_id, project_id, capability_id, trace_id, idempotency_key, "
-        "submitted_at) VALUES ('job:other', 'prj:test', 'c', 't', 'idem:other', now())"
-    )
-    jobs_db.execute(
-        "INSERT INTO runs (run_id, job_id, project_id, capability_id, backend_id, trace_id, "
-        "conditions_schema_version, code_provenance, status, output_artifacts, start_time, "
-        "end_time, reproducibility_manifest_hash) VALUES "
-        "('run:elsewhere', 'job:other', 'prj:test', 'c', 'b', 't', 'cs', 'g', 'SUCCEEDED', "
-        "ARRAY['art:x'], now(), now(), 'h')"
-    )
+
+    store.submit(make_job("job:other", idempotency_key="idem:other"))
+    store.transition("job:other", JobState.RUNNING, at(1))
+    store.complete("job:other", "idem:other", make_run("run:elsewhere", job_id="job:other"))
 
     with pytest.raises(psycopg.errors.RaiseException, match="already resolved to run"):
         jobs_db.execute("UPDATE jobs SET result_run_id = 'run:elsewhere' WHERE job_id = 'job:wo'")
@@ -239,14 +237,142 @@ def test_the_idempotency_key_is_unique_per_project_not_globally(jobs_db):
 
 
 def test_a_failed_run_is_recorded_rather_than_discarded(jobs_db):
-    """§6.10 needs failed executions to exist; §17.4 requires a manifest per execution."""
+    """§6.10 needs failed executions; §17.4 requires a manifest per execution.
+
+    Through `complete()` now, not `add_run()`. That is `006a`'s point: one mechanism, and the
+    failed run is just as durably claimed by its job as a successful one.
+    """
     store = SqlJobStore(jobs_db)
     store.submit(make_job("job:fail"))
     store.transition("job:fail", JobState.RUNNING, at(1))
-    stored = store.add_run(
-        make_run("run:fail", job_id="job:fail", status=RunStatus.FAILED, outputs=())
+    stored = store.complete(
+        "job:fail",
+        "idem:1",
+        make_run("run:fail", job_id="job:fail", status=RunStatus.FAILED, outputs=()),
     )
     assert stored.status is RunStatus.FAILED
     reread = store.get_run("run:fail")
     assert reread is not None
     assert reread.output_artifacts == ()
+    job = store.get("job:fail")
+    assert job.state is JobState.FAILED
+    assert job.result_run_id == "run:fail"
+
+
+# ---------------------------------------------------------------------------
+# Repair B — a Run may not exist unclaimed by its Job
+# ---------------------------------------------------------------------------
+
+
+def test_a_run_cannot_be_committed_without_its_job_resolving_to_it(jobs_db):
+    """THE Repair-B probe. Reproduced against `006` before `006a` closed it.
+
+    `add_run` was INSERT Run then UPDATE Job, with nothing binding the two. A crash, a rollback
+    of the second statement, or any raw writer doing the same thing left a Run row that is
+    readable, joinable and citable while `jobs.result_run_id` was still NULL -- a durable
+    execution record that nothing identifies as the authoritative output of anything.
+
+    The guard is deferred to COMMIT for `011d`'s reason: the valid operation necessarily passes
+    through that exact state between its two statements, so a per-statement trigger would look
+    stricter and make completion impossible.
+    """
+    store = SqlJobStore(jobs_db)
+    store.submit(make_job("job:unclaimed"))
+    store.transition("job:unclaimed", JobState.RUNNING, at(1))
+
+    with (
+        pytest.raises(psycopg.errors.RaiseException, match="resolves to nothing"),
+        jobs_db.transaction(),
+    ):
+            jobs_db.execute(
+                "INSERT INTO runs (run_id, job_id, project_id, capability_id, backend_id, "
+                "trace_id, conditions_schema_version, code_provenance, status, output_artifacts, "
+                "start_time, end_time, reproducibility_manifest_hash) VALUES "
+                "('run:orphaned', 'job:unclaimed', 'prj:test', %s, 'b', 'trc:1', 'cs', 'g', "
+                "'SUCCEEDED', ARRAY['art:x'], now(), now(), 'h')",
+                (CAPABILITY,),
+            )
+
+    assert jobs_db.execute("SELECT count(*) FROM runs").fetchone()[0] == 0, (
+        "the unclaimed run survived the failed transaction"
+    )
+
+
+def test_the_intermediate_unclaimed_state_inside_one_transaction_is_allowed(jobs_db):
+    """The other side of deferring, pinned so nobody 'fixes' it into a per-statement trigger.
+
+    `job_complete` inserts the Run before the Job can reference it -- the reference is a foreign
+    key, so the row must exist first. Between those statements the pair reads exactly like the
+    defect above. What matters is what survives COMMIT.
+    """
+    store = SqlJobStore(jobs_db)
+    store.submit(make_job("job:ok"))
+    store.transition("job:ok", JobState.RUNNING, at(1))
+    run = store.complete("job:ok", "idem:1", make_run("run:ok", job_id="job:ok"))
+    assert run.run_id == "run:ok"
+    assert store.get("job:ok").result_run_id == "run:ok"
+
+
+def test_a_job_cannot_stop_resolving_to_its_run(jobs_db):
+    """The same invariant from the Job side.
+
+    Clearing `result_run_id` back to NULL would re-create the forbidden pair without touching
+    `runs`, so the constraint trigger on that table would never fire. Write-once already refuses
+    a change between two non-null values; this closes the change to NULL.
+    """
+    store = SqlJobStore(jobs_db)
+    store.submit(make_job("job:abandon"))
+    store.transition("job:abandon", JobState.RUNNING, at(1))
+    store.complete("job:abandon", "idem:1", make_run("run:abandon", job_id="job:abandon"))
+
+    with pytest.raises(psycopg.errors.RaiseException, match="cannot stop resolving"):
+        jobs_db.execute("UPDATE jobs SET result_run_id = NULL WHERE job_id = 'job:abandon'")
+
+
+def test_there_is_only_one_job_complete_function(jobs_db):
+    """`006a` DROPs the thirteen-parameter signature rather than leaving it beside the new one.
+
+    PostgreSQL overloads by argument list. Leaving the old signature would keep the lossy path
+    callable, and a caller that omitted the manifest would still succeed -- which is the defect,
+    not a compatibility shim.
+    """
+    signatures = jobs_db.execute(
+        "SELECT count(*) FROM pg_proc WHERE proname = 'job_complete'"
+    ).fetchone()
+    assert signatures[0] == 1, "a second job_complete overload exists; the lossy path is callable"
+
+
+def test_the_completion_path_rejects_a_contradictory_trace(jobs_db):
+    """§12.5's chain, held by the database rather than by the repository remembering.
+
+    Raw SQL, so the repository's pre-check is not what refuses it.
+    """
+    store = SqlJobStore(jobs_db)
+    store.submit(make_job("job:trace"))
+    store.transition("job:trace", JobState.RUNNING, at(1))
+
+    with pytest.raises(psycopg.errors.RaiseException, match="one trace through episode"):
+        jobs_db.execute(
+            "INSERT INTO runs (run_id, job_id, project_id, capability_id, backend_id, trace_id, "
+            "conditions_schema_version, code_provenance, status, output_artifacts, start_time, "
+            "end_time, reproducibility_manifest_hash) VALUES "
+            "('run:detached', 'job:trace', 'prj:test', %s, 'b', 'trc:SOMEWHERE-ELSE', 'cs', 'g', "
+            "'SUCCEEDED', ARRAY['art:x'], now(), now(), 'h')",
+            (CAPABILITY,),
+        )
+
+
+def test_the_completion_path_rejects_a_contradictory_capability(jobs_db):
+    """An execution of something nobody asked for reads its authority class from the wrong row."""
+    store = SqlJobStore(jobs_db)
+    store.submit(make_job("job:cap"))
+    store.transition("job:cap", JobState.RUNNING, at(1))
+
+    with pytest.raises(psycopg.errors.RaiseException, match="nobody asked for"):
+        jobs_db.execute(
+            "INSERT INTO runs (run_id, job_id, project_id, capability_id, backend_id, trace_id, "
+            "conditions_schema_version, code_provenance, status, output_artifacts, start_time, "
+            "end_time, reproducibility_manifest_hash) VALUES "
+            "('run:wrongcap', 'job:cap', 'prj:test', 'cap:something-else', 'b', 'trc:1', 'cs', "
+            "'g', 'SUCCEEDED', ARRAY['art:x'], now(), now(), 'h')"
+        )

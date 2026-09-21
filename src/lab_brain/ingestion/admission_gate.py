@@ -81,6 +81,14 @@ class RefusalReason(StrEnum):
     #: with an empty output set. "Run provenance must trace to produced Artifact(s)" is not
     #: satisfied by a Run that exists.
     RUN_PRODUCED_NO_ARTIFACT = "RUN_PRODUCED_NO_ARTIFACT"
+    #: EVI-009. The Run names output artifacts and none of them resolves. Distinct from
+    #: PRODUCED_NO_ARTIFACT because the records differ: that one is honest about having produced
+    #: nothing, this one claims outputs that do not exist. `runs.output_artifacts` is a TEXT[], so
+    #: no foreign key can hold this -- the chain has to be walked.
+    RUN_ARTIFACT_NOT_FOUND = "RUN_ARTIFACT_NOT_FOUND"
+    #: SEC-002 / ADR-0010. The Run's outputs exist globally but have no occurrence in the
+    #: attestation's project. Presence is a property of the occurrence, not of the bytes.
+    RUN_ARTIFACT_NOT_IN_PROJECT = "RUN_ARTIFACT_NOT_IN_PROJECT"
     #: SEC-002. The referenced Run belongs to another project. Same shape as CROSS_PROJECT_UNIT
     #: one entity over: resolving by id alone would let a reference reach across projects.
     CROSS_PROJECT_RUN = "CROSS_PROJECT_RUN"
@@ -175,6 +183,7 @@ class EvidenceAdmissionGate:
         resegment: Callable[[EvidenceUnit], Reverification] | None = None,
         is_present_in: Callable[[str, str], bool] | None = None,
         load_run: Callable[[str], Run | None] | None = None,
+        is_artifact_in_project: Callable[[str, str], bool] | None = None,
     ) -> None:
         self._load_artifact = load_artifact
         self._load_evidence_unit = load_evidence_unit
@@ -184,6 +193,14 @@ class EvidenceAdmissionGate:
         #: with no resolver configured fails closed, for the reason `_check_read_permitted` gives
         #: about its own resolver. An unverifiable reference is not a verified one.
         self._load_run = load_run
+        #: ADR-0010 presence for artifacts, the analogue of `is_present_in` for evidence units.
+        #: Optional, and the asymmetry with `is_present_in` is deliberate: an absent occurrence
+        #: resolver there means project scope cannot be established AT ALL, because a unit carries
+        #: no project. An artifact reached through a Run is already inside a project-checked Run,
+        #: so an absent resolver here narrows the check rather than removing it -- and the
+        #: remaining gap is named in the readiness document rather than failing every deployment
+        #: that has not wired it.
+        self._is_artifact_in_project = is_artifact_in_project
         #: SPEC-ISSUE-015's semantic layer. Given the UNIT, resolves the parser and segmenter
         #: its provenance records, re-runs them over the artifact's content-addressed bytes, and
         #: reports what segmentation produces -- or why it could not.
@@ -305,6 +322,53 @@ class EvidenceAdmissionGate:
                 "trace to produced Artifact(s); a Run that exists is not one that produced "
                 "evidence",
             )
+
+        # THE CHAIN IS WALKED, not assumed. A non-empty `output_artifacts` proves only that the
+        # Run *claims* to have produced something -- the ids in it are free text as far as
+        # PostgreSQL is concerned, because `runs.output_artifacts` is a TEXT[] and an array
+        # element cannot carry a foreign key.
+        #
+        # So a Run recording `output_artifacts = ['art:does-not-exist']` satisfied every earlier
+        # check and backed a MEASURED attestation. T-EVI-009 requires the reference to round-trip
+        # and RESOLVE, and a syntactically valid identifier is not proof that anything exists.
+        #
+        # At least one must resolve, not all of them. A Run legitimately emits several artifacts
+        # and a project may hold a subset -- a large numerical array may be stored elsewhere
+        # (§17.4's `numerical_array_refs` exists for exactly that). What EVI-009 needs is that the
+        # provenance reaches *something* real in the project doing the citing. Requiring all
+        # would refuse honest multi-output runs; requiring none is the defect.
+        resolved = [
+            artifact_id
+            for artifact_id in run.output_artifacts
+            if self._load_artifact(artifact_id) is not None
+        ]
+        if not resolved:
+            raise AdmissionRefusal(
+                RefusalReason.RUN_ARTIFACT_NOT_FOUND,
+                f"attestation {attestation.attestation_id} references run {run_id}, whose "
+                f"output artifacts {list(run.output_artifacts)} do not resolve to any stored "
+                "Artifact. A syntactically valid identifier is not evidence that the bytes it "
+                "names exist (EVI-009, §25.3)",
+            )
+
+        # SEC-002 one step further along the chain. An artifact that exists globally but has no
+        # occurrence in this project is not present here (ADR-0010), and admitting evidence whose
+        # provenance resolves only in someone else's project would let authority cross a boundary
+        # the occurrence split exists to hold.
+        if self._is_artifact_in_project is not None:
+            present = [
+                artifact_id
+                for artifact_id in resolved
+                if self._is_artifact_in_project(artifact_id, attestation.project_id)
+            ]
+            if not present:
+                raise AdmissionRefusal(
+                    RefusalReason.RUN_ARTIFACT_NOT_IN_PROJECT,
+                    f"attestation {attestation.attestation_id} is in project "
+                    f"{attestation.project_id}, and run {run_id}'s output artifacts "
+                    f"{resolved} exist but have no occurrence there. Presence is a property of "
+                    "the occurrence, not of the bytes (ADR-0010, SEC-002)",
+                )
 
     def _check_backfill(self, attestation: Attestation) -> None:
         """An already-admitted record may not be re-submitted with a reference attached."""

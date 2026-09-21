@@ -38,6 +38,7 @@ from lab_brain.core.models.job import (
     JobState,
     JobTransitionError,
     Run,
+    RunStatus,
 )
 from lab_brain.core.repositories.budget import SqlConnection
 from lab_brain.core.repositories.protocols import RepositoryError
@@ -110,6 +111,59 @@ def _check_transition(job: Job, state: JobState) -> None:
             f"job {job.job_id} cannot move {job.state.value} -> {state.value}; "
             f"permitted from {job.state.value}: {permitted}"
         )
+
+
+#: The four fields a completion callback states that the Job already knows, paired with why a
+#: contradiction is refused rather than corrected. One table, consulted by both stores, because
+#: the audit finding that produced it was exactly two implementations disagreeing about which
+#: fields matter -- PostgreSQL checked two and silently derived a third, in-memory checked two
+#: different ones.
+#:
+#: CHECKED, NEVER DERIVED. Deriving is safer against corruption and worse against confusion: a
+#: caller completing a job it believes is on another trace would get a Run silently filed on this
+#: one, and the record it got back would disagree with what it asked for with nothing surfaced.
+_RUN_LINKAGE: tuple[tuple[str, str, str], ...] = (
+    (
+        "job_id",
+        "job_id",
+        "a run used to complete a different job attributes one execution's output to another's "
+        "request",
+    ),
+    (
+        "project_id",
+        "project_id",
+        "a run scoped away from its job escapes SEC-002 through the side door",
+    ),
+    (
+        "capability_id",
+        "capability_id",
+        "an execution of something nobody asked for reads its authority class (§17.18) from the "
+        "wrong descriptor",
+    ),
+    (
+        "trace_id",
+        "trace_id",
+        "§12.5 requires one trace through episode -> job -> run -> artifact, and a detached run "
+        "makes the chain appear to stop at the job",
+    ),
+)
+
+
+def check_run_linkage(job: Job, run: Run) -> None:
+    """Refuse a Run that contradicts the Job it claims to complete (§17.4, §17.16, §12.5).
+
+    Module-level and shared, so the two stores cannot drift. `006a`'s trigger holds the same
+    rules against writers that never come through a repository at all; this one produces the
+    message naming both values, which a CHECK constraint cannot.
+    """
+    for run_field, job_field, why in _RUN_LINKAGE:
+        stated = getattr(run, run_field)
+        expected = getattr(job, job_field)
+        if stated != expected:
+            raise JobStoreError(
+                f"run {run.run_id} states {run_field}={stated!r} but job {job.job_id} has "
+                f"{job_field}={expected!r}; {why}"
+            )
 
 
 class InMemoryJobStore:
@@ -196,17 +250,7 @@ class InMemoryJobStore:
                     f"job {job_id} is already {job.state.value}; a completion cannot reopen a "
                     "terminal job"
                 )
-            if proposed.job_id != job_id:
-                raise JobStoreError(
-                    f"run {proposed.run_id} names job {proposed.job_id} but is being used to "
-                    f"complete {job_id}"
-                )
-            if proposed.project_id != job.project_id:
-                raise JobStoreError(
-                    f"run {proposed.run_id} is in project {proposed.project_id} but job "
-                    f"{job_id} is in {job.project_id}; a run scoped away from its job escapes "
-                    "SEC-002 through the side door"
-                )
+            check_run_linkage(job, proposed)
 
             # Same walk the SQL function performs, and for the same reason: the work ran whether
             # or not this process observed it start.
@@ -215,8 +259,14 @@ class InMemoryJobStore:
                 current = current.transitioned(JobState.RUNNING, proposed.start_time)
             self._runs[proposed.run_id] = proposed
             self._run_by_job[job_id] = proposed.run_id
+            # A FAILED run finishes its job FAILED. That is what makes one completion mechanism
+            # sufficient: before `006a` a failed execution had to go through `add_run`, which was
+            # the second, weaker path the audit found.
+            terminal = (
+                JobState.FAILED if proposed.status is RunStatus.FAILED else JobState.SUCCEEDED
+            )
             self._jobs[job_id] = current.transitioned(
-                JobState.SUCCEEDED, proposed.end_time, result_run_id=proposed.run_id
+                terminal, proposed.end_time, result_run_id=proposed.run_id
             )
             return proposed
 
@@ -416,21 +466,18 @@ class SqlJobStore:
                 f"job was submitted under {job.idempotency_key}; this callback belongs to a "
                 "different submission"
             )
-        if proposed.job_id != job_id:
-            raise JobStoreError(
-                f"run {proposed.run_id} names job {proposed.job_id} but is being used to "
-                f"complete {job_id}"
-            )
-        if proposed.project_id != job.project_id:
-            raise JobStoreError(
-                f"run {proposed.run_id} is in project {proposed.project_id} but job {job_id} is "
-                f"in {job.project_id}; a run scoped away from its job escapes SEC-002 through "
-                "the side door"
-            )
+        check_run_linkage(job, proposed)
 
+        # EVERY §17.4 FIELD IS PASSED. The previous version passed thirteen of twenty-one, and
+        # the eight it omitted were not rejected -- they were silently replaced by column
+        # defaults, so `environment`, `backend_validity`, `conditions` and the rest vanished on
+        # the way to the database while `InMemoryJobStore` kept them. §10.3 is explicit that a
+        # manifest missing a required field cannot be promoted to evidence; the manifest was
+        # being made incomplete by the act of storing it.
         try:
             row = self._connection.execute(
-                "SELECT job_complete(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                "SELECT job_complete(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
+                "%s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (
                     job_id,
                     idempotency_key,
@@ -438,10 +485,19 @@ class SqlJobStore:
                     proposed.project_id,
                     proposed.capability_id,
                     proposed.backend_id,
+                    proposed.domain,
+                    proposed.trace_id,
+                    list(proposed.input_artifacts),
+                    _json(proposed.input_parameters),
+                    _json(proposed.conditions),
                     proposed.conditions_schema_version,
+                    _json(proposed.environment),
                     proposed.code_provenance,
+                    _json(proposed.backend_validity),
                     proposed.status.value,
+                    list(proposed.warnings),
                     list(proposed.output_artifacts),
+                    list(proposed.numerical_array_refs),
                     proposed.start_time,
                     proposed.end_time,
                     proposed.reproducibility_manifest_hash,
@@ -474,51 +530,15 @@ class SqlJobStore:
         ).fetchone()
         return None if row is None else _run_from_row(row)
 
-    def add_run(self, run: Run) -> Run:
-        """Record a Run that did not come from a job completion callback.
-
-        Exists for the ingestion path, where this process *is* the executor: there is no external
-        callback to be idempotent about, and requiring one would mean inventing a fake delivery.
-        The `runs.job_id UNIQUE` constraint still holds, so this cannot be used to give a job a
-        second Run -- it is a different entry point, not a weaker one.
-        """
-        self._connection.execute(
-            "INSERT INTO runs (run_id, job_id, project_id, capability_id, backend_id, domain, "
-            "trace_id, input_artifacts, input_parameters, conditions, conditions_schema_version, "
-            "environment, code_provenance, backend_validity, status, warnings, output_artifacts, "
-            "numerical_array_refs, start_time, end_time, reproducibility_manifest_hash) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
-            "%s, %s, %s)",
-            (
-                run.run_id,
-                run.job_id,
-                run.project_id,
-                run.capability_id,
-                run.backend_id,
-                run.domain,
-                run.trace_id,
-                list(run.input_artifacts),
-                _json(run.input_parameters),
-                _json(run.conditions),
-                run.conditions_schema_version,
-                _json(run.environment),
-                run.code_provenance,
-                _json(run.backend_validity),
-                run.status.value,
-                list(run.warnings),
-                list(run.output_artifacts),
-                list(run.numerical_array_refs),
-                run.start_time,
-                run.end_time,
-                run.reproducibility_manifest_hash,
-            ),
-        )
-        self._connection.execute(
-            "UPDATE jobs SET state = 'SUCCEEDED', result_run_id = %s, finished_at = %s, "
-            "started_at = COALESCE(started_at, %s) WHERE job_id = %s",
-            (run.run_id, run.end_time, run.start_time, run.job_id),
-        )
-        return run
+    # NO `add_run`. `006a` removed it, and the removal is the repair rather than a tidy-up.
+    #
+    # It was a second completion path -- INSERT the Run, then UPDATE the Job -- with no
+    # commit-boundary guarantee between the two statements. That permitted a durable state in
+    # which a Run row existed and its Job still had `result_run_id IS NULL`: readable,
+    # joinable and citable, with nothing recording that it was the authoritative output of
+    # anything. `complete()` is now the only way a Run comes into existence, a FAILED run
+    # finishes its job FAILED, and `runs_must_be_claimed_by_their_job` enforces the pairing at
+    # COMMIT for writers that never come through this class at all.
 
     # -- projections --------------------------------------------------------
 

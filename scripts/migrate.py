@@ -80,6 +80,12 @@ APPLY_ORDER: tuple[str, ...] = (
     # foreign key *because this migration did not exist*; it exists now, and the ordering makes
     # that legible.
     "006_jobs_runs.sql",
+    # M1-P4 / OPS-001 repair. Two audit findings against `006`: `job_complete` persisted a
+    # SUBSET of §17.4 (seven fields silently replaced by column defaults, so the two stores
+    # disagreed about what a Run is), and `add_run` was a second, weaker completion path that
+    # permitted a durable Run whose Job did not resolve to it. Separate from `006` because
+    # `006` is applied and an applied migration is checksummed.
+    "006a_run_completion_integrity.sql",
     # P6 / M0b-3. The observability third of Appendix A's 010 slot (OPS-003); the review and
     # benchmark halves land with OPS-002 and §17.19.2. After 007a/007b: span cost refs are a
     # foreign key into `cost_entries`.

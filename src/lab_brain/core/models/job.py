@@ -82,6 +82,17 @@ ACTIVE_JOB_STATES: frozenset[JobState] = frozenset(
     {JobState.QUEUED, JobState.RUNNING, JobState.WAITING_RESOURCE}
 )
 
+#: States in which a job may name a ``result_run_id``.
+#:
+#: FAILED is here, and it was not before `006a`. §17.4 requires a manifest per *execution* and
+#: §6.10's failure analysis needs failed executions to exist, so a failed run is a real Run and it
+#: is just as much its job's authoritative output as a successful one. Excluding FAILED is what
+#: forced failed runs down a second, weaker persistence path -- the defect `006a` repaired.
+#:
+#: CANCELLED is absent on purpose: a cancelled job did not execute, so there is nothing for a
+#: manifest to describe.
+EXECUTED_JOB_STATES: frozenset[JobState] = frozenset({JobState.SUCCEEDED, JobState.FAILED})
+
 #: The legal transition graph. Declared as data rather than as a chain of ``if``s so that the SQL
 #: trigger in `006_jobs_runs.sql` and this model can be compared against one table by a test --
 #: two hand-written copies of a state machine drift, and the drift shows up as a job that is
@@ -197,11 +208,11 @@ class Job(CoreModel):
             and self.finished_at < self.started_at
         ):
             raise ValueError(f"job {self.job_id} finished before it started")
-        if self.result_run_id is not None and self.state is not JobState.SUCCEEDED:
+        if self.result_run_id is not None and self.state not in EXECUTED_JOB_STATES:
             raise ValueError(
                 f"job {self.job_id} is {self.state.value} but names result_run_id "
-                f"{self.result_run_id}; a Run is the product of a job that succeeded, and "
-                "attaching one to a failed job makes the failure cite its own output as evidence"
+                f"{self.result_run_id}; a Run is the record of an execution, and a job that was "
+                "cancelled or is still queued did not execute"
             )
         if self.attempt_count > self.max_attempts:
             raise ValueError(
@@ -335,6 +346,7 @@ class Run(CoreModel):
 
 __all__ = [
     "ACTIVE_JOB_STATES",
+    "EXECUTED_JOB_STATES",
     "JOB_TRANSITIONS",
     "TERMINAL_JOB_STATES",
     "Job",

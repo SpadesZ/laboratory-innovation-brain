@@ -120,10 +120,31 @@ def test_a_non_terminal_job_must_not_carry_finished_at():
         make_job(state=JobState.RUNNING, started_at=at(1), finished_at=at(2))
 
 
-def test_a_failed_job_may_not_name_a_run():
-    """A Run attached to a FAILED job would let the failure cite its own output as evidence."""
-    with pytest.raises(ValueError, match="result_run_id"):
-        make_job(state=JobState.FAILED, started_at=at(1), finished_at=at(2), result_run_id="run:x")
+def test_a_failed_job_may_name_the_run_that_failed():
+    """Changed by `006a`, and the change is the repair rather than a relaxation.
+
+    The earlier rule allowed `result_run_id` only on SUCCEEDED, reasoning that a Run is the
+    product of a job that succeeded. That is wrong twice: §17.4 requires a manifest per
+    *execution*, and §6.10's failure analysis needs failed executions to exist. Worse, excluding
+    FAILED is what forced failed runs down `add_run` -- the second, weaker persistence path the
+    audit found -- so the rule was manufacturing the defect it looked like it was preventing.
+    """
+    job = make_job(
+        state=JobState.FAILED, started_at=at(1), finished_at=at(2), result_run_id="run:x"
+    )
+    assert job.result_run_id == "run:x"
+
+
+def test_a_cancelled_job_may_not_name_a_run():
+    """The half of the old rule that survives: a cancelled job did not execute.
+
+    Without this the relaxation above would let any terminal job carry a manifest, including one
+    describing an execution that never happened.
+    """
+    with pytest.raises(ValueError, match="did not execute"):
+        make_job(
+            state=JobState.CANCELLED, started_at=at(1), finished_at=at(2), result_run_id="run:x"
+        )
 
 
 def test_attempt_count_may_not_exceed_max_attempts():

@@ -203,23 +203,6 @@ def scenario_illegal_transitions_are_refused(store: JobStore) -> None:
         store.transition("job:i", JobState.SUCCEEDED, at(1))
 
 
-def scenario_a_run_cannot_be_scoped_away_from_its_job(store: JobStore) -> None:
-    """A Run in another project than its Job escapes SEC-002 through the side door.
-
-    The typed error matters as much as the refusal. Running this suite against both stores is
-    what found that PostgreSQL was *deriving* the project from the job rather than checking the
-    caller's -- which refused nothing and silently filed the Run under a project the caller had
-    not asked for. Both now state the project and both check it.
-    """
-    store.submit(make_job("job:p", project_id=PROJECT))
-    store.transition("job:p", JobState.RUNNING, at(1))
-    with pytest.raises(JobStoreError, match="side door"):
-        store.complete(
-            "job:p", "idem:1", make_run("run:p", job_id="job:p", project_id=OTHER_PROJECT)
-        )
-    assert store.run_for_job("job:p") is None
-
-
 def scenario_queue_depth_counts_only_active_jobs(store: JobStore) -> None:
     """UX-007's Job queue depth, and why terminal jobs must not be counted.
 
@@ -253,8 +236,146 @@ def scenario_the_recorded_run_traces_to_its_artifacts(store: JobStore) -> None:
     assert not run.produced("art:never-made")
 
 
+#: A Run with NOTHING left at its default. Every §17.4 field carries a value that differs from
+#: what the column would supply if the completion path dropped it -- non-empty arrays, non-empty
+#: JSONB, a domain, warnings, numerical refs. That is the point: the defect this fixture exists
+#: to catch was a completion path that silently replaced eight omitted fields with column
+#: defaults, which is invisible against a fixture whose fields *are* the defaults.
+FULL_MANIFEST: dict[str, object] = {
+    "domain": "silicon_photonics",
+    "input_artifacts": ("art:input-a", "art:input-b"),
+    "input_parameters": {"sweep": "bias", "points": 7, "nested": {"solver": "fdtd"}},
+    "conditions": {"bias_v": -2.0, "temperature_c": 25.0},
+    "environment": {"os": "linux", "python": "3.12.10", "container": "sha256:abc"},
+    "backend_validity": {"mesh_converged": True, "calibration_ref": "cal:2026-09"},
+    "warnings": ("mesh near tolerance", "one sweep point extrapolated"),
+    "numerical_array_refs": ("arr:sweep-1", "arr:sweep-2"),
+}
+
+
+def make_full_run(
+    run_id: str = "run:full",
+    *,
+    job_id: str = "job:full",
+    project_id: str = PROJECT,
+    **overrides: object,
+) -> Run:
+    """A Run whose every §17.4 field is non-default. See ``FULL_MANIFEST``."""
+    return make_run(
+        run_id,
+        job_id=job_id,
+        project_id=project_id,
+        outputs=("art:produced-1", "art:produced-2"),
+        **{**FULL_MANIFEST, **overrides},
+    )
+
+
+def scenario_the_whole_run_manifest_survives_the_round_trip(store: JobStore) -> None:
+    """REPAIR A. §17.4 has twenty-one fields and the PostgreSQL path persisted thirteen.
+
+    The eight it dropped -- domain, input_artifacts, input_parameters, conditions, environment,
+    backend_validity, warnings, numerical_array_refs -- were not rejected. They were silently
+    replaced by column defaults, so `InMemoryJobStore` kept them and `SqlJobStore` did not, and
+    the backend-free suite was green on the store that remembered.
+
+    Those are exactly the fields that make a Run *replayable*. §10.3: 每次 backend 執行必須產生
+    可重播的 manifest（§17.4）。缺少任一必要欄位即拒絕升級為正式 evidence. An execution whose
+    environment and backend_validity were dropped on the way to storage is a Run nobody can
+    replay, and nothing anywhere said so.
+
+    The assertion is canonical model equality -- not field spot-checks, which is how eight
+    missing fields went unnoticed in the first place.
+    """
+    store.submit(make_job("job:full", idempotency_key="idem:full"))
+    store.transition("job:full", JobState.RUNNING, at(1))
+    proposed = make_full_run()
+
+    returned = store.complete("job:full", "idem:full", proposed)
+    assert returned == proposed, "the completion path altered the Run it was given"
+
+    reloaded = store.get_run(proposed.run_id)
+    assert reloaded == proposed, (
+        "the stored Run differs from the one submitted. Compare field by field: a value that "
+        "came back as (), {} or None was dropped and replaced by a column default"
+    )
+    # Named explicitly as well, because equality on a model whose fields were *all* defaulted
+    # would still pass if the fixture itself were weak.
+    assert reloaded.domain == "silicon_photonics"
+    assert reloaded.input_artifacts == ("art:input-a", "art:input-b")
+    assert reloaded.input_parameters["nested"] == {"solver": "fdtd"}
+    assert reloaded.conditions == {"bias_v": -2.0, "temperature_c": 25.0}
+    assert reloaded.environment["python"] == "3.12.10"
+    assert reloaded.backend_validity["mesh_converged"] is True
+    assert reloaded.warnings == ("mesh near tolerance", "one sweep point extrapolated")
+    assert reloaded.numerical_array_refs == ("arr:sweep-1", "arr:sweep-2")
+
+
+def scenario_a_run_contradicting_its_job_is_refused_on_every_linkage_field(
+    store: JobStore,
+) -> None:
+    """REPAIR A's other half: four fields, refused identically by both stores.
+
+    Before the repair PostgreSQL *derived* trace_id and capability_id from the job while the
+    in-memory store ignored them entirely -- so a contradictory callback was silently corrected
+    in one backend and silently trusted in the other. Neither is acceptable and they were not
+    even the same wrong.
+
+    Checked rather than derived, because deriving hands the caller a record that disagrees with
+    what it asked for and says nothing.
+    """
+    store.submit(make_job("job:link", idempotency_key="idem:link"))
+    store.transition("job:link", JobState.RUNNING, at(1))
+
+    contradictions = {
+        "job_id": "job:somewhere-else",
+        "project_id": OTHER_PROJECT,
+        "capability_id": "cap:not-what-was-asked-for",
+        "trace_id": "trc:another-trace",
+    }
+    for field, wrong in contradictions.items():
+        payload: dict[str, object] = {"job_id": "job:link"}
+        payload[field] = wrong
+        bad = make_run("run:link", **payload)  # type: ignore[arg-type]
+        with pytest.raises(JobStoreError) as caught:
+            store.complete("job:link", "idem:link", bad)
+        assert field in str(caught.value), (
+            f"the refusal for a contradictory {field} does not name the field"
+        )
+        assert store.run_for_job("job:link") is None, f"a bad {field} still created a Run"
+
+
+def scenario_a_failed_run_completes_its_job_as_failed(store: JobStore) -> None:
+    """REPAIR B. One completion mechanism, including for executions that did not succeed.
+
+    Before `006a` a FAILED run could not go through `job_complete` -- the job would have been
+    marked SUCCEEDED -- so it went through `add_run`, which was the second, weaker path. Folding
+    it in here is what lets that path be deleted rather than hardened.
+
+    The Run is still recorded (§6.10 needs failed executions; §17.4 requires a manifest per
+    execution) and the Job durably resolves to it, which is the invariant `add_run` could break.
+    """
+    store.submit(make_job("job:failed", idempotency_key="idem:failed"))
+    store.transition("job:failed", JobState.RUNNING, at(1))
+
+    failed = make_run("run:failed", job_id="job:failed", status=RunStatus.FAILED, outputs=())
+    returned = store.complete("job:failed", "idem:failed", failed)
+    assert returned == failed
+
+    job = store.get("job:failed")
+    assert job is not None
+    assert job.state is JobState.FAILED, "a failed execution left its job in a non-failed state"
+    assert job.result_run_id == "run:failed", (
+        "the job does not resolve to its run. A Run whose Job does not point at it is citable "
+        "with nothing recording whose output it is"
+    )
+    assert store.run_for_job("job:failed") == failed
+
+
 #: Every scenario, so both backends run the same list and neither can quietly omit one.
 SCENARIOS = (
+    scenario_the_whole_run_manifest_survives_the_round_trip,
+    scenario_a_run_contradicting_its_job_is_refused_on_every_linkage_field,
+    scenario_a_failed_run_completes_its_job_as_failed,
     scenario_submit_is_idempotent_on_the_key,
     scenario_the_same_key_in_another_project_is_a_different_job,
     scenario_suspend_and_resume_round_trip,
@@ -262,7 +383,6 @@ SCENARIOS = (
     scenario_a_completion_under_the_wrong_key_is_refused,
     scenario_a_terminal_job_cannot_be_reopened,
     scenario_illegal_transitions_are_refused,
-    scenario_a_run_cannot_be_scoped_away_from_its_job,
     scenario_queue_depth_counts_only_active_jobs,
     scenario_the_recorded_run_traces_to_its_artifacts,
 )

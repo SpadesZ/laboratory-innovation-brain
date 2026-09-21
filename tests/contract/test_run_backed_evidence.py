@@ -64,12 +64,40 @@ def _attestation(
     )
 
 
-def _gate(runs: dict[str, Run] | None = None, *, resolver: bool = True) -> EvidenceAdmissionGate:
+#: Artifacts the fixture world holds, and which projects hold an occurrence of each.
+#: Global existence and project presence are separate facts (ADR-0010), so the fixture keeps them
+#: separate too -- a single dict would make it impossible to build the "exists but not here" case
+#: that Repair C's second probe needs.
+WORLD_ARTIFACTS: dict[str, frozenset[str]] = {
+    "art:trace": frozenset({PROJECT}),
+    "art:raw": frozenset({PROJECT}),
+    "art:elsewhere-only": frozenset({OTHER_PROJECT}),
+}
+
+
+def _gate(
+    runs: dict[str, Run] | None = None,
+    *,
+    resolver: bool = True,
+    artifacts: dict[str, frozenset[str]] | None = None,
+    presence: bool = True,
+) -> EvidenceAdmissionGate:
     store = runs or {}
+    world = WORLD_ARTIFACTS if artifacts is None else artifacts
+
+    def load_artifact(artifact_id: str) -> object | None:
+        # Only presence in `world` matters; the gate checks for None, not for the payload.
+        return object() if artifact_id in world else None
+
     return EvidenceAdmissionGate(
-        load_artifact=lambda _: None,
+        load_artifact=load_artifact,  # type: ignore[arg-type]
         load_evidence_unit=lambda _: None,
         load_run=(lambda key: store.get(key)) if resolver else None,
+        is_artifact_in_project=(
+            (lambda artifact_id, project: project in world.get(artifact_id, frozenset()))
+            if presence
+            else None
+        ),
     )
 
 
@@ -227,3 +255,114 @@ def test_an_inference_still_cannot_be_typed_as_a_measurement_by_naming_a_real_ru
     with pytest.raises(AdmissionRefusal) as caught:
         _admit(_gate({"run:measured": run}), llm_backed)
     assert caught.value.reason is RefusalReason.INFERENCE_TYPED_AS_FACT
+
+
+# ---------------------------------------------------------------------------
+# Repair C — the provenance chain is walked, not assumed
+# ---------------------------------------------------------------------------
+
+
+def test_a_run_claiming_an_artifact_that_does_not_exist_is_refused():
+    """THE Repair-C probe. Before this, `output_artifacts=['art:does-not-exist']` was admitted.
+
+    `runs.output_artifacts` is a TEXT[]. An array element cannot carry a foreign key, so
+    PostgreSQL has no opinion about whether those ids name anything -- they are free text. A
+    non-empty list therefore proved only that the Run *claimed* to have produced something.
+
+    T-EVI-009 requires the reference to round-trip and resolve. A syntactically valid identifier
+    is not evidence that the bytes it names exist.
+    """
+    forged = make_run(
+        "run:measured",
+        job_id="job:m",
+        project_id=PROJECT,
+        outputs=("art:does-not-exist",),
+    )
+    with pytest.raises(AdmissionRefusal) as caught:
+        _admit(_gate({"run:measured": forged}), _attestation())
+    assert caught.value.reason is RefusalReason.RUN_ARTIFACT_NOT_FOUND
+
+
+def test_a_run_whose_artifact_exists_only_in_another_project_is_refused():
+    """SEC-002 one step further along the chain (ADR-0010).
+
+    The artifact is real. It has no occurrence in the attestation's project, so it is not present
+    here -- and admitting the evidence would let authority cross exactly the boundary the
+    occurrence split exists to hold. The refusal is its own code, because "does not exist" and
+    "exists somewhere you cannot see" send an operator to different places.
+    """
+    run = make_run(
+        "run:measured", job_id="job:m", project_id=PROJECT, outputs=("art:elsewhere-only",)
+    )
+    with pytest.raises(AdmissionRefusal) as caught:
+        _admit(_gate({"run:measured": run}), _attestation())
+    assert caught.value.reason is RefusalReason.RUN_ARTIFACT_NOT_IN_PROJECT
+
+
+def test_a_partially_resolvable_multi_output_run_is_admitted():
+    """At least one output must resolve here, not all of them -- and that is deliberate.
+
+    §17.4 gives a Run both `output_artifacts` and `numerical_array_refs`, and a large sweep array
+    legitimately lives outside the artifact store. Requiring every listed id to resolve would
+    refuse honest multi-output runs; requiring none is the defect above. What EVI-009 needs is
+    that the provenance reaches something real in the project doing the citing.
+    """
+    run = make_run(
+        "run:measured",
+        job_id="job:m",
+        project_id=PROJECT,
+        outputs=("art:trace", "art:archived-offsite"),
+    )
+    admitted = _admit(_gate({"run:measured": run}), _attestation())
+    assert admitted.run_id == "run:measured"
+
+
+def test_the_refusals_are_distinguishable_from_each_other():
+    """Four ways a Run reference can fail, four codes.
+
+    A gate that returned one code for all of them would keep working while checking something
+    other than what it is supposed to -- and every test above would still pass.
+    """
+    cases = {
+        RefusalReason.REFERENCED_RUN_NOT_FOUND: None,
+        RefusalReason.RUN_PRODUCED_NO_ARTIFACT: make_run(
+            "run:measured",
+            job_id="job:m",
+            project_id=PROJECT,
+            status=RunStatus.FAILED,
+            outputs=(),
+        ),
+        RefusalReason.RUN_ARTIFACT_NOT_FOUND: make_run(
+            "run:measured", job_id="job:m", project_id=PROJECT, outputs=("art:nope",)
+        ),
+        RefusalReason.RUN_ARTIFACT_NOT_IN_PROJECT: make_run(
+            "run:measured", job_id="job:m", project_id=PROJECT, outputs=("art:elsewhere-only",)
+        ),
+    }
+    for expected, run in cases.items():
+        runs = {} if run is None else {"run:measured": run}
+        with pytest.raises(AdmissionRefusal) as caught:
+            _admit(_gate(runs), _attestation())
+        assert caught.value.reason is expected
+
+
+def test_without_a_presence_resolver_the_check_narrows_rather_than_disappearing():
+    """The asymmetry with `is_present_in`, made explicit rather than left to be noticed.
+
+    An absent *occurrence* resolver fails closed, because an EvidenceUnit carries no project and
+    scope could not be established at all. An artifact reached through a Run is already inside a
+    project-checked Run, so an absent resolver here leaves existence checked and presence
+    unchecked. That is a narrowing, and it is named in the readiness document rather than
+    pretended away.
+    """
+    run = make_run(
+        "run:measured", job_id="job:m", project_id=PROJECT, outputs=("art:elsewhere-only",)
+    )
+    admitted = _admit(_gate({"run:measured": run}, presence=False), _attestation())
+    assert admitted.run_id == "run:measured"
+
+    # Existence is still enforced without the presence resolver.
+    forged = make_run("run:measured", job_id="job:m", project_id=PROJECT, outputs=("art:ghost",))
+    with pytest.raises(AdmissionRefusal) as caught:
+        _admit(_gate({"run:measured": forged}, presence=False), _attestation())
+    assert caught.value.reason is RefusalReason.RUN_ARTIFACT_NOT_FOUND
