@@ -39,6 +39,7 @@ from lab_brain.core.models.enums import (
     SubdivisionReason,
 )
 from lab_brain.core.models.evidence_unit import EvidenceUnit
+from lab_brain.core.models.job import Run
 from lab_brain.ingestion.reverification import Reverification, ReverificationFailure
 
 #: EVI-009's scope. These two epistemic types assert that something was *done* -- an instrument
@@ -72,6 +73,17 @@ class RefusalReason(StrEnum):
     REFERENCE_MISSING = "REFERENCE_MISSING"
     REFERENCED_ARTIFACT_NOT_FOUND = "REFERENCED_ARTIFACT_NOT_FOUND"
     BACKFILL_REFUSED = "BACKFILL_REFUSED"
+    #: EVI-009 / OPS-001. The Run half, closed once Runs became durable entities. Distinct from
+    #: REFERENCED_ARTIFACT_NOT_FOUND because the operator remedy differs -- a missing artifact is
+    #: a storage problem, a missing Run is an execution that was never recorded.
+    REFERENCED_RUN_NOT_FOUND = "REFERENCED_RUN_NOT_FOUND"
+    #: EVI-009 / §17.4. The Run resolves but produced nothing citable: it failed, or it succeeded
+    #: with an empty output set. "Run provenance must trace to produced Artifact(s)" is not
+    #: satisfied by a Run that exists.
+    RUN_PRODUCED_NO_ARTIFACT = "RUN_PRODUCED_NO_ARTIFACT"
+    #: SEC-002. The referenced Run belongs to another project. Same shape as CROSS_PROJECT_UNIT
+    #: one entity over: resolving by id alone would let a reference reach across projects.
+    CROSS_PROJECT_RUN = "CROSS_PROJECT_RUN"
     #: EVI-002
     INVENTED_SCIENTIFIC_VALUE = "INVENTED_SCIENTIFIC_VALUE"
     #: EVI-010
@@ -162,10 +174,16 @@ class EvidenceAdmissionGate:
         can_read: Callable[[str, str], bool] | None = None,
         resegment: Callable[[EvidenceUnit], Reverification] | None = None,
         is_present_in: Callable[[str, str], bool] | None = None,
+        load_run: Callable[[str], Run | None] | None = None,
     ) -> None:
         self._load_artifact = load_artifact
         self._load_evidence_unit = load_evidence_unit
         self._already_admitted = already_admitted or (lambda _: False)
+        #: EVI-009's Run half (OPS-001). Optional only in the sense that a deployment which never
+        #: admits Run-backed evidence never needs one -- an attestation that *does* name a Run
+        #: with no resolver configured fails closed, for the reason `_check_read_permitted` gives
+        #: about its own resolver. An unverifiable reference is not a verified one.
+        self._load_run = load_run
         #: SPEC-ISSUE-015's semantic layer. Given the UNIT, resolves the parser and segmenter
         #: its provenance records, re-runs them over the artifact's content-addressed bytes, and
         #: reports what segmentation produces -- or why it could not.
@@ -233,10 +251,60 @@ class EvidenceAdmissionGate:
                 f"attestation {attestation.attestation_id} references artifact {artifact_id}, "
                 "which does not resolve. The reference must point at something that exists",
             )
-        # A Run reference is recorded and not resolved: Run is OPS-001 and does not exist as an
-        # entity yet (R-11). Resolving it would need a fake Run record, and inventing one to make
-        # a test pass is exactly what this gate exists to prevent. Artifact-backed fixtures are
-        # what M1-P1 admits; the Run half lands with OPS-001.
+        if run_id is not None:
+            self._check_run_reference(attestation, run_id)
+
+    def _check_run_reference(self, attestation: Attestation, run_id: str) -> None:
+        """The Run half of EVI-009, closed by OPS-001 (`006_jobs_runs.sql`).
+
+        M1-P1 recorded a Run reference without resolving it, because Run was not an entity and
+        inventing a fake one to satisfy a test is what this gate exists to prevent. Runs are now
+        durable, so the reference is resolved -- and three things are checked rather than one.
+
+        RESOLVES. A reference to a Run nobody can load is the same failure as a reference to a
+        missing artifact, and fails closed for the same reason: "not found" must not be read as
+        "probably fine".
+
+        PRODUCED SOMETHING. §25.3's wording is "Run provenance must trace to produced
+        Artifact(s)", which a Run that merely *exists* does not satisfy. A FAILED run is a real
+        record (§6.10 needs it) and is not evidence: citing one as a MEASURED result would make
+        an execution that produced nothing the provenance of a number.
+
+        IS IN THIS PROJECT. Resolving by id alone would let an attestation in project A cite an
+        execution in project B and inherit its authority. Same shape as CROSS_PROJECT_UNIT one
+        entity over.
+        """
+        if self._load_run is None:
+            raise AdmissionRefusal(
+                RefusalReason.REFERENCED_RUN_NOT_FOUND,
+                f"attestation {attestation.attestation_id} references run {run_id} but no run "
+                "resolver is configured, so the reference cannot be verified at all. An "
+                "unverifiable reference is not a verified one (EVI-009)",
+            )
+        run = self._load_run(run_id)
+        if run is None:
+            raise AdmissionRefusal(
+                RefusalReason.REFERENCED_RUN_NOT_FOUND,
+                f"attestation {attestation.attestation_id} references run {run_id}, which does "
+                "not resolve. A measurement citing an execution nobody recorded is a number "
+                "with a label (EVI-009, §14.3)",
+            )
+        if run.project_id != attestation.project_id:
+            raise AdmissionRefusal(
+                RefusalReason.CROSS_PROJECT_RUN,
+                f"attestation {attestation.attestation_id} is in project "
+                f"{attestation.project_id} but run {run_id} belongs to {run.project_id}; "
+                "resolving a reference by id alone would let evidence inherit the authority of "
+                "an execution in another project (SEC-002)",
+            )
+        if not run.output_artifacts:
+            raise AdmissionRefusal(
+                RefusalReason.RUN_PRODUCED_NO_ARTIFACT,
+                f"attestation {attestation.attestation_id} references run {run_id}, which is "
+                f"{run.status.value} and produced no artifacts. §25.3 requires run provenance to "
+                "trace to produced Artifact(s); a Run that exists is not one that produced "
+                "evidence",
+            )
 
     def _check_backfill(self, attestation: Attestation) -> None:
         """An already-admitted record may not be re-submitted with a reference attached."""

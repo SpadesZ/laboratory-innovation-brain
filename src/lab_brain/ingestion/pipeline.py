@@ -241,6 +241,61 @@ class IngestionPipeline:
         self._parse_and_segment(record, outcome, source_metadata=source_metadata)
         return outcome
 
+    def resume(
+        self,
+        *,
+        artifact: Artifact,
+        occurrence: ArtifactOccurrence,
+        item_id: str,
+        project_id: str,
+        actor_id: str,
+        source_metadata: dict[str, str] | None = None,
+    ) -> IngestionOutcome:
+        """Re-run the failed stage against bytes that are already durable (UX-004, OPS-001).
+
+        WHAT THIS DOES *NOT* DO, which is the requirement.
+
+        No re-upload: the caller passes the Artifact that RAW_STORE already produced, and the
+        bytes are read from the store by content hash. No re-scan: SECRET_SCAN ran before those
+        bytes became addressable (SEC-003) and its verdict is a property of the bytes, which have
+        not changed -- re-running it would be work whose answer is already known, and a second
+        scan that somehow disagreed would mean the store had been tampered with, which is not
+        something a retry should quietly resolve. No new Artifact: `artifact_id` is content
+        addressed, so a resume that stored again would compute the same id anyway.
+
+        Both skipped stages are recorded as SKIPPED rather than omitted. §17.22 derives the item
+        state from `stage_results`, and a resumed item whose history began at PARSE_TEXT would be
+        indistinguishable from one whose raw artifact was never stored -- which UX-001 reads as
+        FAILED.
+
+        THE JOB IDENTITY IS THE CALLER'S. This method takes an `item_id` rather than minting one,
+        because a retry continues an IngestionItem rather than starting one. Whether a second
+        callback for the same retry creates a second Run is `006_jobs_runs.sql`'s question, not
+        this method's, and the two must not be confused -- see `lab_brain.core.models.job`.
+        """
+        outcome = IngestionOutcome(item_id=item_id, project_id=project_id, actor_id=actor_id)
+        outcome.artifact = artifact
+        outcome.occurrence = occurrence
+
+        skipped_at = utc_now()
+        for stage in (IngestionStage.SECRET_SCAN, IngestionStage.RAW_STORE):
+            outcome.stage_results.append(
+                StageResult(
+                    stage=stage,
+                    status=StageStatus.SKIPPED,
+                    started_at=skipped_at,
+                    finished_at=skipped_at,
+                    output_refs=(
+                        (artifact.artifact_id,) if stage is IngestionStage.RAW_STORE else ()
+                    ),
+                    reason_code="UX004_ALREADY_DURABLE",
+                )
+            )
+
+        record = _ArtifactRecord(artifact=artifact, occurrence=occurrence)
+        self._parse_and_segment(record, outcome, source_metadata=source_metadata)
+        return outcome
+
     # -- stages -------------------------------------------------------------
 
     def _run_secret_scan(self, data: bytes, outcome: IngestionOutcome) -> SecretScanResult:
