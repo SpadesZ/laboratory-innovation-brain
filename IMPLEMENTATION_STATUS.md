@@ -3,7 +3,11 @@
 System Version: 0.0.1
 Current Milestone: **M1 — Research Memory**, IN_PROGRESS from slice M1-P1
 (M0a **DONE** 2026-09-13, M0b **DONE** 2026-09-20, both on maintainer sign-off)
-Last Updated: 2026-09-20
+Slice M1-P1: **HARD-LOCKED** 2026-09-21 at `f8e5e9c02ee98ed2a7faa6f604347b84b88c773b` on
+independent M2 review — the *slice* is locked, the *milestone* is not. Thirteen of M1's
+twenty-one requirements are still untouched. See
+[`M1-P1-handoff.md`](docs/implementation/M1-P1-handoff.md).
+Last Updated: 2026-09-21
 
 ## Spec Baseline
 
@@ -148,6 +152,27 @@ A bare `pytest` executes **941** of the 1391 and skips the 450 backend-gated one
 
 <!-- END GENERATED: test-inventory -->
 
+### Local counts and generic CI counts differ by exactly two, and that is not a regression
+
+The figures above are from a **local run with full history**. Two GitHub jobs report two fewer:
+
+| Run | Backend-free | `postgres` profile | Spec conformance |
+|---|---:|---:|---:|
+| Local, full history | **941** | **1391** | **205** |
+| Generic CI jobs (`fetch-depth: 1`) | 939, 452 skipped | 1389, 2 skipped | 203, 2 skipped |
+
+The two are `test_this_repositorys_enforced_history_is_clean` and
+`test_the_enforcement_floor_is_a_real_commit_in_this_repository`, both marked `_needs_history` in
+`tests/spec/test_commit_message_hygiene.py`. A shallow checkout does not contain the enforcement
+floor, so the range cannot be walked; the tests skip rather than assert over zero commits.
+
+The rule is still enforced. The dedicated **`Commit hygiene` job checks out at `fetch-depth: 0`**
+and runs the gate over the whole enforced range — and `test_the_ci_job_checks_out_enough_history_to_walk_a_range`,
+which never skips, fails if that job stops existing or its checkout is shallowed. So a run that
+*always* has the history is what holds the rule, and the generic jobs decline to assert what they
+cannot see. Making these two assert unconditionally would turn an honest skip into a green test
+that checked no commits, which is worse because it is believed.
+
 ## Architecture Decisions
 
 | ADR | Title | Status |
@@ -163,16 +188,20 @@ A bare `pytest` executes **941** of the 1391 and skips the 450 backend-gated one
 | ADR-0009 | Two-tier error disclosure with an ACL-gated technical tier | Accepted |
 | ADR-0010 | `Artifact` is global content identity; `ArtifactOccurrence` is project-scoped presence | Accepted |
 | ADR-0011 | `EvidenceUnit` is canonical scientific identity; `RetrievalRepresentation` is a derived index artefact | Accepted |
+| ADR-0012 | `EvidenceUnitOccurrence` is project-scoped presence; segmentation conformance is witnessed, then re-derived | Accepted |
 
-ADRs 0001–0009 record decisions already fixed by SAI 3.3; ADR-0010 and ADR-0011 record ones made
-during implementation and ratified by amendments `v3.3-a8` and `v3.3-a17`; they exist so the
-*reasoning* is available to whoever later wants to change one. 0002, 0003, 0007, 0008, 0009, 0010
-and 0011 touch P0 scientific or security semantics and are marked as requiring human approval,
-granted by the spec sections they cite.
+ADRs 0001–0009 record decisions already fixed by SAI 3.3; ADR-0010, ADR-0011 and ADR-0012 record
+ones made during implementation and ratified by amendments `v3.3-a8`, `v3.3-a17` and `v3.3-a18`;
+they exist so the *reasoning* is available to whoever later wants to change one. 0002, 0003, 0007,
+0008, 0009, 0010, 0011 and 0012 touch P0 scientific or security semantics and are marked as
+requiring human approval, granted by the spec sections they cite.
 
-0010 and 0011 are the same shape one layer apart: one row conflating two different facts, where the
-failure is not a missing check but an unanswerable question. 0010 separated *which bytes* from
-*whose copy*; 0011 separates *what the evidence is* from *what the index returned*.
+0010, 0011 and 0012 are the same shape at three depths: one row conflating two different facts,
+where the failure is not a missing check but an unanswerable question. 0010 separated *which bytes*
+from *whose copy*; 0011 separates *what the evidence is* from *what the index returned*; 0012
+applies 0010's split one layer down — global `EvidenceUnit` identity, project-scoped
+`EvidenceUnitOccurrence` — rather than putting `project_id` into the scientific identity, which
+would make one measurement cited by two projects count twice under `EVI-004`.
 
 ## Spec Coverage Audit
 
@@ -203,10 +232,10 @@ from `M0a_hard_must_counts.yaml` and `M0a_obligation_inventory.yaml` in one pass
 
 ### Spec issues (AGT-015)
 
-All thirteen are **RESOLVED**. Five were raised by the M0a coverage audit and ruled on by the
+All fifteen are **RESOLVED**. Five were raised by the M0a coverage audit and ruled on by the
 maintainer in amendment `v3.3-a2`; the rest came from implementation slices that could not be
 written honestly without a ruling — 009 from P5, 010/011 from P7–P9, 012 from the M0b sign-off
-audit, 013 from M1-P1.
+audit, 013 from M1-P1, and 014/015 from the M1-P1 audit repair.
 
 | Issue | Severity | Blocks gate | Resolution |
 |---|---|---|---|
@@ -223,6 +252,8 @@ audit, 013 from M1-P1.
 | 011 | GATE | M0b | §17.14.1 `Decision` becomes the durable belief-transition authorization: re-derivable `decision_input_snapshot` + `input_hash`, fail closed (`v3.3-a12`; read side `v3.3-a13`) |
 | 012 | GATE | M0b | Reading B — `GovernanceEvent(REVIEW_EXPIRY)`. A timeout is a governance act, not a belief transition, so a scheduler may not author a `BeliefRevisionEvent` (`v3.3-a15`; chain binding `v3.3-a16`) |
 | 013 | GATE | M1 | Reading D — `EVI-010` / `T-EVI-010`. §6.7's segmentation SHOULD had no hard counterpart and no registry entry, and no requirement forbade a vector chunk being treated as the evidence body (`v3.3-a17`) |
+| 014 | GATE | M1 | Reading C — §17.25.1 `EvidenceUnitOccurrence`. §17.25's identity is project-independent but its row was project-scoped, so the same document in a second project collided on the primary key and that project got no evidence at all (`v3.3-a18`, ADR-0012) |
+| 015 | GATE | M1 | Two-layer split per `v3.3-a13` — a byte-level `segmentation_witness` in SQL, plus admission re-running the recorded segmenter. §6.22 rule 1 was enforced only when a unit declared its own bindings, so a raw writer skipped it by declaring nothing (`v3.3-a18`) |
 
 The index table in `docs/spec_issues/README.md` reported 002 and 004–008 as OPEN for two days
 after they were resolved, because it was prose beside machine-read headers. It is now compared
@@ -251,6 +282,7 @@ moved, because each step was a maintainer ruling rather than a count correction:
 | `v3.3-a15` | 59 ↔ 59 | `GovernanceEvent(REVIEW_EXPIRY)` (SPEC-ISSUE-012); obligation read into OPS-002/EPI-006, no new ID |
 | `v3.3-a16` | 59 ↔ 59 | a `GovernanceEvent` must belong to the chain it closes; clarification only, no new ID |
 | `v3.3-a17` | **60 ↔ 60** | `EVI-010` (SPEC-ISSUE-013, §6.22 + §17.25: evidence-boundary segmentation, and a vector chunk is not evidence identity) |
+| `v3.3-a18` | 60 ↔ 60 | §17.25.1 `EvidenceUnitOccurrence` and the `segmentation_witness` (SPEC-ISSUE-014, SPEC-ISSUE-015); both obligations `EVI-010` and `SEC-002` already imposed, so no new ID |
 
 Amendments a12–a16 all kept the invariant because each made an **existing** obligation uniquely
 executable rather than adding one. `v3.3-a17` is the first move since `v3.3-a6`, and it moved for
@@ -395,9 +427,29 @@ space can coexist while `T-VER-003` passes.
 
 ## Next Recommended Task
 
-**Awaiting independent maintainer audit of M1-P1.** Do not start the embedding, LLM, jobs or UX
-slices until it returns PASS. `EVI-007`, `EVI-008`, `LLM-001`, `SRC-001`, `SEC-001`, `SEC-004`,
-`OPS-001` and `UX-001`~`UX-007` are out of scope until then.
+**M1-P1 is hard-locked** at `f8e5e9c02ee98ed2a7faa6f604347b84b88c773b` on independent M2 review
+(2026-09-21). Reopen it only on a **reproducible violation** of a locked invariant produced by a
+later slice — not for cleanup, and not for a refactor. The fourteen locked items and where each
+lives are in [`M1-P1-readiness.md`](docs/implementation/M1-P1-readiness.md) §12.
+
+**Recommended: `OPS-001` — Jobs and Runs**, as slice M1-P2. It is the only open M1 requirement that
+unblocks more than one other: `EVI-009`'s Run half, `UX-004`'s Job-level retry half, `OPS-003`'s
+`run → artifact` reference (**R-11**), `UX-002`'s retry path, `UX-001`'s state derivation and
+`UX-007`'s queue depth all wait on Job and Run existing as entities. Appendix A already allocates
+the migration slot (`006_jobs_runs.sql`), and three requirements that are `IN_PROGRESS` on half a
+pass condition can only become whole through it.
+
+It is also the natural owner of the largest retained limitation: **there is no production
+write-side repository contract**. `IngestionPipeline` takes `commit_rows` as an injected callable
+and the only implementations are in tests, so what is proven today is that the pipeline is
+idempotent and the schema accepts its output — *not* that a production writer exists. A Job that
+resumes an ingestion has to persist from production code, so the slice that needs the writer and
+the slice that should build it are the same one. Building it now, with no caller, would repeat the
+pattern R-7, R-8 and R-10 each record.
+
+Full dependency ordering for the remaining twelve, the seams that already exist and are waiting for
+a caller, and what `OPS-001` must not do to the lock:
+[`M1-P1-handoff.md`](docs/implementation/M1-P1-handoff.md).
 
 M1-P1 delivered the Research Memory ingestion/evidence foundation and nothing else. The
 per-requirement readiness matrix, the benchmark numbers and the known limitations are in

@@ -415,3 +415,69 @@ Stated so they are not read as closed:
    version in the probes. The first real second version will be the first genuine test of it.
 
 **M1-P1 is not claimed hard-locked.** M1 stays `IN_PROGRESS`; M0a and M0b are untouched and DONE.
+
+## 12. Maintainer decision (2026-09-21)
+
+M2 reviewed `f8e5e9c02ee98ed2a7faa6f604347b84b88c773b` independently and returned **PASS —
+M1-P1 HARD-LOCK APPROVED**. That SHA is the locked implementation baseline for the Research
+Memory Foundation + Evidence-Aware Hierarchical Chunking slice.
+
+**M1 remains `IN_PROGRESS`.** The lock is on the slice, not the milestone, and §3's list of
+thirteen untouched M1 requirements is unchanged. M0a and M0b remain `DONE` / hard-locked.
+
+The sentence above this section — "M1-P1 is not claimed hard-locked" — is left standing rather
+than edited. It was true of the slice when it was submitted, and the record of a claim being
+withheld and then granted is worth more than a document that reads as if the outcome were never
+in doubt. The same reasoning keeps §10's reopening visible.
+
+### What is locked
+
+Fourteen items, each with where it lives, because a lock a later slice cannot locate is a lock it
+will break by accident:
+
+| Locked | Where |
+|---|---|
+| provenance-derived `EVI-003` inference classification | `admission_gate.py` `_check_inference`; `llm_derived` is tri-state and may only widen |
+| canonical `EvidenceUnit` vs `RetrievalRepresentation` separation | `core/models/evidence_unit.py`; ADR-0011; §17.25 |
+| global `EvidenceUnit` identity + project-scoped `EvidenceUnitOccurrence` | `003a` / `003b`; ADR-0012; §17.25.1. `project_id` does **not** go back onto the unit |
+| durable `Attestation` → `EvidenceUnit` linkage | `003c`; the record decides, the request may only agree |
+| structure-first evidence-aware segmentation | `ingestion/segmentation.py`; fixed-token stays a fallback and a baseline |
+| segmentation witness + semantic re-derivation | `identifiers.py` `segmentation_witness_for`; `_check_segmentation_reproducible`; the `v3.3-a13` two-layer split |
+| fail-closed occurrence verification | `_check_read_permitted`; absent resolver → `PROJECT_SCOPE_NOT_VERIFIABLE`, distinct from `CROSS_PROJECT_UNIT` |
+| recorded parser/segmenter implementation resolution | `reverification.py` `SegmentationRegistry`; never substitutes the current version |
+| recorded token-limit restoration | `SegmentationRegistry.segmenter_for` passes `provenance.token_limit` |
+| canonical PostgreSQL `EvidenceUnit` reconstruction | `storage/postgres/evidence_units.py`; every load rebuilds through the model |
+| `EVI-004` source independence semantics | `ingestion/source_work_resolution.py`, `evidence/independence.py` |
+| `SEC-003` ordering | `pipeline.py` `_run_secret_scan`, before durable storage |
+| `OPS-004` basic compensation | `pipeline.py` `_store_raw`, stage → commit → promote → compensate |
+| fixed-token benchmark framing | §5 above, and `evidence/segmentation_benchmark.py` |
+
+Reopen M1-P1 only on a **reproducible violation** of one of these, produced by a later slice.
+Not for cleanup, not for a refactor that would read better, and not for a fourth repair.
+
+### What is retained, not closed
+
+§11's five P2 limitations carry forward verbatim. The first is the one most likely to be
+misread later, so it is restated: **there is no production write-side repository contract.**
+The duplicate-ingest tests supply their own persistence helpers. What they establish is that
+the pipeline/schema composition supports idempotency **when the persistence seam implements the
+required conflict semantics** — not that a writer exists which implements them.
+
+### Test counts: local vs generic CI
+
+Recorded because the two disagree by exactly two and the difference is not a regression.
+
+| Run | Backend-free | PostgreSQL profile | Spec |
+|---|---:|---:|---:|
+| Local, full history | **941** passed | **1391** passed | **205** passed |
+| GitHub run `35538447883`, generic jobs | 939 passed, 452 skipped | 1389 passed, 2 skipped | 203 passed, 2 skipped |
+
+The two are `test_this_repositorys_enforced_history_is_clean` and
+`test_the_enforcement_floor_is_a_real_commit_in_this_repository`, both carrying `_needs_history`
+in `tests/spec/test_commit_message_hygiene.py`. The generic jobs check out at depth 1, so the
+enforcement floor is absent and the range cannot be walked; skipping is the designed behaviour
+and asserting anyway is what failed CI the first time that gate landed. The **dedicated
+`Commit hygiene` job checks out at `fetch-depth: 0`, ran the gate over the whole enforced range,
+and passed** — and `test_the_ci_job_checks_out_enough_history_to_walk_a_range` fails if that job
+stops existing or its checkout is shallowed. So the rule is enforced by a run that always has
+the history; the generic jobs simply decline to assert what they cannot see.

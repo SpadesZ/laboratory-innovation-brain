@@ -6,7 +6,7 @@
 # fully satisfied. The union of all allocations MUST equal the 60 requirements the
 # spec declares -- enforced by T-SPEC-001 against the parsed §25.3 table, so this
 # number is documentation and the check does not depend on it being retyped
-# correctly. It has moved with the amendments (v3.3-a1 .. a17); §0's amendment
+# correctly. It has moved with the amendments (v3.3-a1 .. a18); §0's amendment
 # ledger is the record.
 #
 # `status` drives the CI ratchet. Once a milestone is DONE, every requirement allocated to it
@@ -85,6 +85,13 @@ milestones:
     # EVI-002, EVI-003, EVI-004, EVI-009, EVI-010, SEC-003, OPS-004, UX-004 -- and nothing else.
     # The remaining twelve requirements are untouched and have no tests; see
     # docs/implementation/M1-P1-readiness.md for the per-requirement matrix.
+    #
+    # M1-P1 HARD-LOCKED 2026-09-21 at f8e5e9c02ee98ed2a7faa6f604347b84b88c773b on independent M2
+    # review (PASS), after Repair-1 (23b47dd) and Repair-2 (f8e5e9c). The lock is on the SLICE and
+    # not on this milestone: it fixes an implementation baseline later slices may not refactor for
+    # cleanliness, and it does NOT move `status`. Reopen only on a reproducible violation of a
+    # locked invariant. The fourteen locked items are tabulated in
+    # docs/implementation/M1-P1-readiness.md §12; the next-slice handoff is M1-P1-handoff.md.
     #
     # NOT DONE, and deliberately not close to it. The exit gate names a delayed mock job resuming
     # an episode (OPS-001), scientific LLM calls persisting bundle+provenance (LLM-001) and all of
