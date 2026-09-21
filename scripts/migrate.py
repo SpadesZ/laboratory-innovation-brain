@@ -138,6 +138,11 @@ APPLY_ORDER: tuple[str, ...] = (
     # an inactive executor. After 011f: it extends that migration's commit-boundary invariant
     # rather than adding a second notion of closure validity.
     "011g_governance_event_chain_binding.sql",
+    # M1 / UX-005. Adds EXTRACTION_UNCERTAINTY to `review_items.subject_type`. An extension
+    # of the vocabulary, not a change to M0b semantics: UX-005 forbids a parallel review
+    # surface because ReviewQueue depth is what prices human attention in §14.4.1, so a
+    # second queue would consume the same reviewers while being invisible to the planner.
+    "011h_review_subject_extraction.sql",
     # M1-P1 / EVI-010 (`v3.3-a17`). The canonical evidence body. Extends 003 rather than taking
     # Appendix A's 012, which is reserved for `ingestion_items_errors` (UX-001, a later slice).
     # After 002 and 003: foreign keys into `artifacts` and `source_works`, and it is what an

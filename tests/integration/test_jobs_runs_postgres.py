@@ -284,14 +284,14 @@ def test_a_run_cannot_be_committed_without_its_job_resolving_to_it(jobs_db):
         pytest.raises(psycopg.errors.RaiseException, match="resolves to nothing"),
         jobs_db.transaction(),
     ):
-            jobs_db.execute(
-                "INSERT INTO runs (run_id, job_id, project_id, capability_id, backend_id, "
-                "trace_id, conditions_schema_version, code_provenance, status, output_artifacts, "
-                "start_time, end_time, reproducibility_manifest_hash) VALUES "
-                "('run:orphaned', 'job:unclaimed', 'prj:test', %s, 'b', 'trc:1', 'cs', 'g', "
-                "'SUCCEEDED', ARRAY['art:x'], now(), now(), 'h')",
-                (CAPABILITY,),
-            )
+        jobs_db.execute(
+            "INSERT INTO runs (run_id, job_id, project_id, capability_id, backend_id, "
+            "trace_id, conditions_schema_version, code_provenance, status, output_artifacts, "
+            "start_time, end_time, reproducibility_manifest_hash) VALUES "
+            "('run:orphaned', 'job:unclaimed', 'prj:test', %s, 'b', 'trc:1', 'cs', 'g', "
+            "'SUCCEEDED', ARRAY['art:x'], now(), now(), 'h')",
+            (CAPABILITY,),
+        )
 
     assert jobs_db.execute("SELECT count(*) FROM runs").fetchone()[0] == 0, (
         "the unclaimed run survived the failed transaction"

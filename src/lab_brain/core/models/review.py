@@ -32,6 +32,15 @@ class ReviewSubjectType(StrEnum):
 
     CONFLICT = "CONFLICT"
     AUTHORITY_CONFLICT = "AUTHORITY_CONFLICT"
+    #: UX-005 (M1). A low-confidence extraction needing a human. The subject is the
+    #: IngestionItem, not one Attestation: §17.22 attaches `review_ids[]` to the item, and a
+    #: reviewer needs the document context to judge whether a field really is unknown (EVI-002).
+    #:
+    #: Added to THIS enum rather than given its own review mechanism because UX-005 prohibits a
+    #: parallel surface -- ReviewQueue depth prices human attention in §14.4.1, and a second queue
+    #: would consume the same reviewers while being invisible to the planner that is supposed to
+    #: account for them.
+    EXTRACTION_UNCERTAINTY = "EXTRACTION_UNCERTAINTY"
 
 
 class ReviewStatus(StrEnum):
