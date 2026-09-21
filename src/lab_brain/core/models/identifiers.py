@@ -45,6 +45,14 @@ _ID_PREFIXES: Final[dict[str, str]] = {
     # into one identity would hide exactly the rebuild ADR-0011 requires be observable.
     "retrieval_representation": "rrp",
     "ingestion_item": "ing",
+    # M1 / OPS-001. Both event-addressed, and separate kinds because they are separate
+    # identities: a Job is a submission and a Run is an execution, and one submission may be
+    # retried several times while producing exactly one Run. Sharing a prefix would make a job
+    # indistinguishable from its own output in a log.
+    "job": "job",
+    "run": "run",
+    # M1 / LLM-001. §17.14's `inference_id`.
+    "inference": "inf",
     "claim": "clm",
     "observation": "obs",
     "attestation": "att",
