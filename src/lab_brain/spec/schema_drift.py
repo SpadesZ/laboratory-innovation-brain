@@ -193,6 +193,19 @@ UNBOUND: dict[str, str] = {
     "three subjects as undeclared. The model and the DDL implement the literal reading (at most "
     "one of the three, matching `span_type`) and enforce it in both places. Bindable once §17.19.1 "
     "states them as separate optional fields.",
+    "Job": "§17.16's block reaches the project transitively through `episode_id`, and §17.3's "
+    "ResearchEpisode is not built -- nothing in M1's ingestion path creates one. A Job that could "
+    "only be scoped through an episode could therefore not be scoped at all, while SEC-002 scopes "
+    "every read by project membership and a Job surfaces through UX-001's IngestionItem and "
+    "UX-003's error lookup, both project-scoped by requirement. So the model and the table carry "
+    "`project_id` and the canonical block does not. `resume_stage` is the second addition, for "
+    "UX-004's resume-at-the-failed-stage: §17.16 declares the retry policies but no field "
+    "recording where a resumable job is parked. Bindable once §17.16 states both, or once "
+    "Episodes exist and the transitive scope is real.",
+    "Run": "§17.4 omits `project_id` for the same reason §17.16 does, and the same argument "
+    "applies one table over: a Run that is not project-scoped cannot be read under SEC-002, and "
+    "`runs_job_must_exist` refuses a Run scoped away from its Job. The block also omits "
+    "`created_at`, which every other table here carries as an audit field.",
 }
 
 

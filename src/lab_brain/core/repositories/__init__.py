@@ -26,6 +26,13 @@ from lab_brain.core.repositories.evidence import (
     SqlAttestationStore,
     SqlRelationStore,
 )
+from lab_brain.core.repositories.jobs import (
+    IdempotencyKeyMismatch,
+    InMemoryJobStore,
+    JobStore,
+    JobStoreError,
+    SqlJobStore,
+)
 from lab_brain.core.repositories.memory import (
     InMemoryArtifactRepository,
     InMemoryAttestationRepository,
@@ -65,6 +72,7 @@ __all__ = [
     "DuplicateIdentityError",
     "EvidenceBundleRepository",
     "EvidenceStoreError",
+    "IdempotencyKeyMismatch",
     "InMemoryArtifactRepository",
     "InMemoryAttestationRepository",
     "InMemoryBeliefEventStore",
@@ -72,10 +80,13 @@ __all__ = [
     "InMemoryClaimRepository",
     "InMemoryCostLedger",
     "InMemoryEvidenceBundleRepository",
+    "InMemoryJobStore",
     "InMemoryObservationRepository",
     "InMemoryRelationRepository",
     "InMemorySourceWorkRepository",
     "InMemorySpanRepository",
+    "JobStore",
+    "JobStoreError",
     "NonDurableClaimStoreError",
     "ObservationRepository",
     "RelationRepository",
@@ -87,6 +98,7 @@ __all__ = [
     "SqlBeliefEventStore",
     "SqlBudgetApprovalClaims",
     "SqlCostLedger",
+    "SqlJobStore",
     "SqlRelationStore",
     "SqlSpanRepository",
     "SqlTransitionPolicyStore",

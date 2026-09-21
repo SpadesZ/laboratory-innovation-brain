@@ -57,6 +57,11 @@ _TABLES = (
     "condition_schemas",
     "execution_span_cost_entries",
     "execution_spans",
+    # M1-P2 / OPS-001. Both named, and named together: `jobs.result_run_id` references `runs`
+    # while the `runs_job_must_exist` trigger checks the other direction, so neither can be
+    # cleared alone. One TRUNCATE over both is the only order that works.
+    "jobs",
+    "runs",
     "cost_entries",
     "budget_approvals",
     "budget_policies",

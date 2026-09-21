@@ -116,6 +116,16 @@ from lab_brain.core.models.identifiers import (
     parse_content_hash,
     segmentation_witness_for,
 )
+from lab_brain.core.models.job import (
+    ACTIVE_JOB_STATES,
+    JOB_TRANSITIONS,
+    TERMINAL_JOB_STATES,
+    Job,
+    JobState,
+    JobTransitionError,
+    Run,
+    RunStatus,
+)
 from lab_brain.core.models.observation import Observation
 from lab_brain.core.models.prediction import (
     PREDICTION_EFFECT_TYPES,
@@ -145,6 +155,7 @@ from lab_brain.core.models.transition import (
 )
 
 __all__ = [
+    "ACTIVE_JOB_STATES",
     "BELIEF_TERMINAL_STATES",
     "BUNDLE_SCHEMA_VERSION",
     "CAPPED_DIMENSIONS",
@@ -158,8 +169,10 @@ __all__ = [
     "IDENTITY_EXCLUDED_FIELDS",
     "IDENTITY_RELATION_TYPES",
     "IMPLEMENTED_INDEPENDENCE_BASES",
+    "JOB_TRANSITIONS",
     "PREDICTION_EFFECT_TYPES",
     "SUBJECT_FIELD_FOR_TYPE",
+    "TERMINAL_JOB_STATES",
     "TERMINAL_SPAN_STATUSES",
     "Actor",
     "ActorType",
@@ -204,6 +217,9 @@ __all__ = [
     "IndependenceBasis",
     "IndependenceRelation",
     "IndependenceSummary",
+    "Job",
+    "JobState",
+    "JobTransitionError",
     "LicenseClass",
     "Observation",
     "OutcomeSpace",
@@ -221,6 +237,8 @@ __all__ = [
     "RetrievalRepresentation",
     "ReviewItemSpec",
     "RightsMetadata",
+    "Run",
+    "RunStatus",
     "SecretScanStatus",
     "SegmenterProvenance",
     "SensitivityLabel",
