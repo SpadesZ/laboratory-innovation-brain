@@ -133,8 +133,8 @@ Local, full history, PostgreSQL last.
 |---|---|
 | `ruff format` / `ruff check` | clean |
 | `mypy` (strict) | clean, **136** source files |
-| Backend-free suite | **1275 passed**, 616 skipped |
-| Migration replay from empty | **38 applied** |
+| Backend-free suite | **1258 passed**, 617 skipped |
+| Migration replay from empty | **38 applied** (fresh `lab_brain_m2final`) |
 | Migration idempotency | `pending 0`, second run a no-op |
 | Full PostgreSQL profile | **1875 passed**, 0 skipped |
 | Executed-coverage ratchet | ok ×4; DONE `['M0a','M0b']`, IN_PROGRESS `['M1','M2']`; **45** requirements with a passing test |

@@ -185,8 +185,8 @@ The figures above are from a **local run with full history**. Two GitHub jobs re
 
 | Run | Backend-free | `postgres` profile | Spec conformance |
 |---|---:|---:|---:|
-| Local, full history | **1275**, 616 skipped | **1875**, 0 skipped | **205** |
-| Generic CI jobs (`fetch-depth: 1`) | 1273, 618 skipped | 1873, 2 skipped | 203, 2 skipped |
+| Local, full history | **1258**, 617 skipped | **1875**, 0 skipped | **205** |
+| Generic CI jobs (`fetch-depth: 1`) | 1256, 619 skipped | 1873, 2 skipped | 203, 2 skipped |
 
 This table is hand-maintained and had drifted once already: it carried 941 / 1391 from the slice
 that wrote it while the generated inventory directly above said otherwise. The **delta** between
