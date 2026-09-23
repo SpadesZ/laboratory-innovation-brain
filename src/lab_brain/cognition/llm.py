@@ -8,11 +8,24 @@
 
 Two gates, and the second is the one that is easy to skip.
 
-WRITE SIDE (`ScientificLLM.invoke`). Nothing reaches a model without a bundle, and nothing comes
+WRITE SIDE (`ScientificLLM._invoke`). Nothing reaches a model without a bundle, and nothing comes
 back without provenance. The provenance is built HERE from the call's own inputs rather than
 accepted from the model's reply -- a model asked to describe its own provenance is being asked to
 be its own witness, and a hallucinated `prompt_version` is as easy to produce as a hallucinated
 number.
+
+**`_invoke` AND `_critique` ARE INTERNAL SEAMS, NOT A PUBLIC API.** They were public and returned
+`ScientificOutput` -- so a caller could obtain scientific model text that no row records, which
+makes "all scientific LLM calls persist bundle+provenance" a statement about the callers who used
+the durable operation rather than about the system. There is no configuration in which that
+sentence was true while a public method returned unpersisted text.
+
+`ScientificInferenceService` is the only thing that calls them, and the only production surface
+that yields usable scientific text. It does not return until the provenance is durable. The
+underscore is the marker; the enforcement is `ScientificInferenceService` being the sole caller
+and a structural test asserting that no public method of either class returns `ScientificOutput`.
+Low-level invocation stays reachable for tests that need to drive the transport directly, which
+is the "explicit internal/test infrastructure" the requirement allows.
 
 READ SIDE (`BeliefBasisGate`). Inferences predating the rule are already in the store, and they
 are exactly what §7.6 is about. A transition resting SOLELY on an inference with no provenance is
@@ -152,7 +165,7 @@ class ScientificLLM:
     def configured_slots(self) -> frozenset[LogicalSlot]:
         return frozenset(self._slots)
 
-    def invoke(
+    def _invoke(
         self,
         *,
         inference_id: str,
@@ -251,7 +264,7 @@ class ScientificLLM:
         )
         return ScientificOutput(text=text, provenance=provenance)
 
-    def critique(
+    def _critique(
         self,
         *,
         original: InferenceProvenance,
@@ -272,7 +285,7 @@ class ScientificLLM:
         same inference a second time, and presenting it as independent corroboration is exactly
         the self-citation EVI-003 and §6.17 exist to prevent.
         """
-        output = self.invoke(
+        output = self._invoke(
             inference_id=inference_id,
             slot=slot,
             role="critic",

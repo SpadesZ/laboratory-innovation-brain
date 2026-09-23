@@ -46,6 +46,8 @@ from dataclasses import dataclass
 from typing import Any, TextIO
 
 from lab_brain.composition import IngestionService
+from lab_brain.core.models.job import Job
+from lab_brain.core.scientific_read import ScientificReadRefused
 from lab_brain.interfaces.config import (
     ConfigurationError,
     Settings,
@@ -83,22 +85,24 @@ class InboxRow:
 def build_inbox(
     items: Sequence[IngestionItem],
     *,
-    jobs_for: object = None,
+    jobs_for: Callable[[str], Sequence[Job]] | None = None,
     open_review_ids: frozenset[str] = frozenset(),
     blocking_conflict_ids: frozenset[str] = frozenset(),
 ) -> tuple[InboxRow, ...]:
     """Project items into rows. The state is DERIVED, never read off the item.
 
-    `jobs_for` is accepted and unused at M1 because no CLI caller yet has a live job list to
-    supply; passing it through would let a caller hand in a stale one, and a stale job list makes
-    a finished item read as PROCESSING. When the CLI grows a job source it becomes a real
-    parameter rather than a plausible-looking default.
+    `jobs_for` is now a REAL parameter. It was accepted and ignored while no CLI caller had a
+    live job list, which meant PROCESSING was unreachable from the terminal: a document still
+    being parsed read as READY, which is the one answer a user must not be given about work that
+    has not finished. `InboxView` carries the jobs alongside the items so the two are read in one
+    pass and cannot disagree about which run is in flight.
     """
     rows = [
         InboxRow(
             item_id=item.item_id,
             state=derive_state(
                 item,
+                jobs=() if jobs_for is None else jobs_for(item.item_id),
                 open_review_ids=open_review_ids,
                 blocking_conflict_ids=blocking_conflict_ids,
             ),
@@ -262,7 +266,25 @@ def main(
     try:
         service = IngestionService(connection=connection, artifact_store=_NoArtifactStore())
         if args.command == "inbox":
-            return run_inbox(service.inbox(args.project), out=stream)
+            try:
+                view = service.inbox(actor_id=args.actor, project_id=args.project)
+            except ScientificReadRefused:
+                # ONE MESSAGE FOR EVERY REFUSAL. An unknown actor, a disabled account, a revoked
+                # membership and a member of some other project all get this sentence, and it
+                # says nothing about whether the project exists or holds anything. Naming the
+                # reason would be a directory of projects and of who belongs to them.
+                print(
+                    f"No inbox for {args.actor} in {args.project}.",
+                    file=stream,
+                )
+                return 1
+            return run_inbox(
+                view.items,
+                jobs_for=view.jobs_for,
+                open_review_ids=view.open_review_ids,
+                blocking_conflict_ids=view.blocking_conflict_ids,
+                out=stream,
+            )
         return run_explain(
             service.diagnostics(),
             args.error_id,
@@ -318,12 +340,14 @@ class _NoArtifactStore:
 def run_inbox(
     items: Sequence[IngestionItem],
     *,
+    jobs_for: Callable[[str], Sequence[Job]] | None = None,
     open_review_ids: frozenset[str] = frozenset(),
     blocking_conflict_ids: frozenset[str] = frozenset(),
     out: TextIO,
 ) -> int:
     rows = build_inbox(
         items,
+        jobs_for=jobs_for,
         open_review_ids=open_review_ids,
         blocking_conflict_ids=blocking_conflict_ids,
     )

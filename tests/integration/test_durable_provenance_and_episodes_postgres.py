@@ -15,10 +15,12 @@ import datetime as dt
 import psycopg
 import pytest
 
+from lab_brain.cognition import inference as inference_module
 from lab_brain.cognition.inference import InferenceNotDurable, ScientificInferenceService
 from lab_brain.cognition.llm import (
     BeliefBasisGate,
     LLMRefusal,
+    LLMRefusalReason,
     ModelSlot,
     PromptTemplate,
     ScientificLLM,
@@ -675,3 +677,126 @@ def test_the_only_object_carrying_model_text_is_the_durable_one(db):
     assert ScientificOutput not in returns, (
         "the service returns an unverified ScientificOutput on some path"
     )
+
+
+# ---------------------------------------------------------------------------
+# LLM-001 — the public surface yields no unpersisted scientific text
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.requirement("LLM-001")
+@pytest.mark.spec_test("T-LLM-001")
+def test_no_public_method_anywhere_returns_unpersisted_scientific_output(db):
+    """THE structural claim, over the whole public surface of both classes.
+
+    `ScientificLLM.invoke` and `.critique` were public and returned `ScientificOutput`. So a
+    caller could obtain scientific model text that no row records, and the M1 exit invariant --
+    *all scientific LLM calls persist bundle+provenance* -- was a statement about the callers who
+    happened to use the durable operation, not about the system. There is no configuration in
+    which that sentence was true while a public method returned unpersisted text.
+
+    Asserted over every public attribute rather than by name, so re-adding the capability as
+    `generate`, `run` or `ask` fails too.
+    """
+    import inspect
+
+    for owner in (ScientificLLM, ScientificInferenceService):
+        for name, member in vars(owner).items():
+            if name.startswith("_") or not callable(member):
+                continue
+            returns = inspect.signature(member).return_annotation
+            assert returns is not ScientificOutput, (
+                f"{owner.__name__}.{name} is public and returns ScientificOutput; scientific "
+                "model text must not leave the process without durable provenance"
+            )
+            assert "ScientificOutput" not in str(returns), (
+                f"{owner.__name__}.{name} is public and returns {returns}"
+            )
+
+
+@pytest.mark.requirement("LLM-001")
+@pytest.mark.spec_test("T-LLM-001")
+def test_the_raw_seams_are_not_part_of_the_public_surface(db):
+    """The transport-reaching methods are internal, and the old names are gone.
+
+    Python has no enforced privacy, and the requirement does not ask for one -- it asks that the
+    *supported public production surface* cannot yield unpersisted text, and that low-level
+    invocation remain available as explicit internal or test infrastructure. The underscore is
+    that explicitness: every remaining caller says `_invoke` at the call site, so opting out is
+    visible in the diff rather than hidden behind an ordinary-looking method.
+    """
+    assert not hasattr(ScientificLLM, "invoke"), "the public `invoke` came back"
+    assert not hasattr(ScientificLLM, "critique"), "the public `critique` came back"
+    assert hasattr(ScientificLLM, "_invoke")
+    assert hasattr(ScientificLLM, "_critique")
+
+    public = [n for n in dir(ScientificLLM) if not n.startswith("_")]
+    assert public == ["configured_slots"], (
+        f"ScientificLLM's public surface is {public}; it is a registry and a transport holder, "
+        "and anything else on it is a way to reach a model without the durable operation"
+    )
+
+
+@pytest.mark.requirement("LLM-001")
+@pytest.mark.spec_test("T-LLM-001")
+def test_the_durable_operation_is_the_only_caller_of_the_raw_seams(db):
+    """Inside `src/`, nothing but `ScientificInferenceService` reaches the transport.
+
+    A structural test rather than a convention: the underscore marks the seam and this is what
+    keeps production from quietly growing a second caller. Tests may call it -- that is the
+    permitted test infrastructure -- and this probe only reads the shipped package.
+    """
+    import pathlib
+
+    root = pathlib.Path(inference_module.__file__).resolve().parents[2]
+    offenders = []
+    for path in root.rglob("*.py"):
+        if path.name == "llm.py":
+            continue
+        text = path.read_text(encoding="utf-8")
+        if "._invoke(" in text or "._critique(" in text:
+            offenders.append(path.relative_to(root).as_posix())
+    assert offenders == ["lab_brain/cognition/inference.py"], offenders
+
+
+@pytest.mark.requirement("LLM-001")
+@pytest.mark.spec_test("T-LLM-001")
+def test_a_critique_is_durable_or_it_is_not_returned(db):
+    """§7.6's independent critique, on the same terms as any other inference.
+
+    A public `critique` returning `ScientificOutput` was the same hole a second time, and a
+    critique is the more damaging one to leave open: it is the object that makes a belief look
+    independently corroborated.
+    """
+    service, transport = _inference_service(db)
+    original = service.infer(
+        inference_id="inf:original",
+        slot=LogicalSlot.HYPOTHESIS,
+        role="hypothesis_generator",
+        prompt_id="prm:hypothesis",
+        bundle=_durable_bundle(),
+        trace_id=TRACE,
+        project_id=PROJECT,
+        actor_id="act:test",
+        now=NOW,
+    )
+
+    # Same route, same bundle -- not an independent critique, and §7.6 refuses it. Nothing is
+    # written, because a durable record of it would later read as corroboration.
+    with pytest.raises(LLMRefusal) as caught:
+        service.critique(
+            original=original.provenance,
+            inference_id="inf:same-route",
+            prompt_id="prm:hypothesis",
+            bundle=_durable_bundle(),
+            trace_id=TRACE,
+            project_id=PROJECT,
+            actor_id="act:test",
+            slot=LogicalSlot.HYPOTHESIS,
+            now=NOW,
+        )
+    assert caught.value.reason is LLMRefusalReason.CRITIQUE_ROUTE_UNCHANGED
+    with psycopg.connect(database_url(), autocommit=True) as fresh:
+        assert SqlInferenceProvenanceStore(fresh).get("inf:same-route") is None
+
+    assert transport.calls == 2, "the probe never reached the window it is about"

@@ -159,7 +159,7 @@ class ScientificInferenceService:
         had already been paid for.
         """
         identifier = inference_id or new_id("inference")
-        output = self._llm.invoke(
+        output = self._llm._invoke(
             inference_id=identifier,
             slot=slot,
             role=role,
@@ -170,6 +170,47 @@ class ScientificInferenceService:
             actor_id=actor_id,
             escalate=escalate,
             parameters=parameters,
+            now=now,
+        )
+        return self._persist(output, project_id=project_id, trace_id=trace_id)
+
+    def critique(
+        self,
+        *,
+        original: InferenceProvenance,
+        prompt_id: str,
+        bundle: EvidenceBundle | None,
+        trace_id: str,
+        project_id: str,
+        actor_id: str,
+        inference_id: str | None = None,
+        slot: LogicalSlot = LogicalSlot.CRITIQUE,
+        escalate: frozenset[SensitivityLabel] = frozenset(),
+        now: dt.datetime | None = None,
+    ) -> DurableInference:
+        """§7.6's independent critique, durable on the same terms as any other inference.
+
+        THE INDEPENDENCE CHECK HAPPENS BEFORE THE WRITE AND AFTER THE CALL, which is the only
+        place it can. The route is not known until the slot and prompt resolve, and a critique
+        whose route matches the original is not a critique -- so it must not become a durable
+        record that a later reader would count as independent corroboration.
+
+        The consequence is deliberate and is the same trade the fault-injection path makes: the
+        model may have been called and nothing usable escapes. Budget was spent on an inference
+        that turned out not to be independent, which is a cost problem and belongs in `007a`'s
+        ledger -- not a reason to persist a record that would misdescribe the evidence.
+        """
+        identifier = inference_id or new_id("inference")
+        output = self._llm._critique(
+            original=original,
+            inference_id=identifier,
+            prompt_id=prompt_id,
+            bundle=bundle,
+            trace_id=trace_id,
+            project_id=project_id,
+            actor_id=actor_id,
+            escalate=escalate,
+            slot=slot,
             now=now,
         )
         return self._persist(output, project_id=project_id, trace_id=trace_id)

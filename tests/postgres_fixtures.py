@@ -64,6 +64,7 @@ _TABLES = (
     # `inference_provenance` refuses DELETE, and TRUNCATE does not fire row-level triggers, so
     # naming it explicitly is both correct and the only safe way to clear it.
     "ingestion_stage_results",
+    "technical_details",
     "error_records",
     "ingestion_items",
     "inference_provenance",

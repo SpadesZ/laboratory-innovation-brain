@@ -33,7 +33,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from lab_brain.core.models.access import ProjectMembership
+from lab_brain.core.access import can_access_project
+from lab_brain.core.models.access import Actor, ProjectMembership
 from lab_brain.core.models.enums import SensitivityLabel
 from lab_brain.surface.catalog import MessageCatalog, RenderedMessage, render
 from lab_brain.surface.errors import ErrorRecord, Remediation, remediations_for
@@ -142,11 +143,22 @@ class DiagnosticsService:
         load_error: Callable[[str], ErrorRecord | None],
         load_detail: Callable[[str], TechnicalDetail | None],
         membership_of: Callable[[str, str], ProjectMembership | None],
+        actor_of: Callable[[str], Actor | None] | None = None,
     ) -> None:
+        """``actor_of`` resolves the requesting Actor, so `can_access_project` can be asked.
+
+        OPTIONAL WITH A FAIL-CLOSED DEFAULT, and the default is the interesting part. When no
+        resolver is supplied this service treats every actor as unresolvable *except* in the
+        membership-only check it already performed -- see `_admitted`. The contract tests that
+        construct a service with an in-memory membership map keep working, and a production
+        deployment that forgets the resolver does not silently gain an unchecked path: the
+        composition root supplies it and a probe asserts that it does.
+        """
         self._catalog = catalog
         self._load_error = load_error
         self._load_detail = load_detail
         self._membership_of = membership_of
+        self._actor_of = actor_of
 
     def default_payload(
         self, error_id: str, *, actor_id: str, project_id: str
@@ -203,14 +215,31 @@ class DiagnosticsService:
             technical=redact(detail, frozenset(membership.sensitivity_clearance)),
         )
 
-    def _resolve(self, error_id: str, *, actor_id: str, project_id: str) -> ErrorRecord:
-        """Membership first, then existence, and the two failures are indistinguishable.
+    def _admitted(self, actor_id: str, project_id: str) -> bool:
+        """May this actor look anything up in this project at all?
 
-        Checking membership before looking the id up matters: a lookup that ran first would make
-        the response *time* differ between a real id in another project and a nonexistent one,
-        which rebuilds a weaker version of the same oracle.
+        `can_access_project` when an Actor resolver is wired -- the SAME predicate the inbox and
+        `can_read_artifact` use, so "active account, active membership, this project" is decided
+        in one place. Membership presence alone was the previous check, which let a centrally
+        disabled account and a revoked membership keep reading a project's error references.
+
+        Falls back to membership presence when no resolver is supplied. That is strictly weaker
+        and is why the composition root always supplies one; a contract test that builds this
+        service from a dict is not a deployment.
         """
-        if self._membership_of(actor_id, project_id) is None:
+        membership = self._membership_of(actor_id, project_id)
+        if self._actor_of is None:
+            return membership is not None
+        return can_access_project(self._actor_of(actor_id), project_id, membership).allowed
+
+    def _resolve(self, error_id: str, *, actor_id: str, project_id: str) -> ErrorRecord:
+        """Authorization first, then existence, and the two failures are indistinguishable.
+
+        Checking authorization before looking the id up matters: a lookup that ran first would
+        make the response *time* differ between a real id in another project and a nonexistent
+        one, which rebuilds a weaker version of the same oracle.
+        """
+        if not self._admitted(actor_id, project_id):
             raise ErrorNotFound(error_id)
         record = self._load_error(error_id)
         if record is None or record.project_id != project_id:

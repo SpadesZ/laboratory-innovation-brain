@@ -30,8 +30,12 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any, Protocol
 
+from lab_brain.core.models.conflict import UNRESOLVED_CONFLICT_STATUSES
+from lab_brain.core.models.enums import SensitivityLabel
+from lab_brain.core.models.review import OUTSTANDING_REVIEW_STATUSES
 from lab_brain.ingestion.pipeline import ErrorClass as StageErrorClass
 from lab_brain.ingestion.pipeline import IngestionStage, StageResult, StageStatus
+from lab_brain.surface.disclosure import TechnicalDetail
 from lab_brain.surface.errors import ErrorClass, ErrorRecord
 from lab_brain.surface.ingestion_item import IngestionItem
 
@@ -202,6 +206,71 @@ class PostgresSurfaceStore:
         ).fetchone()
         return 1 if row is None else int(row[0])
 
+    def record_technical_detail(
+        self,
+        *,
+        detail_ref: str,
+        project_id: str,
+        sensitivity: SensitivityLabel,
+        component: str,
+        message: str,
+        stack_ref: str | None = None,
+        source_path: str | None = None,
+        prompt_fragment: str | None = None,
+    ) -> str:
+        """§17.24's tier two, as a row of its own (`012b`).
+
+        WRITTEN BEFORE THE ERROR RECORD THAT POINTS AT IT, inside the same transaction. `012b`'s
+        trigger is deferred so either order is legal, but writing the target first means the
+        common case never relies on the deferral -- and the deferral is there for the case where
+        a writer genuinely cannot.
+
+        `ON CONFLICT DO NOTHING` on the ref: a retried ingestion projects the same failure again
+        and the row it asserts is the same row. Not deduplication -- the absence of a change.
+        """
+        self._connection.execute(
+            "INSERT INTO technical_details (detail_ref, project_id, sensitivity, component, "
+            "message, stack_ref, source_path, prompt_fragment) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (detail_ref) DO NOTHING",
+            (
+                detail_ref,
+                project_id,
+                sensitivity.value,
+                component,
+                message,
+                stack_ref,
+                source_path,
+                prompt_fragment,
+            ),
+        )
+        return detail_ref
+
+    def technical_detail(self, detail_ref: str) -> TechnicalDetail | None:
+        """Tier two by reference. UNSCOPED, deliberately.
+
+        The scoping already happened: `DiagnosticsService` resolves the ErrorRecord against the
+        actor's membership first, and only then reads `record.technical_detail_ref`. A second
+        project filter here would be a second place to get §17.24's oracle rule wrong, and
+        `012b`'s trigger already makes a cross-project reference unrepresentable rather than
+        merely unreachable.
+        """
+        row = self._connection.execute(
+            "SELECT detail_ref, sensitivity, component, message, stack_ref, source_path, "
+            "prompt_fragment FROM technical_details WHERE detail_ref = %s",
+            (detail_ref,),
+        ).fetchone()
+        if row is None:
+            return None
+        return TechnicalDetail(
+            detail_ref=str(row[0]),
+            sensitivity=SensitivityLabel(str(row[1])),
+            component=str(row[2]),
+            message=str(row[3]),
+            stack_ref=row[4],
+            source_path=row[5],
+            prompt_fragment=row[6],
+        )
+
     def record_error(
         self,
         *,
@@ -289,16 +358,19 @@ class PostgresSurfaceStore:
     # -- reads --------------------------------------------------------------
 
     def items_for_project(self, project_id: str) -> tuple[IngestionItem, ...]:
-        """Every inbox row in one project, with its stage results and error references.
+        """Every inbox row in one project, with the references §17.22 derives state from.
 
         NO STATE COMES BACK, because none is stored. The caller runs `derive_state`, which is the
         same function the contract tests exercise -- so the terminal and the service cannot
         disagree about what a row means.
 
-        `review_ids` and `conflict_ids` are empty here and that is a real gap rather than an
-        omission: §17.19.1's `subject_type` vocabulary is CONFLICT | AUTHORITY_CONFLICT, so a
-        ReviewItem cannot currently point at an IngestionItem, and no durable row exists to read.
-        Inventing a subject type to fill the field would be a spec change smuggled in as a query.
+        `review_ids` AND `conflict_ids` ARE REAL. An earlier version of this docstring claimed
+        §17.19.1's vocabulary was `CONFLICT | AUTHORITY_CONFLICT` so no ReviewItem could point at
+        an item. That was stale and wrong the day it was written: `011h` added
+        `EXTRACTION_UNCERTAINTY` for exactly this, and `enqueue_extraction_review` had already
+        been writing those rows. NEEDS_REVIEW was unreachable from durable data because this
+        reader never asked, not because the data could not exist -- which is the more dangerous
+        kind of gap, since the limitation section said it was a schema constraint.
         """
         rows = self._connection.execute(
             f"SELECT {', '.join(_ITEM_COLUMNS)} FROM ingestion_items "
@@ -306,6 +378,41 @@ class PostgresSurfaceStore:
             (project_id,),
         ).fetchall()
         return tuple(self._hydrate_item(row) for row in rows)
+
+    def open_review_ids(self, project_id: str) -> frozenset[str]:
+        """Reviews a human still owes an answer on (§17.19.1, UX-005).
+
+        QUEUED and ASSIGNED only. An ASSIGNED review counts as open because somebody has picked
+        it up and not answered -- the item is no more ready than it was. APPROVED, CORRECTED,
+        REJECTED and EXPIRED are all answers, and an EXPIRED one is the answer `review_expire`
+        wrote when nobody gave a better one; leaving the item NEEDS_REVIEW afterwards would park
+        it forever on a review that no longer exists to be done.
+
+        Read from the ONE queue. UX-005 prohibits a parallel review surface because ReviewQueue
+        depth is what prices human attention in §14.4.1, and a second queue would consume the
+        same reviewers while being invisible to the planner.
+        """
+        rows = self._connection.execute(
+            "SELECT review_id FROM review_items WHERE project_id = %s AND status = ANY (%s)",
+            (project_id, [status.value for status in sorted(OUTSTANDING_REVIEW_STATUSES)]),
+        ).fetchall()
+        return frozenset(str(row[0]) for row in rows)
+
+    def blocking_conflict_ids(self, project_id: str) -> frozenset[str]:
+        """Conflicts that are both BLOCKING and unresolved (§17.19.3).
+
+        Both, and the conjunction matters. `blocking` is the domain's judgement that this kind of
+        disagreement stops work; `resolution_status` is whether it still stands. A conflict that
+        is blocking and RESOLVED holds nothing up, and one that is OPEN and non-blocking is a
+        recorded disagreement the lab has decided to live with -- neither should make a document
+        read as NEEDS_REVIEW.
+        """
+        rows = self._connection.execute(
+            "SELECT conflict_id FROM conflicts WHERE project_id = %s AND blocking "
+            "AND resolution_status = ANY (%s)",
+            (project_id, [status.value for status in sorted(UNRESOLVED_CONFLICT_STATUSES)]),
+        ).fetchall()
+        return frozenset(str(row[0]) for row in rows)
 
     def _hydrate_item(self, row: tuple[Any, ...]) -> IngestionItem:
         values = dict(zip(_ITEM_COLUMNS, row, strict=True))
@@ -320,6 +427,8 @@ class PostgresSurfaceStore:
             display_name=str(values["display_name"]),
             submitted_at=values["submitted_at"],
             stage_results=self._stage_results(item_id),
+            review_ids=self._review_ids(item_id, str(values["project_id"])),
+            conflict_ids=self._conflict_ids(item_id, str(values["project_id"])),
             duplicate_of_artifact_id=values["duplicate_of_artifact_id"],
             duplicate_of_source_work_id=values["duplicate_of_source_work_id"],
             error_ids=self._error_ids(item_id),
@@ -356,6 +465,44 @@ class PostgresSurfaceStore:
             )
             for row in rows
         )
+
+    def _review_ids(self, item_id: str, project_id: str) -> tuple[str, ...]:
+        """Every ReviewItem whose subject is this item (§17.22, UX-005, `011h`).
+
+        `EXTRACTION_UNCERTAINTY` is the subject type `011h` added for exactly this, and
+        `subject_id` is the item rather than the Attestation -- deliberately, because a reviewer
+        needs the whole document to judge whether a field really is unknown (EVI-002). Pointing
+        at one Attestation would show them a value with nothing to compare it against.
+
+        ALL of them, not only the open ones. `derive_state` intersects these with the project's
+        open set, so the item keeps the history of what was reviewed and the *state* follows the
+        queue -- which is what makes "resolve the review and the CLI leaves NEEDS_REVIEW" a
+        property of the queue rather than of a second write to the item.
+        """
+        rows = self._connection.execute(
+            "SELECT review_id FROM review_items WHERE project_id = %s AND subject_id = %s "
+            "AND subject_type = 'EXTRACTION_UNCERTAINTY' ORDER BY created_at, review_id",
+            (project_id, item_id),
+        ).fetchall()
+        return tuple(str(row[0]) for row in rows)
+
+    def _conflict_ids(self, item_id: str, project_id: str) -> tuple[str, ...]:
+        """Conflicts naming this item among their subjects (§17.19.3).
+
+        `subject_refs` is an untyped array on purpose -- §17.19.3's conflicts are about whatever
+        disagreed, and `011a` records that a conflict about nothing is unrepresentable. An
+        ingestion item is a legitimate subject: a SOURCE_RETRACTION_CONFLICT is about the
+        document that was retracted.
+
+        Like `_review_ids`, this returns all of them and lets `derive_state` intersect with the
+        project's blocking set.
+        """
+        rows = self._connection.execute(
+            "SELECT conflict_id FROM conflicts WHERE project_id = %s AND %s = ANY (subject_refs) "
+            "ORDER BY detected_at, conflict_id",
+            (project_id, item_id),
+        ).fetchall()
+        return tuple(str(row[0]) for row in rows)
 
     def _error_ids(self, item_id: str) -> tuple[str, ...]:
         rows = self._connection.execute(

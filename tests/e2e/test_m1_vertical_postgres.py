@@ -381,7 +381,8 @@ def test_the_whole_m1_vertical_is_durable_and_authorized(world):
     assert {episode.trace_id, result.job.trace_id, result.run.trace_id, durable.trace_id} == {TRACE}
 
     # 10. The DURABLE inbox, derived -- not an item this test constructed.
-    items = svc.inbox(PROJECT)
+    view = svc.inbox(actor_id=ACTOR, project_id=PROJECT)
+    items = view.items
     assert [i.item_id for i in items] == [result.outcome.item_id]
     item = items[0]
     assert item.raw_artifact_id == result.artifact.artifact_id
@@ -462,7 +463,7 @@ def test_external_egress_cannot_bypass_the_gate(world):
     # The caller ATTEMPTS THE DOWNGRADE, declaring PUBLIC over RESTRICTED_NDA evidence. Under the
     # old signature this was a supported call and the gate answered correctly about a fiction.
     with pytest.raises(ExternalEffectRefused):
-        cloud.invoke(
+        cloud._invoke(
             inference_id="inf:leak",
             slot=LogicalSlot.HYPOTHESIS,
             role="hypothesis_generator",
@@ -635,7 +636,7 @@ def test_the_real_cli_explains_a_durable_error_without_leaking_detail(world):
     svc._pipeline._parser = _Broken()
     _job, result = _ingest(svc, key="idem:cli-error")
 
-    errors = svc.inbox(PROJECT)[0].error_ids
+    errors = svc.inbox(actor_id=ACTOR, project_id=PROJECT).items[0].error_ids
     assert errors, "the failed parse wrote no ErrorRecord, so there is nothing to explain"
     error_id = errors[0]
     assert error_id.startswith("ERR-"), "§17.23's reference is what a human quotes"

@@ -624,6 +624,79 @@ MUTATIONS: tuple[Mutation, ...] = (
         new="        if record is None:",
         tests=("tests/integration/test_cli_surface_postgres.py",),
     ),
+    # ------------------------------------------------------------------
+    # M1 third audit. The production-integration blockers, anchored on the guards that close them.
+    # ------------------------------------------------------------------
+    Mutation(
+        name="the_inbox_does_not_authorize_its_actor",
+        guards="SEC-002 / §14.4 -- `--actor` must be consulted, not merely demanded",
+        path="src/lab_brain/composition.py",
+        old="        self.read_gate().require_project(actor_id=actor_id, project_id=project_id)",
+        new="        pass",
+        tests=("tests/integration/test_inbox_authorization_postgres.py",),
+    ),
+    Mutation(
+        name="an_inactive_membership_still_admits",
+        guards="SEC-002 -- revocation is a denial, not a retained grant",
+        path="src/lab_brain/core/access.py",
+        old="    if not membership.active:",
+        new="    if False:",
+        tests=(
+            "tests/integration/test_inbox_authorization_postgres.py",
+            "tests/security/test_project_scoped_access.py",
+        ),
+    ),
+    Mutation(
+        name="error_disclosure_skips_the_actor_check",
+        guards="UX-003 / §17.24 -- a disabled account may not resolve an error reference",
+        path="src/lab_brain/surface/disclosure.py",
+        old="        return can_access_project(self._actor_of(actor_id), project_id, membership).allowed",
+        new="        return membership is not None",
+        tests=(
+            "tests/integration/test_inbox_authorization_postgres.py",
+            "tests/integration/test_cli_surface_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="the_inbox_ignores_open_reviews",
+        guards="UX-005 / §17.22 -- NEEDS_REVIEW comes from the one ReviewQueue",
+        path="src/lab_brain/storage/postgres/surface_store.py",
+        old='            review_ids=self._review_ids(item_id, str(values["project_id"])),',
+        new="            review_ids=(),",
+        tests=("tests/integration/test_inbox_authorization_postgres.py",),
+    ),
+    Mutation(
+        name="a_resolved_review_still_blocks_the_item",
+        guards="UX-005 -- the state follows the queue, so an answered review releases the item",
+        path="src/lab_brain/storage/postgres/surface_store.py",
+        old='            "SELECT review_id FROM review_items WHERE project_id = %s AND status = ANY (%s)",',
+        new='            "SELECT review_id FROM review_items WHERE project_id = %s AND %s IS NOT NULL",',
+        tests=("tests/integration/test_inbox_authorization_postgres.py",),
+    ),
+    Mutation(
+        name="a_non_blocking_conflict_is_treated_as_blocking",
+        guards="§17.19.3 -- BLOCKING and unresolved, both",
+        path="src/lab_brain/storage/postgres/surface_store.py",
+        old='            "SELECT conflict_id FROM conflicts WHERE project_id = %s AND blocking "',
+        new='            "SELECT conflict_id FROM conflicts WHERE project_id = %s AND TRUE "',
+        tests=("tests/integration/test_inbox_authorization_postgres.py",),
+    ),
+    Mutation(
+        name="the_cli_ignores_live_job_state",
+        guards="UX-001 / §17.22 -- PROCESSING while a Job is still active",
+        path="src/lab_brain/interfaces/cli.py",
+        old="                jobs=() if jobs_for is None else jobs_for(item.item_id),",
+        new="                jobs=(),",
+        tests=("tests/integration/test_inbox_authorization_postgres.py",),
+    ),
+    Mutation(
+        name="technical_detail_is_returned_without_redaction",
+        guards="UX-003 / §17.24 -- detail is redacted against the actor's clearance",
+        path="src/lab_brain/surface/disclosure.py",
+        old="    if _permits(clearance, detail.sensitivity):",
+        new="    if True:",
+        tests=("tests/integration/test_cli_surface_postgres.py",),
+    ),
 )
 
 

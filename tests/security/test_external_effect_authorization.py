@@ -357,7 +357,7 @@ def test_a_model_call_cannot_declare_nda_evidence_as_public():
         classifier=_classifier(),
     )
     with pytest.raises(ExternalEffectRefused):
-        model.invoke(
+        model._invoke(
             inference_id="inf:1",
             slot=LogicalSlot.HYPOTHESIS,
             role="hypothesis_generator",
@@ -472,7 +472,7 @@ def test_a_bundle_from_another_project_cannot_import_its_classification():
         classifier=_classifier(),
     )
     with pytest.raises(ClassificationRefused):
-        model.invoke(
+        model._invoke(
             inference_id="inf:1",
             slot=LogicalSlot.HYPOTHESIS,
             role="hypothesis_generator",
@@ -562,7 +562,7 @@ def test_a_scientific_model_call_cannot_invoke_its_transport_before_authorizatio
         classifier=_classifier(),
     )
     with pytest.raises(ExternalEffectRefused):
-        model.invoke(
+        model._invoke(
             inference_id="inf:1",
             slot=LogicalSlot.HYPOTHESIS,
             role="hypothesis_generator",
@@ -591,7 +591,7 @@ def test_a_local_model_slot_runs_under_private_mode():
         runner=_runner(None),
         classifier=_classifier(),
     )
-    output = model.invoke(
+    output = model._invoke(
         inference_id="inf:1",
         slot=LogicalSlot.HYPOTHESIS,
         role="hypothesis_generator",
@@ -616,7 +616,7 @@ def test_an_undeclared_model_slot_with_no_policy_is_refused():
         classifier=_classifier(),
     )
     with pytest.raises(ExternalEffectRefused):
-        model.invoke(
+        model._invoke(
             inference_id="inf:1",
             slot=LogicalSlot.HYPOTHESIS,
             role="hypothesis_generator",
@@ -710,7 +710,7 @@ def test_no_production_entry_point_still_accepts_a_sensitivity_argument():
     """
     import inspect
 
-    for call in (SourceRouter.search, SourceRouter.fetch, ScientificLLM.invoke):
+    for call in (SourceRouter.search, SourceRouter.fetch, ScientificLLM._invoke):
         assert "sensitivity" not in inspect.signature(call).parameters, (
             f"{call.__qualname__} still lets a caller state the sensitivity of what it sends"
         )

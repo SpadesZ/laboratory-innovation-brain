@@ -156,6 +156,11 @@ APPLY_ORDER: tuple[str, ...] = (
     # `duplicate_of_artifact_id` necessarily equals its `raw_artifact_id`. Forward-only, because
     # editing an applied file is what the checksum guard exists to catch.
     "012a_duplicate_is_content_identity.sql",
+    # M1 third audit / UX-003, §17.24. The row `error_records.technical_detail_ref` points at.
+    # A separate table rather than columns, because the default payload is built FROM the error
+    # record -- a detail column would put restricted material into the object the untrusted tier
+    # is rendered from. After 012 (error_records) and 001 (projects).
+    "012b_technical_details.sql",
     # M1-P1 / EVI-010 (`v3.3-a17`). The canonical evidence body. Extends 003 rather than taking
     # Appendix A's 012, which is reserved for `ingestion_items_errors` (UX-001, a later slice).
     # After 002 and 003: foreign keys into `artifacts` and `source_works`, and it is what an

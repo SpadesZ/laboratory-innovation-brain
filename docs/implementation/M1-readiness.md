@@ -1,6 +1,6 @@
 # M1 — Research Memory: readiness for independent M2 sign-off
 
-Date: 2026-09-22; revised after the final audit (§9) and the second audit (§10)
+Date: 2026-09-22; revised after the final audit (§9), the second audit (§10) and the third (§11)
 Milestone: **M1 — Research Memory**, `IN_PROGRESS`
 M1-P1 locked baseline: `f8e5e9c02ee98ed2a7faa6f604347b84b88c773b` (HARD-LOCKED, untouched)
 M0a / M0b: `DONE`, hard-locked, untouched
@@ -15,14 +15,23 @@ Test ID was added by this work.** 60 ↔ 60 throughout.
 > local document/run ingest; source-work dedup; delayed mock job resumes episode; all scientific
 > LLM calls persist bundle+provenance; UX-001~UX-007 tests pass.
 
+Every row points at the evidence as it stands after the third repair. Earlier revisions of this
+table named tests that have since been rewritten or that proved a weaker claim than the clause
+makes; those descriptions are corrected here rather than preserved, because a readiness document
+whose citations no longer resolve is worse than one with fewer rows.
+
 | Clause | Where it is demonstrated |
 |---|---|
-| local **document** ingest | `e2e/test_m1_vertical_postgres.py::test_the_whole_m1_vertical_runs_through_production_composition`, through `IngestionService` |
-| local **run** ingest | same test — the ingestion *is* a Run, minted by `job_complete` and carrying the §17.4 manifest |
-| source-work dedup | `contract/test_source_work_resolution.py` (EVI-004) + `contract/test_ingestion_surfaces.py::test_a_same_work_duplicate_is_ready_and_keeps_its_attestation` |
-| delayed mock job resumes | the vertical's step 1: submit → RUNNING → WAITING_RESOURCE → **new connection** → resume → one Run |
-| LLM calls persist bundle+provenance | vertical step 6 + `contract/test_llm_and_sources.py` (11 tests) |
-| UX-001~UX-007 pass | `contract/test_ingestion_surfaces.py` (38), `security/test_diagnostics_disclosure.py` (11), `integration/test_extraction_review_postgres.py` (9), `e2e/test_stage_retry_resume_postgres.py` (5) |
+| local **document** ingest | `e2e/test_m1_vertical_postgres.py::test_the_whole_m1_vertical_is_durable_and_authorized` steps 4–5, through `IngestionService` |
+| local **run** ingest | the same test — the ingestion *is* a Run, minted by `job_complete` with the whole §17.4 manifest (`006a`) |
+| source-work dedup | `contract/test_source_work_resolution.py` (EVI-004) + the vertical's `test_repeated_ingestion_stays_idempotent_by_derived_identity` |
+| delayed mock job resumes **episode** | the vertical's steps 1–3: `episode_suspend` → **new connection** observes SUSPENDED → `episode_resume` → the *same* episode → the Run carries its trace. Not a Job reload; see §9. |
+| **all** scientific LLM calls persist bundle+provenance | the vertical's step 7 calls `ScientificInferenceService.infer`, which does not return until the row reloads equal (`integration/test_durable_provenance_and_episodes_postgres.py`, 25 tests). The *all* is structural: `ScientificLLM`'s only public attribute is `configured_slots`, so no public surface returns unpersisted text — `test_no_public_method_anywhere_returns_unpersisted_scientific_output`. |
+| UX-001~UX-007 pass | `contract/test_ingestion_surfaces.py` (38) and `contract/test_budget_and_cli.py` (18) for the projections; `integration/test_inbox_authorization_postgres.py` (17) and `integration/test_cli_surface_postgres.py` (18) for the same projections **through the real `main()` over durable rows**; `integration/test_extraction_review_postgres.py` (9); `e2e/test_stage_retry_resume_postgres.py` (5) |
+
+All seven `ItemState` values are now reached from durable PostgreSQL rows through the shipped
+command — READY, PROCESSING, NEEDS_REVIEW, DUPLICATE, PARTIAL, FAILED, BLOCKED — with §17.22's
+precedence asserted rather than assumed. See §11.
 
 ## 2. Requirement-by-requirement readiness
 
@@ -35,18 +44,18 @@ Test ID was added by this work.** 60 ↔ 60 throughout.
 | 5 | **EVI-008** | retracted/erratum fixture records source status and blocks/flags per SourcePolicy | `evidence/source_status.py` — check writes, decision reads the record | `integration/test_source_status_postgres.py` (10) | READY |
 | 6 | **EVI-009** | MEASURED/SIMULATED refused with no run/artifact ref; reference resolves; back-fill refused | `admission_gate._check_reference` + `_check_run_reference` (resolves → produced → in-project) | `contract/test_evidence_admission.py`, `test_run_backed_evidence.py` (14) | READY |
 | 7 | **EVI-010** | locked fixture, five cases, seven metrics, tampered payload cannot alter the body | locked at M1-P1; untouched | 222 tests over the locked surface | READY (locked) |
-| 8 | **LLM-001** | provenance at admission **and** a stored inference without it cannot be the sole basis of a transition | `cognition/llm.py` — `ScientificLLM` + `BeliefBasisGate` | `contract/test_llm_and_sources.py` (11 LLM) | READY |
+| 8 | **LLM-001** | provenance at admission **and** a stored inference without it cannot be the sole basis of a transition | `cognition/inference.py` — `ScientificInferenceService.infer/critique`, the only public source of scientific text; `cognition/llm.py` is an internal seam; `003d` is the durable record | `integration/test_durable_provenance_and_episodes_postgres.py` (25), `contract/test_llm_and_sources.py` (21) | READY |
 | 9 | **OPS-001** | delayed mock job 可 suspend/resume；重複 completion event 不建立第二個 run | `006`/`006a`, `core/models/job.py`, `repositories/jobs.py` | `contract/test_job_lifecycle.py` (29), `integration/test_jobs_runs_postgres.py` (28) | READY |
 | 10 | **OPS-004** | fault injection between artifact store and DB commit leaves no dangling reference | `pipeline._store_raw`; boundary now owned by `composition.IngestionService` | `integration/test_cross_store_compensation.py` | READY |
-| 11 | **SEC-001** | RESTRICTED_NDA 送 external connector 時被阻擋並留下 audit event | `security/egress.py` — `EgressGate`, `EgressAuditLog` | `security/test_egress_and_licensing.py` (10 SEC-001) | READY |
+| 11 | **SEC-001** | RESTRICTED_NDA 送 external connector 時被阻擋並留下 audit event | `security/egress.py` + `security/external.py` (mandatory runner) + `security/classification.py` (derived, never declared) | `security/test_external_effect_authorization.py` (26), `security/test_egress_and_licensing.py` (10) | READY |
 | 12 | **SEC-003** | fixture secret quarantined before immutable ingest | `ingestion/secret_scanner.py`, `pipeline._run_secret_scan` | `security/test_secret_scan_ordering.py` | READY (locked) |
 | 13 | **SEC-004** | UNKNOWN/COPYLEFT blocked from generation context unless policy permits | `security/egress.may_enter_generation_context` | `security/test_egress_and_licensing.py` (7 SEC-004) | READY |
 | 14 | **SRC-001** | fake connectors replace real providers without changing SourceRouter/cognition | `sources/adapter.py` | `contract/test_llm_and_sources.py` (6 SRC) | READY |
-| 15 | **UX-001** | every documented state through the precedence; no direct assignment; two duplicate semantics | `surface/ingestion_item.py` | `contract/test_ingestion_surfaces.py` | READY |
+| 15 | **UX-001** | every documented state through the precedence; no direct assignment; two duplicate semantics | `surface/ingestion_item.py` (derivation), `storage/postgres/surface_store.py` (durable rows + review/conflict/job projection), `interfaces/cli.py` | `contract/test_ingestion_surfaces.py`, `integration/test_inbox_authorization_postgres.py` — all seven states through the real command | READY |
 | 16 | **UX-002** | POLICY_BLOCK/USER_INPUT_ERROR zero retries + audit; bounded retry; budget exhaustion is POLICY_BLOCK | `surface/errors.py` | `contract/test_ingestion_surfaces.py` | READY |
-| 17 | **UX-003** | no technical detail by default; scope required; clearance redaction keeps trace refs; cross-project not-found | `surface/disclosure.py` — `DiagnosticsService` | `security/test_diagnostics_disclosure.py` (11) | READY |
+| 17 | **UX-003** | no technical detail by default; scope required; clearance redaction keeps trace refs; cross-project not-found | `surface/disclosure.py` (now over `can_access_project`, not membership presence) + `012b`'s `technical_details` | `security/test_diagnostics_disclosure.py` (11), `integration/test_cli_surface_postgres.py` — all five outcomes through the real command | READY |
 | 18 | **UX-004** | raw artifact durable; retry re-runs only the failed stage reusing `raw_artifact_id`; duplicate callbacks create no second Run | `pipeline.resume`, `composition.IngestionService.retry` | `e2e/test_stage_retry_resume_postgres.py` (5) | READY |
-| 19 | **UX-005** | low-confidence extraction creates a ReviewItem visible in queue depth and changes Capability availability | `011h` + `SqlReviewItemStore.enqueue_extraction_review` | `integration/test_extraction_review_postgres.py` (9) | READY |
+| 19 | **UX-005** | low-confidence extraction creates a ReviewItem visible in queue depth and changes Capability availability | `011h` + `SqlReviewItemStore.enqueue_extraction_review`, now also projected onto the inbox row | `integration/test_extraction_review_postgres.py` (9), `integration/test_inbox_authorization_postgres.py` — enqueue → NEEDS_REVIEW → expire → READY | READY |
 | 20 | **UX-006** | every reason_code resolves; unknown fails closed to a generic entry; no render path invokes a model | `surface/catalog.py` | `contract/test_ingestion_surfaces.py` | READY |
 | 21 | **UX-007** | Capability unavailable + connector degraded reflected without a status table; seat exhaustion is degraded, not error | `surface/health.py` | `contract/test_ingestion_surfaces.py` | READY |
 
@@ -127,17 +136,17 @@ Local, full history, PostgreSQL last.
 |---|---|
 | `ruff format --check` / `ruff check` | clean |
 | `mypy` (strict) | clean, **109** source files |
-| Backend-free suite | **1133 passed**, 567 skipped |
-| Migration replay from empty | **36 applied** |
+| Backend-free suite | **1133 passed**, 592 skipped |
+| Migration replay from empty | **37 applied** |
 | Migration idempotency | `pending 0` |
-| Full PostgreSQL profile | **1700 passed** |
+| Full PostgreSQL profile | **1726 passed** |
 | Executed-coverage ratchet | ok ×4; DONE `['M0a','M0b']`, IN_PROGRESS `['M1']` |
 | Status freshness | up to date |
 | Spec conformance | **205 passed** |
 | Requirement ↔ Test | **60 ↔ 60** |
 | Obligation inventory | **84**, in sync |
 | Schema drift / unbound / stale | all empty |
-| Mutation battery | **66/66 killed** (29 M1-P1 + 21 + 8 + 8 second-audit) |
+| Mutation battery | **74/74 killed** (29 M1-P1 + 21 + 8 + 8 + 8 third-audit) |
 | M1-P1 benchmark | current, framing unchanged |
 
 ### Local vs generic CI counts
@@ -160,24 +169,24 @@ that checked no commits is worse than an honest skip.
 4. **The dense index is in-memory.** `009a`/`009b` hold `RetrievalRepresentation` rows and
    `DenseEvidenceIndex` does not yet write to them. EVI-007's semantics are enforced and tested;
    the durable vector store is not built.
-5. **`technical_detail_ref` resolves to nothing.** `012` stores it as a pointer and no detail
-   store backs it, so `explain --technical` for an actor holding the scope returns the default
-   payload. Conservative in the right direction - the scope check, the redaction and the
-   not-found semantics are all still the service's, and `DiagnosticsService` is not told detail
-   exists when it does not.
-6. **`NEEDS_REVIEW` is unreachable from durable rows.** §17.19.1's `subject_type` vocabulary is
-   `CONFLICT | AUTHORITY_CONFLICT`, so no `ReviewItem` can point at an `IngestionItem` and
-   `PostgresSurfaceStore` returns empty `review_ids`/`conflict_ids`. The derivation is proven at
-   the projection level; inventing a subject type to fill the field would be a spec change
-   smuggled in as a query, so it is stated instead.
-7. **Error-id minting is bounded-retry, not sequenced.** `ERR-YYYYMMDD-NNNN` is computed from the
+5. **Error-id minting is bounded-retry, not sequenced.** `ERR-YYYYMMDD-NNNN` is computed from the
    day's maximum ordinal and retried on a primary-key collision. Correct under M1's single-writer
    ingestion and honest about its bound: a genuinely concurrent writer would need a sequence, and
    `SurfaceStoreError` names the situation rather than reusing an id.
-8. **COST-001 is wired as a required seam, not as a live caller.** `decide_retry` refuses without
+6. **COST-001 is wired as a required seam, not as a live caller.** `decide_retry` refuses without
    a budget gate, and the tests inject both an allowing and a refusing one. No production loop
    retries yet, so the gate has no live caller to exercise.
-9. **R-8, R-9, R-10, R-12** unchanged.
+7. **Technical detail is one row per failed stage, written by ingestion only.** `012b` is backed
+   by the ingestion pipeline and nothing else, so an error projected by a future subsystem will
+   have a `NULL` pointer until that subsystem writes one — which the trigger permits and the
+   service renders as the default payload.
+8. **R-8, R-9, R-10, R-12** unchanged.
+
+Two limitations recorded in the previous revision are **removed rather than downgraded**, and the
+second was not a limitation at all:
+
+* *`technical_detail_ref` resolves to nothing* — `012b` and `PostgresSurfaceStore.record_technical_detail` now back it, and all five §17.24 outcomes are proven through the real command.
+* *`NEEDS_REVIEW` is unreachable because §17.19.1's vocabulary is `CONFLICT | AUTHORITY_CONFLICT`* — **this was false when it was written.** `011h` had already added `EXTRACTION_UNCERTAINTY` and `enqueue_extraction_review` was already writing those rows. The reader simply never queried them. A stated limitation that is false is more dangerous than an unstated one: it tells the next reader to stop looking.
 
 ## 8. Governance
 
@@ -311,3 +320,88 @@ more. Re-anchoring surfaced a genuine gap: no probe covered
 before any query runs. It has one now, with both loaders fatal.
 
 Final: **66/66 killed.**
+
+
+## 11. The third-audit repairs
+
+Four production-integration blockers. Each is the same shape: a guard existed, and the production
+wiring reached around it or never reached it.
+
+| # | Blocker | Before | After |
+|---|---|---|---|
+| 1 | the inbox ignored `--actor` | the flag was required, parsed and discarded; any string reached any project's items | `IngestionService.inbox(actor_id=..., project_id=...)` raises unless `can_access_project` allows; five refusals, one indistinguishable answer |
+| 2 | the durable item carried no review/conflict/job | `review_ids`/`conflict_ids` empty, no live Job list; six of seven states unreachable | projected from `review_items` (`EXTRACTION_UNCERTAINTY`), `conflicts.subject_refs` and the Job store; all seven states proven through the real command |
+| 3 | public unpersisted scientific text | `ScientificLLM.invoke`/`.critique` were public and returned `ScientificOutput` | internal seams; `ScientificLLM`'s public surface is `configured_slots` alone; `infer`/`critique` on the durable service are the only sources of text |
+| 4 | `technical_detail_ref` pointed at nothing | no detail store; `--technical` returned the default payload to a scoped actor | `012b`'s `technical_details`, written by ingestion, resolved by `diagnostics()`; five outcomes proven |
+
+### The attacks, before and after
+
+**1. Read a project's inbox you do not belong to.** *Before:* `lab-brain inbox --project prj:x
+--actor anything` printed the table. *After:* five varied-by-one-fact probes — unknown actor,
+globally disabled account, no membership, revoked membership, member of another project — each
+refused, each producing a byte-identical answer once the actor id is substituted
+(`test_every_refusal_is_the_same_answer_except_for_the_names`). The refusal is the *service's*,
+not a rendering choice: `test_the_service_raises_rather_than_returning_an_empty_view`.
+
+**1b. Learn a project exists by getting an empty table.** *Before:* n/a. *After:* the refusal
+prints no header, no summary line and no item id — an empty table would itself tell a non-member
+the project is real and simply quiet.
+
+**1c. Resolve an error reference on a disabled account.** *Before:* `DiagnosticsService` checked
+only that a membership row existed, so a centrally disabled account and a revoked membership both
+kept working. *After:* `can_access_project`, the same predicate, and
+`test_a_disabled_account_and_a_revoked_membership_cannot_resolve_an_error` compares all three
+refusals — including a stranger's — for equality, then repeats it with `--technical` to check the
+scope message has not become a side channel.
+
+**2. Be told a document is READY while a human owes it a review.** *Before:* NEEDS_REVIEW was
+unreachable from durable rows, so every reviewed item printed READY. *After:* ingest →
+`enqueue_extraction_review` → `NEEDS_REVIEW` → `review_expire` → `READY`, with nothing written to
+the item in between: the state follows the queue, so an implementation that latched a flag would
+still say NEEDS_REVIEW after the answer.
+
+**2b. Be told a document is READY while it is still being parsed.** *Before:* `jobs_for` was
+accepted and ignored. *After:* a second QUEUED job attached to the item flips it to PROCESSING and
+back when the job finishes — the Job's state, not a latch.
+
+**3. Obtain scientific model text that no row records.** *Before:* `llm.invoke(...)` returned
+`ScientificOutput`, publicly. *After:* `ScientificLLM`'s public surface is exactly
+`['configured_slots']`, asserted; no public method of either class returns `ScientificOutput`,
+asserted over every member rather than by name; and inside `src/` the only caller of the raw seams
+is `cognition/inference.py`, asserted by scanning the shipped package.
+
+**3b. Obtain an unpersisted *critique*.** The more damaging half, because a critique is the object
+that makes a belief look independently corroborated. `ScientificInferenceService.critique` is
+durable on the same terms, and a route-identical critique is refused **before** the write — so the
+model may have been called and no record exists that a later reader would count as corroboration.
+
+**4. Read technical detail you are not cleared for.** *Before:* unreachable, because nothing
+resolved. *After:* five outcomes, each through `main()`: the default payload never carries detail
+*even for an actor holding every scope*; `--technical` without the scope is refused; scope without
+clearance returns `[redacted …]` **while preserving `trace_id`/`job_id`/`span_id` and
+`component`**; scope with clearance returns it; and a cross-project `detail_ref` is
+unrepresentable rather than merely unreachable — `012b`'s deferred trigger refuses the row.
+
+### Two design decisions worth naming
+
+**`can_access_project` was extracted, not duplicated.** The inbox and error disclosure needed the
+same four refusals `can_read_artifact` already made, and the instruction not to create a second
+ACL is binding. So the first half of `can_read_artifact` became a named function that
+`can_read_artifact` itself calls — every message and every ordering unchanged, which the existing
+SEC-002 suite proves. It is deliberately *not* sufficient for evidence: membership is not
+clearance, and a surface returning canonical bodies on the strength of it would be R-7 again.
+
+**`012a`'s sibling repair.** The test that made a foreign error by relabelling this project's row
+now fails, because `012b`'s trigger refuses an error and its detail in different projects. The
+shortcut was creating exactly the inconsistency the trigger exists to prevent; the probe inserts a
+genuine foreign row instead, which is also what an attacker enumerating ids would be guessing at.
+
+### What the battery found
+
+`error_disclosure_skips_the_actor_check` survived: every existing `explain` refusal probe used an
+actor with **no membership row**, so `membership is not None` already refused and the stronger
+predicate was never load-bearing. The disabled-account probe above is what kills it. Two of the
+eight new anchors sit on `surface_store.py` queries rather than on Python branches, because that
+is where the review and conflict semantics actually live.
+
+Final: **74/74 killed.**

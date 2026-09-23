@@ -50,7 +50,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from lab_brain.core.access import AccessDecision, can_read_artifact
+from lab_brain.core.access import AccessDecision, can_access_project, can_read_artifact
 from lab_brain.core.models.access import Actor, ArtifactOccurrence, ProjectMembership
 from lab_brain.core.models.evidence_unit import EvidenceUnit, RetrievalCandidate
 
@@ -135,6 +135,38 @@ class ScientificReadGate:
             self._load_occurrence(artifact_id, project_id),
             self._load_membership(actor_id, project_id),
         )
+
+    def authorize_project(self, *, actor_id: str, project_id: str) -> AccessDecision:
+        """May ``actor_id`` act inside ``project_id`` at all? (SEC-002, §14.4)
+
+        THE QUESTION THE PROJECT-SCOPED SURFACES WERE NOT ASKING. `lab-brain inbox` required
+        `--actor`, threaded it through the argument parser, and then called `inbox(project_id)`
+        -- so the flag was presentation-only governance and any string reached any project's
+        items. Error disclosure asked whether a membership row existed and never whether the
+        actor or the membership was still active.
+
+        NOT A SECOND ACL. `can_access_project` is the first half of `can_read_artifact`,
+        extracted so both halves have one implementation. This method resolves the two records it
+        needs and returns its verdict.
+
+        NOT SUFFICIENT FOR EVIDENCE. Membership is not clearance -- that is R-7's whole sentence
+        -- so nothing that returns a canonical body may stop here. `authorize_artifact` is what
+        those surfaces use, and it calls this first.
+        """
+        return can_access_project(
+            self._load_actor(actor_id), project_id, self._load_membership(actor_id, project_id)
+        )
+
+    def require_project(self, *, actor_id: str, project_id: str) -> AccessDecision:
+        """The raising form, for surfaces that answer a question rather than list results.
+
+        A refused list can be empty; a refused *lookup* has to say something, and the something
+        must not distinguish "you may not" from "there is nothing" -- see `ErrorNotFound`.
+        """
+        decision = self.authorize_project(actor_id=actor_id, project_id=project_id)
+        if not decision.allowed:
+            raise ScientificReadRefused(decision)
+        return decision
 
     def authorize_unit(
         self, unit: EvidenceUnit, *, actor_id: str, project_id: str

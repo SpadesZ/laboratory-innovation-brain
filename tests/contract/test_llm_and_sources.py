@@ -142,7 +142,7 @@ def _invoke(model: ScientificLLM, **overrides):
         "now": NOW,
     }
     payload.update(overrides)
-    return model.invoke(**payload)  # type: ignore[arg-type]
+    return model._invoke(**payload)  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------
@@ -253,7 +253,7 @@ def test_a_critique_that_changed_nothing_is_refused():
     model = _llm()
     original = _invoke(model, slot=LogicalSlot.CRITIQUE, inference_id="inf:0").provenance
     with pytest.raises(LLMRefusal) as caught:
-        model.critique(
+        model._critique(
             original=original,
             inference_id="inf:1",
             prompt_id="prm:hypothesis",
@@ -272,7 +272,7 @@ def test_a_critique_over_a_different_bundle_is_accepted():
     """The positive control, and it pins which change counts: the retrieval bundle."""
     model = _llm()
     original = _invoke(model, slot=LogicalSlot.CRITIQUE, inference_id="inf:0").provenance
-    output = model.critique(
+    output = model._critique(
         original=original,
         inference_id="inf:1",
         prompt_id="prm:hypothesis",

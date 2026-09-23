@@ -123,6 +123,28 @@ class _Connection(Protocol):
 
 
 @dataclass(frozen=True)
+class InboxView:
+    """One project's inbox, and every authoritative input §17.22 derives state from.
+
+    FOUR FIELDS RATHER THAN A LIST OF ITEMS, because `derive_state` needs all four and a caller
+    that had to assemble them separately would eventually assemble them inconsistently -- reading
+    items now and the review queue a second later, so an item shows NEEDS_REVIEW against a review
+    that has since been answered.
+
+    NO STATE IS CARRIED. The view is the *inputs*; `derive_state` is the one function that turns
+    them into an `ItemState`, and it is the same function UX-001's contract tests exercise.
+    """
+
+    items: tuple[IngestionItem, ...]
+    open_review_ids: frozenset[str]
+    blocking_conflict_ids: frozenset[str]
+    jobs_by_item: dict[str, tuple[Job, ...]]
+
+    def jobs_for(self, item_id: str) -> tuple[Job, ...]:
+        return self.jobs_by_item.get(item_id, ())
+
+
+@dataclass(frozen=True)
 class IngestionResult:
     """What one production ingestion produced, end to end."""
 
@@ -210,6 +232,8 @@ class IngestionService:
         display_name: str,
         source_kind: str,
         submitted_at: dt.datetime,
+        sensitivity_label: SensitivityLabel,
+        uri: str,
     ) -> None:
         """`012`'s rows: the inbox item, its stage attempts, and an ErrorRecord per failure.
 
@@ -242,6 +266,23 @@ class IngestionService:
             for result in outcome.stage_results:
                 if result.status is not StageStatus.FAILED or result.reason_code is None:
                     continue
+                component = f"lab_brain.ingestion.{result.stage.value.lower()}"
+                # Tier two FIRST, so the ErrorRecord's pointer resolves without relying on
+                # `012b`'s deferral. The detail carries the document's own sensitivity label,
+                # not the project's default: §17.24 redacts against the actor's clearance, and a
+                # parse failure over an NDA datasheet is differently classified from one over a
+                # public preprint even inside the same project.
+                detail_ref = self._surface.record_technical_detail(
+                    detail_ref=f"dtl:{outcome.item_id}:{result.stage.value.lower()}",
+                    project_id=outcome.project_id,
+                    sensitivity=sensitivity_label,
+                    component=component,
+                    message=(
+                        f"{result.stage.value} failed with {result.reason_code} "
+                        f"({result.error_class.value if result.error_class else 'SYSTEM_ERROR'})"
+                    ),
+                    source_path=uri,
+                )
                 record = self._surface.record_error(
                     project_id=outcome.project_id,
                     trace_id=job.trace_id,
@@ -249,12 +290,13 @@ class IngestionService:
                         (result.error_class or StageErrorClass.SYSTEM_ERROR).value
                     ),
                     reason_code=result.reason_code,
-                    component=f"lab_brain.ingestion.{result.stage.value.lower()}",
+                    component=component,
                     occurred_at=result.finished_at or result.started_at,
                     item_id=outcome.item_id,
                     job_id=job.job_id,
                     attempt_count=job.attempt_count,
                     max_attempts=job.max_attempts,
+                    technical_detail_ref=detail_ref,
                 )
                 error_ids[result.reason_code] = record.error_id
             self._surface.record_stage_results(
@@ -266,24 +308,57 @@ class IngestionService:
 
     # -- the surface reads the CLI is built on ------------------------------
 
-    def inbox(self, project_id: str) -> tuple[IngestionItem, ...]:
-        """§17.22's rows for one project. State is derived by the caller, never returned."""
-        return self._surface.items_for_project(project_id)
+    def inbox(self, *, actor_id: str, project_id: str) -> InboxView:
+        """§17.22's rows for one project, for an actor authorized to see them.
+
+        THE ACTOR IS REQUIRED AND IS ACTUALLY CHECKED. The previous signature took only a
+        project. `lab-brain inbox` still demanded `--actor`, parsed it, and threw it away -- so
+        the flag was presentation-only governance and any string reached any project's items.
+        `--actor` that is not consulted is worse than no flag at all, because the command *looks*
+        governed.
+
+        RAISES rather than returning empty. An empty inbox is a legitimate answer for a member of
+        a quiet project, and returning it to a non-member would leak nothing about contents but
+        would tell them the project exists and they are simply unlucky. `ScientificReadRefused`
+        is what the CLI renders, identically for every refusal reason.
+
+        MEMBERSHIP IS THE WHOLE QUESTION HERE, and only here. The inbox lists item ids, derived
+        states and display names -- no canonical evidence body, no sensitivity label. A surface
+        that returned document *contents* on membership alone would be the R-7 defect again, and
+        `evidence_for` is the one that must ask the harder question.
+        """
+        self.read_gate().require_project(actor_id=actor_id, project_id=project_id)
+        items = self._surface.items_for_project(project_id)
+        return InboxView(
+            items=items,
+            open_review_ids=self._surface.open_review_ids(project_id),
+            blocking_conflict_ids=self._surface.blocking_conflict_ids(project_id),
+            jobs_by_item={
+                item.item_id: tuple(
+                    job for job in (self._jobs.get(job_id) for job_id in item.job_ids) if job
+                )
+                for item in items
+            },
+        )
 
     def diagnostics(self, catalog: MessageCatalog | None = None) -> DiagnosticsService:
-        """UX-003's production service over durable `012` rows.
+        """UX-003's production service over durable `012` and `012b` rows.
 
-        `load_detail` resolves nothing at M1 and says so by returning `None`: `012` stores
-        `technical_detail_ref` as a POINTER and no store backs it yet. The consequence is
-        conservative in the right direction -- an actor holding the scope sees the default
-        payload rather than detail that does not exist -- and the scope check, the redaction and
-        the not-found semantics are all still the service's.
+        `load_detail` reads `technical_details`, which `012b` added: the detail is a row of its
+        own rather than a column on `error_records`, because §17.24's default payload is built
+        from the error record and inlining the detail would mean `DiagnosticsService` was
+        redacting something it had already handed over.
+
+        The membership resolver is the raw row, not a filtered one -- `can_access_project` reads
+        `active` off it, and a loader that dropped inactive rows would answer "not a member" for
+        a revoked membership, which is the same verdict by accident rather than by rule.
         """
         return DiagnosticsService(
             catalog=catalog or default_catalog(),
             load_error=self._surface.error,
-            load_detail=lambda _ref: None,
+            load_detail=self._surface.technical_detail,
             membership_of=self._load_membership,
+            actor_of=self._load_actor,
         )
 
     # -- the vertical -------------------------------------------------------
@@ -377,6 +452,8 @@ class IngestionService:
             display_name=uri,
             source_kind=_SOURCE_KIND[source_origin],
             submitted_at=job.submitted_at,
+            sensitivity_label=sensitivity_label,
+            uri=uri,
         )
 
         # The Run is minted OUTSIDE the ingestion transactions. `job_complete` takes its own row
@@ -452,6 +529,8 @@ class IngestionService:
             display_name=artifact.uri or artifact.artifact_id,
             source_kind=_SOURCE_KIND[artifact.source_origin],
             submitted_at=job.submitted_at,
+            sensitivity_label=occurrence.sensitivity_label,
+            uri=artifact.uri,
         )
 
         finished = self._clock()
