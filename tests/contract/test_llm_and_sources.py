@@ -43,6 +43,7 @@ from lab_brain.sources.adapter import (
     SourceRouter,
     SourceVisibility,
 )
+from tests.classification_fixtures import artifact_id, labelled
 from tests.conftest_fixtures import TOY_SCHEMA_REF
 
 NOW = dt.datetime(2026, 9, 21, 12, 0, tzinfo=dt.UTC)
@@ -61,6 +62,22 @@ def _bundle(attestation_ids: tuple[str, ...] = ("att:1", "att:2")) -> EvidenceBu
         condition_schema_versions={"toy": TOY_SCHEMA_REF},
         ordered_attestation_ids=attestation_ids,
         project_id=PROJECT,
+    )
+
+
+#: The two attestations `_bundle` names, resolved to two PUBLIC artifacts. Written out rather
+#: than defaulted so what the production classifier reads is visible in this file: an attestation
+#: missing here has no artifact, which is what an unclassifiable bundle looks like.
+PUB_1 = artifact_id("public-one")
+PUB_2 = artifact_id("public-two")
+ATTESTED = {"att:1": PUB_1, "att:2": PUB_2, "att:3": PUB_1, "att:9": PUB_2}
+
+
+def _classifier():
+    return labelled(
+        {PUB_1: SensitivityLabel.PUBLIC, PUB_2: SensitivityLabel.PUBLIC},
+        project_id=PROJECT,
+        attestations=ATTESTED,
     )
 
 
@@ -107,6 +124,7 @@ def _llm(*, slots: tuple[ModelSlot, ...] | None = None, reply: str = "a critique
         prompts=(PromptTemplate("prm:hypothesis", "3.1.0", "Consider {evidence}"),),
         complete=lambda _text, _slot: reply,
         runner=_runner(),
+        classifier=_classifier(),
         source_policy_version="srp:1.0.0",
     )
 
@@ -121,7 +139,6 @@ def _invoke(model: ScientificLLM, **overrides):
         "trace_id": "trc:1",
         "project_id": PROJECT,
         "actor_id": "act:test",
-        "sensitivity": SensitivityLabel.PUBLIC,
         "now": NOW,
     }
     payload.update(overrides)
@@ -167,6 +184,7 @@ def test_a_call_without_an_evidence_bundle_is_refused_before_the_model_is_reache
         prompts=(PromptTemplate("prm:hypothesis", "3.1.0", "x"),),
         complete=must_not_be_called,
         runner=_runner(),
+        classifier=_classifier(),
     )
     with pytest.raises(LLMRefusal) as caught:
         _invoke(model, bundle=None)
@@ -243,7 +261,6 @@ def test_a_critique_that_changed_nothing_is_refused():
             trace_id="trc:1",
             project_id=PROJECT,
             actor_id="act:test",
-            sensitivity=SensitivityLabel.PUBLIC,
             now=NOW,
         )
     assert caught.value.reason is LLMRefusalReason.CRITIQUE_ROUTE_UNCHANGED
@@ -263,7 +280,6 @@ def test_a_critique_over_a_different_bundle_is_accepted():
         trace_id="trc:1",
         project_id=PROJECT,
         actor_id="act:test",
-        sensitivity=SensitivityLabel.PUBLIC,
         now=NOW,
     )
     assert output.provenance.inference_id == "inf:1"
@@ -434,22 +450,26 @@ def test_swapping_adapters_changes_no_router_or_cognition_code():
     changes, and the record schema is the same object in both cases -- which is what
     "normalized record schema 相同" means operationally.
     """
-    router = SourceRouter([_FakeAdapter("src:literature")], runner=_runner())
+    router = SourceRouter(
+        [_FakeAdapter("src:literature")], runner=_runner(), classifier=_classifier()
+    )
     first = router.search(
         SourceQuery("cj reverse bias"),
         project_id=PROJECT,
         actor_id="act:test",
-        sensitivity=SensitivityLabel.PUBLIC,
+        context_artifact_ids=(PUB_1,),
     )
 
     swapped = SourceRouter(
-        [_FakeAdapter("src:github"), _FakeAdapter("src:patents")], runner=_runner()
+        [_FakeAdapter("src:github"), _FakeAdapter("src:patents")],
+        runner=_runner(),
+        classifier=_classifier(),
     )
     second = swapped.search(
         SourceQuery("cj reverse bias"),
         project_id=PROJECT,
         actor_id="act:test",
-        sensitivity=SensitivityLabel.PUBLIC,
+        context_artifact_ids=(PUB_1,),
     )
 
     assert {type(r) for r in first} == {type(r) for r in second} == {ExternalSourceRecord}
@@ -463,7 +483,9 @@ def test_removing_an_adapter_does_not_prevent_startup_or_search():
     """A router that raised on a missing adapter would make every deployment carry every
     provider -- and one provider's outage would be an outage in all of them."""
     router = SourceRouter(
-        [_FakeAdapter("src:literature"), _FakeAdapter("src:github")], runner=_runner()
+        [_FakeAdapter("src:literature"), _FakeAdapter("src:github")],
+        runner=_runner(),
+        classifier=_classifier(),
     )
     router.remove("src:github")
     assert router.providers == ("src:literature",)
@@ -471,17 +493,17 @@ def test_removing_an_adapter_does_not_prevent_startup_or_search():
         SourceQuery("anything"),
         project_id=PROJECT,
         actor_id="act:test",
-        sensitivity=SensitivityLabel.PUBLIC,
+        context_artifact_ids=(PUB_1,),
     ), "search broke when an adapter was removed"
 
-    empty = SourceRouter(runner=_runner())
+    empty = SourceRouter(runner=_runner(), classifier=_classifier())
     assert empty.providers == ()
     assert (
         empty.search(
             SourceQuery("anything"),
             project_id=PROJECT,
             actor_id="act:test",
-            sensitivity=SensitivityLabel.PUBLIC,
+            context_artifact_ids=(PUB_1,),
         )
         == ()
     )
@@ -496,12 +518,13 @@ def test_an_unreachable_provider_is_skipped_rather_than_failing_the_query():
     router = SourceRouter(
         [_FakeAdapter("src:literature"), _FakeAdapter("src:offline", reachable=False)],
         runner=_runner(),
+        classifier=_classifier(),
     )
     results = router.search(
         SourceQuery("anything"),
         project_id=PROJECT,
         actor_id="act:test",
-        sensitivity=SensitivityLabel.PUBLIC,
+        context_artifact_ids=(PUB_1,),
     )
     assert {r.provider for r in results} == {"src:literature"}
     assert {h.provider_id for h in router.health() if not h.reachable} == {"src:offline"}
@@ -515,14 +538,16 @@ def test_fetching_by_name_from_a_missing_or_unreachable_provider_raises():
     Silently substituting another provider would change where the evidence came from without
     saying so, which is a provenance corruption rather than a degraded query.
     """
-    router = SourceRouter([_FakeAdapter("src:offline", reachable=False)], runner=_runner())
+    router = SourceRouter(
+        [_FakeAdapter("src:offline", reachable=False)], runner=_runner(), classifier=_classifier()
+    )
     with pytest.raises(ProviderUnavailable, match="no adapter registered"):
         router.fetch(
             "src:absent",
             "doi:10.1000/x",
             project_id=PROJECT,
             actor_id="act:test",
-            sensitivity=SensitivityLabel.PUBLIC,
+            context_artifact_ids=(PUB_1,),
         )
     with pytest.raises(ProviderUnavailable, match="unreachable"):
         router.fetch(
@@ -530,7 +555,7 @@ def test_fetching_by_name_from_a_missing_or_unreachable_provider_raises():
             "doi:10.1000/x",
             project_id=PROJECT,
             actor_id="act:test",
-            sensitivity=SensitivityLabel.PUBLIC,
+            context_artifact_ids=(PUB_1,),
         )
 
 
@@ -540,17 +565,19 @@ def test_search_results_are_ordered_deterministically():
     """A retrieval whose order depended on registry iteration would not be reproducible, and
     EVI-006's bundle hash is computed over an ordered set."""
     adapters = [_FakeAdapter("src:b"), _FakeAdapter("src:a")]
-    first = SourceRouter(adapters, runner=_runner()).search(
+    first = SourceRouter(adapters, runner=_runner(), classifier=_classifier()).search(
         SourceQuery("x"),
         project_id=PROJECT,
         actor_id="act:test",
-        sensitivity=SensitivityLabel.PUBLIC,
+        context_artifact_ids=(PUB_1,),
     )
-    second = SourceRouter(list(reversed(adapters)), runner=_runner()).search(
+    second = SourceRouter(
+        list(reversed(adapters)), runner=_runner(), classifier=_classifier()
+    ).search(
         SourceQuery("x"),
         project_id=PROJECT,
         actor_id="act:test",
-        sensitivity=SensitivityLabel.PUBLIC,
+        context_artifact_ids=(PUB_1,),
     )
     assert [r.canonical_locator for r in first] == [r.canonical_locator for r in second]
 

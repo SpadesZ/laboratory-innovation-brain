@@ -14,9 +14,24 @@ it had not earned:
 Both are now durable and both are read back through a **new connection**, which is the only thing
 that distinguishes persistence from a variable.
 
-Every read of canonical evidence goes through `ScientificReadGate`, and every external effect goes
-through `AuthorizedExternalRunner`. This file cannot reach either around those boundaries, because
-the composition root does not expose a way to.
+AND WHAT CHANGED AFTER THE SECOND AUDIT, because this file was itself the evidence for two claims
+it undermined:
+
+    it called `svc.unauthorized_reader()` to fetch canonical bodies -- so the production
+    composition root still exported a bypass, and the M1 vertical was the caller proving it was
+    reachable. The accessor is gone; a test that needs the low-level loader builds one.
+
+    it composed `invoke(); record_inference()` by hand -- so the vertical demonstrated exactly the
+    two-call shape whose gap leaves a model output with no durable provenance. It now calls the
+    production operation, which does not return until the record is reloaded and compared.
+
+    it ended with a CLI over an `ErrorRecord` the test constructed. It now runs the real `main()`
+    against the durable `012` rows the ingestion wrote.
+
+Every read of canonical evidence goes through `ScientificReadGate`, every external effect goes
+through `AuthorizedExternalRunner`, and every egress classification is derived from
+`ArtifactOccurrence` rows rather than declared by this file. It cannot reach around any of them,
+because the composition root does not expose a way to.
 
 WHAT THIS FILE IS AND IS NOT. It is the integration claim: the parts compose through production
 code that owns its own boundaries. It is NOT each requirement's evidence -- every requirement keeps
@@ -41,6 +56,7 @@ from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.core.models.job import JobState, Run, RunStatus
 from lab_brain.core.models.source_work import RetractionCheck
 from lab_brain.core.repositories.episodes import SqlEpisodeStore
+from lab_brain.core.repositories.evidence import SqlAttestationStore
 from lab_brain.core.repositories.inference import SqlInferenceProvenanceStore
 from lab_brain.core.repositories.jobs import SqlJobStore
 from lab_brain.evidence.dense_index import DenseEvidenceIndex, EmbeddingSpace, hashing_embedder
@@ -52,7 +68,8 @@ from lab_brain.ingestion.admission_gate import (
     RefusalReason,
 )
 from lab_brain.ingestion.pipeline import IngestionStage, StageStatus
-from lab_brain.interfaces.cli import run_explain, run_inbox
+from lab_brain.interfaces.cli import main
+from lab_brain.interfaces.config import DSN_VARIABLE
 from lab_brain.security.egress import EgressAuditLog, EgressGate, EgressPolicy, PrivacyMode
 from lab_brain.security.external import (
     AuthorizedExternalRunner,
@@ -60,12 +77,11 @@ from lab_brain.security.external import (
     ExternalReach,
 )
 from lab_brain.storage.artifacts.local import LocalArtifactStore
-from lab_brain.surface.catalog import default_catalog
-from lab_brain.surface.disclosure import DiagnosticsService
+from lab_brain.storage.postgres.evidence_units import PostgresEvidenceUnitReader
 from lab_brain.surface.errors import BudgetRefused, ErrorClass, ErrorRecord, decide_retry
 from lab_brain.surface.health import CapabilityAvailability, ComponentStatus, derive_health
-from lab_brain.surface.ingestion_item import IngestionItem, ItemState, derive_state
-from tests.conftest_fixtures import TOY_SCHEMA_REF
+from lab_brain.surface.ingestion_item import ItemState, derive_state
+from tests.conftest_fixtures import TOY_SCHEMA_REF, make_attestation
 from tests.evidence_fixtures import fixture_artifact_id, fixture_bytes
 from tests.job_fixtures import make_run
 from tests.postgres_fixtures import database_url
@@ -142,6 +158,74 @@ def _ingest(svc, *, key="idem:vertical", episode_id=EPISODE, label=SensitivityLa
     )
 
 
+def _env() -> dict[str, str]:
+    """The environment `main` reads its DSN from.
+
+    Passed as a mapping rather than set on the process: `read_settings` takes one so a test does
+    not have to mutate `os.environ` and hope the teardown runs. The CLI opens its own connection
+    from this, which is the point -- a test that handed `main` an already-open connection would
+    be testing everything except the wiring that was missing.
+    """
+    return {DSN_VARIABLE: database_url()}
+
+
+def raw_reader(db) -> PostgresEvidenceUnitReader:
+    """The ACL-free canonical loader, built HERE as test infrastructure.
+
+    Production exposes none. This file previously called `svc.unauthorized_reader()` -- which is
+    to say the M1 vertical, the document that certifies the system composes correctly, was the
+    proof that a public bypass existed and was reachable. Building the reader locally makes it
+    scaffolding: the tests below need the plaintext in order to assert its ABSENCE from the
+    authorized surfaces.
+    """
+    return PostgresEvidenceUnitReader(db)
+
+
+def attest(db, artifact_id: str, *, attestation_id: str = "att:vertical") -> str:
+    """A durable Attestation pointing at a real Artifact, so egress classification is derivable.
+
+    SEC-001's classification is now read from provenance: bundle -> attestation ->
+    `source_artifact_id` -> that artifact's occurrence in this project (§14.1). A bundle naming
+    attestations that do not exist is unclassifiable and refused, which is correct and makes this
+    row a REQUIREMENT of the vertical rather than decoration -- the model call cannot be
+    authorized without the evidence trail that says what it is sending.
+    """
+    db.execute(
+        "INSERT INTO source_works (source_work_id, work_type, title, trust_class) "
+        "VALUES ('swk:test', 'TECHNICAL_REPORT', 'Rs anomaly report', 'INTERNAL_MEASUREMENT') "
+        "ON CONFLICT DO NOTHING"
+    )
+    db.execute(
+        "INSERT INTO claims (claim_id, normalized_proposition) "
+        "VALUES ('clm:test', 'Cj falls with reverse bias') ON CONFLICT DO NOTHING"
+    )
+    # EVI-005: an attestation's conditions are interpreted under a REGISTERED schema version.
+    domain, rest = TOY_SCHEMA_REF.split("/", 1)
+    schema_id, version = rest.split("@", 1)
+    db.execute(
+        "INSERT INTO condition_schemas (domain, schema_id, version, json_schema, "
+        "comparator_version) VALUES (%s, %s, %s, "
+        '\'{"type": "object", "properties": {}}\'::jsonb, \'1.0.0\') '
+        "ON CONFLICT DO NOTHING",
+        (domain, schema_id, version),
+    )
+    SqlAttestationStore(db).add(
+        make_attestation(
+            attestation_id=attestation_id,
+            # Exactly one source. §17.2 requires that: an attestation claiming both an artifact
+            # and a work cannot say which one the locator is into.
+            source_artifact_id=artifact_id,
+            source_work_id=None,
+            project_id=PROJECT,
+            # No conditions: EVI-005 validates every declared field against the registered
+            # schema, and this row exists to carry a `source_artifact_id`, not to exercise
+            # condition matching -- which has its own suite.
+            conditions={},
+        )
+    )
+    return attestation_id
+
+
 def _bundle(ids: tuple[str, ...]) -> EvidenceBundle:
     return EvidenceBundle(
         research_intent=ResearchIntent(intent="DIAGNOSIS", stakes="HIGH"),
@@ -155,7 +239,7 @@ def _bundle(ids: tuple[str, ...]) -> EvidenceBundle:
     )
 
 
-def _model(runner, *, reach=ExternalReach.LOCAL) -> ScientificLLM:
+def _model(runner, classifier, *, reach=ExternalReach.LOCAL) -> ScientificLLM:
     return ScientificLLM(
         slots=(
             ModelSlot(LogicalSlot.HYPOTHESIS, "toy-model", "1.0.0", provider="local", reach=reach),
@@ -163,6 +247,7 @@ def _model(runner, *, reach=ExternalReach.LOCAL) -> ScientificLLM:
         prompts=(PromptTemplate("prm:hypothesis", "3.1.0", "Consider the evidence"),),
         complete=lambda _t, _s: "Cj falls because the depletion width grows.",
         runner=runner,
+        classifier=classifier,
         source_policy_version="sp:diagnosis@1.0.0",
     )
 
@@ -231,7 +316,7 @@ def test_the_whole_m1_vertical_is_durable_and_authorized(world):
         assert unit.decision.allowed
 
     index = DenseEvidenceIndex("idx:dense:v1", SPACE, hashing_embedder(SPACE))
-    index.add_all(svc.unauthorized_reader().load_for_project(PROJECT), project_id=PROJECT)
+    index.add_all(raw_reader(db).load_for_project(PROJECT), project_id=PROJECT)
     candidates = index.search("reverse bias capacitance", project_id=PROJECT, space=SPACE)
     resolved = svc.candidate_resolver().resolve(candidates, actor_id=ACTOR, project_id=PROJECT)
     assert resolved, "authorized candidate resolution returned nothing"
@@ -251,9 +336,19 @@ def test_the_whole_m1_vertical_is_durable_and_authorized(world):
     )
     assert evaluate_major_revision(work).outcome is RevisionOutcome.ALLOW
 
-    # 7. An AUTHORIZED scientific model call, and DURABLE provenance.
-    bundle = _bundle(tuple(sorted(u.unit.evidence_unit_id for u in resolved)[:2]))
-    output = _model(_runner()).invoke(
+    # 7. ONE PRODUCTION OPERATION: authorize -> invoke -> durable write -> reload -> return.
+    #
+    # Not `invoke(); record_inference()`. That pair was two operations with a gap between them,
+    # and a crash in the gap leaves a scientific model output with no durable provenance -- the
+    # only case the exit gate's "all scientific LLM calls persist" sentence is about. `infer` does
+    # not return until the record has been written, committed and compared.
+    #
+    # The egress classification is DERIVED from the bundle's attestation, which is why `attest`
+    # above is load-bearing rather than decoration: an unclassifiable bundle is refused, so the
+    # call is only authorized because the evidence trail says what is being sent.
+    attest(db, result.artifact.artifact_id)
+    bundle = _bundle(("att:vertical",))
+    durable_inference = svc.inference_service(_model(_runner(), svc.classifier())).infer(
         inference_id="inf:vertical",
         slot=LogicalSlot.HYPOTHESIS,
         role="hypothesis_generator",
@@ -262,49 +357,45 @@ def test_the_whole_m1_vertical_is_durable_and_authorized(world):
         trace_id=TRACE,
         project_id=PROJECT,
         actor_id=ACTOR,
-        sensitivity=SensitivityLabel.INTERNAL,
         now=NOW,
     )
-    written = svc.record_inference(output, project_id=PROJECT)
 
     # 8. RELOAD the provenance through a new connection, and check exact equality.
     with psycopg.connect(database_url(), autocommit=True) as fresh:
         store = SqlInferenceProvenanceStore(fresh)
         durable = store.get("inf:vertical")
         assert durable is not None
-        assert durable == written == output.provenance
+        assert durable == durable_inference.provenance
         assert durable.evidence_bundle_hash == bundle.canonical_hash
         assert durable.trace_id == TRACE
-        assert store.output_for("inf:vertical") == output.text
+        assert store.output_for("inf:vertical") == durable_inference.text
 
         # And the belief gate reads THAT record, not a set this test supplied.
         gate = IngestionService(
             connection=fresh, artifact_store=LocalArtifactStore(".")
         ).belief_basis_gate()
-        assert gate.evaluate(["inf:vertical"]).permitted
+        assert gate.evaluate([durable_inference.basis_ref]).permitted
         assert not gate.evaluate(["inf:never-recorded"]).permitted
 
     # 9. One trace, end to end (§12.5).
     assert {episode.trace_id, result.job.trace_id, result.run.trace_id, durable.trace_id} == {TRACE}
 
-    # 10. Derived UX surfaces + the CLI, over the same projection.
-    item = IngestionItem(
-        item_id=result.outcome.item_id,
-        project_id=PROJECT,
-        actor_id=ACTOR,
-        trace_id=TRACE,
-        raw_artifact_id=result.artifact.artifact_id,
-        source_kind="UPLOAD",
-        display_name="rs_anomaly_report.md",
-        submitted_at=NOW,
-        stage_results=tuple(result.outcome.stage_results),
-        job_ids=(job.job_id,),
-    )
+    # 10. The DURABLE inbox, derived -- not an item this test constructed.
+    items = svc.inbox(PROJECT)
+    assert [i.item_id for i in items] == [result.outcome.item_id]
+    item = items[0]
+    assert item.raw_artifact_id == result.artifact.artifact_id
+    assert item.job_ids == (job.job_id,)
     assert derive_state(item, jobs=[result.job]) is ItemState.READY
 
+    # 11. The REAL CLI, through a new process-shaped connection. `main` reads its DSN from the
+    # mapping it is given, opens the connection, and closes it -- which is the wiring that
+    # `run_inbox` alone cannot exercise, and the wiring that did not exist.
     out = io.StringIO()
-    assert run_inbox([item], out=out) == 0
-    assert "READY=1" in out.getvalue()
+    assert main(["inbox", "--project", PROJECT, "--actor", ACTOR], out=out, env=_env()) == 0
+    printed = out.getvalue()
+    assert "READY=1" in printed
+    assert result.outcome.item_id in printed
 
     health = derive_health(
         capabilities=[CapabilityAvailability(INGEST_CAPABILITY, available=True)],
@@ -323,17 +414,17 @@ def test_the_whole_m1_vertical_is_durable_and_authorized(world):
 
 def test_unauthorized_evidence_retrieval_does_not_return_the_body(world):
     """R-7 at the vertical. A member with PUBLIC clearance, INTERNAL evidence."""
-    _db, svc = world
+    db, svc = world
     svc.open_episode(project_id=PROJECT, goal="g", trace_id=TRACE, episode_id=EPISODE)
     _job, result = _ingest(svc)
-    secret = svc.unauthorized_reader().load_for_project(PROJECT)[0].body
+    secret = raw_reader(db).load_for_project(PROJECT)[0].body
 
     refused = svc.evidence_for(actor_id=UNCLEARED, project_id=PROJECT)
     assert refused == ()
     assert secret not in repr(refused)
 
     index = DenseEvidenceIndex("idx:dense:v1", SPACE, hashing_embedder(SPACE))
-    index.add_all(svc.unauthorized_reader().load_for_project(PROJECT), project_id=PROJECT)
+    index.add_all(raw_reader(db).load_for_project(PROJECT), project_id=PROJECT)
     candidates = index.search("reverse bias", project_id=PROJECT, space=SPACE, limit=50)
     by_actor = svc.candidate_resolver().resolve(candidates, actor_id=UNCLEARED, project_id=PROJECT)
     assert by_actor == ()
@@ -343,10 +434,11 @@ def test_unauthorized_evidence_retrieval_does_not_return_the_body(world):
 
 def test_external_egress_cannot_bypass_the_gate(world):
     """SEC-001 at the vertical. The transport is fatal, so this proves ordering."""
-    _db, svc = world
+    db, svc = world
     svc.open_episode(project_id=PROJECT, goal="g", trace_id=TRACE, episode_id=EPISODE)
     _job, result = _ingest(svc, label=SensitivityLabel.RESTRICTED_NDA)
-    body = svc.unauthorized_reader().load_for_project(PROJECT)[0].body
+    body = raw_reader(db).load_for_project(PROJECT)[0].body
+    attest(db, result.artifact.artifact_id)
 
     def fatal(_text, _slot):
         raise AssertionError("the model transport was entered before authorization")
@@ -365,18 +457,21 @@ def test_external_egress_cannot_bypass_the_gate(world):
         prompts=(PromptTemplate("prm:hypothesis", "3.1.0", body),),
         complete=fatal,
         runner=runner,
+        classifier=svc.classifier(),
     )
+    # The caller ATTEMPTS THE DOWNGRADE, declaring PUBLIC over RESTRICTED_NDA evidence. Under the
+    # old signature this was a supported call and the gate answered correctly about a fiction.
     with pytest.raises(ExternalEffectRefused):
         cloud.invoke(
             inference_id="inf:leak",
             slot=LogicalSlot.HYPOTHESIS,
             role="hypothesis_generator",
             prompt_id="prm:hypothesis",
-            bundle=_bundle(("att:1",)),
+            bundle=_bundle(("att:vertical",)),
             trace_id=TRACE,
             project_id=PROJECT,
             actor_id=ACTOR,
-            sensitivity=SensitivityLabel.RESTRICTED_NDA,
+            escalate=frozenset({SensitivityLabel.PUBLIC}),
             now=NOW,
         )
     assert len(runner.audit.blocked()) == 1
@@ -519,37 +614,104 @@ def test_unknown_licence_code_never_reaches_generation_context(world):
     assert not admission.permitted
 
 
-def test_the_cli_explains_an_error_without_leaking_detail(world):
-    """The CLI over the same disclosure rules, at the end of the vertical."""
-    _db, _svc = world
-    service = DiagnosticsService(
-        catalog=default_catalog(),
-        load_error=lambda key: (
-            ErrorRecord(
-                error_id=key,
-                project_id=PROJECT,
-                trace_id=TRACE,
-                error_class=ErrorClass.SYSTEM_ERROR,
-                reason_code="PARSE_TEXT_FAILED",
-                component="FigureParser",
-                occurred_at=NOW,
-            )
-            if key == "ERR-1"
-            else None
-        ),
-        load_detail=lambda _ref: None,
-        membership_of=lambda _a, project: (
-            __import__(
-                "lab_brain.core.models.access", fromlist=["ProjectMembership"]
-            ).ProjectMembership(actor_id=ACTOR, project_id=PROJECT, role="RESEARCHER")
-            if project == PROJECT
-            else None
-        ),
-    )
+def test_the_real_cli_explains_a_durable_error_without_leaking_detail(world):
+    """UX-003 through the REAL entry point, over a row the ingestion actually wrote.
+
+    The previous version of this test built an `ErrorRecord` in memory and handed it to a
+    `DiagnosticsService` it also built. That proved the disclosure rules and nothing about
+    whether anything ever produced such a row or whether the command could reach one.
+
+    Here a parse failure writes an `error_records` row, `main` opens its own connection, and the
+    catalog text comes back. `--technical` is refused without the scope, which is the check §17.24
+    requires to be server-side.
+    """
+    _db, svc = world
+    svc.open_episode(project_id=PROJECT, goal="g", trace_id=TRACE, episode_id=EPISODE)
+
+    class _Broken:
+        def parse(self, *_a, **_k):
+            raise RuntimeError("figure extraction timed out")
+
+    svc._pipeline._parser = _Broken()
+    _job, result = _ingest(svc, key="idem:cli-error")
+
+    errors = svc.inbox(PROJECT)[0].error_ids
+    assert errors, "the failed parse wrote no ErrorRecord, so there is nothing to explain"
+    error_id = errors[0]
+    assert error_id.startswith("ERR-"), "§17.23's reference is what a human quotes"
+
     out = io.StringIO()
-    assert run_explain(service, "ERR-1", actor_id=ACTOR, project_id=PROJECT, out=out) == 0
-    assert "Some text could not be extracted" in out.getvalue()
-    assert "Traceback" not in out.getvalue()
+    assert (
+        main(["explain", error_id, "--project", PROJECT, "--actor", ACTOR], out=out, env=_env())
+        == 0
+    )
+    printed = out.getvalue()
+    assert error_id in printed
+    assert TRACE in printed
+    assert "Traceback" not in printed
+
+    # Technical detail is an authorization decision, and this actor holds no scope.
+    technical = io.StringIO()
+    assert (
+        main(
+            ["explain", error_id, "--project", PROJECT, "--actor", ACTOR, "--technical"],
+            out=technical,
+            env=_env(),
+        )
+        == 0
+    )
+    assert "DIAGNOSTICS_SCOPE_REQUIRED" in technical.getvalue()
+    assert result.outcome.result_for(IngestionStage.PARSE_TEXT).status is StageStatus.FAILED
+
+
+def test_the_real_cli_cannot_be_used_to_probe_another_projects_errors(world):
+    """§17.24's oracle rule at the vertical, through the real command.
+
+    An id that never existed and an id in a project this actor cannot see must produce the SAME
+    response -- an attacker enumerating ids learns which exist from any difference. Compared after
+    substituting the id, so the only remaining difference would be a real one.
+    """
+    db, _svc = world
+    db.execute(
+        "INSERT INTO projects (project_id, name) VALUES ('prj:other', 'Other') "
+        "ON CONFLICT DO NOTHING"
+    )
+    db.execute(
+        "INSERT INTO error_records (error_id, project_id, trace_id, error_class, reason_code, "
+        "component, occurred_at) VALUES ('ERR-20260101-0001', 'prj:other', 'trc:other', "
+        "'SYSTEM_ERROR', 'PARSE_TEXT_FAILED', 'FigureParser', %s)",
+        (NOW,),
+    )
+
+    missing = io.StringIO()
+    assert (
+        main(
+            ["explain", "ERR-20260922-9999", "--project", PROJECT, "--actor", ACTOR],
+            out=missing,
+            env=_env(),
+        )
+        == 1
+    )
+    foreign = io.StringIO()
+    assert (
+        main(
+            ["explain", "ERR-20260101-0001", "--project", PROJECT, "--actor", ACTOR],
+            out=foreign,
+            env=_env(),
+        )
+        == 1
+    )
+    assert missing.getvalue().replace("ERR-20260922-9999", "<id>") == foreign.getvalue().replace(
+        "ERR-20260101-0001", "<id>"
+    )
+
+
+def test_the_cli_refuses_to_run_without_configuration(world):
+    """No default connection. A command that quietly reached a plausible local database would
+    eventually report on the wrong one, confidently."""
+    out = io.StringIO()
+    assert main(["inbox", "--project", PROJECT, "--actor", ACTOR], out=out, env={}) == 2
+    assert DSN_VARIABLE in out.getvalue()
 
 
 def test_a_failed_parse_leaves_a_retryable_item_and_a_failed_run(world):

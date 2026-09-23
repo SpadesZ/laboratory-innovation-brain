@@ -43,7 +43,8 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from lab_brain.cognition.llm import BeliefBasisGate, ScientificOutput
+from lab_brain.cognition.inference import ScientificInferenceService
+from lab_brain.cognition.llm import BeliefBasisGate, ScientificLLM
 from lab_brain.core.models.access import Actor, ArtifactOccurrence, ProjectMembership
 from lab_brain.core.models.artifact import Artifact
 from lab_brain.core.models.base import utc_now
@@ -60,18 +61,50 @@ from lab_brain.core.scientific_read import (
     AuthorizedCandidateResolver,
     AuthorizedUnit,
     ScientificReadGate,
+    UnitSecurityDescriptor,
 )
 from lab_brain.ingestion.admission_gate import EvidenceAdmissionGate
-from lab_brain.ingestion.pipeline import IngestionOutcome, IngestionPipeline, IngestionStage
+from lab_brain.ingestion.pipeline import ErrorClass as StageErrorClass
+from lab_brain.ingestion.pipeline import (
+    IngestionOutcome,
+    IngestionPipeline,
+    IngestionStage,
+    StageStatus,
+)
 from lab_brain.ingestion.reverification import SegmentationReverifier
+from lab_brain.security.classification import ContextClassifier
 from lab_brain.storage.artifacts.interface import ArtifactStore
 from lab_brain.storage.postgres.evidence_units import PostgresEvidenceUnitReader
 from lab_brain.storage.postgres.ingestion_writer import PostgresIngestionWriter
+from lab_brain.storage.postgres.surface_store import PostgresSurfaceStore
+from lab_brain.surface.catalog import MessageCatalog, default_catalog
+from lab_brain.surface.disclosure import DiagnosticsService
+from lab_brain.surface.errors import ErrorClass
+from lab_brain.surface.ingestion_item import IngestionItem
 
 #: The capability an ingestion job runs under. Named once, because `006a` requires the Run's
 #: capability to equal the Job's and a literal repeated at both ends is a literal that drifts.
 INGEST_CAPABILITY = "cap:ingest_document"
 INGEST_BACKEND = "backend:local_parser"
+
+#: §6's `SourceOrigin` (six members) mapped onto §17.22's `source_kind` (three). The CHECK in
+#: `012` is the narrower vocabulary because the inbox column answers "how did this arrive" for a
+#: human triaging a list, not "which subsystem produced it".
+#:
+#: Written as an exhaustive dict rather than a default: a seventh `SourceOrigin` would raise a
+#: KeyError here at the moment it is added, which is a better failure than silently filing an
+#: unmapped origin under CONNECTOR and having the inbox quietly misdescribe it.
+_SOURCE_KIND: dict[SourceOrigin, str] = {
+    SourceOrigin.UPLOAD: "UPLOAD",
+    SourceOrigin.WATCHER_FILESYSTEM: "WATCHER",
+    SourceOrigin.WATCHER_GIT: "WATCHER",
+    SourceOrigin.EXTERNAL_CONNECTOR: "CONNECTOR",
+    # A run output and a derived artifact both enter through the system rather than through a
+    # person or a watcher; CONNECTOR is the closest of §17.22's three and neither is user-facing
+    # at M1.
+    SourceOrigin.RUN_OUTPUT: "CONNECTOR",
+    SourceOrigin.DERIVED: "CONNECTOR",
+}
 
 
 class _Connection(Protocol):
@@ -130,6 +163,7 @@ class IngestionService:
         self._jobs = SqlJobStore(connection)
         self._episodes = SqlEpisodeStore(connection)
         self._inferences = SqlInferenceProvenanceStore(connection)
+        self._surface = PostgresSurfaceStore(connection)
         self._reader = PostgresEvidenceUnitReader(connection)
         self._store = artifact_store
         self._pipeline = IngestionPipeline(artifact_store, self._commit_rows, self._rollback_rows)
@@ -167,6 +201,90 @@ class IngestionService:
             return
         with self._connection.transaction():
             self._writer.persist_evidence(outcome.evidence_units, outcome.evidence_occurrences)
+
+    def _persist_surface(
+        self,
+        outcome: IngestionOutcome,
+        *,
+        job: Job,
+        display_name: str,
+        source_kind: str,
+        submitted_at: dt.datetime,
+    ) -> None:
+        """`012`'s rows: the inbox item, its stage attempts, and an ErrorRecord per failure.
+
+        ONE TRANSACTION, because `012`'s stage/error trigger is deferred to the commit boundary:
+        a stage result naming an error must find it, and the error is projected from the same
+        failure. Either write order is legitimate inside one transaction and neither is across
+        two, which is exactly why the constraint is deferred rather than a foreign key.
+
+        WRITTEN AFTER THE EVIDENCE, NOT BEFORE. The inbox is a projection of what happened; an
+        item row written first would be visible while the ingestion it describes was still in
+        flight, and a reader would derive a state from stage results that do not yet exist.
+
+        The item's state is NOT written, because there is no column to write it to. A reader runs
+        `derive_state` over these rows.
+        """
+        with self._connection.transaction():
+            self._surface.record_item(
+                item_id=outcome.item_id,
+                project_id=outcome.project_id,
+                actor_id=outcome.actor_id or job.project_id,
+                trace_id=job.trace_id,
+                raw_artifact_id=(
+                    outcome.artifact.artifact_id if outcome.artifact is not None else None
+                ),
+                source_kind=source_kind,
+                display_name=display_name,
+                submitted_at=submitted_at,
+            )
+            error_ids: dict[str, str] = {}
+            for result in outcome.stage_results:
+                if result.status is not StageStatus.FAILED or result.reason_code is None:
+                    continue
+                record = self._surface.record_error(
+                    project_id=outcome.project_id,
+                    trace_id=job.trace_id,
+                    error_class=ErrorClass(
+                        (result.error_class or StageErrorClass.SYSTEM_ERROR).value
+                    ),
+                    reason_code=result.reason_code,
+                    component=f"lab_brain.ingestion.{result.stage.value.lower()}",
+                    occurred_at=result.finished_at or result.started_at,
+                    item_id=outcome.item_id,
+                    job_id=job.job_id,
+                    attempt_count=job.attempt_count,
+                    max_attempts=job.max_attempts,
+                )
+                error_ids[result.reason_code] = record.error_id
+            self._surface.record_stage_results(
+                outcome.item_id,
+                tuple(outcome.stage_results),
+                job_id=job.job_id,
+                error_ids=error_ids,
+            )
+
+    # -- the surface reads the CLI is built on ------------------------------
+
+    def inbox(self, project_id: str) -> tuple[IngestionItem, ...]:
+        """§17.22's rows for one project. State is derived by the caller, never returned."""
+        return self._surface.items_for_project(project_id)
+
+    def diagnostics(self, catalog: MessageCatalog | None = None) -> DiagnosticsService:
+        """UX-003's production service over durable `012` rows.
+
+        `load_detail` resolves nothing at M1 and says so by returning `None`: `012` stores
+        `technical_detail_ref` as a POINTER and no store backs it yet. The consequence is
+        conservative in the right direction -- an actor holding the scope sees the default
+        payload rather than detail that does not exist -- and the scope check, the redaction and
+        the not-found semantics are all still the service's.
+        """
+        return DiagnosticsService(
+            catalog=catalog or default_catalog(),
+            load_error=self._surface.error,
+            load_detail=lambda _ref: None,
+            membership_of=self._load_membership,
+        )
 
     # -- the vertical -------------------------------------------------------
 
@@ -253,6 +371,13 @@ class IngestionService:
             source_metadata=source_metadata,
         )
         self._persist_evidence(outcome)
+        self._persist_surface(
+            outcome,
+            job=job,
+            display_name=uri,
+            source_kind=_SOURCE_KIND[source_origin],
+            submitted_at=job.submitted_at,
+        )
 
         # The Run is minted OUTSIDE the ingestion transactions. `job_complete` takes its own row
         # lock, and holding a parse-length transaction across it would block every concurrent
@@ -321,6 +446,13 @@ class IngestionService:
             source_metadata=source_metadata,
         )
         self._persist_evidence(outcome)
+        self._persist_surface(
+            outcome,
+            job=job,
+            display_name=artifact.uri or artifact.artifact_id,
+            source_kind=_SOURCE_KIND[artifact.source_origin],
+            submitted_at=job.submitted_at,
+        )
 
         finished = self._clock()
         status = RunStatus.SUCCEEDED if outcome.evidence_units else RunStatus.FAILED
@@ -389,15 +521,49 @@ class IngestionService:
 
     # -- scientific inference (§17.14) --------------------------------------
 
-    def record_inference(self, output: ScientificOutput, *, project_id: str) -> InferenceProvenance:
-        """DURABLY persist a scientific LLM output and its provenance (LLM-001).
+    def inference_service(self, llm: ScientificLLM) -> ScientificInferenceService:
+        """The production scientific-inference operation for this deployment (LLM-001).
 
-        This is what makes the exit gate's "all scientific LLM calls persist bundle+provenance"
-        a true sentence rather than a description of an in-memory object. `003d` is append-only,
-        so a stored inference cannot later be made to claim a model it did not come from -- which
-        matters because §7.6 judges belief admissibility against exactly this row.
+        ONE OPERATION, not a call followed by a write. `record_inference` used to be public and
+        the vertical composed `invoke(); record_inference()` by hand -- so a crash between them
+        left a scientific model output with no durable provenance, which is the only case the
+        exit gate's "all scientific LLM calls persist" sentence was about. `infer` does not
+        return until the record has been written, committed and reloaded.
+
+        The LLM is a parameter rather than a constructor field because a deployment may have no
+        model slot configured at all, and an `IngestionService` that refused to build without one
+        would make ingestion depend on cognition.
         """
-        return self._inferences.record(output, project_id=project_id)
+        return ScientificInferenceService(llm=llm, store=self._inferences, commit=self._connection)
+
+    def classifier(self) -> ContextClassifier:
+        """Derives what material carries, from the rows ingestion wrote (SEC-001, §14.1).
+
+        Built on the SAME occurrence loader `read_gate` uses. A separate lookup here would let
+        the label that decides a read and the label that decides an egress drift apart -- and the
+        egress one is the copy that would be quietly more permissive, because that is the
+        direction a bug in a send path fails.
+        """
+        return ContextClassifier(
+            load_occurrence=self._load_occurrence,
+            artifact_of_attestation=self._artifact_of_attestation,
+        )
+
+    def _artifact_of_attestation(self, attestation_id: str, project_id: str) -> str | None:
+        """§17.2's `source_artifact_id`, project-scoped.
+
+        Scoped because an attestation resolved without a project would let a bundle name a row in
+        somebody else's project and inherit its classification -- which is a downgrade available
+        to anyone who can guess an id.
+        """
+        row = self._connection.execute(
+            "SELECT source_artifact_id FROM attestations "
+            "WHERE attestation_id = %s AND project_id = %s",
+            (attestation_id, project_id),
+        ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        return str(row[0])
 
     def inference(self, inference_id: str) -> InferenceProvenance | None:
         return self._inferences.get(inference_id)
@@ -433,29 +599,40 @@ class IngestionService:
         bodies -- an occurrence proves presence, not authorization, so a member with INTERNAL
         clearance received RESTRICTED_NDA text and every check the call made passed honestly.
 
+        ONE QUERY FOR DESCRIPTORS, THEN BODIES FOR THE ALLOWED ONES. `security_index_for_project`
+        returns `(unit_id, artifact_id)` pairs and no text; the refused units are never loaded.
+        The previous shape read every body first and filtered, which is a correct filter over an
+        exposure that had already happened.
+
         Returns `AuthorizedUnit`, not `EvidenceUnit`, so the decision that authorized each body
         travels with it: a bare list is indistinguishable from a list nobody checked.
         """
-        units = self._reader.load_for_project(project_id)
-        return self.read_gate().authorized_units(units, actor_id=actor_id, project_id=project_id)
+        descriptors = tuple(
+            UnitSecurityDescriptor(evidence_unit_id=unit_id, artifact_id=artifact_id)
+            for unit_id, artifact_id in self._reader.security_index_for_project(project_id)
+        )
+        return self.candidate_resolver().resolve_descriptors(
+            descriptors, actor_id=actor_id, project_id=project_id
+        )
 
     def candidate_resolver(self) -> AuthorizedCandidateResolver:
         """Retrieval → canonical bodies, authorized.
 
         Wraps rather than replaces EVI-010's locked boundary: a candidate still carries no body
         and the canonical unit is still re-loaded by identity. What is added is the question
-        §17.25.1 cannot answer.
-        """
-        return AuthorizedCandidateResolver(gate=self.read_gate(), load_unit=self._reader.load)
+        §17.25.1 cannot answer -- and the order in which it is asked.
 
-    def unauthorized_reader(self) -> PostgresEvidenceUnitReader:
-        """The ACL-free canonical loader, named so it cannot be mistaken for an authorized read.
-
-        It stays ACL-free deliberately -- it is what admission and the read gate themselves use,
-        and an ACL inside it would be a second copy of SEC-002. The name is the contract: a
-        caller reaching for this is opting out of authorization and has to say so.
+        THERE IS NO ACCESSOR FOR THE RAW READER. An intermediate shape exported one as
+        `unauthorized_reader()` and treated the name as the control. It is not: a production
+        service that returns a canonical-body loader answering to nobody has a public bypass
+        whatever it is called, and the M1 vertical was calling it. The reader is a private field
+        used by this class's own trusted paths; a test that needs the low-level loader builds one.
         """
-        return self._reader
+        return AuthorizedCandidateResolver(
+            gate=self.read_gate(),
+            artifact_of=self._reader.artifact_of,
+            load_unit=self._reader.load,
+        )
 
     def admission_gate(
         self,

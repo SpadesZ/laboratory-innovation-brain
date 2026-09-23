@@ -28,9 +28,10 @@ import pytest
 
 from lab_brain.composition import IngestionService
 from lab_brain.core.models.enums import SensitivityLabel
-from lab_brain.core.scientific_read import ScientificReadRefused
+from lab_brain.core.scientific_read import ScientificReadRefused, UnitSecurityDescriptor
 from lab_brain.evidence.dense_index import DenseEvidenceIndex, EmbeddingSpace, hashing_embedder
 from lab_brain.storage.artifacts.local import LocalArtifactStore
+from lab_brain.storage.postgres.evidence_units import PostgresEvidenceUnitReader
 from tests.evidence_fixtures import fixture_bytes
 
 pytestmark = [
@@ -110,14 +111,23 @@ def world(db, tmp_path):
     return db, svc, result
 
 
-def _secret_text(svc, result) -> str:
-    """The canonical body, read through the deliberately ACL-free loader.
+def raw_reader(db) -> PostgresEvidenceUnitReader:
+    """The ACL-free canonical loader, built HERE as test infrastructure.
 
-    Named `unauthorized_reader` in production for exactly this reason: a caller reaching for it
-    is opting out of authorization and has to say so. Here the test needs the plaintext to assert
-    its absence elsewhere.
+    Production no longer exposes one. An intermediate shape offered
+    `IngestionService.unauthorized_reader()` and argued the name was the contract; it is not -- a
+    production service handing out a canonical-body loader that answers to nobody has a public
+    bypass whatever the accessor is called, and the M1 vertical was calling it.
+
+    A test constructing its own is a different thing entirely: this file needs the plaintext in
+    order to assert its ABSENCE from the authorized surfaces, and building the reader here makes
+    that an explicit act of test scaffolding rather than a production capability.
     """
-    units = svc.unauthorized_reader().load_for_project(PROJECT)
+    return PostgresEvidenceUnitReader(db)
+
+
+def _secret_text(db, result) -> str:
+    units = raw_reader(db).load_for_project(PROJECT)
     assert units, "no evidence to protect"
     return units[0].body
 
@@ -133,7 +143,7 @@ def test_a_member_without_clearance_gets_no_canonical_body_from_evidence_for(wor
     Before this repair `evidence_for(project_id)` took no Actor and returned the body.
     """
     _db, svc, result = world
-    secret = _secret_text(svc, result)
+    secret = _secret_text(_db, result)
 
     allowed = svc.evidence_for(actor_id=UNCLEARED, project_id=PROJECT)
     assert allowed == (), "an uncleared member received canonical evidence"
@@ -151,10 +161,10 @@ def test_a_member_without_clearance_gets_no_body_from_retrieval(world):
     project. Occurrence presence is satisfied; clearance is not, and the body must not cross.
     """
     _db, svc, result = world
-    secret = _secret_text(svc, result)
+    secret = _secret_text(_db, result)
 
     index = DenseEvidenceIndex("idx:dense:v1", SPACE, hashing_embedder(SPACE))
-    index.add_all(svc.unauthorized_reader().load_for_project(PROJECT), project_id=PROJECT)
+    index.add_all(raw_reader(_db).load_for_project(PROJECT), project_id=PROJECT)
     candidates = index.search("reverse bias", project_id=PROJECT, space=SPACE, limit=50)
     assert candidates, "the index returned nothing; the probe would be vacuous"
 
@@ -180,7 +190,7 @@ def test_an_actor_from_another_project_cannot_read_this_projects_evidence(world)
     asking about this project's evidence *through* the other project's scope.
     """
     _db, svc, result = world
-    secret = _secret_text(svc, result)
+    secret = _secret_text(_db, result)
 
     assert svc.evidence_for(actor_id=OUTSIDER, project_id=PROJECT) == ()
     # Through their own project, where they are cleared: the evidence has no occurrence there.
@@ -216,7 +226,7 @@ def test_an_inactive_actor_with_valid_membership_and_clearance_is_refused(world)
     boundary to the same standard.
     """
     _db, svc, result = world
-    secret = _secret_text(svc, result)
+    secret = _secret_text(_db, result)
 
     assert svc.evidence_for(actor_id=INACTIVE_ACTOR, project_id=PROJECT) == ()
     decision = svc.read_gate().authorize_artifact(
@@ -252,10 +262,10 @@ def test_an_unresolvable_actor_is_refused(world):
 def test_an_authorized_actor_retrieves_and_resolves_canonical_evidence(world):
     """The positive control, end to end: retrieval → authorization → canonical body."""
     _db, svc, result = world
-    secret = _secret_text(svc, result)
+    secret = _secret_text(_db, result)
 
     index = DenseEvidenceIndex("idx:dense:v1", SPACE, hashing_embedder(SPACE))
-    index.add_all(svc.unauthorized_reader().load_for_project(PROJECT), project_id=PROJECT)
+    index.add_all(raw_reader(_db).load_for_project(PROJECT), project_id=PROJECT)
     candidates = index.search("reverse bias", project_id=PROJECT, space=SPACE, limit=50)
 
     resolved = svc.candidate_resolver().resolve(candidates, actor_id=CLEARED, project_id=PROJECT)
@@ -270,7 +280,7 @@ def test_an_authorized_actor_retrieves_and_resolves_canonical_evidence(world):
 def test_a_refused_single_read_raises_with_the_canonical_reason(world):
     """`require_unit` is the single-item read; a caller asking for one thing wants it or an error."""
     _db, svc, _result = world
-    unit = svc.unauthorized_reader().load_for_project(PROJECT)[0]
+    unit = raw_reader(_db).load_for_project(PROJECT)[0]
     with pytest.raises(ScientificReadRefused) as caught:
         svc.read_gate().require_unit(unit, actor_id=UNCLEARED, project_id=PROJECT)
     assert not caught.value.decision.allowed
@@ -286,7 +296,7 @@ def test_authorization_follows_the_artifact_not_the_unit(world):
     second classification scheme to keep in step with the first.
     """
     _db, svc, result = world
-    unit = svc.unauthorized_reader().load_for_project(PROJECT)[0]
+    unit = raw_reader(_db).load_for_project(PROJECT)[0]
     assert unit.artifact_id == result.artifact.artifact_id
     assert not hasattr(unit, "sensitivity_label")
     assert not hasattr(unit, "project_id")
@@ -319,3 +329,103 @@ def test_the_boundary_contains_no_second_acl(world):
         assert invented not in names, (
             f"{invented} appears in the read boundary; clearance is decided in one place"
         )
+
+
+def test_the_composition_root_exposes_no_raw_reader(world):
+    """Structural: production hands out no canonical-body loader that answers to nobody.
+
+    `unauthorized_reader()` existed and was documented as safe because of its name. A method
+    named "unauthorized" is documentation; it is not an authorization control, and the M1 vertical
+    itself was calling it to fetch canonical bodies. What closes R-7 is that the accessor is gone
+    -- the reader is a private field used by this class's own trusted paths.
+
+    Asserted over the PUBLIC surface rather than by name, so re-adding the capability under a
+    different name fails too.
+    """
+    _db, svc, _result = world
+    public = [name for name in dir(svc) if not name.startswith("_")]
+    assert "unauthorized_reader" not in public
+
+    for name in public:
+        attribute = getattr(type(svc), name, None)
+        if not callable(attribute):
+            continue
+        returns = getattr(attribute, "__annotations__", {}).get("return")
+        assert returns is not PostgresEvidenceUnitReader, (
+            f"IngestionService.{name} returns the ACL-free reader; a production accessor for it "
+            "is a public bypass whatever it is called"
+        )
+
+
+def test_an_unauthorized_body_is_never_loaded_by_the_authorized_path(world):
+    """ORDERING, not just the verdict. The refused unit's body is never materialized.
+
+    The resolver used to load the canonical unit first -- it needed `unit.artifact_id` to ask the
+    question -- and filter afterwards. The filter was correct and the RESTRICTED_NDA text had
+    already been read into the process that was about to decide it may not be.
+
+    The loader here RAISES if entered, so reaching it fails loudly rather than producing a passing
+    assertion about an empty result.
+    """
+    from lab_brain.core.scientific_read import AuthorizedCandidateResolver
+
+    _db, svc, _result = world
+    reader = raw_reader(_db)
+    descriptors = tuple(
+        UnitSecurityDescriptor(evidence_unit_id=unit_id, artifact_id=artifact_id)
+        for unit_id, artifact_id in reader.security_index_for_project(PROJECT)
+    )
+    assert descriptors, "no evidence to protect"
+
+    def fatal_load(_unit_id: str):
+        raise AssertionError(
+            "the canonical body was loaded for a unit this actor may not read; the filter is "
+            "correct and the exposure has already happened"
+        )
+
+    refused = AuthorizedCandidateResolver(
+        gate=svc.read_gate(), artifact_of=reader.artifact_of, load_unit=fatal_load
+    ).resolve_descriptors(descriptors, actor_id=UNCLEARED, project_id=PROJECT)
+    assert refused == ()
+
+    allowed = AuthorizedCandidateResolver(
+        gate=svc.read_gate(), artifact_of=reader.artifact_of, load_unit=reader.load
+    ).resolve_descriptors(descriptors, actor_id=CLEARED, project_id=PROJECT)
+    assert allowed, "the positive control loaded nothing; the probe would be vacuous"
+
+
+def test_a_candidate_from_another_projects_index_is_dropped_before_any_read(world):
+    """§17.25.1's scope, asserted as ORDERING rather than only as an outcome.
+
+    A foreign candidate would be refused anyway -- the artifact has no occurrence here, so
+    SEC-002 says no. That makes the two checks look redundant and they are not: this one drops
+    the candidate before *any* query runs, so a cross-project index entry costs nothing and
+    discloses nothing, not even the existence of a row to look up.
+
+    Both loaders raise if entered, so this proves the candidate never became a read.
+    """
+    from lab_brain.core.models.evidence_unit import RetrievalCandidate
+    from lab_brain.core.scientific_read import AuthorizedCandidateResolver
+
+    _db, svc, _result = world
+
+    def fatal_artifact_of(_unit_id: str) -> str:
+        raise AssertionError(
+            "a candidate from another project's index was looked up; §17.25.1's scope question "
+            "is asked before SEC-002's, and a foreign candidate must cost no query at all"
+        )
+
+    def fatal_load(_unit_id: str):
+        raise AssertionError("a candidate from another project's index was loaded")
+
+    resolver = AuthorizedCandidateResolver(
+        gate=svc.read_gate(), artifact_of=fatal_artifact_of, load_unit=fatal_load
+    )
+    foreign = RetrievalCandidate(
+        evidence_unit_id="evu:sha256:" + "f" * 64,
+        representation_id="rrp:elsewhere",
+        project_id=OTHER_PROJECT,
+        score=0.99,
+        rank=1,
+    )
+    assert resolver.resolve([foreign], actor_id=CLEARED, project_id=PROJECT) == ()

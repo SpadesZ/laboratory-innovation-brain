@@ -32,8 +32,17 @@ classification scheme to keep in step with the first.
 WHAT LOW-LEVEL READERS MAY STILL DO. `PostgresEvidenceUnitReader` remains ACL-free and that is
 correct: it is the canonical revalidating loader, used by admission and by this gate itself, and
 putting an ACL inside it would be a second copy of SEC-002. What changed is that the composition
-root no longer *exposes* it as an authorized read -- `IngestionService.evidence_for` now requires
-an Actor and goes through here.
+root no longer *exposes* it at all. An intermediate shape exported it as `unauthorized_reader()`
+and argued that the name was the contract; it is not. A production service that hands out a
+canonical-body loader answering to nobody has a public bypass whatever the accessor is called,
+and the M1 vertical was itself calling it. Trusted implementation code holds the reader through a
+private field; tests that need it construct their own.
+
+AUTHORIZE BEFORE THE BODY EXISTS IN THE PROCESS. Every path here decides from a *descriptor* --
+``(evidence_unit_id, artifact_id)``, which is the minimum an authorization needs and carries no
+text -- and loads the canonical unit only after an ALLOW. Loading first and filtering afterwards
+is a correct filter over an exposure that already happened: the RESTRICTED_NDA body is in memory,
+in logs if anything logged the row, and in the traceback if the filter raises.
 """
 
 from __future__ import annotations
@@ -56,6 +65,20 @@ class ScientificReadRefused(Exception):
     def __init__(self, decision: AccessDecision) -> None:
         super().__init__(decision.reason)
         self.decision = decision
+
+
+@dataclass(frozen=True)
+class UnitSecurityDescriptor:
+    """The minimum an authorization needs, and nothing a refusal would regret having read.
+
+    Two ids. No body, no locator, no conditions. This exists so `authorize` can run against a
+    unit the process has not loaded: an EvidenceUnit's classification lives on its Artifact's
+    occurrence in the project (ADR-0012, §14.1), so the artifact id is the whole of what the
+    decision consults.
+    """
+
+    evidence_unit_id: str
+    artifact_id: str
 
 
 @dataclass(frozen=True)
@@ -125,24 +148,20 @@ class ScientificReadGate:
             actor_id=actor_id, project_id=project_id, artifact_id=unit.artifact_id
         )
 
-    # -- the surfaces -------------------------------------------------------
+    def authorize_descriptor(
+        self, descriptor: UnitSecurityDescriptor, *, actor_id: str, project_id: str
+    ) -> AccessDecision:
+        """The same question, asked before the unit has been loaded.
 
-    def authorized_units(
-        self, units: Sequence[EvidenceUnit], *, actor_id: str, project_id: str
-    ) -> tuple[AuthorizedUnit, ...]:
-        """Filter a set of units to those this actor may read.
-
-        FILTERED, NOT REFUSED WHOLESALE. A researcher legitimately holds clearance for some of a
-        project's documents and not others, and failing the whole query would make the system
-        unusable in exactly the projects where classification matters most. What must never
-        happen is a body crossing the boundary, and that is what the filter guarantees.
+        This is the form every production read path uses. `authorize_unit` remains for callers
+        that legitimately already hold a unit -- admission re-verifies one it has just rebuilt --
+        but it must never be what *causes* the load.
         """
-        allowed: list[AuthorizedUnit] = []
-        for unit in units:
-            decision = self.authorize_unit(unit, actor_id=actor_id, project_id=project_id)
-            if decision.allowed:
-                allowed.append(AuthorizedUnit(unit=unit, decision=decision))
-        return tuple(allowed)
+        return self.authorize_artifact(
+            actor_id=actor_id, project_id=project_id, artifact_id=descriptor.artifact_id
+        )
+
+    # -- the surfaces -------------------------------------------------------
 
     def require_unit(self, unit: EvidenceUnit, *, actor_id: str, project_id: str) -> AuthorizedUnit:
         """Single-unit read. Raises, because a caller asking for one thing wants it or an error."""
@@ -163,33 +182,47 @@ class ScientificReadGate:
         )
 
 
-#: A resolver that turns a retrieval candidate into its canonical unit. Supplied by the caller
-#: because the canonical loader is `PostgresEvidenceUnitReader.load` in production and an
-#: in-memory dict in a contract test -- and neither belongs inside an authorization boundary.
+#: A resolver that turns a reference into its canonical unit. Supplied by the caller because the
+#: canonical loader is `PostgresEvidenceUnitReader.load` in production and an in-memory dict in a
+#: contract test -- and neither belongs inside an authorization boundary.
 UnitLoader = Callable[[str], EvidenceUnit | None]
+
+#: ``evidence_unit_id -> artifact_id``, reading no body. The security-metadata half of the same
+#: store, kept as a separate callable so the ordering below is visible in the types: what this
+#: returns is enough to decide, and not enough to disclose.
+ArtifactOfUnit = Callable[[str], str | None]
 
 
 class AuthorizedCandidateResolver:
-    """Retrieval candidates → canonical bodies, only for candidates this actor may read.
+    """References → canonical bodies, only for references this actor may read.
 
     WHY THIS WRAPS `CandidateResolver` RATHER THAN REPLACING IT. EVI-010's locked boundary is
     that a candidate carries no body and the canonical unit is re-loaded by identity; that is
     unchanged and must stay unchanged. What this adds is the authorization question §17.25.1
     could not answer -- occurrence presence is not clearance.
 
-    ORDER: authorize, THEN load the body. Loading first and filtering after would mean the body
-    had already been read into the process that is about to decide it may not be; the filter
-    would be correct and the exposure would already have happened. It also means a refused read
-    does no work, which matters when the refusal is the common case for a low-clearance actor.
+    ORDER, AND IT IS NOW THE IMPLEMENTATION AND NOT JUST THE DOCSTRING:
+
+        candidate.evidence_unit_id
+          -> artifact_of(...)        security metadata only, no body
+          -> gate.authorize_descriptor(...)
+          -> load_unit(...)          canonical body, ONLY on ALLOW
+
+    An earlier version documented this order and did the opposite: it loaded the unit first
+    because `authorize_unit` needed `unit.artifact_id`, then filtered. The filter was correct and
+    the body of every refused unit had already been materialized in the process -- which is what
+    an exposure is. The descriptor step exists so the decision has what it needs without that.
     """
 
     def __init__(
         self,
         *,
         gate: ScientificReadGate,
+        artifact_of: ArtifactOfUnit,
         load_unit: UnitLoader,
     ) -> None:
         self._gate = gate
+        self._artifact_of = artifact_of
         self._load_unit = load_unit
 
     def resolve(
@@ -203,25 +236,59 @@ class AuthorizedCandidateResolver:
         reason and both are silent to the caller, deliberately: telling a researcher "there are
         three results you may not see" is itself a disclosure about a project's contents.
         """
-        authorized: list[AuthorizedUnit] = []
+        descriptors: list[UnitSecurityDescriptor] = []
         for candidate in candidates:
             if candidate.project_id != project_id:
-                # A candidate from another project's index. Dropped before any load: §17.25.1's
-                # scope and SEC-002's are different questions and this is the first.
+                # A candidate from another project's index. Dropped before any read at all:
+                # §17.25.1's scope and SEC-002's are different questions and this is the first.
                 continue
-            unit = self._load_unit(candidate.evidence_unit_id)
+            artifact_id = self._artifact_of(candidate.evidence_unit_id)
+            if artifact_id is None:
+                continue
+            descriptors.append(
+                UnitSecurityDescriptor(
+                    evidence_unit_id=candidate.evidence_unit_id, artifact_id=artifact_id
+                )
+            )
+        return self.resolve_descriptors(descriptors, actor_id=actor_id, project_id=project_id)
+
+    def resolve_descriptors(
+        self,
+        descriptors: Sequence[UnitSecurityDescriptor],
+        *,
+        actor_id: str,
+        project_id: str,
+    ) -> tuple[AuthorizedUnit, ...]:
+        """The same authorize-then-load step over descriptors already in hand.
+
+        Used by the whole-project read, where one query produces every descriptor and asking
+        `artifact_of` per unit would be the same decision at N times the cost.
+
+        FILTERED, NOT REFUSED WHOLESALE. A researcher legitimately holds clearance for some of a
+        project's documents and not others, and failing the whole query would make the system
+        unusable in exactly the projects where classification matters most. What must never
+        happen is a body crossing the boundary, and that is what the ordering guarantees.
+        """
+        authorized: list[AuthorizedUnit] = []
+        for descriptor in descriptors:
+            decision = self._gate.authorize_descriptor(
+                descriptor, actor_id=actor_id, project_id=project_id
+            )
+            if not decision.allowed:
+                continue
+            unit = self._load_unit(descriptor.evidence_unit_id)
             if unit is None:
                 continue
-            decision = self._gate.authorize_unit(unit, actor_id=actor_id, project_id=project_id)
-            if decision.allowed:
-                authorized.append(AuthorizedUnit(unit=unit, decision=decision))
+            authorized.append(AuthorizedUnit(unit=unit, decision=decision))
         return tuple(authorized)
 
 
 __all__ = [
+    "ArtifactOfUnit",
     "AuthorizedCandidateResolver",
     "AuthorizedUnit",
     "ScientificReadGate",
     "ScientificReadRefused",
     "UnitLoader",
+    "UnitSecurityDescriptor",
 ]

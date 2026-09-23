@@ -23,16 +23,35 @@ payload would mean the detail had crossed the boundary before anything decided i
 
 NO LLM ANYWHERE. §17.24 forbids model-generated failure text at render time, and this module
 imports nothing that could produce any.
+
+IT IS NOW WIRED, AND THE WIRING IS ONE FUNCTION. `main` reads a DSN through
+`lab_brain.interfaces.config`, opens a connection, builds the same `IngestionService` the rest of
+production uses, and closes the connection on every path. It previously printed a message and
+exited 2, which made "the CLI exists" true and "the CLI works" false -- the projections were
+proven against items a test constructed and nothing had ever read a row.
+
+WHAT STAYS OUT OF `main`. Every decision. `inbox` renders `service.inbox(...)` through
+`derive_state`; `explain` renders `service.diagnostics()`. If a behaviour is worth asserting, it
+is asserted against the service, and `main` is tested for the wiring -- which is the part that
+was missing and the part a unit test of `run_inbox` cannot reach.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import TextIO
+from typing import Any, TextIO
 
+from lab_brain.composition import IngestionService
+from lab_brain.interfaces.config import (
+    ConfigurationError,
+    Settings,
+    open_connection,
+    read_settings,
+)
 from lab_brain.surface.catalog import MessageCatalog, Severity, default_catalog
 from lab_brain.surface.disclosure import DiagnosticsService, ErrorNotFound
 from lab_brain.surface.ingestion_item import IngestionItem, ItemState, derive_state
@@ -200,22 +219,100 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None, *, out: TextIO | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    out: TextIO | None = None,
+    env: Mapping[str, str] | None = None,
+    connect: Callable[[Settings], Any] | None = None,
+) -> int:
     """Entry point. Returns an exit code rather than calling `sys.exit`, so it is testable.
 
-    Wiring a real database is deliberately NOT done here: this module is the presentation
-    boundary, and a `psycopg.connect` at import time would make the CLI untestable without a
-    backend and would put connection policy in the least reviewed file in the repository.
+    THE CONNECTION IS OPENED HERE AND NOWHERE ELSE, and never at import time: `--help` must not
+    need a database, and importing this module must not either. `env` and `connect` are
+    parameters so an integration test can drive the real `main` against a real database without
+    mutating the process environment -- which is the difference between testing the entry point
+    and testing a function the entry point happens to call.
+
+    A configuration problem exits 2 with a sentence naming the variable. `explain` exits 1 for a
+    reference this actor cannot see, which is the same answer for an id that never existed and an
+    id in another project (§17.24).
+
+    THE CONNECTION IS CLOSED ON EVERY PATH. A CLI that leaks one is a CLI that holds a server-side
+    transaction open until the shell exits, and `inbox` is exactly the command somebody leaves
+    running in a loop.
     """
     parser = build_parser()
     args = parser.parse_args(argv)
     stream = out or sys.stdout
-    print(
-        f"lab-brain {args.command}: wire a connection through "
-        "lab_brain.interfaces.cli.run_* to use this command against a database",
-        file=stream,
-    )
-    return 2
+    opener = connect or open_connection
+
+    try:
+        settings = read_settings(os.environ if env is None else env)
+    except ConfigurationError as exc:
+        print(f"lab-brain: {exc}", file=stream)
+        return 2
+
+    try:
+        connection = opener(settings)
+    except ConfigurationError as exc:
+        print(f"lab-brain: {exc}", file=stream)
+        return 2
+
+    try:
+        service = IngestionService(connection=connection, artifact_store=_NoArtifactStore())
+        if args.command == "inbox":
+            return run_inbox(service.inbox(args.project), out=stream)
+        return run_explain(
+            service.diagnostics(),
+            args.error_id,
+            actor_id=args.actor,
+            project_id=args.project,
+            technical=args.technical,
+            out=stream,
+        )
+    finally:
+        connection.close()
+
+
+class _NoArtifactStore:
+    """An artifact store that refuses every operation, for read-only commands.
+
+    `IngestionService` requires one because ingesting is what it mostly does. Neither `inbox` nor
+    `explain` touches bytes, so wiring a real store here would mean the CLI needed object-storage
+    credentials to print a table -- and a command that holds credentials it never uses is a
+    credential nobody notices has leaked.
+
+    REFUSES LOUDLY RATHER THAN RETURNING SOMETHING EMPTY, including `discard`, which the real
+    protocol requires to be total and non-raising. That requirement is about a compensating action
+    after bytes were staged; nothing here ever stages any, so reaching `discard` would mean a
+    read-only command had taken the write path -- which is worth a traceback rather than a silent
+    success.
+    """
+
+    def stage(self, data: bytes) -> Any:
+        return self._refuse()
+
+    def promote(self, staging_id: str, content_hash: str) -> str:
+        return str(self._refuse())
+
+    def discard(self, staging_id: str) -> None:
+        self._refuse()
+
+    def open(self, content_hash: str) -> Any:
+        return self._refuse()
+
+    def exists(self, content_hash: str) -> bool:
+        return bool(self._refuse())
+
+    def list_staged(self) -> Any:
+        return self._refuse()
+
+    def _refuse(self) -> Any:
+        raise NotImplementedError(
+            "the read-only CLI has no artifact store; `inbox` and `explain` read durable rows "
+            "and never bytes"
+        )
 
 
 def run_inbox(

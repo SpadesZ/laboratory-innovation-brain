@@ -30,6 +30,7 @@ from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
 from lab_brain.core.models.enums import LicenseClass, SensitivityLabel, TrustClass
+from lab_brain.security.classification import ContextClassifier, EgressClassification
 from lab_brain.security.external import (
     AuthorizedExternalRunner,
     ExternalEffect,
@@ -150,17 +151,24 @@ class SourceRouter:
         adapters: Sequence[ExternalSourceAdapter] = (),
         *,
         runner: AuthorizedExternalRunner,
+        classifier: ContextClassifier,
     ) -> None:
-        """``runner`` is REQUIRED and has no default.
+        """``runner`` and ``classifier`` are REQUIRED and have no defaults.
 
         SEC-001 says external connector egress requires policy and Actor clearance. A default of
         `None` would mean a deployment that never wired authorization still builds a working
         router -- and the requirement would be satisfied by convention rather than by
         construction. There is no way to obtain a `SourceRouter` that can reach an adapter
         without one.
+
+        ``classifier`` closes the same hole one level down. A query derived from protected
+        context carries that context's classification, and letting the caller state it meant a
+        search assembled from NDA material could be declared PUBLIC -- the gate would then refuse
+        or permit correctly, about the wrong thing.
         """
         self._adapters = {adapter.provider_id(): adapter for adapter in adapters}
         self._runner = runner
+        self._classifier = classifier
 
     @property
     def providers(self) -> tuple[str, ...]:
@@ -182,13 +190,35 @@ class SourceRouter:
         """For UX-007. An absent adapter contributes nothing rather than an error row."""
         return tuple(adapter.healthcheck() for adapter in self._adapters.values())
 
+    def _classify(
+        self,
+        *,
+        project_id: str,
+        context_artifact_ids: Sequence[str],
+        escalate: frozenset[SensitivityLabel],
+    ) -> EgressClassification:
+        """What a query derived from this context carries (SEC-001).
+
+        DERIVED, NOT DECLARED. The artifact ids name what the query was built from, and their
+        occurrences in this project carry the labels §14.1 assigns. A caller may add labels
+        through ``escalate`` and has no way to remove one: the effective set is a union.
+
+        A search over no protected context has nothing to derive, so the caller must declare what
+        it is sending -- `require_artifacts` refuses an empty classification rather than treating
+        "said nothing" as "unrestricted".
+        """
+        return self._classifier.require_artifacts(
+            context_artifact_ids, project_id=project_id, declared=escalate
+        )
+
     def search(
         self,
         query: SourceQuery,
         *,
         project_id: str,
         actor_id: str,
-        sensitivity: SensitivityLabel,
+        context_artifact_ids: Sequence[str] = (),
+        escalate: frozenset[SensitivityLabel] = frozenset(),
     ) -> tuple[ExternalSourceRecord, ...]:
         """Every adapter this actor is authorized to reach, in one normalized result set.
 
@@ -201,9 +231,19 @@ class SourceRouter:
         and breaks every other provider. The refusal is in the audit log, and UX surfaces read
         `authorized_providers` to explain it.
 
-        `project_id`, `actor_id` and `sensitivity` are required. A search with no actor is an
-        unidentified request (§14.4), and a default would be the optional-gate shape again.
+        THERE IS NO ``sensitivity`` PARAMETER. `context_artifact_ids` names what the query was
+        derived from and the classification is read off those artifacts' occurrences; a caller
+        that could state the label directly could state a false one, and the gate would then be
+        correct about material that is not what is leaving.
+
+        `project_id` and `actor_id` are required. A search with no actor is an unidentified
+        request (§14.4), and a default would be the optional-gate shape again.
         """
+        classification = self._classify(
+            project_id=project_id,
+            context_artifact_ids=context_artifact_ids,
+            escalate=escalate,
+        )
         results: list[ExternalSourceRecord] = []
         for adapter in self._adapters.values():
             capabilities = adapter.capabilities()
@@ -215,7 +255,7 @@ class SourceRouter:
                 project_id=project_id,
                 actor_id=actor_id,
                 provider_id=adapter.provider_id(),
-                sensitivity=sensitivity,
+                classification=classification,
                 material=query.text,
                 reach=capabilities.reach,
             )
@@ -232,14 +272,25 @@ class SourceRouter:
         return tuple(sorted(results, key=lambda r: (r.provider, r.canonical_locator)))
 
     def authorized_providers(
-        self, *, project_id: str, actor_id: str, sensitivity: SensitivityLabel
+        self,
+        *,
+        project_id: str,
+        actor_id: str,
+        context_artifact_ids: Sequence[str] = (),
+        escalate: frozenset[SensitivityLabel] = frozenset(),
     ) -> tuple[str, ...]:
         """Which registered providers this actor may reach for this material.
 
         A read, not a permission: it performs nothing. UX surfaces use it to explain why a
         provider produced no results without the researcher having to run a query that is
-        refused.
+        refused. Classified the same way `search` is, so the explanation is about the same
+        material the query would have carried.
         """
+        classification = self._classify(
+            project_id=project_id,
+            context_artifact_ids=context_artifact_ids,
+            escalate=escalate,
+        )
         allowed = []
         for adapter in self._adapters.values():
             decision = self._runner.authorize(
@@ -247,7 +298,7 @@ class SourceRouter:
                     project_id=project_id,
                     actor_id=actor_id,
                     provider_id=adapter.provider_id(),
-                    sensitivity=sensitivity,
+                    classification=classification,
                     material="",
                     reach=adapter.capabilities().reach,
                 )
@@ -263,7 +314,8 @@ class SourceRouter:
         *,
         project_id: str,
         actor_id: str,
-        sensitivity: SensitivityLabel,
+        context_artifact_ids: Sequence[str] = (),
+        escalate: frozenset[SensitivityLabel] = frozenset(),
     ) -> ExternalSourceRecord:
         """One record, by name. Raises, because the caller asked for THIS provider.
 
@@ -285,7 +337,11 @@ class SourceRouter:
             project_id=project_id,
             actor_id=actor_id,
             provider_id=provider_id,
-            sensitivity=sensitivity,
+            classification=self._classify(
+                project_id=project_id,
+                context_artifact_ids=context_artifact_ids,
+                escalate=escalate,
+            ),
             material=locator,
             reach=adapter.capabilities().reach,
         )

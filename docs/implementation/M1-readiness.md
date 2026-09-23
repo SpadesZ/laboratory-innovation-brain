@@ -1,6 +1,6 @@
 # M1 — Research Memory: readiness for independent M2 sign-off
 
-Date: 2026-09-22; revised after the final audit (see §9)
+Date: 2026-09-22; revised after the final audit (§9) and the second audit (§10)
 Milestone: **M1 — Research Memory**, `IN_PROGRESS`
 M1-P1 locked baseline: `f8e5e9c02ee98ed2a7faa6f604347b84b88c773b` (HARD-LOCKED, untouched)
 M0a / M0b: `DONE`, hard-locked, untouched
@@ -80,22 +80,38 @@ too short to protect the evidence write or too long to let a concurrent completi
 
 ## 5. R-7 and R-11
 
-**R-7 - CLOSED.** Every production scientific read goes through one boundary,
-`lab_brain.core.scientific_read.ScientificReadGate`, which decides nothing of its own: every
-verdict is `can_read_artifact`'s, the M0b-locked SEC-002 implementation. It resolves the three
-records that gate needs and calls it.
+**R-7 - CLOSED, and it was not closed by the previous repair.** The first attempt routed all four
+surfaces through `ScientificReadGate` and then kept exporting the ACL-free loader as
+`IngestionService.unauthorized_reader()`, on the theory that the name was the contract. It is not.
+A production composition root that returns a canonical-body loader answering to nobody has a public
+bypass whatever it is called -- and the M1 vertical itself was calling it to fetch bodies, which is
+the strongest possible demonstration that the path was reachable.
 
 | Surface | Before | After |
 |---|---|---|
-| `CandidateResolver` | occurrence presence only | `AuthorizedCandidateResolver` - authorize, *then* load the body |
-| `IngestionService.evidence_for` | took no Actor | requires `actor_id`; returns `AuthorizedUnit` carrying the decision |
-| `PostgresEvidenceUnitReader` | exposed as an authorized read | still ACL-free by design, exposed only as `unauthorized_reader()` - the name is the contract |
+| `CandidateResolver` | occurrence presence only | `AuthorizedCandidateResolver`: descriptor -> ACL -> body |
+| `IngestionService.evidence_for` | took no Actor | requires `actor_id`; one descriptor query, bodies only for ALLOW |
+| `PostgresEvidenceUnitReader` | exported as `unauthorized_reader()` | **no accessor at all**; a private field of the trusted paths |
 | `DiagnosticsService` | its own ordered clearance comparison | delegates to `ProjectMembership.clears`, the predicate `can_read_artifact` uses |
 
-Eleven probes in `security/test_scientific_read_authorization_postgres.py`, each varying exactly
-one fact, each asserting the canonical body is **absent** rather than that the result was empty.
-`test_the_boundary_contains_no_second_acl` parses the module and fails if it grows its own
-`SensitivityLabel` comparison.
+**The ordering is now the implementation and not only the docstring.** `AuthorizedCandidateResolver`
+documented "authorize, THEN load" while doing the opposite: it needed `unit.artifact_id` to ask the
+question, so it loaded every candidate and filtered afterwards. The filter was correct and the
+RESTRICTED_NDA body of every refused unit had already been materialized in the process that was
+about to decide it may not be. `UnitSecurityDescriptor` -- two ids, no text -- is what the decision
+now consults, and `PostgresEvidenceUnitReader.artifact_of` / `security_index_for_project` are the
+reads that produce one.
+
+Fourteen probes in `security/test_scientific_read_authorization_postgres.py`. Three are structural
+rather than behavioural, because the claims are structural:
+
+* `test_the_composition_root_exposes_no_raw_reader` walks the PUBLIC surface and fails if any
+  method returns the reader -- so re-adding the capability under a nicer name fails too.
+* `test_an_unauthorized_body_is_never_loaded_by_the_authorized_path` supplies a loader that
+  **raises if entered**, so a refused read reaching it fails loudly rather than producing a
+  passing assertion about an empty list.
+* `test_the_boundary_contains_no_second_acl` parses the module and fails if it grows its own
+  `SensitivityLabel` comparison.
 
 **R-11 - NARROWED, residual stated precisely.** `execution_spans.job_id` still carries no foreign
 key and `010a` is applied, so it cannot gain one by edit. What changed is that a span naming a job
@@ -110,18 +126,18 @@ Local, full history, PostgreSQL last.
 | Gate | Result |
 |---|---|
 | `ruff format --check` / `ruff check` | clean |
-| `mypy` (strict) | clean, **105** source files |
-| Backend-free suite | **1123 passed**, 547 skipped |
-| Migration replay from empty | **35 applied** |
+| `mypy` (strict) | clean, **109** source files |
+| Backend-free suite | **1133 passed**, 567 skipped |
+| Migration replay from empty | **36 applied** |
 | Migration idempotency | `pending 0` |
-| Full PostgreSQL profile | **1670 passed** |
+| Full PostgreSQL profile | **1700 passed** |
 | Executed-coverage ratchet | ok ×4; DONE `['M0a','M0b']`, IN_PROGRESS `['M1']` |
 | Status freshness | up to date |
 | Spec conformance | **205 passed** |
 | Requirement ↔ Test | **60 ↔ 60** |
 | Obligation inventory | **84**, in sync |
 | Schema drift / unbound / stale | all empty |
-| Mutation battery | **58/58 killed** (29 M1-P1 + 21 + 8 final) |
+| Mutation battery | **66/66 killed** (29 M1-P1 + 21 + 8 + 8 second-audit) |
 | M1-P1 benchmark | current, framing unchanged |
 
 ### Local vs generic CI counts
@@ -134,7 +150,8 @@ that checked no commits is worse than an honest skip.
 ## 7. Remaining risks and limitations
 
 1. **No LLM slot is configured.** `ScientificLLM` runs against a deterministic transport. What is
-   proven is the provenance discipline and the SEC-001 ordering, not that a model was called.
+   proven is the provenance discipline, the SEC-001 ordering and the atomicity of
+   `ScientificInferenceService.infer`, not that a model was called.
 2. **No Lumerical seat (R-1), no ground-truth benchmark (R-2).** Unchanged.
 3. **Section 17.3 is a declared subset.** Ten fields are absent, each because the entity it
    references does not exist yet; `006b`'s header lists every one with the requirement that brings
@@ -143,18 +160,24 @@ that checked no commits is worse than an honest skip.
 4. **The dense index is in-memory.** `009a`/`009b` hold `RetrievalRepresentation` rows and
    `DenseEvidenceIndex` does not yet write to them. EVI-007's semantics are enforced and tested;
    the durable vector store is not built.
-5. **The CLI has no connection wiring.** `lab-brain inbox|explain` parse and render; `main()`
-   returns exit code 2 with a message rather than opening a database. Connection policy in the
-   least-reviewed file in the repository is worse than an honest stub, and `run_inbox` /
-   `run_explain` are the tested seams a wired entry point will call.
-6. **`ingestion_items` and `error_records` have no production writer yet.** `012` creates them
-   with the invariants (no `state` column; no `next_retry_at` on an unretryable class), and the
-   UX projections are tested against in-memory items. The pipeline does not yet persist rows into
-   them - the projection contract is proven, the row-writing is not.
-7. **COST-001 is wired as a required seam, not as a live caller.** `decide_retry` refuses without
+5. **`technical_detail_ref` resolves to nothing.** `012` stores it as a pointer and no detail
+   store backs it, so `explain --technical` for an actor holding the scope returns the default
+   payload. Conservative in the right direction - the scope check, the redaction and the
+   not-found semantics are all still the service's, and `DiagnosticsService` is not told detail
+   exists when it does not.
+6. **`NEEDS_REVIEW` is unreachable from durable rows.** §17.19.1's `subject_type` vocabulary is
+   `CONFLICT | AUTHORITY_CONFLICT`, so no `ReviewItem` can point at an `IngestionItem` and
+   `PostgresSurfaceStore` returns empty `review_ids`/`conflict_ids`. The derivation is proven at
+   the projection level; inventing a subject type to fill the field would be a spec change
+   smuggled in as a query, so it is stated instead.
+7. **Error-id minting is bounded-retry, not sequenced.** `ERR-YYYYMMDD-NNNN` is computed from the
+   day's maximum ordinal and retried on a primary-key collision. Correct under M1's single-writer
+   ingestion and honest about its bound: a genuinely concurrent writer would need a sequence, and
+   `SurfaceStoreError` names the situation rather than reusing an id.
+8. **COST-001 is wired as a required seam, not as a live caller.** `decide_retry` refuses without
    a budget gate, and the tests inject both an allowing and a refusing one. No production loop
    retries yet, so the gate has no live caller to exercise.
-8. **R-8, R-9, R-10, R-12** unchanged.
+9. **R-8, R-9, R-10, R-12** unchanged.
 
 ## 8. Governance
 
@@ -201,3 +224,90 @@ load-bearing while a direct constructor call (a replay, a fixture, a backfill) p
 SUSPENDED episode with no `suspended_at`, which a resumer reads as "parked at the epoch". Two
 probes added; it now dies. One further anchor was stale after the budget restructure and was
 re-anchored on the reclassification rather than deleted.
+
+
+## 10. The second-audit repairs
+
+The first four blockers were accepted. These four were the production-path half: each was a place
+where a guard existed and the production wiring did not reach it, or reached around it.
+
+| # | Blocker | Before | After |
+|---|---|---|---|
+| 1 | R-7 not closed | `unauthorized_reader()` exported; the resolver loaded then filtered | accessor deleted; `UnitSecurityDescriptor` -> ACL -> body; 14 probes, three structural |
+| 2 | classification was caller-supplied | `invoke(sensitivity=PUBLIC)` over NDA evidence: the gate answered correctly about a fiction | `ContextClassifier` derives from `ArtifactOccurrence`; `escalate` is a union, so there is no downgrade operator |
+| 3 | call and write were two operations | `invoke(); record_inference()` -- a crash between them left an output with no provenance | `ScientificInferenceService.infer`: authorize -> invoke -> write -> reload -> compare; `DurableInference` is the only object carrying text |
+| 4 | CLI printed a wiring message | `main` exited 2; nothing wrote `012` rows | `PostgresSurfaceStore` writes them; `main` opens its own connection from one explicit config boundary |
+
+### The attacks, before and after
+
+**1. Read a body you may not read.** *Before:* `svc.unauthorized_reader().load_for_project(p)` --
+one public call, every canonical body, no Actor. *After:* the method does not exist, and
+`test_the_composition_root_exposes_no_raw_reader` fails if anything returns the reader.
+
+**1b. Materialize a refused body.** *Before:* `resolve()` loaded every candidate to read
+`unit.artifact_id`, then filtered. *After:* the descriptor answers the question; the probe's
+loader raises if entered.
+
+**2. Send NDA material declared PUBLIC.** *Before:* a supported call. *After:*
+`derived | declared` -- `test_a_caller_cannot_declare_nda_context_as_public` and the vertical's
+`test_external_egress_cannot_bypass_the_gate` both attempt the downgrade against a transport that
+raises if entered.
+
+**2b. Launder classification through an unresolvable reference.** *Before:* n/a. *After:*
+`require_artifacts` refuses an unresolved reference and an empty set; `ExternalEffect.__post_init__`
+refuses it again so the bad state is unrepresentable. Both layers have their own probe, because
+the battery showed the outer one surviving behind the inner one.
+
+**3. Use an inference whose provenance was never written.** *Before:* the caller held the text and
+was trusted to call `record_inference`. *After:* `infer` does not return until the row reloads
+equal; the fault-injection probe fails the write **after** the model was called
+(`transport.calls == 1`) and asserts the exception names the write, carries no model text, leaves
+no row, and is refused by `BeliefBasisGate`.
+
+**4. Report on the wrong database, or on nothing.** *Before:* `lab-brain inbox` exited 2 always.
+*After:* real rows, real connection, real `main()`. `test_the_command_refuses_to_guess_a_connection`
+pins that there is no default DSN, and
+`test_an_unknown_and_a_foreign_error_are_indistinguishable_through_the_real_command` pins §17.24's
+oracle rule at the command rather than at the service.
+
+### The durable proofs, named
+
+**production ingestion -> durable `012` rows -> new process -> CLI output** --
+`integration/test_cli_surface_postgres.py::test_production_ingestion_writes_the_rows_the_inbox_reads`
+then `::test_the_real_command_loads_durable_rows_and_renders_derived_state`, and the vertical's
+step 11: `main(["inbox", ...], env={LAB_BRAIN_DATABASE_URL: ...})` opens its own connection and
+prints `READY=1` with the item id. `::test_a_failed_parse_shows_as_failed_through_the_real_command`
+is the control that the state is derived rather than constant.
+
+**atomic inference** --
+`integration/test_durable_provenance_and_episodes_postgres.py::test_one_operation_calls_the_model_and_leaves_the_record_durable`
+and `::test_a_failure_between_the_model_call_and_the_write_yields_no_usable_output`, plus the
+vertical's step 7, which calls `svc.inference_service(...).infer(...)` and no longer composes
+`invoke(); record_inference()` anywhere.
+
+### One migration was repaired
+
+`012a_duplicate_is_content_identity.sql` drops `ingestion_items_not_its_own_duplicate`. The CHECK
+read as an obvious sanity rule and was, under ART-001, unsatisfiable for the only case it
+described: identical bytes are the *same* artifact, so a duplicate item's
+`duplicate_of_artifact_id` necessarily equals its `raw_artifact_id`. It forbade the correct value
+and permitted only wrong ones. Forward-only, because editing an applied file is what the checksum
+guard exists to catch. Nothing else in `012` moved -- no `state` column, both retry CHECKs and the
+deferred stage/error trigger are untouched.
+
+### What the battery found in this repair
+
+Two mutations survived on the first run and both were the same shape: **a second layer masking the
+first**. `an_unclassifiable_context_reads_as_unrestricted` survived because
+`ExternalEffect.__post_init__` caught what `require_*` was supposed to; `a_failed_write_still_returns_the_model_text`
+survived because the post-commit absence check caught what the write's `except` was supposed to.
+Both layers are wanted, and defence in depth that is only *tested* in depth is one edit away from
+being a single layer. Each now has its own probe.
+
+Two further anchors were **stale** after the descriptor restructure (`ANCHOR NOT FOUND`) and were
+re-anchored rather than deleted -- an anchor that stops applying is a guard nobody is checking any
+more. Re-anchoring surfaced a genuine gap: no probe covered
+`candidate.project_id != project_id`, the §17.25.1 scope check that drops a foreign candidate
+before any query runs. It has one now, with both loaders fatal.
+
+Final: **66/66 killed.**

@@ -15,8 +15,18 @@ import datetime as dt
 import psycopg
 import pytest
 
-from lab_brain.cognition.llm import BeliefBasisGate, LLMRefusal, ScientificOutput
+from lab_brain.cognition.inference import InferenceNotDurable, ScientificInferenceService
+from lab_brain.cognition.llm import (
+    BeliefBasisGate,
+    LLMRefusal,
+    ModelSlot,
+    PromptTemplate,
+    ScientificLLM,
+    ScientificOutput,
+)
+from lab_brain.core.models.enums import SensitivityLabel
 from lab_brain.core.models.episode import EpisodeState, ResearchEpisode
+from lab_brain.core.models.evidence_bundle import EvidenceBundle, ResearchIntent
 from lab_brain.core.models.inference import InferenceProvenance, LogicalSlot
 from lab_brain.core.models.job import Job, JobState
 from lab_brain.core.repositories.episodes import EpisodeStoreError, SqlEpisodeStore
@@ -25,6 +35,10 @@ from lab_brain.core.repositories.inference import (
     SqlInferenceProvenanceStore,
 )
 from lab_brain.core.repositories.jobs import SqlJobStore
+from lab_brain.security.egress import EgressAuditLog, EgressGate
+from lab_brain.security.external import AuthorizedExternalRunner, ExternalReach
+from tests.classification_fixtures import artifact_id, labelled
+from tests.conftest_fixtures import TOY_SCHEMA_REF
 from tests.postgres_fixtures import database_url
 
 pytestmark = [pytest.mark.postgres]
@@ -414,3 +428,250 @@ def test_a_terminal_episode_must_record_when_it_ended():
         ResearchEpisode.model_validate(
             {**base, "state": EpisodeState.EVIDENCE_GATHERING, "end_time": NOW}
         )
+
+
+# ---------------------------------------------------------------------------
+# LLM-001 — the call and the write are ONE operation
+# ---------------------------------------------------------------------------
+
+
+class _CountingTransport:
+    """A model transport that records that it was entered.
+
+    The fault-injection probe's whole claim is "the model MAY have been called and no usable
+    output escaped". Counting is how the first half is asserted -- a probe that only checked the
+    exception would pass against an implementation that refused before ever calling, which is a
+    different and much easier property.
+    """
+
+    def __init__(self, reply: str) -> None:
+        self.reply = reply
+        self.calls = 0
+
+    def __call__(self, _text, _slot) -> str:
+        self.calls += 1
+        return self.reply
+
+
+class _FailingStore:
+    """Persistence that fails AFTER the model has been called. The injected fault.
+
+    Wrapped at exactly the seam the audit named: `record` is the first thing that happens once
+    the completion returns, so raising here reproduces a crash in that window without any
+    test-only branch inside production code.
+    """
+
+    def __init__(self, inner) -> None:
+        self._inner = inner
+        self.attempts = 0
+
+    def record(self, output, *, project_id: str):
+        self.attempts += 1
+        raise RuntimeError("the database went away between the model call and the write")
+
+    def get(self, inference_id: str):
+        return self._inner.get(inference_id)
+
+    def output_for(self, inference_id: str):
+        return self._inner.output_for(inference_id)
+
+    def list_for_bundle(self, evidence_bundle_hash: str):
+        return self._inner.list_for_bundle(evidence_bundle_hash)
+
+
+def _inference_service(connection, *, store=None, reply: str = "Cj falls as depletion widens."):
+    """The production operation, wired to a counting transport.
+
+    The slot is declared LOCAL and the classifier covers one PUBLIC artifact, so SEC-001 is
+    satisfied without this file re-proving it: these probes are about what happens BETWEEN the
+    model call and the durable write, and an egress refusal would stop them before that point.
+    """
+    artifact = artifact_id("a public abstract")
+    transport = _CountingTransport(reply)
+    llm = ScientificLLM(
+        slots=(
+            ModelSlot(
+                LogicalSlot.HYPOTHESIS,
+                "toy-model",
+                "1.0.0",
+                provider="local",
+                reach=ExternalReach.LOCAL,
+            ),
+        ),
+        prompts=(PromptTemplate("prm:hypothesis", "3.1.0", "Consider the evidence"),),
+        complete=transport,
+        runner=AuthorizedExternalRunner(
+            gate=EgressGate(policy_for=lambda _p: None, clearance_of=lambda _a, _p: frozenset()),
+            audit=EgressAuditLog(),
+        ),
+        classifier=labelled(
+            {artifact: SensitivityLabel.PUBLIC},
+            project_id=PROJECT,
+            attestations={"att:1": artifact},
+        ),
+        source_policy_version="sp:diagnosis@1.0.0",
+    )
+    service = ScientificInferenceService(
+        llm=llm,
+        store=store if store is not None else SqlInferenceProvenanceStore(connection),
+        commit=connection,
+    )
+    return service, transport
+
+
+def _durable_bundle() -> EvidenceBundle:
+    return EvidenceBundle(
+        research_intent=ResearchIntent(intent="DIAGNOSIS", stakes="HIGH"),
+        query_text="why does Cj fall",
+        source_policy_id="sp:diagnosis",
+        source_policy_version="1.0.0",
+        condition_schema_versions={"toy": TOY_SCHEMA_REF},
+        ordered_attestation_ids=("att:1",),
+        project_id=PROJECT,
+    )
+
+
+@pytest.mark.requirement("LLM-001")
+@pytest.mark.spec_test("T-LLM-001")
+def test_one_operation_calls_the_model_and_leaves_the_record_durable(db):
+    """The positive control for the atomic operation.
+
+    `infer` returns `DurableInference`, whose provenance is the RELOADED row rather than the
+    object the call built -- so a serialization that round-trips imperfectly fails here instead
+    of three slices later.
+    """
+    service, transport = _inference_service(db)
+    result = service.infer(
+        inference_id="inf:atomic",
+        slot=LogicalSlot.HYPOTHESIS,
+        role="hypothesis_generator",
+        prompt_id="prm:hypothesis",
+        bundle=_durable_bundle(),
+        trace_id=TRACE,
+        project_id=PROJECT,
+        actor_id="act:test",
+        now=NOW,
+    )
+    assert transport.calls == 1
+    assert result.text == "Cj falls as depletion widens."
+
+    with psycopg.connect(database_url(), autocommit=True) as fresh:
+        stored = SqlInferenceProvenanceStore(fresh).get("inf:atomic")
+        assert stored is not None
+        assert stored == result.provenance, "the returned provenance is not the durable one"
+        assert stored.evidence_bundle_hash == _durable_bundle().canonical_hash
+
+
+@pytest.mark.requirement("LLM-001")
+@pytest.mark.spec_test("T-LLM-001")
+def test_a_failure_between_the_model_call_and_the_write_yields_no_usable_output(db):
+    """THE fault-injection probe, at exactly the seam the audit named.
+
+    The model IS called -- `transport.calls == 1` -- and nothing usable comes back. That is the
+    honest guarantee: there is no distributed transaction across an external provider and
+    PostgreSQL, and faking one would be worse than acknowledging it. What is guaranteed is that
+    no output reaches hypothesis, critique or relation input without durable provenance.
+
+    THE EXCEPTION CARRIES NO TEXT. An `InferenceNotDurable` that quoted the model output would
+    hand the unusable string straight back -- into a log, a traceback, or an error surface, all
+    of which are read by the code that was about to consume it.
+    """
+    failing = _FailingStore(SqlInferenceProvenanceStore(db))
+    service, transport = _inference_service(db, store=failing)
+
+    with pytest.raises(InferenceNotDurable) as caught:
+        service.infer(
+            inference_id="inf:lost",
+            slot=LogicalSlot.HYPOTHESIS,
+            role="hypothesis_generator",
+            prompt_id="prm:hypothesis",
+            bundle=_durable_bundle(),
+            trace_id=TRACE,
+            project_id=PROJECT,
+            actor_id="act:test",
+            now=NOW,
+        )
+
+    assert transport.calls == 1, "the probe never reached the window it is about"
+    assert failing.attempts == 1
+    assert caught.value.inference_id == "inf:lost"
+    assert caught.value.trace_id == TRACE
+    assert "Cj falls as depletion widens" not in str(caught.value)
+    # NAMES THE WRITE, not the later absence. Both branches raise the same type and a probe that
+    # only checked the type would pass against an implementation that swallowed the write error
+    # and noticed the missing row afterwards -- correct by accident, and silent about the cause
+    # the operator has to fix.
+    assert "the write failed" in caught.value.detail
+
+    with psycopg.connect(database_url(), autocommit=True) as fresh:
+        assert SqlInferenceProvenanceStore(fresh).get("inf:lost") is None
+
+        # And the read side agrees: a belief resting solely on it is refused (§7.6).
+        gate = BeliefBasisGate(
+            load_provenance=SqlInferenceProvenanceStore(fresh).get,
+            is_inference=lambda ref: ref.startswith("inf:"),
+        )
+        assert not gate.evaluate(["inf:lost"]).permitted
+
+
+@pytest.mark.requirement("LLM-001")
+@pytest.mark.spec_test("T-LLM-001")
+def test_a_write_that_lands_but_disagrees_is_not_returned_either(db):
+    """The subtler half: the row exists and is not what was submitted.
+
+    Reloading and comparing is what makes the returned object trustworthy. A service that wrote
+    and returned without reading back would report success for a row that had been rewritten
+    between the two -- which is the case §7.6 judges belief admissibility against.
+    """
+
+    class _LyingStore(_FailingStore):
+        def record(self, output, *, project_id: str):
+            self.attempts += 1
+            return output.provenance
+
+        def get(self, inference_id: str):
+            return None
+
+    service, transport = _inference_service(db, store=_LyingStore(None))
+    with pytest.raises(InferenceNotDurable) as caught:
+        service.infer(
+            inference_id="inf:phantom",
+            slot=LogicalSlot.HYPOTHESIS,
+            role="hypothesis_generator",
+            prompt_id="prm:hypothesis",
+            bundle=_durable_bundle(),
+            trace_id=TRACE,
+            project_id=PROJECT,
+            actor_id="act:test",
+            now=NOW,
+        )
+    assert transport.calls == 1
+    assert "no row is present" in str(caught.value)
+
+
+@pytest.mark.requirement("LLM-001")
+@pytest.mark.spec_test("T-LLM-001")
+def test_the_only_object_carrying_model_text_is_the_durable_one(db):
+    """Structural: there is no way to hold usable text that was not recorded.
+
+    `DurableInference` is constructed at exactly one place, after the reload compared equal, and
+    no method returns a bare `ScientificOutput`. So a caller cannot be trusted-to-check, because
+    there is nothing left for it to check.
+    """
+    import inspect
+
+    from lab_brain.cognition import inference as module
+
+    source = inspect.getsource(module)
+    assert source.count("return DurableInference(") == 1, (
+        "DurableInference is returned from more than one place; one of them is not after the "
+        "reload that makes the claim true"
+    )
+    returns = [
+        getattr(obj, "__annotations__", {}).get("return")
+        for name, obj in vars(ScientificInferenceService).items()
+        if callable(obj) and not name.startswith("__")
+    ]
+    assert ScientificOutput not in returns, (
+        "the service returns an unverified ScientificOutput on some path"
+    )

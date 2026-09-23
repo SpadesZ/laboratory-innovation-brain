@@ -151,6 +151,11 @@ APPLY_ORDER: tuple[str, ...] = (
     # `ingestion_items` has NO state column -- §17.22 derives it. After 006b (stage results
     # reference jobs), 010a (spans), 002/002a (artifacts) and 011h (review items).
     "012_ingestion_items_errors.sql",
+    # M1 second audit / UX-001, ART-001. Drops one CHECK from 012 that content addressing makes
+    # unsatisfiable: identical bytes are the SAME artifact, so a duplicate item's
+    # `duplicate_of_artifact_id` necessarily equals its `raw_artifact_id`. Forward-only, because
+    # editing an applied file is what the checksum guard exists to catch.
+    "012a_duplicate_is_content_identity.sql",
     # M1-P1 / EVI-010 (`v3.3-a17`). The canonical evidence body. Extends 003 rather than taking
     # Appendix A's 012, which is reserved for `ingestion_items_errors` (UX-001, a later slice).
     # After 002 and 003: foreign keys into `artifacts` and `source_works`, and it is what an

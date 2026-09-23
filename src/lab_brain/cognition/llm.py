@@ -38,6 +38,7 @@ from lab_brain.core.models.base import utc_now
 from lab_brain.core.models.enums import SensitivityLabel
 from lab_brain.core.models.evidence_bundle import EvidenceBundle
 from lab_brain.core.models.inference import InferenceProvenance, LogicalSlot
+from lab_brain.security.classification import ContextClassifier
 from lab_brain.security.external import (
     AuthorizedExternalRunner,
     ExternalEffect,
@@ -125,19 +126,26 @@ class ScientificLLM:
         prompts: Sequence[PromptTemplate],
         complete: Completion,
         runner: AuthorizedExternalRunner,
+        classifier: ContextClassifier,
         source_policy_version: str | None = None,
     ) -> None:
-        """``runner`` is REQUIRED and has no default.
+        """``runner`` and ``classifier`` are REQUIRED and have no defaults.
 
         SEC-001 covers external *model* egress as well as connectors. A default would mean a
         deployment that never wired authorization still builds a working `ScientificLLM`, and
         the requirement would hold by convention. There is no way to obtain one that can reach a
         transport without authorization.
+
+        ``classifier`` is required for the same reason and closes the next gap along: the runner
+        made the gate unbypassable, and the gate was still deciding about whatever sensitivity
+        the caller passed in. A `ScientificLLM` with no classifier could not derive what it was
+        sending, so there is no way to build one.
         """
         self._slots = {slot.logical_slot: slot for slot in slots}
         self._prompts = {p.prompt_id: p for p in prompts}
         self._complete = complete
         self._runner = runner
+        self._classifier = classifier
         self._source_policy_version = source_policy_version
 
     @property
@@ -155,15 +163,25 @@ class ScientificLLM:
         trace_id: str,
         project_id: str,
         actor_id: str,
-        sensitivity: SensitivityLabel,
+        escalate: frozenset[SensitivityLabel] = frozenset(),
         parameters: dict[str, object] | None = None,
         now: dt.datetime | None = None,
     ) -> ScientificOutput:
         """Make a scientific call. Refuses before spending anything if provenance is impossible.
 
-        ORDER: bundle, slot, prompt -- then the call. Every refusal happens before the model is
-        reached, because a call whose provenance cannot be recorded has produced an output that
-        may not be used, and having spent budget on it is the only remaining consequence.
+        ORDER: bundle, slot, prompt, classification -- then the call. Every refusal happens
+        before the model is reached, because a call whose provenance cannot be recorded has
+        produced an output that may not be used, and having spent budget on it is the only
+        remaining consequence.
+
+        THERE IS NO ``sensitivity`` PARAMETER. It used to be one, and a caller assembling
+        RESTRICTED_NDA evidence could declare PUBLIC: the gate then answered correctly about a
+        fiction and the prompt left the boundary. The classification is derived from the bundle's
+        own attestations through the occurrence rows ingestion wrote.
+
+        ``escalate`` adds labels and cannot remove them -- the effective set is a union, so a
+        caller worried that a bundle understates what it is sending can say so, and a caller
+        hoping to understate it has no operator available.
         """
         if bundle is None:
             raise LLMRefusal(
@@ -189,16 +207,26 @@ class ScientificLLM:
                 "and the inference would be unreproducible (§17.14)",
             )
 
-        # SEC-001. The transport is reached ONLY through the runner, which performs the call
-        # solely on ALLOW. What would leave is the rendered prompt, so that is what is digested.
-        # A refusal raises before `self._complete` is entered -- the adversarial test proves that
-        # with a transport that raises if called, because asserting on a returned decision would
-        # pass equally against an implementation that called first and refused afterwards.
+        # SEC-001, in two steps that must stay in this order.
+        #
+        # First the classification, DERIVED from the bundle rather than supplied: what is about to
+        # leave is this evidence, so what classifies it is the occurrence rows in this project.
+        # `require_bundle` raises when the context cannot be classified -- absence of a
+        # classification is not permission (§14.3).
+        #
+        # Then the runner, which performs the call solely on ALLOW. What would leave is the
+        # rendered prompt, so that is what is digested. A refusal raises before `self._complete`
+        # is entered -- the adversarial tests prove that with a transport that raises if called,
+        # because asserting on a returned decision would pass equally against an implementation
+        # that called first and refused afterwards.
+        classification = self._classifier.require_bundle(
+            bundle, project_id=project_id, declared=escalate
+        )
         effect = ExternalEffect(
             project_id=project_id,
             actor_id=actor_id,
             provider_id=configured.provider or configured.model_id,
-            sensitivity=sensitivity,
+            classification=classification,
             material=prompt.template,
             reach=configured.reach,
         )
@@ -233,7 +261,7 @@ class ScientificLLM:
         trace_id: str,
         project_id: str,
         actor_id: str,
-        sensitivity: SensitivityLabel,
+        escalate: frozenset[SensitivityLabel] = frozenset(),
         slot: LogicalSlot = LogicalSlot.CRITIQUE,
         now: dt.datetime | None = None,
     ) -> ScientificOutput:
@@ -253,7 +281,7 @@ class ScientificLLM:
             trace_id=trace_id,
             project_id=project_id,
             actor_id=actor_id,
-            sensitivity=sensitivity,
+            escalate=escalate,
             now=now,
         )
         if not output.provenance.route_differs_from(original):

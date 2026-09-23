@@ -28,6 +28,19 @@ which merely lacks a policy is refused rather than treated as local.
 AUDIT WITHOUT PAYLOAD. Every refusal is recorded through `EgressAuditLog`, which is structurally
 incapable of holding content — see `egress.py`. The runner never puts the material into the
 decision or the log, only its digest.
+
+THE CLASSIFICATION IS NOT THE CALLER'S TO STATE. `ExternalEffect` carries an
+`EgressClassification` — the output of `ContextClassifier`, derived from `ArtifactOccurrence`
+rows that ingestion wrote — rather than a `SensitivityLabel` a caller passed in. Making the gate
+unbypassable while still letting the caller say what it was sending meant the gate decided
+correctly about a fiction, and RESTRICTED_NDA material declared PUBLIC left the boundary with
+every check passing honestly.
+
+A CONJUNCTION, BECAUSE §14.1'S LABELS ARE CATEGORIES. Material carrying several labels is asked
+about once per label, and the first refusal is the answer. This adds no policy here: the rule for
+each label is still `EgressGate`'s, asked once per category rather than once per effect. The
+alternative — collapsing a mixed set to "the most restrictive" — would require the ordering
+`can_read_artifact` refuses to invent.
 """
 
 from __future__ import annotations
@@ -38,6 +51,7 @@ from enum import StrEnum
 from typing import TypeVar
 
 from lab_brain.core.models.enums import SensitivityLabel
+from lab_brain.security.classification import ClassificationRefused, EgressClassification
 from lab_brain.security.egress import (
     EgressAuditLog,
     EgressDecision,
@@ -81,14 +95,41 @@ class ExternalEffect:
 
     ``material`` is the content itself so the runner can digest it. It is never copied into a
     decision or a log — `EgressDecision` has no content field.
+
+    ``classification`` comes from `ContextClassifier` and is refused at construction if it is not
+    usable. There is no `SensitivityLabel` parameter here at all, which is the point: an effect
+    over unclassifiable material is unrepresentable rather than merely rejected later, so no
+    branch anywhere has to remember to check it.
     """
 
     project_id: str
     actor_id: str
     provider_id: str
-    sensitivity: SensitivityLabel
+    classification: EgressClassification
     material: str
     reach: ExternalReach = ExternalReach.EXTERNAL
+
+    def __post_init__(self) -> None:
+        if not self.classification.usable:
+            raise ClassificationRefused(self.classification)
+
+    @property
+    def labels(self) -> tuple[SensitivityLabel, ...]:
+        """The categories this effect must be authorized for, in a stable order.
+
+        Sorted so a refusal names the same label every run: an audit entry whose reason depends
+        on set iteration order is one nobody can diff between two incidents.
+        """
+        return tuple(sorted(self.classification.labels, key=lambda label: label.value))
+
+    def _request(self, label: SensitivityLabel) -> EgressRequest:
+        return EgressRequest(
+            project_id=self.project_id,
+            actor_id=self.actor_id,
+            provider_id=self.provider_id,
+            sensitivity=label,
+            content=self.material,
+        )
 
 
 #: The decision recorded for an effect that never left the boundary. A real decision object
@@ -103,13 +144,7 @@ def _local_decision(effect: ExternalEffect) -> EgressDecision:
             "(§14.2 Private Mode). Declared by the component, never inferred from a missing "
             "policy"
         ),
-        content_digest=EgressRequest(
-            project_id=effect.project_id,
-            actor_id=effect.actor_id,
-            provider_id=effect.provider_id,
-            sensitivity=effect.sensitivity,
-            content=effect.material,
-        ).content_digest,
+        content_digest=effect._request(effect.labels[0]).content_digest,
     )
 
 
@@ -147,25 +182,29 @@ class AuthorizedExternalRunner:
         Callers that want the effect use `execute`. This exists so a health page or an error
         surface can explain *why* a provider is unreachable for this actor without performing
         anything.
+
+        EVERY LABEL, AND THE FIRST REFUSAL WINS. §14.1's labels are categories rather than a
+        ladder, so material carrying several of them has to satisfy the policy for each. The rule
+        per label is entirely `EgressGate`'s -- this loop adds none -- and it stops at the first
+        BLOCK so a refusal names a real label rather than a summary nobody can act on.
         """
         if effect.reach is ExternalReach.LOCAL:
             return _local_decision(effect)
 
-        decision = self._gate.evaluate(
-            EgressRequest(
-                project_id=effect.project_id,
-                actor_id=effect.actor_id,
-                provider_id=effect.provider_id,
-                sensitivity=effect.sensitivity,
-                content=effect.material,
-            )
-        )
-        if not decision.permitted:
-            # §17.23: a POLICY_BLOCK emits an audit event rather than being retried. Recorded
-            # here rather than by the caller, because a caller that forgot would satisfy the gate
-            # and not the requirement.
-            self._audit.record(decision, actor_id=effect.actor_id)
-        return decision
+        allowed: EgressDecision | None = None
+        for label in effect.labels:
+            decision = self._gate.evaluate(effect._request(label))
+            if not decision.permitted:
+                # §17.23: a POLICY_BLOCK emits an audit event rather than being retried. Recorded
+                # here rather than by the caller, because a caller that forgot would satisfy the
+                # gate and not the requirement.
+                self._audit.record(decision, actor_id=effect.actor_id)
+                return decision
+            allowed = decision
+        # `labels` is never empty -- `ExternalEffect` refuses an unusable classification at
+        # construction -- so this is the last ALLOW rather than a default.
+        assert allowed is not None
+        return allowed
 
 
 __all__ = [

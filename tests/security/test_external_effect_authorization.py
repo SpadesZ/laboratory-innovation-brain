@@ -1,9 +1,20 @@
-"""T-SEC-001 — an external side effect cannot happen before authorization succeeds.
+"""T-SEC-001 — an external side effect cannot happen before authorization succeeds, over a
+classification the caller did not choose.
 
-THE DEFECT THESE PROBES CLOSE. `EgressGate` decided correctly and nothing was obliged to ask it:
+TWO DEFECTS, AND THE SECOND ONLY BECAME VISIBLE ONCE THE FIRST WAS CLOSED.
+
+**The gate was optional.** `EgressGate` decided correctly and nothing was obliged to ask it:
 `SourceRouter.search` called `adapter.search` directly and `ScientificLLM.invoke` called its
-transport directly. SEC-001 says external connector/model egress *requires* policy and Actor
-clearance, and a requirement a caller may decline to satisfy is a convention.
+transport directly. A requirement a caller may decline to satisfy is a convention.
+`AuthorizedExternalRunner` made it structural -- a required constructor argument with no `None`
+branch, and `execute` performs only on ALLOW.
+
+**The gate was deciding about a caller's claim.** Both entry points then took
+`sensitivity=SensitivityLabel.PUBLIC` as an argument. So a caller assembling RESTRICTED_NDA
+evidence declared PUBLIC, the gate answered correctly about a fiction, and the material left with
+every check passing honestly. An authorization over a caller-supplied classification is a
+caller-supplied authorization. The classification is now derived from `ArtifactOccurrence` rows
+that ingestion wrote (§14.1), and a caller may only ADD labels.
 
 **EVERY SPY BELOW RAISES IF ENTERED.** That is the whole method. Asserting on a returned decision
 would pass equally against an implementation that called the transport first and refused
@@ -25,6 +36,7 @@ from lab_brain.cognition.llm import ModelSlot, PromptTemplate, ScientificLLM
 from lab_brain.core.models.enums import LicenseClass, SensitivityLabel, TrustClass
 from lab_brain.core.models.evidence_bundle import EvidenceBundle, ResearchIntent
 from lab_brain.core.models.inference import LogicalSlot
+from lab_brain.security.classification import ClassificationRefused, EgressClassification
 from lab_brain.security.egress import (
     EgressAuditLog,
     EgressGate,
@@ -45,15 +57,39 @@ from lab_brain.sources.adapter import (
     SourceRouter,
     SourceVisibility,
 )
+from tests.classification_fixtures import artifact_id, labelled
 from tests.conftest_fixtures import TOY_SCHEMA_REF
 
 pytestmark = [pytest.mark.requirement("SEC-001"), pytest.mark.spec_test("T-SEC-001")]
 
 PROJECT = "prj:test"
+OTHER_PROJECT = "prj:other"
 ACTOR = "act:test"
 NOW = dt.datetime(2026, 9, 22, 11, 0, tzinfo=dt.UTC)
 
 NDA_TEXT = "ACME 220nm PDK sidewall angle 83.4 deg, NDA-2026-117"
+
+#: Four artifacts, three of which this project has classified. The fourth is deliberately absent
+#: from the map: an artifact with no occurrence here is what an unclassifiable reference IS, and
+#: needs no separate switch to simulate.
+PUBLIC_ART = artifact_id("a public abstract")
+NDA_ART = artifact_id("an NDA datasheet")
+LAB_ART = artifact_id("unpublished lab work")
+UNCLASSIFIED_ART = artifact_id("something this project does not hold")
+
+LABELS = {
+    PUBLIC_ART: SensitivityLabel.PUBLIC,
+    NDA_ART: SensitivityLabel.RESTRICTED_NDA,
+    LAB_ART: SensitivityLabel.CONFIDENTIAL_LAB,
+}
+
+#: `attestation -> artifact`, the hop a bundle's classification travels (§17.14.1 names
+#: attestations; §17.2 records where each came from).
+ATTESTED = {"att:public": PUBLIC_ART, "att:nda": NDA_ART, "att:lab": LAB_ART}
+
+
+def _classifier(*, project_id: str = PROJECT):
+    return labelled(LABELS, project_id=project_id, attestations=ATTESTED)
 
 
 class TransportEntered(AssertionError):
@@ -141,6 +177,14 @@ def _runner(
     )
 
 
+def _router(adapters, runner=None, *, project_id: str = PROJECT) -> SourceRouter:
+    return SourceRouter(
+        adapters,
+        runner=runner or _runner(_policy()),
+        classifier=_classifier(project_id=project_id),
+    )
+
+
 # ---------------------------------------------------------------------------
 # 1–3. SourceRouter cannot reach an adapter without authorization
 # ---------------------------------------------------------------------------
@@ -149,13 +193,11 @@ def _runner(
 def test_restricted_nda_cannot_reach_adapter_search():
     """THE T-SEC-001 probe. §14.1 gives RESTRICTED_NDA no policy exception at all."""
     spy = _SpyAdapter("src:literature")
-    router = SourceRouter([spy], runner=_runner(_policy()))
-
-    results = router.search(
+    results = _router([spy]).search(
         SourceQuery(NDA_TEXT),
         project_id=PROJECT,
         actor_id=ACTOR,
-        sensitivity=SensitivityLabel.RESTRICTED_NDA,
+        context_artifact_ids=(NDA_ART,),
     )
     assert results == ()
     assert spy.entered == 0, "the adapter transport was entered for RESTRICTED_NDA material"
@@ -164,13 +206,11 @@ def test_restricted_nda_cannot_reach_adapter_search():
 def test_confidential_lab_without_explicit_permission_cannot_reach_the_adapter():
     """§14.1 defaults CONFIDENTIAL_LAB to local unless a project policy says otherwise."""
     spy = _SpyAdapter("src:literature")
-    router = SourceRouter([spy], runner=_runner(_policy()))
-
-    results = router.search(
+    results = _router([spy]).search(
         SourceQuery("unpublished ring topology"),
         project_id=PROJECT,
         actor_id=ACTOR,
-        sensitivity=SensitivityLabel.CONFIDENTIAL_LAB,
+        context_artifact_ids=(LAB_ART,),
     )
     assert results == ()
     assert spy.entered == 0
@@ -186,15 +226,13 @@ def test_an_actor_without_clearance_cannot_reach_the_adapter():
     permissive = _policy(
         permitted_labels=frozenset({SensitivityLabel.PUBLIC, SensitivityLabel.CONFIDENTIAL_LAB})
     )
-    router = SourceRouter(
-        [spy], runner=_runner(permissive, clearance=frozenset({SensitivityLabel.PUBLIC}))
-    )
+    router = _router([spy], _runner(permissive, clearance=frozenset({SensitivityLabel.PUBLIC})))
 
     results = router.search(
         SourceQuery("unpublished ring topology"),
         project_id=PROJECT,
         actor_id=ACTOR,
-        sensitivity=SensitivityLabel.CONFIDENTIAL_LAB,
+        context_artifact_ids=(LAB_ART,),
     )
     assert results == ()
     assert spy.entered == 0
@@ -202,12 +240,11 @@ def test_an_actor_without_clearance_cannot_reach_the_adapter():
 
 def test_an_unapproved_provider_cannot_be_reached_even_for_public_material():
     spy = _SpyAdapter("src:random-web")
-    router = SourceRouter([spy], runner=_runner(_policy()))
-    router.search(
+    _router([spy]).search(
         SourceQuery("public abstract"),
         project_id=PROJECT,
         actor_id=ACTOR,
-        sensitivity=SensitivityLabel.PUBLIC,
+        context_artifact_ids=(PUBLIC_ART,),
     )
     assert spy.entered == 0
 
@@ -220,12 +257,11 @@ def test_a_missing_policy_does_not_read_as_local():
     Mode one -- and the unwired deployment is the one that egresses everything.
     """
     spy = _SpyAdapter("src:literature", reach=ExternalReach.EXTERNAL)
-    router = SourceRouter([spy], runner=_runner(None))
-    router.search(
+    _router([spy], _runner(None)).search(
         SourceQuery("public abstract"),
         project_id=PROJECT,
         actor_id=ACTOR,
-        sensitivity=SensitivityLabel.PUBLIC,
+        context_artifact_ids=(PUBLIC_ART,),
     )
     assert spy.entered == 0
 
@@ -237,12 +273,11 @@ def test_a_declared_local_provider_works_with_no_policy_at_all():
     decided by what the adapter DECLARES rather than by what the environment lacks.
     """
     local = _WorkingAdapter("src:local-corpus", reach=ExternalReach.LOCAL)
-    router = SourceRouter([local], runner=_runner(None))
-    results = router.search(
+    results = _router([local], _runner(None)).search(
         SourceQuery("reverse bias"),
         project_id=PROJECT,
         actor_id=ACTOR,
-        sensitivity=SensitivityLabel.CONFIDENTIAL_LAB,
+        context_artifact_ids=(LAB_ART,),
     )
     assert results, "a declared-local provider was refused"
     assert local.entered == 1
@@ -251,12 +286,11 @@ def test_a_declared_local_provider_works_with_no_policy_at_all():
 def test_an_approved_public_search_reaches_the_adapter():
     """The positive control. Without it every assertion above could be a router that refuses all."""
     working = _WorkingAdapter("src:literature")
-    router = SourceRouter([working], runner=_runner(_policy()))
-    results = router.search(
+    results = _router([working]).search(
         SourceQuery("public abstract"),
         project_id=PROJECT,
         actor_id=ACTOR,
-        sensitivity=SensitivityLabel.PUBLIC,
+        context_artifact_ids=(PUBLIC_ART,),
     )
     assert len(results) == 1
     assert working.entered == 1
@@ -269,24 +303,236 @@ def test_fetch_by_name_raises_rather_than_silently_returning_nothing():
     which sends the researcher to look for a document instead of to an approver.
     """
     spy = _SpyAdapter("src:literature")
-    router = SourceRouter([spy], runner=_runner(_policy()))
     with pytest.raises(ExternalEffectRefused):
-        router.fetch(
+        _router([spy]).fetch(
             "src:literature",
             "doi:10.1000/x",
             project_id=PROJECT,
             actor_id=ACTOR,
-            sensitivity=SensitivityLabel.RESTRICTED_NDA,
+            context_artifact_ids=(NDA_ART,),
         )
     assert spy.entered == 0
 
 
 # ---------------------------------------------------------------------------
-# 4. A scientific model call cannot reach its transport first
+# 4. The classification is not the caller's to state
 # ---------------------------------------------------------------------------
 
 
-def _bundle() -> EvidenceBundle:
+def test_a_caller_cannot_declare_nda_context_as_public():
+    """THE downgrade attack, source side.
+
+    The context is RESTRICTED_NDA and the caller declares PUBLIC. Under the old signature this
+    was a supported call: the gate evaluated PUBLIC, permitted it, and the NDA-derived query left
+    the boundary with every check passing honestly.
+
+    `escalate` is a UNION with the derived set, so the declaration cannot remove
+    RESTRICTED_NDA -- there is no subtraction operator anywhere in the classifier. The spy proves
+    the ordering rather than the verdict.
+    """
+    spy = _SpyAdapter("src:literature")
+    results = _router([spy]).search(
+        SourceQuery(NDA_TEXT),
+        project_id=PROJECT,
+        actor_id=ACTOR,
+        context_artifact_ids=(NDA_ART,),
+        escalate=frozenset({SensitivityLabel.PUBLIC}),
+    )
+    assert results == ()
+    assert spy.entered == 0, "a declared PUBLIC downgrade reached the transport"
+
+
+def test_a_model_call_cannot_declare_nda_evidence_as_public():
+    """The same attack on the model side, through the bundle's own attestations.
+
+    The bundle names an attestation whose source artifact is RESTRICTED_NDA in this project. The
+    caller declares PUBLIC. The transport is fatal, so reaching it fails loudly rather than
+    producing a passing assertion about a returned decision.
+    """
+    model = ScientificLLM(
+        slots=(ModelSlot(LogicalSlot.HYPOTHESIS, "cloud-model", "1.0.0", provider="src:cloud"),),
+        prompts=(PromptTemplate("prm:hypothesis", "3.1.0", NDA_TEXT),),
+        complete=_fatal_transport,
+        runner=_runner(_policy()),
+        classifier=_classifier(),
+    )
+    with pytest.raises(ExternalEffectRefused):
+        model.invoke(
+            inference_id="inf:1",
+            slot=LogicalSlot.HYPOTHESIS,
+            role="hypothesis_generator",
+            prompt_id="prm:hypothesis",
+            bundle=_bundle(("att:nda",)),
+            trace_id="trc:1",
+            project_id=PROJECT,
+            actor_id=ACTOR,
+            escalate=frozenset({SensitivityLabel.PUBLIC}),
+            now=NOW,
+        )
+
+
+def test_escalation_adds_a_label_and_can_only_make_the_effect_stricter():
+    """The other direction, which must keep working.
+
+    A caller that believes a nominally PUBLIC artifact is being used in a restricted way may say
+    so. The result is a refusal where the derivation alone would have allowed -- escalation is
+    useful precisely because it changes the answer, and it changes it in one direction.
+    """
+    working = _WorkingAdapter("src:literature")
+    router = _router([working])
+
+    permitted = router.search(
+        SourceQuery("public abstract"),
+        project_id=PROJECT,
+        actor_id=ACTOR,
+        context_artifact_ids=(PUBLIC_ART,),
+    )
+    assert len(permitted) == 1
+
+    escalated = router.search(
+        SourceQuery("public abstract"),
+        project_id=PROJECT,
+        actor_id=ACTOR,
+        context_artifact_ids=(PUBLIC_ART,),
+        escalate=frozenset({SensitivityLabel.RESTRICTED_NDA}),
+    )
+    assert escalated == ()
+    assert working.entered == 1, "the escalated call still reached the transport"
+
+
+def test_unclassifiable_context_is_refused_rather_than_read_as_unrestricted():
+    """Absence of a classification is not permission (§14.3).
+
+    An artifact with no occurrence in this project cannot be classified here. Skipping it would
+    mean a reference the project does not hold LOWERS the effective classification -- available
+    to anyone who can name an id, which is the downgrade wearing a different hat.
+    """
+    spy = _SpyAdapter("src:literature")
+    with pytest.raises(ClassificationRefused):
+        _router([spy]).search(
+            SourceQuery(NDA_TEXT),
+            project_id=PROJECT,
+            actor_id=ACTOR,
+            context_artifact_ids=(PUBLIC_ART, UNCLASSIFIED_ART),
+        )
+    assert spy.entered == 0
+
+
+def test_declaring_nothing_at_all_is_refused():
+    """An empty classification would make the conjunction vacuous.
+
+    Every label is asked about separately because §14.1's labels are categories rather than a
+    ladder -- so "no labels" would be the most permissive thing a caller could say. It is the
+    only remaining way to assert nothing about what is leaving, and it refuses.
+    """
+    spy = _SpyAdapter("src:literature")
+    with pytest.raises(ClassificationRefused):
+        _router([spy]).search(SourceQuery(NDA_TEXT), project_id=PROJECT, actor_id=ACTOR)
+    assert spy.entered == 0
+
+
+def test_a_mixed_bundle_must_satisfy_the_policy_for_every_label_it_carries():
+    """Categories, not a ladder. Material carrying two labels needs both permitted.
+
+    The policy here permits PUBLIC. The context is one PUBLIC artifact and one CONFIDENTIAL_LAB
+    artifact. A "most restrictive wins" collapse would need an ordering `can_read_artifact`
+    refuses to invent; a conjunction needs none and gives the same answer.
+    """
+    spy = _SpyAdapter("src:literature")
+    results = _router([spy]).search(
+        SourceQuery("mixed"),
+        project_id=PROJECT,
+        actor_id=ACTOR,
+        context_artifact_ids=(PUBLIC_ART, LAB_ART),
+    )
+    assert results == ()
+    assert spy.entered == 0
+
+
+def test_a_bundle_from_another_project_cannot_import_its_classification():
+    """A cross-project bundle would otherwise inherit a friendlier project's labels.
+
+    §14.1 classifies per project (ADR-0010), so a bundle built in `prj:other` says nothing about
+    what this project's policy governs. It is unresolvable here, and unresolvable is refused.
+    """
+    foreign = EvidenceBundle(
+        research_intent=ResearchIntent(intent="DIAGNOSIS", stakes="HIGH"),
+        query_text="why does Cj fall",
+        source_policy_id="sp:diagnosis",
+        source_policy_version="1.0.0",
+        condition_schema_versions={"toy": TOY_SCHEMA_REF},
+        ordered_attestation_ids=("att:public",),
+        project_id=OTHER_PROJECT,
+    )
+    model = ScientificLLM(
+        slots=(ModelSlot(LogicalSlot.HYPOTHESIS, "cloud-model", "1.0.0", provider="src:cloud"),),
+        prompts=(PromptTemplate("prm:hypothesis", "3.1.0", "x"),),
+        complete=_fatal_transport,
+        runner=_runner(_policy()),
+        classifier=_classifier(),
+    )
+    with pytest.raises(ClassificationRefused):
+        model.invoke(
+            inference_id="inf:1",
+            slot=LogicalSlot.HYPOTHESIS,
+            role="hypothesis_generator",
+            prompt_id="prm:hypothesis",
+            bundle=foreign,
+            trace_id="trc:1",
+            project_id=PROJECT,
+            actor_id=ACTOR,
+            now=NOW,
+        )
+
+
+def test_the_classifier_refuses_before_an_effect_is_ever_built():
+    """The OUTER of two layers, tested on its own.
+
+    `require_artifacts` raises, and `ExternalEffect.__post_init__` raises too. Both are wanted --
+    the classifier gives the message naming what could not be resolved, and the constructor makes
+    the bad state unrepresentable for any future caller that skips the classifier. But a probe
+    that only exercised them together would let either one rot: the mutation battery kills the
+    constructor's guard and the classifier's guard survives, because the other catches it.
+
+    So this calls the classifier directly, and the next test calls the constructor directly.
+    """
+    classifier = _classifier()
+    with pytest.raises(ClassificationRefused) as unresolved:
+        classifier.require_artifacts((UNCLASSIFIED_ART,), project_id=PROJECT)
+    assert UNCLASSIFIED_ART in str(unresolved.value)
+
+    with pytest.raises(ClassificationRefused) as empty:
+        classifier.require_artifacts((), project_id=PROJECT)
+    assert "no sensitivity could be derived" in str(empty.value)
+
+    # The positive control: the same call over a classified artifact returns a usable answer.
+    usable = classifier.require_artifacts((PUBLIC_ART,), project_id=PROJECT)
+    assert usable.labels == frozenset({SensitivityLabel.PUBLIC})
+    assert usable.basis == (PUBLIC_ART,)
+
+
+def test_an_effect_over_an_unusable_classification_cannot_be_constructed():
+    """The refusal is structural, not a branch the runner remembers.
+
+    `ExternalEffect.__post_init__` refuses an unusable classification, so there is no object
+    representing "an effect over material nobody classified" for any code path to mishandle.
+    """
+    with pytest.raises(ClassificationRefused):
+        ExternalEffect(
+            project_id=PROJECT,
+            actor_id=ACTOR,
+            provider_id="src:literature",
+            classification=EgressClassification(labels=frozenset()),
+            material=NDA_TEXT,
+        )
+
+
+# ---------------------------------------------------------------------------
+# 5. A scientific model call cannot reach its transport first
+# ---------------------------------------------------------------------------
+
+
+def _bundle(attestation_ids: tuple[str, ...] = ("att:public",)) -> EvidenceBundle:
     return EvidenceBundle(
         research_intent=ResearchIntent(intent="DIAGNOSIS", stakes="HIGH"),
         query_text="why does Cj fall",
@@ -294,7 +540,7 @@ def _bundle() -> EvidenceBundle:
         source_policy_version="1.0.0",
         condition_filter={},
         condition_schema_versions={"toy": TOY_SCHEMA_REF},
-        ordered_attestation_ids=("att:1",),
+        ordered_attestation_ids=attestation_ids,
         project_id=PROJECT,
     )
 
@@ -313,6 +559,7 @@ def test_a_scientific_model_call_cannot_invoke_its_transport_before_authorizatio
         prompts=(PromptTemplate("prm:hypothesis", "3.1.0", NDA_TEXT),),
         complete=_fatal_transport,
         runner=_runner(_policy()),
+        classifier=_classifier(),
     )
     with pytest.raises(ExternalEffectRefused):
         model.invoke(
@@ -320,11 +567,10 @@ def test_a_scientific_model_call_cannot_invoke_its_transport_before_authorizatio
             slot=LogicalSlot.HYPOTHESIS,
             role="hypothesis_generator",
             prompt_id="prm:hypothesis",
-            bundle=_bundle(),
+            bundle=_bundle(("att:nda",)),
             trace_id="trc:1",
             project_id=PROJECT,
             actor_id=ACTOR,
-            sensitivity=SensitivityLabel.RESTRICTED_NDA,
             now=NOW,
         )
 
@@ -343,17 +589,17 @@ def test_a_local_model_slot_runs_under_private_mode():
         prompts=(PromptTemplate("prm:hypothesis", "3.1.0", "Consider the evidence"),),
         complete=lambda _t, _s: "a local answer",
         runner=_runner(None),
+        classifier=_classifier(),
     )
     output = model.invoke(
         inference_id="inf:1",
         slot=LogicalSlot.HYPOTHESIS,
         role="hypothesis_generator",
         prompt_id="prm:hypothesis",
-        bundle=_bundle(),
+        bundle=_bundle(("att:nda",)),
         trace_id="trc:1",
         project_id=PROJECT,
         actor_id=ACTOR,
-        sensitivity=SensitivityLabel.RESTRICTED_NDA,
         now=NOW,
     )
     assert output.text == "a local answer"
@@ -367,6 +613,7 @@ def test_an_undeclared_model_slot_with_no_policy_is_refused():
         prompts=(PromptTemplate("prm:hypothesis", "3.1.0", "x"),),
         complete=_fatal_transport,
         runner=_runner(None),
+        classifier=_classifier(),
     )
     with pytest.raises(ExternalEffectRefused):
         model.invoke(
@@ -378,13 +625,12 @@ def test_an_undeclared_model_slot_with_no_policy_is_refused():
             trace_id="trc:1",
             project_id=PROJECT,
             actor_id=ACTOR,
-            sensitivity=SensitivityLabel.PUBLIC,
             now=NOW,
         )
 
 
 # ---------------------------------------------------------------------------
-# 5. The refusal is audited, and carries no payload
+# 6. The refusal is audited, and carries no payload
 # ---------------------------------------------------------------------------
 
 
@@ -396,12 +642,11 @@ def test_a_refused_effect_is_audited_without_the_payload():
     """
     runner = _runner(_policy())
     spy = _SpyAdapter("src:literature")
-    router = SourceRouter([spy], runner=runner)
-    router.search(
+    _router([spy], runner).search(
         SourceQuery(NDA_TEXT),
         project_id=PROJECT,
         actor_id=ACTOR,
-        sensitivity=SensitivityLabel.RESTRICTED_NDA,
+        context_artifact_ids=(NDA_ART,),
     )
 
     blocked = runner.audit.blocked()
@@ -417,35 +662,57 @@ def test_a_refused_effect_is_audited_without_the_payload():
 def test_a_permitted_effect_is_not_recorded_as_a_block():
     """The log is evidence of refusals. Recording permitted traffic would bury them."""
     runner = _runner(_policy())
-    router = SourceRouter([_WorkingAdapter("src:literature")], runner=runner)
-    router.search(
+    _router([_WorkingAdapter("src:literature")], runner).search(
         SourceQuery("public"),
         project_id=PROJECT,
         actor_id=ACTOR,
-        sensitivity=SensitivityLabel.PUBLIC,
+        context_artifact_ids=(PUBLIC_ART,),
     )
     assert runner.audit.blocked() == ()
 
 
 # ---------------------------------------------------------------------------
-# 6. The dependency is structural, not conventional
+# 7. The dependency is structural, not conventional
 # ---------------------------------------------------------------------------
 
 
-def test_neither_component_can_be_built_without_a_runner():
-    """THE structural claim. An optional gate is not a gate.
+def test_neither_component_can_be_built_without_a_runner_or_a_classifier():
+    """THE structural claim, now covering both halves.
 
-    There is no default and no `None` branch: a deployment that never wired authorization cannot
-    construct the objects that perform external effects. That is what makes SEC-001 hold by
-    construction rather than by every caller remembering.
+    An optional gate is not a gate, and a gate over a caller's claim is not an authorization.
+    Neither collaborator has a default and neither has a `None` branch: a deployment missing
+    either cannot construct the objects that perform external effects.
     """
     with pytest.raises(TypeError):
         SourceRouter([_SpyAdapter("src:x")])  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        SourceRouter([_SpyAdapter("src:x")], runner=_runner(_policy()))  # type: ignore[call-arg]
     with pytest.raises(TypeError):
         ScientificLLM(  # type: ignore[call-arg]
             slots=(ModelSlot(LogicalSlot.HYPOTHESIS, "m", "1.0.0"),),
             prompts=(PromptTemplate("p", "1.0.0", "x"),),
             complete=_fatal_transport,
+        )
+    with pytest.raises(TypeError):
+        ScientificLLM(  # type: ignore[call-arg]
+            slots=(ModelSlot(LogicalSlot.HYPOTHESIS, "m", "1.0.0"),),
+            prompts=(PromptTemplate("p", "1.0.0", "x"),),
+            complete=_fatal_transport,
+            runner=_runner(_policy()),
+        )
+
+
+def test_no_production_entry_point_still_accepts_a_sensitivity_argument():
+    """The parameter itself is gone, not merely discouraged.
+
+    A deprecated-but-accepted `sensitivity=` would keep every existing caller compiling while
+    keeping the hole open. Checked against the signatures so the claim cannot rot into a comment.
+    """
+    import inspect
+
+    for call in (SourceRouter.search, SourceRouter.fetch, ScientificLLM.invoke):
+        assert "sensitivity" not in inspect.signature(call).parameters, (
+            f"{call.__qualname__} still lets a caller state the sensitivity of what it sends"
         )
 
 
@@ -464,7 +731,7 @@ def test_the_runner_performs_nothing_when_it_refuses():
                 project_id=PROJECT,
                 actor_id=ACTOR,
                 provider_id="src:literature",
-                sensitivity=SensitivityLabel.RESTRICTED_NDA,
+                classification=_classifier().require_artifacts((NDA_ART,), project_id=PROJECT),
                 material=NDA_TEXT,
             ),
             effectful,
@@ -480,19 +747,19 @@ def test_authorize_is_a_read_and_performs_nothing():
             project_id=PROJECT,
             actor_id=ACTOR,
             provider_id="src:literature",
-            sensitivity=SensitivityLabel.PUBLIC,
+            classification=_classifier().require_artifacts((PUBLIC_ART,), project_id=PROJECT),
             material="public",
         )
     )
     assert decision.permitted
 
-    router = SourceRouter([_SpyAdapter("src:literature")], runner=runner)
+    router = _router([_SpyAdapter("src:literature")], runner)
     assert router.authorized_providers(
-        project_id=PROJECT, actor_id=ACTOR, sensitivity=SensitivityLabel.PUBLIC
+        project_id=PROJECT, actor_id=ACTOR, context_artifact_ids=(PUBLIC_ART,)
     ) == ("src:literature",)
     assert (
         router.authorized_providers(
-            project_id=PROJECT, actor_id=ACTOR, sensitivity=SensitivityLabel.RESTRICTED_NDA
+            project_id=PROJECT, actor_id=ACTOR, context_artifact_ids=(NDA_ART,)
         )
         == ()
     )

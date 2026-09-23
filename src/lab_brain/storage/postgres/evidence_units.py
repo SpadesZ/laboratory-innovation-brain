@@ -26,6 +26,20 @@ WHAT IT DOES NOT DO. Enforce project scope. Presence is `EvidenceUnitOccurrence`
 the authority on it is the admission gate's resolver -- duplicating the check here would be a
 second copy of a SEC-002 rule, which ADR-0012's whole shape exists to avoid. ``present_in`` is
 offered as the query the gate's resolver is built from, not as an enforcement point.
+
+WHO MAY HOLD ONE. Trusted implementation code only: the admission gate, `ScientificReadGate`'s own
+resolvers, and the composition root's private field. It is deliberately NOT reachable from any
+production accessor -- an earlier shape exported it as `unauthorized_reader()`, on the theory that
+naming the hazard contained it. A method named "unauthorized" is documentation, not a control:
+the production composition root was still handing out a canonical-body loader that answers to
+nobody, and the M1 vertical itself reached for it. Tests that genuinely need the low-level reader
+construct one directly, which is test infrastructure rather than an exported bypass.
+
+THE SECURITY-METADATA READS ARE SEPARATE AND CARRY NO BODY. `artifact_of` and
+`security_index_for_project` exist so an authorization decision can be made *before* a body is
+materialized. Selecting the body and filtering afterwards produces a correct filter over an
+exposure that has already happened -- the text is in the process that is about to decide it may
+not be.
 """
 
 from __future__ import annotations
@@ -121,6 +135,38 @@ class PostgresEvidenceUnitReader:
             (project_id,),
         ).fetchall()
         return tuple(self._rebuild(row, row[0]) for row in rows)
+
+    # -- security metadata: no body crosses these ---------------------------
+
+    def artifact_of(self, evidence_unit_id: str) -> str | None:
+        """The Artifact a unit's authorization derives from. Selects no body.
+
+        An EvidenceUnit carries no project and no sensitivity label (ADR-0012); the label lives
+        on `artifact_occurrences`, per project. So the authorization question for a passage is
+        its artifact's question, and this is the smallest read that can pose it -- one column,
+        no text, nothing that would be a disclosure if the answer turns out to be "refused".
+        """
+        row = self._connection.execute(
+            "SELECT artifact_id FROM evidence_units WHERE evidence_unit_id = %s",
+            (evidence_unit_id,),
+        ).fetchone()
+        return None if row is None else str(row[0])
+
+    def security_index_for_project(self, project_id: str) -> tuple[tuple[str, str], ...]:
+        """``(evidence_unit_id, artifact_id)`` for every unit present in this project.
+
+        The bulk form of `artifact_of`, so authorizing a whole project's evidence is one query
+        rather than one per unit -- and still no body. Ordered by structural path to match
+        `load_for_project`, because a caller that authorizes here and loads there should see the
+        same sequence.
+        """
+        rows = self._connection.execute(
+            "SELECT u.evidence_unit_id, u.artifact_id FROM evidence_units u "
+            "JOIN evidence_unit_occurrences o USING (evidence_unit_id) "
+            "WHERE o.project_id = %s ORDER BY u.structural_path",
+            (project_id,),
+        ).fetchall()
+        return tuple((str(row[0]), str(row[1])) for row in rows)
 
     def present_in(self, evidence_unit_id: str, project_id: str) -> bool:
         """§17.25.1 presence. The query an admission gate's resolver is built from.
