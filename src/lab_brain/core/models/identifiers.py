@@ -70,6 +70,14 @@ _ID_PREFIXES: Final[dict[str, str]] = {
     # P7 / EPI-003, EPI-005.
     "belief_revision_event": "bre",
     "hypothesis": "hyp",
+    # M2 / §17.19.2. A ValidationReport is event-addressed: re-running a validator over the same
+    # subject after a rule version changes is a genuinely new report, and collapsing the two into
+    # one identity would hide the re-check that the version bump exists to make visible.
+    "validation": "vld",
+    # M2 / §10.7. A lease on a license seat. Event-addressed for the same reason a Run is: the
+    # same Job acquiring a seat, releasing it and acquiring one again is two allocations, and a
+    # contention audit asks which one was held when a third job was refused.
+    "resource_lease": "lse",
 }
 
 

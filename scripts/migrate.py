@@ -191,6 +191,13 @@ APPLY_ORDER: tuple[str, ...] = (
     # because §17.2's Attestation carries `inference_provenance_id`. After 001 for the
     # project foreign key.
     "003d_inference_provenance.sql",
+    # M2 / VER-002, §9.5, §17.18, §10.7. The capabilities half of Appendix A's `007` slot, which
+    # `007a`'s header reserved for this milestone. Also carries the license/seat pool the M2 exit
+    # gate's "license/resource queue mock" needs, because a seat ceiling enforced in Python is
+    # correct for one scheduler and wrong for two -- the same argument `006` makes about duplicate
+    # callbacks. After 008 (`conditions_schema_version` is a foreign key into `condition_schemas`)
+    # and after 006 (`resource_leases.job_id` references `jobs`).
+    "007c_capabilities.sql",
 )
 
 _BOOTSTRAP = """

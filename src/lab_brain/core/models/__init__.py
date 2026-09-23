@@ -27,6 +27,7 @@ from lab_brain.core.models.belief_event import (
     BeliefState,
     BeliefTargetType,
 )
+from lab_brain.core.models.capability import ActionType, Availability, Capability
 from lab_brain.core.models.claim import Claim
 from lab_brain.core.models.condition import (
     ConditionMatch,
@@ -153,6 +154,11 @@ from lab_brain.core.models.transition import (
     TransitionPolicy,
     TransitionReason,
 )
+from lab_brain.core.models.validation import (
+    ValidationFinding,
+    ValidationReport,
+    ValidationStatus,
+)
 
 __all__ = [
     "ACTIVE_JOB_STATES",
@@ -174,16 +180,19 @@ __all__ = [
     "SUBJECT_FIELD_FOR_TYPE",
     "TERMINAL_JOB_STATES",
     "TERMINAL_SPAN_STATUSES",
+    "ActionType",
     "Actor",
     "ActorType",
     "Artifact",
     "ArtifactOccurrence",
     "Attestation",
     "AuthorityComparison",
+    "Availability",
     "BeliefRevisionEvent",
     "BeliefState",
     "BeliefTargetType",
     "BudgetCaps",
+    "Capability",
     "Claim",
     "ClaimIdentityStatus",
     "ConditionMatch",
@@ -257,6 +266,9 @@ __all__ = [
     "TransitionReason",
     "TrustClass",
     "Uncertainty",
+    "ValidationFinding",
+    "ValidationReport",
+    "ValidationStatus",
     "VerificationStatus",
     "WorkIdentifier",
     "artifact_id_for",

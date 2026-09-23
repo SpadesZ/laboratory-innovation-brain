@@ -135,6 +135,17 @@ BINDINGS: tuple[SchemaBinding, ...] = (
         table="retrieval_representations",
         migration="009a_retrieval_representations.sql",
     ),
+    # M2 / VER-002. Bound field-for-field rather than exempted, because §17.18's block is already
+    # exact -- fifteen fields, no audit timestamp -- and the table was written to match it. That is
+    # why `capabilities` has no `created_at`: see the migration header for why registration history
+    # is `version` rather than a column.
+    SchemaBinding(
+        section="17.18",
+        schema_name="Capability",
+        model_path="lab_brain.core.models.capability:Capability",
+        table="capabilities",
+        migration="007c_capabilities.sql",
+    ),
 )
 
 
@@ -175,6 +186,13 @@ UNBOUND: dict[str, str] = {
     "reason §17.8 omits it on RelationJudgment. Bindable when that migration lands.",
     "OutcomeSpace": "§17.19.2 declares it and M0b uses it as an in-memory admission check for "
     "VER-006, storing none, so there is no DDL side. Bindable with the BenchmarkPolicy tables.",
+    "ValidationReport": "§17.19.2 writes `status:PASS|WARN|FAIL|UNKNOWN` as one token, which this "
+    "parser cannot read as a field name -- so the canonical set comes back as nine fields against "
+    "an implementation of ten and `status` is reported as undeclared. The same shape as §17.16's "
+    "`state:QUEUED|...` on Job. There is also no DDL side: M2 stores no report, because §26's "
+    "VER-002 and DOM-SP-001 rows are `unit` and `domain` -- what they require is that a validator "
+    "RETURNS this shape. Bindable once §17.19.2 states `status` as its own field and VER-004's "
+    "planner-side plausibility check brings the table.",
     "RelationJudgmentTemplate": "§17.5.1's block describes a value object embedded in Prediction, "
     "not a table -- the same shape as EvidenceField.",
     "RetrievalCandidate": "§17.25's block describes a retrieval result, not stored state -- the "
