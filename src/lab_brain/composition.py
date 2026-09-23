@@ -43,15 +43,24 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from lab_brain.core.access import can_read_artifact
-from lab_brain.core.models.access import ArtifactOccurrence, ProjectMembership
+from lab_brain.cognition.llm import BeliefBasisGate, ScientificOutput
+from lab_brain.core.models.access import Actor, ArtifactOccurrence, ProjectMembership
 from lab_brain.core.models.artifact import Artifact
 from lab_brain.core.models.base import utc_now
 from lab_brain.core.models.enums import SensitivityLabel, SourceOrigin
+from lab_brain.core.models.episode import EpisodeState, ResearchEpisode
 from lab_brain.core.models.evidence_unit import EvidenceUnit
 from lab_brain.core.models.identifiers import new_id
+from lab_brain.core.models.inference import InferenceProvenance
 from lab_brain.core.models.job import Job, JobState, Run, RunStatus
+from lab_brain.core.repositories.episodes import SqlEpisodeStore
+from lab_brain.core.repositories.inference import SqlInferenceProvenanceStore
 from lab_brain.core.repositories.jobs import SqlJobStore
+from lab_brain.core.scientific_read import (
+    AuthorizedCandidateResolver,
+    AuthorizedUnit,
+    ScientificReadGate,
+)
 from lab_brain.ingestion.admission_gate import EvidenceAdmissionGate
 from lab_brain.ingestion.pipeline import IngestionOutcome, IngestionPipeline, IngestionStage
 from lab_brain.ingestion.reverification import SegmentationReverifier
@@ -119,6 +128,8 @@ class IngestionService:
         self._clock = clock
         self._writer = PostgresIngestionWriter(connection)
         self._jobs = SqlJobStore(connection)
+        self._episodes = SqlEpisodeStore(connection)
+        self._inferences = SqlInferenceProvenanceStore(connection)
         self._reader = PostgresEvidenceUnitReader(connection)
         self._store = artifact_store
         self._pipeline = IngestionPipeline(artifact_store, self._commit_rows, self._rollback_rows)
@@ -173,6 +184,11 @@ class IngestionService:
 
         Before, not after: UX-004's retry resumes a Job, and a Job created only on success would
         not exist for the failure that needs retrying.
+
+        ``episode_id`` is optional here and checked when supplied: `006b` refuses a Job whose
+        project or trace differs from its episode's. Optional because M1 still admits an
+        ingestion outside any episode -- a watcher drop has no research activity behind it -- and
+        making it mandatory would force callers to invent one.
         """
         return self._jobs.submit(
             Job(
@@ -331,31 +347,139 @@ class IngestionService:
 
     # -- reads, all of them project-scoped ----------------------------------
 
-    def evidence_for(self, project_id: str) -> tuple[EvidenceUnit, ...]:
-        """Canonical evidence, rebuilt through the model and scoped by occurrence."""
-        return self._reader.load_for_project(project_id)
+    # -- episodes (§17.3) ---------------------------------------------------
+
+    def open_episode(
+        self, *, project_id: str, goal: str, trace_id: str, episode_id: str | None = None
+    ) -> ResearchEpisode:
+        """Start a research episode. §12.5's trace begins here.
+
+        The episode owns the trace and every Job in it inherits that trace -- `006b` refuses a
+        Job on a different one, so the chain cannot be broken at its head.
+        """
+        return self._episodes.open(
+            ResearchEpisode(
+                episode_id=episode_id or new_id("episode"),
+                project_id=project_id,
+                trace_id=trace_id,
+                goal=goal,
+                state=EpisodeState.EVIDENCE_GATHERING,
+                start_time=self._clock(),
+            )
+        )
+
+    def suspend_episode(self, episode_id: str, *, reason: str) -> ResearchEpisode:
+        """Park the EPISODE, not just its job.
+
+        The exit gate says the episode resumes. A parked job whose episode is still
+        EVIDENCE_GATHERING would leave a resumer unable to tell which activity to pick up --
+        which is the distinction the clause is drawing.
+        """
+        return self._episodes.suspend(episode_id, reason=reason, at=self._clock())
+
+    def resume_episode(self, episode_id: str) -> ResearchEpisode:
+        return self._episodes.resume(episode_id)
+
+    def episode(self, episode_id: str) -> ResearchEpisode | None:
+        return self._episodes.get(episode_id)
+
+    def jobs_of_episode(self, episode_id: str) -> tuple[str, ...]:
+        """Membership by query. §17.8 forbids the parallel-array shape."""
+        return self._episodes.jobs_of(episode_id)
+
+    # -- scientific inference (§17.14) --------------------------------------
+
+    def record_inference(self, output: ScientificOutput, *, project_id: str) -> InferenceProvenance:
+        """DURABLY persist a scientific LLM output and its provenance (LLM-001).
+
+        This is what makes the exit gate's "all scientific LLM calls persist bundle+provenance"
+        a true sentence rather than a description of an in-memory object. `003d` is append-only,
+        so a stored inference cannot later be made to claim a model it did not come from -- which
+        matters because §7.6 judges belief admissibility against exactly this row.
+        """
+        return self._inferences.record(output, project_id=project_id)
+
+    def inference(self, inference_id: str) -> InferenceProvenance | None:
+        return self._inferences.get(inference_id)
+
+    def belief_basis_gate(self) -> BeliefBasisGate:
+        """§7.6's read side, reading the DURABLE record.
+
+        Wired to the store rather than to a caller-supplied set: the rule is about inferences
+        that are already in the database, and a gate backed by whatever a caller happened to
+        hand it would answer about a different population.
+        """
+        return BeliefBasisGate(
+            load_provenance=self._inferences.get,
+            is_inference=lambda ref: ref.startswith("inf:"),
+        )
+
+    def read_gate(self) -> ScientificReadGate:
+        """The ONE authorization boundary for scientific reads (SEC-002, R-7).
+
+        Built from this deployment's stores. Every verdict it returns is `can_read_artifact`'s;
+        this method supplies the three records that gate needs and nothing else.
+        """
+        return ScientificReadGate(
+            load_actor=self._load_actor,
+            load_membership=self._load_membership,
+            load_occurrence=self._load_occurrence,
+        )
+
+    def evidence_for(self, *, actor_id: str, project_id: str) -> tuple[AuthorizedUnit, ...]:
+        """Canonical evidence this actor may read.
+
+        THE ACTOR IS REQUIRED. The previous signature took only a project and returned canonical
+        bodies -- an occurrence proves presence, not authorization, so a member with INTERNAL
+        clearance received RESTRICTED_NDA text and every check the call made passed honestly.
+
+        Returns `AuthorizedUnit`, not `EvidenceUnit`, so the decision that authorized each body
+        travels with it: a bare list is indistinguishable from a list nobody checked.
+        """
+        units = self._reader.load_for_project(project_id)
+        return self.read_gate().authorized_units(units, actor_id=actor_id, project_id=project_id)
+
+    def candidate_resolver(self) -> AuthorizedCandidateResolver:
+        """Retrieval → canonical bodies, authorized.
+
+        Wraps rather than replaces EVI-010's locked boundary: a candidate still carries no body
+        and the canonical unit is still re-loaded by identity. What is added is the question
+        §17.25.1 cannot answer.
+        """
+        return AuthorizedCandidateResolver(gate=self.read_gate(), load_unit=self._reader.load)
+
+    def unauthorized_reader(self) -> PostgresEvidenceUnitReader:
+        """The ACL-free canonical loader, named so it cannot be mistaken for an authorized read.
+
+        It stays ACL-free deliberately -- it is what admission and the read gate themselves use,
+        and an ACL inside it would be a second copy of SEC-002. The name is the contract: a
+        caller reaching for this is opting out of authorization and has to say so.
+        """
+        return self._reader
 
     def admission_gate(
         self,
         *,
-        membership_of: Callable[[str, str], ProjectMembership | None],
+        actor_id: str,
         load_artifact: Callable[[str], Artifact | None],
         resegment: SegmentationReverifier,
-        actor_of: Callable[[str], Any],
     ) -> EvidenceAdmissionGate:
-        """The gate, wired to THIS deployment's stores.
+        """The gate, wired to THIS deployment's stores and to one ACL.
 
-        R-7's closing condition lives here: `can_read` is `lab_brain.core.access.can_read_artifact`
-        -- the one ACL implementation -- reached through a production object rather than through a
-        closure a test wrote. Every resolver is supplied, so none of the fail-closed branches is
-        reached by a misconfiguration rather than by an attack.
+        `can_read` goes through `ScientificReadGate`, which is the same boundary
+        `evidence_for` and the candidate resolver use. Before this repair the composition root
+        built its own closure over `can_read_artifact` -- correct, and a second place the ACL was
+        assembled. Every resolver is supplied, so none of the fail-closed branches is reached by
+        a misconfiguration rather than by an attack.
         """
+        gate = self.read_gate()
 
         def can_read(artifact_id: str, project_id: str) -> bool:
-            occurrence = self._load_occurrence(artifact_id, project_id)
-            actor = actor_of(project_id)
-            membership = membership_of(getattr(actor, "actor_id", ""), project_id)
-            return bool(can_read_artifact(actor, artifact_id, project_id, occurrence, membership))
+            return bool(
+                gate.authorize_artifact(
+                    actor_id=actor_id, project_id=project_id, artifact_id=artifact_id
+                )
+            )
 
         return EvidenceAdmissionGate(
             load_artifact=load_artifact,
@@ -374,6 +498,41 @@ class IngestionService:
             (artifact_id, project_id),
         ).fetchone()
         return row is not None
+
+    def _load_actor(self, actor_id: str) -> Actor | None:
+        row = self._connection.execute(
+            "SELECT actor_id, actor_type, display_name, active FROM actors WHERE actor_id = %s",
+            (actor_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return Actor.model_validate(
+            {
+                "actor_id": row[0],
+                "actor_type": row[1],
+                "display_name": row[2],
+                "active": row[3],
+            }
+        )
+
+    def _load_membership(self, actor_id: str, project_id: str) -> ProjectMembership | None:
+        row = self._connection.execute(
+            "SELECT actor_id, project_id, role, sensitivity_clearance, approval_scopes, active "
+            "FROM project_memberships WHERE actor_id = %s AND project_id = %s",
+            (actor_id, project_id),
+        ).fetchone()
+        if row is None:
+            return None
+        return ProjectMembership.model_validate(
+            {
+                "actor_id": row[0],
+                "project_id": row[1],
+                "role": row[2],
+                "sensitivity_clearance": tuple(row[3] or ()),
+                "approval_scopes": tuple(row[4] or ()),
+                "active": row[5],
+            }
+        )
 
     def _load_occurrence(self, artifact_id: str, project_id: str) -> ArtifactOccurrence | None:
         row = self._connection.execute(

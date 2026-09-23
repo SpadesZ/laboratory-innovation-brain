@@ -30,6 +30,12 @@ from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
 from lab_brain.core.models.enums import LicenseClass, SensitivityLabel, TrustClass
+from lab_brain.security.external import (
+    AuthorizedExternalRunner,
+    ExternalEffect,
+    ExternalEffectRefused,
+    ExternalReach,
+)
 
 
 class SourceVisibility(StrEnum):
@@ -52,6 +58,13 @@ class SourceCapabilities:
     #: material declares PUBLIC, and SEC-001's gate reads it -- so the boundary is a property of
     #: the adapter rather than a rule each caller remembers.
     max_sensitivity: SensitivityLabel = SensitivityLabel.PUBLIC
+    #: Whether reaching this provider leaves the approved boundary (§14.2).
+    #:
+    #: DECLARED, never inferred. A local corpus on this machine is a legitimate Private Mode
+    #: provider and must keep working with no egress at all -- but "no policy configured, so it
+    #: must be local" is exactly what an unwired production deployment looks like. Defaults to
+    #: EXTERNAL so an adapter that says nothing is treated as the dangerous case.
+    reach: ExternalReach = ExternalReach.EXTERNAL
 
 
 @dataclass(frozen=True)
@@ -132,8 +145,22 @@ class SourceRouter:
     exists, the router has a second contract -- the real one, and the one it documents.
     """
 
-    def __init__(self, adapters: Sequence[ExternalSourceAdapter] = ()) -> None:
+    def __init__(
+        self,
+        adapters: Sequence[ExternalSourceAdapter] = (),
+        *,
+        runner: AuthorizedExternalRunner,
+    ) -> None:
+        """``runner`` is REQUIRED and has no default.
+
+        SEC-001 says external connector egress requires policy and Actor clearance. A default of
+        `None` would mean a deployment that never wired authorization still builds a working
+        router -- and the requirement would be satisfied by convention rather than by
+        construction. There is no way to obtain a `SourceRouter` that can reach an adapter
+        without one.
+        """
         self._adapters = {adapter.provider_id(): adapter for adapter in adapters}
+        self._runner = runner
 
     @property
     def providers(self) -> tuple[str, ...]:
@@ -155,26 +182,95 @@ class SourceRouter:
         """For UX-007. An absent adapter contributes nothing rather than an error row."""
         return tuple(adapter.healthcheck() for adapter in self._adapters.values())
 
-    def search(self, query: SourceQuery) -> tuple[ExternalSourceRecord, ...]:
-        """Every healthy adapter that can search, in one normalized result set.
+    def search(
+        self,
+        query: SourceQuery,
+        *,
+        project_id: str,
+        actor_id: str,
+        sensitivity: SensitivityLabel,
+    ) -> tuple[ExternalSourceRecord, ...]:
+        """Every adapter this actor is authorized to reach, in one normalized result set.
 
-        An unreachable provider is SKIPPED rather than raising. §26's T-UX-007 row makes a
-        degraded connector a health signal; making it an exception here would turn one provider's
-        outage into a failed research query, and the researcher would learn nothing about which
-        provider was down.
+        AUTHORIZATION IS PER ADAPTER AND HAPPENS BEFORE THE CALL. `runner.execute` performs the
+        adapter's `search` only on ALLOW; a refused provider never has its transport entered.
+        The query text is what would leave, so it is what the gate digests.
+
+        A refused provider is SKIPPED, like an unreachable one, and for the same reason: turning
+        one provider's policy refusal into a failed research query tells the researcher nothing
+        and breaks every other provider. The refusal is in the audit log, and UX surfaces read
+        `authorized_providers` to explain it.
+
+        `project_id`, `actor_id` and `sensitivity` are required. A search with no actor is an
+        unidentified request (§14.4), and a default would be the optional-gate shape again.
         """
         results: list[ExternalSourceRecord] = []
         for adapter in self._adapters.values():
-            if not adapter.capabilities().can_search:
+            capabilities = adapter.capabilities()
+            if not capabilities.can_search:
                 continue
             if not adapter.healthcheck().reachable:
                 continue
-            results.extend(adapter.search(query))
+            effect = ExternalEffect(
+                project_id=project_id,
+                actor_id=actor_id,
+                provider_id=adapter.provider_id(),
+                sensitivity=sensitivity,
+                material=query.text,
+                reach=capabilities.reach,
+            )
+
+            def _search(a: ExternalSourceAdapter = adapter) -> Sequence[ExternalSourceRecord]:
+                return a.search(query)
+
+            try:
+                found = self._runner.execute(effect, _search)
+            except ExternalEffectRefused:
+                continue
+            results.extend(found)
         # Deterministic order, so a retrieval is reproducible across registry iteration order.
         return tuple(sorted(results, key=lambda r: (r.provider, r.canonical_locator)))
 
-    def fetch(self, provider_id: str, locator: str) -> ExternalSourceRecord:
-        """One record, by name. Raises, because the caller asked for THIS provider."""
+    def authorized_providers(
+        self, *, project_id: str, actor_id: str, sensitivity: SensitivityLabel
+    ) -> tuple[str, ...]:
+        """Which registered providers this actor may reach for this material.
+
+        A read, not a permission: it performs nothing. UX surfaces use it to explain why a
+        provider produced no results without the researcher having to run a query that is
+        refused.
+        """
+        allowed = []
+        for adapter in self._adapters.values():
+            decision = self._runner.authorize(
+                ExternalEffect(
+                    project_id=project_id,
+                    actor_id=actor_id,
+                    provider_id=adapter.provider_id(),
+                    sensitivity=sensitivity,
+                    material="",
+                    reach=adapter.capabilities().reach,
+                )
+            )
+            if decision.permitted:
+                allowed.append(adapter.provider_id())
+        return tuple(sorted(allowed))
+
+    def fetch(
+        self,
+        provider_id: str,
+        locator: str,
+        *,
+        project_id: str,
+        actor_id: str,
+        sensitivity: SensitivityLabel,
+    ) -> ExternalSourceRecord:
+        """One record, by name. Raises, because the caller asked for THIS provider.
+
+        A refusal raises `ExternalEffectRefused` rather than being swallowed: the caller named
+        one provider, and silently returning nothing would look like "no such record" when the
+        truth is "you may not ask".
+        """
         adapter = self._adapters.get(provider_id)
         if adapter is None:
             raise ProviderUnavailable(
@@ -184,7 +280,20 @@ class SourceRouter:
         health = adapter.healthcheck()
         if not health.reachable:
             raise ProviderUnavailable(f"{provider_id} is unreachable: {health.detail}")
-        record = adapter.fetch(locator)
+
+        effect = ExternalEffect(
+            project_id=project_id,
+            actor_id=actor_id,
+            provider_id=provider_id,
+            sensitivity=sensitivity,
+            material=locator,
+            reach=adapter.capabilities().reach,
+        )
+
+        def _fetch() -> ExternalSourceRecord | None:
+            return adapter.fetch(locator)
+
+        record = self._runner.execute(effect, _fetch)
         if record is None:
             raise ProviderUnavailable(f"{provider_id} has no record at {locator}")
         return record

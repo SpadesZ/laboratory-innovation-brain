@@ -373,16 +373,25 @@ def test_an_external_service_error_retries_to_the_bound_then_surfaces_failed():
     §17.23: "exhausted retries transition the surface to FAILED with next_retry_at cleared". A
     stale timestamp on a dead item tells a user to wait for something that will never happen.
     """
+
+    # A budget gate is REQUIRED now: `charge_budget=None` means "not authorised to spend", not
+    # "spend freely". This one allows, so what the test measures is the attempt bound.
+    def allow(_record_):
+        return None
+
     for attempt in range(3):
         decision = decide_retry(
             _record(ErrorClass.EXTERNAL_SERVICE_ERROR, attempt_count=attempt, max_attempts=3),
             now=NOW,
+            charge_budget=allow,
         )
         assert decision.retry, f"attempt {attempt} should have retried"
         assert decision.next_retry_at is not None
 
     exhausted = decide_retry(
-        _record(ErrorClass.EXTERNAL_SERVICE_ERROR, attempt_count=3, max_attempts=3), now=NOW
+        _record(ErrorClass.EXTERNAL_SERVICE_ERROR, attempt_count=3, max_attempts=3),
+        now=NOW,
+        charge_budget=allow,
     )
     assert not exhausted.retry
     assert exhausted.terminal

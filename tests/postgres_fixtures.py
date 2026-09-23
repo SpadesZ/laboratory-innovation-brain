@@ -60,8 +60,16 @@ _TABLES = (
     # M1-P2 / OPS-001. Both named, and named together: `jobs.result_run_id` references `runs`
     # while the `runs_job_must_exist` trigger checks the other direction, so neither can be
     # cleared alone. One TRUNCATE over both is the only order that works.
+    # M1 final. Ordered child-first where a plain CASCADE would fire an append-only trigger:
+    # `inference_provenance` refuses DELETE, and TRUNCATE does not fire row-level triggers, so
+    # naming it explicitly is both correct and the only safe way to clear it.
+    "ingestion_stage_results",
+    "error_records",
+    "ingestion_items",
+    "inference_provenance",
     "jobs",
     "runs",
+    "research_episodes",
     "cost_entries",
     "budget_approvals",
     "budget_policies",

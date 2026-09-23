@@ -31,6 +31,8 @@ from lab_brain.cognition.llm import (
 from lab_brain.core.models.enums import LicenseClass, SensitivityLabel, TrustClass
 from lab_brain.core.models.evidence_bundle import EvidenceBundle, ResearchIntent
 from lab_brain.core.models.inference import InferenceProvenance, LogicalSlot
+from lab_brain.security.egress import EgressAuditLog, EgressGate, EgressPolicy, PrivacyMode
+from lab_brain.security.external import AuthorizedExternalRunner, ExternalReach
 from lab_brain.sources import adapter as adapter_module
 from lab_brain.sources.adapter import (
     ExternalSourceRecord,
@@ -62,15 +64,49 @@ def _bundle(attestation_ids: tuple[str, ...] = ("att:1", "att:2")) -> EvidenceBu
     )
 
 
+def _runner() -> AuthorizedExternalRunner:
+    """A permissive-but-real runner. SEC-001's own refusals are proven in
+    `tests/security/test_external_effect_authorization.py`; here the point is the provenance
+    discipline, so the gate is wired to allow the PUBLIC material these fixtures use."""
+    return AuthorizedExternalRunner(
+        gate=EgressGate(
+            policy_for=lambda _p: EgressPolicy(
+                policy_id="egp:test",
+                version="1.0.0",
+                project_id=PROJECT,
+                mode=PrivacyMode.RESEARCH,
+                declared_by_actor_id="act:pi",
+                permitted_labels=frozenset({SensitivityLabel.PUBLIC}),
+                approved_providers=frozenset({"src:literature", "src:github", "src:patents"}),
+            ),
+            clearance_of=lambda _a, _p: frozenset({SensitivityLabel.PUBLIC}),
+        ),
+        audit=EgressAuditLog(),
+    )
+
+
 def _llm(*, slots: tuple[ModelSlot, ...] | None = None, reply: str = "a critique") -> ScientificLLM:
     configured = slots or (
-        ModelSlot(LogicalSlot.HYPOTHESIS, "toy-model", "1.0.0", provider="local"),
-        ModelSlot(LogicalSlot.CRITIQUE, "toy-critic", "2.0.0", provider="local"),
+        ModelSlot(
+            LogicalSlot.HYPOTHESIS,
+            "toy-model",
+            "1.0.0",
+            provider="local",
+            reach=ExternalReach.LOCAL,
+        ),
+        ModelSlot(
+            LogicalSlot.CRITIQUE,
+            "toy-critic",
+            "2.0.0",
+            provider="local",
+            reach=ExternalReach.LOCAL,
+        ),
     )
     return ScientificLLM(
         slots=configured,
         prompts=(PromptTemplate("prm:hypothesis", "3.1.0", "Consider {evidence}"),),
         complete=lambda _text, _slot: reply,
+        runner=_runner(),
         source_policy_version="srp:1.0.0",
     )
 
@@ -83,6 +119,9 @@ def _invoke(model: ScientificLLM, **overrides):
         "prompt_id": "prm:hypothesis",
         "bundle": _bundle(),
         "trace_id": "trc:1",
+        "project_id": PROJECT,
+        "actor_id": "act:test",
+        "sensitivity": SensitivityLabel.PUBLIC,
         "now": NOW,
     }
     payload.update(overrides)
@@ -124,9 +163,10 @@ def test_a_call_without_an_evidence_bundle_is_refused_before_the_model_is_reache
         raise AssertionError("the model was called despite provenance being impossible")
 
     model = ScientificLLM(
-        slots=(ModelSlot(LogicalSlot.HYPOTHESIS, "toy-model", "1.0.0"),),
+        slots=(ModelSlot(LogicalSlot.HYPOTHESIS, "toy-model", "1.0.0", reach=ExternalReach.LOCAL),),
         prompts=(PromptTemplate("prm:hypothesis", "3.1.0", "x"),),
         complete=must_not_be_called,
+        runner=_runner(),
     )
     with pytest.raises(LLMRefusal) as caught:
         _invoke(model, bundle=None)
@@ -138,7 +178,9 @@ def test_a_call_without_an_evidence_bundle_is_refused_before_the_model_is_reache
 def test_an_empty_slot_refuses_rather_than_routing_elsewhere():
     """§7.3's slots may be empty. Silently routing to another slot's model would make the
     recorded route a fiction -- and §7.6's independence check reads that route."""
-    only_critique = _llm(slots=(ModelSlot(LogicalSlot.CRITIQUE, "toy-critic", "2.0.0"),))
+    only_critique = _llm(
+        slots=(ModelSlot(LogicalSlot.CRITIQUE, "toy-critic", "2.0.0", reach=ExternalReach.LOCAL),)
+    )
     with pytest.raises(LLMRefusal) as caught:
         _invoke(only_critique)
     assert caught.value.reason is LLMRefusalReason.SLOT_NOT_CONFIGURED
@@ -199,6 +241,9 @@ def test_a_critique_that_changed_nothing_is_refused():
             prompt_id="prm:hypothesis",
             bundle=_bundle(),
             trace_id="trc:1",
+            project_id=PROJECT,
+            actor_id="act:test",
+            sensitivity=SensitivityLabel.PUBLIC,
             now=NOW,
         )
     assert caught.value.reason is LLMRefusalReason.CRITIQUE_ROUTE_UNCHANGED
@@ -216,6 +261,9 @@ def test_a_critique_over_a_different_bundle_is_accepted():
         prompt_id="prm:hypothesis",
         bundle=_bundle(("att:9",)),
         trace_id="trc:1",
+        project_id=PROJECT,
+        actor_id="act:test",
+        sensitivity=SensitivityLabel.PUBLIC,
         now=NOW,
     )
     assert output.provenance.inference_id == "inf:1"
@@ -340,7 +388,15 @@ class _FakeAdapter:
         return self._provider
 
     def capabilities(self) -> SourceCapabilities:
-        return SourceCapabilities(provider_id=self._provider, can_search=True, can_fetch=True)
+        # LOCAL, because this file is about the SRC-001 contract. SEC-001's refusals get their
+        # own file with a transport that raises; declaring locality here keeps the two
+        # requirements from being proven by each other's fixtures.
+        return SourceCapabilities(
+            provider_id=self._provider,
+            can_search=True,
+            can_fetch=True,
+            reach=ExternalReach.LOCAL,
+        )
 
     def healthcheck(self) -> SourceHealthReport:
         return SourceHealthReport(
@@ -378,11 +434,23 @@ def test_swapping_adapters_changes_no_router_or_cognition_code():
     changes, and the record schema is the same object in both cases -- which is what
     "normalized record schema 相同" means operationally.
     """
-    router = SourceRouter([_FakeAdapter("src:literature")])
-    first = router.search(SourceQuery("cj reverse bias"))
+    router = SourceRouter([_FakeAdapter("src:literature")], runner=_runner())
+    first = router.search(
+        SourceQuery("cj reverse bias"),
+        project_id=PROJECT,
+        actor_id="act:test",
+        sensitivity=SensitivityLabel.PUBLIC,
+    )
 
-    swapped = SourceRouter([_FakeAdapter("src:github"), _FakeAdapter("src:patents")])
-    second = swapped.search(SourceQuery("cj reverse bias"))
+    swapped = SourceRouter(
+        [_FakeAdapter("src:github"), _FakeAdapter("src:patents")], runner=_runner()
+    )
+    second = swapped.search(
+        SourceQuery("cj reverse bias"),
+        project_id=PROJECT,
+        actor_id="act:test",
+        sensitivity=SensitivityLabel.PUBLIC,
+    )
 
     assert {type(r) for r in first} == {type(r) for r in second} == {ExternalSourceRecord}
     assert {r.provider for r in second} == {"src:github", "src:patents"}
@@ -394,14 +462,29 @@ def test_swapping_adapters_changes_no_router_or_cognition_code():
 def test_removing_an_adapter_does_not_prevent_startup_or_search():
     """A router that raised on a missing adapter would make every deployment carry every
     provider -- and one provider's outage would be an outage in all of them."""
-    router = SourceRouter([_FakeAdapter("src:literature"), _FakeAdapter("src:github")])
+    router = SourceRouter(
+        [_FakeAdapter("src:literature"), _FakeAdapter("src:github")], runner=_runner()
+    )
     router.remove("src:github")
     assert router.providers == ("src:literature",)
-    assert router.search(SourceQuery("anything")), "search broke when an adapter was removed"
+    assert router.search(
+        SourceQuery("anything"),
+        project_id=PROJECT,
+        actor_id="act:test",
+        sensitivity=SensitivityLabel.PUBLIC,
+    ), "search broke when an adapter was removed"
 
-    empty = SourceRouter()
+    empty = SourceRouter(runner=_runner())
     assert empty.providers == ()
-    assert empty.search(SourceQuery("anything")) == ()
+    assert (
+        empty.search(
+            SourceQuery("anything"),
+            project_id=PROJECT,
+            actor_id="act:test",
+            sensitivity=SensitivityLabel.PUBLIC,
+        )
+        == ()
+    )
     assert empty.health() == ()
 
 
@@ -411,9 +494,15 @@ def test_an_unreachable_provider_is_skipped_rather_than_failing_the_query():
     """UX-007 renders a degraded connector as health. Raising here would turn one provider's
     outage into a failed research query, and the researcher would learn nothing about which."""
     router = SourceRouter(
-        [_FakeAdapter("src:literature"), _FakeAdapter("src:offline", reachable=False)]
+        [_FakeAdapter("src:literature"), _FakeAdapter("src:offline", reachable=False)],
+        runner=_runner(),
     )
-    results = router.search(SourceQuery("anything"))
+    results = router.search(
+        SourceQuery("anything"),
+        project_id=PROJECT,
+        actor_id="act:test",
+        sensitivity=SensitivityLabel.PUBLIC,
+    )
     assert {r.provider for r in results} == {"src:literature"}
     assert {h.provider_id for h in router.health() if not h.reachable} == {"src:offline"}
 
@@ -426,11 +515,23 @@ def test_fetching_by_name_from_a_missing_or_unreachable_provider_raises():
     Silently substituting another provider would change where the evidence came from without
     saying so, which is a provenance corruption rather than a degraded query.
     """
-    router = SourceRouter([_FakeAdapter("src:offline", reachable=False)])
+    router = SourceRouter([_FakeAdapter("src:offline", reachable=False)], runner=_runner())
     with pytest.raises(ProviderUnavailable, match="no adapter registered"):
-        router.fetch("src:absent", "doi:10.1000/x")
+        router.fetch(
+            "src:absent",
+            "doi:10.1000/x",
+            project_id=PROJECT,
+            actor_id="act:test",
+            sensitivity=SensitivityLabel.PUBLIC,
+        )
     with pytest.raises(ProviderUnavailable, match="unreachable"):
-        router.fetch("src:offline", "doi:10.1000/x")
+        router.fetch(
+            "src:offline",
+            "doi:10.1000/x",
+            project_id=PROJECT,
+            actor_id="act:test",
+            sensitivity=SensitivityLabel.PUBLIC,
+        )
 
 
 @pytest.mark.requirement("SRC-001")
@@ -439,8 +540,18 @@ def test_search_results_are_ordered_deterministically():
     """A retrieval whose order depended on registry iteration would not be reproducible, and
     EVI-006's bundle hash is computed over an ordered set."""
     adapters = [_FakeAdapter("src:b"), _FakeAdapter("src:a")]
-    first = SourceRouter(adapters).search(SourceQuery("x"))
-    second = SourceRouter(list(reversed(adapters))).search(SourceQuery("x"))
+    first = SourceRouter(adapters, runner=_runner()).search(
+        SourceQuery("x"),
+        project_id=PROJECT,
+        actor_id="act:test",
+        sensitivity=SensitivityLabel.PUBLIC,
+    )
+    second = SourceRouter(list(reversed(adapters)), runner=_runner()).search(
+        SourceQuery("x"),
+        project_id=PROJECT,
+        actor_id="act:test",
+        sensitivity=SensitivityLabel.PUBLIC,
+    )
     assert [r.canonical_locator for r in first] == [r.canonical_locator for r in second]
 
 

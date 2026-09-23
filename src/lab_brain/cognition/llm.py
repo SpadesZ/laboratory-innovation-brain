@@ -35,8 +35,14 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from lab_brain.core.models.base import utc_now
+from lab_brain.core.models.enums import SensitivityLabel
 from lab_brain.core.models.evidence_bundle import EvidenceBundle
 from lab_brain.core.models.inference import InferenceProvenance, LogicalSlot
+from lab_brain.security.external import (
+    AuthorizedExternalRunner,
+    ExternalEffect,
+    ExternalReach,
+)
 
 
 class LLMRefusalReason(StrEnum):
@@ -69,6 +75,12 @@ class ModelSlot:
     model_id: str
     model_version: str
     provider: str | None = None
+    #: Whether invoking this slot leaves the approved boundary (§14.2, SEC-001).
+    #:
+    #: DECLARED, never inferred from `provider is None`. A model running on this machine is a
+    #: legitimate Private Mode slot; an unwired cloud slot looks identical if locality is guessed.
+    #: Defaults to EXTERNAL so a slot that says nothing is treated as the dangerous case.
+    reach: ExternalReach = ExternalReach.EXTERNAL
 
 
 @dataclass(frozen=True)
@@ -112,11 +124,20 @@ class ScientificLLM:
         slots: Sequence[ModelSlot],
         prompts: Sequence[PromptTemplate],
         complete: Completion,
+        runner: AuthorizedExternalRunner,
         source_policy_version: str | None = None,
     ) -> None:
+        """``runner`` is REQUIRED and has no default.
+
+        SEC-001 covers external *model* egress as well as connectors. A default would mean a
+        deployment that never wired authorization still builds a working `ScientificLLM`, and
+        the requirement would hold by convention. There is no way to obtain one that can reach a
+        transport without authorization.
+        """
         self._slots = {slot.logical_slot: slot for slot in slots}
         self._prompts = {p.prompt_id: p for p in prompts}
         self._complete = complete
+        self._runner = runner
         self._source_policy_version = source_policy_version
 
     @property
@@ -132,6 +153,9 @@ class ScientificLLM:
         prompt_id: str,
         bundle: EvidenceBundle | None,
         trace_id: str,
+        project_id: str,
+        actor_id: str,
+        sensitivity: SensitivityLabel,
         parameters: dict[str, object] | None = None,
         now: dt.datetime | None = None,
     ) -> ScientificOutput:
@@ -165,7 +189,20 @@ class ScientificLLM:
                 "and the inference would be unreproducible (§17.14)",
             )
 
-        text = self._complete(prompt.template, configured)
+        # SEC-001. The transport is reached ONLY through the runner, which performs the call
+        # solely on ALLOW. What would leave is the rendered prompt, so that is what is digested.
+        # A refusal raises before `self._complete` is entered -- the adversarial test proves that
+        # with a transport that raises if called, because asserting on a returned decision would
+        # pass equally against an implementation that called first and refused afterwards.
+        effect = ExternalEffect(
+            project_id=project_id,
+            actor_id=actor_id,
+            provider_id=configured.provider or configured.model_id,
+            sensitivity=sensitivity,
+            material=prompt.template,
+            reach=configured.reach,
+        )
+        text = self._runner.execute(effect, lambda: self._complete(prompt.template, configured))
 
         # Built from the CALL's inputs, never from the model's reply. A model asked to describe
         # its own provenance is being asked to be its own witness.
@@ -194,6 +231,9 @@ class ScientificLLM:
         prompt_id: str,
         bundle: EvidenceBundle | None,
         trace_id: str,
+        project_id: str,
+        actor_id: str,
+        sensitivity: SensitivityLabel,
         slot: LogicalSlot = LogicalSlot.CRITIQUE,
         now: dt.datetime | None = None,
     ) -> ScientificOutput:
@@ -211,6 +251,9 @@ class ScientificLLM:
             prompt_id=prompt_id,
             bundle=bundle,
             trace_id=trace_id,
+            project_id=project_id,
+            actor_id=actor_id,
+            sensitivity=sensitivity,
             now=now,
         )
         if not output.provenance.route_differs_from(original):

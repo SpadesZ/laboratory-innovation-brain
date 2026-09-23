@@ -357,6 +357,13 @@ DEFAULT_ENTRIES: tuple[CatalogEntry, ...] = (
         Severity.BLOCKED,
     ),
     _entry(
+        "BUDGET_GATE_UNAVAILABLE",
+        "This step could not be retried automatically.",
+        "Automatic retries spend project budget, and the budget check was not available.",
+        ("Contact an administrator; this is a configuration problem.",),
+        Severity.BLOCKED,
+    ),
+    _entry(
         "RETRY_LIMIT_REACHED",
         "This step failed after all its retries.",
         "The system retried automatically and the problem did not clear.",

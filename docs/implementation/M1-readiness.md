@@ -1,6 +1,6 @@
 # M1 — Research Memory: readiness for independent M2 sign-off
 
-Date: 2026-09-22
+Date: 2026-09-22; revised after the final audit (see §9)
 Milestone: **M1 — Research Memory**, `IN_PROGRESS`
 M1-P1 locked baseline: `f8e5e9c02ee98ed2a7faa6f604347b84b88c773b` (HARD-LOCKED, untouched)
 M0a / M0b: `DONE`, hard-locked, untouched
@@ -80,31 +80,28 @@ too short to protect the evidence write or too long to let a concurrent completi
 
 ## 5. R-7 and R-11
 
-**R-7 — MITIGATED, NOT CLOSED.** `IngestionService.admission_gate` is a production composition
-root that routes the admission read path through `can_read_artifact` — the one ACL
-implementation — and supplies every fail-closed resolver, so none of those branches is reached by
-misconfiguration. That is a real narrowing.
+**R-7 - CLOSED.** Every production scientific read goes through one boundary,
+`lab_brain.core.scientific_read.ScientificReadGate`, which decides nothing of its own: every
+verdict is `can_read_artifact`'s, the M0b-locked SEC-002 implementation. It resolves the three
+records that gate needs and calls it.
 
-It does not close, and the uncovered surfaces are named rather than implied:
+| Surface | Before | After |
+|---|---|---|
+| `CandidateResolver` | occurrence presence only | `AuthorizedCandidateResolver` - authorize, *then* load the body |
+| `IngestionService.evidence_for` | took no Actor | requires `actor_id`; returns `AuthorizedUnit` carrying the decision |
+| `PostgresEvidenceUnitReader` | exposed as an authorized read | still ACL-free by design, exposed only as `unauthorized_reader()` - the name is the contract |
+| `DiagnosticsService` | its own ordered clearance comparison | delegates to `ProjectMembership.clears`, the predicate `can_read_artifact` uses |
 
-1. **Retrieval** — `CandidateResolver` checks occurrence presence (§17.25.1) and does **not**
-   consult `can_read_artifact`. A project member with insufficient sensitivity clearance can
-   retrieve a candidate whose artifact they could not read directly.
-2. **Diagnostics** — `DiagnosticsService` implements its own clearance comparison against
-   `SensitivityLabel` rather than calling the ACL. The behaviour agrees today; two copies of one
-   rule is what ADR-0012's shape exists to avoid.
-3. **Evidence read** — `PostgresEvidenceUnitReader` deliberately enforces no ACL, by design and
-   documented in its own header.
+Eleven probes in `security/test_scientific_read_authorization_postgres.py`, each varying exactly
+one fact, each asserting the canonical body is **absent** rather than that the result was empty.
+`test_the_boundary_contains_no_second_acl` parses the module and fails if it grows its own
+`SensitivityLabel` comparison.
 
-Closing R-7 requires those three to route through one boundary. That is a coherent slice and not
-this one.
-
-**R-11 — NARROWED, and the residual is different in kind.** `execution_spans.job_id` still
-carries no foreign key, and `010a` is applied so it cannot gain one by edit. What has changed is
-that Jobs and Runs are now real, durable and internally consistent: `runs.job_id` is UNIQUE and
-checked, `jobs.result_run_id` is a real foreign key and write-once, and `006a`'s deferred trigger
-makes an unclaimed Run unrepresentable. A span naming a job can now be *checked* by a join, which
-was impossible before. **OPS-003 is not reopened** — it stays DONE under the M0b lock.
+**R-11 - NARROWED, residual stated precisely.** `execution_spans.job_id` still carries no foreign
+key and `010a` is applied, so it cannot gain one by edit. What changed is that a span naming a job
+is now *checkable*: `jobs.episode_id` is a real foreign key (`006b`), `runs.job_id` is UNIQUE,
+`jobs.result_run_id` is write-once, and `006a`'s deferred trigger makes an unclaimed Run
+unrepresentable. **OPS-003 is not reopened** and stays DONE under the M0b lock.
 
 ## 6. Verification
 
@@ -113,18 +110,18 @@ Local, full history, PostgreSQL last.
 | Gate | Result |
 |---|---|
 | `ruff format --check` / `ruff check` | clean |
-| `mypy` (strict) | clean, **98** source files |
-| Backend-free suite | **1089 passed**, 516 skipped |
-| Migration replay from empty | **32 applied** |
+| `mypy` (strict) | clean, **105** source files |
+| Backend-free suite | **1123 passed**, 547 skipped |
+| Migration replay from empty | **35 applied** |
 | Migration idempotency | `pending 0` |
-| Full PostgreSQL profile | **1605 passed** |
+| Full PostgreSQL profile | **1670 passed** |
 | Executed-coverage ratchet | ok ×4; DONE `['M0a','M0b']`, IN_PROGRESS `['M1']` |
 | Status freshness | up to date |
 | Spec conformance | **205 passed** |
 | Requirement ↔ Test | **60 ↔ 60** |
 | Obligation inventory | **84**, in sync |
 | Schema drift / unbound / stale | all empty |
-| Mutation battery | **50/50 killed** (29 M1-P1 + 21 new) |
+| Mutation battery | **58/58 killed** (29 M1-P1 + 21 + 8 final) |
 | M1-P1 benchmark | current, framing unchanged |
 
 ### Local vs generic CI counts
@@ -136,22 +133,28 @@ that checked no commits is worse than an honest skip.
 
 ## 7. Remaining risks and limitations
 
-1. **R-7 uncovered read surfaces** — three, named in §5.
-2. **No LLM slot is configured.** `ScientificLLM` is exercised against a deterministic
-   transport. What is proven is the *provenance discipline*, not that any model was called.
-3. **No Lumerical seat (R-1), no ground-truth benchmark (R-2).** Unchanged.
-4. **Episodes do not exist.** §17.3's `ResearchEpisode` is not built, so `Job.episode_id` is
-   nullable and unchecked, and the vertical's "resumes an episode" is demonstrated as a Job
-   resuming across a durable reload. This is the honest reading of what exists.
-5. **The dense index is in-memory.** `009a`/`009b` hold `RetrievalRepresentation` rows and
-   `DenseEvidenceIndex` does not yet persist to them. EVI-007's *semantics* are enforced and
-   tested; the durable vector store is not built.
-6. **`InferenceProvenance` has no table.** It is produced, validated and carried; persisting it
-   belongs with the belief-path slice that consumes it (M3's `EPI-001`).
-7. **UX-002's BudgetGate integration is a seam.** `decide_retry` takes `charge_budget` and the
-   tests inject a refusal; COST-001's real gate is wired by the caller, and no production caller
-   retries yet.
-8. **R-9, R-8, R-10, R-12** unchanged.
+1. **No LLM slot is configured.** `ScientificLLM` runs against a deterministic transport. What is
+   proven is the provenance discipline and the SEC-001 ordering, not that a model was called.
+2. **No Lumerical seat (R-1), no ground-truth benchmark (R-2).** Unchanged.
+3. **Section 17.3 is a declared subset.** Ten fields are absent, each because the entity it
+   references does not exist yet; `006b`'s header lists every one with the requirement that brings
+   it. `job_ids[]`/`run_ids[]` are *refused* rather than deferred - 17.8 forbids the
+   parallel-array shape, so membership is a query.
+4. **The dense index is in-memory.** `009a`/`009b` hold `RetrievalRepresentation` rows and
+   `DenseEvidenceIndex` does not yet write to them. EVI-007's semantics are enforced and tested;
+   the durable vector store is not built.
+5. **The CLI has no connection wiring.** `lab-brain inbox|explain` parse and render; `main()`
+   returns exit code 2 with a message rather than opening a database. Connection policy in the
+   least-reviewed file in the repository is worse than an honest stub, and `run_inbox` /
+   `run_explain` are the tested seams a wired entry point will call.
+6. **`ingestion_items` and `error_records` have no production writer yet.** `012` creates them
+   with the invariants (no `state` column; no `next_retry_at` on an unretryable class), and the
+   UX projections are tested against in-memory items. The pipeline does not yet persist rows into
+   them - the projection contract is proven, the row-writing is not.
+7. **COST-001 is wired as a required seam, not as a live caller.** `decide_retry` refuses without
+   a budget gate, and the tests inject both an allowing and a refusing one. No production loop
+   retries yet, so the gate has no live caller to exercise.
+8. **R-8, R-9, R-10, R-12** unchanged.
 
 ## 8. Governance
 
@@ -162,3 +165,39 @@ reasoning recorded in the module that implements it.
 
 `011h` extends `review_items.subject_type` by one member. That is a vocabulary extension, not a
 change to M0b semantics, and `test_m0b_conflict_review_behaviour_is_unchanged` asserts it.
+
+
+## 9. The final-audit repairs
+
+| # | Blocker | Before | After |
+|---|---|---|---|
+| 1 | scientific reads bypass the ACL | four surfaces answered four different questions; an INTERNAL-cleared member received RESTRICTED_NDA bodies | one `ScientificReadGate` over `can_read_artifact`; 11 probes; **R-7 closed** |
+| 2 | SEC-001 bypassable | `SourceRouter.search` and `ScientificLLM.invoke` reached transports directly | `AuthorizedExternalRunner` is a **required** constructor argument; `execute()` performs only on ALLOW; 16 probes with fatal spies |
+| 3 | provenance not persisted | an in-memory object the vertical called "persisted" | `003d` + `SqlInferenceProvenanceStore`, append-only; write to new connection to reload to exact model equality; `BeliefBasisGate` reads the durable record |
+| 4 | BudgetGate fail-open | `charge_budget=None` returned `retry=True` | no gate produces `BUDGET_GATE_UNAVAILABLE`, POLICY_BLOCK, audited, no retry; mutation anchor on the guard |
+| 5 | "resumes episode" was a Job reload | a Job surviving a restart | `006b` + `ResearchEpisode`; episode suspends, a new connection finds it parked, the **same** episode resumes, the Run lands on its trace |
+| 6 | `012` and the CLI missing | neither existed | `012_ingestion_items_errors.sql` with no `state` column; `lab-brain inbox` / `explain` at the entry point `pyproject.toml` has declared since M0a |
+
+### The durable proofs, named
+
+**persist provenance** -
+`integration/test_durable_provenance_and_episodes_postgres.py::test_provenance_survives_a_new_connection_with_exact_equality`
+and `e2e/test_m1_vertical_postgres.py::test_the_whole_m1_vertical_is_durable_and_authorized`
+step 8: written through one connection, read through a `psycopg.connect(...)` that shares nothing,
+`reloaded == written == output.provenance`, and the stored hash equals `bundle.canonical_hash`.
+
+**resume episode** -
+`...::test_the_episode_itself_suspends_and_resumes_across_a_reload` and the vertical's steps 1-3:
+`episode_suspend`, then a new connection observes SUSPENDED and `found == parked`, then
+`episode_resume` on that connection, then `resumed.episode_id == EPISODE`, `jobs_of(EPISODE)`
+resolves, and the Run carries the episode's `trace_id`.
+
+### What the battery found in this repair
+
+`a_suspended_episode_need_not_record_when` **genuinely survived**. Every test reached the model
+through `episode_suspend`, which sets state and timestamp in one statement, so `ResearchEpisode`'s
+own validator was never what caught a contradictory pair - a reader would have believed it
+load-bearing while a direct constructor call (a replay, a fixture, a backfill) produced a
+SUSPENDED episode with no `suspended_at`, which a resumer reads as "parked at the epoch". Two
+probes added; it now dies. One further anchor was stale after the budget restructure and was
+re-anchored on the reclassification rather than deleted.

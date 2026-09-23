@@ -392,8 +392,11 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="budget_exhaustion_classifies_as_failed",
         guards="UX-002 / §17.23 — budget exhaustion is POLICY_BLOCK, not FAILED",
         path="src/lab_brain/surface/errors.py",
-        old="                error_class=ErrorClass.POLICY_BLOCK,\n                next_retry_at=None,\n                terminal=True,\n                audit_required=True,\n            )\n    return RetryDecision(",
-        new="                error_class=record.error_class,\n                next_retry_at=None,\n                terminal=True,\n                audit_required=True,\n            )\n    return RetryDecision(",
+        # Re-anchored after the fail-closed repair restructured this branch. The guard is
+        # the RECLASSIFICATION -- a budget stop needs an approver, not an engineer -- so the
+        # mutation keeps the refusal and changes only the class.
+        old='            reason_code="BUDGET_EXHAUSTED",\n            error_class=ErrorClass.POLICY_BLOCK,',
+        new='            reason_code="BUDGET_EXHAUSTED",\n            error_class=record.error_class,',
         tests=("tests/contract/test_ingestion_surfaces.py",),
     ),
     Mutation(
@@ -483,6 +486,73 @@ MUTATIONS: tuple[Mutation, ...] = (
         old="        if LicenseClass.UNKNOWN not in permitted:",
         new="        if False:",
         tests=("tests/security/test_egress_and_licensing.py",),
+    ),
+    # ------------------------------------------------------------------
+    # M1 final repair. The six audit blockers, each anchored on the guard that closes it.
+    # ------------------------------------------------------------------
+    Mutation(
+        name="evidence_read_skips_the_acl",
+        guards="SEC-002 / R-7 -- a project occurrence proves presence, not authorization",
+        path="src/lab_brain/core/scientific_read.py",
+        old="            decision = self.authorize_unit(unit, actor_id=actor_id, project_id=project_id)\n            if decision.allowed:\n                allowed.append(AuthorizedUnit(unit=unit, decision=decision))",
+        new="            decision = self.authorize_unit(unit, actor_id=actor_id, project_id=project_id)\n            if True:\n                allowed.append(AuthorizedUnit(unit=unit, decision=decision))",
+        tests=("tests/security/test_scientific_read_authorization_postgres.py",),
+    ),
+    Mutation(
+        name="candidate_resolution_skips_the_acl",
+        guards="SEC-002 / R-7 -- retrieval is a scientific read and needs the same boundary",
+        path="src/lab_brain/core/scientific_read.py",
+        old="            if decision.allowed:\n                authorized.append(AuthorizedUnit(unit=unit, decision=decision))",
+        new="            if True:\n                authorized.append(AuthorizedUnit(unit=unit, decision=decision))",
+        tests=("tests/security/test_scientific_read_authorization_postgres.py",),
+    ),
+    Mutation(
+        name="an_external_effect_may_run_before_authorization",
+        guards="SEC-001 -- the transport is reachable only on ALLOW",
+        path="src/lab_brain/security/external.py",
+        old="        if not decision.permitted:\n            raise ExternalEffectRefused(decision)\n        return perform()",
+        new="        result = perform()\n        if not decision.permitted:\n            raise ExternalEffectRefused(decision)\n        return result",
+        tests=("tests/security/test_external_effect_authorization.py",),
+    ),
+    Mutation(
+        name="a_missing_egress_policy_reads_as_local",
+        guards="SEC-001 / §14.2 -- locality is declared by the component, never inferred",
+        path="src/lab_brain/security/external.py",
+        old="        if effect.reach is ExternalReach.LOCAL:",
+        new="        if True:",
+        tests=("tests/security/test_external_effect_authorization.py",),
+    ),
+    Mutation(
+        name="a_retry_may_run_with_no_budget_gate",
+        guards="UX-002 / §17.23 -- auto-retry MUST pass BudgetGate; omitted is not allowed",
+        path="src/lab_brain/surface/errors.py",
+        old="    if charge_budget is None:",
+        new="    if False:",
+        tests=("tests/contract/test_budget_and_cli.py",),
+    ),
+    Mutation(
+        name="stored_provenance_need_not_match_what_was_submitted",
+        guards="LLM-001 / §7.6 -- a stored inference must be the one that was written",
+        path="src/lab_brain/core/repositories/inference.py",
+        old="        if stored != p:",
+        new="        if False:",
+        tests=("tests/integration/test_durable_provenance_and_episodes_postgres.py",),
+    ),
+    Mutation(
+        name="a_suspended_episode_need_not_record_when",
+        guards="OPS-001 / §17.3 -- a parked episode records when, or a resumer reads a fiction",
+        path="src/lab_brain/core/models/episode.py",
+        old="        if (self.state is EpisodeState.SUSPENDED) != (self.suspended_at is not None):",
+        new="        if False:",
+        tests=("tests/integration/test_durable_provenance_and_episodes_postgres.py",),
+    ),
+    Mutation(
+        name="the_inbox_reads_state_instead_of_deriving_it",
+        guards="UX-001 / §17.22 -- the CLI renders the derivation, it does not have its own",
+        path="src/lab_brain/interfaces/cli.py",
+        old="            state=derive_state(",
+        new="            state=ItemState.READY if True else derive_state(",
+        tests=("tests/contract/test_budget_and_cli.py",),
     ),
 )
 

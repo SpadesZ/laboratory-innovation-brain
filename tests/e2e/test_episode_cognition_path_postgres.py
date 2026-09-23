@@ -702,7 +702,16 @@ def test_cognition_cannot_write_a_projection_because_there_is_nothing_to_write_t
     #: is decided downstream by AuthorityPolicy and TransitionPolicy over the attestations that
     #: cite it, never by reading this column. `jobs.state` is deliberately not in this set because
     #: it is not called `status`, and renaming it to match would make it look like one of these.
-    declared_non_belief = {"review_items", "execution_spans", "runs"}
+    #: `ingestion_stage_results.status` joined with `012`. It is §17.22's StageResult outcome --
+    #: did this parse finish -- and UX-001 derives the ITEM's state from a precedence over these
+    #: rather than reading any one of them as a verdict. Nothing about belief is representable in
+    #: it; the vocabulary is SUCCEEDED/FAILED/SKIPPED/PENDING/DEGRADED.
+    declared_non_belief = {
+        "review_items",
+        "execution_spans",
+        "runs",
+        "ingestion_stage_results",
+    }
     bare_status = {
         table
         for table, _ in world.execute(

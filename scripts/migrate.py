@@ -86,6 +86,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # permitted a durable Run whose Job did not resolve to it. Separate from `006` because
     # `006` is applied and an applied migration is checksummed.
     "006a_run_completion_integrity.sql",
+    # M1 final / OPS-001. The minimum §17.3 ResearchEpisode the exit gate's "delayed mock
+    # job resumes EPISODE" needs. Extends 006 because `jobs.episode_id` is the reference it
+    # resolves, and turns that column into a checked foreign key. After 006.
+    "006b_research_episodes.sql",
     # P6 / M0b-3. The observability third of Appendix A's 010 slot (OPS-003); the review and
     # benchmark halves land with OPS-002 and §17.19.2. After 007a/007b: span cost refs are a
     # foreign key into `cost_entries`.
@@ -143,6 +147,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # surface because ReviewQueue depth is what prices human attention in §14.4.1, so a
     # second queue would consume the same reviewers while being invisible to the planner.
     "011h_review_subject_extraction.sql",
+    # M1 final / UX-001, UX-002, UX-003. Appendix A's 012 slot, with its exact slug.
+    # `ingestion_items` has NO state column -- §17.22 derives it. After 006b (stage results
+    # reference jobs), 010a (spans), 002/002a (artifacts) and 011h (review items).
+    "012_ingestion_items_errors.sql",
     # M1-P1 / EVI-010 (`v3.3-a17`). The canonical evidence body. Extends 003 rather than taking
     # Appendix A's 012, which is reserved for `ingestion_items_errors` (UX-001, a later slice).
     # After 002 and 003: foreign keys into `artifacts` and `source_works`, and it is what an
@@ -169,6 +177,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # the passage it read. After 003b: the column references `evidence_units` and its trigger
     # reads `evidence_unit_occurrences`.
     "003c_attestation_evidence_unit.sql",
+    # M1 final / LLM-001. §17.14 InferenceProvenance, durable and append-only. Extends 003
+    # because §17.2's Attestation carries `inference_provenance_id`. After 001 for the
+    # project foreign key.
+    "003d_inference_provenance.sql",
 )
 
 _BOOTSTRAP = """

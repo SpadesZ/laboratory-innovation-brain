@@ -151,11 +151,16 @@ class RetryDecision:
 
 
 def may_auto_retry(error_class: ErrorClass, attempt_count: int, max_attempts: int) -> bool:
-    """Policy only. Budget is a separate question asked afterwards.
+    """Policy only, and NOT sufficient on its own.
 
     Split deliberately: `may_auto_retry(POLICY_BLOCK, ...)` is False regardless of how much
     budget exists, and no amount of available budget may turn it True. Folding budget in here
     would make the two questions one, and the one answer would be overridable.
+
+    A `True` here is a NECESSARY condition, never a permission. `decide_retry` is the only
+    function that authorises an attempt, because it is the only one that asks the budget gate --
+    and §17.23 requires both. A caller that branched on this alone would retry without ever
+    consulting COST-001.
     """
     if error_class not in AUTO_RETRYABLE:
         return False
@@ -211,20 +216,38 @@ def decide_retry(
             next_retry_at=None,
             terminal=True,
         )
-    if charge_budget is not None:
-        try:
-            charge_budget(record)
-        except BudgetRefused:
-            # Reclassified, not merely annotated. The class is what decides who acts, and a
-            # budget stop needs an approver rather than an engineer.
-            return RetryDecision(
-                retry=False,
-                reason_code="BUDGET_EXHAUSTED",
-                error_class=ErrorClass.POLICY_BLOCK,
-                next_retry_at=None,
-                terminal=True,
-                audit_required=True,
-            )
+
+    # NO BUDGET SEAM MEANS NO RETRY. §17.23: "Auto-retry consumes budget through BudgetGate
+    # (COST-001)". An omitted gate used to mean "proceed", which made the requirement hold only
+    # for callers who remembered to pass one -- and a caller that forgets gets the permissive
+    # answer, which is the fail-open shape audit has now found four times in this repository.
+    #
+    # Classified POLICY_BLOCK rather than SYSTEM_ERROR: the system is not broken, it is
+    # unauthorised to spend. That also keeps it out of AUTO_RETRYABLE, so an unwired deployment
+    # cannot retry its way around the missing gate.
+    if charge_budget is None:
+        return RetryDecision(
+            retry=False,
+            reason_code="BUDGET_GATE_UNAVAILABLE",
+            error_class=ErrorClass.POLICY_BLOCK,
+            next_retry_at=None,
+            terminal=True,
+            audit_required=True,
+        )
+
+    try:
+        charge_budget(record)
+    except BudgetRefused:
+        # Reclassified, not merely annotated. The class is what decides who acts, and a
+        # budget stop needs an approver rather than an engineer.
+        return RetryDecision(
+            retry=False,
+            reason_code="BUDGET_EXHAUSTED",
+            error_class=ErrorClass.POLICY_BLOCK,
+            next_retry_at=None,
+            terminal=True,
+            audit_required=True,
+        )
     return RetryDecision(
         retry=True,
         reason_code=record.reason_code,

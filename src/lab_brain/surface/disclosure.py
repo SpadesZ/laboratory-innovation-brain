@@ -44,16 +44,6 @@ from lab_brain.surface.errors import ErrorRecord, Remediation, remediations_for
 #: mis-spelled *held* scope in a test fixture would hide a real grant bug.
 VIEW_TECHNICAL_SCOPE = "VIEW_TECHNICAL_DIAGNOSTICS"
 
-#: Sensitivity ordered most restrictive first. An actor may see detail classified at or below
-#: their own clearance; `SensitivityLabel` already declares the order and this fixes it as an
-#: index so "at or below" is one comparison rather than a set membership test per level.
-_ORDER: tuple[SensitivityLabel, ...] = (
-    SensitivityLabel.RESTRICTED_NDA,
-    SensitivityLabel.CONFIDENTIAL_LAB,
-    SensitivityLabel.INTERNAL,
-    SensitivityLabel.PUBLIC,
-)
-
 
 class ErrorNotFound(Exception):
     """No such error reference *that you can see*.
@@ -119,14 +109,22 @@ def redact(detail: TechnicalDetail, clearance: frozenset[SensitivityLabel]) -> T
 def _permits(clearance: frozenset[SensitivityLabel], required: SensitivityLabel) -> bool:
     """Whether ``clearance`` reaches ``required``.
 
-    Fail-closed on an empty clearance set: an actor with no recorded clearance sees nothing
-    classified, which is §17.15's "new internal artifact sensitivity is fail-closed" applied to
-    the read side.
+    DELEGATED TO `ProjectMembership.clears`, which is the same predicate `can_read_artifact`
+    uses. It used to be a separate ordered comparison here -- which agreed with the canonical one
+    and was the dangerous kind of duplication: two copies of a rule that agree today and are
+    edited separately. §14.1's labels are categories rather than a ladder, so an ordered
+    comparison was also the shape most likely to be "improved" into `>=` and silently widen every
+    grant.
+
+    Fail-closed on an empty clearance set, which the canonical predicate already gives: an actor
+    with no recorded clearance sees nothing classified, and empty is the column default.
     """
-    if not clearance:
-        return False
-    held = min(_ORDER.index(label) for label in clearance)
-    return held <= _ORDER.index(required)
+    return ProjectMembership(
+        actor_id="_",
+        project_id="_",
+        role="_",
+        sensitivity_clearance=clearance,
+    ).clears(required)
 
 
 class DiagnosticsService:
