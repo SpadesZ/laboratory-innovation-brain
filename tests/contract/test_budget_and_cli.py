@@ -21,8 +21,8 @@ import io
 
 import pytest
 
-from lab_brain.core.models.access import ProjectMembership
-from lab_brain.core.models.enums import SensitivityLabel
+from lab_brain.core.models.access import Actor, ProjectMembership
+from lab_brain.core.models.enums import ActorType, SensitivityLabel
 from lab_brain.ingestion.pipeline import ErrorClass as PipelineErrorClass
 from lab_brain.ingestion.pipeline import IngestionStage, StageResult, StageStatus
 from lab_brain.interfaces.cli import (
@@ -312,6 +312,12 @@ ERROR = ErrorRecord(
 
 
 def _service(*, scopes: tuple[str, ...] = (), clearance: tuple[SensitivityLabel, ...] = ()):
+    """`actor_of` is required, so the fixture has to say which accounts exist and are active.
+
+    That is not ceremony. The CLI's `--actor` is only governance if something resolves it, and a
+    service built without a resolver used to authorize on "a membership row exists" -- which is
+    the rule SEC-002 replaced. See tests/security/test_diagnostics_disclosure.py for the probes.
+    """
     membership = ProjectMembership(
         actor_id=ACTOR,
         project_id=PROJECT,
@@ -319,11 +325,15 @@ def _service(*, scopes: tuple[str, ...] = (), clearance: tuple[SensitivityLabel,
         sensitivity_clearance=clearance,
         approval_scopes=scopes,
     )
+    actors = {ACTOR: Actor(actor_id=ACTOR, actor_type=ActorType.HUMAN)}
     return DiagnosticsService(
         catalog=default_catalog(),
         load_error=lambda key: ERROR if key == ERROR.error_id else None,
         load_detail=lambda ref: SECRET_DETAIL if ref == "det:1" else None,
-        membership_of=lambda _a, project: membership if project == PROJECT else None,
+        membership_of=lambda actor, project: (
+            membership if project == PROJECT and actor == ACTOR else None
+        ),
+        actor_of=actors.get,
     )
 
 

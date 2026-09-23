@@ -81,23 +81,34 @@ milestones:
 
   - id: M1
     name: Research Memory
-    # IN_PROGRESS from M1-P1 (2026-09-20). That slice owns the ingestion/evidence foundation --
-    # EVI-002, EVI-003, EVI-004, EVI-009, EVI-010, SEC-003, OPS-004, UX-004 -- and nothing else.
-    # The remaining twelve requirements are untouched and have no tests; see
-    # docs/implementation/M1-P1-readiness.md for the per-requirement matrix.
+    # IN_PROGRESS from M1-P1 (2026-09-20) and still IN_PROGRESS on 2026-09-23 -- but for a
+    # different reason than when that state was first written. Implementation is complete and the
+    # milestone is AWAITING INDEPENDENT SIGN-OFF.
+    #
+    # All 21 requirements below now have an implementation and readiness evidence, and every
+    # clause of the exit gate is demonstrated; the per-requirement matrix is
+    # docs/implementation/M1-readiness.md §2 and the clause-by-clause gate is §1. OPS-001
+    # (ResearchEpisode suspend/resume across a reload, 006b), LLM-001
+    # (ScientificInferenceService + 003d) and UX-001~UX-007 (012 / 012a / 012b, the real
+    # `lab-brain inbox` / `explain`) all exist and are exercised through durable PostgreSQL rows.
+    #
+    # Earlier revisions of this comment said the remaining twelve requirements were "untouched and
+    # have no tests" and that OPS-001 / LLM-001 / UX-001~007 did not exist. Both statements were
+    # accurate at the M1-P1 lock and became false across the M1 production slices; they are
+    # corrected rather than softened, because this file is machine-read for allocation and
+    # human-read for scope.
+    #
+    # `status` remains IN_PROGRESS. The ratchet enforces a milestone only once it is DONE, so the
+    # 21 requirements below are covered because their tests exist and pass under gate_profile
+    # [postgres], not because a gate is holding them. Moving this to DONE is the maintainer's act
+    # on independent review; the implementing agent does not sign off its own milestone.
     #
     # M1-P1 HARD-LOCKED 2026-09-21 at f8e5e9c02ee98ed2a7faa6f604347b84b88c773b on independent M2
     # review (PASS), after Repair-1 (23b47dd) and Repair-2 (f8e5e9c). The lock is on the SLICE and
     # not on this milestone: it fixes an implementation baseline later slices may not refactor for
-    # cleanliness, and it does NOT move `status`. Reopen only on a reproducible violation of a
-    # locked invariant. The fourteen locked items are tabulated in
+    # cleanliness, and it does NOT move `status`. It is still in force. Reopen only on a
+    # reproducible violation of a locked invariant. The fourteen locked items are tabulated in
     # docs/implementation/M1-P1-readiness.md §12; the next-slice handoff is M1-P1-handoff.md.
-    #
-    # NOT DONE, and deliberately not close to it. The exit gate names a delayed mock job resuming
-    # an episode (OPS-001), scientific LLM calls persisting bundle+provenance (LLM-001) and all of
-    # UX-001~007. None of those exists. IN_PROGRESS means the ratchet does not yet enforce M1 --
-    # it enforces a milestone only once it is DONE -- so the eight requirements above are covered
-    # because their tests exist and pass, not because a gate is holding them.
     status: IN_PROGRESS
     exit_gate: >-
       local document/run ingest; source-work dedup; delayed mock job resumes episode;

@@ -1,7 +1,9 @@
 # M1 — Research Memory: readiness for independent M2 sign-off
 
-Date: 2026-09-22; revised after the final audit (§9), the second audit (§10) and the third (§11)
-Milestone: **M1 — Research Memory**, `IN_PROGRESS`
+Date: 2026-09-23; revised after the final audit (§9), the second audit (§10), the third (§11) and
+the closing security repair (§12)
+Milestone: **M1 — Research Memory**, `IN_PROGRESS` — implementation complete, awaiting independent
+sign-off
 M1-P1 locked baseline: `f8e5e9c02ee98ed2a7faa6f604347b84b88c773b` (HARD-LOCKED, untouched)
 M0a / M0b: `DONE`, hard-locked, untouched
 Spec: SAI 3.3, amendments `v3.3-a1` … `v3.3-a18`. **No amendment, no ADR, no new Requirement or
@@ -53,7 +55,7 @@ precedence asserted rather than assumed. See §11.
 | 14 | **SRC-001** | fake connectors replace real providers without changing SourceRouter/cognition | `sources/adapter.py` | `contract/test_llm_and_sources.py` (6 SRC) | READY |
 | 15 | **UX-001** | every documented state through the precedence; no direct assignment; two duplicate semantics | `surface/ingestion_item.py` (derivation), `storage/postgres/surface_store.py` (durable rows + review/conflict/job projection), `interfaces/cli.py` | `contract/test_ingestion_surfaces.py`, `integration/test_inbox_authorization_postgres.py` — all seven states through the real command | READY |
 | 16 | **UX-002** | POLICY_BLOCK/USER_INPUT_ERROR zero retries + audit; bounded retry; budget exhaustion is POLICY_BLOCK | `surface/errors.py` | `contract/test_ingestion_surfaces.py` | READY |
-| 17 | **UX-003** | no technical detail by default; scope required; clearance redaction keeps trace refs; cross-project not-found | `surface/disclosure.py` (now over `can_access_project`, not membership presence) + `012b`'s `technical_details` | `security/test_diagnostics_disclosure.py` (11), `integration/test_cli_surface_postgres.py` — all five outcomes through the real command | READY |
+| 17 | **UX-003** | no technical detail by default; scope required; clearance redaction keeps trace refs; cross-project not-found | `surface/disclosure.py` — `can_access_project` **unconditionally**; `actor_of` is a required constructor argument, so there is no membership-presence mode to construct (§12) — plus `012b`'s `technical_details` | `security/test_diagnostics_disclosure.py` (19), `integration/test_cli_surface_postgres.py` — all five outcomes through the real command | READY |
 | 18 | **UX-004** | raw artifact durable; retry re-runs only the failed stage reusing `raw_artifact_id`; duplicate callbacks create no second Run | `pipeline.resume`, `composition.IngestionService.retry` | `e2e/test_stage_retry_resume_postgres.py` (5) | READY |
 | 19 | **UX-005** | low-confidence extraction creates a ReviewItem visible in queue depth and changes Capability availability | `011h` + `SqlReviewItemStore.enqueue_extraction_review`, now also projected onto the inbox row | `integration/test_extraction_review_postgres.py` (9), `integration/test_inbox_authorization_postgres.py` — enqueue → NEEDS_REVIEW → expire → READY | READY |
 | 20 | **UX-006** | every reason_code resolves; unknown fails closed to a generic entry; no render path invokes a model | `surface/catalog.py` | `contract/test_ingestion_surfaces.py` | READY |
@@ -101,7 +103,7 @@ the strongest possible demonstration that the path was reachable.
 | `CandidateResolver` | occurrence presence only | `AuthorizedCandidateResolver`: descriptor -> ACL -> body |
 | `IngestionService.evidence_for` | took no Actor | requires `actor_id`; one descriptor query, bodies only for ALLOW |
 | `PostgresEvidenceUnitReader` | exported as `unauthorized_reader()` | **no accessor at all**; a private field of the trusted paths |
-| `DiagnosticsService` | its own ordered clearance comparison | delegates to `ProjectMembership.clears`, the predicate `can_read_artifact` uses |
+| `DiagnosticsService` | its own ordered clearance comparison | delegates to `ProjectMembership.clears`, the predicate `can_read_artifact` uses; and since §12 its project admission is `can_access_project` on every construction |
 
 **The ordering is now the implementation and not only the docstring.** `AuthorizedCandidateResolver`
 documented "authorize, THEN load" while doing the opposite: it needed `unit.artifact_id` to ask the
@@ -130,24 +132,29 @@ unrepresentable. **OPS-003 is not reopened** and stays DONE under the M0b lock.
 
 ## 6. Verification
 
-Local, full history, PostgreSQL last.
+Local, full history, PostgreSQL last. These are the **final** M1 figures, after §12.
 
 | Gate | Result |
 |---|---|
-| `ruff format --check` / `ruff check` | clean |
+| `ruff format` / `ruff check` | clean, 206 files |
 | `mypy` (strict) | clean, **109** source files |
-| Backend-free suite | **1133 passed**, 592 skipped |
-| Migration replay from empty | **37 applied** |
-| Migration idempotency | `pending 0` |
-| Full PostgreSQL profile | **1726 passed** |
+| Backend-free suite | **1141 passed**, 595 skipped |
+| Migration replay from empty | **37 applied** (fresh `lab_brain_m1final`) |
+| Migration idempotency | `pending 0`, second run a no-op |
+| Full PostgreSQL profile | **1736 passed**, 0 skipped |
 | Executed-coverage ratchet | ok ×4; DONE `['M0a','M0b']`, IN_PROGRESS `['M1']` |
 | Status freshness | up to date |
 | Spec conformance | **205 passed** |
 | Requirement ↔ Test | **60 ↔ 60** |
 | Obligation inventory | **84**, in sync |
 | Schema drift / unbound / stale | all empty |
-| Mutation battery | **74/74 killed** (29 M1-P1 + 21 + 8 + 8 + 8 third-audit) |
-| M1-P1 benchmark | current, framing unchanged |
+| Mutation battery | **75/75 killed** (29 M1-P1 + 21 + 8 + 8 + 8 third-audit + 1 §12) |
+| M1-P1 benchmark | current — re-run produces a byte-identical report, framing unchanged |
+
+The earlier revision of this table reported 1133 / 1726 and 74/74 against 592 skips. Those were
+correct for the third repair and are superseded, not corrected: §12 adds eight probes and one
+mutation anchor, and the PostgreSQL figure moved because the run that produced 1726 skipped two
+tests that this one executed.
 
 ### Local vs generic CI counts
 
@@ -155,6 +162,11 @@ The two history-dependent commit-hygiene tests skip in shallow generic jobs and 
 dedicated full-history `Commit hygiene` job. This is designed behaviour, recorded at the M1-P1
 lock, and is **not a regression**. Do not make those two assert unconditionally: a green test
 that checked no commits is worse than an honest skip.
+
+| Run | Backend-free | `postgres` profile | Spec conformance |
+|---|---|---|---|
+| Local, full history | 1141 passed / 595 skipped | 1736 passed / 0 skipped | 205 passed |
+| Generic CI jobs (`fetch-depth: 1`) | 1139 passed / 597 skipped | 1734 passed / 2 skipped | 203 passed / 2 skipped |
 
 ## 7. Remaining risks and limitations
 
@@ -405,3 +417,110 @@ eight new anchors sit on `surface_store.py` queries rather than on Python branch
 is where the review and conflict semantics actually live.
 
 Final: **74/74 killed.**
+
+
+## 12. The closing security repair — Actor resolution is a dependency, not an option
+
+One defect remained after §11, and it was in the **constructor**, which is why three rounds of
+behavioural audit walked past it.
+
+### What was wrong
+
+`DiagnosticsService.__init__` declared `actor_of: Callable[[str], Actor | None] | None = None`,
+and `_admitted` branched on it:
+
+```python
+membership = self._membership_of(actor_id, project_id)
+if self._actor_of is None:
+    return membership is not None                 # ← membership-presence-only authorization
+return can_access_project(self._actor_of(actor_id), project_id, membership).allowed
+```
+
+§11 repaired the *production* path — `composition.diagnostics()` supplies the resolver — and the
+docstring argued the weak branch was reachable only by contract tests building a service from a
+dict. That argument is the one this repository declines to accept everywhere else. **The weak mode
+was reachable from the supported public API.** Anyone constructing the service the documented way,
+minus one keyword, got SEC-002's predicate replaced by "a membership row exists" — and got it
+silently, because omitting an optional argument is not an error.
+
+It is the same defect class as UX-002's `charge_budget=None` returning `retry=True` (§9 blocker 4)
+and the inbox's unconsulted `--actor` (§11 blocker 1): *a check that is present but optional*.
+Three instances now, in three different subsystems.
+
+### The repair
+
+`actor_of` is a **required** keyword argument, and `_admitted` has one branch:
+
+```python
+membership = self._membership_of(actor_id, project_id)
+return can_access_project(self._actor_of(actor_id), project_id, membership).allowed
+```
+
+`can_access_project` is unchanged and is still the single ACL — no second predicate was written,
+and the five refusals (unresolved Actor / inactive Actor / no membership / actor-project mismatch /
+inactive membership) are decided where `can_read_artifact` and the inbox decide them.
+
+### The attack, before and after
+
+Fixture: a centrally **disabled** Actor holding an **active** membership with
+`VIEW_TECHNICAL_DIAGNOSTICS` and `RESTRICTED_NDA` clearance — i.e. a departed researcher whose
+account was disabled and whose per-project grants were never walked.
+
+| | `default_payload` | `expand` |
+|---|---|---|
+| **Before** | ADMITTED, `trace_id=trc:1` | ADMITTED, technical detail returned, `source_path=/srv/nda/acme-foundry/pdk-v7/process_rules.pdf` |
+| **After** | `ErrorNotFound` | `ErrorNotFound` |
+
+The leaked field is the point: §17.24's technical tier is exactly the NDA filename / private path /
+prompt-fragment material SEC-001 exists to contain, so the old constructor turned a disabled
+account into a readable one.
+
+Constructing the service without `actor_of` now raises
+`TypeError: DiagnosticsService.__init__() missing 1 required keyword-only argument: 'actor_of'`.
+
+### The eight probes
+
+All in `security/test_diagnostics_disclosure.py`, backend-free, alongside the eleven §17.24
+probes that were already there (19 total in the file).
+
+| # | Probe | What it pins |
+|---|---|---|
+| 1 | `test_the_service_cannot_be_constructed_without_actor_resolution` | structural — `inspect.signature` has no default **and** `get_type_hints` shows no `\| None` around the callable, then the `TypeError` proves it is enforced |
+| 2 | `test_an_unknown_actor_is_indistinguishable_from_a_missing_error` | §14.4 "no governance without who", and the refusal names no reason |
+| 3 | `test_an_inactive_actor_with_an_active_membership_is_refused` | **the defect**, as a fixture; asserts the two `active` flags genuinely disagree first |
+| 4 | `test_an_active_actor_with_an_inactive_membership_is_refused` | the other half of SEC-002's conjunction |
+| 5 | `test_a_membership_of_another_project_grants_nothing_here` | R-7 restated on this surface |
+| 6 | `test_an_active_actor_with_an_active_membership_still_resolves` | positive control — without it, "refuse everyone" passes 2–5 |
+| 7 | `test_technical_expansion_reveals_no_second_refusal_path` | `--technical` is not a side channel: all four refusals are byte-identical and equal a never-issued id's |
+| 8 | `test_no_error_or_detail_lookup_happens_before_project_authorization` | ordering under the *new* predicate, with loaders that always succeed, for each of the three SEC-002 refusals |
+
+Probe 8 is the one worth arguing for. The pre-existing ordering probe covered "no membership"
+only, and it used a loader returning `None` — so it could not tell "not read" from "read and found
+nothing". This one supplies loaders that return the record and the secret detail unconditionally,
+so the **only** thing that can stop them is the ACL.
+
+Every fixture that previously omitted `actor_of` now supplies an explicit in-memory Actor store
+(`tests/security/test_diagnostics_disclosure.py`, `tests/contract/test_budget_and_cli.py`). That is
+not ceremony: those fixtures were implicitly asserting "this actor exists and is active" by having
+no way to say otherwise.
+
+### What the battery found
+
+One new anchor, and one existing anchor moved:
+
+* `diagnostics_actor_resolution_is_optional_again` restores the `| None = None` default and is
+  killed by probe 1. Without it, a future edit could reopen the seam and every behavioural probe
+  would still pass — they all supply a resolver.
+* `error_disclosure_skips_the_actor_check` (from §11) gained
+  `tests/security/test_diagnostics_disclosure.py` as its **first** target. It was previously
+  killable only under PostgreSQL, because the membership-only branch was the one every in-memory
+  fixture ran — so no backend-free test could observe the substitution at all. It is now killed
+  without a database.
+
+Final: **75/75 killed.**
+
+### Nothing else was reopened
+
+No locked M1-P1 invariant, no M0a/M0b surface, and no other module was touched. The change set is
+`surface/disclosure.py` (constructor signature, one branch removed, docstrings), the two test
+fixtures, eight new probes and one mutation entry.

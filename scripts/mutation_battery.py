@@ -653,9 +653,22 @@ MUTATIONS: tuple[Mutation, ...] = (
         old="        return can_access_project(self._actor_of(actor_id), project_id, membership).allowed",
         new="        return membership is not None",
         tests=(
+            # Backend-free first, and that is the point of adding it. Until the constructor
+            # required `actor_of`, the membership-only branch was the one every in-memory fixture
+            # ran, so no backend-free test could see this substitution at all: the mutation was
+            # only killable where a real Actor store existed. It is now killed without Postgres.
+            "tests/security/test_diagnostics_disclosure.py",
             "tests/integration/test_inbox_authorization_postgres.py",
             "tests/integration/test_cli_surface_postgres.py",
         ),
+    ),
+    Mutation(
+        name="diagnostics_actor_resolution_is_optional_again",
+        guards="SEC-002 -- there must be no supported membership-only construction",
+        path="src/lab_brain/surface/disclosure.py",
+        old="        actor_of: Callable[[str], Actor | None],",
+        new="        actor_of: Callable[[str], Actor | None] | None = None,",
+        tests=("tests/security/test_diagnostics_disclosure.py",),
     ),
     Mutation(
         name="the_inbox_ignores_open_reviews",

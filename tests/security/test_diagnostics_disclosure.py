@@ -21,11 +21,13 @@ test compares the two responses rather than only checking that an exception was 
 from __future__ import annotations
 
 import datetime as dt
+import inspect
+import typing
 
 import pytest
 
-from lab_brain.core.models.access import ProjectMembership
-from lab_brain.core.models.enums import SensitivityLabel
+from lab_brain.core.models.access import Actor, ProjectMembership
+from lab_brain.core.models.enums import ActorType, SensitivityLabel
 from lab_brain.surface.catalog import default_catalog
 from lab_brain.surface.disclosure import (
     VIEW_TECHNICAL_SCOPE,
@@ -40,6 +42,17 @@ pytestmark = [pytest.mark.requirement("UX-003"), pytest.mark.spec_test("T-UX-003
 NOW = dt.datetime(2026, 9, 21, 12, 0, tzinfo=dt.UTC)
 PROJECT = "prj:test"
 OTHER_PROJECT = "prj:other"
+
+#: The in-memory Actor store every fixture below resolves against. It exists because `actor_of`
+#: is a REQUIRED dependency of `DiagnosticsService` -- see
+#: `test_the_service_cannot_be_constructed_without_actor_resolution`. Making the fixtures name
+#: which accounts exist and which are active is the point: the old fixtures were asserting
+#: "act:test is a real, active account" implicitly, by never being able to say otherwise.
+ACTIVE_ACTOR = Actor(actor_id="act:test", actor_type=ActorType.HUMAN, display_name="Researcher")
+DISABLED_ACTOR = Actor(
+    actor_id="act:disabled", actor_type=ActorType.HUMAN, display_name="Departed", active=False
+)
+ACTORS: dict[str, Actor] = {a.actor_id: a for a in (ACTIVE_ACTOR, DISABLED_ACTOR)}
 
 #: Deliberately full of the four things §26 names: a stack trace, a file path, a repo name and a
 #: prompt fragment. A bland fixture would let a leaking implementation pass.
@@ -78,26 +91,48 @@ OTHER_RECORD = ErrorRecord(
 
 
 def _membership(
-    *, scopes: tuple[str, ...] = (), clearance: tuple[SensitivityLabel, ...] = ()
+    *,
+    scopes: tuple[str, ...] = (),
+    clearance: tuple[SensitivityLabel, ...] = (),
+    actor_id: str = "act:test",
+    project_id: str = PROJECT,
+    active: bool = True,
 ) -> ProjectMembership:
     return ProjectMembership(
-        actor_id="act:test",
-        project_id=PROJECT,
+        actor_id=actor_id,
+        project_id=project_id,
         role="RESEARCHER",
         sensitivity_clearance=clearance,
         approval_scopes=scopes,
+        active=active,
     )
 
 
-def _service(membership: ProjectMembership | None) -> DiagnosticsService:
+def _service(
+    membership: ProjectMembership | None,
+    *,
+    actors: dict[str, Actor] | None = None,
+) -> DiagnosticsService:
+    """The one supported construction. There is no membership-only mode to build.
+
+    ``membership_of`` returns the row for the project it was granted in, so a membership of
+    another project is not silently rewritten into a membership of this one -- the mismatch
+    refusal in `can_access_project` has to be reachable for the probe below to mean anything.
+    """
     errors = {RECORD.error_id: RECORD, OTHER_RECORD.error_id: OTHER_RECORD}
+    store = ACTORS if actors is None else actors
     return DiagnosticsService(
         catalog=default_catalog(),
         load_error=lambda key: errors.get(key),
         load_detail=lambda ref: SECRET_DETAIL if ref == "det:1" else None,
         membership_of=lambda actor, project: (
-            membership if project == PROJECT and membership is not None else None
+            membership
+            if membership is not None
+            and membership.actor_id == actor
+            and membership.project_id == project
+            else None
         ),
+        actor_of=store.get,
     )
 
 
@@ -277,7 +312,186 @@ def test_membership_is_checked_before_the_error_is_looked_up():
         load_error=lambda key: (looked_up.append(key), None)[1],
         load_detail=lambda _ref: None,
         membership_of=lambda _actor, _project: None,
+        actor_of=ACTORS.get,
     )
     with pytest.raises(ErrorNotFound):
         service.default_payload("ERR-1", actor_id="act:outsider", project_id=PROJECT)
     assert looked_up == [], "the error store was queried before membership was established"
+
+
+# ---------------------------------------------------------------------------
+# Clause 5 (SEC-002) — Actor resolution is a dependency, not an option
+#
+# §17.24's scoping clause says "scoped by project membership", and the previous implementation
+# read that literally: a membership ROW existing was the whole check. SEC-002 is the rule that
+# says what membership means -- `Actor.active` AND `ProjectMembership.active`, both, because
+# disabling an account is the global action and revoking a membership is the per-project one.
+#
+# The seam was the CONSTRUCTOR. `actor_of` defaulted to None and `_admitted` then fell back to
+# `membership is not None`. So the weak rule was not dead code reachable only by mistake -- it
+# was reachable from the supported public API, and every fixture that omitted the resolver was
+# testing a service that no deployment used.
+# ---------------------------------------------------------------------------
+
+
+def test_the_service_cannot_be_constructed_without_actor_resolution():
+    """Probe 1. The membership-only mode must not be *constructible*, not merely unused.
+
+    Checked two ways, because they fail differently. The signature check is the structural claim
+    -- a future edit that restores `actor_of: ... | None = None` fails here even if every
+    behavioural probe below still passes, because they would all pass by supplying a resolver.
+    The TypeError is the claim that the structural fact is actually enforced at runtime.
+    """
+    parameter = inspect.signature(DiagnosticsService.__init__).parameters["actor_of"]
+    assert parameter.default is inspect.Parameter.empty, (
+        "actor_of has a default again; an optional identity check is not a check -- the caller "
+        "who omits it gets a pass rather than an error (SEC-002)"
+    )
+    # The resolver itself must not be optional. `Callable[[str], Actor | None]` is correct -- an
+    # actor id that resolves to nothing is a refusal, decided by `can_access_project`. What is
+    # forbidden is `... | None` around the whole callable, which is the no-resolver mode.
+    hint = typing.get_type_hints(DiagnosticsService.__init__)["actor_of"]
+    assert type(None) not in typing.get_args(hint), (
+        f"actor_of is typed {hint!r}, which still admits a service with no Actor resolution"
+    )
+
+    with pytest.raises(TypeError, match="actor_of"):
+        DiagnosticsService(  # type: ignore[call-arg]
+            catalog=default_catalog(),
+            load_error=lambda _key: None,
+            load_detail=lambda _ref: None,
+            membership_of=lambda _actor, _project: None,
+        )
+
+
+def test_an_unknown_actor_is_indistinguishable_from_a_missing_error():
+    """Probe 2. No Actor row at all -- §14.4's "no governance without who"."""
+    service = _service(_membership(actor_id="act:ghost", scopes=(VIEW_TECHNICAL_SCOPE,)))
+    with pytest.raises(ErrorNotFound) as unknown_actor:
+        service.default_payload(RECORD.error_id, actor_id="act:ghost", project_id=PROJECT)
+    with pytest.raises(ErrorNotFound) as never_issued:
+        service.default_payload("ERR-20260921-4242", actor_id="act:test", project_id=PROJECT)
+    assert type(unknown_actor.value) is type(never_issued.value)
+    for forbidden in ("permission", "denied", "forbidden", "inactive", "actor"):
+        assert forbidden not in str(unknown_actor.value).lower()
+
+
+def test_an_inactive_actor_with_an_active_membership_is_refused():
+    """Probe 3. THE defect this repair closes, stated as a fixture.
+
+    Under the old constructor this exact combination -- a centrally disabled account, an active
+    membership row, a service built without `actor_of` -- resolved the error reference and, with
+    the scope held, expanded it. Deactivating the account did nothing until someone walked every
+    project and revoked each grant by hand.
+    """
+    disabled_member = _membership(
+        actor_id="act:disabled",
+        scopes=(VIEW_TECHNICAL_SCOPE,),
+        clearance=(SensitivityLabel.RESTRICTED_NDA,),
+    )
+    assert DISABLED_ACTOR.active is False and disabled_member.active is True
+
+    service = _service(disabled_member)
+    with pytest.raises(ErrorNotFound):
+        service.default_payload(RECORD.error_id, actor_id="act:disabled", project_id=PROJECT)
+    with pytest.raises(ErrorNotFound):
+        service.expand(RECORD.error_id, actor_id="act:disabled", project_id=PROJECT)
+
+
+def test_an_active_actor_with_an_inactive_membership_is_refused():
+    """Probe 4. The other half of SEC-002's conjunction -- revocation without deleting the row."""
+    revoked = _membership(scopes=(VIEW_TECHNICAL_SCOPE,), active=False)
+    service = _service(revoked)
+    with pytest.raises(ErrorNotFound):
+        service.default_payload(RECORD.error_id, actor_id="act:test", project_id=PROJECT)
+    with pytest.raises(ErrorNotFound):
+        service.expand(RECORD.error_id, actor_id="act:test", project_id=PROJECT)
+
+
+def test_a_membership_of_another_project_grants_nothing_here():
+    """Probe 5. Holding a project does not grant a neighbour (R-7 restated on this surface)."""
+    elsewhere = _membership(project_id=OTHER_PROJECT, scopes=(VIEW_TECHNICAL_SCOPE,))
+    service = _service(elsewhere)
+    with pytest.raises(ErrorNotFound):
+        service.default_payload(RECORD.error_id, actor_id="act:test", project_id=PROJECT)
+
+
+def test_an_active_actor_with_an_active_membership_still_resolves():
+    """Probe 6. The positive control.
+
+    Without it every refusal above is satisfied by a service that refuses everyone, and the
+    repair would look correct while having removed the feature.
+    """
+    payload = _service(_membership()).default_payload(
+        RECORD.error_id, actor_id="act:test", project_id=PROJECT
+    )
+    assert payload.trace_id == "trc:1"
+    assert payload.technical is None
+
+
+def test_technical_expansion_reveals_no_second_refusal_path():
+    """Probe 7. `--technical` must not distinguish the reasons a lookup failed.
+
+    The withheld path returns a payload with `DIAGNOSTICS_SCOPE_REQUIRED`; the unauthorized path
+    raises. If an unauthorized actor got the withheld payload instead of the raise, the presence
+    of the error id would be confirmed by the very flag meant to be the stricter ask.
+    """
+    refusals = {}
+    for actor_id, membership in (
+        ("act:disabled", _membership(actor_id="act:disabled", scopes=(VIEW_TECHNICAL_SCOPE,))),
+        ("act:test", _membership(scopes=(VIEW_TECHNICAL_SCOPE,), active=False)),
+        ("act:ghost", _membership(actor_id="act:ghost", scopes=(VIEW_TECHNICAL_SCOPE,))),
+        ("act:test", _membership(project_id=OTHER_PROJECT, scopes=(VIEW_TECHNICAL_SCOPE,))),
+    ):
+        service = _service(membership)
+        with pytest.raises(ErrorNotFound) as raised:
+            service.expand(RECORD.error_id, actor_id=actor_id, project_id=PROJECT)
+        refusals[actor_id, membership.project_id, membership.active] = (
+            type(raised.value),
+            raised.value.args,
+        )
+
+    assert len(set(refusals.values())) == 1, refusals
+    # And the SAME answer a never-issued id gets, so the flag confirms nothing.
+    with pytest.raises(ErrorNotFound) as absent:
+        _service(_membership(scopes=(VIEW_TECHNICAL_SCOPE,))).expand(
+            RECORD.error_id.replace("0001", "4242"), actor_id="act:test", project_id=PROJECT
+        )
+    assert type(absent.value) is next(iter(refusals.values()))[0]
+
+
+def test_no_error_or_detail_lookup_happens_before_project_authorization():
+    """Probe 8. Ordering under the *new* predicate, for every refusal reason.
+
+    The existing ordering probe covers "no membership". This one covers the three SEC-002
+    refusals the old code could not even reach, because a store queried before the Actor check
+    makes the disabled-account path do observably different work from the stranger path.
+    """
+
+    def instrumented(membership: ProjectMembership) -> tuple[DiagnosticsService, list, list]:
+        """Loaders that always succeed, so the ONLY thing stopping them is the ACL."""
+        errors_read: list[str] = []
+        details_read: list[str] = []
+        service = DiagnosticsService(
+            catalog=default_catalog(),
+            load_error=lambda key: (errors_read.append(key), RECORD)[1],
+            load_detail=lambda ref: (details_read.append(ref), SECRET_DETAIL)[1],
+            membership_of=lambda actor, project: (
+                membership
+                if membership.actor_id == actor and membership.project_id == project
+                else None
+            ),
+            actor_of=ACTORS.get,
+        )
+        return service, errors_read, details_read
+
+    for actor_id, member in (
+        ("act:disabled", _membership(actor_id="act:disabled", scopes=(VIEW_TECHNICAL_SCOPE,))),
+        ("act:test", _membership(scopes=(VIEW_TECHNICAL_SCOPE,), active=False)),
+        ("act:ghost", _membership(actor_id="act:ghost", scopes=(VIEW_TECHNICAL_SCOPE,))),
+    ):
+        service, errors_read, details_read = instrumented(member)
+        with pytest.raises(ErrorNotFound):
+            service.expand(RECORD.error_id, actor_id=actor_id, project_id=PROJECT)
+        assert errors_read == [], f"{actor_id}: the error store was read before authorization"
+        assert details_read == [], f"{actor_id}: technical detail was read before authorization"

@@ -134,6 +134,9 @@ class DiagnosticsService:
     There is no ``include_technical`` parameter. The caller says who is asking and what they are
     asking for; the service decides what comes back. A flag would move the decision to the
     caller, and §26 requires it to be made server-side.
+
+    Nor is there a constructor that authorizes on less. ``actor_of`` is required, so the first of
+    the four checks is always SEC-002's full predicate rather than "a membership row exists".
     """
 
     def __init__(
@@ -143,16 +146,22 @@ class DiagnosticsService:
         load_error: Callable[[str], ErrorRecord | None],
         load_detail: Callable[[str], TechnicalDetail | None],
         membership_of: Callable[[str, str], ProjectMembership | None],
-        actor_of: Callable[[str], Actor | None] | None = None,
+        actor_of: Callable[[str], Actor | None],
     ) -> None:
         """``actor_of`` resolves the requesting Actor, so `can_access_project` can be asked.
 
-        OPTIONAL WITH A FAIL-CLOSED DEFAULT, and the default is the interesting part. When no
-        resolver is supplied this service treats every actor as unresolvable *except* in the
-        membership-only check it already performed -- see `_admitted`. The contract tests that
-        construct a service with an in-memory membership map keep working, and a production
-        deployment that forgets the resolver does not silently gain an unchecked path: the
-        composition root supplies it and a probe asserts that it does.
+        REQUIRED, AND THAT IS THE REPAIR. It used to default to ``None``, and `_admitted` then
+        fell back to "a membership row exists" -- which is exactly the SEC-002 rule this
+        repository removed everywhere else. The fallback was justified as "only contract tests
+        build a service from a dict", but an optional identity check is not a check: the caller
+        who omits it gets a pass rather than an error, and the weaker mode was reachable from the
+        supported public API. A deactivated account with a stale membership row could resolve
+        error references through any service constructed that way.
+
+        There is now ONE construction and ONE authorization mode. A test that has no Actor store
+        supplies an in-memory resolver -- `lambda actor_id: ACTORS.get(actor_id)` is four more
+        characters than omitting it, and it makes every fixture state which accounts exist and
+        which are active, which is the fact the old fixtures were silently asserting anyway.
         """
         self._catalog = catalog
         self._load_error = load_error
@@ -218,18 +227,18 @@ class DiagnosticsService:
     def _admitted(self, actor_id: str, project_id: str) -> bool:
         """May this actor look anything up in this project at all?
 
-        `can_access_project` when an Actor resolver is wired -- the SAME predicate the inbox and
-        `can_read_artifact` use, so "active account, active membership, this project" is decided
-        in one place. Membership presence alone was the previous check, which let a centrally
-        disabled account and a revoked membership keep reading a project's error references.
+        `can_access_project`, unconditionally -- the SAME predicate the inbox and
+        `can_read_artifact` use, so "Actor exists, Actor is active, a membership exists, it is
+        this actor's membership of this project, and it is active" is decided in one place.
 
-        Falls back to membership presence when no resolver is supplied. That is strictly weaker
-        and is why the composition root always supplies one; a contract test that builds this
-        service from a dict is not a deployment.
+        NO FALLBACK. There used to be one: with no Actor resolver this returned
+        ``membership is not None``, which is membership-presence-only authorization -- an inactive
+        Actor holding an active membership row was admitted. Both branches have been collapsed
+        into the canonical predicate, so there is no construction of this service that authorizes
+        on a weaker rule, and no second hand-written copy of the ACL to drift from
+        `lab_brain.core.access`.
         """
         membership = self._membership_of(actor_id, project_id)
-        if self._actor_of is None:
-            return membership is not None
         return can_access_project(self._actor_of(actor_id), project_id, membership).allowed
 
     def _resolve(self, error_id: str, *, actor_id: str, project_id: str) -> ErrorRecord:
