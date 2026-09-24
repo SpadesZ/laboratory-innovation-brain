@@ -1,6 +1,6 @@
 # M2 — Silicon Photonics Tool Layer: readiness for independent sign-off
 
-Date: 2026-09-24; revised after the first independent M2 review (§9)
+Date: 2026-09-24; revised after the first independent M2 review (§9) and again after the second (§10)
 Milestone: **M2 — Silicon Photonics Tool Layer**, `IN_PROGRESS` — implementation complete, awaiting
 independent sign-off
 M1: **`DONE` / HARD-LOCKED** at `bdb72129a1075d69a30f5043a3491570ca7d4521`; the executed-coverage
@@ -19,7 +19,8 @@ Test ID was added by this work.** 60 ↔ 60 throughout.
 
 | Clause | Where it is demonstrated |
 |---|---|
-| every tool call is **budgeted** and **typed** | `unit/test_budgeted_tool_dispatch.py` (14) + `e2e/test_m2_vertical_postgres.py` — `BudgetedToolDispatcher` is the one production tool call: registry resolution → Capability/contract estimate → `BudgetRequest` → `dispatch_action` → ALLOW-only `invoke` → measured actual → closed span. See §9A. |
+| every tool call is **budgeted** and **typed** | `unit/test_budgeted_tool_dispatch.py` (18) + `e2e/test_m2_vertical_postgres.py` — `BudgetedToolDispatcher` is the one production tool call: **scope binding** → registry resolution → Capability/contract estimate → `BudgetRequest` → `dispatch_action` → ALLOW-only `invoke` → measured actual → closed span. See §9A and §10E. |
+| ...and the scope that is **gated** is the scope that **executes** | `unit/test_budgeted_tool_dispatch.py`, `unit/test_typed_tool_registry.py`, `contract/test_resource_demand_binding.py` — project, trace and capability are bound across `ToolAction` → `ToolRequest` → `SimulationRequest` → `Job`, before any Job mutation, seat or backend call. The vertical asserts the whole chain as **equality**, including the Episode. See §10E. |
 | simulated + measured fixtures use the **same extractor contract** | `domains/test_shared_extractor_contract.py` — one `CjRsExtractor` instance, one `ExtractionInput` type, one `ExtractionResult` type, both modalities, and the **numbers are equal**. Reinforced structurally: `test_there_is_exactly_one_extraction_protocol_and_one_input_type` fails if a parallel type appears, and `test_the_extractor_source_never_branches_on_modality` parses the reduction and fails if it reads `modality` at all. |
 | ...and the provenance is **not** shared | the same file: SIMULATED names a Run and carries backend validity, MEASURED names a source Artifact, and four relabelling attempts are refused at the boundary (`test_measured_provenance_cannot_be_relabelled_as_simulated` and its three siblings). |
 | license/resource queue mock pass | `e2e/test_m2_vertical_postgres.py` — one seat, a rival job holds it, the simulation parks in `WAITING_RESOURCE` with `attempt_count` untouched and no `structured_error`, the rival releases, and **the same `job_id`** resumes and produces exactly one Run. |
@@ -35,7 +36,7 @@ Test ID was added by this work.** 60 ↔ 60 throughout.
 |---|---|---|---|---|---|
 | 1 | **SIM-001** | run manifest 缺 solver/project/conditions/validity 任一必要欄位即拒絕升級正式 evidence | `tools/simulation.py` — `BackendValiditySchema` + `validate_backend_validity`, called **before** the manifest is minted; the required field list is `domains/silicon_photonics/backend_validity.py`'s, never core's | `contract/test_simulation_contract.py` (27, incl. one parametrised refusal per required field), `e2e/test_m2_vertical_postgres.py` (durable row) | READY |
 | 2 | **SIM-002** | low-fidelity contradiction 只使 hypothesis → CHALLENGED，不得直接 → REJECTED | two registered §8.2.1 `TransitionPolicy` records + `SiliconPhotonicsAuthorityPolicy`. **No core file changed**: `TransitionPolicy.evaluate` is untouched M0b code and is what refuses | `e2e/test_sim_fidelity_gate_postgres.py` (12, policy semantics) + `e2e/test_sim_fidelity_vertical_postgres.py` (7, **durable e2e**: Decision to event to replay to CHALLENGED) | READY |
-| 3 | **SIM-003** | static test rejects `eval_script`-class interfaces; every invocation resolves through the typed ToolRegistry | `tools/registry.py` + `tools/contracts.py`; the static half is `unit/test_no_arbitrary_script_execution.py`, which existed since M0a and was deliberately unmarked | `unit/test_typed_tool_registry.py` (19, incl. the two structural probes that permit `.invoke(...)` only in `tools/dispatch.py`), `e2e/test_m2_vertical_postgres.py` (the whole chain, budgeted) | READY |
+| 3 | **SIM-003** | static test rejects `eval_script`-class interfaces; every invocation resolves through the typed ToolRegistry | `tools/registry.py` + `tools/contracts.py`; the static half is `unit/test_no_arbitrary_script_execution.py`, which existed since M0a and was deliberately unmarked | `unit/test_typed_tool_registry.py` (24, incl. the two structural probes that permit `.invoke(...)` only in `tools/dispatch.py`, and the five that stop a typed request describing two executions at once), `e2e/test_m2_vertical_postgres.py` (the whole chain, budgeted) | READY |
 | 4 | **EVI-001** | Cj/Rs fixture missing unit / normalization basis / bias-frequency condition / extraction method fails; complete fixture round-trips | `tools/extraction.py` `ExtractedQuantity` refuses a value missing any of the four; `domains/silicon_photonics/extractors.py` supplies all four | `domains/test_cj_rs_evidence_contract.py` (18, incl. the six condition-provenance refusals) | READY |
 | 5 | **DOM-SP-001** | Rs trend validator 只存在 SiPh DomainPack，移除 plugin 後 core 仍可啟動 | `domains/silicon_photonics/validators.py`; core has no place to put a rule — `ValidationReport` keys findings by an opaque `rule_id` | `domains/test_domain_pack_boundary.py` (14) | READY |
 | 6 | **DOM-SP-002** | 同一 `extract_cj_rs` contract 通過 simulated 與 measured impedance fixtures | one `MetricExtractor` protocol, one `ExtractionInput`/`ExtractionResult` pair; `ToolDescriptor` refuses an `extract_*` tool that names a backend | `domains/test_shared_extractor_contract.py` (9), `e2e/test_m2_vertical_postgres.py` | READY |
@@ -132,20 +133,24 @@ Local, full history, PostgreSQL last.
 
 | Gate | Result |
 |---|---|
-| `ruff format --check` / `ruff check` | clean, 258 files |
-| `mypy` (strict) | clean, **137** source files |
-| Backend-free suite | **1296 passed**, 625 skipped |
-| Migration replay from empty | **38 applied** (fresh `lab_brain_m2r1`) |
+| `ruff format --check` / `ruff check` | clean, 259 files |
+| `mypy` (strict) | clean, **138** source files |
+| Backend-free suite | **1310 passed**, 625 skipped |
+| Migration replay from empty | **38 applied** (fresh `lab_brain_m2r2`) |
 | Migration idempotency | `pending 0`, second run a no-op |
-| Full PostgreSQL profile | **1921 passed**, 0 skipped |
+| Full PostgreSQL profile | **1935 passed**, 0 skipped |
 | Executed-coverage ratchet | ok ×4; **DONE `['M0a','M0b','M1']`**, IN_PROGRESS `['M2']`; **45** requirements with a passing test |
 | Status freshness | up to date |
 | Spec conformance | **205 passed** |
 | Requirement ↔ Test | **60 ↔ 60** |
 | Obligation inventory | **84**, in sync |
 | Schema drift / unbound / stale | all empty |
-| Mutation battery | **99/99 killed** (75 through M1, + 15 M2, + 9 review repairs) |
+| Mutation battery | **107/107 killed** (75 through M1, + 15 M2, + 9 first-review repairs, + 8 execution scope) |
 | M1-P1 benchmark | current, re-run byte-identical |
+
+The local and shallow-CI figures are separate numbers and are not interchangeable: 1310 is a bare
+`pytest`, 1935 is the same suite with `LAB_BRAIN_TEST_POSTGRES=1` against a database migrated from
+empty. A milestone whose `gate_profile` names `postgres` cannot be signed off by the first.
 
 **M1's ratchet is live in these figures.** The coverage gate now enforces M1's 21 requirements as
 well as M0a's and M0b's, so a regression in any of them fails CI rather than being noticed.
@@ -358,3 +363,109 @@ fidelity contradiction with no corroboration returns NEED_MORE_EVIDENCE.
 `SIM_STANDARD` to `SIM_COARSE` makes
 `test_the_same_coarse_contradiction_cannot_produce_a_contradicted_event` fail. The test catches a
 broken gate rather than describing a working one.
+
+## 10. The second-review repair — execution scope
+
+The second independent review accepted repairs A–D and named one remaining P0. **None of A–D was
+redesigned**: `dispatch_action` is still untouched, `CjRsExtractor` still takes a required
+`ConditionSchemaRegistry` and still recovers no frequency from a series, the durable ResourceDemand
+is still authoritative after a reload, and there is still exactly one belief mutator.
+
+### E (P0) — execution scope was not bound across the layers that describe one call
+
+**The defect.** A tool call is described four times on its way to a backend, and nothing compared
+the descriptions:
+
+    ToolAction.project_id          what `dispatch_action` budgets against
+    ToolRequest.project_id         what the registry hands the implementation
+    SimulationRequest.project_id   what the backend is asked to run
+    Job.project_id                 what the durable record says was admitted
+
+Four independent strings for one fact, so `A`, `B`, `C`, `D` was representable. The layer that
+*paid* was not the layer that *ran*: project A's caps admitted an action, the implementation
+executed inside project B, and the Run landed on project D's Job. `trace_id` had the same shape —
+OPS-003 reassembles a call from its spans, and a trace that changes halfway down reassembles into
+two unrelated halves — and so did `capability_id`, which §9.5 plans and §17.18 prices.
+
+**Why late detection was not a repair.** `JobStore.complete` *did* catch the project case:
+`_RUN_LINKAGE` checks it precisely because *"a run scoped away from its job escapes SEC-002 through
+the side door"*. But by the time it speaks, the Job has been moved to RUNNING, a licence seat has
+been held and the solver has run to completion, so what it refuses is the **record** of an
+execution that already happened inside a project that never admitted it. The requirement is that
+the execution not happen.
+
+**The repair is one comparison, made at the three boundaries that hold both sides.**
+`lab_brain.tools.scope` is ninety lines: an `ExecutionScope` (a layer label plus project, trace and
+an optional capability), a `require_same_scope` that reports **every** dimension that disagrees,
+and `ExecutionScopeMismatch`. It compares strings; it does not know what a CHARGE sweep is.
+
+| Boundary | Where | When |
+|---|---|---|
+| `ToolAction` ↔ `ToolRequest` | `tools/dispatch.py` | first statement of `dispatch` — before the descriptor is resolved, before an estimate exists, before a span is opened, before `perform` is built |
+| `ChargeAcSweepRequest` ↔ its nested `SimulationRequest` | `domains/silicon_photonics/tools.py` | `model_validator(mode="after")` — the object cannot be constructed |
+| `SimulationRequest` ↔ `Job` | `tools/execution.py` | step **0**, after the Job resolves and before `jobs.transition`, `broker.acquire`, any lease, and `backend.execute` |
+
+**Neither side wins, and that is the difference from `_require_bound_demand`.** A ResourceDemand
+has an authoritative copy — the Job's — because a resumer may legitimately restate a requirement.
+An identity has no such reading: if the layer that was budgeted and the layer that will execute
+disagree about the project, there is no rule that makes one of them correct. So no preference is
+expressed and the execution does not happen.
+
+**A scope mismatch is not a budget outcome.** §17.17's BLOCKED span means *this project ran out of
+money*, and a supervisor holding `BUDGET_OVERRUN` can release it. There is no scope under which
+*execute inside a project the gate never evaluated* is releasable, so the refusal leaves the
+governance channel entirely: `dispatch` raises and returns no `ToolDispatchResult` to mistake for a
+decision. It also cannot live inside `perform` — `dispatch_action` writes the ESTIMATED row and
+consumes the approval claim *before* calling it, and wraps the call in `except Exception`, so a
+check made there would fire after the money was recorded and would close the span FAILED, which is
+the *the solver crashed* channel.
+
+**No new identifier was added.** §7's rule is kept: `ToolAction` gains no `capability_id`, the
+`Capability` model is not duplicated, and the capability chain is closed by making the identities
+that already exist agree — `charge_ac_descriptor()` and the request validator read the same
+`CHARGE_AC_CAPABILITY` constant, so the pack has one capability identity rather than two.
+
+**Before / after.** Eight guards, one probe each, with fatal spies (implementation, broker,
+backend). *Job mutated / seat taken / backend entered / ledger written / Run created* is reported
+for every attack.
+
+| # | Attack | Before | After |
+|---|---|---|---|
+| 1 | `ToolAction.project_id = A`, `ToolRequest.project_id = B` | gated against A, executed in B | `ExecutionScopeMismatch`; tool not entered, **no span opened**, no ESTIMATED or ACTUAL row, approval **not** consumed |
+| 2 | `ToolAction.trace_id = T1`, `ToolRequest.trace_id = T2` | two half-traces | same, and the refusal names **only** the trace |
+| 2a | the same, with a valid scoped supervisor approval attached and a cap below the estimate | n/a | still refused, still unconsumed — an approval releases an over-budget action, not an incoherent one |
+| 3 | `ChargeAcSweepRequest.project_id ≠ simulation.project_id` | constructible; the tool unwrapped the nested request | refused at construction |
+| 4 | `…trace_id ≠ simulation.trace_id` | constructible | refused at construction |
+| 5 | `simulation.capability_id ≠ the descriptor's` | constructible | refused at construction |
+| 6 | `SimulationRequest.project_id ≠ Job.project_id` | RUNNING, seat held, solver ran, **then** `complete` refused | Job still QUEUED, `attempt_count == 0`, `result_run_id is None`, `resume_stage is None`, no lease, backend never entered, no Run |
+| 7 | `SimulationRequest.trace_id ≠ Job.trace_id` | executed | same, and only the trace is named |
+| 8 | `SimulationRequest.capability_id ≠ Job.capability_id` | executed | same |
+| — | mis-scoped **and** mis-demanded at once | n/a | refused as a **scope** error, not a `ResourceBindingError` — an operator told *the pools disagree* would go and look at the queue |
+
+Positive controls, because refusing everything would satisfy all eight: a matching envelope
+dispatches and the implementation receives the project and trace the `BudgetRequest` was built
+from; a coherent `ChargeAcSweepRequest` constructs; a matching request executes against the real
+broker and the real backend and the Run inherits the Job's project, trace and capability.
+
+**The chain, asserted as equality end to end.** Step 4 of
+`test_the_full_tool_chain_runs_budgeted_through_the_typed_registry` — the vertical that has a
+`ToolAction` — reads every layer back from PostgreSQL and requires one value per dimension:
+
+    ResearchEpisode -> ToolAction -> ToolRequest -> SimulationRequest -> Job -> Run   project_id
+    ResearchEpisode -> ToolAction -> ToolRequest -> SimulationRequest -> Job -> Run   trace_id
+                       ToolDescriptor -> SimulationRequest -> Job -> Run              capability_id
+
+The Episode is the head of the chain rather than one more row: §17.3 makes it what the trace
+belongs to, so an execution agreeing with itself all the way down and disagreeing with its Episode
+would still be unattributable. The capability row has no `ToolAction` entry — that is §7's rule,
+not an omission.
+
+**Eight, not seven.** The review counted seven equalities. The capability chain
+`ToolDescriptor -> SimulationRequest -> Job` has two links, and the second is what stops a Job
+accepting an execution its own Capability never planned; it is guarded and mutated separately.
+
+**Mutation anchors.** Eight entries, each making **one** dimension compare against itself rather
+than deleting a `require_same_scope(...)` call. Deleting a call would disable three dimensions at
+one boundary and prove only that *something* there is tested; reading the same value into both
+`ExecutionScope`s leaves the other two live, so exactly one equality is under attack. All eight
+killed, each by the probe written for it.

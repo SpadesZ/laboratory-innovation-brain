@@ -30,6 +30,12 @@ from pathlib import Path
 import pytest
 
 from lab_brain.core.models.validation import ValidationReport, report
+from lab_brain.domains.silicon_photonics.condition_schema import SCHEMA_REF
+from lab_brain.domains.silicon_photonics.tools import (
+    CHARGE_AC_CAPABILITY,
+    ChargeAcSweepRequest,
+    charge_ac_descriptor,
+)
 from lab_brain.spec import repo_root
 from lab_brain.tools.contracts import (
     RETIRED_TOOL_ID,
@@ -45,6 +51,7 @@ from lab_brain.tools.registry import (
     ToolRegistrationError,
     ToolRegistry,
 )
+from lab_brain.tools.simulation import SimulationRequest
 from tests.refusals import refused
 
 pytestmark = [pytest.mark.requirement("SIM-003"), pytest.mark.spec_test("T-SIM-003")]
@@ -205,6 +212,105 @@ def test_a_mis_stamped_result_is_refused():
     registry.register(_descriptor(), WrongVersion())
     with pytest.raises(ToolInvocationError, match="contamination rollback"):
         registry.invoke("DOM-TST-TOOL-001", Ping(project_id="p", trace_id="t", value=1))
+
+
+# ---------------------------------------------------------------------------
+# Clause 2, continued — a typed request that cannot describe two executions
+#
+# THE WEAKEST FORM OF THE HAZARD, restated. The module docstring above says it is not `exec()` but
+# a boundary that accepts a payload and lets the implementation decide what it means. A
+# `ChargeAcSweepRequest` is typed and was still able to say two things at once: `project_id` for
+# the envelope the gate prices, and `simulation.project_id` for the execution the backend receives.
+# Nothing between them re-reads the envelope -- `ChargeAcSweepTool.__call__` unwraps
+# `request.simulation` and hands it to the runner -- so the implementation was, in effect, deciding
+# which of the two the call meant.
+#
+# The three probes are separate because the three dimensions fail differently: a project mismatch
+# is a SEC-002 escape, a trace mismatch is an OPS-003 one, and a capability mismatch executes
+# something §9.5 never planned and §17.18 never priced.
+# ---------------------------------------------------------------------------
+
+
+def _sweep_simulation(**overrides: object) -> SimulationRequest:
+    from tests import sp_fixtures as fx
+
+    payload: dict[str, object] = {
+        "request_id": "req:scope",
+        "project_id": fx.PROJECT,
+        "trace_id": fx.TRACE,
+        "job_id": "job:scope",
+        "capability_id": CHARGE_AC_CAPABILITY,
+        "input_artifacts": ("art:sha256:" + "7d" * 32,),
+        "conditions": dict(fx.CONDITIONS),
+        "conditions_schema_version": SCHEMA_REF,
+    }
+    payload.update(overrides)
+    return SimulationRequest.model_validate(payload)
+
+
+def test_a_sweep_request_cannot_wrap_a_simulation_for_another_project():
+    """The envelope the gate prices and the execution the backend receives are one execution."""
+    from tests import sp_fixtures as fx
+
+    with refused("ChargeAcSweepRequest.project_id is 'prj:sp'"):
+        ChargeAcSweepRequest(
+            project_id=fx.PROJECT,
+            trace_id=fx.TRACE,
+            simulation=_sweep_simulation(project_id="prj:elsewhere"),
+        )
+
+
+def test_a_sweep_request_cannot_wrap_a_simulation_on_another_trace():
+    """OPS-003. A span tree assembled from two traces is not a record of one call."""
+    from tests import sp_fixtures as fx
+
+    with refused("ChargeAcSweepRequest.simulation.trace_id is 'trc:elsewhere'"):
+        ChargeAcSweepRequest(
+            project_id=fx.PROJECT,
+            trace_id=fx.TRACE,
+            simulation=_sweep_simulation(trace_id="trc:elsewhere"),
+        )
+
+
+def test_a_sweep_request_cannot_wrap_a_simulation_for_another_capability():
+    """§7's rule kept: no second capability field, the existing identities are made to agree.
+
+    `ToolAction` carries no capability and does not gain one. The descriptor's is authoritative,
+    `charge_ac_descriptor()` and this validator read the same constant, and what is checked is that
+    the nested request names it too -- which closes ToolDescriptor -> SimulationRequest without
+    adding a field anywhere.
+    """
+    from tests import sp_fixtures as fx
+
+    with refused("capability_id is 'cap:sp.mesh_sensitivity'"):
+        ChargeAcSweepRequest(
+            project_id=fx.PROJECT,
+            trace_id=fx.TRACE,
+            simulation=_sweep_simulation(capability_id="cap:sp.mesh_sensitivity"),
+        )
+
+
+def test_the_descriptor_and_the_request_validator_read_one_capability_identity():
+    """Structural, because the check above is only as good as the constant behind it.
+
+    If `charge_ac_descriptor()` named a different capability from the one the validator compares
+    against, every mis-scoped request would still be refused and the pack would still be dispatching
+    a capability its own descriptor does not declare.
+    """
+    assert charge_ac_descriptor().capability_id == CHARGE_AC_CAPABILITY
+
+
+def test_a_coherent_sweep_request_is_accepted_and_keeps_one_scope_throughout():
+    """The positive control, asserting the identity rather than the absence of an exception."""
+    from tests import sp_fixtures as fx
+
+    request = ChargeAcSweepRequest(
+        project_id=fx.PROJECT, trace_id=fx.TRACE, simulation=_sweep_simulation()
+    )
+
+    assert request.project_id == request.simulation.project_id
+    assert request.trace_id == request.simulation.trace_id
+    assert request.simulation.capability_id == charge_ac_descriptor().capability_id
 
 
 # ---------------------------------------------------------------------------

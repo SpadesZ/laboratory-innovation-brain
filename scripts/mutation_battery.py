@@ -925,6 +925,84 @@ MUTATIONS: tuple[Mutation, ...] = (
         new="    if False:",
         tests=("tests/unit/test_capability_planning.py",),
     ),
+    # ------------------------------------------------------------------
+    # M2 review repair E — the execution-scope binding. Eight guards, eight entries.
+    #
+    # EACH MUTATION MAKES ONE DIMENSION COMPARE AGAINST ITSELF rather than deleting the call.
+    # Deleting a `require_same_scope(...)` would disable three dimensions at one of three
+    # boundaries and prove only that *something* at that boundary is tested; reading the same
+    # value into both `ExecutionScope`s leaves the other two dimensions live, so what survives or
+    # dies is exactly one equality. That is the granularity the guards were written at, so it is
+    # the granularity the battery has to attack them at.
+    #
+    # The review counted seven. There are eight: the capability chain
+    # `ToolDescriptor -> SimulationRequest -> Job` has two links, not one, and the second is what
+    # stops a Job accepting an execution its own Capability never planned.
+    # ------------------------------------------------------------------
+    Mutation(
+        name="the_gated_project_need_not_be_the_executed_project",
+        guards="§17.16 -- ToolAction.project_id == ToolRequest.project_id, before the gate",
+        path="src/lab_brain/tools/dispatch.py",
+        old="                project_id=action.request.project_id,",
+        new="                project_id=action.project_id,",
+        tests=("tests/unit/test_budgeted_tool_dispatch.py",),
+    ),
+    Mutation(
+        name="the_gated_trace_need_not_be_the_executed_trace",
+        guards="OPS-003 -- ToolAction.trace_id == ToolRequest.trace_id, before the gate",
+        path="src/lab_brain/tools/dispatch.py",
+        old="                trace_id=action.request.trace_id,",
+        new="                trace_id=action.trace_id,",
+        tests=("tests/unit/test_budgeted_tool_dispatch.py",),
+    ),
+    Mutation(
+        name="a_sweep_envelope_may_wrap_another_projects_simulation",
+        guards="§17.16 -- ChargeAcSweepRequest.project_id == simulation.project_id",
+        path="src/lab_brain/domains/silicon_photonics/tools.py",
+        old="                project_id=self.simulation.project_id,",
+        new="                project_id=self.project_id,",
+        tests=("tests/unit/test_typed_tool_registry.py",),
+    ),
+    Mutation(
+        name="a_sweep_envelope_may_wrap_another_traces_simulation",
+        guards="OPS-003 -- ChargeAcSweepRequest.trace_id == simulation.trace_id",
+        path="src/lab_brain/domains/silicon_photonics/tools.py",
+        old="                trace_id=self.simulation.trace_id,",
+        new="                trace_id=self.trace_id,",
+        tests=("tests/unit/test_typed_tool_registry.py",),
+    ),
+    Mutation(
+        name="a_sweep_envelope_may_wrap_another_capabilitys_simulation",
+        guards="§9.5 -- ToolDescriptor.capability_id == SimulationRequest.capability_id",
+        path="src/lab_brain/domains/silicon_photonics/tools.py",
+        old="                capability_id=self.simulation.capability_id,",
+        new="                capability_id=CHARGE_AC_CAPABILITY,",
+        tests=("tests/unit/test_typed_tool_registry.py",),
+    ),
+    Mutation(
+        name="a_simulation_may_execute_against_another_projects_job",
+        guards="SEC-002 -- SimulationRequest.project_id == Job.project_id, before any side effect",
+        path="src/lab_brain/tools/execution.py",
+        old="            project_id=current.project_id,",
+        new="            project_id=request.project_id,",
+        tests=("tests/contract/test_resource_demand_binding.py",),
+    ),
+    Mutation(
+        name="a_simulation_may_execute_against_another_traces_job",
+        guards="OPS-003 -- SimulationRequest.trace_id == Job.trace_id, before any side effect",
+        path="src/lab_brain/tools/execution.py",
+        old="            trace_id=current.trace_id,",
+        new="            trace_id=request.trace_id,",
+        tests=("tests/contract/test_resource_demand_binding.py",),
+    ),
+    Mutation(
+        name="a_simulation_may_execute_against_another_capabilitys_job",
+        guards="§17.18 -- SimulationRequest.capability_id == Job.capability_id",
+        path="src/lab_brain/tools/execution.py",
+        old="            capability_id=current.capability_id,",
+        new="            capability_id=request.capability_id,",
+        tests=("tests/contract/test_resource_demand_binding.py",),
+    ),
 )
 
 

@@ -3,12 +3,18 @@
 THE ORDER IS THE CONTRACT, and each step exists because skipping it produces a specific wrong
 record:
 
+    0. bind the scope        the request and the Job must be the same execution (`scope.py`).
     1. RUNNING               a worker has picked the job up; the seat request is its first act.
     2. acquire a seat        no seat -> WAITING_RESOURCE. The Job survives; nothing executed.
     3. execute               the provider adapter's only line of this function.
     4. validate validity     SIM-001. An incomplete validity record never becomes a manifest.
     5. mint the Run          through `JobStore.complete`, so a duplicate callback yields one Run.
     6. release the seat      in a `finally`, so a raising backend does not leak the pool.
+
+STEP 0 IS NUMBERED FROM ZERO BECAUSE IT IS NOT A STEP OF THE EXECUTION; it is the question of
+whether this execution is entitled to happen at all. Everything from step 1 onwards is visible to
+someone else -- a durable row, a seat out of a finite pool, a solver -- so the last moment at which
+a wrong answer costs nothing is before step 1.
 
 STEP 1 BEFORE STEP 2, AND AN EARLIER VERSION OF THIS FILE HAD IT THE OTHER WAY ROUND. The argument
 for acquiring first was that a job marked RUNNING and then refused a seat has told every reader
@@ -53,6 +59,7 @@ from lab_brain.tools.resources import (
     ResourceLease,
     ResourceUnavailable,
 )
+from lab_brain.tools.scope import ExecutionScope, require_same_scope
 from lab_brain.tools.simulation import (
     BackendExecution,
     BackendValidityRegistry,
@@ -277,6 +284,38 @@ def run_simulation(
             "resolve. §17.16 makes the Job the durable record of the submission; executing against "
             "one that does not exist would produce a Run nobody can attribute"
         )
+    # STEP 0, AND IT IS STEP 0 BECAUSE EVERY LATER STEP IS IRREVERSIBLE. The Job resolved; that
+    # only proves the id exists. Whether it is THIS execution's job is a different question, and
+    # until it is answered nothing below may run: `jobs.transition` mutates a durable row,
+    # `broker.acquire` takes a seat out of a finite pool, and `backend.execute` reaches a
+    # simulator. All three are visible to someone else.
+    #
+    # `JobStore.complete` DOES detect a project mismatch, and that is not sufficient. By the time it
+    # speaks the Job has been moved to RUNNING, a licence seat has been held, and the backend has
+    # run to completion -- so the refusal it issues is a refusal to *record* an execution that
+    # already happened, inside a project that never admitted it. The requirement is that the
+    # execution not happen, which can only be decided here.
+    require_same_scope(
+        ExecutionScope(
+            layer="SimulationRequest",
+            project_id=request.project_id,
+            trace_id=request.trace_id,
+            capability_id=request.capability_id,
+        ),
+        ExecutionScope(
+            layer="Job",
+            project_id=current.project_id,
+            trace_id=current.trace_id,
+            capability_id=current.capability_id,
+        ),
+        detail=(
+            f"simulation request {request.request_id} would have executed against job "
+            f"{current.job_id}, which was submitted under a different scope. §17.16 makes the Job "
+            "the durable record of what was admitted, and a Run minted here would be attributed to "
+            "it: the job is left exactly as it was found, no seat is taken and the backend is not "
+            "entered"
+        ),
+    )
     demand = _require_bound_demand(current, request)
     already_finished = current.is_terminal
     if not already_finished and current.state is not JobState.RUNNING:

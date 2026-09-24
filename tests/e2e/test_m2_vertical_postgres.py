@@ -643,23 +643,26 @@ def test_the_full_tool_chain_runs_budgeted_through_the_typed_registry(wired, db)
         caps=BudgetCaps(wall_clock_s=600, license_seat_s=600),
     )
 
+    dispatched: list[ToolAction] = []
+
     def _dispatch(tool_id: str, request, step: str):  # type: ignore[no-untyped-def]
-        return dispatcher.dispatch(
-            ToolAction(
-                tool_id=tool_id,
-                request=request,
-                project_id=PROJECT,
-                episode_id=EPISODE,
-                actor_or_slot="act:test",
-                action_ref=f"act:m2-{step}",
-                trace_id=TRACE,
-                span_id=f"spn:m2-{step}",
-                estimate_entry_id=f"cst:m2-{step}-est",
-                actual_entry_id=f"cst:m2-{step}-act",
-                actor_id="act:test",
-            ),
-            policy=policy,
+        action = ToolAction(
+            tool_id=tool_id,
+            request=request,
+            project_id=PROJECT,
+            episode_id=EPISODE,
+            actor_or_slot="act:test",
+            action_ref=f"act:m2-{step}",
+            trace_id=TRACE,
+            span_id=f"spn:m2-{step}",
+            estimate_entry_id=f"cst:m2-{step}-est",
+            actual_entry_id=f"cst:m2-{step}-act",
+            actor_id="act:test",
         )
+        # Kept so step 4 can assert the identity chain against what was ACTUALLY dispatched rather
+        # than against the constants this function was written from.
+        dispatched.append(action)
+        return dispatcher.dispatch(action, policy=policy)
 
     # 1. run_charge_ac_sweep, through the gate.
     ran = _dispatch(
@@ -737,6 +740,72 @@ def test_the_full_tool_chain_runs_budgeted_through_the_typed_registry(wired, db)
         span = spans.get(f"spn:m2-{step}")
         assert span is not None and span.status is SpanStatus.SUCCEEDED
         assert span.span_type is SpanType.TOOL_CALL and span.trace_id == TRACE
+
+    # 4. THE IDENTITY CHAIN — six layers, one execution (§17.16).
+    #
+    # Asserted as EQUALITY rather than as "each layer is well-formed", because every layer was
+    # already well-formed while the defect existed: four independent strings for one fact, none of
+    # them ever compared. The unit and contract probes hold each hop in isolation; this is the
+    # statement that the hops compose, read back from PostgreSQL rather than from the variables
+    # this test built.
+    #
+    # THE EPISODE IS THE HEAD OF THE CHAIN and not merely another row: §17.3 makes it what the
+    # trace belongs to, so an execution whose trace agreed with itself all the way down and
+    # disagreed with the episode would still be unattributable.
+    episode = SqlEpisodeStore(db).get(EPISODE)
+    assert episode is not None
+    run_action = dispatched[0]
+    sweep = run_action.request
+    assert isinstance(sweep, ChargeAcSweepRequest)
+    job = jobs.get(JOB)
+    assert job is not None
+    assert durable_run.job_id == job.job_id
+    descriptor = registry.registries.tools.descriptor(CHARGE_AC_TOOL_ID)
+
+    chains: tuple[tuple[str, dict[str, object], object], ...] = (
+        (
+            "project_id",
+            {
+                "ResearchEpisode": episode.project_id,
+                "ToolAction": run_action.project_id,
+                "ToolRequest": sweep.project_id,
+                "SimulationRequest": sweep.simulation.project_id,
+                "Job": job.project_id,
+                "Run": durable_run.project_id,
+            },
+            PROJECT,
+        ),
+        (
+            "trace_id",
+            {
+                "ResearchEpisode": episode.trace_id,
+                "ToolAction": run_action.trace_id,
+                "ToolRequest": sweep.trace_id,
+                "SimulationRequest": sweep.simulation.trace_id,
+                "Job": job.trace_id,
+                "Run": durable_run.trace_id,
+            },
+            TRACE,
+        ),
+        (
+            # No `ToolAction` entry, and that is §7's rule rather than an omission: the capability
+            # is the DESCRIPTOR's identity, and a copy on the action would be one more field that
+            # could disagree. The descriptor stands in its place, which is what the request
+            # validator compares against.
+            "capability_id",
+            {
+                "ToolDescriptor": descriptor.capability_id,
+                "SimulationRequest": sweep.simulation.capability_id,
+                "Job": job.capability_id,
+                "Run": durable_run.capability_id,
+            },
+            CHARGE_AC_CAPABILITY,
+        ),
+    )
+    for dimension, chain, expected in chains:
+        assert set(chain.values()) == {expected}, (
+            f"{dimension} is not one value across the chain: {chain}"
+        )
 
 
 @pytest.mark.requirement("COST-001")

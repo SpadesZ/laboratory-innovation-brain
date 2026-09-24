@@ -32,6 +32,7 @@ from lab_brain.domains.silicon_photonics.condition_schema import DOMAIN, SCHEMA_
 from lab_brain.tools.contracts import ToolClass, ToolDescriptor, ToolRequest, ToolResult
 from lab_brain.tools.execution import ExecutionOutcome, WaitingForResource
 from lab_brain.tools.extraction import ExtractionInput, ExtractionResult
+from lab_brain.tools.scope import ExecutionScope, require_same_scope
 from lab_brain.tools.simulation import SimulationRequest
 
 #: The seat this domain's simulator contends for (§10.7). A declared identity rather than a
@@ -71,9 +72,57 @@ class ChargeAcSweepRequest(ToolRequest):
     Carries a `SimulationRequest` rather than re-declaring its fields: §17.4's manifest inputs are
     already stated once, and a second copy here would be two places that have to agree about what
     an execution is.
+
+    THE SCOPE IS STILL DECLARED TWICE, because `ToolRequest` requires `project_id` and `trace_id`
+    and `SimulationRequest` requires them too -- so the validator below makes them agree at
+    construction. A `ChargeAcSweepRequest` for project A wrapping a simulation for project B cannot
+    be built, which means no stage downstream has to be careful about which of the two it read.
     """
 
     simulation: SimulationRequest
+
+    @model_validator(mode="after")
+    def _the_envelope_and_its_execution_are_one_execution(self) -> Self:
+        """§17.16's scope, bound at the model boundary rather than checked by each caller.
+
+        AT THE BOUNDARY BECAUSE THE ALTERNATIVE IS EVERY CALLER. The dispatcher binds the action to
+        this request and `run_simulation` binds the nested request to the Job; without this
+        validator the one hop between them -- the tool unwrapping `request.simulation` -- is the
+        gap the other two guards do not cover, and it is the hop at which the payload stops being
+        the thing that was budgeted.
+
+        THE CAPABILITY IS CHECKED HERE AND NOWHERE EARLIER for the reason §10.2.1 gives: a
+        `ToolAction` carries no capability and should not start to, since the capability is the
+        *descriptor's* identity and a second copy on the action would be one more field that could
+        disagree. `charge_ac_descriptor()` and this validator read the same `CHARGE_AC_CAPABILITY`
+        constant, so the pack has one capability identity rather than two that must be kept in
+        step -- and that is what makes the chain descriptor -> request -> Job hold end to end, with
+        `run_simulation` closing the last link.
+
+        This is a silicon photonics contract and it lives in the silicon photonics pack.
+        `lab_brain.tools.scope` compares three strings and does not know what CHARGE is.
+        """
+        require_same_scope(
+            ExecutionScope(
+                layer="ChargeAcSweepRequest",
+                project_id=self.project_id,
+                trace_id=self.trace_id,
+                capability_id=CHARGE_AC_CAPABILITY,
+            ),
+            ExecutionScope(
+                layer="ChargeAcSweepRequest.simulation",
+                project_id=self.simulation.project_id,
+                trace_id=self.simulation.trace_id,
+                capability_id=self.simulation.capability_id,
+            ),
+            detail=(
+                f"{CHARGE_AC_TOOL_NAME} would have been gated and traced as one execution and run "
+                "as another. The gate prices the envelope; the backend receives the nested "
+                "request; nothing between them re-reads the envelope, so a difference here is a "
+                "difference nothing downstream can detect"
+            ),
+        )
+        return self
 
 
 class ChargeAcSweepResult(ToolResult):

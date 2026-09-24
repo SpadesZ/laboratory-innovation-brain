@@ -47,6 +47,7 @@ from lab_brain.tools.dispatch import (
     ToolDispatchRefused,
 )
 from lab_brain.tools.registry import ToolRegistry
+from lab_brain.tools.scope import ExecutionScopeMismatch
 from lab_brain.verification.capability_registry import CapabilityRegistry
 
 pytestmark = [pytest.mark.requirement("COST-001"), pytest.mark.spec_test("T-COST-001")]
@@ -259,6 +260,178 @@ def test_an_unregistered_tool_is_refused_and_opens_no_span():
     with pytest.raises(ToolNotRegistered):
         dispatcher.dispatch(_action(tool_id="DOM-TST-TOOL-999"), policy=_policy())
     assert tool.entered == []
+
+
+# ---------------------------------------------------------------------------
+# The execution envelope — the scope the gate prices IS the scope that executes
+#
+# THE DEFECT. `dispatch_action` budgets against `ToolAction.project_id` and the registry invokes
+# with `ToolRequest.project_id`. Nothing compared them, so an action admitted by project A's caps
+# could hand the implementation a request scoped to project B. The gate is not wrong in that story;
+# it is answering a question about a different project than the one that runs.
+#
+# EVERY PROBE BELOW GIVES THE ACTION A BUDGET THAT WOULD HAVE PASSED, AND AN APPROVAL IT DOES NOT
+# NEED. Both are deliberate. A cap of 100 against an estimate of 50 means the refusal cannot be the
+# budget refusing; a registered approval means the test can show the claim was not spent, which is
+# the difference between a call that can be retried once the wiring is fixed and one that cannot.
+# ---------------------------------------------------------------------------
+
+
+def _scope_wiring(
+    tool: FatalTool,
+) -> tuple[
+    BudgetedToolDispatcher, InMemoryCostLedger, InMemorySpanRepository, InMemoryBudgetApprovalClaims
+]:
+    """Like `_dispatcher`, but hands back the span repository too.
+
+    The probes below assert on what was *not* opened, and `_dispatcher` keeps its three-value shape
+    so the fourteen tests written against it stay as they were.
+    """
+    registry = ToolRegistry()
+    registry.register(_descriptor(), tool)
+    ledger = InMemoryCostLedger()
+    spans = InMemorySpanRepository(ledger)
+    claims = InMemoryBudgetApprovalClaims()
+    claims.register("apr:unused", ACTION)
+    return (
+        BudgetedToolDispatcher(
+            tools=registry,
+            capabilities=_capabilities(),
+            spans=spans,
+            ledger=ledger,
+            claims=claims,
+            now=lambda: NOW,
+        ),
+        ledger,
+        spans,
+        claims,
+    )
+
+
+def _assert_nothing_happened(
+    tool: FatalTool,
+    ledger: InMemoryCostLedger,
+    spans: InMemorySpanRepository,
+    claims: InMemoryBudgetApprovalClaims,
+) -> None:
+    """Every side effect `dispatch` is capable of, asserted absent.
+
+    Written as one helper because the list is the claim: "the tool did not run" is the weakest part
+    of it. A refusal that opened the span, wrote the ESTIMATED row and consumed the approval before
+    deciding would satisfy `tool.entered == []` and would still have spent the retry.
+    """
+    assert tool.entered == [], "the implementation was invoked with a mismatched scope"
+    assert ledger.entry("cst:est-1") is None, "an ESTIMATED row was written for a refused envelope"
+    assert ledger.entry("cst:act-1") is None
+    assert spans.get("spn:1") is None, "a span was opened before the envelope was checked"
+    assert claims.consumed_at("apr:unused") is None, "an approval was spent on a refused envelope"
+
+
+def test_an_action_and_request_naming_different_projects_never_reach_the_gate():
+    """A cross-project envelope is refused before a span exists. NOT a BLOCKED decision.
+
+    §17.17's BLOCKED span means "this project ran out of money", and a supervisor with
+    `BUDGET_OVERRUN` scope can release it. There is no scope under which "execute inside a project
+    the gate never evaluated" is releasable, so this leaves the governance channel entirely: it
+    raises, and `dispatch` returns no `ToolDispatchResult` to mistake for a decision.
+    """
+    tool = FatalTool()
+    dispatcher, ledger, spans, claims = _scope_wiring(tool)
+
+    with pytest.raises(ExecutionScopeMismatch) as raised:
+        dispatcher.dispatch(
+            _action(request=SweepRequest(project_id="prj:other", trace_id=TRACE, device="d1")),
+            policy=_policy(money=100),  # would have ALLOWED: the refusal is not the budget's
+        )
+
+    assert "ToolAction.project_id is 'prj:m2'" in str(raised.value)
+    assert "ToolRequest.project_id is 'prj:other'" in str(raised.value)
+    _assert_nothing_happened(tool, ledger, spans, claims)
+
+
+def test_an_action_and_request_naming_different_traces_never_reach_the_gate():
+    """OPS-003's half. A trace that changes mid-call reassembles into two unrelated halves.
+
+    Separate from the project probe rather than bundled with it: a guard that compared only
+    `project_id` would pass a combined assertion that had already failed on the first dimension,
+    and `trace_id` is the field that makes the span tree readable at all.
+    """
+    tool = FatalTool()
+    dispatcher, ledger, spans, claims = _scope_wiring(tool)
+
+    with pytest.raises(ExecutionScopeMismatch) as raised:
+        dispatcher.dispatch(
+            _action(request=SweepRequest(project_id=PROJECT, trace_id="trc:other", device="d1")),
+            policy=_policy(money=100),
+        )
+
+    assert "ToolAction.trace_id is 'trc:m2'" in str(raised.value)
+    assert "ToolRequest.trace_id is 'trc:other'" in str(raised.value)
+    # The projects agreed, so the refusal names the trace and only the trace.
+    assert "project_id" not in str(raised.value)
+    _assert_nothing_happened(tool, ledger, spans, claims)
+
+
+def test_a_mismatched_envelope_is_refused_even_when_a_supervisor_approval_is_attached():
+    """An approval releases an over-budget action. It does not authorise an incoherent one.
+
+    The strongest form of the "not a budget decision" claim: give the refusal every reason to
+    become `ALLOWED_BY_APPROVAL` -- a valid, scoped, unexpired approval from a PI who holds the
+    scope -- and it still does not execute, and still does not consume the claim.
+    """
+    tool = FatalTool()
+    dispatcher, ledger, spans, claims = _scope_wiring(tool)
+    approval = BudgetApproval(
+        approval_id="apr:unused",
+        approver_actor_id="act:supervisor",
+        project_id=PROJECT,
+        episode_id=EPISODE,
+        action_ref=ACTION,
+        policy_id="bp:test",
+        policy_version="1.0.0",
+        approved_overrun=CostVector(money_estimate=Decimal("100")),
+        granted_at=NOW - dt.timedelta(minutes=5),
+        expires_at=NOW + dt.timedelta(hours=1),
+    )
+
+    with pytest.raises(ExecutionScopeMismatch):
+        dispatcher.dispatch(
+            _action(
+                request=SweepRequest(project_id="prj:other", trace_id=TRACE, device="d1"),
+                approval=approval,
+                approver=Actor(actor_id="act:supervisor", actor_type=ActorType.HUMAN),
+                approver_membership=ProjectMembership(
+                    actor_id="act:supervisor",
+                    project_id=PROJECT,
+                    role="PI",
+                    approval_scopes=(BUDGET_OVERRUN_SCOPE,),
+                ),
+            ),
+            policy=_policy(money=10),  # over budget AND mis-scoped: the envelope is decided first
+        )
+
+    _assert_nothing_happened(tool, ledger, spans, claims)
+
+
+def test_a_matching_envelope_dispatches_and_the_tool_sees_the_scope_that_was_gated():
+    """The positive control. Without it, refusing every dispatch satisfies all three probes above.
+
+    Asserts the identity rather than the outcome: the request the implementation received carries
+    the same project and trace the `BudgetRequest` was built from, which is the property the three
+    refusals exist to preserve.
+    """
+    tool = WorkingTool()
+    dispatcher, ledger, _spans, _claims = _scope_wiring(tool)
+    action = _action()
+
+    outcome = dispatcher.dispatch(action, policy=_policy(money=100))
+
+    assert outcome.performed and len(tool.entered) == 1
+    assert tool.entered[0].project_id == action.project_id == PROJECT
+    assert tool.entered[0].trace_id == action.trace_id == TRACE
+    assert outcome.span.trace_id == action.trace_id
+    estimate = ledger.entry("cst:est-1")
+    assert estimate is not None and estimate.project_id == action.project_id
 
 
 # ---------------------------------------------------------------------------

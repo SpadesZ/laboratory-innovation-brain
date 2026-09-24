@@ -11,6 +11,8 @@ COST-001 a budgeted path with no tool registry -- and `run_simulation`'s own doc
 passing a gate. Satisfying one requirement through a path that bypasses the other satisfies
 neither.
 
+    bind the execution scope    the action the gate will price and the request the registry will
+                                execute must name one project and one trace. See `scope.py`.
     resolve the descriptor      SIM-003. An unregistered tool is refused here, not later.
     resolve the estimate        §9.5 for `run_*` (its Capability), the descriptor's declared
                                 `cost_contract` otherwise. No estimate -> no dispatch.
@@ -58,6 +60,7 @@ from lab_brain.core.repositories.budget import CostLedger
 from lab_brain.core.repositories.observability import SpanRepository
 from lab_brain.tools.contracts import ToolClass, ToolRequest, ToolResult
 from lab_brain.tools.registry import ToolRegistry
+from lab_brain.tools.scope import ExecutionScope, require_same_scope
 from lab_brain.verification.capability_registry import (
     CapabilityNotRegistered,
     CapabilityRegistry,
@@ -206,7 +209,40 @@ class BudgetedToolDispatcher:
         parameter rather than a lookup so the decision can be replayed from the audit record
         against the caps that were in force, not against today's.
         """
-        # SIM-003's half, first: an unregistered tool is refused before a span is opened, so a
+        # THE EXECUTION ENVELOPE, BEFORE EVERYTHING -- before the descriptor is resolved, before an
+        # estimate exists, before a span is opened, before `perform` is built.
+        #
+        # This dispatcher budgets against `ToolAction` and the registry executes against
+        # `ToolRequest`. Two fields that are never compared are two fields that can differ, so a
+        # request whose `project_id` was B could be admitted by project A's caps and then run
+        # inside B. The gate is not wrong in that story; it is answering a question about a
+        # different project than the one that executes.
+        #
+        # IT CANNOT MOVE INSIDE `perform`. `core.dispatch.dispatch_action` writes the ESTIMATED
+        # ledger row and consumes the approval claim before it calls `perform`, and wraps the call
+        # in `except Exception` (`core/dispatch.py:256`) -- so a check made there would fire after
+        # the money was recorded and the approval spent, and would close the span FAILED, which is
+        # the "the solver crashed" channel rather than "this envelope is invalid".
+        require_same_scope(
+            ExecutionScope(
+                layer="ToolAction",
+                project_id=action.project_id,
+                trace_id=action.trace_id,
+            ),
+            ExecutionScope(
+                layer="ToolRequest",
+                project_id=action.request.project_id,
+                trace_id=action.request.trace_id,
+            ),
+            detail=(
+                f"tool {action.tool_id} would have been gated against one scope and executed in "
+                "another. COST-001 gates the action; SIM-003 invokes the request; a mismatch makes "
+                "the gate's answer true of a call nobody is about to make. Nothing is dispatched: "
+                "no span, no ledger row, no approval consumed"
+            ),
+        )
+
+        # SIM-003's half, next: an unregistered tool is refused before a span is opened, so a
         # typo cannot produce a BLOCKED span that reads as a governance refusal.
         descriptor = self._tools.descriptor(action.tool_id)
         estimate = self.estimate_for(action.tool_id, action.estimate_params)
