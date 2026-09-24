@@ -40,12 +40,17 @@ from decimal import Decimal
 
 import pytest
 
+from lab_brain.core.budget import BudgetPolicy, DispatchOutcome
 from lab_brain.core.models.capability import ActionType, Availability, Capability
+from lab_brain.core.models.cost import BudgetCaps
 from lab_brain.core.models.enums import EpistemicType, FieldStatus
 from lab_brain.core.models.episode import EpisodeState, ResearchEpisode
+from lab_brain.core.models.execution_span import SpanStatus, SpanType
 from lab_brain.core.models.job import Job, JobState
+from lab_brain.core.repositories.budget import SqlBudgetApprovalClaims, SqlCostLedger
 from lab_brain.core.repositories.episodes import SqlEpisodeStore
 from lab_brain.core.repositories.jobs import SqlJobStore
+from lab_brain.core.repositories.observability import SqlSpanRepository
 from lab_brain.domains.registry import DomainPackRegistry
 from lab_brain.domains.silicon_photonics import SiliconPhotonicsPack, backend_validity
 from lab_brain.domains.silicon_photonics.condition_schema import SCHEMA_REF, registration
@@ -63,7 +68,15 @@ from lab_brain.storage.postgres.capabilities import (
     PostgresResourceBroker,
 )
 from lab_brain.tool_providers.lumerical.mock import MockChargeAcBackend
-from lab_brain.tools.execution import Executed, WaitingForResource, run_simulation, simulated_source
+from lab_brain.tools.dispatch import BudgetedToolDispatcher, ToolAction
+from lab_brain.tools.execution import (
+    Executed,
+    WaitingForResource,
+    bound_demand,
+    run_simulation,
+    simulated_source,
+    submit_simulation_job,
+)
 from lab_brain.tools.extraction import ExtractionInput
 from lab_brain.tools.resources import ResourceDemand
 from lab_brain.tools.simulation import BackendValidityRegistry, SimulationRequest
@@ -155,7 +168,17 @@ def _capability() -> Capability:
     )
 
 
-def _request(job_id: str = JOB, request_id: str = "req:m2") -> SimulationRequest:
+def _request(
+    job_id: str = JOB,
+    request_id: str = "req:m2",
+    resource_demand: ResourceDemand | None = None,
+) -> SimulationRequest:
+    """``resource_demand`` defaults to the canonical one so most callers restate the Job's.
+
+    A resumer supplies the demand it RECONSTRUCTED from the durable Job -- see the vertical's step
+    6 -- which is the point of the parameter: `run_simulation` checks the request against the Job
+    rather than trusting it, so a caller that could not reconstruct one would be refused.
+    """
     return SimulationRequest(
         request_id=request_id,
         project_id=PROJECT,
@@ -165,9 +188,7 @@ def _request(job_id: str = JOB, request_id: str = "req:m2") -> SimulationRequest
         input_artifacts=(ARTIFACT,),
         conditions=dict(fx.CONDITIONS),
         conditions_schema_version=SCHEMA_REF,
-        resource_demand=ResourceDemand(
-            resource_id=SIMULATOR_RESOURCE_ID, seats=1, estimated_seat_s=30
-        ),
+        resource_demand=_demand() if resource_demand is None else resource_demand,
     )
 
 
@@ -177,9 +198,20 @@ def _validity() -> BackendValidityRegistry:
     return registry
 
 
+def _demand() -> ResourceDemand:
+    return ResourceDemand(resource_id=SIMULATOR_RESOURCE_ID, seats=1, estimated_seat_s=30)
+
+
 def _submit(jobs: SqlJobStore, job_id: str, key: str) -> Job:
-    return jobs.submit(
-        Job(
+    """Submit with the ResourceDemand BOUND to the durable Job (§10.7, §17.16).
+
+    Through `submit_simulation_job`, which also checks the demand against the Capability's
+    `license_constraints`. The seat requirement used to live only on the in-flight
+    `SimulationRequest`, so a reloaded WAITING_RESOURCE job could not say what it was waiting for.
+    """
+    return submit_simulation_job(
+        jobs=jobs,
+        job=Job(
             job_id=job_id,
             project_id=PROJECT,
             episode_id=EPISODE,
@@ -187,7 +219,9 @@ def _submit(jobs: SqlJobStore, job_id: str, key: str) -> Job:
             trace_id=TRACE,
             idempotency_key=key,
             submitted_at=NOW,
-        )
+        ),
+        demand=_demand(),
+        capability=_capability(),
     )
 
 
@@ -220,7 +254,10 @@ def test_the_whole_m2_vertical_runs_through_durable_rows(wired, db):
     assert broker.available(SIMULATOR_RESOURCE_ID) == 0
 
     # 5. The simulation is requested and there is no seat. WAITING_RESOURCE, not FAILED.
-    _submit(jobs, JOB, "idem:m2")
+    submitted = _submit(jobs, JOB, "idem:m2")
+    # §17.16's canonical field, durable from the moment of submission -- not only on the in-flight
+    # request. This is what makes step 7's reconstruction possible at all.
+    assert submitted.resource_requirements == _demand().as_requirements()
     parked = run_simulation(
         request=_request(),
         backend=MockChargeAcBackend(clock=NOW, artifact_id=ARTIFACT),
@@ -242,15 +279,30 @@ def test_the_whole_m2_vertical_runs_through_durable_rows(wired, db):
     assert reloaded.structured_error is None, "waiting is not an error"
     assert jobs.run_for_job(JOB) is None, "nothing executed"
 
-    # 6. The rival releases. The lease row survives -- "who was holding it" stays answerable.
+    # 6. RECONSTRUCT THE REQUIREMENT FROM THE DURABLE JOB, as a resumer in another process would.
+    #    Reloaded through a NEW connection so nothing in-flight is shared: what this step proves is
+    #    that the Job row alone answers "what is this waiting for" (§10.7, §17.16).
+    import psycopg
+
+    from tests.postgres_fixtures import database_url
+
+    with psycopg.connect(database_url(), autocommit=True) as resumer:
+        resumed_view = SqlJobStore(resumer).get(JOB)
+        assert resumed_view is not None
+        assert resumed_view.state is JobState.WAITING_RESOURCE
+        reconstructed = bound_demand(resumed_view)
+    assert reconstructed == _demand(), "a reloaded parked job could not name its requirement"
+    assert resumed_view.resume_stage == f"AWAITING_RESOURCE:{SIMULATOR_RESOURCE_ID}"
+
+    # 7. The rival releases. The lease row survives -- "who was holding it" stays answerable.
     broker.release(rival_lease.lease_id, now=NOW + dt.timedelta(minutes=1))
     assert broker.available(SIMULATOR_RESOURCE_ID) == 1
     held = [lease for lease in broker.leases_for(SIMULATOR_RESOURCE_ID) if lease.held]
     assert held == [] and len(broker.leases_for(SIMULATOR_RESOURCE_ID)) == 1
 
-    # 7-10. The SAME logical job resumes and executes.
+    # 8-11. The SAME logical job resumes and executes, against the requirement it reconstructed.
     executed = run_simulation(
-        request=_request(),
+        request=_request(resource_demand=reconstructed),
         backend=MockChargeAcBackend(clock=NOW, artifact_id=ARTIFACT),
         jobs=jobs,
         broker=broker,
@@ -280,7 +332,7 @@ def test_the_whole_m2_vertical_runs_through_durable_rows(wired, db):
     assert broker.available(SIMULATOR_RESOURCE_ID) == 1
 
     # 11-13. The SAME extractor over both modalities, from the Run that was actually minted.
-    pack = SiliconPhotonicsPack(runner=lambda request: executed)
+    pack = SiliconPhotonicsPack(runner=lambda request: executed, conditions=fx.condition_registry())
     extractor = pack.extractor
 
     simulated = extractor.extract(
@@ -537,16 +589,24 @@ def test_releasing_twice_is_idempotent(wired, db):
     assert first.released_at == second.released_at, "the second release moved the timestamp"
 
 
-@pytest.mark.requirement("SIM-003")
-@pytest.mark.spec_test("T-SIM-003")
-def test_the_full_tool_chain_runs_through_the_typed_registry(wired, db):
-    """SIM-003 in the vertical: run, extract and validate are all reached through `invoke`.
+@pytest.mark.requirement("COST-001")
+@pytest.mark.spec_test("T-COST-001")
+def test_the_full_tool_chain_runs_budgeted_through_the_typed_registry(wired, db):
+    """THE production surface: run, extract and validate, each gated and each typed.
 
-    The point is that no step reaches an implementation directly. A tool chain that called the
-    extractor as a Python object would be a chain the registry's type checks never saw.
+    COST-001 AND SIM-003 TOGETHER, which is the repair. Before it, `ToolRegistry.invoke` was typed
+    and ungated while `dispatch_action` was gated and knew nothing about tools, so the shipped chain
+    reached a simulator without passing a gate. Every step below goes through
+    `BudgetedToolDispatcher`, and every step leaves an ESTIMATED row, an ACTUAL row and a closed
+    TOOL_CALL span in the durable trace.
+
+    The `extract_*` and `validate_*` steps are here on purpose. They are cheap and local and they
+    still pass the gate: "cheap" is not "ungoverned".
     """
     jobs = SqlJobStore(db)
     broker = PostgresResourceBroker(db)
+    spans = SqlSpanRepository(db)
+    ledger = SqlCostLedger(db)
     broker.declare(SIMULATOR_RESOURCE_ID, display_name="SiPh solver seat", seats=1)
     _submit(jobs, JOB, "idem:m2")
 
@@ -566,15 +626,55 @@ def test_the_full_tool_chain_runs_through_the_typed_registry(wired, db):
         )
 
     registry = DomainPackRegistry()
-    registry.install(SiliconPhotonicsPack(runner=runner))
-    tools = registry.registries.tools
+    pack = SiliconPhotonicsPack(runner=runner, conditions=registry.registries.conditions)
+    registry.install(pack)
+    dispatcher = BudgetedToolDispatcher(
+        tools=registry.registries.tools,
+        capabilities=registry.registries.capabilities,
+        spans=spans,
+        ledger=ledger,
+        claims=SqlBudgetApprovalClaims(db),
+        now=_clock,
+    )
+    policy = BudgetPolicy(
+        policy_id="bp:m2",
+        policy_version="1.0.0",
+        project_id=PROJECT,
+        caps=BudgetCaps(wall_clock_s=600, license_seat_s=600),
+    )
 
-    ran = tools.invoke(
+    def _dispatch(tool_id: str, request, step: str):  # type: ignore[no-untyped-def]
+        return dispatcher.dispatch(
+            ToolAction(
+                tool_id=tool_id,
+                request=request,
+                project_id=PROJECT,
+                episode_id=EPISODE,
+                actor_or_slot="act:test",
+                action_ref=f"act:m2-{step}",
+                trace_id=TRACE,
+                span_id=f"spn:m2-{step}",
+                estimate_entry_id=f"cst:m2-{step}-est",
+                actual_entry_id=f"cst:m2-{step}-act",
+                actor_id="act:test",
+            ),
+            policy=policy,
+        )
+
+    # 1. run_charge_ac_sweep, through the gate.
+    ran = _dispatch(
         CHARGE_AC_TOOL_ID,
         ChargeAcSweepRequest(project_id=PROJECT, trace_id=TRACE, simulation=_request()),
+        "run",
     )
-    assert isinstance(ran, ChargeAcSweepResult)
-    assert ran.executed and ran.run_id == "run:m2"
+    assert ran.performed and isinstance(ran.result, ChargeAcSweepResult)
+    assert ran.result.executed and ran.result.run_id == "run:m2"
+    assert ran.span.status is SpanStatus.SUCCEEDED
+    assert ran.span.span_type is SpanType.TOOL_CALL
+    # §17.17's two rows: the gate's input, and what it actually cost.
+    assert ledger.entry("cst:m2-run-est") is not None
+    actual = ledger.entry("cst:m2-run-act")
+    assert actual is not None and actual.cost.license_seat_s > 0
 
     durable_run = jobs.get_run("run:m2")
     assert durable_run is not None
@@ -585,7 +685,8 @@ def test_the_full_tool_chain_runs_through_the_typed_registry(wired, db):
         lease=None,
     )
 
-    extracted = tools.invoke(
+    # 2. extract_cj_rs, through the same gate. Cheap, local, and still governed.
+    extracted = _dispatch(
         "DOM-SP-TOOL-004",
         ExtractionInput(
             project_id=PROJECT,
@@ -593,13 +694,17 @@ def test_the_full_tool_chain_runs_through_the_typed_registry(wired, db):
             source=simulated_source(executed),
             series=executed.execution.series,
         ),
+        "extract",
     )
-    cj = extracted.quantity(CJ)  # type: ignore[attr-defined]
+    assert extracted.performed
+    cj = extracted.result.quantity(CJ)  # type: ignore[union-attr]
     assert cj is not None and cj.value is not None
+    assert ledger.entry("cst:m2-extract-est") is not None
 
+    # 3. validate_expected_trends, likewise.
     from lab_brain.domains.silicon_photonics.tools import TrendValidationRequest
 
-    reported = tools.invoke(
+    reported = _dispatch(
         "DOM-SP-TOOL-006",
         TrendValidationRequest(
             project_id=PROJECT,
@@ -621,9 +726,100 @@ def test_the_full_tool_chain_runs_through_the_typed_registry(wired, db):
                 provenance_refs=(durable_run.run_id,),
             ),
         ),
+        "validate",
     )
-    assert reported.report.passed  # type: ignore[attr-defined]
-    assert reported.report.provenance_refs == (durable_run.run_id,)  # type: ignore[attr-defined]
+    assert reported.performed
+    assert reported.result.report.passed  # type: ignore[union-attr]
+    assert reported.result.report.provenance_refs == (durable_run.run_id,)  # type: ignore[union-attr]
+
+    # Three tool calls, three closed TOOL_CALL spans on one trace (OPS-003).
+    for step in ("run", "extract", "validate"):
+        span = spans.get(f"spn:m2-{step}")
+        assert span is not None and span.status is SpanStatus.SUCCEEDED
+        assert span.span_type is SpanType.TOOL_CALL and span.trace_id == TRACE
+
+
+@pytest.mark.requirement("COST-001")
+@pytest.mark.spec_test("T-COST-001")
+def test_an_over_budget_simulation_never_reaches_the_mock_backend(wired, db):
+    """THE P0, in the vertical: a fatal backend spy behind a cap the estimate exceeds.
+
+    The backend raises if entered, so "blocked" is not satisfied by a run that happened and was
+    discarded -- and nothing durable is left behind either: no Run, and the Job never leaves
+    QUEUED.
+    """
+
+    class FatalBackend(MockChargeAcBackend):
+        def execute(self, request: SimulationRequest):
+            raise AssertionError(
+                "the simulator ran without a budget ALLOW. COST-001: the gate runs BEFORE the call"
+            )
+
+    jobs = SqlJobStore(db)
+    broker = PostgresResourceBroker(db)
+    broker.declare(SIMULATOR_RESOURCE_ID, display_name="SiPh solver seat", seats=1)
+    _submit(jobs, JOB, "idem:m2")
+
+    def runner(request: SimulationRequest):
+        return run_simulation(
+            request=request,
+            backend=FatalBackend(clock=NOW, artifact_id=ARTIFACT),
+            jobs=jobs,
+            broker=broker,
+            validity=_validity(),
+            run_id="run:m2",
+            lease_id="lse:m2",
+            idempotency_key="idem:m2",
+            now=_clock,
+            domain="silicon_photonics",
+            reproducibility_manifest_hash="sha256:" + "77" * 32,
+        )
+
+    registry = DomainPackRegistry()
+    registry.install(SiliconPhotonicsPack(runner=runner, conditions=registry.registries.conditions))
+    dispatcher = BudgetedToolDispatcher(
+        tools=registry.registries.tools,
+        capabilities=registry.registries.capabilities,
+        spans=SqlSpanRepository(db),
+        ledger=SqlCostLedger(db),
+        claims=SqlBudgetApprovalClaims(db),
+        now=_clock,
+    )
+
+    outcome = dispatcher.dispatch(
+        ToolAction(
+            tool_id=CHARGE_AC_TOOL_ID,
+            request=ChargeAcSweepRequest(project_id=PROJECT, trace_id=TRACE, simulation=_request()),
+            project_id=PROJECT,
+            episode_id=EPISODE,
+            actor_or_slot="act:test",
+            action_ref="act:m2-run",
+            trace_id=TRACE,
+            span_id="spn:m2-run",
+            estimate_entry_id="cst:m2-run-est",
+            actual_entry_id="cst:m2-run-act",
+            actor_id="act:test",
+        ),
+        # The estimator says 30 seat-seconds; the cap permits 5.
+        policy=BudgetPolicy(
+            policy_id="bp:m2",
+            policy_version="1.0.0",
+            project_id=PROJECT,
+            caps=BudgetCaps(license_seat_s=5),
+        ),
+    )
+
+    assert not outcome.performed and outcome.result is None
+    assert outcome.decision.outcome is DispatchOutcome.BLOCKED
+    assert "license_seat_s" in outcome.decision.exceeded_dimensions
+    # UX-002: a governance refusal is BLOCKED, not FAILED.
+    assert outcome.span.status is SpanStatus.BLOCKED
+
+    # Nothing durable happened: no Run, the Job is untouched, and the seat was never taken.
+    assert jobs.run_for_job(JOB) is None
+    parked = jobs.get(JOB)
+    assert parked is not None and parked.state is JobState.QUEUED
+    assert broker.available(SIMULATOR_RESOURCE_ID) == 1
 
 
 @pytest.mark.requirement("VER-002")

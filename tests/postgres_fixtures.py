@@ -68,12 +68,20 @@ _TABLES = (
     "error_records",
     "ingestion_items",
     "inference_provenance",
+    # M2 / §10.7 (`007c`). Named BEFORE `jobs`, because `resource_leases.job_id` is a foreign key
+    # into it: a lease left behind by one test would hold a seat in the next one, and the symptom
+    # -- every simulation parking in WAITING_RESOURCE -- reads exactly like a busy licence server.
+    "resource_leases",
+    "resource_pools",
     "jobs",
     "runs",
     "research_episodes",
     "cost_entries",
     "budget_approvals",
     "budget_policies",
+    # M2 / VER-002 (`007c`). Not project-scoped, so nothing cascades it away -- a descriptor left
+    # behind would make the next test's `upsert` a contract-change refusal.
+    "capabilities",
     "project_memberships",
     "projects",
     "actors",

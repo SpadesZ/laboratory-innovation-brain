@@ -54,10 +54,13 @@ from __future__ import annotations
 from decimal import Decimal, DivisionByZero, InvalidOperation, localcontext
 from typing import ClassVar, Final
 
+from lab_brain.core.models.condition import ConditionSchemaError
 from lab_brain.core.models.enums import FieldStatus
+from lab_brain.evidence.condition_schema_registry import ConditionSchemaRegistry
 from lab_brain.tools.contracts import ToolRequest
 from lab_brain.tools.extraction import (
     ExtractedQuantity,
+    ExtractionContractError,
     ExtractionInput,
     ExtractionResult,
     missing_series,
@@ -118,6 +121,14 @@ class CjRsExtractor:
 
     Satisfies `lab_brain.tools.extraction.MetricExtractor`, which is the ONE protocol both
     modalities go through -- there is deliberately no simulated variant and no measured variant.
+
+    THE CONDITION REGISTRY IS A REQUIRED DEPENDENCY, not an optional one, and the reason is the
+    same one that made `DiagnosticsService.actor_of` required: an optional check is not a check.
+    EVI-001 requires the bias/frequency conditions to be present, the registered schema
+    `silicon_photonics/pn_junction_ac@1.0.0` is what declares which fields those are, and an
+    extractor constructed without a registry could only skip the check. So it is a constructor
+    argument with no default, and `test_the_extractor_cannot_be_built_without_a_condition_registry`
+    fails if that changes.
     """
 
     extractor_id: ClassVar[str] = EXTRACTOR_ID
@@ -125,36 +136,58 @@ class CjRsExtractor:
     required_series: ClassVar[tuple[str, ...]] = REQUIRED_SERIES
     produces: ClassVar[tuple[str, ...]] = PRODUCES
 
+    def __init__(self, conditions: ConditionSchemaRegistry) -> None:
+        self._conditions = conditions
+
     def extract(self, payload: ExtractionInput) -> ExtractionResult:
         """Reduce one impedance sample to Cj and Rs, normalized and provenanced.
 
-        NEVER RAISES ON MISSING DATA. EVI-002 forbids filling an absent field with a typical value,
-        and the honest alternative is `UNKNOWN` with no value -- which `ExtractedQuantity` refuses
-        to pair with a number, so the two cannot be confused. An exception here would instead make
-        an incomplete sweep indistinguishable from a broken extractor.
+        TWO KINDS OF ABSENCE, AND THEY GET DIFFERENT ANSWERS. The distinction is EVI-001 against
+        EVI-002 and it is the whole shape of this method:
+
+            a missing scientific VALUE            -> UNKNOWN, with a warning. EVI-002 forbids
+              (no impedance series, a reactance      filling an absent field with a typical value,
+               the series-RC model cannot           and `ExtractedQuantity` refuses to pair
+               reduce)                              UNKNOWN with a number so the two cannot be
+                                                    confused.
+            missing condition PROVENANCE          -> REFUSED. EVI-001 requires unit, normalization
+              (no `bias_v`, no `frequency_hz`,       basis, bias/frequency conditions and extraction
+               no `device_length_um`, an             method TOGETHER; a DERIVED value whose
+               undeclared field, an unregistered     conditions are absent is not a weaker result,
+               schema version)                       it is a number nobody can compare to another
+                                                    laboratory's. T-EVI-001 says "admission fail".
+
+        Returning UNKNOWN for the second would conflate them, and the conflation is the direction
+        that matters: it would let a sweep with no recorded bias produce a well-formed record whose
+        only defect is invisible.
         """
+        # EVI-001's condition half, against the REGISTERED schema rather than a second list kept
+        # here. `validate` refuses a malformed reference, an unregistered version, a missing
+        # required field and an undeclared field -- all four, in one place, and the DomainPack's
+        # registration is the source of truth for which fields those are (§24.1).
+        self._require_conditions(payload)
+
         warnings: list[str] = []
         absent = missing_series(self, payload)
-        for name in absent:
-            warnings.append(f"series {name!r} was not supplied")
+        warnings.extend(f"series {name!r} was not supplied" for name in absent)
 
         conditions = payload.source.conditions
         length = _decimal(conditions.get("device_length_um"))
+        # NO RECOVERY FROM THE SERIES. An earlier version fell back to the `frequency_hz` array
+        # when the condition record omitted it, which silently manufactured the provenance EVI-001
+        # requires be recorded: the arrays say what the instrument swept, the conditions say what
+        # the record claims about it, and substituting one for the other means a sweep with no
+        # declared frequency produces a Cj that looks fully conditioned.
         frequency = _decimal(conditions.get("frequency_hz"))
-        if frequency is None:
-            series = payload.series_named(SERIES_FREQUENCY)
-            frequency = series.values[0] if series is not None else None
 
         real = payload.series_named(SERIES_REAL)
         imag = payload.series_named(SERIES_IMAG)
 
         blockers: list[str] = list(absent)
         if length is None or length <= 0:
-            # EVI-001's normalization clause. Without a length there is no basis, and a value
-            # emitted "per unit length" against an unknown length is a number with a false label.
-            blockers.append("condition 'device_length_um' is absent or not positive")
+            blockers.append("condition 'device_length_um' is present but not a positive number")
         if frequency is None or frequency <= 0:
-            blockers.append("condition 'frequency_hz' is absent or not positive")
+            blockers.append("condition 'frequency_hz' is present but not a positive number")
 
         if blockers:
             warnings.extend(blockers)
@@ -245,6 +278,28 @@ class CjRsExtractor:
         return self.extract(request)
 
     # -- internals -----------------------------------------------------------
+
+    def _require_conditions(self, payload: ExtractionInput) -> None:
+        """EVI-001's condition clause, delegated to the registered schema.
+
+        DELEGATED, NOT DUPLICATED. `silicon_photonics/pn_junction_ac@1.0.0` already declares
+        `bias_v`, `frequency_hz` and `device_length_um` as required; a second list here would be
+        two statements of one contract, and they would be corrected separately. The registry also
+        supplies the two refusals a hand-written list would miss -- an undeclared field, and a
+        version nobody registered.
+        """
+        source = payload.source
+        try:
+            self._conditions.validate(source.conditions, source.conditions_schema_version)
+        except ConditionSchemaError as invalid:
+            raise ExtractionContractError(
+                f"{self.extractor_id} cannot produce Cj/Rs from source "
+                f"{source.provenance_ref} under {source.conditions_schema_version}: {invalid}. "
+                "EVI-001 requires unit, normalization basis, "
+                "bias/frequency conditions and extraction method together -- a DERIVED value whose "
+                "condition provenance is absent is not a weaker result, it is a number nobody can "
+                "compare to another laboratory's (T-EVI-001: admission fail)"
+            ) from invalid
 
     def _method(self, *, formula: str, frequency: Decimal, length: Decimal) -> dict[str, object]:
         """EVI-001's extraction method, structured so it can be compared rather than read."""

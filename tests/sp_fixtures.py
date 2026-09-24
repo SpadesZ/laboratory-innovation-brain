@@ -19,7 +19,13 @@ from decimal import Decimal
 
 from lab_brain.core.models.enums import EpistemicType
 from lab_brain.domains.silicon_photonics import backend_validity
-from lab_brain.domains.silicon_photonics.condition_schema import SCHEMA_REF
+from lab_brain.domains.silicon_photonics.condition_schema import (
+    SCHEMA_REF,
+    PnJunctionConditionComparator,
+    registration,
+)
+from lab_brain.domains.silicon_photonics.extractors import CjRsExtractor
+from lab_brain.evidence.condition_schema_registry import ConditionSchemaRegistry
 from lab_brain.tools.extraction import ExtractionInput, ExtractionSource, NumericalSeries
 
 NOW = dt.datetime(2026, 9, 23, 9, 0, tzinfo=dt.UTC)
@@ -54,6 +60,25 @@ VALIDITY: dict[str, object] = {
     "bias_config_ref": "art:sha256:" + "22" * 32,
     "convergence_status": backend_validity.CONVERGED,
 }
+
+
+def condition_registry() -> ConditionSchemaRegistry:
+    """A registry with the SiPh schema and comparator in it, built the way the pack builds one.
+
+    Every extractor fixture goes through this rather than through `ConditionSchemaRegistry()`:
+    `CjRsExtractor` validates EVI-001's conditions against the REGISTERED schema, so a test that
+    handed it an empty registry would be testing the unregistered-version refusal by accident.
+    """
+    registry = ConditionSchemaRegistry()
+    schema = registration()
+    registry.register_schema(schema)
+    registry.register_comparator(schema.domain, schema.schema_id, PnJunctionConditionComparator())
+    return registry
+
+
+def extractor() -> CjRsExtractor:
+    """The extractor, with its required condition registry. There is no zero-argument form."""
+    return CjRsExtractor(condition_registry())
 
 
 def series(
@@ -140,7 +165,9 @@ __all__ = [
     "PROJECT",
     "TRACE",
     "VALIDITY",
+    "condition_registry",
     "extraction_input",
+    "extractor",
     "measured_input",
     "measured_source",
     "series",

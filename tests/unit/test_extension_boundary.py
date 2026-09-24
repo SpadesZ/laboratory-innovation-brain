@@ -133,7 +133,12 @@ def test_two_domains_coexist_in_one_set_of_registries():
 
     registry = DomainPackRegistry()
     registry.install(ToyDomainPack())
-    registry.install(SiliconPhotonicsPack(runner=lambda request: None))  # type: ignore[arg-type]
+    registry.install(
+        SiliconPhotonicsPack(
+            runner=lambda request: None,  # type: ignore[arg-type,return-value]
+            conditions=registry.registries.conditions,
+        )
+    )
 
     assert registry.installed() == ("silicon_photonics", "toy_widgets")
     tools = registry.registries.tools

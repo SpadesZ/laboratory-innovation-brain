@@ -1,10 +1,10 @@
 # M2 — Silicon Photonics Tool Layer: readiness for independent sign-off
 
-Date: 2026-09-23
+Date: 2026-09-24; revised after the first independent M2 review (§9)
 Milestone: **M2 — Silicon Photonics Tool Layer**, `IN_PROGRESS` — implementation complete, awaiting
 independent sign-off
-M1: `IN_PROGRESS`, implementation complete, awaiting independent sign-off
-(docs/implementation/M1-readiness.md)
+M1: **`DONE` / HARD-LOCKED** at `bdb72129a1075d69a30f5043a3491570ca7d4521`; the executed-coverage
+ratchet now enforces its 21 requirements on every CI run
 M1-P1 locked baseline: `f8e5e9c02ee98ed2a7faa6f604347b84b88c773b` — **untouched**
 M0a / M0b: `DONE`, hard-locked — **untouched**
 Spec: SAI 3.3, amendments `v3.3-a1` … `v3.3-a18`. **No amendment, no ADR, no new Requirement or
@@ -19,6 +19,7 @@ Test ID was added by this work.** 60 ↔ 60 throughout.
 
 | Clause | Where it is demonstrated |
 |---|---|
+| every tool call is **budgeted** and **typed** | `unit/test_budgeted_tool_dispatch.py` (14) + `e2e/test_m2_vertical_postgres.py` — `BudgetedToolDispatcher` is the one production tool call: registry resolution → Capability/contract estimate → `BudgetRequest` → `dispatch_action` → ALLOW-only `invoke` → measured actual → closed span. See §9A. |
 | simulated + measured fixtures use the **same extractor contract** | `domains/test_shared_extractor_contract.py` — one `CjRsExtractor` instance, one `ExtractionInput` type, one `ExtractionResult` type, both modalities, and the **numbers are equal**. Reinforced structurally: `test_there_is_exactly_one_extraction_protocol_and_one_input_type` fails if a parallel type appears, and `test_the_extractor_source_never_branches_on_modality` parses the reduction and fails if it reads `modality` at all. |
 | ...and the provenance is **not** shared | the same file: SIMULATED names a Run and carries backend validity, MEASURED names a source Artifact, and four relabelling attempts are refused at the boundary (`test_measured_provenance_cannot_be_relabelled_as_simulated` and its three siblings). |
 | license/resource queue mock pass | `e2e/test_m2_vertical_postgres.py` — one seat, a rival job holds it, the simulation parks in `WAITING_RESOURCE` with `attempt_count` untouched and no `structured_error`, the rival releases, and **the same `job_id`** resumes and produces exactly one Run. |
@@ -33,12 +34,12 @@ Test ID was added by this work.** 60 ↔ 60 throughout.
 | # | Requirement | §26 pass condition (abridged) | Implementation | Tests | Status |
 |---|---|---|---|---|---|
 | 1 | **SIM-001** | run manifest 缺 solver/project/conditions/validity 任一必要欄位即拒絕升級正式 evidence | `tools/simulation.py` — `BackendValiditySchema` + `validate_backend_validity`, called **before** the manifest is minted; the required field list is `domains/silicon_photonics/backend_validity.py`'s, never core's | `contract/test_simulation_contract.py` (27, incl. one parametrised refusal per required field), `e2e/test_m2_vertical_postgres.py` (durable row) | READY |
-| 2 | **SIM-002** | low-fidelity contradiction 只使 hypothesis → CHALLENGED，不得直接 → REJECTED | two registered §8.2.1 `TransitionPolicy` records + `SiliconPhotonicsAuthorityPolicy`. **No core file changed**: `TransitionPolicy.evaluate` is untouched M0b code and is what refuses | `e2e/test_sim_fidelity_gate_postgres.py` (12) | READY |
-| 3 | **SIM-003** | static test rejects `eval_script`-class interfaces; every invocation resolves through the typed ToolRegistry | `tools/registry.py` + `tools/contracts.py`; the static half is `unit/test_no_arbitrary_script_execution.py`, which existed since M0a and was deliberately unmarked | `unit/test_typed_tool_registry.py` (15), `e2e/test_m2_vertical_postgres.py` (the whole chain through `invoke`) | READY |
-| 4 | **EVI-001** | Cj/Rs fixture missing unit / normalization basis / bias-frequency condition / extraction method fails; complete fixture round-trips | `tools/extraction.py` `ExtractedQuantity` refuses a value missing any of the four; `domains/silicon_photonics/extractors.py` supplies all four | `domains/test_cj_rs_evidence_contract.py` (8) | READY |
+| 2 | **SIM-002** | low-fidelity contradiction 只使 hypothesis → CHALLENGED，不得直接 → REJECTED | two registered §8.2.1 `TransitionPolicy` records + `SiliconPhotonicsAuthorityPolicy`. **No core file changed**: `TransitionPolicy.evaluate` is untouched M0b code and is what refuses | `e2e/test_sim_fidelity_gate_postgres.py` (12, policy semantics) + `e2e/test_sim_fidelity_vertical_postgres.py` (7, **durable e2e**: Decision to event to replay to CHALLENGED) | READY |
+| 3 | **SIM-003** | static test rejects `eval_script`-class interfaces; every invocation resolves through the typed ToolRegistry | `tools/registry.py` + `tools/contracts.py`; the static half is `unit/test_no_arbitrary_script_execution.py`, which existed since M0a and was deliberately unmarked | `unit/test_typed_tool_registry.py` (19, incl. the two structural probes that permit `.invoke(...)` only in `tools/dispatch.py`), `e2e/test_m2_vertical_postgres.py` (the whole chain, budgeted) | READY |
+| 4 | **EVI-001** | Cj/Rs fixture missing unit / normalization basis / bias-frequency condition / extraction method fails; complete fixture round-trips | `tools/extraction.py` `ExtractedQuantity` refuses a value missing any of the four; `domains/silicon_photonics/extractors.py` supplies all four | `domains/test_cj_rs_evidence_contract.py` (18, incl. the six condition-provenance refusals) | READY |
 | 5 | **DOM-SP-001** | Rs trend validator 只存在 SiPh DomainPack，移除 plugin 後 core 仍可啟動 | `domains/silicon_photonics/validators.py`; core has no place to put a rule — `ValidationReport` keys findings by an opaque `rule_id` | `domains/test_domain_pack_boundary.py` (14) | READY |
 | 6 | **DOM-SP-002** | 同一 `extract_cj_rs` contract 通過 simulated 與 measured impedance fixtures | one `MetricExtractor` protocol, one `ExtractionInput`/`ExtractionResult` pair; `ToolDescriptor` refuses an `extract_*` tool that names a backend | `domains/test_shared_extractor_contract.py` (9), `e2e/test_m2_vertical_postgres.py` | READY |
-| 7 | **VER-002** | Planner 對無 capability descriptor 的 backend 不可規劃；有 descriptor 時依 produces/requires match | `verification/capability_registry.py` + `verification/planner.py`; `007c`'s `capabilities` makes the absence durable | `unit/test_capability_planning.py` (20), `e2e/test_m2_vertical_postgres.py` | READY |
+| 7 | **VER-002** | Planner 對無 capability descriptor 的 backend 不可規劃；有 descriptor 時依 produces/requires match | `verification/capability_registry.py` + `verification/planner.py`; `007c`'s `capabilities` makes the absence durable | `unit/test_capability_planning.py` (23), `e2e/test_m2_vertical_postgres.py` | READY |
 | 8 | **EXT-001** | 新增 ToyDomain 時 core package 無 source modification；plugin registration 即運作 | `domains/base.py` + `domains/registry.py`; the second domain is `tests/toy_domain.py`, **outside `src/`** | `unit/test_extension_boundary.py` (24) | READY |
 
 ## 3. The architecture, and the four decisions that shaped it
@@ -131,20 +132,23 @@ Local, full history, PostgreSQL last.
 
 | Gate | Result |
 |---|---|
-| `ruff format` / `ruff check` | clean |
-| `mypy` (strict) | clean, **136** source files |
-| Backend-free suite | **1258 passed**, 617 skipped |
-| Migration replay from empty | **38 applied** (fresh `lab_brain_m2final`) |
+| `ruff format --check` / `ruff check` | clean, 258 files |
+| `mypy` (strict) | clean, **137** source files |
+| Backend-free suite | **1296 passed**, 625 skipped |
+| Migration replay from empty | **38 applied** (fresh `lab_brain_m2r1`) |
 | Migration idempotency | `pending 0`, second run a no-op |
-| Full PostgreSQL profile | **1875 passed**, 0 skipped |
-| Executed-coverage ratchet | ok ×4; DONE `['M0a','M0b']`, IN_PROGRESS `['M1','M2']`; **45** requirements with a passing test |
+| Full PostgreSQL profile | **1921 passed**, 0 skipped |
+| Executed-coverage ratchet | ok ×4; **DONE `['M0a','M0b','M1']`**, IN_PROGRESS `['M2']`; **45** requirements with a passing test |
 | Status freshness | up to date |
 | Spec conformance | **205 passed** |
 | Requirement ↔ Test | **60 ↔ 60** |
 | Obligation inventory | **84**, in sync |
 | Schema drift / unbound / stale | all empty |
-| Mutation battery | **90/90 killed** (75 through M1, + 15 M2 anchors) |
-| M1-P1 benchmark | current, byte-identical |
+| Mutation battery | **99/99 killed** (75 through M1, + 15 M2, + 9 review repairs) |
+| M1-P1 benchmark | current, re-run byte-identical |
+
+**M1's ratchet is live in these figures.** The coverage gate now enforces M1's 21 requirements as
+well as M0a's and M0b's, so a regression in any of them fails CI rather than being noticed.
 
 ## 7. Remaining risks and limitations
 
@@ -205,3 +209,152 @@ from RUNNING — it is the suspend edge — and it is right: a job nobody has pi
 waiting for the scheduler, and a job waiting for a seat is waiting for the world. The ordering
 changed; what the original was protecting (waiting must not look like failing) is carried by the
 state, the untouched `attempt_count` and §17.24's degraded reading, all of which are asserted.
+
+
+## 9. The first-review repairs
+
+Independent review accepted the SIM-001 validity architecture, the typed ToolRegistry contracts,
+the shared simulated/measured extractor, the DomainPack boundary, `007c`'s resource-pool database
+invariants, Capability planning, the ToyDomain extensibility proof and the deterministic mock
+backend, and named four remaining gates. All four are closed below. **No accepted surface was
+refactored for cleanliness.**
+
+### A (P0) — M2 tool execution bypassed COST-001
+
+**The defect.** Both requirements held, separately, through two seams that did not meet:
+`ToolRegistry.invoke` was typed and ungated; `core.dispatch.dispatch_action` was gated and knew
+nothing about tools. `run_simulation`'s own docstring said budget *"belongs to `dispatch_action`"*
+-- true, and nobody's job. So the shipped chain
+
+    ToolRegistry.invoke -> ChargeAcSweepTool -> runner -> run_simulation -> backend.execute
+
+reached a simulator without passing a gate, reopening a hard-locked COST-001 invariant. Satisfying
+SIM-003 through a path that bypasses COST-001 satisfies neither.
+
+**The repair is a composition, not a change to the gate.** `lab_brain.tools.dispatch.
+BudgetedToolDispatcher` is one operation:
+
+    resolve the descriptor      SIM-003. An unregistered tool is refused before a span opens.
+    resolve the estimate        §9.5 for `run_*` (its Capability); the descriptor's declared
+                                `cost_contract` otherwise. No estimate -> no dispatch.
+    build the BudgetRequest     caps, session consumption, approval -- all passed in.
+    dispatch_action             opens the span, asks the gate, calls `perform` ONLY on ALLOW.
+      -> ToolRegistry.invoke    inside `perform`, so it cannot happen first.
+    actual cost                 measured, never copied from the estimate.
+    close the span              SUCCEEDED, both ledger rows linked.
+
+`dispatch_action` is untouched hard-locked M0b code. What was missing was a caller.
+
+**`extract_*` and `validate_*` go through the same surface.** `ToolDescriptor` now requires a
+`cost_contract` on every non-`run_*` tool and forbids one on a `run_*` tool (§9.5 makes the
+Capability authoritative; two contracts would be priced apart). The SiPh pack registers
+`cost:sp.local_tool@1.0.0` returning a two-second vector. A zero CostVector is a legitimate answer;
+*having no answer* is not, because that is what `evaluate_budget` refuses outright.
+
+**Before / after, with a fatal spy** (`tests/unit/test_budgeted_tool_dispatch.py`, 14 probes, and
+`test_an_over_budget_simulation_never_reaches_the_mock_backend` in the vertical):
+
+| Attack | Before | After |
+|---|---|---|
+| over-budget `run_charge_ac_sweep` | backend entered, solver ran, cost recorded afterwards | `tool.entered == []`, BLOCKED span, `exceeded_dimensions` names the cap, no Run, Job still QUEUED, seat never taken |
+| no BudgetPolicy | no gate consulted at all | BLOCKED; a missing policy is a refusal, not "no limits" |
+| scoped supervisor approval | n/a | the **same** action executes, `ALLOWED_BY_APPROVAL`, approval named |
+| the same approval twice | n/a | second call refused; §17.17.1's ONCE is the store's |
+| estimate/actual | no ledger rows at all | ESTIMATED before the call, ACTUAL after, and they **differ** -- the tool reports 25s/25 seat-s against an estimate of 30/30/50 money |
+| a tool that raises | n/a | FAILED span, ESTIMATED row kept, **no** ACTUAL row -- an action that raised reported no cost |
+| a refused dispatch | n/a | **no** ledger row, so the retry a supervisor's approval enables still has its estimate slot |
+| unpriceable tool | dispatched | `ToolDispatchRefused` -- a wiring error, not a supervisor's queue |
+| duplicate simulator callback | one Run | one Run (unchanged; `JobStore.complete` still owns it) |
+
+Two structural probes carry the claim past this commit:
+`test_no_shipped_orchestration_surface_invokes_the_registry_directly` parses the whole shipped
+package and permits `.invoke(...)` only in `tools/dispatch.py`; `test_the_dispatcher_calls_the_
+registry_inside_the_perform_closure` parses `dispatch` and fails if the call moves out of the
+closure, because a call at `dispatch` scope runs before the gate regardless of any docstring.
+
+### B (P1) — EVI-001's bias/frequency conditions were unenforced
+
+**The defect.** `ExtractionSource` parsed only the *syntax* of `conditions_schema_version`;
+`CjRsExtractor` did not require `bias_v`, and recovered `frequency_hz` from the numerical series
+when the condition record omitted it. So a payload with no recorded bias and no recorded frequency
+produced a DERIVED Cj and Rs that looked fully conditioned.
+
+**The repair delegates to the registered schema.** `silicon_photonics/pn_junction_ac@1.0.0` already
+declares `bias_v`, `frequency_hz` and `device_length_um` as required, and
+`ConditionSchemaRegistry.validate` already refuses a missing required field, an undeclared field
+and an unregistered version. A second list would be two statements of one contract, corrected
+separately. `CjRsExtractor` takes the registry as a **required** constructor argument -- the
+`DiagnosticsService` lesson reapplied: an extractor built without one could only skip the check.
+
+**The line this repair does not cross.** EVI-002's UNKNOWN semantics are intact, and the two kinds
+of absence now get different answers:
+
+| | Answer | Why |
+|---|---|---|
+| missing scientific **value** (no impedance series; a reactance the series-RC model cannot reduce; `frequency_hz` declared as `0`) | `UNKNOWN`, no value, warning | the provenance IS recorded; what is missing is a derivable number |
+| missing condition **provenance** (`bias_v`, `frequency_hz`, `device_length_um`, an undeclared field, an unregistered version) | **refused** | T-EVI-001 says *admission fail*; a DERIVED value with no conditions is a number nobody can compare |
+
+Attacks, each its own probe in `domains/test_cj_rs_evidence_contract.py`: missing `bias_v` (with
+the array still present, so recovery would be possible); missing `frequency_hz` (likewise -- the
+attack the old code actually lost); missing `device_length_um`; undeclared field; unregistered
+schema version; plus the regression control that a complete record produces exactly what it
+produced before the check existed.
+
+### C (P1) — the simulation ResourceDemand was not on the Job
+
+**The defect.** §10.7 requires a long-running Job to carry `resource_requirements (including
+license seat)` and §17.16 makes it canonical. The requirement lived only on
+`SimulationRequest.resource_demand` -- an in-flight object -- while the durable Job was submitted
+with `resource_requirements = {}`. A reloaded `WAITING_RESOURCE` Job could not say what it was
+waiting for.
+
+**The repair.** `submit_simulation_job` binds `ResourceDemand.as_requirements()` onto the Job and
+checks the demand against the Capability's `license_constraints` -- at submission, which is the
+last place the descriptor is still in hand. `run_simulation` then reads the requirement **off the
+Job** and checks the request against it, rather than trusting it: a resumer is a new caller in a
+new process, and one that could supply a different demand could move a parked job to a different
+pool.
+
+Five fail-closed cases, one probe each
+(`contract/test_resource_demand_binding.py` and `unit/test_capability_planning.py`):
+
+1. request declares a demand, Job carries none → refused
+2. Job is bound to one resource, request names another → refused
+3. seat counts differ → refused
+4. demand names a resource the Capability does not declare → refused **at submission**; and the
+   mirror, a seat-requiring Capability submitted with no demand → refused
+5. a reloaded `WAITING_RESOURCE` Job → `bound_demand(job)` reconstructs it; the vertical does this
+   **through a second connection** so nothing in-flight is shared
+
+WAITING_RESOURCE remains contention, not failure: `attempt_count` is untouched, `structured_error`
+is `None`, and §17.24 still reads the parked job as degraded availability.
+
+### D (P1) — T-SIM-002 stopped at `evaluate()`
+
+**The defect.** The existing test proved the DomainPack's policy semantics correctly and stopped at
+`TransitionPolicy.evaluate()`. §26 types T-SIM-002 `e2e`, and between a verdict and a moved belief
+sit the durable Decision, the BeliefRevisionEvent and the re-derivation `v3.3-a13` requires on the
+read path. A policy could be perfect and the projection still land somewhere else.
+
+**The repair** is `tests/e2e/test_sim_fidelity_vertical_postgres.py`, which runs the existing M0b
+machinery -- `BeliefEpisode.attempt_transition` and `BeliefEpisode.project` -- and writes no second
+state mutator. `test_this_file_declares_no_second_belief_path` parses the module and fails if one
+appears.
+
+    ACTIVE -> CONTRADICTS relation backed by SIM_COARSE
+           -> canonical evaluate()        (hard-locked M0b)
+           -> durable BeliefTransitionDecision  (`005d`)
+           -> BeliefRevisionEvent               (`005a`)
+           -> verified replay                   (re-derive, then fold)
+           -> projection == CHALLENGED
+
+and the prohibition, asserted **against the store**: the same coarse evidence attempting
+`CONTRADICTED` produces `DENY/AUTHORITY_INSUFFICIENT`, no event is written, and the projection is
+still ACTIVE. Positive controls: SIM_STANDARD and SIM_VALIDATION both reach CONTRADICTED durably,
+and a separate probe shows the fidelity gate is not the only requirement -- the same standard-
+fidelity contradiction with no corroboration returns NEED_MORE_EVIDENCE.
+
+**Non-vacuity, checked by hand.** Changing the reject policy's `required_authority_rule` from
+`SIM_STANDARD` to `SIM_COARSE` makes
+`test_the_same_coarse_contradiction_cannot_produce_a_contradicted_event` fail. The test catches a
+broken gate rather than describing a working one.

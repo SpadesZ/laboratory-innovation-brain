@@ -23,9 +23,14 @@ result of an undeclared type -- rather than about what it permits.
 
 from __future__ import annotations
 
+import ast
+import inspect
+from pathlib import Path
+
 import pytest
 
 from lab_brain.core.models.validation import ValidationReport, report
+from lab_brain.spec import repo_root
 from lab_brain.tools.contracts import (
     RETIRED_TOOL_ID,
     ToolClass,
@@ -33,6 +38,7 @@ from lab_brain.tools.contracts import (
     ToolRequest,
     ToolResult,
 )
+from lab_brain.tools.dispatch import BudgetedToolDispatcher
 from lab_brain.tools.registry import (
     ToolInvocationError,
     ToolNotRegistered,
@@ -77,6 +83,10 @@ def _descriptor(**overrides: object) -> ToolDescriptor:
         "tool_class": ToolClass.INSPECT,
         "domain": "testing",
         "version": "1.0.0",
+        # Required for every non-`run_*` tool: COST-001 gates each tool call, and a tool with no
+        # price cannot pass a gate that decides from an estimate. See the budget probes in
+        # tests/unit/test_budgeted_tool_dispatch.py.
+        "cost_contract": "cost:test.local@1.0.0",
         "produces": ("test.thing",),
     }
     payload.update(overrides)
@@ -236,6 +246,29 @@ def test_an_extract_tool_must_declare_what_it_consumes():
         _descriptor(tool_class=ToolClass.EXTRACT, name="extract_thing")
 
 
+def test_a_non_run_tool_must_declare_a_cost_contract():
+    """COST-001 gates *each* tool call, so a local tool still needs a price.
+
+    A zero CostVector is a legitimate answer and "no answer" is not: `evaluate_budget` refuses an
+    absent estimate outright, so a tool nobody can price is a tool that could only be called by
+    going around the gate.
+    """
+    with refused("names no cost_contract"):
+        _descriptor(cost_contract=None)
+
+
+def test_a_run_tool_may_not_declare_a_second_cost_contract():
+    """§9.5 makes the Capability authoritative; two contracts would be priced apart."""
+    with refused("two sources for one number"):
+        _descriptor(
+            tool_class=ToolClass.RUN,
+            name="run_thing",
+            capability_id="cap:x",
+            conditions_schema_version="d/s@1.0.0",
+            cost_contract="cost:sneaky@1.0.0",
+        )
+
+
 def test_a_validate_tool_must_return_a_validation_report():
     """§17.19.2: never an unstructured boolean/string, refused at registration."""
 
@@ -314,3 +347,79 @@ def test_two_tools_cannot_share_an_id_or_a_canonical_name():
         registry.register(_descriptor(), DoublingTool())
     with pytest.raises(ToolRegistrationError, match="already registered as DOM-TST-TOOL-001"):
         registry.register(_descriptor(tool_id="DOM-TST-TOOL-007"), DoublingTool())
+
+
+# ---------------------------------------------------------------------------
+# Clause 2, continued -- the PRODUCTION path. Moved here from the budget probes so each file
+# claims one (requirement, test) pair: a module claiming COST-001 and SIM-003 with two test ids
+# claims the cross product, and (COST-001, T-SIM-003) is not a pair 26 maps.
+# ---------------------------------------------------------------------------
+
+
+def test_no_shipped_orchestration_surface_invokes_the_registry_directly():
+    """The raw registry is a mechanism; it must not be an ordinary production side-effect path.
+
+    `ToolRegistry.invoke` is still the right thing for a unit test asking about type checking, and
+    `BudgetedToolDispatcher` is the one place production calls it. Parsed rather than asserted by
+    convention: the whole shipped package is scanned, and `dispatch.py` is the only file permitted
+    to name the method.
+    """
+    source_root = repo_root() / "src" / "lab_brain"
+    permitted = {Path("tools") / "dispatch.py"}
+    offenders: list[str] = []
+    for path in sorted(source_root.rglob("*.py")):
+        relative = path.relative_to(source_root)
+        if relative in permitted:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        offenders.extend(
+            f"{relative.as_posix()}:{node.lineno}"
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "invoke"
+        )
+    assert not offenders, (
+        f"a shipped module calls `.invoke(...)` outside the budgeted dispatcher: {offenders}. "
+        "COST-001 gates every tool call; a second entrance would be an unbudgeted side-effect path "
+        "that satisfies SIM-003 by bypassing COST-001"
+    )
+
+
+def test_the_dispatcher_calls_the_registry_inside_the_perform_closure():
+    """The ordering guarantee, read off the source rather than trusted.
+
+    `dispatch_action` calls `perform` only after the gate returns ALLOW. So the tool call has to be
+    INSIDE that closure -- a call at `dispatch` scope would run before the gate regardless of what
+    any docstring said.
+    """
+    tree = ast.parse(inspect.getsource(BudgetedToolDispatcher))
+    dispatch_fn = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == "dispatch"
+    )
+    perform = next(
+        node
+        for node in ast.walk(dispatch_fn)
+        if isinstance(node, ast.FunctionDef) and node.name == "perform"
+    )
+    inside = {
+        node.lineno
+        for node in ast.walk(perform)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "invoke"
+    }
+    everywhere = {
+        node.lineno
+        for node in ast.walk(dispatch_fn)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "invoke"
+    }
+    assert inside, "`dispatch` does not call the registry inside `perform`"
+    assert everywhere == inside, (
+        f"`dispatch` calls the registry outside the `perform` closure at {everywhere - inside}; "
+        "that call happens before the budget gate has said anything"
+    )

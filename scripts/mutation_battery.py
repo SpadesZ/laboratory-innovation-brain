@@ -842,6 +842,89 @@ MUTATIONS: tuple[Mutation, ...] = (
         new="        if False:",
         tests=("tests/domains/test_domain_pack_boundary.py",),
     ),
+    # ------------------------------------------------------------------
+    # M2 review repairs A-D. Each anchor sits on the guard the review found missing.
+    # ------------------------------------------------------------------
+    Mutation(
+        name="a_tool_may_run_before_the_budget_gate",
+        guards="COST-001 -- the call lives inside `perform`, which only ALLOW reaches",
+        path="src/lab_brain/tools/dispatch.py",
+        # Hoists the invocation out of the closure, which is the ONE edit that turns this module
+        # back into the defect it closes: the tool runs, then the gate is asked.
+        old="        captured: dict[str, ToolResult] = {}",
+        new='        captured: dict[str, ToolResult] = {\n            "result": self._tools.invoke(action.tool_id, action.request)\n        }',
+        tests=("tests/unit/test_budgeted_tool_dispatch.py",),
+    ),
+    Mutation(
+        name="an_unpriceable_tool_is_dispatched_anyway",
+        guards="COST-001 -- 'cheap' is not 'ungoverned', and no estimate is not a zero estimate",
+        path="src/lab_brain/tools/dispatch.py",
+        old="        if estimator is None:",
+        new="        if False:",
+        tests=("tests/unit/test_budgeted_tool_dispatch.py",),
+    ),
+    Mutation(
+        name="the_actual_cost_is_the_estimate",
+        guards="§17.17 -- two rows, so systematic under-estimation stays visible",
+        path="src/lab_brain/tools/dispatch.py",
+        old="                actual_cost=self._actual_cost(result, started),",
+        new="                actual_cost=estimate,",
+        tests=("tests/unit/test_budgeted_tool_dispatch.py",),
+    ),
+    Mutation(
+        name="a_local_tool_need_not_declare_a_cost_contract",
+        guards="COST-001 -- every tool call is gated, so every tool has a price",
+        path="src/lab_brain/tools/contracts.py",
+        old="            if self.cost_contract is None:",
+        new="            if False:",
+        tests=("tests/unit/test_typed_tool_registry.py",),
+    ),
+    Mutation(
+        name="cj_rs_is_derived_without_its_declared_conditions",
+        guards="EVI-001 -- bias/frequency provenance is required, not merely well-formed syntax",
+        path="src/lab_brain/domains/silicon_photonics/extractors.py",
+        old="        self._require_conditions(payload)",
+        new="        pass",
+        tests=("tests/domains/test_cj_rs_evidence_contract.py",),
+    ),
+    Mutation(
+        name="a_missing_frequency_condition_is_recovered_from_the_series",
+        guards="EVI-001 -- the arrays are not the record's claim about the arrays",
+        path="src/lab_brain/domains/silicon_photonics/extractors.py",
+        old='        frequency = _decimal(conditions.get("frequency_hz"))',
+        new='        frequency = _decimal(conditions.get("frequency_hz")) or (\n            payload.series_named(SERIES_FREQUENCY).values[0]\n            if payload.series_named(SERIES_FREQUENCY)\n            else None\n        )',
+        tests=("tests/domains/test_cj_rs_evidence_contract.py",),
+    ),
+    Mutation(
+        name="the_request_may_replace_the_jobs_bound_demand",
+        guards="§10.7 / §17.16 -- the durable Job is the requirement, the request is checked",
+        path="src/lab_brain/tools/execution.py",
+        old="    demand = _require_bound_demand(current, request)",
+        new="    demand = request.resource_demand",
+        tests=(
+            "tests/contract/test_resource_demand_binding.py",
+            "tests/e2e/test_m2_vertical_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="the_submitted_job_carries_no_resource_requirement",
+        guards="§17.16 -- a reloaded WAITING_RESOURCE job must name what it waits for",
+        path="src/lab_brain/tools/execution.py",
+        old='    return jobs.submit(job.model_copy(update={"resource_requirements": demand.as_requirements()}))',
+        new="    return jobs.submit(job)",
+        tests=(
+            "tests/contract/test_resource_demand_binding.py",
+            "tests/e2e/test_m2_vertical_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="a_demand_need_not_match_the_capabilitys_license_constraint",
+        guards="§17.18 -- a demand for a resource the action does not contend for",
+        path="src/lab_brain/tools/execution.py",
+        old="    if demand.resource_id not in declared:",
+        new="    if False:",
+        tests=("tests/unit/test_capability_planning.py",),
+    ),
 )
 
 

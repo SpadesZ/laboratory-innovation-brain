@@ -133,6 +133,16 @@ class CapabilityRegistry:
             )
         )
 
+    def estimator(self, contract: str) -> CostEstimator | None:
+        """The estimator registered under ``contract``, or `None`.
+
+        Mapping-shaped rather than raising, because the one caller -- `BudgetedToolDispatcher`,
+        pricing a tool that has no Capability -- has its own fail-closed branch with its own
+        message about why an unpriceable tool cannot pass the budget gate. Raising through it would
+        replace that with a different exception type for the same condition.
+        """
+        return self._estimators.get(contract)
+
     def estimate(self, capability_id: str, params: Mapping[str, Any]) -> CostVector:
         """§9.5's `estimate_cost(params) -> CostVector` for one capability.
 

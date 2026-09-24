@@ -33,6 +33,7 @@ from lab_brain.core.models.cost import CostVector
 from lab_brain.core.models.transition import TransitionPolicy
 from lab_brain.domains.base import (
     BenchmarkRegistry,
+    DomainInstallError,
     ExtractorRegistry,
     ValidatorRegistry,
 )
@@ -92,12 +93,36 @@ def estimate_charge_ac_cost(params: object) -> CostVector:
     )
 
 
+def estimate_local_tool_cost(params: object) -> CostVector:
+    """§9.5's estimator for this pack's `extract_*` and `validate_*` tools.
+
+    A few seconds of wall-clock, no seat, no money, no compute units. That is not a way of
+    declaring them exempt: a zero in a dimension is a positive claim that the dimension costs
+    nothing, and it is the one dimension a caps policy can still refuse if a project has frozen
+    its wall-clock budget at zero. COST-001 gates *each* tool call; this is what makes a local
+    call gateable rather than skippable.
+    """
+    return CostVector(wall_clock_s=2)
+
+
 class SiliconPhotonicsPack:
     """§24.3's protocol, for the methods M2 authorises. See the module docstring."""
 
-    def __init__(self, runner: tools.SimulationRunner) -> None:
+    def __init__(self, runner: tools.SimulationRunner, conditions: ConditionSchemaRegistry) -> None:
+        """Two dependencies, both required, both handed in rather than reached for.
+
+        ``runner`` because §10.2.1 makes `run_*` backend-bound and a pack that reached for a
+        composition root would invert §24.2's dependency edge.
+
+        ``conditions`` because EVI-001's extractor validates against the REGISTERED schema, and an
+        extractor built without a registry could only skip the check. Passing it at construction
+        also lets `register_condition_schema` refuse a pack being installed into a *different*
+        registry from the one its extractor validates against -- which would otherwise produce an
+        extractor checking conditions against a schema that is not the one in force.
+        """
         self._runner = runner
-        self._extractor = CjRsExtractor()
+        self._conditions = conditions
+        self._extractor = CjRsExtractor(conditions)
         self._validator = ExpectedTrendValidator()
         self._authority = SiliconPhotonicsAuthorityPolicy()
         self._comparator = PnJunctionConditionComparator()
@@ -113,6 +138,13 @@ class SiliconPhotonicsPack:
     # -- §24.3 registrations ------------------------------------------------
 
     def register_condition_schema(self, registry: ConditionSchemaRegistry) -> None:
+        if registry is not self._conditions:
+            raise DomainInstallError(
+                f"{PACK_ID} was constructed against one condition registry and is being installed "
+                "into another. Its extractor validates EVI-001's conditions against the registry "
+                "it holds, so installing it elsewhere would check every Cj/Rs record against a "
+                "schema that is not the one in force"
+            )
         schema = registration()
         registry.register_schema(schema)
         # The comparator is registered under the version the SCHEMA declares, not under "latest".
@@ -137,6 +169,11 @@ class SiliconPhotonicsPack:
 
     def register_capabilities(self, registry: CapabilityRegistry) -> None:
         registry.register_estimator(CHARGE_AC_COST_CONTRACT, estimate_charge_ac_cost)
+        # The local tools' estimator. Registered here rather than in `register_tools` because the
+        # CapabilityRegistry is where estimators live (§9.5) and a tool's declared `cost_contract`
+        # resolves against it -- one place a price comes from, whether or not the tool is
+        # backend-bound.
+        registry.register_estimator(tools.LOCAL_TOOL_COST_CONTRACT, estimate_local_tool_cost)
         registry.register(
             Capability(
                 capability_id=tools.CHARGE_AC_CAPABILITY,
@@ -201,4 +238,5 @@ __all__ = [
     "PACK_VERSION",
     "SiliconPhotonicsPack",
     "estimate_charge_ac_cost",
+    "estimate_local_tool_cost",
 ]

@@ -2,15 +2,27 @@
 
 Date: 2026-09-23; revised after the final audit (§9), the second audit (§10), the third (§11) and
 the closing security repair (§12)
-Milestone: **M1 — Research Memory**, `IN_PROGRESS` — implementation complete, awaiting independent
-sign-off
+Milestone: **M1 — Research Memory**, **`DONE` / HARD-LOCKED**
+M1 hard-lock SHA: `bdb72129a1075d69a30f5043a3491570ca7d4521`
 M1-P1 locked baseline: `f8e5e9c02ee98ed2a7faa6f604347b84b88c773b` (HARD-LOCKED, untouched)
 M0a / M0b: `DONE`, hard-locked, untouched
 Spec: SAI 3.3, amendments `v3.3-a1` … `v3.3-a18`. **No amendment, no ADR, no new Requirement or
 Test ID was added by this work.** 60 ↔ 60 throughout.
 
-> This document claims readiness for audit, not completion. M1's status is the maintainer's to
-> change, and it is still `IN_PROGRESS` in `docs/milestones.yaml`.
+> **Maintainer decision (2026-09-23).** Independent review signed off at
+> `bdb72129a1075d69a30f5043a3491570ca7d4521`: **PASS — M1 DONE / HARD-LOCK APPROVED**. From that
+> commit the executed-coverage ratchet enforces M1 on every CI run, exactly as it has enforced M0a
+> since 2026-09-13 and M0b since 2026-09-20.
+>
+> The sentence this section used to carry — *"This document claims readiness for audit, not
+> completion. M1's status is the maintainer's to change, and it is still `IN_PROGRESS`"* — is left
+> recorded rather than deleted. It was true of the milestone when it was submitted, and the record
+> of a claim being withheld and then granted is worth more than a document that reads as if the
+> outcome were never in doubt. `M1-P1-readiness.md` §12 keeps the same shape for the same reason.
+>
+> **Reopen M1 only on a reproducible violation of a locked invariant** — not for cleanup, not for a
+> refactor that would read better. The 21 requirements are now ratchet-enforced, so a regression in
+> any of them fails CI rather than being noticed.
 
 ## 1. The exit gate, clause by clause
 

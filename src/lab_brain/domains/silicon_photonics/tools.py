@@ -25,6 +25,7 @@ from typing import Final, Protocol, Self, runtime_checkable
 
 from pydantic import model_validator
 
+from lab_brain.core.models.cost import CostVector
 from lab_brain.core.models.validation import ValidationReport
 from lab_brain.domains.silicon_photonics import backend_validity, extractors, validators
 from lab_brain.domains.silicon_photonics.condition_schema import DOMAIN, SCHEMA_REF
@@ -42,6 +43,15 @@ CHARGE_AC_TOOL_ID: Final = "DOM-SP-TOOL-002"
 CHARGE_AC_TOOL_NAME: Final = "run_charge_ac_sweep"
 CHARGE_AC_CAPABILITY: Final = "cap:sp.charge_ac_sweep"
 CHARGE_AC_VERSION: Final = "1.0.0"
+
+#: §17.18's `estimate_cost_contract` for this pack's two LOCAL tools -- the extractor and the
+#: validator. Neither has a Capability (§10.2.1 makes them backend-agnostic, and `ToolDescriptor`
+#: refuses one that names a backend), so the contract lives on the tool descriptor instead.
+#:
+#: They are genuinely cheap: the estimator registered against this name returns a CostVector of
+#: seconds and nothing else. That is the point rather than a concession -- COST-001 gates *each*
+#: tool call, and a zero-cost call still passes the gate. "Cheap" is not "ungoverned".
+LOCAL_TOOL_COST_CONTRACT: Final = "cost:sp.local_tool@1.0.0"
 
 #: Observable kind names. Opaque to core, matched by the planner as strings (§9.5).
 OBSERVABLE_IMPEDANCE: Final = "sp.small_signal_impedance"
@@ -152,6 +162,11 @@ class ChargeAcSweepTool:
                     "contention, not a simulation failure",
                 ),
             )
+        # §17.17's ACTUAL, measured rather than assumed. The Run knows exactly how long it took and
+        # the seat was held for that interval, so this is the one dimension the tool is better
+        # placed to report than the dispatcher's wrapper -- which would also be counting the
+        # registry's type check and the ledger write.
+        elapsed = max(0, int((outcome.run.end_time - outcome.run.start_time).total_seconds()))
         return ChargeAcSweepResult(
             tool_id=CHARGE_AC_TOOL_ID,
             tool_version=CHARGE_AC_VERSION,
@@ -159,6 +174,10 @@ class ChargeAcSweepTool:
             numerical_array_refs=outcome.run.numerical_array_refs,
             output_artifacts=outcome.run.output_artifacts,
             warnings=outcome.run.warnings,
+            actual_cost=CostVector(
+                wall_clock_s=elapsed,
+                license_seat_s=elapsed if outcome.lease is not None else 0,
+            ),
         )
 
 
@@ -200,6 +219,7 @@ def extract_cj_rs_descriptor() -> ToolDescriptor:
         tool_class=ToolClass.EXTRACT,
         domain=DOMAIN,
         version=extractors.EXTRACTOR_VERSION,
+        cost_contract=LOCAL_TOOL_COST_CONTRACT,
         requires=(OBSERVABLE_IMPEDANCE,),
         produces=(OBSERVABLE_CJ_RS,),
         notes={
@@ -260,6 +280,7 @@ def validate_trends_descriptor() -> ToolDescriptor:
         tool_class=ToolClass.VALIDATE,
         domain=DOMAIN,
         version=validators.VALIDATOR_VERSION,
+        cost_contract=LOCAL_TOOL_COST_CONTRACT,
         requires=(OBSERVABLE_CJ_RS,),
         produces=(OBSERVABLE_TREND_REPORT,),
         notes={"rules": sorted(validators.RULES)},
@@ -272,6 +293,7 @@ __all__ = [
     "CHARGE_AC_TOOL_NAME",
     "CHARGE_AC_VERSION",
     "INPUT_DEVICE_PROJECT",
+    "LOCAL_TOOL_COST_CONTRACT",
     "OBSERVABLE_CJ_RS",
     "OBSERVABLE_IMPEDANCE",
     "OBSERVABLE_TREND_REPORT",

@@ -67,6 +67,7 @@ TOY_SCHEMA_REF: Final = f"{TOY_DOMAIN}/widget_bench@1.0.0"
 TOY_VALIDITY_REF: Final = f"{TOY_DOMAIN}/widget_validity@1.0.0"
 TOY_CAPABILITY: Final = "cap:toy.widget_bench"
 TOY_COST_CONTRACT: Final = "cost:toy.widget_bench@1.0.0"
+TOY_LOCAL_COST_CONTRACT: Final = "cost:toy.local@1.0.0"
 TOY_RESOURCE: Final = "license:toy-bench-seat"
 
 TOY_OBSERVABLE_RAW: Final = "toy.blip_series"
@@ -349,6 +350,7 @@ class ToyDomainPack:
 
     def register_capabilities(self, registry: CapabilityRegistry) -> None:
         registry.register_estimator(TOY_COST_CONTRACT, estimate_toy_cost)
+        registry.register_estimator(TOY_LOCAL_COST_CONTRACT, estimate_toy_cost)
         registry.register(
             Capability(
                 capability_id=TOY_CAPABILITY,
@@ -386,6 +388,7 @@ class ToyDomainPack:
                 tool_class=ToolClass.EXTRACT,
                 domain=TOY_DOMAIN,
                 version="1.0.0",
+                cost_contract=TOY_LOCAL_COST_CONTRACT,
                 requires=(TOY_OBSERVABLE_RAW,),
                 produces=(TOY_OBSERVABLE_METRIC,),
             ),
@@ -398,6 +401,7 @@ class ToyDomainPack:
                 tool_class=ToolClass.VALIDATE,
                 domain=TOY_DOMAIN,
                 version="1.0.0",
+                cost_contract=TOY_LOCAL_COST_CONTRACT,
                 requires=(TOY_OBSERVABLE_METRIC,),
                 produces=(TOY_OBSERVABLE_REPORT,),
             ),
@@ -413,6 +417,7 @@ __all__ = [
     "TOY_CAPABILITY",
     "TOY_COST_CONTRACT",
     "TOY_DOMAIN",
+    "TOY_LOCAL_COST_CONTRACT",
     "TOY_OBSERVABLE_METRIC",
     "TOY_OBSERVABLE_RAW",
     "TOY_OBSERVABLE_REPORT",

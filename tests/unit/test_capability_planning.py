@@ -25,6 +25,10 @@ import pytest
 
 from lab_brain.core.models.capability import ActionType, Availability, Capability
 from lab_brain.core.models.cost import CostVector
+from lab_brain.core.models.job import Job
+from lab_brain.core.repositories.jobs import InMemoryJobStore
+from lab_brain.tools.execution import ResourceBindingError, submit_simulation_job
+from lab_brain.tools.resources import ResourceDemand
 from lab_brain.verification.capability_registry import (
     CapabilityNotRegistered,
     CapabilityRegistrationError,
@@ -42,6 +46,13 @@ from tests.refusals import refused
 pytestmark = [pytest.mark.requirement("VER-002"), pytest.mark.spec_test("T-VER-002")]
 
 CONTRACT = "cost:test@1.0.0"
+NOW = dt.datetime(2026, 9, 24, 10, 0, tzinfo=dt.UTC)
+PROJECT = "prj:sp"
+RESOURCE = "license:sp-charge-seat"
+
+
+def _demand(seats: int = 1, resource: str = RESOURCE) -> ResourceDemand:
+    return ResourceDemand(resource_id=resource, seats=seats, estimated_seat_s=30)
 
 
 def _estimator(params: Mapping[str, Any]) -> CostVector:
@@ -318,3 +329,71 @@ def test_the_cost_contract_cannot_be_replaced_in_place():
 
     with pytest.raises(CapabilityRegistrationError, match="reprice every past estimate"):
         registry.register_estimator(CONTRACT, other)
+
+
+# ---------------------------------------------------------------------------
+# 17.18's license_constraints, checked where the Capability is still in hand.
+#
+# A demand naming a resource the descriptor does not declare parks the job behind a pool this
+# capability will never release on its account -- and by execution time the capability is a string
+# on a Run, so this is the last place the check can be made.
+# ---------------------------------------------------------------------------
+
+
+def test_a_demand_inconsistent_with_the_capabilitys_license_constraint_is_refused():
+    """Case 4, at submission -- the only place the Capability is still in hand.
+
+    §17.18's `license_constraints` says which seats the action contends for. A demand for a
+    different resource parks the job behind a pool this capability will never release on its
+    account, and by execution time the capability is a string on a Run.
+    """
+    with pytest.raises(ResourceBindingError, match="does not declare among its license"):
+        submit_simulation_job(
+            jobs=InMemoryJobStore(),
+            job=Job(
+                job_id="job:1",
+                project_id=PROJECT,
+                capability_id="cap:sim",
+                trace_id="trc:1",
+                idempotency_key="idem:1",
+                submitted_at=NOW,
+            ),
+            demand=_demand(resource="license:not-declared"),
+            capability=_capability(license_constraints=(RESOURCE,)),
+        )
+
+
+def test_a_seat_requiring_capability_submitted_with_no_demand_is_refused():
+    """Case 4's mirror: the execution would take a seat nobody accounted for."""
+    with pytest.raises(ResourceBindingError, match="seat nobody accounted for"):
+        submit_simulation_job(
+            jobs=InMemoryJobStore(),
+            job=Job(
+                job_id="job:1",
+                project_id=PROJECT,
+                capability_id="cap:sim",
+                trace_id="trc:1",
+                idempotency_key="idem:1",
+                submitted_at=NOW,
+            ),
+            demand=None,
+            capability=_capability(license_constraints=(RESOURCE,)),
+        )
+
+
+def test_the_capability_being_checked_must_be_the_one_the_job_will_execute():
+    """A descriptor whose constraints are checked against a job that runs something else."""
+    with pytest.raises(ResourceBindingError, match="must be the one the job will execute"):
+        submit_simulation_job(
+            jobs=InMemoryJobStore(),
+            job=Job(
+                job_id="job:1",
+                project_id=PROJECT,
+                capability_id="cap:something.else",
+                trace_id="trc:1",
+                idempotency_key="idem:1",
+                submitted_at=NOW,
+            ),
+            demand=_demand(),
+            capability=_capability(license_constraints=(RESOURCE,)),
+        )

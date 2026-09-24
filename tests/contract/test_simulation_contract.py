@@ -32,12 +32,18 @@ from decimal import Decimal
 
 import pytest
 
+from lab_brain.core.models.capability import ActionType, Capability
 from lab_brain.core.models.job import Job, JobState, RunStatus
 from lab_brain.core.repositories.jobs import InMemoryJobStore
 from lab_brain.domains.silicon_photonics import backend_validity
 from lab_brain.domains.silicon_photonics.condition_schema import SCHEMA_REF
 from lab_brain.tool_providers.lumerical.mock import MockChargeAcBackend
-from lab_brain.tools.execution import Executed, run_simulation, simulated_source
+from lab_brain.tools.execution import (
+    Executed,
+    run_simulation,
+    simulated_source,
+    submit_simulation_job,
+)
 from lab_brain.tools.resources import InMemoryResourceBroker, ResourceDemand
 from lab_brain.tools.simulation import (
     BackendExecution,
@@ -84,17 +90,46 @@ def _request(**overrides: object) -> SimulationRequest:
     return SimulationRequest.model_validate(payload)
 
 
-def _store() -> InMemoryJobStore:
+def _capability(**overrides: object) -> Capability:
+    payload: dict[str, object] = {
+        "capability_id": "cap:sp.charge_ac_sweep",
+        "domain": "silicon_photonics",
+        "action_type": ActionType.SIMULATION,
+        "backend_id": "sp.charge.ac",
+        "produces": ("sp.small_signal_impedance",),
+        "authority_class": "SIM_STANDARD",
+        "license_constraints": (RESOURCE,),
+        "estimate_cost_contract": "cost:sp.charge_ac_sweep@1.0.0",
+        "version": "1.0.0",
+    }
+    payload.update(overrides)
+    return Capability.model_validate(payload)
+
+
+def _demand(seats: int = 1, resource: str = RESOURCE) -> ResourceDemand:
+    return ResourceDemand(resource_id=resource, seats=seats, estimated_seat_s=30)
+
+
+def _store(demand: ResourceDemand | None = None) -> InMemoryJobStore:
+    """A store holding one submitted Job with its ResourceDemand BOUND (§10.7, §17.16).
+
+    Through `submit_simulation_job` rather than `store.submit`, because that is the whole repair:
+    the requirement used to live only on the in-flight `SimulationRequest`, so a reloaded
+    WAITING_RESOURCE job could not say what it was waiting for.
+    """
     store = InMemoryJobStore()
-    store.submit(
-        Job(
+    submit_simulation_job(
+        jobs=store,
+        job=Job(
             job_id="job:1",
             project_id=PROJECT,
             capability_id="cap:sp.charge_ac_sweep",
             trace_id="trc:1",
             idempotency_key="idem:1",
             submitted_at=NOW,
-        )
+        ),
+        demand=_demand() if demand is None else demand,
+        capability=_capability(),
     )
     return store
 
@@ -361,8 +396,9 @@ def test_the_extracted_capacitance_recovers_what_the_model_was_given():
     Compared against the MODEL rather than against a transcribed constant: a number copied from a
     previous run would keep passing after a change to either side.
     """
-    from lab_brain.domains.silicon_photonics.extractors import CJ, CjRsExtractor
+    from lab_brain.domains.silicon_photonics.extractors import CJ
     from lab_brain.tools.extraction import ExtractionInput
+    from tests import sp_fixtures as fx
 
     backend = MockChargeAcBackend(clock=NOW, artifact_id=ARTIFACT)
     executed = _execute()
@@ -372,7 +408,7 @@ def test_the_extracted_capacitance_recovers_what_the_model_was_given():
         source=simulated_source(executed),
         series=executed.execution.series,
     )
-    extracted = CjRsExtractor().extract(payload).quantity(CJ)
+    extracted = fx.extractor().extract(payload).quantity(CJ)
     assert extracted is not None and extracted.value is not None
 
     expected = backend.expected_cj_per_length(Decimal("-1.0"))

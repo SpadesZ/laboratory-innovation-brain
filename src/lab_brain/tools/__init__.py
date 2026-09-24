@@ -5,6 +5,7 @@ quantity. §24.2 permits `domains.silicon_photonics -> tools`, and forbids the r
 `tests/unit/test_extension_boundary.py`, which parses the import graph rather than trusting it.
 
     contracts.py   §10.2.1's four verb classes, and what each prefix promises
+    dispatch.py    COST-001 + SIM-003 together: the one supported production tool call
     registry.py    SIM-003's typed ToolRegistry -- the only invocation path
     extraction.py  DOM-SP-002's one extractor boundary, shared by SIMULATED and MEASURED
     simulation.py  §17.4's request/execution seam and §17.10's backend-validity schemas
@@ -20,12 +21,21 @@ from lab_brain.tools.contracts import (
     ToolRequest,
     ToolResult,
 )
+from lab_brain.tools.dispatch import (
+    BudgetedToolDispatcher,
+    ToolAction,
+    ToolDispatchRefused,
+    ToolDispatchResult,
+)
 from lab_brain.tools.execution import (
     Executed,
     ExecutionOutcome,
+    ResourceBindingError,
     WaitingForResource,
+    bound_demand,
     run_simulation,
     simulated_source,
+    submit_simulation_job,
 )
 from lab_brain.tools.extraction import (
     EXTRACTABLE_MODALITIES,
@@ -71,6 +81,7 @@ __all__ = [
     "BackendValidityError",
     "BackendValidityRegistry",
     "BackendValiditySchema",
+    "BudgetedToolDispatcher",
     "Executed",
     "ExecutionOutcome",
     "ExtractedQuantity",
@@ -81,6 +92,7 @@ __all__ = [
     "InMemoryResourceBroker",
     "MetricExtractor",
     "NumericalSeries",
+    "ResourceBindingError",
     "ResourceBroker",
     "ResourceDemand",
     "ResourceError",
@@ -89,9 +101,12 @@ __all__ = [
     "SimulationBackend",
     "SimulationContractError",
     "SimulationRequest",
+    "ToolAction",
     "ToolClass",
     "ToolContractError",
     "ToolDescriptor",
+    "ToolDispatchRefused",
+    "ToolDispatchResult",
     "ToolImplementation",
     "ToolInvocationError",
     "ToolNotRegistered",
@@ -101,9 +116,11 @@ __all__ = [
     "ToolResult",
     "WaitingForResource",
     "availability_for",
+    "bound_demand",
     "manifest_for",
     "missing_series",
     "run_simulation",
     "simulated_source",
+    "submit_simulation_job",
     "validate_backend_validity",
 ]

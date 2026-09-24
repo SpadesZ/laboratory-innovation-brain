@@ -40,7 +40,7 @@ pytestmark = [
     pytest.mark.spec_test("T-DOM-SP-002"),
 ]
 
-EXTRACTOR = CjRsExtractor()
+EXTRACTOR = fx.extractor()
 
 
 @contextmanager

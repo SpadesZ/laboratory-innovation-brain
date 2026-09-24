@@ -41,6 +41,7 @@ from pydantic import Field, model_validator
 
 from lab_brain.core.models.base import CoreModel
 from lab_brain.core.models.condition import ConditionSchemaRef
+from lab_brain.core.models.cost import CostVector
 
 
 class ToolClass(StrEnum):
@@ -95,6 +96,17 @@ class ToolResult(CoreModel):
     tool_version: str
     warnings: tuple[str, ...] = ()
 
+    #: §17.17's ACTUAL cost, when the tool is in a position to know it. `None` means *not reported*,
+    #: which is not the same as zero.
+    #:
+    #: WHY THIS IS OPTIONAL AND WHY THE DISPATCHER DOES NOT SUBSTITUTE THE ESTIMATE. §17.17 keeps
+    #: the estimate and the actual as two rows precisely so that systematic under-estimation stays
+    #: visible; copying the estimate into the actual would destroy the only evidence of it. So a
+    #: tool that measured its own consumption says so here, `BudgetedToolDispatcher` always adds the
+    #: wall-clock it measured itself, and any dimension neither of them can speak to is recorded as
+    #: zero with the span naming what went unmeasured.
+    actual_cost: CostVector | None = None
+
 
 class ToolDescriptor(CoreModel):
     """What a tool declares about itself before it may be registered.
@@ -119,6 +131,15 @@ class ToolDescriptor(CoreModel):
     #: `run_*` only. §17.4's Run records `conditions_schema_version`; a tool that executes without
     #: declaring one produces manifests that cannot be compared (EVI-005).
     conditions_schema_version: str | None = None
+
+    #: Non-`run_*` only. §17.18's `estimate_cost_contract` for a tool that has no Capability.
+    #:
+    #: COST-001 says the gate runs before *each LLM/tool call*, not before each expensive one. An
+    #: extractor is cheap and local and is still a tool call, so it still needs a price -- and
+    #: "we do not know what this costs" is what `evaluate_budget` refuses outright. A `run_*` tool
+    #: MUST NOT name one: §9.5 makes the Capability the authoritative estimator, and a second
+    #: contract on the descriptor would be two sources for one number.
+    cost_contract: str | None = None
 
     #: Opaque observable kind names. Core never interprets them (§24.1).
     requires: tuple[str, ...] = ()
@@ -170,7 +191,22 @@ class ToolDescriptor(CoreModel):
                     "that cannot be compared (EVI-005, SIM-001)"
                 )
             ConditionSchemaRef.parse(self.conditions_schema_version)
+            if self.cost_contract is not None:
+                raise ToolContractError(
+                    f"run tool {self.tool_id} names cost_contract {self.cost_contract!r} as well "
+                    f"as capability {self.capability_id}. §9.5 makes the Capability descriptor the "
+                    "authoritative estimator for a backend-bound tool; a second contract here "
+                    "would be two sources for one number, and they would be priced apart"
+                )
         else:
+            if self.cost_contract is None:
+                raise ToolContractError(
+                    f"{self.tool_class.value} tool {self.tool_id} names no cost_contract. COST-001 "
+                    "gates *each* tool call, not each expensive one -- a local extractor is cheap "
+                    "and is still a tool call. A zero CostVector is a legitimate answer; having no "
+                    "answer is not, because 'we do not know what this costs' is what the budget "
+                    "gate refuses outright"
+                )
             if self.capability_id is not None:
                 raise ToolContractError(
                     f"{self.tool_class.value} tool {self.tool_id} names capability "

@@ -112,9 +112,10 @@ def test_installing_the_pack_is_what_makes_the_rule_reachable():
     registries = DomainRegistries()
     assert registries.validators.registered() == ()
 
-    SiliconPhotonicsPack(runner=lambda request: None).register_validators(  # type: ignore[arg-type]
-        registries.validators
-    )
+    SiliconPhotonicsPack(
+        runner=lambda request: None,  # type: ignore[arg-type,return-value]
+        conditions=registries.conditions,
+    ).register_validators(registries.validators)
     assert registries.validators.registered() == ("validate_expected_trends",)
     resolved = registries.validators.resolve("validate_expected_trends")
     assert resolved.validator_version == "1.0.0"
