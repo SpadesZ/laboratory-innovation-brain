@@ -146,6 +146,23 @@ BINDINGS: tuple[SchemaBinding, ...] = (
         table="capabilities",
         migration="007c_capabilities.sql",
     ),
+    # M3 / LLM-002, VER-004. Both §17.19.2 blocks are exact, and `010c` was written to match them
+    # field for field -- which is what lets this guard hold the calibration fields of a hard gate
+    # and the membership of a declared OutcomeSpace to the spec rather than to a reviewer.
+    SchemaBinding(
+        section="17.19.2",
+        schema_name="OutcomeSpace",
+        model_path="lab_brain.core.models.prediction:OutcomeSpace",
+        table="outcome_spaces",
+        migration="010c_outcome_spaces_benchmark_policies.sql",
+    ),
+    SchemaBinding(
+        section="17.19.2",
+        schema_name="BenchmarkPolicy",
+        model_path="lab_brain.core.models.benchmark:BenchmarkPolicy",
+        table="benchmark_policies",
+        migration="010c_outcome_spaces_benchmark_policies.sql",
+    ),
 )
 
 
@@ -175,17 +192,35 @@ UNBOUND: dict[str, str] = {
     "so there is no DDL side to compare against.",
     "Hypothesis": "§17.5 declares `status_projection` and `belief_level_projection`, and the same "
     "block four lines later says status is rebuilt from BeliefRevisionEvent + TransitionPolicy. "
-    "The model deliberately omits both: a stored, writable status is the bypass T-SYS-001 requires "
-    "be rejected, so the projection lives in EpistemicStateProjection where it is derived. The "
-    "model also carries project_id, which §17.5 omits, and there is no DDL side -- the Hypothesis "
-    "table lands with EPI-001's admission gate in M3. Bindable once §17.5 states the two "
-    "projections as derived references and the table exists.",
-    "Prediction": "§17.5.1's Prediction is not persisted in M0b -- VER-006's §26 row is "
-    "contract/unit, and the table is the other half of Appendix A's 011 slot, landing with the "
-    "Verification Planner. The model also carries project_id, which §17.5.1 omits for the same "
-    "reason §17.8 omits it on RelationJudgment. Bindable when that migration lands.",
-    "OutcomeSpace": "§17.19.2 declares it and M0b uses it as an in-memory admission check for "
-    "VER-006, storing none, so there is no DDL side. Bindable with the BenchmarkPolicy tables.",
+    "Neither the model nor `005e`'s `hypotheses` table stores them: a stored, writable status is "
+    "the bypass T-SYS-001 requires be rejected, so the projection lives in "
+    "EpistemicStateProjection where it is derived. Both also carry project_id, which §17.5 omits; "
+    "the table stores `prediction_ids` as the `predictions` rows that reference it (so a reference "
+    "always resolves) and adds `hypothesis_set_id`, `authored_by_actor_id` and `created_at`, which "
+    "EPI-001's competing set and P12's human authorship need. Bindable once §17.5 states the two "
+    "projections as derived references.",
+    "Prediction": "§17.5.1's block omits project_id, which the model and `011i`'s table carry for "
+    "the reason §17.8 omits it on RelationJudgment and every other scoped table adds it (SEC-002), "
+    "and the table adds `created_at` as an audit field. Otherwise exact. Bindable once §17.5.1 "
+    "states the scope key.",
+    "Position": "§17.14.1's block reaches the project through `episode_id` and declares no audit "
+    "time; the model and `005e`'s `positions` table add `project_id` (SEC-002 scopes every read "
+    "by project) and `created_at`. Otherwise exact. Bindable once §17.14.1 states the scope key.",
+    "CritiqueReport": "§17.14.1's block omits the scope keys (`project_id`, `episode_id`) and "
+    "the two fields that make §7.6's independence checkable: `original_inference_id` (which "
+    "inference was critiqued) and `differs_in` (the axes, derived from the two provenance rows and "
+    "re-derived by `005e`). Without them a critique cannot exhibit independence, only claim it. "
+    "Bindable once §17.14.1 states them.",
+    "PriorArtSearchRecord": "§17.20's block reaches the project through `episode_id`; the model "
+    "and `002b`'s table add `project_id` for SEC-002's project-scoped reads, and are otherwise "
+    "exact. Bindable once §17.20 states the scope key.",
+    "DisagreementMetric": "§17.19.2 writes `deterministic:true` as one token, which this parser "
+    "cannot read as a field name, and the model adds `outcome_space_version` because a metric "
+    "defined over one OutcomeSpace version is undefined on outcomes a later version adds. There "
+    "is no DDL side: VER-008's §26 row is unit, and the registry tabulates the metric in memory.",
+    "ResearchContract": "§17.14.1's block and the model agree field for field, and there is no DDL "
+    "side: M3 carries the Supervisor's contract in memory for one debate, and it is persisted with "
+    "§17.14.1's VerificationPlan in M4.",
     "ValidationReport": "§17.19.2 writes `status:PASS|WARN|FAIL|UNKNOWN` as one token, which this "
     "parser cannot read as a field name -- so the canonical set comes back as nine fields against "
     "an implementation of ten and `status` is reported as undeclared. The same shape as §17.16's "

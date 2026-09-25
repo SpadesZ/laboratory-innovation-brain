@@ -38,6 +38,21 @@ _TABLES = (
     # ADR-0011 keeps out of this direction.
     "retrieval_representations",
     "evidence_units",
+    # M3 (`005e`, `011i`, `002b`, `010c`). Child first, and all append-only, so TRUNCATE is the
+    # only way to clear them. `predictions` and the debate objects reference `hypotheses`, which
+    # references `hypothesis_sets` and `inference_provenance`; the novelty status references the
+    # search. Outcome spaces and benchmark policies are not project-scoped, so nothing cascades
+    # them away -- a threshold left behind would arm the next test's gate.
+    "novelty_assessments",
+    "prior_art_search_records",
+    "debate_records",
+    "critique_reports",
+    "positions",
+    "predictions",
+    "hypotheses",
+    "hypothesis_sets",
+    "benchmark_policies",
+    "outcome_spaces",
     "belief_revision_event_attestations",
     "belief_revision_event_relations",
     "belief_revision_events",

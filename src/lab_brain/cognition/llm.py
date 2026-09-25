@@ -43,10 +43,11 @@ could write belief directly would make every other gate optional.
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
+from lab_brain.core.canonical_json import canonical_hash, canonicalize
 from lab_brain.core.models.base import utc_now
 from lab_brain.core.models.enums import SensitivityLabel
 from lab_brain.core.models.evidence_bundle import EvidenceBundle
@@ -179,6 +180,7 @@ class ScientificLLM:
         escalate: frozenset[SensitivityLabel] = frozenset(),
         parameters: dict[str, object] | None = None,
         now: dt.datetime | None = None,
+        context: Mapping[str, object] | None = None,
     ) -> ScientificOutput:
         """Make a scientific call. Refuses before spending anything if provenance is impossible.
 
@@ -195,7 +197,16 @@ class ScientificLLM:
         ``escalate`` adds labels and cannot remove them -- the effective set is a union, so a
         caller worried that a bundle understates what it is sending can say so, and a caller
         hoping to understate it has no operator available.
+
+        ``context`` (M3) is what a role actually reasons over -- the question, the evidence text of
+        the bundle's attestations, the positions under examination. It is rendered AFTER the
+        template as canonical JSON, and three things follow from it being part of the call rather
+        than a side channel: it is what the egress gate digests (it is what leaves), it is what the
+        transport receives, and its hash is recorded in the provenance's ``parameters`` so the
+        inference names the exact context it was produced from. With no context the call is
+        byte-for-byte M1's: the template alone, and no ``context_hash``.
         """
+        rendered, context_hash = _render(context)
         if bundle is None:
             raise LLMRefusal(
                 LLMRefusalReason.NO_EVIDENCE_BUNDLE,
@@ -235,15 +246,19 @@ class ScientificLLM:
         classification = self._classifier.require_bundle(
             bundle, project_id=project_id, declared=escalate
         )
+        material = prompt.template if rendered is None else prompt.template + rendered
         effect = ExternalEffect(
             project_id=project_id,
             actor_id=actor_id,
             provider_id=configured.provider or configured.model_id,
             classification=classification,
-            material=prompt.template,
+            material=material,
             reach=configured.reach,
         )
-        text = self._runner.execute(effect, lambda: self._complete(prompt.template, configured))
+        text = self._runner.execute(effect, lambda: self._complete(material, configured))
+        recorded = dict(parameters or {})
+        if context_hash is not None:
+            recorded["context_hash"] = context_hash
 
         # Built from the CALL's inputs, never from the model's reply. A model asked to describe
         # its own provenance is being asked to be its own witness.
@@ -258,7 +273,7 @@ class ScientificLLM:
             prompt_version=prompt.prompt_version,
             evidence_bundle_hash=bundle.canonical_hash,
             source_policy_version=self._source_policy_version,
-            parameters=dict(parameters or {}),
+            parameters=recorded,
             created_at=now or utc_now(),
             trace_id=trace_id,
         )
@@ -277,6 +292,7 @@ class ScientificLLM:
         escalate: frozenset[SensitivityLabel] = frozenset(),
         slot: LogicalSlot = LogicalSlot.CRITIQUE,
         now: dt.datetime | None = None,
+        context: Mapping[str, object] | None = None,
     ) -> ScientificOutput:
         """§7.6's independent critique path.
 
@@ -296,6 +312,7 @@ class ScientificLLM:
             actor_id=actor_id,
             escalate=escalate,
             now=now,
+            context=context,
         )
         if not output.provenance.route_differs_from(original):
             raise LLMRefusal(
@@ -306,6 +323,17 @@ class ScientificLLM:
                 "not independent corroboration",
             )
         return output
+
+
+def _render(context: Mapping[str, object] | None) -> tuple[str | None, str | None]:
+    """The context block appended to a template, and its hash. ``(None, None)`` for no context.
+
+    Canonical JSON (RFC 8785), so the rendered text -- and therefore what leaves, what the model
+    sees and what the hash names -- does not depend on dict ordering in the caller.
+    """
+    if context is None:
+        return None, None
+    return "\n\nCONTEXT:\n" + canonicalize(dict(context)), canonical_hash(dict(context))
 
 
 @dataclass(frozen=True)

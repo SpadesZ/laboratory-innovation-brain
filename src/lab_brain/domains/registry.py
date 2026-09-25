@@ -84,6 +84,10 @@ class DomainPackRegistry:
         pack.register_capabilities(self._registries.capabilities)
         pack.register_tools(self._registries.tools)
         pack.register_benchmarks(self._registries.benchmarks)
+        # M3. After tools and capabilities, because nothing depends on them yet, and last because a
+        # metric binds to an OutcomeSpace the same call declares.
+        pack.register_specialists(self._registries.specialists)
+        pack.register_disagreement_metrics(self._registries.disagreement_metrics)
 
         self._packs[pack.id] = pack
         return pack

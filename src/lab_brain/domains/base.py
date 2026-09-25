@@ -6,12 +6,13 @@
                      extension boundary 失敗。
 
 WHAT A PACK MAY DO, AND WHY THE LIST IS SHORT. §24.3 declares nineteen `register_*` / decision
-methods. This protocol declares the subset M2 actually authorises -- condition schema, authority
-policy, backend validity, validators, metric extractors, capabilities, tools -- and nothing else.
-The rest (`register_specialists`, `register_workflows`, `register_disagreement_metrics`,
-`declared_outcome_space`, `disagreement_metric`) belong to M3 and M4, and declaring them now would
-mean either a Protocol nobody implements or a `pass` in every pack, which is a contract that has
-stopped being one.
+methods. This protocol declares the subset M2 authorised -- condition schema, authority policy,
+backend validity, validators, metric extractors, capabilities, tools -- plus the two M3 authorises:
+`register_specialists` (§7.1's "N Domain Specialists", §26.1's "selected Domain Specialists") and
+`register_disagreement_metrics` (VER-008). `register_workflows`, `declared_outcome_space` and
+`disagreement_metric` remain M4's, and declaring them now would mean a `pass` in every pack, which
+is a contract that has stopped being one. OutcomeSpaces reach the registry through
+`register_disagreement_metrics`, because a metric is bound to one and they are declared together.
 
 `DomainRegistries` IS THE WHOLE EXTENSION SURFACE. A pack receives it, writes into it, and has no
 other way in: it is handed no repository, no connection, no store and no projection. That is the
@@ -39,11 +40,13 @@ from typing import Protocol, runtime_checkable
 
 from lab_brain.core.authority import AuthorityPolicyRegistry
 from lab_brain.core.models.validation import ValidationReport
+from lab_brain.core.specialists import SpecialistRegistry, SpecialistRole
 from lab_brain.evidence.condition_schema_registry import ConditionSchemaRegistry
 from lab_brain.tools.extraction import MetricExtractor
 from lab_brain.tools.registry import ToolRegistry
 from lab_brain.tools.simulation import BackendValidityRegistry
 from lab_brain.verification.capability_registry import CapabilityRegistry
+from lab_brain.verification.disagreement import DisagreementMetricRegistry
 
 
 class DomainInstallError(RuntimeError):
@@ -204,6 +207,11 @@ class DomainRegistries:
     capabilities: CapabilityRegistry = field(default_factory=CapabilityRegistry)
     tools: ToolRegistry = field(default_factory=ToolRegistry)
     benchmarks: BenchmarkRegistry = field(default_factory=BenchmarkRegistry)
+    #: M3. §7.1's Domain Specialists and VER-008's metrics (with the OutcomeSpaces they bind to).
+    specialists: SpecialistRegistry = field(default_factory=SpecialistRegistry)
+    disagreement_metrics: DisagreementMetricRegistry = field(
+        default_factory=DisagreementMetricRegistry
+    )
 
 
 @runtime_checkable
@@ -239,6 +247,10 @@ class DomainPack(Protocol):
 
     def register_benchmarks(self, registry: BenchmarkRegistry) -> None: ...
 
+    def register_specialists(self, registry: SpecialistRegistry) -> None: ...
+
+    def register_disagreement_metrics(self, registry: DisagreementMetricRegistry) -> None: ...
+
 
 __all__ = [
     "BenchmarkRegistry",
@@ -247,5 +259,7 @@ __all__ = [
     "DomainRegistries",
     "DomainValidator",
     "ExtractorRegistry",
+    "SpecialistRegistry",
+    "SpecialistRole",
     "ValidatorRegistry",
 ]

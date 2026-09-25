@@ -44,6 +44,19 @@ class LogicalSlot(StrEnum):
     RELATION = "RELATION"
     EMBEDDING = "EMBEDDING"
 
+    # §7.3's own slot names (M3, migration `003e`). The seven values above were recorded before
+    # routing existed and name the FUNCTION a call served; §7.3 names the ROUTE -- which pluggable
+    # model a role is sent to -- and M3's roles are routed by it (`lab_brain.cognition.routing`).
+    # `003d`'s CHECK accepted only the values above, so §7.3's slots were unrecordable in the
+    # field §17.14 defines for them. The fix is additive: M1's records keep their values and stay
+    # readable; nothing that wrote one of them changes.
+    REASONING_PRIMARY = "REASONING_PRIMARY"
+    REASONING_ADVERSARIAL = "REASONING_ADVERSARIAL"
+    FAST_UTILITY = "FAST_UTILITY"
+    CODE = "CODE"
+    PRIVATE_LOCAL = "PRIVATE_LOCAL"
+    VISION = "VISION"
+
 
 class InferenceProvenance(CoreModel):
     """§17.14, field for field.

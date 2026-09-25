@@ -32,6 +32,7 @@ from decimal import Decimal
 from typing import Any, ClassVar, Final
 
 from lab_brain.core.authority import AuthorityPolicyRegistry
+from lab_brain.core.models.benchmark import DisagreementMetric
 from lab_brain.core.models.capability import ActionType, Capability
 from lab_brain.core.models.condition import (
     ConditionMatch,
@@ -39,6 +40,7 @@ from lab_brain.core.models.condition import (
 )
 from lab_brain.core.models.cost import CostVector
 from lab_brain.core.models.enums import AuthorityComparison, ConditionMatchState, FieldStatus
+from lab_brain.core.models.prediction import OutcomeSpace
 from lab_brain.core.models.validation import (
     ValidationFinding,
     ValidationReport,
@@ -48,6 +50,8 @@ from lab_brain.core.models.validation import (
 from lab_brain.domains.base import (
     BenchmarkRegistry,
     ExtractorRegistry,
+    SpecialistRegistry,
+    SpecialistRole,
     ValidatorRegistry,
 )
 from lab_brain.evidence.condition_schema_registry import ConditionSchemaRegistry
@@ -60,6 +64,7 @@ from lab_brain.tools.extraction import (
 from lab_brain.tools.registry import ToolRegistry
 from lab_brain.tools.simulation import BackendValidityRegistry, BackendValiditySchema
 from lab_brain.verification.capability_registry import CapabilityRegistry
+from lab_brain.verification.disagreement import DisagreementMetricRegistry
 
 TOY_DOMAIN: Final = "toy_widgets"
 TOY_VERSION: Final = "1.0.0"
@@ -82,6 +87,42 @@ TOY_SIDEBAND: Final = "TOY_SIDEBAND"
 TOY_AUTHORITY_CLASSES: Final = (TOY_SIDEBAND, TOY_TIER_A, TOY_TIER_B)
 
 TOY_RULE: Final = "TOY-RULE-001"
+
+#: M3 / VER-008. The ToyDomain's OutcomeSpace and metric. CATEGORICAL, deliberately unlike the
+#: Silicon Photonics pack's ordinal distance: VER-008's "two domains may register different
+#: metrics and neither is core-supplied" needs two metrics that actually differ.
+TOY_OUTCOME_SPACE: Final = "os:toy.widget_verdict"
+TOY_OUTCOMES: Final = ("STIFF", "FLOPPY", "BROKEN")
+TOY_METRIC: Final = "dm:toy.categorical_mismatch"
+
+
+class ToyCategoricalMismatch:
+    """0 when two predictions agree, 1 when they differ. No order, because the outcomes have none."""
+
+    @property
+    def declaration(self) -> DisagreementMetric:
+        return DisagreementMetric(
+            metric_id=TOY_METRIC,
+            outcome_space_id=TOY_OUTCOME_SPACE,
+            outcome_space_version="1.0.0",
+            implementation_ref="tests.toy_domain:ToyCategoricalMismatch",
+            version="1.0.0",
+        )
+
+    def distance(self, a: str, b: str) -> Decimal:
+        return Decimal(0) if a == b else Decimal(1)
+
+
+TOY_SPECIALIST: Final = SpecialistRole(
+    role_id="toy.specialist.widgets",
+    domain=TOY_DOMAIN,
+    description="widget mechanics",
+    prompt_id="prm:toy.specialist.widgets",
+    prompt_version="1.0.0",
+    prompt_template="You are the widget specialist.",
+    evidence_domains=(TOY_DOMAIN,),
+    focus_terms=("blip", "stiffness"),
+)
 
 
 class ToyConditionComparator:
@@ -410,6 +451,21 @@ class ToyDomainPack:
 
     def register_benchmarks(self, registry: BenchmarkRegistry) -> None:
         registry.register("bench:toy.widgets", "tests/fixtures/toy_widgets/")
+
+    def register_specialists(self, registry: SpecialistRegistry) -> None:
+        registry.register(TOY_SPECIALIST)
+
+    def register_disagreement_metrics(self, registry: DisagreementMetricRegistry) -> None:
+        registry.declare_space(
+            OutcomeSpace(
+                outcome_space_id=TOY_OUTCOME_SPACE,
+                version="1.0.0",
+                domain=TOY_DOMAIN,
+                action_type="MEASUREMENT",
+                outcomes=TOY_OUTCOMES,
+            )
+        )
+        registry.register(ToyCategoricalMismatch())
 
 
 __all__ = [

@@ -27,6 +27,7 @@ from lab_brain.core.models.belief_event import (
     BeliefState,
     BeliefTargetType,
 )
+from lab_brain.core.models.benchmark import BenchmarkPolicy, DisagreementMetric, MetricDirection
 from lab_brain.core.models.capability import ActionType, Availability, Capability
 from lab_brain.core.models.claim import Claim
 from lab_brain.core.models.condition import (
@@ -43,6 +44,16 @@ from lab_brain.core.models.cost import (
     CostKind,
     CostVector,
     DependencyRisk,
+)
+from lab_brain.core.models.debate import (
+    CritiqueReport,
+    FalsifierChallenge,
+    Objection,
+    ObjectionKind,
+    ObjectionSeverity,
+    Position,
+    ProposedPrediction,
+    ResearchContract,
 )
 from lab_brain.core.models.enums import (
     FACTUAL_EPISTEMIC_TYPES,
@@ -105,6 +116,7 @@ from lab_brain.core.models.hypothesis import (
     FORBIDDEN_STATUS_FIELDS,
     Hypothesis,
 )
+from lab_brain.core.models.hypothesis_set import HypothesisSet
 from lab_brain.core.models.identifiers import (
     ContentHashError,
     artifact_id_for,
@@ -134,6 +146,16 @@ from lab_brain.core.models.prediction import (
     Prediction,
     PredictionAdmissionError,
     RelationJudgmentTemplate,
+)
+from lab_brain.core.models.prior_art import (
+    DateRange,
+    NoveltyAssessment,
+    NoveltyScope,
+    NoveltyStatus,
+    PriorArtMatch,
+    PriorArtOverlap,
+    PriorArtSearchRecord,
+    PriorArtSource,
 )
 from lab_brain.core.models.relation import (
     EPISTEMIC_RELATION_TYPES,
@@ -191,6 +213,7 @@ __all__ = [
     "BeliefRevisionEvent",
     "BeliefState",
     "BeliefTargetType",
+    "BenchmarkPolicy",
     "BudgetCaps",
     "Capability",
     "Claim",
@@ -206,7 +229,10 @@ __all__ = [
     "CostEntry",
     "CostKind",
     "CostVector",
+    "CritiqueReport",
+    "DateRange",
     "DependencyRisk",
+    "DisagreementMetric",
     "EpistemicType",
     "EvidenceBundle",
     "EvidenceField",
@@ -216,12 +242,14 @@ __all__ = [
     "ExecutionSpan",
     "ExtractionProvenance",
     "ExtractionStatus",
+    "FalsifierChallenge",
     "FieldStatus",
     "FigureContext",
     "GovernanceEvent",
     "GovernanceEventType",
     "GovernanceSubjectType",
     "Hypothesis",
+    "HypothesisSet",
     "HypothesisView",
     "IndependenceBasis",
     "IndependenceRelation",
@@ -230,14 +258,28 @@ __all__ = [
     "JobState",
     "JobTransitionError",
     "LicenseClass",
+    "MetricDirection",
+    "NoveltyAssessment",
+    "NoveltyScope",
+    "NoveltyStatus",
+    "Objection",
+    "ObjectionKind",
+    "ObjectionSeverity",
     "Observation",
     "OutcomeSpace",
+    "Position",
     "Prediction",
     "PredictionAdmissionError",
+    "PriorArtMatch",
+    "PriorArtOverlap",
+    "PriorArtSearchRecord",
+    "PriorArtSource",
     "ProjectMembership",
+    "ProposedPrediction",
     "RelationJudgment",
     "RelationJudgmentTemplate",
     "RelationType",
+    "ResearchContract",
     "ResearchIntent",
     "ResolutionEventKind",
     "RetractionCheck",

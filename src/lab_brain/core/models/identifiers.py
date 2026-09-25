@@ -78,6 +78,17 @@ _ID_PREFIXES: Final[dict[str, str]] = {
     # same Job acquiring a seat, releasing it and acquiring one again is two allocations, and a
     # contention audit asks which one was held when a third job was refused.
     "resource_lease": "lse",
+    # M3 / §17.14.1, EPI-001, LLM-002, SRC-003. All event-addressed: a second debate over the same
+    # question is a second debate, and a second prior-art search over the same concept is a second
+    # search with its own coverage -- collapsing either into one identity would hide the repeat.
+    "hypothesis_set": "hst",
+    "prediction": "prd",
+    "position": "pos",
+    "critique": "crq",
+    "debate": "dbt",
+    "prior_art_search": "pas",
+    "novelty_assessment": "nov",
+    "research_contract": "rct",
 }
 
 

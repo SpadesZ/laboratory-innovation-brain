@@ -21,6 +21,10 @@ neither.
                                 writes no ledger row. A `run_*` request that names none is refused.
     resolve the estimate        §9.5 for `run_*` (its Capability), the descriptor's declared
                                 `cost_contract` otherwise. No estimate -> no dispatch.
+    critique an irreversible    M3 / SRC-002: an irreversible Capability -- or an estimate that says
+      action                    irreversible -- needs a completed independent critique, checked by
+                                M0b's `core.critique_gate`, BEFORE the gate; a human or budget
+                                approval does not substitute. Reversible actions are untouched.
     build the BudgetRequest     caps, session consumption, approval -- all passed in, so the
                                 decision stays replayable from the audit record.
     dispatch_action             opens the span, asks the gate, and calls `perform` ONLY on ALLOW.
@@ -48,7 +52,7 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 from lab_brain.core.budget import (
     BudgetApproval,
@@ -57,9 +61,19 @@ from lab_brain.core.budget import (
     BudgetPolicy,
     BudgetRequest,
 )
+from lab_brain.core.critique_gate import (
+    Adjudicator,
+    CritiqueAxis,
+    CritiqueRecord,
+    DispatchRequest,
+    HumanApproval,
+    Reversibility,
+    evaluate_dispatch,
+)
 from lab_brain.core.dispatch import ActionOutcome, DispatchableAction, dispatch_action
 from lab_brain.core.models.access import Actor, ProjectMembership
 from lab_brain.core.models.cost import CostVector
+from lab_brain.core.models.debate import CritiqueReport
 from lab_brain.core.models.execution_span import ExecutionSpan, SpanType
 from lab_brain.core.repositories.budget import CostLedger
 from lab_brain.core.repositories.jobs import JobStore
@@ -118,6 +132,11 @@ class ToolAction:
     approver_membership: ProjectMembership | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    #: M3 / SRC-002. The independent CritiqueReport an IRREVERSIBLE action was examined by. Ignored
+    #: for a reversible one. Named rather than embedded so the dispatcher reloads the durable record
+    #: and a caller cannot hand it a critique that was never stored.
+    critique_id: str | None = None
+
 
 @dataclass(frozen=True)
 class ToolDispatchResult:
@@ -160,7 +179,11 @@ class BudgetedToolDispatcher:
         jobs: JobStore,
         claims: BudgetApprovalClaims | None,
         now: Callable[[], dt.datetime],
+        critiques: CritiqueLookup | None = None,
     ) -> None:
+        #: M3 / SRC-002. Optional because only an IRREVERSIBLE action consults it, and fail-closed:
+        #: an irreversible action dispatched through a dispatcher with no critique store is refused.
+        self._critiques = critiques
         self._tools = tools
         self._capabilities = capabilities
         self._spans = spans
@@ -271,6 +294,9 @@ class BudgetedToolDispatcher:
 
         estimate = self.estimate_for(action.tool_id, action.estimate_params)
 
+        # §7.6's second trigger, before the gate. See `_require_independent_critique`.
+        self._require_independent_critique(action, descriptor, estimate)
+
         # Captured by the closure below. `dispatch_action` returns its own result and knows nothing
         # about tools, so this is how the typed result comes back out.
         captured: dict[str, ToolResult] = {}
@@ -340,6 +366,80 @@ class BudgetedToolDispatcher:
         )
 
     # -- internals ----------------------------------------------------------
+
+    def _require_independent_critique(
+        self, action: ToolAction, descriptor: ToolDescriptor, estimate: CostVector
+    ) -> None:
+        """SRC-002 / §7.6: an irreversible action does not dispatch without independent critique.
+
+        THE EXTENSION POINT M0b NAMED. `core.dispatch` says the critique gate "is where it will
+        attach" and left it uncalled (risk R-8) because SRC-002 is M3. `dispatch_action` is
+        hard-locked, and this dispatcher is the one production path to a tool, so it attaches here,
+        before the gate -- no span, no ledger row, no approval consumed on a refusal.
+
+        IRREVERSIBILITY IS DECLARED, NEVER INFERRED: the Capability's `irreversible` flag, or the
+        estimate's (§9.4). Either is enough; a reversible action passes through untouched, which is
+        why no M2 behaviour changes.
+
+        THE DECISION IS M0b's `evaluate_dispatch`, not a second rule. This builds its
+        `DispatchRequest` from the durable CritiqueReport: the axes are the ones `005e` verified,
+        and the adjudicator is EXTERNAL_EVIDENCE only when the critique cites evidence -- a
+        critique citing nothing was settled by model opinion, which §7.6 refuses. A budget
+        approval rides along as the `human_approval` so the refusal can say, in words, that it did
+        not substitute.
+        """
+        irreversible = estimate.irreversible
+        if descriptor.tool_class is ToolClass.RUN and descriptor.capability_id is not None:
+            capability = self._capabilities.resolve(descriptor.capability_id)
+            irreversible = irreversible or capability.irreversible
+        if not irreversible:
+            return
+        record: CritiqueRecord | None = None
+        if action.critique_id is not None:
+            critique = (
+                self._critiques.get_critique(action.critique_id)
+                if self._critiques is not None
+                else None
+            )
+            if critique is None:
+                raise ToolDispatchRefused(
+                    f"irreversible action {action.action_ref} names critique {action.critique_id}, "
+                    "which is not durably recorded (or no critique store is wired). SRC-002: the "
+                    "critique must be completed, and a completed critique is a stored one"
+                )
+            if (critique.project_id, critique.episode_id) != (
+                action.project_id,
+                action.episode_id,
+            ):
+                raise ToolDispatchRefused(
+                    f"critique {critique.critique_id} belongs to {critique.project_id}/"
+                    f"{critique.episode_id}, not to the action's {action.project_id}/"
+                    f"{action.episode_id}; a critique of another decision examined nothing here"
+                )
+            record = CritiqueRecord(
+                critique_id=critique.critique_id,
+                differs_in=frozenset(CritiqueAxis(axis) for axis in critique.differs_in),
+                adjudicated_by=_adjudicator(critique),
+            )
+        approval = action.approval
+        decision = evaluate_dispatch(
+            DispatchRequest(
+                action_id=action.action_ref,
+                reversibility=Reversibility.IRREVERSIBLE,
+                causes_belief_revision=False,
+                critique=record,
+                human_approval=(
+                    HumanApproval(
+                        actor_id=approval.approver_actor_id,
+                        approved_at=approval.granted_at.isoformat(),
+                    )
+                    if approval is not None
+                    else None
+                ),
+            )
+        )
+        if not decision.allowed:
+            raise ToolDispatchRefused(decision.reason)
 
     def _bind_to_durable_job(self, action: ToolAction, descriptor: ToolDescriptor) -> None:
         """The Episode that pays must be the Episode whose Job executes, decided BEFORE the gate.
@@ -423,8 +523,22 @@ class BudgetedToolDispatcher:
         )
 
 
+class CritiqueLookup(Protocol):
+    """What the dispatcher needs from the debate store: a durable CritiqueReport by id."""
+
+    def get_critique(self, critique_id: str) -> CritiqueReport | None: ...
+
+
+def _adjudicator(critique: CritiqueReport) -> Adjudicator:
+    """§7.6: EXTERNAL_EVIDENCE when the critique cites evidence, MODEL_OPINION otherwise."""
+    if critique.cited_attestation_ids:
+        return Adjudicator.EXTERNAL_EVIDENCE
+    return Adjudicator.MODEL_OPINION
+
+
 __all__ = [
     "BudgetedToolDispatcher",
+    "CritiqueLookup",
     "ToolAction",
     "ToolDispatchRefused",
     "ToolDispatchResult",

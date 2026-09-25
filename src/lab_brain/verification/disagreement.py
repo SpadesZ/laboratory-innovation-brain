@@ -1,0 +1,302 @@
+"""VER-008: disagreement metrics are declared, versioned, bound to an OutcomeSpace, deterministic.
+
+    VER-008  Any DisagreementMetric used for verification ranking MUST be bound to a declared
+             OutcomeSpace, MUST carry a version, and MUST be deterministic: identical input plus
+             identical metric version MUST yield an identical result. Core MUST NOT hard-code one
+             universal distance.
+    §9.2     排序依據為：1 能否改變決策 2 預測分歧程度（DomainPack 宣告的 disagreement metric）...
+
+DETERMINISM BY CONSTRUCTION, NOT BY PROMISE. A declared OutcomeSpace is a FINITE tuple of outcomes,
+so a metric over it is a finite table. The registry evaluates the domain's implementation over every
+pair of admitted outcomes at registration -- twice -- and refuses it if the two passes disagree, if
+a value is not a finite non-negative Decimal, if d(x, x) is not zero, or if d(x, y) != d(y, x). What
+it keeps is the TABLE. Every later ranking reads the table and never calls the implementation again,
+so "identical input plus identical metric version yields an identical result" cannot fail at use
+time: there is nothing left that could vary.
+
+CORE SHIPS NO METRIC. The registry starts empty and core defines no implementation; a DomainPack
+registers one through §24.3's `register_disagreement_metrics`. `tests/unit/test_disagreement_
+metrics.py` parses `lab_brain.core` and `lab_brain.verification` and fails if either defines a
+metric implementation -- "Core does not hard-code one universal distance" (§9.1).
+
+WHAT THE RANKING DOES AND DOES NOT DECIDE. `rank_by_disagreement` orders candidate actions by how
+far apart the surviving hypotheses' declared predictions over the action's observable are, under the
+metric the domain declared for that OutcomeSpace. It does not decide sufficiency (§9.1, VER-006's
+`evaluate_sufficiency` does), Pareto dominance or the SelectionPolicy (VER-005, M4). It is §9.2's
+second criterion, and an action whose observable has no declared metric is ranked AFTER every action
+that has one, with its disagreement reported as unknown rather than zero.
+"""
+
+from __future__ import annotations
+
+import itertools
+from collections.abc import Sequence
+from dataclasses import dataclass
+from decimal import Decimal
+from typing import Protocol, runtime_checkable
+
+from lab_brain.core.models.benchmark import DisagreementMetric
+from lab_brain.core.models.prediction import OutcomeSpace, Prediction
+
+
+class DisagreementMetricError(ValueError):
+    """A metric is undeclared, unbound, unversioned or not deterministic -- or was misapplied."""
+
+
+@runtime_checkable
+class DisagreementMetricImplementation(Protocol):
+    """What a DomainPack supplies: the declaration, and the distance it declares."""
+
+    @property
+    def declaration(self) -> DisagreementMetric: ...
+
+    def distance(self, a: str, b: str) -> Decimal: ...
+
+
+@dataclass(frozen=True)
+class TabulatedMetric:
+    """A registered metric, frozen as the table of its values over the declared outcomes."""
+
+    declaration: DisagreementMetric
+    outcome_space: OutcomeSpace
+    table: tuple[tuple[str, str, Decimal], ...]
+
+    @property
+    def ref(self) -> str:
+        return self.declaration.ref
+
+    def distance(self, a: str, b: str) -> Decimal:
+        for x, y, value in self.table:
+            if (x, y) == (a, b):
+                return value
+        raise DisagreementMetricError(
+            f"metric {self.ref} is defined over {self.outcome_space.ref}'s admitted outcomes "
+            f"{sorted(_admitted(self.outcome_space))}; ({a!r}, {b!r}) is outside it. VER-004: an "
+            "outcome that is merely imaginable is not in the space"
+        )
+
+
+def _admitted(space: OutcomeSpace) -> tuple[str, ...]:
+    return tuple(o for o in space.outcomes if space.admits(o))
+
+
+class DisagreementMetricRegistry:
+    """Declared OutcomeSpaces and the metrics bound to them. Empty until a DomainPack writes."""
+
+    def __init__(self) -> None:
+        self._spaces: dict[tuple[str, str], OutcomeSpace] = {}
+        self._metrics: dict[tuple[str, str], TabulatedMetric] = {}
+
+    # -- outcome spaces -------------------------------------------------------------------------
+
+    def declare_space(self, space: OutcomeSpace) -> OutcomeSpace:
+        key = (space.outcome_space_id, space.version)
+        existing = self._spaces.get(key)
+        if existing is not None and existing != space:
+            raise DisagreementMetricError(
+                f"outcome space {space.ref} is already declared with different membership; a "
+                "changed space is a new version"
+            )
+        self._spaces[key] = space
+        return space
+
+    def outcome_space(self, outcome_space_id: str, version: str) -> OutcomeSpace | None:
+        return self._spaces.get((outcome_space_id, version))
+
+    def declared_spaces(self) -> tuple[OutcomeSpace, ...]:
+        return tuple(self._spaces[k] for k in sorted(self._spaces))
+
+    # -- metrics --------------------------------------------------------------------------------
+
+    def register(self, implementation: DisagreementMetricImplementation) -> TabulatedMetric:
+        if not isinstance(implementation, DisagreementMetricImplementation):
+            raise DisagreementMetricError(
+                f"{implementation!r} does not expose a DisagreementMetric declaration and a "
+                "distance; VER-008 ranks only by a declared metric"
+            )
+        declaration = implementation.declaration
+        space = self._spaces.get((declaration.outcome_space_id, declaration.outcome_space_version))
+        if space is None:
+            raise DisagreementMetricError(
+                f"metric {declaration.ref} is bound to outcome space "
+                f"{declaration.outcome_space_ref}, which has not been declared. VER-008: a metric "
+                "MUST be bound to a DECLARED OutcomeSpace"
+            )
+        key = (declaration.metric_id, declaration.version)
+        existing = self._metrics.get(key)
+        table = self._tabulate(implementation, space)
+        if existing is not None:
+            if existing.table != table or existing.declaration != declaration:
+                raise DisagreementMetricError(
+                    f"metric {declaration.ref} is already registered with different values; a "
+                    "changed metric is a new version, or identical input under one version would "
+                    "stop yielding an identical result"
+                )
+            return existing
+        tabulated = TabulatedMetric(declaration=declaration, outcome_space=space, table=table)
+        self._metrics[key] = tabulated
+        return tabulated
+
+    def metric(self, metric_id: str, version: str) -> TabulatedMetric:
+        found = self._metrics.get((metric_id, version))
+        if found is None:
+            raise DisagreementMetricError(f"no disagreement metric {metric_id}@{version}")
+        return found
+
+    def for_space(self, outcome_space_id: str, version: str) -> TabulatedMetric | None:
+        """The metric declared for one OutcomeSpace version, or `None` if the domain declared none.
+
+        More than one metric for one space is refused at lookup: a ranking that silently picked one
+        of two would make the answer depend on registration order.
+        """
+        bound = [
+            m
+            for m in self._metrics.values()
+            if (m.declaration.outcome_space_id, m.declaration.outcome_space_version)
+            == (outcome_space_id, version)
+        ]
+        if len(bound) > 1:
+            raise DisagreementMetricError(
+                f"outcome space {outcome_space_id}@{version} has {len(bound)} metrics "
+                f"({sorted(m.ref for m in bound)}); ranking needs the one the domain declared"
+            )
+        return bound[0] if bound else None
+
+    def registered(self) -> tuple[str, ...]:
+        return tuple(sorted(m.ref for m in self._metrics.values()))
+
+    def __len__(self) -> int:
+        return len(self._metrics)
+
+    @staticmethod
+    def _tabulate(
+        implementation: DisagreementMetricImplementation, space: OutcomeSpace
+    ) -> tuple[tuple[str, str, Decimal], ...]:
+        """Evaluate every pair twice; refuse anything that is not a deterministic distance."""
+        ref = implementation.declaration.ref
+        outcomes = _admitted(space)
+        rows: list[tuple[str, str, Decimal]] = []
+        for a, b in itertools.product(outcomes, repeat=2):
+            first = implementation.distance(a, b)
+            second = implementation.distance(a, b)
+            if not isinstance(first, Decimal) or not isinstance(second, Decimal):
+                raise DisagreementMetricError(
+                    f"metric {ref} returned {type(first).__name__} for ({a!r}, {b!r}); a Decimal "
+                    "is "
+                    "required so the value is exact and reproducible across platforms"
+                )
+            if first != second:
+                raise DisagreementMetricError(
+                    f"metric {ref} returned {first} and then {second} for ({a!r}, {b!r}). VER-008: "
+                    "identical input under one version MUST yield an identical result"
+                )
+            if not first.is_finite() or first < 0:
+                raise DisagreementMetricError(
+                    f"metric {ref} returned {first} for ({a!r}, {b!r}); a disagreement is a "
+                    "finite, "
+                    "non-negative quantity"
+                )
+            if a == b and first != 0:
+                raise DisagreementMetricError(
+                    f"metric {ref} reports {first} disagreement between {a!r} and itself"
+                )
+            rows.append((a, b, first))
+        values = {(a, b): v for a, b, v in rows}
+        asymmetric = sorted((a, b) for (a, b), v in values.items() if values[(b, a)] != v)
+        if asymmetric:
+            raise DisagreementMetricError(
+                f"metric {ref} is not symmetric on {asymmetric[:3]}; the disagreement between two "
+                "predictions cannot depend on which one is listed first"
+            )
+        return tuple(sorted(rows))
+
+
+@dataclass(frozen=True)
+class RankedAction:
+    """One candidate action, and how far apart the rivals' predictions over it are."""
+
+    capability_id: str
+    observable_ref: str
+    #: `None` when no metric is declared for the predictions' OutcomeSpace, or fewer than two
+    #: hypotheses predict over this observable. Unknown, not zero.
+    disagreement: Decimal | None
+    metric_ref: str | None
+    outcome_space_ref: str | None
+    #: (hypothesis_id, expected_outcome) pairs the disagreement was computed from.
+    predictions: tuple[tuple[str, str], ...]
+
+
+def rank_by_disagreement(
+    candidates: Sequence[tuple[str, Sequence[str]]],
+    predictions: Sequence[Prediction],
+    metrics: DisagreementMetricRegistry,
+) -> tuple[RankedAction, ...]:
+    """§9.2's second criterion over ``candidates`` -- (capability_id, produces) pairs.
+
+    Deterministic: the disagreement is the MAX pairwise table value over the rivals' expected
+    outcomes (an action discriminates if it separates any two rivals), and the order is
+    (disagreement descending, unknowns last, capability id, observable). No clock, no randomness,
+    no call into the domain implementation.
+    """
+    ranked: list[RankedAction] = []
+    for capability_id, produces in candidates:
+        for observable in sorted(produces):
+            over = [p for p in predictions if p.observable_ref == observable]
+            if not over:
+                continue
+            by_space: dict[tuple[str, str], list[Prediction]] = {}
+            for p in over:
+                by_space.setdefault((p.outcome_space_id, p.outcome_space_version), []).append(p)
+            for (space_id, space_version), group in sorted(by_space.items()):
+                pairs = tuple(sorted((p.hypothesis_id, p.expected_outcome) for p in group))
+                metric = metrics.for_space(space_id, space_version)
+                rivals = {h for h, _ in pairs}
+                if metric is None or len(rivals) < 2:
+                    ranked.append(
+                        RankedAction(
+                            capability_id=capability_id,
+                            observable_ref=observable,
+                            disagreement=None,
+                            metric_ref=None if metric is None else metric.ref,
+                            outcome_space_ref=f"{space_id}@{space_version}",
+                            predictions=pairs,
+                        )
+                    )
+                    continue
+                value = max(
+                    metric.distance(a_out, b_out)
+                    for (a_h, a_out), (b_h, b_out) in itertools.combinations(pairs, 2)
+                    if a_h != b_h
+                )
+                ranked.append(
+                    RankedAction(
+                        capability_id=capability_id,
+                        observable_ref=observable,
+                        disagreement=value,
+                        metric_ref=metric.ref,
+                        outcome_space_ref=f"{space_id}@{space_version}",
+                        predictions=pairs,
+                    )
+                )
+    return tuple(
+        sorted(
+            ranked,
+            key=lambda r: (
+                r.disagreement is None,
+                -(r.disagreement or Decimal(0)),
+                r.capability_id,
+                r.observable_ref,
+                r.outcome_space_ref or "",
+            ),
+        )
+    )
+
+
+__all__ = [
+    "DisagreementMetricError",
+    "DisagreementMetricImplementation",
+    "DisagreementMetricRegistry",
+    "RankedAction",
+    "TabulatedMetric",
+    "rank_by_disagreement",
+]

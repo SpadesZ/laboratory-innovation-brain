@@ -198,6 +198,23 @@ APPLY_ORDER: tuple[str, ...] = (
     # callbacks. After 008 (`conditions_schema_version` is a foreign key into `condition_schemas`)
     # and after 006 (`resource_leases.job_id` references `jobs`).
     "007c_capabilities.sql",
+    # M3 / §7.3. `003d` constrained `logical_slot` to M1's function labels, so §7.3's own route
+    # slots were unrecordable. Widens the CHECK additively; M1's rows and code are unchanged.
+    "003e_model_route_slots.sql",
+    # M3 / LLM-002, VER-004/008. The benchmark half of Appendix A's 010 slot: OutcomeSpace and
+    # BenchmarkPolicy, both bound field-for-field to §17.19.2. No dependencies beyond 001.
+    "010c_outcome_spaces_benchmark_policies.sql",
+    # M3 / EPI-001, SRC-002, LLM-002. The Hypothesis certificate, competing sets, Position,
+    # CritiqueReport and the debate record. After 006b (episodes), 004a (bundles), 003d
+    # (inference provenance): every one of them is referenced by a foreign key.
+    "005e_hypotheses_and_debate.sql",
+    # M3 / EPI-001, VER-006, SRC-002. The Prediction half of Appendix A's 011 slot, and the
+    # belief-revision guard for certificates admitted through M3's gate. After 010c (outcome
+    # spaces), 005e (hypotheses, critiques) and 005a (the events it guards).
+    "011i_predictions.sql",
+    # M3 / SRC-003. PriorArtSearchRecord and NoveltyAssessment. After 006b (episodes) and 005e,
+    # whose episode-in-project trigger function it reuses.
+    "002b_prior_art_search.sql",
 )
 
 _BOOTSTRAP = """

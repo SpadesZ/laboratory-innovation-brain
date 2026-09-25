@@ -45,6 +45,7 @@ holds, so a serialization that round-trips imperfectly fails here rather than th
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Mapping
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -150,6 +151,7 @@ class ScientificInferenceService:
         escalate: frozenset[SensitivityLabel] = frozenset(),
         parameters: dict[str, object] | None = None,
         now: dt.datetime | None = None,
+        context: Mapping[str, object] | None = None,
     ) -> DurableInference:
         """One scientific inference, durable or not returned at all.
 
@@ -171,6 +173,7 @@ class ScientificInferenceService:
             escalate=escalate,
             parameters=parameters,
             now=now,
+            context=context,
         )
         return self._persist(output, project_id=project_id, trace_id=trace_id)
 
@@ -187,6 +190,7 @@ class ScientificInferenceService:
         slot: LogicalSlot = LogicalSlot.CRITIQUE,
         escalate: frozenset[SensitivityLabel] = frozenset(),
         now: dt.datetime | None = None,
+        context: Mapping[str, object] | None = None,
     ) -> DurableInference:
         """§7.6's independent critique, durable on the same terms as any other inference.
 
@@ -212,6 +216,7 @@ class ScientificInferenceService:
             escalate=escalate,
             slot=slot,
             now=now,
+            context=context,
         )
         return self._persist(output, project_id=project_id, trace_id=trace_id)
 

@@ -35,9 +35,10 @@ from lab_brain.domains.base import (
     BenchmarkRegistry,
     DomainInstallError,
     ExtractorRegistry,
+    SpecialistRegistry,
     ValidatorRegistry,
 )
-from lab_brain.domains.silicon_photonics import backend_validity, tools
+from lab_brain.domains.silicon_photonics import backend_validity, reasoning, tools
 from lab_brain.domains.silicon_photonics.authority_policy import (
     SIM_STANDARD,
     SiliconPhotonicsAuthorityPolicy,
@@ -55,6 +56,7 @@ from lab_brain.evidence.condition_schema_registry import ConditionSchemaRegistry
 from lab_brain.tools.registry import ToolRegistry
 from lab_brain.tools.simulation import BackendValidityRegistry
 from lab_brain.verification.capability_registry import CapabilityRegistry
+from lab_brain.verification.disagreement import DisagreementMetricRegistry
 
 PACK_ID: Final = DOMAIN
 PACK_VERSION: Final = "1.0.0"
@@ -66,6 +68,16 @@ CHARGE_AC_COST_CONTRACT: Final = "cost:sp.charge_ac_sweep@1.0.0"
 #: in M3, and what EXT-001 needs is that a pack can register one at all.
 BENCHMARK_ID: Final = "bench:sp.cj_rs_extraction"
 BENCHMARK_FIXTURE: Final = "fixtures/silicon_photonics/cj_rs_paired/"
+
+#: M3 / LLM-002. The FIXED SiPho debate benchmark -- §26's T-LLM-002 "fixed SiPho benchmark" --
+#: whose baseline distributions calibrate the BenchmarkPolicy thresholds. Locked by digest; see
+#: `lab_brain.cognition.debate_benchmark`.
+DEBATE_BENCHMARK_ID: Final = "bench:sp.rs_anomaly_debate"
+DEBATE_BENCHMARK_FIXTURE: Final = "fixtures/debate/sp_rs_anomaly_debate.json"
+
+
+def reasoning_benchmark_id() -> str:
+    return DEBATE_BENCHMARK_ID
 
 
 def estimate_charge_ac_cost(params: object) -> CostVector:
@@ -205,6 +217,19 @@ class SiliconPhotonicsPack:
 
     def register_benchmarks(self, registry: BenchmarkRegistry) -> None:
         registry.register(BENCHMARK_ID, BENCHMARK_FIXTURE)
+        # M3 / LLM-002. The fixed debate benchmark calibration is run against.
+        registry.register(reasoning_benchmark_id(), DEBATE_BENCHMARK_FIXTURE)
+
+    # -- M3 registrations (§24.3) -------------------------------------------
+
+    def register_specialists(self, registry: SpecialistRegistry) -> None:
+        registry.register(reasoning.SEMICONDUCTOR_SPECIALIST)
+        registry.register(reasoning.NUMERICS_SPECIALIST)
+
+    def register_disagreement_metrics(self, registry: DisagreementMetricRegistry) -> None:
+        # The space first: the registry refuses a metric bound to an undeclared one (VER-008).
+        registry.declare_space(reasoning.rs_response_space())
+        registry.register(reasoning.RsResponseRankDistance())
 
     # -- offered, not registered -------------------------------------------
 
@@ -234,6 +259,8 @@ __all__ = [
     "BENCHMARK_FIXTURE",
     "BENCHMARK_ID",
     "CHARGE_AC_COST_CONTRACT",
+    "DEBATE_BENCHMARK_FIXTURE",
+    "DEBATE_BENCHMARK_ID",
     "PACK_ID",
     "PACK_VERSION",
     "SiliconPhotonicsPack",
