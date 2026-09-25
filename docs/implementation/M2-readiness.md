@@ -2,8 +2,8 @@
 
 Date: 2026-09-24; revised after the first independent M2 review (§9), again after the second (§10),
 and on 2026-09-25 for the final blocker it named (§11)
-Milestone: **M2 — Silicon Photonics Tool Layer**, `IN_PROGRESS` — implementation complete, awaiting
-independent sign-off
+Milestone: **M2 — Silicon Photonics Tool Layer**, **`DONE` / HARD-LOCKED** 2026-09-25 on independent
+review sign-off at `66ef099f965a0f6a8e7aa1ecd836eec4555a26f3` (§12)
 M1: **`DONE` / HARD-LOCKED** at `bdb72129a1075d69a30f5043a3491570ca7d4521`; the executed-coverage
 ratchet now enforces its 21 requirements on every CI run
 M1-P1 locked baseline: `f8e5e9c02ee98ed2a7faa6f604347b84b88c773b` — **untouched**
@@ -11,8 +11,8 @@ M0a / M0b: `DONE`, hard-locked — **untouched**
 Spec: SAI 3.3, amendments `v3.3-a1` … `v3.3-a18`. **No amendment, no ADR, no new Requirement or
 Test ID was added by this work.** 60 ↔ 60 throughout.
 
-> This document claims readiness for audit, not completion. M2's status is the maintainer's to
-> change; the implementing agent does not sign off its own milestone.
+> This document claimed readiness for audit, not completion, until the independent review granted
+> the sign-off recorded in §12. The claim is left as written: it is what was reviewed.
 
 ## 1. The exit gate, clause by clause
 
@@ -608,3 +608,23 @@ therefore distinguishes *refused in time* from *refused too late*, which is the 
 One candidate is deliberately absent: the binding's scope reading the envelope's Episode instead of
 the nested request's. The model validator makes those equal, so that mutant is equivalent and would
 survive for the right reason.
+
+## 12. Sign-off
+
+**M2 DONE / HARD-LOCKED**, 2026-09-25, on independent review, at
+`66ef099f965a0f6a8e7aa1ecd836eec4555a26f3` -- the commit that closed repair F (§11). Recorded, not
+decided, by the implementing agent: `docs/milestones.yaml` moves M2 to `DONE`, and from this commit
+the executed-coverage ratchet enforces all eight M2 requirements on every CI run under
+`gate_profile: [postgres]`, as it already does for M0a, M0b and M1.
+
+What the lock covers is the accepted architecture: the typed ToolRegistry and its four verb
+contracts, `BudgetedToolDispatcher` as the one production tool call (scope binding, durable Job
+binding, estimate, gate, ALLOW-only invoke), the provider-independent simulation seam and SIM-001's
+validity-before-manifest order, the durable ResourceDemand, the shared simulated/measured extractor,
+SIM-002's authority policies and durable vertical, VER-002's descriptor-only planner, and EXT-001's
+ToyDomain proof. Later milestones may extend these at their declared extension points; they may not
+refactor them for cleanliness. Reopen only on a reproducible violation of a locked invariant or a
+demonstrated spec contradiction.
+
+What the lock does not cover, because it was never claimed: TST-001's licensed half (R-1), which
+stays open and allocated to M4.

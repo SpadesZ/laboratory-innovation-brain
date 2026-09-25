@@ -146,20 +146,24 @@ milestones:
 
   - id: M2
     name: Silicon Photonics Tool Layer
-    # IN_PROGRESS from 2026-09-23. NOT_STARTED became false the moment the first M2 requirement had
-    # an implementation and a passing traceability test, and this field is read by humans deciding
-    # what to pick up next -- so it is corrected for the same reason M1's stale comments were.
+    # IN_PROGRESS from 2026-09-23 to 2026-09-25.
     #
-    # IN_PROGRESS IS NOT A SIGN-OFF AND CARRIES NO GATE. The executed-coverage ratchet enforces a
-    # milestone only once it is DONE; moving this to DONE is the maintainer's act on independent
-    # review, and the implementing agent does not sign off its own milestone. All eight
-    # requirements below have an implementation and tests, both exit-gate clauses are demonstrated
-    # (docs/implementation/M2-readiness.md §1), and the milestone is AWAITING INDEPENDENT SIGN-OFF.
+    # DONE 2026-09-25 on independent review sign-off / HARD-LOCK APPROVED at
+    # 66ef099f965a0f6a8e7aa1ecd836eec4555a26f3 -- the commit that bound the Episode COST-001 budgets
+    # to the Episode whose Job executes (readiness §11, repair F), after repairs A-D (§9) and the
+    # execution-scope binding E (§10). Readiness evidence and the per-requirement matrix are in
+    # docs/implementation/M2-readiness.md; the clause-by-clause exit gate is its §1.
     #
-    # What is NOT claimed: TST-001's licensed half. There is no Lumerical seat in this environment
-    # (risk R-1), so the contract is proven against a deterministic mock and the replay on a real
-    # project in a licensed environment is open. TST-001 is allocated to M4 and stays there.
-    status: IN_PROGRESS
+    # FROM THIS POINT THE EXECUTED-COVERAGE RATCHET ENFORCES M2 ON EVERY CI RUN, the same way it
+    # enforces M0a since 2026-09-13, M0b since 2026-09-20 and M1 since 2026-09-23: each of the eight
+    # requirements below needs a traceability test that ACTUALLY EXECUTED AND PASSED under
+    # gate_profile [postgres].
+    #
+    # What is NOT claimed, and the sign-off did not change it: TST-001's licensed half. There is no
+    # Lumerical seat in this environment (risk R-1), so the contract is proven against a
+    # deterministic mock and the replay on a real project in a licensed environment is open.
+    # TST-001 is allocated to M4 and stays there.
+    status: DONE
     exit_gate: >-
       simulated + measured fixtures use the same extractor contract;
       license/resource queue mock pass.
@@ -176,7 +180,11 @@ milestones:
 
   - id: M3
     name: Hypothesis Brain
-    status: NOT_STARTED
+    # IN_PROGRESS from 2026-09-25, when M2 was signed off and M3 implementation began.
+    #
+    # IN_PROGRESS IS NOT A SIGN-OFF AND CARRIES NO GATE. The ratchet enforces a milestone only once
+    # it is DONE; moving this to DONE is the maintainer's act on independent review.
+    status: IN_PROGRESS
     exit_gate: >-
       role I/O + Position/Critique contracts pass; Critic bundle divergence measurable;
       benchmark thresholds calibrated and stored in BenchmarkPolicy before gate
