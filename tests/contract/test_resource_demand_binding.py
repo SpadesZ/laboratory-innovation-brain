@@ -48,6 +48,8 @@ pytestmark = [pytest.mark.requirement("OPS-001"), pytest.mark.spec_test("T-OPS-0
 
 NOW = dt.datetime(2026, 9, 24, 10, 0, tzinfo=dt.UTC)
 PROJECT = "prj:sp"
+#: The Episode every Job here belongs to and every request is made in (COST-001, §17.16).
+EPISODE = "epi:sp"
 ARTIFACT = "art:sha256:" + "ab" * 32
 RESOURCE = "license:sp-charge-seat"
 
@@ -63,6 +65,7 @@ def _request(**overrides: object) -> SimulationRequest:
         "request_id": "req:1",
         "project_id": PROJECT,
         "trace_id": "trc:1",
+        "episode_id": EPISODE,
         "job_id": "job:1",
         "capability_id": "cap:sp.charge_ac_sweep",
         "input_artifacts": (ARTIFACT,),
@@ -109,6 +112,7 @@ def _store(demand: ResourceDemand | None = None) -> InMemoryJobStore:
         job=Job(
             job_id="job:1",
             project_id=PROJECT,
+            episode_id=EPISODE,
             capability_id="cap:sp.charge_ac_sweep",
             trace_id="trc:1",
             idempotency_key="idem:1",
@@ -151,6 +155,7 @@ def test_a_request_declaring_a_demand_against_an_unbound_job_is_refused():
         Job(
             job_id="job:1",
             project_id=PROJECT,
+            episode_id=EPISODE,
             capability_id="cap:sp.charge_ac_sweep",
             trace_id="trc:1",
             idempotency_key="idem:1",
@@ -233,6 +238,7 @@ def test_a_capability_with_no_license_constraint_may_be_submitted_with_no_demand
         job=Job(
             job_id="job:1",
             project_id=PROJECT,
+            episode_id=EPISODE,
             capability_id="cap:sp.local",
             trace_id="trc:1",
             idempotency_key="idem:1",
@@ -431,6 +437,99 @@ def test_a_request_whose_scope_matches_its_job_executes_and_the_run_inherits_it(
     assert outcome.run.project_id == job.project_id == _request().project_id
     assert outcome.run.trace_id == job.trace_id == _request().trace_id
     assert outcome.run.capability_id == job.capability_id == _request().capability_id
+    # The Run reaches its Episode through its Job (§17.4 has no episode field), so this is the
+    # statement that the execution belongs to the Episode the request was made in.
+    assert outcome.run.job_id == job.job_id and job.episode_id == _request().episode_id == EPISODE
+
+
+# ---------------------------------------------------------------------------
+# COST-001 / §17.16 — the Episode that paid is the Episode whose Job executes
+#
+# THE DEFECT. COST-001 budgets by `ToolAction.episode_id`; the execution belongs to
+# `Job.episode_id`. Project, trace and capability were bound and the Episode was not, so a request
+# made in Episode E1 could execute a Job submitted under E2 with every other dimension agreeing --
+# two Episodes of one project can share a trace, and nothing made them differ anywhere else.
+#
+# THIS IS THE EXECUTION-TIME HALF. The dispatcher makes the same comparison before the gate
+# (`tests/unit/test_budgeted_tool_dispatch.py`); this one is `run_simulation`'s step 0, against the
+# row as it is at the moment of execution, so it holds for a resumer that never went through a
+# dispatcher and for a Job re-pointed between the two checks.
+# ---------------------------------------------------------------------------
+
+
+def test_a_request_for_another_episode_does_not_touch_the_job_it_names():
+    """Project, trace and capability all agree; only the Episode differs. Nothing happens.
+
+    The case the three existing dimensions cannot see, and the one this guard exists for. The
+    refusal names the Episode and ONLY the Episode, so a guard that compared the other three and
+    reported a coincidental disagreement could not pass it.
+    """
+    store = _store()
+    before = store.get("job:1")
+    assert before is not None and before.episode_id == EPISODE
+
+    with pytest.raises(ExecutionScopeMismatch) as raised:
+        _run_against(store, _request(episode_id="epi:sp-other"))
+
+    message = str(raised.value)
+    assert "SimulationRequest.episode_id is 'epi:sp-other'" in message
+    assert "Job.episode_id is 'epi:sp'" in message
+    for agreed in ("project_id", "trace_id", "capability_id"):
+        assert agreed not in message, f"{agreed} agreed and was reported anyway"
+    _untouched(store, before)
+
+
+def test_a_job_that_names_no_episode_is_executed_by_no_request():
+    """A Job with no Episode compares as `None`, and `None` is not the Episode that paid.
+
+    Submitted straight into the store, past `submit_simulation_job`, because that is now the only
+    way to make one -- which is the point of testing it here: a row written by an older path, a
+    migration or another process is still refused at the moment it would execute.
+    """
+    store = InMemoryJobStore()
+    store.submit(
+        Job(
+            job_id="job:1",
+            project_id=PROJECT,
+            capability_id="cap:sp.charge_ac_sweep",
+            trace_id="trc:1",
+            idempotency_key="idem:1",
+            submitted_at=NOW,
+            resource_requirements=_demand().as_requirements(),
+        )
+    )
+    before = store.get("job:1")
+    assert before is not None and before.episode_id is None
+
+    with pytest.raises(ExecutionScopeMismatch) as raised:
+        _run_against(store, _request())
+
+    assert "Job.episode_id is None" in str(raised.value)
+    _untouched(store, before)
+
+
+def test_a_simulation_job_that_names_no_episode_is_refused_at_submission():
+    """The earliest refusal available: the Job never becomes durable.
+
+    Nothing at submission knows which Episode will pay -- that is the dispatcher's to compare --
+    but "none" is already known to be wrong, because every execution is budgeted against one.
+    """
+    store = InMemoryJobStore()
+    with pytest.raises(ResourceBindingError, match="names no episode_id"):
+        submit_simulation_job(
+            jobs=store,
+            job=Job(
+                job_id="job:1",
+                project_id=PROJECT,
+                capability_id="cap:sp.charge_ac_sweep",
+                trace_id="trc:1",
+                idempotency_key="idem:1",
+                submitted_at=NOW,
+            ),
+            demand=_demand(),
+            capability=_capability(),
+        )
+    assert store.get("job:1") is None, "an Episode-less simulation Job was persisted"
 
 
 def test_a_simulation_against_a_job_that_does_not_resolve_is_refused():

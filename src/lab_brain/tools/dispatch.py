@@ -12,8 +12,13 @@ passing a gate. Satisfying one requirement through a path that bypasses the othe
 neither.
 
     bind the execution scope    the action the gate will price and the request the registry will
-                                execute must name one project and one trace. See `scope.py`.
+                                execute must name one project, one trace and one Episode. See
+                                `scope.py`.
     resolve the descriptor      SIM-003. An unregistered tool is refused here, not later.
+    bind the durable Job        a request that executes a Job names it (`JobBinding`); the Job is
+                                resolved and must be the same execution -- including the same
+                                Episode -- BEFORE the gate, so a mismatch spends no approval and
+                                writes no ledger row. A `run_*` request that names none is refused.
     resolve the estimate        §9.5 for `run_*` (its Capability), the descriptor's declared
                                 `cost_contract` otherwise. No estimate -> no dispatch.
     build the BudgetRequest     caps, session consumption, approval -- all passed in, so the
@@ -57,8 +62,9 @@ from lab_brain.core.models.access import Actor, ProjectMembership
 from lab_brain.core.models.cost import CostVector
 from lab_brain.core.models.execution_span import ExecutionSpan, SpanType
 from lab_brain.core.repositories.budget import CostLedger
+from lab_brain.core.repositories.jobs import JobStore
 from lab_brain.core.repositories.observability import SpanRepository
-from lab_brain.tools.contracts import ToolClass, ToolRequest, ToolResult
+from lab_brain.tools.contracts import ToolClass, ToolDescriptor, ToolRequest, ToolResult
 from lab_brain.tools.registry import ToolRegistry
 from lab_brain.tools.scope import ExecutionScope, require_same_scope
 from lab_brain.verification.capability_registry import (
@@ -137,6 +143,11 @@ class BudgetedToolDispatcher:
 
     Holds no clock of its own beyond the injected ``now``, and no connection: every store is passed
     in, so the same object runs against in-memory repositories and PostgreSQL.
+
+    ``jobs`` IS REQUIRED, not optional, and is only ever read. It is how the dispatcher learns which
+    Episode the execution belongs to before it asks the gate about the Episode that is paying: the
+    two are different rows (`ToolAction` and `Job`), and a dispatcher that could be built without
+    the second could only ever compare the first with itself.
     """
 
     def __init__(
@@ -146,6 +157,7 @@ class BudgetedToolDispatcher:
         capabilities: CapabilityRegistry,
         spans: SpanRepository,
         ledger: CostLedger,
+        jobs: JobStore,
         claims: BudgetApprovalClaims | None,
         now: Callable[[], dt.datetime],
     ) -> None:
@@ -153,6 +165,7 @@ class BudgetedToolDispatcher:
         self._capabilities = capabilities
         self._spans = spans
         self._ledger = ledger
+        self._jobs = jobs
         self._claims = claims
         self._now = now
 
@@ -223,16 +236,23 @@ class BudgetedToolDispatcher:
         # in `except Exception` (`core/dispatch.py:256`) -- so a check made there would fire after
         # the money was recorded and the approval spent, and would close the span FAILED, which is
         # the "the solver crashed" channel rather than "this envelope is invalid".
+        #
+        # THE EPISODE IS PART OF THE ENVELOPE. `BudgetRequest.episode_id`, both ledger rows and the
+        # approval's scope are all `action.episode_id`; the implementation runs with the request's.
+        # Compared here for the same reason as the project: the gate answering a question about
+        # Episode E1 is not an answer about a request made in E2.
         require_same_scope(
             ExecutionScope(
                 layer="ToolAction",
                 project_id=action.project_id,
                 trace_id=action.trace_id,
+                episode_id=action.episode_id,
             ),
             ExecutionScope(
                 layer="ToolRequest",
                 project_id=action.request.project_id,
                 trace_id=action.request.trace_id,
+                episode_id=action.request.episode_id,
             ),
             detail=(
                 f"tool {action.tool_id} would have been gated against one scope and executed in "
@@ -245,6 +265,10 @@ class BudgetedToolDispatcher:
         # SIM-003's half, next: an unregistered tool is refused before a span is opened, so a
         # typo cannot produce a BLOCKED span that reads as a governance refusal.
         descriptor = self._tools.descriptor(action.tool_id)
+
+        # The durable Job, before the gate. See `_bind_to_durable_job`.
+        self._bind_to_durable_job(action, descriptor)
+
         estimate = self.estimate_for(action.tool_id, action.estimate_params)
 
         # Captured by the closure below. `dispatch_action` returns its own result and knows nothing
@@ -316,6 +340,64 @@ class BudgetedToolDispatcher:
         )
 
     # -- internals ----------------------------------------------------------
+
+    def _bind_to_durable_job(self, action: ToolAction, descriptor: ToolDescriptor) -> None:
+        """The Episode that pays must be the Episode whose Job executes, decided BEFORE the gate.
+
+        THE DEFECT THIS CLOSES. COST-001 prices, attributes and releases by `ToolAction.episode_id`;
+        the execution belongs to `Job.episode_id`. With project, trace and capability all bound,
+        those two could still differ -- two Episodes of one project can share a trace -- and the
+        only comparison that could see it was `run_simulation`'s step 0. That runs inside
+        `perform`, which `dispatch_action` calls only AFTER it has consumed the approval claim and
+        written the ESTIMATED row. So the refusal came after the approval was spent and after the
+        wrong Episode was charged: correct about the execution and too late about the money.
+
+        So the request names the Job it will execute (`ToolRequest.job_binding`), and the Job is
+        resolved and compared here, on all four dimensions, while nothing has happened: no span,
+        no ledger row, no claim, no Job mutation, no seat, no backend. `run_simulation` still makes
+        the same comparison at the moment of execution; see `scope.py` for why both exist.
+
+        A `run_*` REQUEST THAT BINDS NO JOB IS REFUSED. §10.2.1 makes `run_*` backend-bound and a
+        backend execution here is a Job (§17.16). A run request that did not say which Job it runs
+        would skip this check without anyone noticing, and the Episode the gate priced would again
+        be unrelated to the Episode that executed -- so its absence is a wiring error, not a pass.
+        """
+        binding = action.request.job_binding()
+        if binding is None:
+            if descriptor.tool_class is ToolClass.RUN:
+                raise ToolDispatchRefused(
+                    f"run tool {descriptor.tool_id} ({descriptor.name}) was dispatched with a "
+                    f"{type(action.request).__name__} that binds no durable Job. A backend "
+                    "execution is a Job (§17.16), and the Episode COST-001 prices has to be "
+                    "checked against the Episode that Job belongs to before the gate -- a run "
+                    "request that does not say which Job it runs cannot be"
+                )
+            return
+
+        job = self._jobs.get(binding.job_id)
+        if job is None:
+            raise ToolDispatchRefused(
+                f"tool {descriptor.tool_id} would execute job {binding.job_id}, which does not "
+                "resolve. §17.16 makes the Job the durable record of what was admitted; there is "
+                "no Episode to check the budget against and nothing to attribute a Run to"
+            )
+        require_same_scope(
+            binding.scope,
+            ExecutionScope(
+                layer="Job",
+                project_id=job.project_id,
+                trace_id=job.trace_id,
+                episode_id=job.episode_id,
+                capability_id=job.capability_id,
+            ),
+            detail=(
+                f"tool {descriptor.tool_id} was to be budgeted in episode {action.episode_id!r} "
+                f"and would have executed job {job.job_id}, which belongs to a different scope. "
+                "COST-001's caps, ledger rows and approval are the ToolAction's; the execution is "
+                "the Job's. Refused before the gate: no span, no ledger row, no approval "
+                "consumed, the Job untouched, no seat taken, no backend entered"
+            ),
+        )
 
     def _actual_cost(self, result: ToolResult, started: dt.datetime) -> CostVector:
         """Measured, never copied from the estimate.

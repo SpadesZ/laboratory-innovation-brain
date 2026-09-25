@@ -114,7 +114,7 @@ def _registry() -> ToolRegistry:
 def test_an_invocation_goes_through_the_registry_and_returns_the_declared_type():
     """The positive control. Without it every refusal below is satisfied by refusing everything."""
     result = _registry().invoke(
-        "DOM-TST-TOOL-001", Ping(project_id="prj:t", trace_id="trc:t", value=21)
+        "DOM-TST-TOOL-001", Ping(project_id="prj:t", trace_id="trc:t", episode_id="epi:t", value=21)
     )
     assert isinstance(result, Pong)
     assert result.doubled == 42
@@ -138,7 +138,8 @@ def test_a_request_of_the_wrong_type_is_refused_before_the_tool_sees_it():
     registry.register(_descriptor(), Fatal())
     with pytest.raises(ToolInvocationError, match="takes Ping but was given Elsewhere"):
         registry.invoke(
-            "DOM-TST-TOOL-001", Elsewhere(project_id="prj:t", trace_id="trc:t", value=1)
+            "DOM-TST-TOOL-001",
+            Elsewhere(project_id="prj:t", trace_id="trc:t", episode_id="epi:t", value=1),
         )
     assert entered == []
 
@@ -168,7 +169,9 @@ def test_there_is_no_accessor_that_hands_out_an_implementation():
 
 def test_an_unregistered_tool_raises_rather_than_returning_none():
     with pytest.raises(ToolNotRegistered, match="no tool is registered"):
-        _registry().invoke("DOM-TST-TOOL-999", Ping(project_id="p", trace_id="t", value=1))
+        _registry().invoke(
+            "DOM-TST-TOOL-999", Ping(project_id="p", trace_id="t", episode_id="epi:t", value=1)
+        )
 
 
 def test_an_implementation_with_an_untyped_boundary_cannot_be_registered():
@@ -198,7 +201,9 @@ def test_a_result_of_an_undeclared_type_is_refused():
     registry = ToolRegistry()
     registry.register(_descriptor(), Liar())
     with pytest.raises(ToolInvocationError, match="declared it returns Pong"):
-        registry.invoke("DOM-TST-TOOL-001", Ping(project_id="p", trace_id="t", value=1))
+        registry.invoke(
+            "DOM-TST-TOOL-001", Ping(project_id="p", trace_id="t", episode_id="epi:t", value=1)
+        )
 
 
 def test_a_mis_stamped_result_is_refused():
@@ -211,7 +216,9 @@ def test_a_mis_stamped_result_is_refused():
     registry = ToolRegistry()
     registry.register(_descriptor(), WrongVersion())
     with pytest.raises(ToolInvocationError, match="contamination rollback"):
-        registry.invoke("DOM-TST-TOOL-001", Ping(project_id="p", trace_id="t", value=1))
+        registry.invoke(
+            "DOM-TST-TOOL-001", Ping(project_id="p", trace_id="t", episode_id="epi:t", value=1)
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -225,9 +232,10 @@ def test_a_mis_stamped_result_is_refused():
 # `request.simulation` and hands it to the runner -- so the implementation was, in effect, deciding
 # which of the two the call meant.
 #
-# The three probes are separate because the three dimensions fail differently: a project mismatch
-# is a SEC-002 escape, a trace mismatch is an OPS-003 one, and a capability mismatch executes
-# something §9.5 never planned and §17.18 never priced.
+# The probes are separate because the dimensions fail differently: a project mismatch is a SEC-002
+# escape, a trace mismatch is an OPS-003 one, a capability mismatch executes something §9.5 never
+# planned and §17.18 never priced, and an Episode mismatch runs on a budget, a ledger and an
+# approval that belong to a different Episode (COST-001).
 # ---------------------------------------------------------------------------
 
 
@@ -238,6 +246,7 @@ def _sweep_simulation(**overrides: object) -> SimulationRequest:
         "request_id": "req:scope",
         "project_id": fx.PROJECT,
         "trace_id": fx.TRACE,
+        "episode_id": fx.EPISODE,
         "job_id": "job:scope",
         "capability_id": CHARGE_AC_CAPABILITY,
         "input_artifacts": ("art:sha256:" + "7d" * 32,),
@@ -256,6 +265,7 @@ def test_a_sweep_request_cannot_wrap_a_simulation_for_another_project():
         ChargeAcSweepRequest(
             project_id=fx.PROJECT,
             trace_id=fx.TRACE,
+            episode_id=fx.EPISODE,
             simulation=_sweep_simulation(project_id="prj:elsewhere"),
         )
 
@@ -268,6 +278,7 @@ def test_a_sweep_request_cannot_wrap_a_simulation_on_another_trace():
         ChargeAcSweepRequest(
             project_id=fx.PROJECT,
             trace_id=fx.TRACE,
+            episode_id=fx.EPISODE,
             simulation=_sweep_simulation(trace_id="trc:elsewhere"),
         )
 
@@ -286,8 +297,82 @@ def test_a_sweep_request_cannot_wrap_a_simulation_for_another_capability():
         ChargeAcSweepRequest(
             project_id=fx.PROJECT,
             trace_id=fx.TRACE,
+            episode_id=fx.EPISODE,
             simulation=_sweep_simulation(capability_id="cap:sp.mesh_sensitivity"),
         )
+
+
+def test_a_sweep_request_cannot_wrap_a_simulation_for_another_episode():
+    """COST-001. The envelope is budgeted in one Episode; the execution must be for that Episode.
+
+    Project, trace and capability agree, so the refusal names only the Episode. Without this link
+    the dispatcher would bind the action to the envelope, and `run_simulation` the nested request to
+    the Job, and the one hop between them would be where the Episode that paid stops being the
+    Episode that runs.
+    """
+    from tests import sp_fixtures as fx
+
+    with refused("ChargeAcSweepRequest.simulation.episode_id is 'epi:elsewhere'"):
+        ChargeAcSweepRequest(
+            project_id=fx.PROJECT,
+            trace_id=fx.TRACE,
+            episode_id=fx.EPISODE,
+            simulation=_sweep_simulation(episode_id="epi:elsewhere"),
+        )
+
+
+def test_a_sweep_request_binds_exactly_the_job_its_simulation_will_execute():
+    """The `JobBinding` the dispatcher checks before the gate is read off the nested request.
+
+    `ChargeAcSweepTool` hands `request.simulation` to the runner and `run_simulation` executes its
+    ``job_id``, so the binding is only worth checking if it names that Job and that scope. A binding
+    assembled from anything else would let the dispatcher approve one Job while another ran.
+    """
+    from tests import sp_fixtures as fx
+
+    request = ChargeAcSweepRequest(
+        project_id=fx.PROJECT,
+        trace_id=fx.TRACE,
+        episode_id=fx.EPISODE,
+        simulation=_sweep_simulation(job_id="job:bound"),
+    )
+    binding = request.job_binding()
+
+    assert binding.job_id == request.simulation.job_id == "job:bound"
+    assert binding.scope.layer == "SimulationRequest"
+    assert binding.scope.project_id == request.simulation.project_id
+    assert binding.scope.trace_id == request.simulation.trace_id
+    assert binding.scope.episode_id == request.simulation.episode_id == fx.EPISODE
+    assert binding.scope.capability_id == request.simulation.capability_id
+
+
+def test_a_request_that_executes_no_job_binds_none():
+    """The base answer. Only a request that executes a durable Job may claim one.
+
+    `None` is not a pass at the dispatcher: a `run_*` request that returns it is refused
+    (`tests/unit/test_budgeted_tool_dispatch.py`), so this default cannot be how a run tool
+    avoids the pre-gate check.
+    """
+    assert (
+        Ping(project_id="prj:t", trace_id="trc:t", episode_id="epi:t", value=1).job_binding()
+        is None
+    )
+
+
+def test_a_request_cannot_leave_its_episode_unstated():
+    """Never inferred: a request that could omit its Episode leaves someone downstream to guess it.
+
+    "The Episode of this project on this trace" is the inference that admitted the defect -- two
+    Episodes can satisfy it. Asserted for both layers that carry the Episode toward a Job: the
+    envelope every tool takes, and the execution request `run_simulation` compares with the Job.
+    """
+    with refused("episode_id"):
+        Ping(project_id="prj:t", trace_id="trc:t", value=1)  # type: ignore[call-arg]
+
+    payload = _sweep_simulation().model_dump()
+    del payload["episode_id"]
+    with refused("episode_id"):
+        SimulationRequest.model_validate(payload)
 
 
 def test_the_descriptor_and_the_request_validator_read_one_capability_identity():
@@ -305,11 +390,15 @@ def test_a_coherent_sweep_request_is_accepted_and_keeps_one_scope_throughout():
     from tests import sp_fixtures as fx
 
     request = ChargeAcSweepRequest(
-        project_id=fx.PROJECT, trace_id=fx.TRACE, simulation=_sweep_simulation()
+        project_id=fx.PROJECT,
+        trace_id=fx.TRACE,
+        episode_id=fx.EPISODE,
+        simulation=_sweep_simulation(),
     )
 
     assert request.project_id == request.simulation.project_id
     assert request.trace_id == request.simulation.trace_id
+    assert request.episode_id == request.simulation.episode_id
     assert request.simulation.capability_id == charge_ac_descriptor().capability_id
 
 

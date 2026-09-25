@@ -32,7 +32,7 @@ from lab_brain.domains.silicon_photonics.condition_schema import DOMAIN, SCHEMA_
 from lab_brain.tools.contracts import ToolClass, ToolDescriptor, ToolRequest, ToolResult
 from lab_brain.tools.execution import ExecutionOutcome, WaitingForResource
 from lab_brain.tools.extraction import ExtractionInput, ExtractionResult
-from lab_brain.tools.scope import ExecutionScope, require_same_scope
+from lab_brain.tools.scope import ExecutionScope, JobBinding, require_same_scope
 from lab_brain.tools.simulation import SimulationRequest
 
 #: The seat this domain's simulator contends for (§10.7). A declared identity rather than a
@@ -73,10 +73,11 @@ class ChargeAcSweepRequest(ToolRequest):
     already stated once, and a second copy here would be two places that have to agree about what
     an execution is.
 
-    THE SCOPE IS STILL DECLARED TWICE, because `ToolRequest` requires `project_id` and `trace_id`
-    and `SimulationRequest` requires them too -- so the validator below makes them agree at
-    construction. A `ChargeAcSweepRequest` for project A wrapping a simulation for project B cannot
-    be built, which means no stage downstream has to be careful about which of the two it read.
+    THE SCOPE IS STILL DECLARED TWICE, because `ToolRequest` requires `project_id`, `trace_id` and
+    `episode_id` and `SimulationRequest` requires them too -- so the validator below makes them
+    agree at construction. A `ChargeAcSweepRequest` for project A wrapping a simulation for project
+    B, or budgeted in Episode E1 wrapping an execution for Episode E2, cannot be built, which means
+    no stage downstream has to be careful about which of the two it read.
     """
 
     simulation: SimulationRequest
@@ -100,19 +101,21 @@ class ChargeAcSweepRequest(ToolRequest):
         `run_simulation` closing the last link.
 
         This is a silicon photonics contract and it lives in the silicon photonics pack.
-        `lab_brain.tools.scope` compares three strings and does not know what CHARGE is.
+        `lab_brain.tools.scope` compares four identities and does not know what CHARGE is.
         """
         require_same_scope(
             ExecutionScope(
                 layer="ChargeAcSweepRequest",
                 project_id=self.project_id,
                 trace_id=self.trace_id,
+                episode_id=self.episode_id,
                 capability_id=CHARGE_AC_CAPABILITY,
             ),
             ExecutionScope(
                 layer="ChargeAcSweepRequest.simulation",
                 project_id=self.simulation.project_id,
                 trace_id=self.simulation.trace_id,
+                episode_id=self.simulation.episode_id,
                 capability_id=self.simulation.capability_id,
             ),
             detail=(
@@ -123,6 +126,26 @@ class ChargeAcSweepRequest(ToolRequest):
             ),
         )
         return self
+
+    def job_binding(self) -> JobBinding:
+        """The Job this sweep executes: the nested request's, under the nested request's scope.
+
+        READ OFF `self.simulation` AND NOTHING ELSE, because `ChargeAcSweepTool` hands exactly that
+        object to the runner and `run_simulation` executes exactly its ``job_id``. The binding the
+        dispatcher checks before the gate is therefore the execution that will happen, not a
+        description of it assembled somewhere else -- and the validator above has already made the
+        envelope and this scope agree, so action -> envelope -> execution -> Job is one chain.
+        """
+        return JobBinding(
+            job_id=self.simulation.job_id,
+            scope=ExecutionScope(
+                layer="SimulationRequest",
+                project_id=self.simulation.project_id,
+                trace_id=self.simulation.trace_id,
+                episode_id=self.simulation.episode_id,
+                capability_id=self.simulation.capability_id,
+            ),
+        )
 
 
 class ChargeAcSweepResult(ToolResult):

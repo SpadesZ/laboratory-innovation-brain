@@ -151,11 +151,18 @@ class SimulationRequest(CoreModel):
     Written from the manifest rather than from a solver API, so a backend that cannot be driven
     from these fields is a backend whose Runs would be missing manifest fields -- discovered here
     instead of at admission.
+
+    ``episode_id`` IS THE ONE FIELD THE MANIFEST DOES NOT RECORD, and it is here anyway. §17.4's Run
+    reaches its Episode through ``job_id``; what the request needs the Episode for is not the
+    manifest but the check that precedes it. `run_simulation` compares this request's scope with
+    the Job's before anything executes, and the Episode is the dimension COST-001 budgets by -- a
+    request that could not state it could not be refused for executing another Episode's Job.
     """
 
     request_id: str
     project_id: str
     trace_id: str
+    episode_id: str
     job_id: str
     capability_id: str
 

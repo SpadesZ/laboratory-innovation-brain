@@ -1,6 +1,7 @@
 # M2 — Silicon Photonics Tool Layer: readiness for independent sign-off
 
-Date: 2026-09-24; revised after the first independent M2 review (§9) and again after the second (§10)
+Date: 2026-09-24; revised after the first independent M2 review (§9), again after the second (§10),
+and on 2026-09-25 for the final blocker it named (§11)
 Milestone: **M2 — Silicon Photonics Tool Layer**, `IN_PROGRESS` — implementation complete, awaiting
 independent sign-off
 M1: **`DONE` / HARD-LOCKED** at `bdb72129a1075d69a30f5043a3491570ca7d4521`; the executed-coverage
@@ -19,8 +20,9 @@ Test ID was added by this work.** 60 ↔ 60 throughout.
 
 | Clause | Where it is demonstrated |
 |---|---|
-| every tool call is **budgeted** and **typed** | `unit/test_budgeted_tool_dispatch.py` (18) + `e2e/test_m2_vertical_postgres.py` — `BudgetedToolDispatcher` is the one production tool call: **scope binding** → registry resolution → Capability/contract estimate → `BudgetRequest` → `dispatch_action` → ALLOW-only `invoke` → measured actual → closed span. See §9A and §10E. |
-| ...and the scope that is **gated** is the scope that **executes** | `unit/test_budgeted_tool_dispatch.py`, `unit/test_typed_tool_registry.py`, `contract/test_resource_demand_binding.py` — project, trace and capability are bound across `ToolAction` → `ToolRequest` → `SimulationRequest` → `Job`, before any Job mutation, seat or backend call. The vertical asserts the whole chain as **equality**, including the Episode. See §10E. |
+| every tool call is **budgeted** and **typed** | `unit/test_budgeted_tool_dispatch.py` (26) + `e2e/test_m2_vertical_postgres.py` — `BudgetedToolDispatcher` is the one production tool call: **scope binding** → registry resolution → **durable Job binding** → Capability/contract estimate → `BudgetRequest` → `dispatch_action` → ALLOW-only `invoke` → measured actual → closed span. See §9A, §10E and §11F. |
+| ...and the scope that is **gated** is the scope that **executes** | `unit/test_budgeted_tool_dispatch.py`, `unit/test_typed_tool_registry.py`, `contract/test_resource_demand_binding.py` — project, trace, **Episode** and capability are bound across `ToolAction` → `ToolRequest` → `SimulationRequest` → `Job`. The Job is resolved and compared **before the gate**, so a mismatch consumes no approval and writes no ledger row, and again at execution, before any Job mutation, seat or backend call. The vertical asserts the whole chain as **equality**, including `ResearchEpisode.episode_id == ToolAction.episode_id == Job.episode_id` and the Episode on both durable ledger rows and the span. See §10E and §11F. |
+| ...and **the Episode that pays is the Episode whose Job executes** | `e2e/test_m2_vertical_postgres.py::test_a_job_in_another_episode_is_refused_before_the_approval_is_spent` — two Episodes of one project on one trace, the Job under the second, the action budgeted in the first with a valid approval: refused with the approval row unconsumed, no `cost_entries`, no span, the Job exactly as submitted, no lease, backend never entered, no Run. Its positive control releases the same action through the same approval when the Job is in the budgeted Episode. See §11F. |
 | simulated + measured fixtures use the **same extractor contract** | `domains/test_shared_extractor_contract.py` — one `CjRsExtractor` instance, one `ExtractionInput` type, one `ExtractionResult` type, both modalities, and the **numbers are equal**. Reinforced structurally: `test_there_is_exactly_one_extraction_protocol_and_one_input_type` fails if a parallel type appears, and `test_the_extractor_source_never_branches_on_modality` parses the reduction and fails if it reads `modality` at all. |
 | ...and the provenance is **not** shared | the same file: SIMULATED names a Run and carries backend validity, MEASURED names a source Artifact, and four relabelling attempts are refused at the boundary (`test_measured_provenance_cannot_be_relabelled_as_simulated` and its three siblings). |
 | license/resource queue mock pass | `e2e/test_m2_vertical_postgres.py` — one seat, a rival job holds it, the simulation parks in `WAITING_RESOURCE` with `attempt_count` untouched and no `structured_error`, the rival releases, and **the same `job_id`** resumes and produces exactly one Run. |
@@ -36,7 +38,7 @@ Test ID was added by this work.** 60 ↔ 60 throughout.
 |---|---|---|---|---|---|
 | 1 | **SIM-001** | run manifest 缺 solver/project/conditions/validity 任一必要欄位即拒絕升級正式 evidence | `tools/simulation.py` — `BackendValiditySchema` + `validate_backend_validity`, called **before** the manifest is minted; the required field list is `domains/silicon_photonics/backend_validity.py`'s, never core's | `contract/test_simulation_contract.py` (27, incl. one parametrised refusal per required field), `e2e/test_m2_vertical_postgres.py` (durable row) | READY |
 | 2 | **SIM-002** | low-fidelity contradiction 只使 hypothesis → CHALLENGED，不得直接 → REJECTED | two registered §8.2.1 `TransitionPolicy` records + `SiliconPhotonicsAuthorityPolicy`. **No core file changed**: `TransitionPolicy.evaluate` is untouched M0b code and is what refuses | `e2e/test_sim_fidelity_gate_postgres.py` (12, policy semantics) + `e2e/test_sim_fidelity_vertical_postgres.py` (7, **durable e2e**: Decision to event to replay to CHALLENGED) | READY |
-| 3 | **SIM-003** | static test rejects `eval_script`-class interfaces; every invocation resolves through the typed ToolRegistry | `tools/registry.py` + `tools/contracts.py`; the static half is `unit/test_no_arbitrary_script_execution.py`, which existed since M0a and was deliberately unmarked | `unit/test_typed_tool_registry.py` (24, incl. the two structural probes that permit `.invoke(...)` only in `tools/dispatch.py`, and the five that stop a typed request describing two executions at once), `e2e/test_m2_vertical_postgres.py` (the whole chain, budgeted) | READY |
+| 3 | **SIM-003** | static test rejects `eval_script`-class interfaces; every invocation resolves through the typed ToolRegistry | `tools/registry.py` + `tools/contracts.py`; the static half is `unit/test_no_arbitrary_script_execution.py`, which existed since M0a and was deliberately unmarked | `unit/test_typed_tool_registry.py` (28, incl. the two structural probes that permit `.invoke(...)` only in `tools/dispatch.py`, the six that stop a typed request describing two executions at once, and the three that pin which Job a request binds and that its Episode cannot be left unstated), `e2e/test_m2_vertical_postgres.py` (the whole chain, budgeted) | READY |
 | 4 | **EVI-001** | Cj/Rs fixture missing unit / normalization basis / bias-frequency condition / extraction method fails; complete fixture round-trips | `tools/extraction.py` `ExtractedQuantity` refuses a value missing any of the four; `domains/silicon_photonics/extractors.py` supplies all four | `domains/test_cj_rs_evidence_contract.py` (18, incl. the six condition-provenance refusals) | READY |
 | 5 | **DOM-SP-001** | Rs trend validator 只存在 SiPh DomainPack，移除 plugin 後 core 仍可啟動 | `domains/silicon_photonics/validators.py`; core has no place to put a rule — `ValidationReport` keys findings by an opaque `rule_id` | `domains/test_domain_pack_boundary.py` (14) | READY |
 | 6 | **DOM-SP-002** | 同一 `extract_cj_rs` contract 通過 simulated 與 measured impedance fixtures | one `MetricExtractor` protocol, one `ExtractionInput`/`ExtractionResult` pair; `ToolDescriptor` refuses an `extract_*` tool that names a backend | `domains/test_shared_extractor_contract.py` (9), `e2e/test_m2_vertical_postgres.py` | READY |
@@ -129,28 +131,30 @@ Replayed from empty, `pending 0`, idempotent re-run.
 
 ## 6. Verification
 
-Local, full history, PostgreSQL last.
+Local, full history, PostgreSQL last. Re-measured after §11 against a fresh database.
 
 | Gate | Result |
 |---|---|
 | `ruff format --check` / `ruff check` | clean, 259 files |
 | `mypy` (strict) | clean, **138** source files |
-| Backend-free suite | **1310 passed**, 625 skipped |
-| Migration replay from empty | **38 applied** (fresh `lab_brain_m2r2`) |
+| Backend-free suite | **1327 passed**, 627 skipped |
+| Migration replay from empty | **38 applied** (fresh `lab_brain_m2r3`) |
 | Migration idempotency | `pending 0`, second run a no-op |
-| Full PostgreSQL profile | **1935 passed**, 0 skipped |
+| Full PostgreSQL profile | **1954 passed**, 0 skipped |
 | Executed-coverage ratchet | ok ×4; **DONE `['M0a','M0b','M1']`**, IN_PROGRESS `['M2']`; **45** requirements with a passing test |
 | Status freshness | up to date |
 | Spec conformance | **205 passed** |
 | Requirement ↔ Test | **60 ↔ 60** |
 | Obligation inventory | **84**, in sync |
 | Schema drift / unbound / stale | all empty |
-| Mutation battery | **107/107 killed** (75 through M1, + 15 M2, + 9 first-review repairs, + 8 execution scope) |
-| M1-P1 benchmark | current, re-run byte-identical |
+| Mutation battery | **120/120 killed** (75 through M1, + 15 M2, + 9 first-review repairs, + 8 execution scope, + 13 Episode binding), run with `LAB_BRAIN_TEST_POSTGRES=1` — 19 entries are killed only by PostgreSQL-gated tests |
+| M1-P1 benchmark | current (`run_benchmark.py --check`) |
 
-The local and shallow-CI figures are separate numbers and are not interchangeable: 1310 is a bare
-`pytest`, 1935 is the same suite with `LAB_BRAIN_TEST_POSTGRES=1` against a database migrated from
-empty. A milestone whose `gate_profile` names `postgres` cannot be signed off by the first.
+The local and shallow-CI figures are separate numbers and are not interchangeable: 1327 is a bare
+`pytest`, 1954 is the same suite with `LAB_BRAIN_TEST_POSTGRES=1` against a database migrated from
+empty. A milestone whose `gate_profile` names `postgres` cannot be signed off by the first — and the
+executed-coverage ratchet says so: run over the backend-free report it fails *DONE milestones ran
+their declared gate profile*, and over the PostgreSQL report it is ok ×4.
 
 **M1's ratchet is live in these figures.** The coverage gate now enforces M1's 21 requirements as
 well as M0a's and M0b's, so a regression in any of them fails CI rather than being noticed.
@@ -469,3 +473,138 @@ than deleting a `require_same_scope(...)` call. Deleting a call would disable th
 one boundary and prove only that *something* there is tested; reading the same value into both
 `ExecutionScope`s leaves the other two live, so exactly one equality is under attack. All eight
 killed, each by the probe written for it.
+
+## 11. The final M2 blocker — the Episode that pays is the Episode whose Job executes
+
+The review of §10 accepted repairs A–E and named one remaining blocker. **None of A–E was
+redesigned**: `dispatch_action` is untouched, `BudgetedToolDispatcher` is still the one production
+tool call, the project/trace/capability guards and their eight mutation anchors are unchanged and
+still killed, `CjRsExtractor` still requires its `ConditionSchemaRegistry`, the durable
+ResourceDemand is still authoritative after a reload, and the SIM-002 vertical is untouched.
+
+### F (P0) — the budgeted Episode was not bound to the executing Job's Episode
+
+**The defect.** COST-001 checks *project/episode caps*, and everything it writes or spends is keyed
+by `ToolAction.episode_id`: `BudgetRequest.episode_id`, both `cost_entries` rows, and the
+`BudgetApproval` (§17.17.1: *ONE action, in ONE episode*). The durable execution belongs to
+`Job.episode_id` (§17.16). After E, those two could still differ with every other dimension agreeing:
+`research_episodes.trace_id` is indexed, not unique, and `006b`'s trigger requires a Job to match
+**its own** Episode's project and trace — which a Job in a second Episode on the same trace does. So
+Episode E1's caps admitted the call, E1's approval was spent, E1 was charged, and E2's Job ran.
+
+**Why adding the Episode to step 0 alone would not have been a repair.** `run_simulation`'s step 0
+was the only place a request met its Job, and it runs inside `perform`.
+`core.dispatch.dispatch_action` (hard-locked M0b) calls `perform` only after it has consumed the
+approval claim and written the ESTIMATED row. A step-0-only check is correct about the execution and
+too late about the money.
+
+**The repair: the Episode is a fourth dimension of the execution scope, carried explicitly by every
+layer, and the Job is resolved before the gate.**
+
+| Boundary | Where | When | Dimensions |
+|---|---|---|---|
+| `ToolAction` ↔ `ToolRequest` | `tools/dispatch.py` | first statement of `dispatch` | project, trace, **episode** |
+| `ChargeAcSweepRequest` ↔ its nested `SimulationRequest` | `domains/silicon_photonics/tools.py` | model validator — cannot be constructed | project, trace, **episode**, capability |
+| **the request's `JobBinding` ↔ the durable `Job`** (new) | `tools/dispatch.py` `_bind_to_durable_job` | after the descriptor resolves; **before** the estimate, the span, the gate, the approval claim, the ledger and `perform` | project, trace, **episode**, capability |
+| `SimulationRequest` ↔ `Job` | `tools/execution.py` | step 0, at execution — before `transition`, `acquire`, `execute` | project, trace, **episode**, capability |
+| a simulation Job has an Episode at all | `submit_simulation_job` | before the Job is durable | — |
+
+Composed, with the database's own link at the head:
+
+    ResearchEpisode.episode_id   = Job.episode_id                006b FK + jobs_match_their_episode
+    Job.episode_id               = SimulationRequest.episode_id  pre-gate, and again at step 0
+    SimulationRequest.episode_id = ToolRequest.episode_id        ChargeAcSweepRequest validator
+    ToolRequest.episode_id       = ToolAction.episode_id         first statement of dispatch
+    ToolAction.episode_id        = BudgetRequest / CostEntry / BudgetApproval scope
+
+**Never inferred.** `ToolRequest.episode_id` and `SimulationRequest.episode_id` are required fields,
+`ExecutionScope.episode_id` has no default, and nothing anywhere reads an Episode off a project and a
+trace — that reading is exactly the one two Episodes can both satisfy.
+
+**How the domain-free dispatcher knows which Job.** A request that executes a durable Job says so:
+`ToolRequest.job_binding()` returns `None` by default, and `ChargeAcSweepRequest` returns a
+`JobBinding` read off `self.simulation` — the object `ChargeAcSweepTool` hands the runner, and whose
+`job_id` `run_simulation` executes. The binding carries the nested execution's scope, so the pre-gate
+comparison is literally step 0's comparison made earlier, with the same two layers named. It is a
+method rather than a field: it restates nothing, so there is nothing more to disagree.
+
+**Why the Job is compared twice.** The pre-gate check is what keeps the approval unspent and the
+ledger clean. Step 0 is against the row as it is at the moment of execution: it holds for a resumer
+that never passed through a dispatcher, and for a Job re-pointed between the two checks —
+`jobs.episode_id` is not immutable in `006`/`006b`, and making it so would have been a migration this
+repair did not need.
+
+**Fail closed where the check could otherwise be skipped.** A `run_*` request whose `job_binding()`
+is `None` is refused (`ToolDispatchRefused`): a backend execution is a Job, and a run request that
+does not say which one could not be checked. A binding naming a Job that does not resolve is refused.
+A Job whose `episode_id` is `None` compares as `None` against the Episode that is paying and is
+refused at both checks, and `submit_simulation_job` refuses to persist one in the first place.
+
+**What changed in the API, all of it M2 code.** `ExecutionScope` gains `episode_id`; `JobBinding` is
+new; `ToolRequest` gains `episode_id` and `job_binding()`; `SimulationRequest` gains `episode_id`;
+`BudgetedToolDispatcher` takes a **required**, read-only `jobs: JobStore` — a dispatcher that could
+be built without one could only compare the paying Episode with itself. **No migration, no core
+file, no amendment, no ADR, no new Requirement or Test ID, no new marker pair.** `episode_id` is
+§17.16's and §17.17's existing identity, not a new identifier. 60 ↔ 60.
+
+**One new obligation on a DomainPack, stated rather than implied.** A pack's `run_*` request must
+override `job_binding()` to be dispatchable; the dispatcher refuses one that does not, at dispatch
+rather than at registration. The ToyDomain's run tool is exercised by EXT-001 through the raw
+registry, which asks a typing question and not a governance one, and is unaffected.
+
+**Before / after.** Fatal spies throughout (implementation, broker, backend); every refusal reports
+span, ledger, approval, Job, seat, backend and Run.
+
+| # | Attack | Before | After |
+|---|---|---|---|
+| F1 | `ToolAction.episode_id = E1`, `ToolRequest.episode_id = E2` | not expressible — the request had no Episode, so nothing said which one it was for | `ExecutionScopeMismatch` at the first statement, naming only the Episode; no span, no ledger row, approval unconsumed |
+| F2 | envelope in E1 wrapping a `SimulationRequest` for E2 | not expressible | refused at construction |
+| F3 | action, request and simulation in E1; **Job in E2**; project, trace, capability equal | gate ran, **approval consumed**, ESTIMATED and ACTUAL charged to E1, E2's Job moved to RUNNING, seat taken, backend ran, Run minted | refused **before the gate**: no span, no `cost_entries`, approval unconsumed, Job exactly as submitted, no lease, backend never entered, no Run — unit **and** PostgreSQL |
+| F4 | F3, over budget, with a valid scoped PI approval attached | the approval released E2's execution | approval unconsumed; `consumed_at` / `consumed_by_action` still NULL in `budget_approvals` |
+| F5 | `Job.episode_id is None` | executed | refused before the gate, refused at step 0, and refused at submission |
+| F6 | `run_simulation` called directly (a resumer) with E1 against E2's Job | executed | step 0 refuses; Job QUEUED, `attempt_count` 0, no lease, no Run |
+| F7 | a `run_*` request that binds no Job | n/a | `ToolDispatchRefused` before the gate |
+| F8 | a binding naming a Job that does not resolve | step 0's `ResourceBindingError`, after the approval | `ToolDispatchRefused` before the gate |
+| F9 | Job differs from the request **only** in project, trace or capability | refused at step 0 — after the approval and the ESTIMATED row | refused before the gate, each naming itself alone — strictly earlier than E |
+| F10 | a `ToolRequest` or `SimulationRequest` that omits its Episode | n/a | refused at construction |
+
+**Positive controls**, because refusing everything would satisfy every row above: a matching dispatch
+runs and both ledger rows and the span carry the Job's Episode; a matching `run_simulation` executes
+and the Run's Job is in the request's Episode; a coherent `ChargeAcSweepRequest` constructs and binds
+exactly its nested request's Job; and in PostgreSQL **the same over-budget action with the same
+approval** is released when its Job is in the budgeted Episode — `ALLOWED_BY_APPROVAL`, the approval
+row consumed by `act:m2-run`, the Job SUCCEEDED, `cost_entries` and the TOOL_CALL span all on E1.
+
+**The chain as equality, read back from PostgreSQL.** Step 4 of
+`test_the_full_tool_chain_runs_budgeted_through_the_typed_registry` gains an `episode_id` row:
+
+    ResearchEpisode -> ToolAction -> ToolRequest -> SimulationRequest -> Job
+        -> CostEntry[ESTIMATED] -> CostEntry[ACTUAL] -> ExecutionSpan[TOOL_CALL]     episode_id
+
+The ledger rows and the span are read from their own tables, so "the cost was attributed to the
+Episode that ran" is a statement about durable rows. There is no `Run` entry: §17.4's Run reaches its
+Episode through its Job, which is the `Job` entry.
+
+**Non-vacuity, checked by hand.** Disabling only the pre-gate Episode comparison makes the PostgreSQL
+probe fail with *"an approval was spent on a Job outside its Episode"* — the pre-repair behaviour —
+while its scope-message assertions still pass, because step 0 still refuses the execution. The probe
+therefore distinguishes *refused in time* from *refused too late*, which is the whole blocker.
+
+**Mutation anchors.** Thirteen entries, one guard each, every one killed by the probe written for it:
+
+| Entry | Guard |
+|---|---|
+| `the_gated_episode_need_not_be_the_requested_episode` | `ToolAction.episode_id == ToolRequest.episode_id` |
+| `a_sweep_envelope_may_wrap_another_episodes_simulation` | envelope Episode == nested request Episode |
+| `a_simulation_may_execute_another_episodes_job` | step 0: `SimulationRequest.episode_id == Job.episode_id` |
+| `the_budgeted_episode_need_not_be_the_jobs_episode` | pre-gate: the Job's Episode |
+| `the_pre_gate_binding_ignores_the_jobs_project`, `…_trace`, `…_capability` | pre-gate: the other three, one entry each |
+| `a_run_request_may_bind_no_job` | a `run_*` request with no binding is refused |
+| `an_unresolvable_bound_job_is_not_refused_as_wiring` | a binding to a missing Job is refused |
+| `a_sweep_binds_a_job_other_than_the_one_it_executes` | the binding names `simulation.job_id` |
+| `a_simulation_job_may_be_submitted_with_no_episode` | submission refuses an Episode-less Job |
+| `a_tool_request_may_leave_its_episode_unstated`, `a_simulation_request_may_leave_its_episode_unstated` | both fields are required |
+
+One candidate is deliberately absent: the binding's scope reading the envelope's Episode instead of
+the nested request's. The model validator makes those equal, so that mutant is equivalent and would
+survive for the right reason.

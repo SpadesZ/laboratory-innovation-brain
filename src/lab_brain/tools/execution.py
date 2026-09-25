@@ -181,6 +181,19 @@ def submit_simulation_job(
             f"{capability.capability_id}; the descriptor whose license constraints are being "
             "checked must be the one the job will execute"
         )
+    # THE EPISODE IS CHECKED HERE because this is the last place an Episode-less simulation Job can
+    # be refused before it is durable. `Job.episode_id` is nullable in the model -- §17.3 was not
+    # built when `006` was -- but a simulation Job is executed only through a `SimulationRequest`,
+    # which always names an Episode, and `run_simulation` refuses any request whose Episode is not
+    # its Job's. A Job with none would sit QUEUED, refused on every attempt, attributable to no
+    # Episode's budget. Refusing it now says so once, at the call that made the mistake.
+    if job.episode_id is None:
+        raise ResourceBindingError(
+            f"simulation job {job.job_id} names no episode_id. COST-001 budgets every execution "
+            "against an Episode and §17.16 records which Episode a Job belongs to; a simulation "
+            "Job with none could never be bound to the Episode that paid for it, so it could never "
+            "execute"
+        )
     declared = tuple(capability.license_constraints)
     if demand is None:
         if declared:
@@ -295,17 +308,25 @@ def run_simulation(
     # run to completion -- so the refusal it issues is a refusal to *record* an execution that
     # already happened, inside a project that never admitted it. The requirement is that the
     # execution not happen, which can only be decided here.
+    #
+    # THE EPISODE IS COMPARED HERE TOO, and this is the check made at the moment of execution. The
+    # dispatcher has already made the same comparison before the gate (see `scope.py` for why it
+    # is made twice); this one is against the row as it is NOW. It is the only check a resumer
+    # that never passed through a dispatcher meets, and it means a Job re-pointed at another
+    # Episode after the gate still does not run on the first one's budget.
     require_same_scope(
         ExecutionScope(
             layer="SimulationRequest",
             project_id=request.project_id,
             trace_id=request.trace_id,
+            episode_id=request.episode_id,
             capability_id=request.capability_id,
         ),
         ExecutionScope(
             layer="Job",
             project_id=current.project_id,
             trace_id=current.trace_id,
+            episode_id=current.episode_id,
             capability_id=current.capability_id,
         ),
         detail=(

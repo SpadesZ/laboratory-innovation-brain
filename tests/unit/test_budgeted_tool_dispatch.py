@@ -35,10 +35,12 @@ from lab_brain.core.models.access import Actor, ProjectMembership
 from lab_brain.core.models.cost import BudgetCaps, CostKind, CostVector
 from lab_brain.core.models.enums import ActorType
 from lab_brain.core.models.execution_span import SpanStatus, SpanType
+from lab_brain.core.models.job import Job, JobState
 from lab_brain.core.repositories.budget import (
     InMemoryBudgetApprovalClaims,
     InMemoryCostLedger,
 )
+from lab_brain.core.repositories.jobs import InMemoryJobStore
 from lab_brain.core.repositories.observability import InMemorySpanRepository
 from lab_brain.tools.contracts import ToolClass, ToolDescriptor, ToolRequest, ToolResult
 from lab_brain.tools.dispatch import (
@@ -47,7 +49,7 @@ from lab_brain.tools.dispatch import (
     ToolDispatchRefused,
 )
 from lab_brain.tools.registry import ToolRegistry
-from lab_brain.tools.scope import ExecutionScopeMismatch
+from lab_brain.tools.scope import ExecutionScope, ExecutionScopeMismatch, JobBinding
 from lab_brain.verification.capability_registry import CapabilityRegistry
 
 pytestmark = [pytest.mark.requirement("COST-001"), pytest.mark.spec_test("T-COST-001")]
@@ -58,6 +60,10 @@ EPISODE = "epi:m2"
 TRACE = "trc:m2"
 ACTION = "act:run-sweep"
 CONTRACT = "cost:test.sim@1.0.0"
+CAPABILITY = "cap:test.sim"
+#: The durable Job the sweep executes. Every `run_*` dispatch below names one, because the
+#: dispatcher refuses a run request that does not (see the Episode section).
+JOB = "job:1"
 
 #: What the estimator says this action costs. Chosen so a cap of 100 admits it and a cap of 10
 #: does not, with no arithmetic in the test.
@@ -65,7 +71,27 @@ ESTIMATE = CostVector(wall_clock_s=30, license_seat_s=30, money_estimate=Decimal
 
 
 class SweepRequest(ToolRequest):
+    """A `run_*` request, so it says which durable Job it executes and under which scope.
+
+    The envelope's own scope is the execution's here -- there is no nested request -- which keeps
+    the unit-level chain to the two links the dispatcher itself holds: action <-> request, and
+    request <-> Job.
+    """
+
     device: str
+    job_id: str = JOB
+
+    def job_binding(self) -> JobBinding:
+        return JobBinding(
+            job_id=self.job_id,
+            scope=ExecutionScope(
+                layer="SweepRequest",
+                project_id=self.project_id,
+                trace_id=self.trace_id,
+                episode_id=self.episode_id,
+                capability_id=CAPABILITY,
+            ),
+        )
 
 
 class SweepResult(ToolResult):
@@ -123,7 +149,7 @@ def _descriptor() -> ToolDescriptor:
         tool_class=ToolClass.RUN,
         domain="testing",
         version="1.0.0",
-        capability_id="cap:test.sim",
+        capability_id=CAPABILITY,
         conditions_schema_version="testing/sweep@1.0.0",
         produces=("test.impedance",),
     )
@@ -136,7 +162,7 @@ def _capabilities() -> CapabilityRegistry:
     registry.register_estimator(CONTRACT, lambda params: ESTIMATE)
     registry.register(
         Capability(
-            capability_id="cap:test.sim",
+            capability_id=CAPABILITY,
             action_type=ActionType.SIMULATION,
             backend_id="test.backend",
             produces=("test.impedance",),
@@ -157,10 +183,33 @@ def _policy(*, money: int | None = 100) -> BudgetPolicy:
     )
 
 
+def _job(**overrides: Any) -> Job:
+    """The Job the sweep executes: same project, trace, Episode and capability as the action."""
+    payload: dict[str, Any] = {
+        "job_id": JOB,
+        "project_id": PROJECT,
+        "episode_id": EPISODE,
+        "capability_id": CAPABILITY,
+        "trace_id": TRACE,
+        "idempotency_key": "idem:1",
+        "submitted_at": NOW - dt.timedelta(minutes=1),
+    }
+    payload.update(overrides)
+    return Job(**payload)
+
+
+def _jobs(job: Job | None = None) -> InMemoryJobStore:
+    store = InMemoryJobStore()
+    store.submit(_job() if job is None else job)
+    return store
+
+
 def _action(**overrides: Any) -> ToolAction:
     payload: dict[str, Any] = {
         "tool_id": "DOM-TST-TOOL-002",
-        "request": SweepRequest(project_id=PROJECT, trace_id=TRACE, device="d1"),
+        "request": SweepRequest(
+            project_id=PROJECT, trace_id=TRACE, episode_id=EPISODE, device="d1"
+        ),
         "project_id": PROJECT,
         "episode_id": EPISODE,
         "actor_or_slot": "act:researcher",
@@ -186,6 +235,7 @@ def _dispatcher(tool: FatalTool) -> tuple[BudgetedToolDispatcher, InMemoryCostLe
             capabilities=_capabilities(),
             spans=spans,
             ledger=ledger,
+            jobs=_jobs(),
             claims=claims,
             now=lambda: NOW,
         ),
@@ -243,6 +293,7 @@ def test_a_tool_that_cannot_be_priced_is_refused_before_a_span_is_opened():
         capabilities=CapabilityRegistry(),  # no estimator, no capability
         spans=InMemorySpanRepository(),
         ledger=InMemoryCostLedger(),
+        jobs=_jobs(),
         claims=None,
         now=lambda: NOW,
     )
@@ -279,6 +330,7 @@ def test_an_unregistered_tool_is_refused_and_opens_no_span():
 
 def _scope_wiring(
     tool: FatalTool,
+    jobs: InMemoryJobStore | None = None,
 ) -> tuple[
     BudgetedToolDispatcher, InMemoryCostLedger, InMemorySpanRepository, InMemoryBudgetApprovalClaims
 ]:
@@ -299,6 +351,7 @@ def _scope_wiring(
             capabilities=_capabilities(),
             spans=spans,
             ledger=ledger,
+            jobs=_jobs() if jobs is None else jobs,
             claims=claims,
             now=lambda: NOW,
         ),
@@ -340,7 +393,11 @@ def test_an_action_and_request_naming_different_projects_never_reach_the_gate():
 
     with pytest.raises(ExecutionScopeMismatch) as raised:
         dispatcher.dispatch(
-            _action(request=SweepRequest(project_id="prj:other", trace_id=TRACE, device="d1")),
+            _action(
+                request=SweepRequest(
+                    project_id="prj:other", trace_id=TRACE, episode_id=EPISODE, device="d1"
+                )
+            ),
             policy=_policy(money=100),  # would have ALLOWED: the refusal is not the budget's
         )
 
@@ -361,7 +418,11 @@ def test_an_action_and_request_naming_different_traces_never_reach_the_gate():
 
     with pytest.raises(ExecutionScopeMismatch) as raised:
         dispatcher.dispatch(
-            _action(request=SweepRequest(project_id=PROJECT, trace_id="trc:other", device="d1")),
+            _action(
+                request=SweepRequest(
+                    project_id=PROJECT, trace_id="trc:other", episode_id=EPISODE, device="d1"
+                )
+            ),
             policy=_policy(money=100),
         )
 
@@ -397,7 +458,9 @@ def test_a_mismatched_envelope_is_refused_even_when_a_supervisor_approval_is_att
     with pytest.raises(ExecutionScopeMismatch):
         dispatcher.dispatch(
             _action(
-                request=SweepRequest(project_id="prj:other", trace_id=TRACE, device="d1"),
+                request=SweepRequest(
+                    project_id="prj:other", trace_id=TRACE, episode_id=EPISODE, device="d1"
+                ),
                 approval=approval,
                 approver=Actor(actor_id="act:supervisor", actor_type=ActorType.HUMAN),
                 approver_membership=ProjectMembership(
@@ -432,6 +495,253 @@ def test_a_matching_envelope_dispatches_and_the_tool_sees_the_scope_that_was_gat
     assert outcome.span.trace_id == action.trace_id
     estimate = ledger.entry("cst:est-1")
     assert estimate is not None and estimate.project_id == action.project_id
+
+
+# ---------------------------------------------------------------------------
+# The Episode that pays is the Episode whose Job executes — decided before the gate
+#
+# THE DEFECT. COST-001 checks "project/episode caps", writes both ledger rows and releases an
+# approval, all against `ToolAction.episode_id`. The execution belongs to `Job.episode_id`. With
+# project, trace and capability bound, the two could still differ -- two Episodes of one project
+# can share a trace -- and the only check that could see it was `run_simulation`'s step 0, inside
+# `perform`, which `dispatch_action` reaches only after consuming the approval and writing the
+# ESTIMATED row. Correct about the execution, too late about the money.
+#
+# EVERY PROBE HERE HAS AN APPROVAL REGISTERED AND A BUDGET THAT WOULD HAVE PASSED, as in the
+# envelope section above, so "refused" cannot be the budget's refusal and "unconsumed" is a claim
+# about a real claim. And every probe asserts the Job is exactly as it was: a pre-gate refusal that
+# moved the Job would be a refusal after the fact with extra steps.
+# ---------------------------------------------------------------------------
+
+
+def _job_untouched(jobs: InMemoryJobStore, before: Job) -> None:
+    after = jobs.get(before.job_id)
+    assert after == before, "the durable Job was changed by a dispatch that was refused"
+    assert after.state is JobState.QUEUED and after.attempt_count == 0
+    assert after.result_run_id is None and jobs.run_for_job(before.job_id) is None
+
+
+def test_an_action_and_request_naming_different_episodes_never_reach_the_gate():
+    """The first link. The gate prices Episode E1; the request says it is made in E2.
+
+    Project and trace agree, so the refusal names the Episode and only the Episode.
+    """
+    tool = FatalTool()
+    dispatcher, ledger, spans, claims = _scope_wiring(tool)
+
+    with pytest.raises(ExecutionScopeMismatch) as raised:
+        dispatcher.dispatch(
+            _action(
+                request=SweepRequest(
+                    project_id=PROJECT, trace_id=TRACE, episode_id="epi:other", device="d1"
+                )
+            ),
+            policy=_policy(money=100),
+        )
+
+    message = str(raised.value)
+    assert "ToolAction.episode_id is 'epi:m2'" in message
+    assert "ToolRequest.episode_id is 'epi:other'" in message
+    assert "project_id" not in message and "trace_id" not in message
+    _assert_nothing_happened(tool, ledger, spans, claims)
+
+
+def test_a_job_that_belongs_to_another_episode_is_refused_before_the_gate():
+    """THE BLOCKER. Action, request, project, trace and capability all agree; the Job does not.
+
+    The Job was submitted under a second Episode of the same project on the same trace -- the case
+    no other dimension distinguishes. Before this repair the dispatcher asked the gate about E1,
+    wrote E1's ESTIMATED row and only then reached a check that could see E2. Now nothing happens:
+    no span, no ledger row, no approval consumed, the Job exactly as it was, the tool not entered.
+    """
+    tool = FatalTool()
+    jobs = _jobs(_job(episode_id="epi:m2-other"))
+    before = jobs.get(JOB)
+    assert before is not None
+    dispatcher, ledger, spans, claims = _scope_wiring(tool, jobs)
+
+    with pytest.raises(ExecutionScopeMismatch) as raised:
+        dispatcher.dispatch(_action(), policy=_policy(money=100))
+
+    message = str(raised.value)
+    assert "SweepRequest.episode_id is 'epi:m2'" in message
+    assert "Job.episode_id is 'epi:m2-other'" in message
+    for agreed in ("project_id", "trace_id", "capability_id"):
+        assert agreed not in message, f"{agreed} agreed and was reported anyway"
+    assert "budgeted in episode 'epi:m2'" in message
+    _assert_nothing_happened(tool, ledger, spans, claims)
+    _job_untouched(jobs, before)
+
+
+def test_a_job_in_another_episode_does_not_spend_an_approval_that_would_have_released_it():
+    """The approval half, made explicit: over budget, a valid scoped PI approval attached.
+
+    `dispatch_action` consumes the claim before it calls `perform`, so a check made anywhere at or
+    below `perform` spends this approval on an execution it never released. The approval is for
+    ONE action in ONE Episode (§17.17.1); the Episode this Job belongs to never received one.
+    """
+    tool = FatalTool()
+    jobs = _jobs(_job(episode_id="epi:m2-other"))
+    before = jobs.get(JOB)
+    assert before is not None
+    dispatcher, ledger, spans, claims = _scope_wiring(tool, jobs)
+    approval = BudgetApproval(
+        approval_id="apr:unused",
+        approver_actor_id="act:supervisor",
+        project_id=PROJECT,
+        episode_id=EPISODE,
+        action_ref=ACTION,
+        policy_id="bp:test",
+        policy_version="1.0.0",
+        approved_overrun=CostVector(money_estimate=Decimal("100")),
+        granted_at=NOW - dt.timedelta(minutes=5),
+        expires_at=NOW + dt.timedelta(hours=1),
+    )
+
+    with pytest.raises(ExecutionScopeMismatch, match=r"Job\.episode_id is 'epi:m2-other'"):
+        dispatcher.dispatch(
+            _action(
+                approval=approval,
+                approver=Actor(actor_id="act:supervisor", actor_type=ActorType.HUMAN),
+                approver_membership=ProjectMembership(
+                    actor_id="act:supervisor",
+                    project_id=PROJECT,
+                    role="PI",
+                    approval_scopes=(BUDGET_OVERRUN_SCOPE,),
+                ),
+            ),
+            policy=_policy(money=10),  # over budget: only the approval could release it
+        )
+
+    _assert_nothing_happened(tool, ledger, spans, claims)
+    _job_untouched(jobs, before)
+
+
+def test_a_job_that_names_no_episode_is_refused_before_the_gate():
+    """`Job.episode_id` is nullable in the model; `None` is not the Episode that is paying."""
+    tool = FatalTool()
+    jobs = _jobs(_job(episode_id=None))
+    before = jobs.get(JOB)
+    assert before is not None
+    dispatcher, ledger, spans, claims = _scope_wiring(tool, jobs)
+
+    with pytest.raises(ExecutionScopeMismatch, match=r"Job\.episode_id is None"):
+        dispatcher.dispatch(_action(), policy=_policy(money=100))
+
+    _assert_nothing_happened(tool, ledger, spans, claims)
+    _job_untouched(jobs, before)
+
+
+@pytest.mark.parametrize(
+    ("dimension", "value"),
+    [
+        ("project_id", "prj:other"),
+        ("trace_id", "trc:other"),
+        ("capability_id", "cap:test.other"),
+    ],
+)
+def test_the_pre_gate_job_binding_holds_every_other_dimension_too(dimension: str, value: str):
+    """The same resolution, the other three identities. Each was checked only inside `perform`.
+
+    Repair E bound project, trace and capability to the Job at `run_simulation`'s step 0 -- before
+    any Job mutation, seat or backend call, and after the approval and the ESTIMATED row. Resolving
+    the Job before the gate for the Episode makes the other three free to move with it, and each is
+    refused here naming itself alone.
+    """
+    tool = FatalTool()
+    jobs = _jobs(_job(**{dimension: value}))
+    before = jobs.get(JOB)
+    assert before is not None
+    dispatcher, ledger, spans, claims = _scope_wiring(tool, jobs)
+
+    with pytest.raises(ExecutionScopeMismatch) as raised:
+        dispatcher.dispatch(_action(), policy=_policy(money=100))
+
+    message = str(raised.value)
+    assert f"Job.{dimension} is {value!r}" in message
+    assert "episode_id" not in message, "the Episode agreed and was reported anyway"
+    _assert_nothing_happened(tool, ledger, spans, claims)
+    _job_untouched(jobs, before)
+
+
+class UnboundSweepRequest(ToolRequest):
+    """A `run_*` request that does not say which Job it executes -- the base `job_binding`."""
+
+    device: str
+
+
+class UnboundFatalTool(FatalTool):
+    @property
+    def request_model(self) -> type[UnboundSweepRequest]:  # type: ignore[override]
+        return UnboundSweepRequest
+
+
+def test_a_run_request_that_binds_no_job_is_refused_before_the_gate():
+    """Fail closed: the absence of a binding is not a pass.
+
+    Were `None` accepted, a run tool whose request forgot to override `job_binding` would skip the
+    pre-gate check without anyone noticing, and the Episode the gate priced would again be
+    unrelated to the Episode that executed.
+    """
+    tool = UnboundFatalTool()
+    dispatcher, ledger, spans, claims = _scope_wiring(tool)
+
+    with pytest.raises(ToolDispatchRefused, match="binds no durable Job"):
+        dispatcher.dispatch(
+            _action(
+                request=UnboundSweepRequest(
+                    project_id=PROJECT, trace_id=TRACE, episode_id=EPISODE, device="d1"
+                )
+            ),
+            policy=_policy(money=100),
+        )
+
+    _assert_nothing_happened(tool, ledger, spans, claims)
+
+
+def test_a_request_binding_a_job_that_does_not_resolve_is_refused_before_the_gate():
+    """No Job, no Episode to compare the budget with, and nothing to attribute a Run to."""
+    tool = FatalTool()
+    dispatcher, ledger, spans, claims = _scope_wiring(tool)
+
+    with pytest.raises(ToolDispatchRefused, match="does not resolve"):
+        dispatcher.dispatch(
+            _action(
+                request=SweepRequest(
+                    project_id=PROJECT,
+                    trace_id=TRACE,
+                    episode_id=EPISODE,
+                    device="d1",
+                    job_id="job:ghost",
+                )
+            ),
+            policy=_policy(money=100),
+        )
+
+    _assert_nothing_happened(tool, ledger, spans, claims)
+
+
+def test_a_job_in_the_budgeted_episode_dispatches_and_every_record_names_that_episode():
+    """The positive control, asserted as the invariant rather than as "it ran".
+
+    ToolAction.episode_id == ToolRequest.episode_id == Job.episode_id, and the records COST-001
+    writes -- both ledger rows and the span -- carry that same Episode.
+    """
+    tool = WorkingTool()
+    jobs = _jobs()
+    dispatcher, ledger, _spans, _claims = _scope_wiring(tool, jobs)
+    action = _action()
+
+    outcome = dispatcher.dispatch(action, policy=_policy(money=100))
+
+    assert outcome.performed and len(tool.entered) == 1
+    job = jobs.get(JOB)
+    assert job is not None
+    assert action.episode_id == tool.entered[0].episode_id == job.episode_id == EPISODE
+    estimate, actual = ledger.entry("cst:est-1"), ledger.entry("cst:act-1")
+    assert estimate is not None and actual is not None
+    assert estimate.episode_id == actual.episode_id == job.episode_id
+    assert outcome.span.episode_id == job.episode_id
 
 
 # ---------------------------------------------------------------------------
@@ -672,12 +982,16 @@ def test_a_zero_cost_local_tool_still_passes_the_gate():
         capabilities=capabilities,
         spans=InMemorySpanRepository(),
         ledger=ledger,
+        jobs=InMemoryJobStore(),
         claims=InMemoryBudgetApprovalClaims(),
         now=lambda: NOW,
     )
 
     outcome = dispatcher.dispatch(
-        _action(tool_id="DOM-TST-TOOL-004", request=Ping(project_id=PROJECT, trace_id=TRACE)),
+        _action(
+            tool_id="DOM-TST-TOOL-004",
+            request=Ping(project_id=PROJECT, trace_id=TRACE, episode_id=EPISODE),
+        ),
         policy=_policy(),
     )
     assert outcome.performed
@@ -727,12 +1041,16 @@ def test_a_local_tool_whose_contract_is_unregistered_is_refused():
         capabilities=_capabilities(),
         spans=InMemorySpanRepository(),
         ledger=InMemoryCostLedger(),
+        jobs=InMemoryJobStore(),
         claims=None,
         now=lambda: NOW,
     )
     with pytest.raises(ToolDispatchRefused, match="'cheap' is not 'ungoverned'"):
         dispatcher.dispatch(
-            _action(tool_id="DOM-TST-TOOL-004", request=Ping(project_id=PROJECT, trace_id=TRACE)),
+            _action(
+                tool_id="DOM-TST-TOOL-004",
+                request=Ping(project_id=PROJECT, trace_id=TRACE, episode_id=EPISODE),
+            ),
             policy=_policy(),
         )
 

@@ -353,6 +353,7 @@ def test_a_demand_inconsistent_with_the_capabilitys_license_constraint_is_refuse
             job=Job(
                 job_id="job:1",
                 project_id=PROJECT,
+                episode_id="epi:1",
                 capability_id="cap:sim",
                 trace_id="trc:1",
                 idempotency_key="idem:1",
@@ -371,6 +372,7 @@ def test_a_seat_requiring_capability_submitted_with_no_demand_is_refused():
             job=Job(
                 job_id="job:1",
                 project_id=PROJECT,
+                episode_id="epi:1",
                 capability_id="cap:sim",
                 trace_id="trc:1",
                 idempotency_key="idem:1",
@@ -389,6 +391,7 @@ def test_the_capability_being_checked_must_be_the_one_the_job_will_execute():
             job=Job(
                 job_id="job:1",
                 project_id=PROJECT,
+                episode_id="epi:1",
                 capability_id="cap:something.else",
                 trace_id="trc:1",
                 idempotency_key="idem:1",

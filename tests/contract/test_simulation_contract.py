@@ -60,6 +60,7 @@ pytestmark = [pytest.mark.requirement("SIM-001"), pytest.mark.spec_test("T-SIM-0
 
 NOW = dt.datetime(2026, 9, 23, 10, 0, tzinfo=dt.UTC)
 PROJECT = "prj:sp"
+EPISODE = "epi:sp"
 ARTIFACT = "art:sha256:" + "ab" * 32
 RESOURCE = "license:sp-charge-seat"
 
@@ -75,6 +76,7 @@ def _request(**overrides: object) -> SimulationRequest:
         "request_id": "req:1",
         "project_id": PROJECT,
         "trace_id": "trc:1",
+        "episode_id": EPISODE,
         "job_id": "job:1",
         "capability_id": "cap:sp.charge_ac_sweep",
         "input_artifacts": (ARTIFACT,),
@@ -123,6 +125,7 @@ def _store(demand: ResourceDemand | None = None) -> InMemoryJobStore:
         job=Job(
             job_id="job:1",
             project_id=PROJECT,
+            episode_id=EPISODE,
             capability_id="cap:sp.charge_ac_sweep",
             trace_id="trc:1",
             idempotency_key="idem:1",
@@ -405,6 +408,7 @@ def test_the_extracted_capacitance_recovers_what_the_model_was_given():
     payload = ExtractionInput(
         project_id=PROJECT,
         trace_id="trc:1",
+        episode_id=EPISODE,
         source=simulated_source(executed),
         series=executed.execution.series,
     )

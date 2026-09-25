@@ -42,6 +42,7 @@ from pydantic import Field, model_validator
 from lab_brain.core.models.base import CoreModel
 from lab_brain.core.models.condition import ConditionSchemaRef
 from lab_brain.core.models.cost import CostVector
+from lab_brain.tools.scope import JobBinding
 
 
 class ToolClass(StrEnum):
@@ -78,10 +79,32 @@ class ToolRequest(CoreModel):
 
     Frozen and `extra="forbid"` like every `CoreModel`, which is the point: a field the tool does
     not declare is refused rather than carried along to be interpreted by whatever reads it last.
+
+    ``project_id``, ``trace_id`` AND ``episode_id`` ARE THE REQUEST'S SCOPE, and the dispatcher
+    refuses a request whose scope is not the action's (`tools/scope.py`). ``episode_id`` is
+    required for the reason the other two are: COST-001 budgets every tool call against an Episode's
+    caps, so every tool call is made in exactly one Episode, and a request that could leave it
+    unstated would be a request whose Episode someone downstream has to guess.
     """
 
     project_id: str
     trace_id: str
+    episode_id: str
+
+    def job_binding(self) -> JobBinding | None:
+        """The durable Job this request executes, and the scope it executes it under -- if any.
+
+        `None` for a request that executes no Job, which is every `extract_*`, `inspect_*` and
+        `validate_*` request. A request that DOES execute one must say so by overriding this:
+        `BudgetedToolDispatcher` resolves the Job it names and binds it before the gate, and it
+        refuses a `run_*` request that binds none, because a backend execution nobody can check
+        against its Job is one whose Episode the gate never saw (§17.16, COST-001).
+
+        A method on the request rather than a field, because it is not a second statement of
+        anything: it reads the identities the request already carries, and a field would be one
+        more value that could disagree with them.
+        """
+        return None
 
 
 class ToolResult(CoreModel):

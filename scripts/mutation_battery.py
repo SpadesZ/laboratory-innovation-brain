@@ -22,6 +22,11 @@ restore it afterwards" is exactly the reasoning this repository declines to acce
 it before a milestone gate and record the result in the readiness document.
 
     python scripts/mutation_battery.py
+
+WITH THE POSTGRES PROFILE ENABLED. Some entries are killed only by PostgreSQL-gated tests, and a
+skipped test is a passing test as far as the exit code is concerned -- so a run without
+`LAB_BRAIN_TEST_POSTGRES=1` and a migrated `LAB_BRAIN_DATABASE_URL` reports those guards as having
+no teeth when what it actually measured is that their tests did not run.
 """
 
 from __future__ import annotations
@@ -1002,6 +1007,137 @@ MUTATIONS: tuple[Mutation, ...] = (
         old="            capability_id=current.capability_id,",
         new="            capability_id=request.capability_id,",
         tests=("tests/contract/test_resource_demand_binding.py",),
+    ),
+    # ------------------------------------------------------------------
+    # M2 final blocker — the Episode that pays is the Episode whose Job executes.
+    #
+    # Same discipline as repair E: one equality per entry, made to compare a value against
+    # itself, so the other dimensions of the same comparison stay live. The episode is added at
+    # the three existing boundaries (three entries) and at the new pre-gate Job binding, where all
+    # four dimensions are compared and each gets its own entry -- the pre-gate check is what keeps
+    # an approval unspent, and a guard that held the Episode but not, say, the project would still
+    # spend one on a cross-project Job.
+    #
+    # The binding's own scope reading `self.episode_id` instead of `self.simulation.episode_id` is
+    # NOT here: the model validator makes those equal, so that mutant is equivalent and would
+    # survive for the right reason. What the binding must get right is WHICH JOB, and that is here.
+    # ------------------------------------------------------------------
+    Mutation(
+        name="the_gated_episode_need_not_be_the_requested_episode",
+        guards="COST-001 -- ToolAction.episode_id == ToolRequest.episode_id, before the gate",
+        path="src/lab_brain/tools/dispatch.py",
+        old="                episode_id=action.request.episode_id,",
+        new="                episode_id=action.episode_id,",
+        tests=("tests/unit/test_budgeted_tool_dispatch.py",),
+    ),
+    Mutation(
+        name="a_sweep_envelope_may_wrap_another_episodes_simulation",
+        guards="COST-001 -- ChargeAcSweepRequest.episode_id == simulation.episode_id",
+        path="src/lab_brain/domains/silicon_photonics/tools.py",
+        old=(
+            '                layer="ChargeAcSweepRequest.simulation",\n'
+            "                project_id=self.simulation.project_id,\n"
+            "                trace_id=self.simulation.trace_id,\n"
+            "                episode_id=self.simulation.episode_id,"
+        ),
+        new=(
+            '                layer="ChargeAcSweepRequest.simulation",\n'
+            "                project_id=self.simulation.project_id,\n"
+            "                trace_id=self.simulation.trace_id,\n"
+            "                episode_id=self.episode_id,"
+        ),
+        tests=("tests/unit/test_typed_tool_registry.py",),
+    ),
+    Mutation(
+        name="a_simulation_may_execute_another_episodes_job",
+        guards="§17.16 -- SimulationRequest.episode_id == Job.episode_id, at execution time",
+        path="src/lab_brain/tools/execution.py",
+        old="            episode_id=current.episode_id,",
+        new="            episode_id=request.episode_id,",
+        tests=("tests/contract/test_resource_demand_binding.py",),
+    ),
+    Mutation(
+        name="the_budgeted_episode_need_not_be_the_jobs_episode",
+        guards="COST-001 -- the executed Job's episode_id, compared BEFORE the approval is spent",
+        path="src/lab_brain/tools/dispatch.py",
+        old="                episode_id=job.episode_id,",
+        new="                episode_id=binding.scope.episode_id,",
+        tests=("tests/unit/test_budgeted_tool_dispatch.py",),
+    ),
+    Mutation(
+        name="the_pre_gate_binding_ignores_the_jobs_project",
+        guards="SEC-002 -- the executed Job's project_id, compared before the gate",
+        path="src/lab_brain/tools/dispatch.py",
+        old="                project_id=job.project_id,",
+        new="                project_id=binding.scope.project_id,",
+        tests=("tests/unit/test_budgeted_tool_dispatch.py",),
+    ),
+    Mutation(
+        name="the_pre_gate_binding_ignores_the_jobs_trace",
+        guards="OPS-003 -- the executed Job's trace_id, compared before the gate",
+        path="src/lab_brain/tools/dispatch.py",
+        old="                trace_id=job.trace_id,",
+        new="                trace_id=binding.scope.trace_id,",
+        tests=("tests/unit/test_budgeted_tool_dispatch.py",),
+    ),
+    Mutation(
+        name="the_pre_gate_binding_ignores_the_jobs_capability",
+        guards="§17.18 -- the executed Job's capability_id, compared before the gate",
+        path="src/lab_brain/tools/dispatch.py",
+        old="                capability_id=job.capability_id,",
+        new="                capability_id=binding.scope.capability_id,",
+        tests=("tests/unit/test_budgeted_tool_dispatch.py",),
+    ),
+    Mutation(
+        name="a_run_request_may_bind_no_job",
+        guards="fail closed -- a run_* request that names no durable Job is refused, not passed",
+        path="src/lab_brain/tools/dispatch.py",
+        old=(
+            "            if descriptor.tool_class is ToolClass.RUN:\n"
+            "                raise ToolDispatchRefused("
+        ),
+        new="            if False:\n                raise ToolDispatchRefused(",
+        tests=("tests/unit/test_budgeted_tool_dispatch.py",),
+    ),
+    Mutation(
+        name="an_unresolvable_bound_job_is_not_refused_as_wiring",
+        guards="§17.16 -- a request naming a Job that does not exist is refused before the gate",
+        path="src/lab_brain/tools/dispatch.py",
+        old="        if job is None:\n            raise ToolDispatchRefused(",
+        new="        if False:\n            raise ToolDispatchRefused(",
+        tests=("tests/unit/test_budgeted_tool_dispatch.py",),
+    ),
+    Mutation(
+        name="a_sweep_binds_a_job_other_than_the_one_it_executes",
+        guards="the JobBinding names the nested request's job_id -- the Job the runner executes",
+        path="src/lab_brain/domains/silicon_photonics/tools.py",
+        old="            job_id=self.simulation.job_id,",
+        new="            job_id=self.simulation.request_id,",
+        tests=("tests/unit/test_typed_tool_registry.py",),
+    ),
+    Mutation(
+        name="a_simulation_job_may_be_submitted_with_no_episode",
+        guards="§17.16 -- an Episode-less simulation Job is refused before it is durable",
+        path="src/lab_brain/tools/execution.py",
+        old="    if job.episode_id is None:\n        raise ResourceBindingError(",
+        new="    if False:\n        raise ResourceBindingError(",
+        tests=("tests/contract/test_resource_demand_binding.py",),
+    ),
+    Mutation(
+        name="a_tool_request_may_leave_its_episode_unstated",
+        guards="never inferred -- ToolRequest.episode_id is required",
+        path="src/lab_brain/tools/contracts.py",
+        old="    trace_id: str\n    episode_id: str\n",
+        new='    trace_id: str\n    episode_id: str = "epi:unstated"\n',
+        tests=("tests/unit/test_typed_tool_registry.py",),
+    ),
+    Mutation(
+        name="a_simulation_request_may_leave_its_episode_unstated",
+        guards="never inferred -- SimulationRequest.episode_id is required",
+        path="src/lab_brain/tools/simulation.py",
+        old="    trace_id: str\n    episode_id: str\n    job_id: str\n",
+        new='    trace_id: str\n    episode_id: str = "epi:unstated"\n    job_id: str\n',
+        tests=("tests/unit/test_typed_tool_registry.py",),
     ),
 )
 

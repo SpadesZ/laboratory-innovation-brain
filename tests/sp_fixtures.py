@@ -31,6 +31,7 @@ from lab_brain.tools.extraction import ExtractionInput, ExtractionSource, Numeri
 NOW = dt.datetime(2026, 9, 23, 9, 0, tzinfo=dt.UTC)
 PROJECT = "prj:sp"
 TRACE = "trc:sp-1"
+EPISODE = "epi:sp-1"
 
 #: A synthetic device length. Round, and a property of the fixture only.
 DEVICE_LENGTH_UM = Decimal("500")
@@ -141,6 +142,7 @@ def extraction_input(source: ExtractionSource, **kwargs: Decimal) -> ExtractionI
     return ExtractionInput(
         project_id=PROJECT,
         trace_id=TRACE,
+        episode_id=EPISODE,
         source=source,
         series=series(**kwargs),
     )
@@ -158,6 +160,7 @@ __all__ = [
     "BIAS_V",
     "CONDITIONS",
     "DEVICE_LENGTH_UM",
+    "EPISODE",
     "FREQUENCY_HZ",
     "IMPEDANCE_IMAG_OHM",
     "IMPEDANCE_REAL_OHM",

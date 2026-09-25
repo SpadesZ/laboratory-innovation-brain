@@ -105,13 +105,16 @@ def test_the_toy_domain_is_plannable_and_invocable_through_the_shared_machinery(
     assert [action.capability_id for action in planned] == [TOY_CAPABILITY]
 
     result = registries.tools.invoke(
-        "DOM-TOY-TOOL-001", ToyBenchRequest(project_id="prj:t", trace_id="trc:t", widget_id="w1")
+        "DOM-TOY-TOOL-001",
+        ToyBenchRequest(project_id="prj:t", trace_id="trc:t", episode_id="epi:t", widget_id="w1"),
     )
     assert result.tool_id == "DOM-TOY-TOOL-001"
 
     reported = registries.tools.invoke(
         "DOM-TOY-TOOL-006",
-        ToyValidateRequest(project_id="prj:t", trace_id="trc:t", widget_id="w1", blips=2),
+        ToyValidateRequest(
+            project_id="prj:t", trace_id="trc:t", episode_id="epi:t", widget_id="w1", blips=2
+        ),
     )
     assert reported.report.passed  # type: ignore[attr-defined]
 

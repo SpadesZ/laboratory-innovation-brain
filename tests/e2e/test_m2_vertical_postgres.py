@@ -183,6 +183,7 @@ def _request(
         request_id=request_id,
         project_id=PROJECT,
         trace_id=TRACE,
+        episode_id=EPISODE,
         job_id=job_id,
         capability_id=CHARGE_AC_CAPABILITY,
         input_artifacts=(ARTIFACT,),
@@ -339,6 +340,7 @@ def test_the_whole_m2_vertical_runs_through_durable_rows(wired, db):
         ExtractionInput(
             project_id=PROJECT,
             trace_id=TRACE,
+            episode_id=EPISODE,
             source=simulated_source(executed),
             series=executed.execution.series,
         )
@@ -347,6 +349,7 @@ def test_the_whole_m2_vertical_runs_through_durable_rows(wired, db):
         ExtractionInput(
             project_id=PROJECT,
             trace_id=TRACE,
+            episode_id=EPISODE,
             source=fx.measured_source().model_copy(update={"project_id": PROJECT}),
             series=executed.execution.series,
         )
@@ -633,6 +636,7 @@ def test_the_full_tool_chain_runs_budgeted_through_the_typed_registry(wired, db)
         capabilities=registry.registries.capabilities,
         spans=spans,
         ledger=ledger,
+        jobs=jobs,
         claims=SqlBudgetApprovalClaims(db),
         now=_clock,
     )
@@ -667,7 +671,9 @@ def test_the_full_tool_chain_runs_budgeted_through_the_typed_registry(wired, db)
     # 1. run_charge_ac_sweep, through the gate.
     ran = _dispatch(
         CHARGE_AC_TOOL_ID,
-        ChargeAcSweepRequest(project_id=PROJECT, trace_id=TRACE, simulation=_request()),
+        ChargeAcSweepRequest(
+            project_id=PROJECT, trace_id=TRACE, episode_id=EPISODE, simulation=_request()
+        ),
         "run",
     )
     assert ran.performed and isinstance(ran.result, ChargeAcSweepResult)
@@ -694,6 +700,7 @@ def test_the_full_tool_chain_runs_budgeted_through_the_typed_registry(wired, db)
         ExtractionInput(
             project_id=PROJECT,
             trace_id=TRACE,
+            episode_id=EPISODE,
             source=simulated_source(executed),
             series=executed.execution.series,
         ),
@@ -712,6 +719,7 @@ def test_the_full_tool_chain_runs_budgeted_through_the_typed_registry(wired, db)
         TrendValidationRequest(
             project_id=PROJECT,
             trace_id=TRACE,
+            episode_id=EPISODE,
             subject=TrendSubject(
                 subject_id="sweep:m2",
                 samples=(
@@ -762,6 +770,20 @@ def test_the_full_tool_chain_runs_budgeted_through_the_typed_registry(wired, db)
     assert durable_run.job_id == job.job_id
     descriptor = registry.registries.tools.descriptor(CHARGE_AC_TOOL_ID)
 
+    def durable_cost_episode(entry_id: str) -> object:
+        row = db.execute(
+            "SELECT episode_id FROM cost_entries WHERE cost_entry_id = %s", (entry_id,)
+        ).fetchone()
+        assert row is not None, f"no durable ledger row {entry_id}"
+        return row[0]
+
+    def durable_span_episode(span_id: str) -> object:
+        row = db.execute(
+            "SELECT episode_id FROM execution_spans WHERE span_id = %s", (span_id,)
+        ).fetchone()
+        assert row is not None, f"no durable span {span_id}"
+        return row[0]
+
     chains: tuple[tuple[str, dict[str, object], object], ...] = (
         (
             "project_id",
@@ -786,6 +808,26 @@ def test_the_full_tool_chain_runs_budgeted_through_the_typed_registry(wired, db)
                 "Run": durable_run.trace_id,
             },
             TRACE,
+        ),
+        (
+            # THE EPISODE THAT PAID IS THE EPISODE WHOSE JOB EXECUTED. COST-001 prices, attributes
+            # and releases by `ToolAction.episode_id`; §17.16 puts the execution on
+            # `Job.episode_id`. The ledger rows and the TOOL_CALL span are read back from their
+            # own tables, so "the cost was attributed to the Episode that ran" is a statement about
+            # durable rows rather than about the object this test built. No `Run` entry: §17.4's
+            # Run reaches its Episode through its Job, which is the `Job` entry.
+            "episode_id",
+            {
+                "ResearchEpisode": episode.episode_id,
+                "ToolAction": run_action.episode_id,
+                "ToolRequest": sweep.episode_id,
+                "SimulationRequest": sweep.simulation.episode_id,
+                "Job": job.episode_id,
+                "CostEntry[ESTIMATED]": durable_cost_episode("cst:m2-run-est"),
+                "CostEntry[ACTUAL]": durable_cost_episode("cst:m2-run-act"),
+                "ExecutionSpan[TOOL_CALL]": durable_span_episode("spn:m2-run"),
+            },
+            EPISODE,
         ),
         (
             # No `ToolAction` entry, and that is §7's rule rather than an omission: the capability
@@ -851,6 +893,7 @@ def test_an_over_budget_simulation_never_reaches_the_mock_backend(wired, db):
         capabilities=registry.registries.capabilities,
         spans=SqlSpanRepository(db),
         ledger=SqlCostLedger(db),
+        jobs=jobs,
         claims=SqlBudgetApprovalClaims(db),
         now=_clock,
     )
@@ -858,7 +901,9 @@ def test_an_over_budget_simulation_never_reaches_the_mock_backend(wired, db):
     outcome = dispatcher.dispatch(
         ToolAction(
             tool_id=CHARGE_AC_TOOL_ID,
-            request=ChargeAcSweepRequest(project_id=PROJECT, trace_id=TRACE, simulation=_request()),
+            request=ChargeAcSweepRequest(
+                project_id=PROJECT, trace_id=TRACE, episode_id=EPISODE, simulation=_request()
+            ),
             project_id=PROJECT,
             episode_id=EPISODE,
             actor_or_slot="act:test",
@@ -889,6 +934,269 @@ def test_an_over_budget_simulation_never_reaches_the_mock_backend(wired, db):
     parked = jobs.get(JOB)
     assert parked is not None and parked.state is JobState.QUEUED
     assert broker.available(SIMULATOR_RESOURCE_ID) == 1
+
+
+#: A second Episode of the same project ON THE SAME TRACE. Nothing makes a trace unique to an
+#: Episode, so this is the case in which project, trace and capability all agree and only the
+#: Episode tells the two executions apart.
+OTHER_EPISODE = "epi:m2-other"
+APPROVAL = "apr:m2-run"
+
+
+def _durable_approval(db):  # type: ignore[no-untyped-def]
+    """A versioned policy and one unconsumed approval for `act:m2-run` in EPISODE -- both durable.
+
+    Returns the policy the gate evaluates and the ToolAction fields that attach the approval. The
+    approval is VALID: scoped to this project, this Episode, this action, this policy version, in
+    its window, signed by a PI holding `BUDGET_OVERRUN`, and covering the overrun. So whether it is
+    consumed depends only on whether the gate is reached -- which is what the probes read.
+    """
+    from lab_brain.core.budget import BUDGET_OVERRUN_SCOPE, BudgetApproval
+    from lab_brain.core.models.access import Actor, ProjectMembership
+    from lab_brain.core.models.cost import CostVector
+    from lab_brain.core.models.enums import ActorType
+
+    db.execute(
+        "INSERT INTO budget_policies (policy_id, policy_version, project_id, cap_license_seat_s) "
+        "VALUES ('bp:m2', '1.0.0', %s, 5)",
+        (PROJECT,),
+    )
+    db.execute(
+        "INSERT INTO budget_approvals (approval_id, approver_actor_id, project_id, episode_id, "
+        "action_ref, policy_id, policy_version, overrun_license_seat_s, granted_at, expires_at) "
+        "VALUES (%s, 'act:test', %s, %s, 'act:m2-run', 'bp:m2', '1.0.0', 100, %s, %s)",
+        (APPROVAL, PROJECT, EPISODE, NOW - dt.timedelta(minutes=5), NOW + dt.timedelta(hours=1)),
+    )
+    policy = BudgetPolicy(
+        policy_id="bp:m2",
+        policy_version="1.0.0",
+        project_id=PROJECT,
+        # The estimator says 30 seat-seconds; the cap permits 5. Only the approval can release it.
+        caps=BudgetCaps(license_seat_s=5),
+    )
+    attach = {
+        "approval": BudgetApproval(
+            approval_id=APPROVAL,
+            approver_actor_id="act:test",
+            project_id=PROJECT,
+            episode_id=EPISODE,
+            action_ref="act:m2-run",
+            policy_id="bp:m2",
+            policy_version="1.0.0",
+            approved_overrun=CostVector(license_seat_s=100),
+            granted_at=NOW - dt.timedelta(minutes=5),
+            expires_at=NOW + dt.timedelta(hours=1),
+        ),
+        "approver": Actor(actor_id="act:test", actor_type=ActorType.HUMAN),
+        "approver_membership": ProjectMembership(
+            actor_id="act:test",
+            project_id=PROJECT,
+            role="PI",
+            approval_scopes=(BUDGET_OVERRUN_SCOPE,),
+        ),
+    }
+    return policy, attach
+
+
+def _approved_run_action(attach) -> ToolAction:  # type: ignore[no-untyped-def]
+    """The over-budget run, budgeted in EPISODE, carrying the approval that would release it."""
+    return ToolAction(
+        tool_id=CHARGE_AC_TOOL_ID,
+        request=ChargeAcSweepRequest(
+            project_id=PROJECT, trace_id=TRACE, episode_id=EPISODE, simulation=_request()
+        ),
+        project_id=PROJECT,
+        episode_id=EPISODE,
+        actor_or_slot="act:test",
+        action_ref="act:m2-run",
+        trace_id=TRACE,
+        span_id="spn:m2-run",
+        estimate_entry_id="cst:m2-run-est",
+        actual_entry_id="cst:m2-run-act",
+        actor_id="act:test",
+        **attach,
+    )
+
+
+@pytest.mark.requirement("COST-001")
+@pytest.mark.spec_test("T-COST-001")
+def test_a_job_in_another_episode_is_refused_before_the_approval_is_spent(wired, db):
+    """THE BLOCKER, through PostgreSQL: the Episode that pays must be the Episode whose Job runs.
+
+    Two Episodes of one project on one trace. The Job is submitted -- durably, through the real
+    submission path, with its seat requirement bound -- under the SECOND. The ToolAction is budgeted
+    in the FIRST, over its cap, carrying a valid approval that would release it. Project, trace and
+    capability agree at every layer; the database's own `jobs_match_their_episode` trigger is
+    satisfied, because the Job IS consistent with its Episode. Only the Episode differs.
+
+    Before this repair the gate ran, the approval row was consumed, E1 was charged an ESTIMATED
+    row, and only `run_simulation`'s step 0 -- inside `perform` -- refused. Every durable effect is
+    read back below, from its own table.
+    """
+    from lab_brain.tools.scope import ExecutionScopeMismatch
+
+    entered: list[str] = []
+
+    class FatalBackend(MockChargeAcBackend):
+        def execute(self, request: SimulationRequest):
+            entered.append(request.request_id)
+            raise AssertionError("the simulator ran for a Job outside the budgeted Episode")
+
+    SqlEpisodeStore(db).open(
+        ResearchEpisode(
+            episode_id=OTHER_EPISODE,
+            project_id=PROJECT,
+            trace_id=TRACE,
+            goal="a different line of inquiry, on the same trace",
+            start_time=NOW,
+        )
+    )
+    jobs = SqlJobStore(db)
+    broker = PostgresResourceBroker(db)
+    broker.declare(SIMULATOR_RESOURCE_ID, display_name="SiPh solver seat", seats=1)
+    submit_simulation_job(
+        jobs=jobs,
+        job=Job(
+            job_id=JOB,
+            project_id=PROJECT,
+            episode_id=OTHER_EPISODE,
+            capability_id=CHARGE_AC_CAPABILITY,
+            trace_id=TRACE,
+            idempotency_key="idem:m2",
+            submitted_at=NOW,
+        ),
+        demand=_demand(),
+        capability=_capability(),
+    )
+    before = jobs.get(JOB)
+    assert before is not None and before.episode_id == OTHER_EPISODE
+    policy, attach = _durable_approval(db)
+
+    def runner(request: SimulationRequest):
+        return run_simulation(
+            request=request,
+            backend=FatalBackend(clock=NOW, artifact_id=ARTIFACT),
+            jobs=jobs,
+            broker=broker,
+            validity=_validity(),
+            run_id="run:m2",
+            lease_id="lse:m2",
+            idempotency_key="idem:m2",
+            now=_clock,
+            domain="silicon_photonics",
+            reproducibility_manifest_hash="sha256:" + "77" * 32,
+        )
+
+    registry = DomainPackRegistry()
+    registry.install(SiliconPhotonicsPack(runner=runner, conditions=registry.registries.conditions))
+    dispatcher = BudgetedToolDispatcher(
+        tools=registry.registries.tools,
+        capabilities=registry.registries.capabilities,
+        spans=SqlSpanRepository(db),
+        ledger=SqlCostLedger(db),
+        jobs=jobs,
+        claims=SqlBudgetApprovalClaims(db),
+        now=_clock,
+    )
+
+    with pytest.raises(ExecutionScopeMismatch) as raised:
+        dispatcher.dispatch(_approved_run_action(attach), policy=policy)
+
+    message = str(raised.value)
+    assert f"SimulationRequest.episode_id is {EPISODE!r}" in message
+    assert f"Job.episode_id is {OTHER_EPISODE!r}" in message
+    for agreed in ("project_id", "trace_id", "capability_id"):
+        assert agreed not in message, f"{agreed} agreed and was reported anyway"
+
+    def count(sql: str, *params: object) -> int:
+        return int(db.execute(sql, params).fetchone()[0])
+
+    # The approval: still unspent, so the legitimate retry it exists for is still possible.
+    consumed = db.execute(
+        "SELECT consumed_at, consumed_by_action FROM budget_approvals WHERE approval_id = %s",
+        (APPROVAL,),
+    ).fetchone()
+    assert consumed == (None, None), "an approval was spent on a Job outside its Episode"
+    # Cost attribution: nothing charged to either Episode.
+    assert count("SELECT count(*) FROM cost_entries") == 0, "a ledger row was written"
+    # The trace: no span was opened for a call that never passed its envelope.
+    assert count("SELECT count(*) FROM execution_spans WHERE span_id = %s", "spn:m2-run") == 0
+    # The Job: exactly as submitted.
+    after = jobs.get(JOB)
+    assert after == before, "the durable Job was mutated"
+    assert after.state is JobState.QUEUED and after.attempt_count == 0
+    assert after.result_run_id is None and after.started_at is None
+    # The seat, the backend and the Run.
+    assert count("SELECT count(*) FROM resource_leases WHERE job_id = %s", JOB) == 0
+    assert broker.available(SIMULATOR_RESOURCE_ID) == 1
+    assert entered == [], "the backend was entered"
+    assert count("SELECT count(*) FROM runs") == 0, "a Run was minted"
+
+
+@pytest.mark.requirement("COST-001")
+@pytest.mark.spec_test("T-COST-001")
+def test_the_same_approval_releases_the_run_when_the_job_is_in_the_budgeted_episode(wired, db):
+    """The positive control for the probe above, and what makes it non-vacuous.
+
+    Identical in every respect except the Job's Episode. The approval IS consumed, the run
+    executes, and every durable record of it -- both ledger rows, the span, the Job -- names the
+    Episode that paid. Without this, a dispatcher that refused every approved dispatch would pass
+    the refusal above.
+    """
+    jobs = SqlJobStore(db)
+    broker = PostgresResourceBroker(db)
+    broker.declare(SIMULATOR_RESOURCE_ID, display_name="SiPh solver seat", seats=1)
+    _submit(jobs, JOB, "idem:m2")
+    policy, attach = _durable_approval(db)
+
+    def runner(request: SimulationRequest):
+        return run_simulation(
+            request=request,
+            backend=MockChargeAcBackend(clock=NOW, artifact_id=ARTIFACT),
+            jobs=jobs,
+            broker=broker,
+            validity=_validity(),
+            run_id="run:m2",
+            lease_id="lse:m2",
+            idempotency_key="idem:m2",
+            now=_clock,
+            domain="silicon_photonics",
+            reproducibility_manifest_hash="sha256:" + "77" * 32,
+        )
+
+    registry = DomainPackRegistry()
+    registry.install(SiliconPhotonicsPack(runner=runner, conditions=registry.registries.conditions))
+    dispatcher = BudgetedToolDispatcher(
+        tools=registry.registries.tools,
+        capabilities=registry.registries.capabilities,
+        spans=SqlSpanRepository(db),
+        ledger=SqlCostLedger(db),
+        jobs=jobs,
+        claims=SqlBudgetApprovalClaims(db),
+        now=_clock,
+    )
+
+    outcome = dispatcher.dispatch(_approved_run_action(attach), policy=policy)
+
+    assert outcome.performed, outcome.decision.reason
+    assert outcome.decision.outcome is DispatchOutcome.ALLOWED_BY_APPROVAL
+    consumed = db.execute(
+        "SELECT consumed_by_action FROM budget_approvals WHERE approval_id = %s", (APPROVAL,)
+    ).fetchone()
+    assert consumed == ("act:m2-run",)
+    job = jobs.get(JOB)
+    assert job is not None and job.state is JobState.SUCCEEDED and job.episode_id == EPISODE
+    ledger_episodes = {
+        row[0]
+        for row in db.execute(
+            "SELECT episode_id FROM cost_entries WHERE action_ref = 'act:m2-run'"
+        ).fetchall()
+    }
+    assert ledger_episodes == {EPISODE}
+    span = db.execute(
+        "SELECT episode_id FROM execution_spans WHERE span_id = 'spn:m2-run'"
+    ).fetchone()
+    assert span == (EPISODE,)
 
 
 @pytest.mark.requirement("VER-002")

@@ -223,6 +223,7 @@ def test_a_missing_impedance_series_yields_unknown_rather_than_raising():
     payload = ExtractionInput(
         project_id=fx.PROJECT,
         trace_id=fx.TRACE,
+        episode_id=fx.EPISODE,
         source=fx.simulated_source(),
         series=fx.series()[:2],  # bias and frequency only
     )
@@ -285,6 +286,7 @@ def test_a_payload_whose_source_belongs_to_another_project_is_refused():
         ExtractionInput(
             project_id="prj:other",
             trace_id=fx.TRACE,
+            episode_id=fx.EPISODE,
             source=fx.simulated_source(),
             series=fx.series(),
         )

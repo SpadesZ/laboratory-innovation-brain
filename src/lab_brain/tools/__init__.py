@@ -10,7 +10,7 @@ quantity. §24.2 permits `domains.silicon_photonics -> tools`, and forbids the r
     extraction.py  DOM-SP-002's one extractor boundary, shared by SIMULATED and MEASURED
     simulation.py  §17.4's request/execution seam and §17.10's backend-validity schemas
     resources.py   §10.7's license seats, and why "no seat" is not a failure
-    scope.py       the project/trace/capability identities every layer must agree on
+    scope.py       the project/trace/episode/capability identities every layer must agree on
     execution.py   seat -> execute -> validate -> Run, in that order
 """
 
@@ -67,6 +67,7 @@ from lab_brain.tools.resources import (
 from lab_brain.tools.scope import (
     ExecutionScope,
     ExecutionScopeMismatch,
+    JobBinding,
     require_same_scope,
 )
 from lab_brain.tools.simulation import (
@@ -98,6 +99,7 @@ __all__ = [
     "ExtractionResult",
     "ExtractionSource",
     "InMemoryResourceBroker",
+    "JobBinding",
     "MetricExtractor",
     "NumericalSeries",
     "ResourceBindingError",
