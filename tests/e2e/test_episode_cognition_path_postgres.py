@@ -69,6 +69,7 @@ from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisio
 from lab_brain.core.repositories.conflicts import SqlConflictStore
 from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from tests.conftest_fixtures import make_artifact
+from tests.postgres_fixtures import admit_hypothesis_identity
 from tests.toy_authority import ToyAuthorityPolicy
 
 pytestmark = [
@@ -185,6 +186,9 @@ def _queue_policy(db, project_id: str, policy_id: str = "rqp:test") -> None:  # 
 @pytest.fixture
 def world(db):  # type: ignore[no-untyped-def]
     """An artifact, a claim, a condition schema and the four policies -- through the real stores."""
+    # M3 / R-12 (`011j`): a belief event names a hypothesis admitted through §8's gate in its own
+    # project, so the identity this fixture always meant is established first.
+    admit_hypothesis_identity(db, HYP)
     artifact = make_artifact(b"an episode fixture")
     db.execute(
         "INSERT INTO artifacts (artifact_id, content_hash, uri, media_type, source_origin,"

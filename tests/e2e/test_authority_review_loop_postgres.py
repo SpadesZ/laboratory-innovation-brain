@@ -56,7 +56,7 @@ from lab_brain.core.repositories import SqlTransitionPolicyStore
 from lab_brain.core.repositories.conflicts import ConflictStoreError, SqlConflictStore
 from lab_brain.core.repositories.reviews import ReviewStoreError, SqlReviewItemStore
 from tests.conftest_fixtures import make_artifact
-from tests.postgres_fixtures import DEFAULT_URL
+from tests.postgres_fixtures import DEFAULT_URL, admit_hypothesis_identity
 from tests.toy_authority import ToyAuthorityPolicy
 
 pytestmark = [
@@ -115,6 +115,9 @@ def _queue_policy(db, project_id: str, policy_id: str = "rqp:test") -> None:  # 
 @pytest.fixture
 def world(db):  # type: ignore[no-untyped-def]
     """One attestation, one genesis event a closure may cite, and the two policies registered."""
+    # M3 / R-12 (`011j`): a belief event names a hypothesis admitted through §8's gate in its own
+    # project, so the identity this fixture always meant is established first.
+    admit_hypothesis_identity(db, HYP)
     artifact = make_artifact(b"an authority review fixture")
     db.execute(
         "INSERT INTO artifacts (artifact_id, content_hash, uri, media_type, source_origin,"
@@ -640,6 +643,7 @@ def _event_from_review(world, event_id: str = "bre:from-review") -> str:  # type
     Written *after* the escalation, which is the whole point: in P11 this existed before the
     review did, which is how an unrelated event could stand in for a resolution.
     """
+    admit_hypothesis_identity(world, f"hyp:{event_id}")  # M3 / R-12: the target is admitted first
     world.execute(
         "SELECT belief_revision_event_append(%s, %s, 'HYPOTHESIS', %s, NULL, 'ACTIVE',"
         " %s, ARRAY[]::text[], 'pol:genesis', '1.0.0', NULL, NULL, NULL, %s, %s, NULL)",

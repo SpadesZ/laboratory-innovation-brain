@@ -24,7 +24,11 @@ neither.
     critique an irreversible    M3 / SRC-002: an irreversible Capability -- or an estimate that says
       action                    irreversible -- needs a completed independent critique, checked by
                                 M0b's `core.critique_gate`, BEFORE the gate; a human or budget
-                                approval does not substitute. Reversible actions are untouched.
+                                approval does not substitute. The adjudicator is read from the
+                                DURABLE attestations the critique cites (`core.adjudication`):
+                                INFERRED or DISPUTED evidence does not settle it, and a citation
+                                that does not resolve refuses the action. Reversible actions are
+                                untouched.
     build the BudgetRequest     caps, session consumption, approval -- all passed in, so the
                                 decision stays replayable from the audit record.
     dispatch_action             opens the span, asks the gate, and calls `perform` ONLY on ALLOW.
@@ -54,6 +58,11 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from lab_brain.core.adjudication import (
+    AdjudicationBasisRefused,
+    AttestationLookup,
+    resolve_adjudication_basis,
+)
 from lab_brain.core.budget import (
     BudgetApproval,
     BudgetApprovalClaims,
@@ -62,7 +71,6 @@ from lab_brain.core.budget import (
     BudgetRequest,
 )
 from lab_brain.core.critique_gate import (
-    Adjudicator,
     CritiqueAxis,
     CritiqueRecord,
     DispatchRequest,
@@ -180,10 +188,13 @@ class BudgetedToolDispatcher:
         claims: BudgetApprovalClaims | None,
         now: Callable[[], dt.datetime],
         critiques: CritiqueLookup | None = None,
+        attestations: AttestationLookup | None = None,
     ) -> None:
-        #: M3 / SRC-002. Optional because only an IRREVERSIBLE action consults it, and fail-closed:
-        #: an irreversible action dispatched through a dispatcher with no critique store is refused.
+        #: M3 / SRC-002. Optional because only an IRREVERSIBLE action consults them, and
+        #: fail-closed: an irreversible action dispatched through a dispatcher with no critique
+        #: store -- or with no attestation store to read the critique's evidence from -- is refused.
         self._critiques = critiques
+        self._attestations = attestations
         self._tools = tools
         self._capabilities = capabilities
         self._spans = spans
@@ -383,8 +394,12 @@ class BudgetedToolDispatcher:
 
         THE DECISION IS M0b's `evaluate_dispatch`, not a second rule. This builds its
         `DispatchRequest` from the durable CritiqueReport: the axes are the ones `005e` verified,
-        and the adjudicator is EXTERNAL_EVIDENCE only when the critique cites evidence -- a
-        critique citing nothing was settled by model opinion, which §7.6 refuses. A budget
+        and the adjudicator is PROVEN from the record, not inferred from the critique's having
+        cited something. Every cited attestation is re-read from the attestation store in the
+        action's project (`core.adjudication`): a citation that resolves nowhere refuses the
+        action outright, INFERRED and DISPUTED ones are set aside, and only what remains can make
+        the adjudicator EXTERNAL_EVIDENCE -- or VERIFICATION_RESULT, when it is a Run's witness.
+        Nothing admissible left is MODEL_OPINION, which `evaluate_dispatch` refuses. A budget
         approval rides along as the `human_approval` so the refusal can say, in words, that it did
         not substitute.
         """
@@ -416,10 +431,28 @@ class BudgetedToolDispatcher:
                     f"{critique.episode_id}, not to the action's {action.project_id}/"
                     f"{action.episode_id}; a critique of another decision examined nothing here"
                 )
+            if self._attestations is None:
+                raise ToolDispatchRefused(
+                    f"irreversible action {action.action_ref}: critique {critique.critique_id}'s "
+                    "evidence cannot be read -- no attestation store is wired -- so its "
+                    "adjudication by external evidence cannot be shown (§7.6). Refused rather "
+                    "than assumed"
+                )
+            try:
+                basis = resolve_adjudication_basis(
+                    critique.cited_attestation_ids,
+                    project_id=action.project_id,
+                    attestations=self._attestations,
+                )
+            except AdjudicationBasisRefused as refused:
+                raise ToolDispatchRefused(
+                    f"irreversible action {action.action_ref}: critique {critique.critique_id} "
+                    f"is refused as its adjudication basis. {refused}"
+                ) from refused
             record = CritiqueRecord(
                 critique_id=critique.critique_id,
                 differs_in=frozenset(CritiqueAxis(axis) for axis in critique.differs_in),
-                adjudicated_by=_adjudicator(critique),
+                adjudicated_by=basis.adjudicator,
             )
         approval = action.approval
         decision = evaluate_dispatch(
@@ -527,13 +560,6 @@ class CritiqueLookup(Protocol):
     """What the dispatcher needs from the debate store: a durable CritiqueReport by id."""
 
     def get_critique(self, critique_id: str) -> CritiqueReport | None: ...
-
-
-def _adjudicator(critique: CritiqueReport) -> Adjudicator:
-    """§7.6: EXTERNAL_EVIDENCE when the critique cites evidence, MODEL_OPINION otherwise."""
-    if critique.cited_attestation_ids:
-        return Adjudicator.EXTERNAL_EVIDENCE
-    return Adjudicator.MODEL_OPINION
 
 
 __all__ = [

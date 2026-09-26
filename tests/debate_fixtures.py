@@ -472,6 +472,8 @@ class World:
     ledger: Any
     claims: Any
     attestations: dict[str, Attestation]
+    #: (project_id, attestation_id) -> the admitted attestation, from the world's store.
+    find_attestation: Callable[[str, str], Attestation | None]
     researcher: EvidenceResearcher
     catalog: StaticEvidenceCatalog
     llm_dispatcher: BudgetedInferenceDispatcher
@@ -544,6 +546,7 @@ def seed_postgres(
     spaces: Sequence[OutcomeSpace],
     *,
     policies: Sequence[TransitionPolicy] = (),
+    attestations_by_id: Mapping[str, Attestation] | None = None,
 ) -> None:
     """The rows an M3 debate stands on: project, actors, episode, admitted evidence, spaces.
 
@@ -598,7 +601,11 @@ def seed_postgres(
             ),
         )
         if attestations.get(item.project_id, item.attestation_id) is None:
-            attestations.add(attestation_for(item))
+            attestations.add(
+                attestations_by_id[item.attestation_id]
+                if attestations_by_id is not None
+                else attestation_for(item)
+            )
     store = SqlTransitionPolicyStore(connection)
     for policy in (ADMISSION_POLICY, *policies):
         if store.get(policy.policy_id, policy.version) is None:
@@ -619,7 +626,10 @@ def build_world(
     scope: str = "t",
     connection: Any = None,
     transition_policies: Sequence[TransitionPolicy] = (),
+    epistemic_overrides: Mapping[str, EpistemicType] | None = None,
 ) -> World:
+    """``epistemic_overrides`` admits named attestations under another EVI-003 type -- the
+    adversarial worlds where the evidence a Critic finds is a model's INFERRED note."""
     fx = load_fixture()
     case = case or fx["cases"][0]
     catalog_items = tuple(items) if items is not None else evidence_items(case)
@@ -673,6 +683,10 @@ def build_world(
         source_policy_version="srcpol@1.0.0",
     )
     attestations = {i.attestation_id: attestation_for(i) for i in catalog_items}
+    for attestation_id, kind in (epistemic_overrides or {}).items():
+        attestations[attestation_id] = attestations[attestation_id].model_copy(
+            update={"epistemic_type": kind}
+        )
     stores: dict[str, Any]
     if connection is None:
         provenance: Any = InMemoryInferenceProvenanceStore()
@@ -683,8 +697,7 @@ def build_world(
         )
 
         def exists(project_id: str, hypothesis_id: str) -> bool:
-            found = hypotheses.get_certificate(hypothesis_id)
-            return found is not None and found.hypothesis.project_id == project_id
+            return hypotheses.get_certificate(project_id, hypothesis_id) is not None
 
         stores = {
             "provenance": provenance,
@@ -694,7 +707,9 @@ def build_world(
             "claims": InMemoryBudgetApprovalClaims(),
             "bundles": bundles,
             "hypotheses": hypotheses,
-            "events": InMemoryBeliefEventStore(known_attestation_ids=attestations),
+            "events": InMemoryBeliefEventStore(
+                known_attestation_ids=attestations, known_hypotheses=exists
+            ),
             "debates": InMemoryDebateStore(
                 bundle=bundles.get, provenance=provenance.get, hypothesis_exists=exists
             ),
@@ -713,6 +728,7 @@ def build_world(
             catalog_items,
             regs.disagreement_metrics.declared_spaces(),
             policies=transition_policies,
+            attestations_by_id=attestations,
         )
         sql_attestations = SqlAttestationStore(connection)
         stores = {
@@ -797,6 +813,7 @@ def build_world(
             hypotheses=stores["hypotheses"],
             revision_gate=revision_gate,
             episode=episode,
+            attestations=stores["attestation"],
         )
     return World(
         debate=debate,
@@ -813,6 +830,7 @@ def build_world(
         ledger=stores["ledger"],
         claims=stores["claims"],
         attestations=attestations,
+        find_attestation=stores["attestation"],
         researcher=researcher,
         catalog=catalog,
         llm_dispatcher=dispatcher,

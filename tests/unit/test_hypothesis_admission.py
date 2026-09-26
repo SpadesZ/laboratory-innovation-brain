@@ -54,7 +54,7 @@ def _admit(world, hypothesis_set, certificates, *, basis=None):  # type: ignore[
 def _nothing_written(world, hypothesis_set, certificates) -> None:  # type: ignore[no-untyped-def]
     assert world.hypotheses.get_set(hypothesis_set.set_id) is None
     for c in certificates:
-        assert world.hypotheses.get_certificate(c.hypothesis_id) is None
+        assert world.hypotheses.get_certificate(hypothesis_set.project_id, c.hypothesis_id) is None
         assert world.events.history(PROJECT, c.hypothesis_id) == ()
 
 
@@ -259,7 +259,7 @@ def test_an_alternative_restating_an_admitted_mechanism_adds_no_rival():
             trace_id=TRACE,
         )
     assert refused.value.reason is AdmissionRefusal.DUPLICATE_MECHANISM
-    assert world.hypotheses.get_certificate(restated.hypothesis_id) is None
+    assert world.hypotheses.get_certificate(PROJECT, restated.hypothesis_id) is None
 
 
 def test_a_genuine_alternative_joins_the_set_with_its_own_genesis():
@@ -315,3 +315,31 @@ def test_a_single_cause_engine_is_refused_before_anything_is_admitted():
     with pytest.raises(RoleOutputRefused, match="at least 2 hypotheses"):
         world.debate.run(world.request())
     assert world.events.history(PROJECT, "hyp:anything") == ()
+
+
+def test_the_in_memory_log_refuses_an_event_for_a_hypothesis_nobody_admitted():
+    """R-12 parity (`011j`): the backend-free store refuses what the foreign key refuses."""
+    from lab_brain.core.belief import EpistemicStateProjection, admit_hypothesis
+    from lab_brain.core.repositories.belief_events import BeliefEventError
+
+    world = build_world()
+    basis = next(iter(world.attestations.values()))
+    with pytest.raises(BeliefEventError, match="never admitted"):
+        world.events.append(
+            admit_hypothesis(
+                event_id="bre:ghost",
+                policy=ADMISSION_POLICY,
+                project_id=PROJECT,
+                hypothesis_id="hyp:ghost",
+                prior=EpistemicStateProjection(
+                    project_id=PROJECT,
+                    target_id="hyp:ghost",
+                    current_state=None,
+                    last_event_id=None,
+                ),
+                occurred_at=T0,
+                trace_id=TRACE,
+                triggering_attestations=(basis,),
+            )
+        )
+    assert world.events.history(PROJECT, "hyp:ghost") == ()

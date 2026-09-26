@@ -215,6 +215,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # M3 / SRC-003. PriorArtSearchRecord and NoveltyAssessment. After 006b (episodes) and 005e,
     # whose episode-in-project trigger function it reuses.
     "002b_prior_art_search.sql",
+    # M3 / EPI-001 -- closes R-12. Re-keys `hypotheses` on (project_id, hypothesis_id), M0b's
+    # identity for a history, and makes every belief event name an admitted hypothesis of its own
+    # project. After 011i, whose two functions it replaces with project-scoped lookups.
+    "011j_belief_event_targets.sql",
 )
 
 _BOOTSTRAP = """

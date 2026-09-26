@@ -1,12 +1,13 @@
 # M3 — Hypothesis Brain: readiness for independent sign-off
 
-Date: 2026-09-26
+Date: 2026-09-26; revised the same day for the two blockers the independent M3 review named (§11)
 Milestone: **M3 — Hypothesis Brain**, **`IN_PROGRESS`** — implementation complete through the exit
 gate and submitted for independent review. Moving it to `DONE` is the maintainer's act on that
 review, not this document's.
 M2: **`DONE` / HARD-LOCKED** 2026-09-25 at `66ef099f965a0f6a8e7aa1ecd836eec4555a26f3`; the sign-off
 is recorded at `a3209b8` and the executed-coverage ratchet enforces its 8 requirements on every run
-M1 / M1-P1 / M0a / M0b: `DONE`, hard-locked — **no behaviour changed** (§5 lists every additive edit)
+M1 / M1-P1 / M0a / M0b: `DONE`, hard-locked — **no behaviour changed** (§5 lists every additive edit;
+§11H lists the fixture updates R-12's closure required, none of which changes an assertion)
 Spec: SAI 3.3, amendments `v3.3-a1` … `v3.3-a18`. **No amendment, no ADR, no new Requirement or
 Test ID, and no SPEC-ISSUE was raised by this work.** Interpretations the text left open are stated
 in §4 where they are made.
@@ -92,8 +93,12 @@ The benchmark (§1) runs the same flow in memory over all ten cases and three co
 5. **Calibration rule.** threshold = the smallest debate-level divergence among DEBATE cases that
    kept the true mechanism, `AT_LEAST`, sample size = those cases, artifacts = fixture digest +
    per-case table digest. The policy is produced **inactive**; activation is a separate act.
-6. **"重大 REJECT"** (§7.6) is read as *every* REJECT of an admitted certificate: removing a rival is
-   exactly the outcome EPI-001 guards, so no stakes floor is applied (`011i` header).
+6. **"重大 REJECT"** (§7.6) is a REJECT that removes a rival from a **root-cause** set, or one in a
+   set whose stakes reached its SourcePolicy's threshold. First read as *every* REJECT of a
+   certificate (`011i`), which was equivalent while only debated hypotheses had certificates; R-12's
+   closure made every hypothesis a certificate, so `011j` states the scope precisely (§11H). M0b's
+   `critique_gate` already models "major" as a property of the REJECT (`is_major_reject`), and every
+   set a debate admits is root-cause by default, so every REJECT the review accepted keeps its rule.
 7. **Stakes are ordinal words each policy declares**; an undeclared word is refused rather than
    read as low (§8.1 rules out uncalibrated numbers). Inversion is required at
    `stakes ≥ policy.inverted_retrieval_threshold` (HIGH for diagnosis, NORMAL for novelty audit).
@@ -122,7 +127,9 @@ The benchmark (§1) runs the same flow in memory over all ten cases and three co
 | `core/models/inference.py`, `identifiers.py`, `models/__init__.py` | §7.3 slot values; M3 id prefixes; exports | enum/prefix additions only |
 | `domains/base.py`, `domains/registry.py`, SP `plugin.py`, `tests/toy_domain.py` | §24.3's `register_specialists` / `register_disagreement_metrics`; the debate benchmark id | new registries; existing registrations untouched |
 | `spec/schema_drift.py` | binds `OutcomeSpace`, `BenchmarkPolicy`; records M3's unbound schemas with reasons | the guard got stricter, not looser |
-| `scripts/migrate.py`, `tests/postgres_fixtures.py`, `scripts/mutation_battery.py` | five migrations appended; M3 tables truncated; 25 M3 mutations | infrastructure |
+| `scripts/migrate.py`, `tests/postgres_fixtures.py`, `scripts/mutation_battery.py` | six migrations appended; M3 tables truncated; `admit_hypothesis_identity`; 34 M3 mutations | infrastructure |
+| `core/repositories/belief_events.py` (M0b) | `InMemoryBeliefEventStore(known_hypotheses=…)`: the fake refuses an unadmitted target, as `011j` does | M0b's own parity rule ("a fake that accepts what the database rejects makes a green suite meaningless"); its two in-memory tests now name the hypothesis they append for |
+| 12 pre-M3 PostgreSQL test files (§11H) | each admits the hypotheses it revises before writing events | identity only: no assertion, expected outcome or state sequence changed |
 
 Two M3 names were changed during the full regression because they collided with locked M1
 structural probes, and the probes were **not** edited: `novelty_assessments.status` →
@@ -132,9 +139,11 @@ structural probes, and the probes were **not** edited: `novelty_assessments.stat
 ## 6. Migrations
 
 Appended in order: `003e_model_route_slots`, `010c_outcome_spaces_benchmark_policies`,
-`005e_hypotheses_and_debate`, `011i_predictions`, `002b_prior_art_search` — 43 declared in total.
-Applied to a fresh database from empty and re-run idempotently (§8). No existing migration was
-edited. Schema-drift binds the two §17 blocks `010c` matches field for field.
+`005e_hypotheses_and_debate`, `011i_predictions`, `002b_prior_art_search`, and — for R-12 —
+`011j_belief_event_targets` (§11H): 44 declared in total. Applied to a fresh database from empty
+and re-run idempotently (§8). No migration already committed was edited: `011j` replaces `011i`'s
+two functions with `CREATE OR REPLACE`. Schema-drift binds the two §17 blocks `010c` matches field
+for field.
 
 ## 7. Adversarial cases tested
 
@@ -153,6 +162,15 @@ edited. Schema-drift binds the two §17 blocks `010c` matches field for field.
 - an irreversible dispatch with no critique, with a valid human approval, with a critique that was
   never stored, of another Episode, or that cites nothing — the fatal-spy tool is never entered and
   the approval claim is never spent;
+- **a valid independent critique (differs in bundle and route, durable, same Episode) that cites
+  only INFERRED records** — refused as MODEL_OPINION, in memory and on PostgreSQL, even with a human
+  approval; one citing only DISPUTED evidence; one citing a ghost beside real evidence; one whose
+  evidence an unscoped store returns from another project; a dispatcher with no attestation store;
+- a caller handing the brain a relabelled attestation object (refused `EVIDENCE_NOT_ON_RECORD`);
+  a REJECT whose only basis is on record as INFERRED;
+- a belief event for a hypothesis nobody admitted, through the Python store, the append function
+  and a bare INSERT; one naming another project's hypothesis; the foreign key with its explanatory
+  trigger switched off; `011j` replayed over an orphan history (it refuses with the remedy);
 - a yes-man Critic (the benchmark returns **REFUTED**); a debate forced to its maximum rounds on
   every case (the benchmark's round-count check fails it although every metric is recorded);
 - a metric that drifts between evaluations, is asymmetric, returns floats, is bound to an
@@ -168,15 +186,18 @@ report.
 
 | Gate | Result |
 |---|---|
-| `ruff format --check` / `ruff check` (src tests scripts) | 297 files formatted / all checks passed |
-| `mypy` (strict, `lab_brain`) | no issues in 163 source files |
-| backend-free `pytest` | **1452 passed**, 656 skipped (PostgreSQL-gated) |
-| `scripts/migrate.py` from an empty database, then again | **43 applied**, then `pending: 0` |
-| PostgreSQL profile, full suite (`LAB_BRAIN_TEST_POSTGRES=1`) | **2108 passed, 0 failed** — M0a–M2 regression included |
-| `scripts/mutation_battery.py` with the PostgreSQL profile | **145/145 killed** (120 existing + 25 M3) |
+| `ruff format --check` / `ruff check` (src tests scripts) | 300 files formatted / all checks passed |
+| `mypy` (strict, `lab_brain`) | no issues in 164 source files |
+| backend-free `pytest` | **1472 passed**, 666 skipped (PostgreSQL-gated) |
+| `scripts/migrate.py` from an empty database, then again | **44 applied**, then `pending: 0` |
+| PostgreSQL profile, full suite (`LAB_BRAIN_TEST_POSTGRES=1`) | **2138 passed, 0 failed** — M0a–M2 regression included, with `011j` in force |
+| `scripts/mutation_battery.py` with the PostgreSQL profile | **154/154 killed** (120 pre-M3 + 34 M3) |
 | `check_requirement_coverage.py` | DONE `[M0a, M0b, M1, M2]`, IN_PROGRESS `[M3]`, all checks ok |
 | `update_status.py --check`, `rebuild_obligation_inventory.py --check` | current; 84 occurrences in sync |
 | `run_benchmark.py --check`, `run_debate_benchmark.py --check` | both reports current |
+
+These are the counts after the review repairs (§11); the first submission measured 1452 / 2108 /
+145, on 43 migrations.
 
 Two M3 mutations survived the first battery run and each exposed a real test gap, closed before
 this table was measured: the admission service's own project check (a lookup that scopes by project
@@ -186,25 +207,22 @@ overlap).
 
 ## 9. Remaining risks and deliberately deferred work
 
-1. **R-12, narrowed, not closed.** `belief_revision_events.target_id` still has no foreign key.
-   M3 gives every *certified* hypothesis a gated admission and holds the M3 rules in SQL, and
-   root-cause status only exists on a HypothesisSet, so a single uncertified cause cannot become a
-   root-cause conclusion. A hard FK (or a genesis-requires-certificate rule) would retroactively
-   apply M3's REJECT rule to the M2 sim-fidelity vertical and the M0b–M1 suites, which seed
-   uncertified hypotheses; that is a change to hard-locked behaviour the task forbids without a
-   demonstrated regression. Proposed closure for the reviewer: `ADD FOREIGN KEY … NOT VALID` plus
-   re-seeding those suites through the admission service.
-2. **The model is a deterministic mock.** The benchmark measures what the *protocol* does with
+1. **R-12 is closed** (§11H). What remains of it: a database that already holds events for
+   hypotheses nobody admitted cannot take `011j` until those targets are admitted — deliberately;
+   the migration refuses with a count and the remedy instead of validating around them.
+2. **A Run's witness is recognised by its `run_id` source.** VERIFICATION_RESULT vs EXTERNAL_EVIDENCE
+   is a distinction for the record; both are accepted adjudicators, so nothing turns on it yet.
+3. **The model is a deterministic mock.** The benchmark measures what the *protocol* does with
    evidence under an answer-blind, mechanism-aware reasoner; it says nothing about a real model's
    reasoning. Ten cases, one domain: the calibrated threshold is a calibration of this benchmark,
    not a population estimate, and is re-calibrated as a new version when the fixture, metric
    version or route changes. No external model, search, licensed tool or real execution occurred.
-3. **Position diversity is lexical.** It uses the deterministic hashing embedder EVI-007 declares
+4. **Position diversity is lexical.** It uses the deterministic hashing embedder EVI-007 declares
    (named in the metric version); a semantic embedding model is a configuration change.
-4. **No Supervisor model call and no persisted VerificationPlan** (§4.8) — M4's VER-001/VER-005.
-5. **§12.1 episode states.** `research_episodes` still reaches only M1's states; the
+5. **No Supervisor model call and no persisted VerificationPlan** (§4.8) — M4's VER-001/VER-005.
+6. **§12.1 episode states.** `research_episodes` still reaches only M1's states; the
    HYPOTHESIS_FORMATION state belongs to the episode lifecycle requirement, not to M3's five.
-6. **The benchmark report is regenerated, not diffed in CI.** `run_debate_benchmark.py --check`
+7. **The benchmark report is regenerated, not diffed in CI.** `run_debate_benchmark.py --check`
    and `test_the_committed_report_is_current` hold it to the code.
 
 ## 10. Governance
@@ -213,3 +231,73 @@ Every M3 requirement has marked tests of its §26 kind (e2e for EPI-001 and SRC-
 LLM-002, integration for SRC-003, unit for VER-008) that ran and passed under the PostgreSQL
 profile. M3 remains `IN_PROGRESS` in `docs/milestones.yaml`; the ratchet will enforce it only when
 the maintainer marks it `DONE` on independent review.
+
+## 11. The independent M3 review — two blockers, repaired
+
+The review accepted the architecture and named two blockers. Nothing else was redesigned.
+
+### G (SRC-002) — citing evidence was treated as being adjudicated by it
+
+**Defect.** `BudgetedToolDispatcher` set a critique's adjudicator to EXTERNAL_EVIDENCE whenever the
+CritiqueReport cited *any* attestation. An INFERRED attestation is a model's interpretation (EVI-003),
+so a valid independent critique citing only model-generated records released an irreversible action
+on another model's opinion — exactly what §7.6 refuses.
+
+**Repair.** `core/adjudication.py` is the one statement of §7.6 adjudication, used by both triggers.
+The dispatcher re-reads every cited attestation from the attestation store **in the action's
+project** and fails closed: a citation that does not resolve (or resolves to another project's row)
+refuses the action; INFERRED and DISPUTED records are set aside; only what remains can make the
+adjudicator EXTERNAL_EVIDENCE — or VERIFICATION_RESULT when it is a Run's witness — and nothing left
+is MODEL_OPINION, which M0b's unchanged `evaluate_dispatch` refuses. A dispatcher with no attestation
+store cannot show the adjudication and refuses. On the belief path, `HypothesisRevisionGate` applies
+the same `admissible` rule, and `HypothesisBrain` re-reads each supplied basis attestation and
+refuses an object that is not the record (`EVIDENCE_NOT_ON_RECORD`), so a caller cannot relabel an
+INFERRED note as MEASURED. For a writer that skips the brain, `011j`'s deferred constraint trigger
+`belief_revisions_are_adjudicated_by_evidence` holds the same rule in SQL: a major REJECT, or any
+transition in an above-threshold set, must cite at least one attestation whose RECORDED type is not
+INFERRED and whose status is not DISPUTED.
+
+**Evidence.** `unit/test_adjudication.py` (11), `unit/test_irreversible_dispatch.py` (13, six new —
+headed by `test_a_valid_independent_critique_citing_only_inferred_evidence_does_not_release_the_action`),
+`unit/test_revision_gate.py`, and on PostgreSQL
+`e2e/test_hypothesis_brain_postgres.py::test_an_irreversible_action_is_not_released_by_a_critique_citing_only_inferred_records`,
+`::test_a_reject_adjudicated_only_by_inferred_records_is_refused`,
+`::test_a_relabelled_attestation_is_not_the_record_and_real_evidence_is`, and
+`integration/test_hypothesis_storage_postgres.py::test_a_major_reject_resting_only_on_inferred_records_is_refused_by_the_database`. Mutations that restore the
+original defect (`citing_anything_is_external_evidence`) or drop any one exclusion are killed.
+
+### H (EPI-001) — R-12: a belief event could target a hypothesis nobody admitted
+
+**Defect.** `belief_revision_events.target_id` had no foreign key, which `v3.3-a12` leaves to
+EPI-001/M3; any writer could record a history for a hypothesis that never passed §8's gate.
+
+**Repair.** `011j_belief_event_targets.sql`:
+
+- **Identity is the pair.** `hypotheses` is re-keyed on `(project_id, hypothesis_id)` — M0b's
+  identity for a history ("two projects may legitimately use the same hypothesis id"), which a
+  global key would have broken and which the locked conflicts suite exercises. `predictions` and
+  `parent_id` follow with composite keys.
+- **The foreign key.** `belief_revision_events (project_id, target_id)` references
+  `hypotheses (project_id, hypothesis_id)` — every write path, raw SQL included. `011i`'s trigger,
+  replaced with project-scoped lookups, says why before the key speaks.
+- **Existing histories.** A database holding events for unadmitted targets is refused with a count
+  and the remedy (admit them, then re-run), not validated around with `NOT VALID`.
+- **The REJECT scope** (§4.6), so M2's SIM-002 reject path keeps its hard-locked semantics now that
+  its hypotheses are certificates.
+
+`SqlHypothesisStore` / `InMemoryHypothesisStore` read certificates by the pair, and the in-memory
+event log refuses an unadmitted target for M0b's parity reason.
+
+**Fixture updates, and only fixture updates.** The M0b–M2 PostgreSQL suites wrote events for ids no
+gate had admitted. `tests/postgres_fixtures.admit_hypothesis_identity` gives each the identity it
+always meant: a human-authored §8 certificate with one typed prediction in a routine set. Twelve
+files call it before their first event (two helpers that mint an id per event call it per event);
+the diff removes no assertion and changes no expected outcome — its only removed lines are import
+lines and two in-memory store constructors that now name their hypothesis.
+
+**Evidence.** `integration/test_belief_event_targets_postgres.py` (6): the Python store, the append
+function and a bare INSERT all refuse an unadmitted target; another project's hypothesis is not a
+target; the foreign key holds with the trigger disabled; two projects keep separate histories for
+one id; the schema carries the pair; `011j` refuses to run over an orphan history.
+`integration/test_hypothesis_storage_postgres.py` pins the REJECT scope from both sides. The full
+PostgreSQL regression passes with the constraint in place (§8).

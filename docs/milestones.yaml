@@ -183,6 +183,7 @@ milestones:
     # IN_PROGRESS from 2026-09-25, when M2 was signed off and M3 implementation began.
     # 2026-09-26: implementation complete through the exit gate and submitted for independent
     # review -- evidence in docs/implementation/M3-readiness.md. Still IN_PROGRESS.
+    # 2026-09-26: the review's two blockers repaired (§11 there: SRC-002 adjudication, R-12).
     #
     # IN_PROGRESS IS NOT A SIGN-OFF AND CARRIES NO GATE. The ratchet enforces a milestone only once
     # it is DONE; moving this to DONE is the maintainer's act on independent review.

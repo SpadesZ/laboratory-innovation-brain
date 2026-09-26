@@ -26,6 +26,7 @@ from lab_brain.core.models import (
 )
 from lab_brain.core.repositories import SqlTransitionPolicyStore
 from tests.conftest_fixtures import make_artifact
+from tests.postgres_fixtures import admit_hypothesis_identity
 
 pytestmark = [
     pytest.mark.postgres,
@@ -262,6 +263,7 @@ def test_an_event_citing_a_registered_policy_is_accepted(db):
     SqlTransitionPolicyStore(db).register(policy())
     _evidence(db)
     _authorization(db)
+    admit_hypothesis_identity(db, "hyp:1")  # M3 / R-12 (`011j`): the target is admitted first
     db.execute(
         "SELECT belief_revision_event_append('bre:x', 'prj:test', 'HYPOTHESIS', 'hyp:1',"
         " 'ACTIVE', 'SUPPORTED', ARRAY['att:1'], ARRAY[]::text[], 'pol:hypothesis-default',"

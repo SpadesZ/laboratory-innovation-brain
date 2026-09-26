@@ -360,25 +360,23 @@ def test_a_position_must_name_the_bundle_its_inference_actually_saw(debated, db)
         )
 
 
-@pytest.mark.requirement("SRC-002")
-@pytest.mark.spec_test("T-SRC-002")
-def test_a_reject_with_no_independent_critique_is_refused_in_the_database(debated, db):
-    world, outcome = debated
-    lonely_set = make_set("hst:uncritiqued", root_cause=False, inverted_retrieval_required=False)
-    lonely = make_certificate("normalization_error", lonely_set)
+def _admitted_alone(world, outcome, db, set_id: str, *, root_cause: bool):  # type: ignore[no-untyped-def]
+    """One certificate admitted by hand into its own set, with a CONTRADICTS relation against it."""
+    hypothesis_set = make_set(set_id, root_cause=root_cause, inverted_retrieval_required=False)
+    certificate = make_certificate("normalization_error", hypothesis_set)
     store = SqlHypothesisStore(db)
-    store.add_set(lonely_set)
-    store.add_certificate(lonely)
+    store.add_set(hypothesis_set)
+    store.add_certificate(certificate)
     basis = world.attestations[outcome.primary_bundle.ordered_attestation_ids[0]]
     SqlBeliefEventStore(db).append(
         admit_hypothesis(
-            event_id="bre:uncritiqued",
+            event_id=f"bre:{set_id}",
             policy=ADMISSION_POLICY,
             project_id=PROJECT,
-            hypothesis_id=lonely.hypothesis_id,
+            hypothesis_id=certificate.hypothesis_id,
             prior=EpistemicStateProjection(
                 project_id=PROJECT,
-                target_id=lonely.hypothesis_id,
+                target_id=certificate.hypothesis_id,
                 current_state=None,
                 last_event_id=None,
             ),
@@ -388,11 +386,36 @@ def test_a_reject_with_no_independent_critique_is_refused_in_the_database(debate
         )
     )
     _relation(
-        db, "rel:against", basis.attestation_id, lonely.hypothesis_id, RelationType.CONTRADICTS
+        db,
+        f"rel:against-{set_id}",
+        basis.attestation_id,
+        certificate.hypothesis_id,
+        RelationType.CONTRADICTS,
     )
+    return certificate.hypothesis_id, basis
+
+
+@pytest.mark.requirement("SRC-002")
+@pytest.mark.spec_test("T-SRC-002")
+def test_a_major_reject_with_no_independent_critique_is_refused_in_the_database(debated, db):
+    """Removing a rival from a ROOT-CAUSE set is a major REJECT (`011j`): no critique, no event."""
+    world, outcome = debated
+    target, basis = _admitted_alone(world, outcome, db, "hst:uncritiqued", root_cause=True)
     with pytest.raises(psycopg.errors.RaiseException, match="重大 REJECT"):
-        _attempt(world, lonely.hypothesis_id, REJECT, (basis,))
-    assert _events(db, lonely.hypothesis_id) == 1
+        _attempt(world, target, REJECT, (basis,))
+    assert _events(db, target) == 1
+
+
+@pytest.mark.requirement("SRC-002")
+@pytest.mark.spec_test("T-SRC-002")
+def test_a_routine_reject_keeps_m0b_to_m2_semantics(debated, db):
+    """The scope's other side: a routine set -- not root-cause, below the policy threshold -- is
+    what every pre-M3 hypothesis now lives in, and M2's SIM-002 rejects there without a debate."""
+    world, outcome = debated
+    target, basis = _admitted_alone(world, outcome, db, "hst:routine", root_cause=False)
+    result = _attempt(world, target, REJECT, (basis,))
+    assert result.transitioned and result.event.to_state is BeliefState.CONTRADICTED
+    assert _events(db, target) == 2
 
 
 @pytest.mark.requirement("SRC-002")
@@ -486,3 +509,42 @@ def test_an_undeclared_route_slot_is_refused_by_003e(debated, db):
             inference_id="inf:vibes",
             logical_slot="VIBES",
         )
+
+
+@pytest.mark.requirement("SRC-002")
+@pytest.mark.spec_test("T-SRC-002")
+def test_a_major_reject_resting_only_on_inferred_records_is_refused_by_the_database(db):
+    """`011j` section 4: the writer skipped `HypothesisBrain`, an independent critique exists, and the
+    only triggering evidence is on record as INFERRED. The deferred check refuses the event; the
+    same REJECT on a factual record is accepted."""
+    from lab_brain.core.models.enums import EpistemicType
+
+    case = _case("hard-1")
+    probe = build_world(case)
+    policy = probe.source_policies.for_intent("DIAGNOSIS")
+    literature = sorted(
+        a
+        for a in probe.attestations
+        if (item := probe.researcher.item(PROJECT, a)) is not None
+        and item.trust_class in policy.inverted_source_classes
+    )
+    world = build_world(
+        case,
+        connection=db,
+        transition_policies=(PROMOTE, REJECT),
+        epistemic_overrides={literature[0]: EpistemicType.INFERRED},
+    )
+    outcome = world.debate.run(world.request(case))
+    rejected = outcome.contradicted_ids[0]
+    inferred = world.attestations[literature[0]]
+    factual = world.attestations[literature[1]]
+    assert inferred.epistemic_type is EpistemicType.INFERRED
+    assert factual.epistemic_type is not EpistemicType.INFERRED
+    _relation(db, "rel:inferred", inferred.attestation_id, rejected, RelationType.CONTRADICTS)
+
+    with pytest.raises(psycopg.errors.RaiseException, match="no admissible evidence"):
+        _attempt(world, rejected, REJECT, (inferred,))
+    assert _events(db, rejected) == 1
+
+    result = _attempt(world, rejected, REJECT, (factual,))
+    assert result.transitioned and result.event.to_state is BeliefState.CONTRADICTED

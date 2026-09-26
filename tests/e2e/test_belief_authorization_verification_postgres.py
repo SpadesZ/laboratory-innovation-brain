@@ -51,6 +51,7 @@ from lab_brain.core.models.decision import DecisionInputSnapshot
 from lab_brain.core.repositories import SqlBeliefEventStore, SqlTransitionPolicyStore
 from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
 from tests.conftest_fixtures import make_artifact
+from tests.postgres_fixtures import admit_hypothesis_identity
 
 pytestmark = [
     pytest.mark.postgres,
@@ -84,6 +85,9 @@ PROMOTE = TransitionPolicy(
 
 @pytest.fixture
 def world(db):  # type: ignore[no-untyped-def]
+    # M3 / R-12 (`011j`): a belief event names a hypothesis admitted through §8's gate in its own
+    # project, so the identity this fixture always meant is established first.
+    admit_hypothesis_identity(db, HYP)
     artifact = make_artifact(b"authorization verification fixture")
     db.execute(
         "INSERT INTO artifacts (artifact_id, content_hash, uri, media_type, source_origin,"

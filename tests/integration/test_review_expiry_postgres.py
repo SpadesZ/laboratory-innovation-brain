@@ -68,7 +68,7 @@ from lab_brain.core.review_expiry import (
 )
 from lab_brain.core.review_queue import ReviewQueuePolicy
 from tests.conftest_fixtures import make_artifact
-from tests.postgres_fixtures import DEFAULT_URL
+from tests.postgres_fixtures import DEFAULT_URL, admit_hypothesis_identity
 
 pytestmark = [
     pytest.mark.postgres,
@@ -125,6 +125,11 @@ def world(db):  # type: ignore[no-untyped-def]
         " VALUES (%s, 'SERVICE', 'Expiry sweeper') ON CONFLICT DO NOTHING",
         (EXECUTOR,),
     )
+    # M3 / R-12 (`011j`): a belief event names a hypothesis admitted through §8's gate in its own
+    # project, so the identity this fixture always meant is established first.
+    for hypothesis in (HYP, "hyp:second", "hyp:other"):
+        admit_hypothesis_identity(db, hypothesis, project_id=PROJECT)
+    admit_hypothesis_identity(db, HYP, project_id=OTHER)
     artifact = make_artifact(b"an expiry fixture")
     db.execute(
         "INSERT INTO artifacts (artifact_id, content_hash, uri, media_type, source_origin,"

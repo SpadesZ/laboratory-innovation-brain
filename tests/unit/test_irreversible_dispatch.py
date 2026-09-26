@@ -26,7 +26,7 @@ from lab_brain.core.budget import BUDGET_OVERRUN_SCOPE, BudgetApproval, BudgetPo
 from lab_brain.core.models.access import Actor, ProjectMembership
 from lab_brain.core.models.capability import ActionType, Capability
 from lab_brain.core.models.cost import BudgetCaps, CostVector
-from lab_brain.core.models.enums import ActorType
+from lab_brain.core.models.enums import ActorType, EpistemicType, VerificationStatus
 from lab_brain.core.models.job import Job
 from lab_brain.core.repositories.budget import InMemoryBudgetApprovalClaims, InMemoryCostLedger
 from lab_brain.core.repositories.jobs import InMemoryJobStore
@@ -110,7 +110,7 @@ def _capabilities(*, irreversible: bool, estimate_irreversible: bool = False) ->
 
 
 def _dispatcher(
-    tool: Spy, *, capabilities: CapabilityRegistry, critiques: Any
+    tool: Spy, *, capabilities: CapabilityRegistry, critiques: Any, attestations: Any = None
 ) -> tuple[Any, Any, Any, Any]:
     registry = ToolRegistry()
     registry.register(
@@ -150,6 +150,7 @@ def _dispatcher(
         claims=claims,
         now=lambda: NOW,
         critiques=critiques,
+        attestations=attestations,
     )
     return dispatcher, ledger, spans, claims
 
@@ -228,7 +229,10 @@ def test_an_irreversible_action_without_a_critique_is_not_dispatched():
     world, _ = _debated()
     tool = Spy(fatal=True)
     dispatcher, ledger, spans, claims = _dispatcher(
-        tool, capabilities=_capabilities(irreversible=True), critiques=world.debates
+        tool,
+        capabilities=_capabilities(irreversible=True),
+        critiques=world.debates,
+        attestations=world.find_attestation,
     )
     supervisor = _supervisor(claims)
     with pytest.raises(ToolDispatchRefused):
@@ -247,6 +251,7 @@ def test_an_estimate_that_declares_irreversibility_is_enough_to_require_the_crit
         tool,
         capabilities=_capabilities(irreversible=False, estimate_irreversible=True),
         critiques=world.debates,
+        attestations=world.find_attestation,
     )
     with pytest.raises(ToolDispatchRefused):
         dispatcher.dispatch(_action(), policy=_policy())
@@ -257,7 +262,10 @@ def test_a_critique_that_was_never_stored_or_no_store_is_refused():
     world, _ = _debated()
     tool = Spy(fatal=True)
     dispatcher, ledger, spans, claims = _dispatcher(
-        tool, capabilities=_capabilities(irreversible=True), critiques=world.debates
+        tool,
+        capabilities=_capabilities(irreversible=True),
+        critiques=world.debates,
+        attestations=world.find_attestation,
     )
     with pytest.raises(ToolDispatchRefused, match="not durably recorded"):
         dispatcher.dispatch(_action(critique_id="crq:imagined"), policy=_policy())
@@ -290,7 +298,10 @@ def test_a_critique_settled_by_model_opinion_does_not_release_an_irreversible_ac
     uncited = next(c for c in outcome.critiques if not c.cited_attestation_ids)
     tool = Spy(fatal=True)
     dispatcher, ledger, spans, claims = _dispatcher(
-        tool, capabilities=_capabilities(irreversible=True), critiques=world.debates
+        tool,
+        capabilities=_capabilities(irreversible=True),
+        critiques=world.debates,
+        attestations=world.find_attestation,
     )
     with pytest.raises(ToolDispatchRefused):
         dispatcher.dispatch(_action(critique_id=uncited.critique_id), policy=_policy())
@@ -306,7 +317,10 @@ def test_an_independent_evidence_citing_critique_releases_the_irreversible_actio
     assert cited.differs_in
     tool = Spy(fatal=False)
     dispatcher, _, _, _ = _dispatcher(
-        tool, capabilities=_capabilities(irreversible=True), critiques=world.debates
+        tool,
+        capabilities=_capabilities(irreversible=True),
+        critiques=world.debates,
+        attestations=world.find_attestation,
     )
     result = dispatcher.dispatch(_action(critique_id=cited.critique_id), policy=_policy())
     assert result.performed and len(tool.entered) == 1
@@ -319,3 +333,156 @@ def test_a_reversible_action_is_untouched_by_the_critique_rule():
         tool, capabilities=_capabilities(irreversible=False), critiques=None
     )
     assert dispatcher.dispatch(_action(), policy=_policy()).performed
+
+
+# -- §7.6 adjudication, proven from the record (the M3 review's first blocker) ----------------------
+
+
+def _debated_with(overrides):  # type: ignore[no-untyped-def]
+    """hard-1 debated in a world where the named attestations were admitted under another type."""
+    case = next(c for c in load_fixture()["cases"] if c["case_id"] == "hard-1")
+    world = build_world(case, epistemic_overrides=overrides)
+    return world, world.debate.run(world.request(case))
+
+
+def _external(world) -> list[str]:  # type: ignore[no-untyped-def]
+    """The attestations a DIAGNOSIS Critic can find: literature and technical artifacts."""
+    policy = world.source_policies.for_intent("DIAGNOSIS")
+    return sorted(
+        a
+        for a in world.attestations
+        if (item := world.researcher.item(PROJECT, a)) is not None
+        and item.trust_class in policy.inverted_source_classes
+    )
+
+
+def test_a_valid_independent_critique_citing_only_inferred_evidence_does_not_release_the_action():
+    """THE ADVERSARIAL CASE. Independent on bundle AND route, durable, same Episode, evidence cited
+    -- and every cited record is a model's INFERRED note. Citing is not being settled by: refused."""
+    probe, _ = _debated_with(None)
+    world, outcome = _debated_with(dict.fromkeys(_external(probe), EpistemicType.INFERRED))
+    cited = next(c for c in outcome.critiques if c.cited_attestation_ids)
+    assert set(cited.differs_in) == {"RETRIEVAL_BUNDLE", "MODEL_ROUTE"}, "a valid independent path"
+    assert all(
+        world.attestations[a].epistemic_type is EpistemicType.INFERRED
+        for a in cited.cited_attestation_ids
+    )
+    tool = Spy(fatal=True)
+    dispatcher, ledger, spans, claims = _dispatcher(
+        tool,
+        capabilities=_capabilities(irreversible=True),
+        critiques=world.debates,
+        attestations=world.find_attestation,
+    )
+    supervisor = _supervisor(claims)
+    with pytest.raises(ToolDispatchRefused, match="MODEL_OPINION"):
+        dispatcher.dispatch(_action(critique_id=cited.critique_id, **supervisor), policy=_policy())
+    _nothing_happened(tool, ledger, spans, claims)
+
+
+def test_disputed_evidence_cannot_adjudicate_either():
+    world, outcome = _debated()
+    cited = next(c for c in outcome.critiques if c.cited_attestation_ids)
+    disputed = {
+        a: world.attestations[a].model_copy(
+            update={"verification_status": VerificationStatus.DISPUTED}
+        )
+        for a in cited.cited_attestation_ids
+    }
+    tool = Spy(fatal=True)
+    dispatcher, ledger, spans, claims = _dispatcher(
+        tool,
+        capabilities=_capabilities(irreversible=True),
+        critiques=world.debates,
+        attestations=lambda project, a: disputed.get(a) or world.find_attestation(project, a),
+    )
+    with pytest.raises(ToolDispatchRefused, match="MODEL_OPINION"):
+        dispatcher.dispatch(_action(critique_id=cited.critique_id), policy=_policy())
+    _nothing_happened(tool, ledger, spans, claims)
+
+
+def test_a_citation_that_resolves_to_nothing_refuses_the_action_outright():
+    """Fail closed: one ghost among real citations poisons the critique, it is not skipped."""
+    world, outcome = _debated()
+    cited = next(c for c in outcome.critiques if c.cited_attestation_ids)
+    first = cited.objections[0]
+    ghost = cited.model_copy(
+        update={
+            "objections": (
+                first.model_copy(
+                    update={
+                        "evidence_attestation_ids": (
+                            *first.evidence_attestation_ids,
+                            "att:never-admitted",
+                        )
+                    }
+                ),
+                *cited.objections[1:],
+            )
+        }
+    )
+
+    class _Ghostly:
+        def get_critique(self, critique_id: str):  # type: ignore[no-untyped-def]
+            return ghost
+
+    tool = Spy(fatal=True)
+    dispatcher, ledger, spans, claims = _dispatcher(
+        tool,
+        capabilities=_capabilities(irreversible=True),
+        critiques=_Ghostly(),
+        attestations=world.find_attestation,
+    )
+    with pytest.raises(ToolDispatchRefused, match="att:never-admitted"):
+        dispatcher.dispatch(_action(critique_id=ghost.critique_id), policy=_policy())
+    _nothing_happened(tool, ledger, spans, claims)
+
+
+def test_another_projects_evidence_does_not_resolve_here():
+    world, outcome = _debated()
+    cited = next(c for c in outcome.critiques if c.cited_attestation_ids)
+    tool = Spy(fatal=True)
+    dispatcher, ledger, spans, claims = _dispatcher(
+        tool,
+        capabilities=_capabilities(irreversible=True),
+        critiques=world.debates,
+        # An unscoped store that answers with another project's row: the rule checks it anyway.
+        attestations=lambda _project, a: world.attestations[a].model_copy(
+            update={"project_id": "prj:other"}
+        ),
+    )
+    with pytest.raises(ToolDispatchRefused, match="SEC-002"):
+        dispatcher.dispatch(_action(critique_id=cited.critique_id), policy=_policy())
+    _nothing_happened(tool, ledger, spans, claims)
+
+
+def test_without_an_attestation_store_the_adjudication_cannot_be_shown_and_is_refused():
+    world, outcome = _debated()
+    cited = next(c for c in outcome.critiques if c.cited_attestation_ids)
+    tool = Spy(fatal=True)
+    dispatcher, ledger, spans, claims = _dispatcher(
+        tool, capabilities=_capabilities(irreversible=True), critiques=world.debates
+    )
+    with pytest.raises(ToolDispatchRefused, match="no attestation store"):
+        dispatcher.dispatch(_action(critique_id=cited.critique_id), policy=_policy())
+    _nothing_happened(tool, ledger, spans, claims)
+
+
+def test_one_admissible_citation_beside_inferred_ones_is_external_evidence():
+    """Positive control: INFERRED citations are set aside, not fatal, when real evidence remains."""
+    probe, _ = _debated_with(None)
+    external = _external(probe)
+    world, outcome = _debated_with(dict.fromkeys(external[1:], EpistemicType.INFERRED))
+    cited = next(
+        c
+        for c in outcome.critiques
+        if external[0] in c.cited_attestation_ids and len(c.cited_attestation_ids) > 1
+    )
+    tool = Spy(fatal=False)
+    dispatcher, *_ = _dispatcher(
+        tool,
+        capabilities=_capabilities(irreversible=True),
+        critiques=world.debates,
+        attestations=world.find_attestation,
+    )
+    assert dispatcher.dispatch(_action(critique_id=cited.critique_id), policy=_policy()).performed

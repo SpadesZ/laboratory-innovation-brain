@@ -11,7 +11,8 @@ span's status and its cost refs were written separately and could end up permane
 it would be worse, because these tables are append-only in both directions -- a half-written event
 could never be completed *or* removed.
 
-BOTH IMPLEMENTATIONS ENFORCE THE SAME CONTRACT: one event per id, references that resolve, and no
+BOTH IMPLEMENTATIONS ENFORCE THE SAME CONTRACT: one event per id, references that resolve, a
+target that is an admitted hypothesis of the event's project (M3 / R-12, `011j`), and no
 mutation. The in-memory one resolves references against the attestation and relation ids it is
 given, for the reason stated in ``lab_brain.core.repositories.observability`` -- a fake that accepts
 what the database rejects is how a conformance suite passes against the fake and fails in
@@ -22,7 +23,7 @@ from __future__ import annotations
 
 import json
 import threading
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from typing import Protocol, runtime_checkable
 
 from lab_brain.core.belief import AuthorizedRevision
@@ -75,20 +76,39 @@ class InMemoryBeliefEventStore:
     ``known_attestation_ids`` / ``known_relation_ids`` are what the references are resolved
     against. Empty means "resolve nothing", so a caller that wants the parity the SQL store gives
     has to say what exists -- which is the honest shape: an in-memory store cannot know otherwise.
+
+    ``known_hypotheses`` is the same for the target (M3 / R-12): the ``(project_id, hypothesis_id)``
+    pairs admitted through §8's gate, or a callable answering for them -- the admission service's
+    store, when certificates are admitted as the log grows. Empty resolves nothing, exactly as
+    `011j`'s foreign key does for a database that has admitted nothing.
     """
 
     def __init__(
         self,
         known_attestation_ids: Iterable[str] = (),
         known_relation_ids: Iterable[str] = (),
+        known_hypotheses: Iterable[tuple[str, str]] | Callable[[str, str], bool] = (),
     ) -> None:
         self._lock = threading.Lock()
         self._by_id: dict[str, BeliefRevisionEvent] = {}
         self._attestations = set(known_attestation_ids)
         self._relations = set(known_relation_ids)
+        if callable(known_hypotheses):
+            self._hypothesis_exists = known_hypotheses
+        else:
+            admitted = frozenset(known_hypotheses)
+            self._hypothesis_exists = lambda project_id, hypothesis_id: (
+                (project_id, hypothesis_id) in admitted
+            )
 
     def append(self, authorized: AuthorizedRevision) -> BeliefRevisionEvent:
         event = authorized.event
+        if not self._hypothesis_exists(event.project_id, event.target_id):
+            raise BeliefEventError(
+                f"event {event.event_id} targets hypothesis {event.target_id} in "
+                f"{event.project_id}, which was never admitted there. R-12 / EPI-001: a belief "
+                "event names a hypothesis admitted through §8's gate, in its own project"
+            )
         unresolved = [
             ref for ref in event.triggering_attestation_ids if ref not in self._attestations
         ] + [ref for ref in event.triggering_relation_ids if ref not in self._relations]

@@ -14,20 +14,24 @@ yet, for reasons that are not about evidence strength -- the question was never 
 Critic never looked for the opposite, or the contest was settled by a model's opinion. When every
 precondition holds, `evaluate` still decides, on the evidence, exactly as before.
 
-SCOPE: CERTIFIED HYPOTHESES ONLY. A target with no M3 certificate is governed by M0b alone and this
-gate reports `governs=False`: M0b's semantics are hard-locked and M3 does not reach back into them.
-`011i` makes the same choice in SQL.
+SCOPE: EVERY TARGET IS A CERTIFICATE. Since `011j` (R-12) a belief event can only name a hypothesis
+admitted through §8's gate in its own project, so a target with no certificate has no history to
+revise; the gate reports `governs=False` for it and M1's path refuses it anyway.
 
 THE FOUR PRECONDITIONS:
 
     SINGLE_PLAUSIBLE_CAUSE          -> SUPPORTED in a root-cause set needs >= 2 admitted rivals
-    NO_INDEPENDENT_CRITIQUE         -> CONTRADICTED (a REJECT) needs an independent critique (§7.6)
+    NO_INDEPENDENT_CRITIQUE         a MAJOR REJECT (-> CONTRADICTED) needs an independent critique
+                                    (§7.6). Major: it removes a rival from a ROOT-CAUSE set, or the
+                                    set's stakes reached its policy's threshold. A REJECT in a
+                                    routine set is M0b-M2's, unchanged -- `011j` explains the scope
     NO_INVERTED_RETRIEVAL           any transition, when the set's stakes reached the policy's
                                     threshold, needs a critique with an inverted bundle (§7.2)
-    ADJUDICATED_BY_MODEL_OPINION    a REJECT or an above-threshold decision must rest on at least
-                                    one non-inferred attestation: external evidence or a
-                                    verification result. A basis made only of INFERRED records is
-                                    one model's opinion settling another's (§7.6, EVI-003)
+    ADJUDICATED_BY_MODEL_OPINION    a major REJECT or an above-threshold decision must rest on at
+                                    least one attestation `core.adjudication` admits: external
+                                    evidence or a verification result, never INFERRED or DISPUTED.
+                                    A basis made only of INFERRED records is one model's opinion
+                                    settling another's (§7.6, EVI-003)
 
 and, when a calibrated BenchmarkPolicy is active for the Critic's bundle divergence, the set's
 debate must meet it (LLM-002) -- with no active policy that reading is advisory and recorded. The
@@ -43,10 +47,10 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from lab_brain.core.adjudication import admissible
 from lab_brain.core.benchmark_gate import GateVerdict
 from lab_brain.core.models.attestation import Attestation
 from lab_brain.core.models.belief_event import BeliefRevisionEvent, BeliefState
-from lab_brain.core.models.enums import FACTUAL_EPISTEMIC_TYPES
 from lab_brain.core.repositories.debate import DebateStore
 from lab_brain.core.repositories.hypotheses import HypothesisStore
 
@@ -57,6 +61,8 @@ class RevisionPrecondition(StrEnum):
     NO_INVERTED_RETRIEVAL = "NO_INVERTED_RETRIEVAL"
     ADJUDICATED_BY_MODEL_OPINION = "ADJUDICATED_BY_MODEL_OPINION"
     CRITIQUE_BELOW_CALIBRATED_DIVERGENCE = "CRITIQUE_BELOW_CALIBRATED_DIVERGENCE"
+    #: `HypothesisBrain`'s: a supplied attestation is not the durable record of that id.
+    EVIDENCE_NOT_ON_RECORD = "EVIDENCE_NOT_ON_RECORD"
 
 
 @dataclass(frozen=True)
@@ -113,8 +119,8 @@ class HypothesisRevisionGate:
         triggering_attestations: Sequence[Attestation],
         at: dt.datetime,
     ) -> RevisionGateVerdict:
-        certificate = self._hypotheses.get_certificate(hypothesis_id)
-        if certificate is None or certificate.hypothesis.project_id != project_id:
+        certificate = self._hypotheses.get_certificate(project_id, hypothesis_id)
+        if certificate is None:
             return RevisionGateVerdict(governs=False)
         hypothesis_set = self._hypotheses.get_set(certificate.hypothesis_set_id)
         assert hypothesis_set is not None  # `005e`'s foreign key; the in-memory store checks it
@@ -142,12 +148,15 @@ class HypothesisRevisionGate:
             for c in self._critiques.critiques_targeting(project_id, hypothesis_id)
             if c.differs_in and c.created_at <= at
         ]
-        is_reject = to_state is BeliefState.CONTRADICTED
+        is_reject = to_state is BeliefState.CONTRADICTED and (
+            hypothesis_set.root_cause or hypothesis_set.inverted_retrieval_required
+        )
         if is_reject and not independent:
             refusals.append(
                 (
                     RevisionPrecondition.NO_INDEPENDENT_CRITIQUE,
-                    f"{hypothesis_id} would be REJECTED (-> CONTRADICTED) and no independent "
+                    f"{hypothesis_id} would be REJECTED (-> CONTRADICTED) from root-cause set "
+                    f"{hypothesis_set.set_id} (stakes {hypothesis_set.stakes}) and no independent "
                     "critique targets it. §7.6: 重大 REJECT 必須經 independent critique path",
                 )
             )
@@ -164,20 +173,18 @@ class HypothesisRevisionGate:
                 )
             )
 
-        if is_reject or hypothesis_set.inverted_retrieval_required:
-            factual = [
-                a for a in triggering_attestations if a.epistemic_type in FACTUAL_EPISTEMIC_TYPES
-            ]
-            if not factual:
-                refusals.append(
-                    (
-                        RevisionPrecondition.ADJUDICATED_BY_MODEL_OPINION,
-                        f"the transition of {hypothesis_id} rests on "
-                        f"{len(triggering_attestations)} attestation(s), none of them external "
-                        "evidence or a verification result. §7.6: the adjudication MUST cite "
-                        "external evidence or a verification result, not another model opinion",
-                    )
+        if (is_reject or hypothesis_set.inverted_retrieval_required) and not admissible(
+            triggering_attestations
+        ):
+            refusals.append(
+                (
+                    RevisionPrecondition.ADJUDICATED_BY_MODEL_OPINION,
+                    f"the transition of {hypothesis_id} rests on "
+                    f"{len(triggering_attestations)} attestation(s), none of them external "
+                    "evidence or a verification result. §7.6: the adjudication MUST cite "
+                    "external evidence or a verification result, not another model opinion",
                 )
+            )
 
         verdicts: list[GateVerdict] = []
         if self._divergence_gate is not None and hypothesis_set.inverted_retrieval_required:

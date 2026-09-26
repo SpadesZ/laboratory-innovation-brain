@@ -83,6 +83,7 @@ from lab_brain.domains.silicon_photonics.authority_policy import (
 )
 from lab_brain.domains.silicon_photonics.condition_schema import SCHEMA_REF, registration
 from tests.conftest_fixtures import make_artifact
+from tests.postgres_fixtures import admit_hypothesis_identity
 
 pytestmark = [
     pytest.mark.postgres,
@@ -158,6 +159,9 @@ def _episode(world) -> BeliefEpisode:  # type: ignore[no-untyped-def]
 @pytest.fixture
 def world(db):  # type: ignore[no-untyped-def]
     """A project holding an ACTIVE hypothesis and the two M2 fidelity policies, all durable."""
+    # M3 / R-12 (`011j`): a belief event names a hypothesis admitted through §8's gate in its own
+    # project, so the identity this fixture always meant is established first.
+    admit_hypothesis_identity(db, HYP)
     artifact = make_artifact(b"a silicon photonics fidelity fixture")
     db.execute(
         "INSERT INTO artifacts (artifact_id, content_hash, uri, media_type, source_origin,"

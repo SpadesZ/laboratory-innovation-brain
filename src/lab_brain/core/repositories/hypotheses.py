@@ -7,6 +7,11 @@ an incomplete certificate, a prediction outside its OutcomeSpace, a prediction b
 admission -- are refused again by `005e` and `011i`, because a store that trusted its callers would
 hold only for the callers who came through Python.
 
+A CERTIFICATE IS IDENTIFIED BY (project_id, hypothesis_id). That is M0b's identity for a belief
+history -- two projects may use the same hypothesis id -- and since `011j` every belief event must
+name an admitted certificate under exactly that pair (R-12). So every read takes the project: a
+lookup by id alone would answer for whichever project happened to use it (SEC-002).
+
 THE IN-MEMORY STORE REFUSES WHAT THE DATABASE REFUSES, for the reason every fake in this repository
 does: a backend-free test that passed against a fake which accepted an incomplete certificate would
 be a test of the fake.
@@ -38,7 +43,9 @@ class HypothesisStore(Protocol):
 
     def add_certificate(self, certificate: HypothesisCertificate) -> HypothesisCertificate: ...
 
-    def get_certificate(self, hypothesis_id: str) -> HypothesisCertificate | None: ...
+    def get_certificate(
+        self, project_id: str, hypothesis_id: str
+    ) -> HypothesisCertificate | None: ...
 
     def certificates_in_set(self, set_id: str) -> tuple[HypothesisCertificate, ...]: ...
 
@@ -120,7 +127,7 @@ class InMemoryHypothesisStore:
 
     def __init__(self, *, outcome_space: Callable[[str, str], OutcomeSpace | None]) -> None:
         self._sets: dict[str, HypothesisSet] = {}
-        self._certificates: dict[str, HypothesisCertificate] = {}
+        self._certificates: dict[tuple[str, str], HypothesisCertificate] = {}
         self._outcome_space = outcome_space
 
     def add_set(self, hypothesis_set: HypothesisSet) -> HypothesisSet:
@@ -137,7 +144,7 @@ class InMemoryHypothesisStore:
 
     def add_certificate(self, certificate: HypothesisCertificate) -> HypothesisCertificate:
         h = certificate.hypothesis
-        existing = self._certificates.get(h.hypothesis_id)
+        existing = self._certificates.get((h.project_id, h.hypothesis_id))
         if existing is not None:
             if existing != certificate:
                 raise HypothesisStoreError(f"hypothesis {h.hypothesis_id} is append-only")
@@ -171,11 +178,11 @@ class InMemoryHypothesisStore:
                 bind(prediction, space)
             except ValueError as refused:
                 raise HypothesisStoreError(str(refused)) from refused
-        self._certificates[h.hypothesis_id] = certificate
+        self._certificates[(h.project_id, h.hypothesis_id)] = certificate
         return certificate
 
-    def get_certificate(self, hypothesis_id: str) -> HypothesisCertificate | None:
-        return self._certificates.get(hypothesis_id)
+    def get_certificate(self, project_id: str, hypothesis_id: str) -> HypothesisCertificate | None:
+        return self._certificates.get((project_id, hypothesis_id))
 
     def certificates_in_set(self, set_id: str) -> tuple[HypothesisCertificate, ...]:
         return tuple(
@@ -279,7 +286,7 @@ class SqlHypothesisStore:
                         certificate.created_at,
                     ),
                 )
-        stored = self.get_certificate(h.hypothesis_id)
+        stored = self.get_certificate(h.project_id, h.hypothesis_id)
         if stored != certificate:
             raise HypothesisStoreError(
                 f"hypothesis {h.hypothesis_id} did not round-trip; the stored certificate differs "
@@ -287,15 +294,16 @@ class SqlHypothesisStore:
             )
         return stored
 
-    def get_certificate(self, hypothesis_id: str) -> HypothesisCertificate | None:
+    def get_certificate(self, project_id: str, hypothesis_id: str) -> HypothesisCertificate | None:
         row = self._connection.execute(
-            f"SELECT {', '.join(_HYPOTHESIS_COLUMNS)} FROM hypotheses WHERE hypothesis_id = %s",
-            (hypothesis_id,),
+            f"SELECT {', '.join(_HYPOTHESIS_COLUMNS)} FROM hypotheses"
+            " WHERE project_id = %s AND hypothesis_id = %s",
+            (project_id, hypothesis_id),
         ).fetchone()
         if row is None:
             return None
         values = dict(zip(_HYPOTHESIS_COLUMNS, row, strict=True))
-        predictions = self._predictions_for(hypothesis_id)
+        predictions = self._predictions_for(project_id, hypothesis_id)
         hypothesis = Hypothesis(
             hypothesis_id=str(values["hypothesis_id"]),
             project_id=str(values["project_id"]),
@@ -322,18 +330,18 @@ class SqlHypothesisStore:
 
     def certificates_in_set(self, set_id: str) -> tuple[HypothesisCertificate, ...]:
         rows = self._connection.execute(
-            "SELECT hypothesis_id FROM hypotheses WHERE hypothesis_set_id = %s "
+            "SELECT project_id, hypothesis_id FROM hypotheses WHERE hypothesis_set_id = %s "
             "ORDER BY created_at, hypothesis_id",
             (set_id,),
         ).fetchall()
-        found = (self.get_certificate(str(row[0])) for row in rows)
+        found = (self.get_certificate(str(row[0]), str(row[1])) for row in rows)
         return tuple(c for c in found if c is not None)
 
-    def _predictions_for(self, hypothesis_id: str) -> tuple[Prediction, ...]:
+    def _predictions_for(self, project_id: str, hypothesis_id: str) -> tuple[Prediction, ...]:
         rows = self._connection.execute(
-            f"SELECT {', '.join(_PREDICTION_COLUMNS)} FROM predictions WHERE hypothesis_id = %s "
-            "ORDER BY prediction_id",
-            (hypothesis_id,),
+            f"SELECT {', '.join(_PREDICTION_COLUMNS)} FROM predictions"
+            " WHERE project_id = %s AND hypothesis_id = %s ORDER BY prediction_id",
+            (project_id, hypothesis_id),
         ).fetchall()
         predictions = []
         for row in rows:

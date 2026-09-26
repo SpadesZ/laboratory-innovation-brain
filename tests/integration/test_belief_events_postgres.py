@@ -34,6 +34,7 @@ from lab_brain.core.repositories import (
 )
 from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
 from tests.conftest_fixtures import forged_authorization, make_artifact
+from tests.postgres_fixtures import admit_hypothesis_identity
 
 pytestmark = [
     pytest.mark.postgres,
@@ -56,6 +57,10 @@ def seeded(db):  # type: ignore[no-untyped-def]
     is the join "which events did this attestation trigger", and the point of the join table is
     that the reference resolves.
     """
+    # M3 / R-12 (`011j`): a belief event names a hypothesis admitted through §8's gate in its own
+    # project, so the identity this fixture always meant is established first.
+    admit_hypothesis_identity(db, TARGET)
+    admit_hypothesis_identity(db, "hyp:something-else")
     artifact = make_artifact(b"a belief-event fixture")
     db.execute(
         "INSERT INTO artifacts (artifact_id, content_hash, uri, media_type, source_origin,"
@@ -472,7 +477,10 @@ def test_the_store_requires_a_durable_connection():
 
 def test_the_in_memory_store_also_refuses_unresolvable_triggers():
     """Parity. A fake that accepts what the database rejects makes a green suite meaningless."""
-    store = InMemoryBeliefEventStore(known_relation_ids={"rel:1"})
+    # M3 / R-12: the target is an admitted hypothesis, as `011j` requires of the database.
+    store = InMemoryBeliefEventStore(
+        known_relation_ids={"rel:1"}, known_hypotheses={(PROJECT, TARGET)}
+    )
     store.append(forged_authorization(event()))
     with pytest.raises(BeliefEventError, match="do not resolve"):
         store.append(
@@ -481,7 +489,9 @@ def test_the_in_memory_store_also_refuses_unresolvable_triggers():
 
 
 def test_the_in_memory_store_also_refuses_a_reused_event_id():
-    store = InMemoryBeliefEventStore(known_relation_ids={"rel:1"})
+    store = InMemoryBeliefEventStore(
+        known_relation_ids={"rel:1"}, known_hypotheses={(PROJECT, TARGET)}
+    )
     store.append(forged_authorization(event()))
     with pytest.raises(BeliefEventError, match="already recorded"):
         store.append(forged_authorization(event(to_state=BeliefState.CONTRADICTED)))

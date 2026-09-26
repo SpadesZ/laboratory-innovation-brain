@@ -39,11 +39,11 @@ from lab_brain.cognition.debate import DebatePolicy
 from lab_brain.cognition.novelty import SanitizedConcept
 from lab_brain.core.belief import EpistemicStateProjection, admit_hypothesis
 from lab_brain.core.models import BeliefState, RelationJudgment, RelationType, TransitionPolicy
-from lab_brain.core.models.enums import EpistemicType, SensitivityLabel
+from lab_brain.core.models.enums import EpistemicType, SensitivityLabel, VerificationStatus
 from lab_brain.core.models.prior_art import DateRange
 from lab_brain.core.repositories.belief_events import SqlBeliefEventStore
 from lab_brain.core.repositories.debate import SqlDebateStore
-from lab_brain.core.repositories.evidence import SqlRelationStore
+from lab_brain.core.repositories.evidence import SqlAttestationStore, SqlRelationStore
 from lab_brain.core.repositories.evidence_bundles import SqlEvidenceBundleRepository
 from lab_brain.core.repositories.hypotheses import SqlHypothesisStore
 from lab_brain.core.repositories.prior_art import SqlPriorArtStore
@@ -341,22 +341,76 @@ def test_the_inverted_bundle_and_its_divergence_are_traceable_after_a_reload(db)
             assert "MODEL_ROUTE" in critique.differs_in
 
 
+def _inferred_world(db):  # type: ignore[no-untyped-def]
+    """hard-1 where every record a DIAGNOSIS Critic can find was admitted as a model's INFERRED note."""
+    probe = build_world(_case("hard-1"))
+    policy = probe.source_policies.for_intent("DIAGNOSIS")
+    external = {
+        a: EpistemicType.INFERRED
+        for a in probe.attestations
+        if (item := probe.researcher.item(PROJECT, a)) is not None
+        and item.trust_class in policy.inverted_source_classes
+    }
+    return _world(db, epistemic_overrides=external)
+
+
 @pytest.mark.requirement("SRC-002")
 @pytest.mark.spec_test("T-SRC-002")
-def test_a_reject_is_adjudicated_by_external_evidence_never_by_model_opinion(db):
+def test_a_reject_adjudicated_only_by_inferred_records_is_refused(db):
+    """The Critic's evidence is on record -- as INFERRED. A REJECT resting on it is model opinion."""
+    world, outcome = _inferred_world(db)
+    rejected = outcome.contradicted_ids[0]
+    critique = next(c for c in outcome.critiques if rejected in c.contradicted_targets)
+    inferred = world.find_attestation(PROJECT, sorted(critique.cited_attestation_ids)[0])
+    assert inferred is not None and inferred.epistemic_type is EpistemicType.INFERRED
+    _relation(db, "rel:against", inferred.attestation_id, rejected, RelationType.CONTRADICTS)
+    decisions = _count(db, "belief_transition_decisions")
+
+    with pytest.raises(RevisionPreconditionFailed) as refused:
+        _revise(world, rejected, REJECT, (inferred,))
+
+    assert refused.value.verdict.codes == {RevisionPrecondition.ADJUDICATED_BY_MODEL_OPINION}
+    assert _count(db, "belief_transition_decisions") == decisions
+
+
+@pytest.mark.requirement("SRC-002")
+@pytest.mark.spec_test("T-SRC-002")
+def test_a_relabelled_attestation_is_not_the_record_and_real_evidence_is(db):
+    """A caller cannot relabel evidence: the brain reads what the record says, not what it is handed."""
     world, outcome = _world(db)
     rejected = outcome.contradicted_ids[0]
     evidence = _factual(world, outcome)
     _relation(db, "rel:against", evidence.attestation_id, rejected, RelationType.CONTRADICTS)
-    opinion = evidence.model_copy(update={"epistemic_type": EpistemicType.INFERRED})
+    forged = evidence.model_copy(update={"verification_status": VerificationStatus.HUMAN_VERIFIED})
 
     with pytest.raises(RevisionPreconditionFailed) as refused:
-        _revise(world, rejected, REJECT, (opinion,))
-    assert refused.value.verdict.codes == {RevisionPrecondition.ADJUDICATED_BY_MODEL_OPINION}
+        _revise(world, rejected, REJECT, (forged,))
+    assert refused.value.verdict.codes == {RevisionPrecondition.EVIDENCE_NOT_ON_RECORD}
 
     result = _revise(world, rejected, REJECT, (evidence,))
     assert result.event is not None and result.event.to_state is BeliefState.CONTRADICTED
     assert evidence.attestation_id in result.event.triggering_attestation_ids
+
+
+@pytest.mark.requirement("SRC-002")
+@pytest.mark.spec_test("T-SRC-002")
+def test_an_irreversible_action_is_not_released_by_a_critique_citing_only_inferred_records(db):
+    """The review's adversarial case, durably: independent path, cited evidence, all INFERRED."""
+    _, outcome = _inferred_world(db)
+    cited = next(c for c in outcome.critiques if c.cited_attestation_ids)
+    assert cited.differs_in
+    fatal = Spy(fatal=True)
+    dispatcher, _, _, claims = _dispatcher(
+        fatal,
+        capabilities=_capabilities(irreversible=True),
+        critiques=SqlDebateStore(db),
+        attestations=SqlAttestationStore(db).get,
+    )
+    with pytest.raises(ToolDispatchRefused, match="MODEL_OPINION"):
+        dispatcher.dispatch(
+            _action(critique_id=cited.critique_id, **_supervisor(claims)), policy=tool_budget()
+        )
+    assert fatal.entered == [] and claims.consumed_at("apr:tapeout") is None
 
 
 @pytest.mark.requirement("SRC-002")
@@ -369,7 +423,10 @@ def test_an_irreversible_action_waits_for_the_durable_independent_critique(db):
 
     fatal = Spy(fatal=True)
     dispatcher, _, _, claims = _dispatcher(
-        fatal, capabilities=_capabilities(irreversible=True), critiques=critiques
+        fatal,
+        capabilities=_capabilities(irreversible=True),
+        critiques=critiques,
+        attestations=SqlAttestationStore(db).get,
     )
     with pytest.raises(ToolDispatchRefused):
         dispatcher.dispatch(_action(**_supervisor(claims)), policy=tool_budget())
@@ -378,7 +435,10 @@ def test_an_irreversible_action_waits_for_the_durable_independent_critique(db):
     cited = next(c for c in outcome.critiques if c.cited_attestation_ids)
     working = Spy(fatal=False)
     dispatcher, *_ = _dispatcher(
-        working, capabilities=_capabilities(irreversible=True), critiques=critiques
+        working,
+        capabilities=_capabilities(irreversible=True),
+        critiques=critiques,
+        attestations=SqlAttestationStore(db).get,
     )
     assert dispatcher.dispatch(
         _action(critique_id=cited.critique_id), policy=tool_budget()

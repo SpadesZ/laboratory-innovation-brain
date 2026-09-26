@@ -324,3 +324,28 @@ def test_an_armed_divergence_gate_passes_a_debate_that_meets_it():
     )
     assert verdict.permitted
     assert verdict.gate_verdicts[0].enforced and verdict.gate_verdicts[0].passed
+
+
+@pytest.mark.requirement("SRC-002")
+@pytest.mark.spec_test("T-SRC-002")
+@pytest.mark.parametrize(("root_cause", "major"), [(True, True), (False, False)])
+def test_a_reject_is_major_in_a_root_cause_set_and_routine_elsewhere(root_cause, major):
+    """`011j`'s scope, in Python: removing a root-cause rival needs the critique path; a routine
+    REJECT (not root-cause, below the policy threshold) keeps M0b-M2's semantics."""
+    world = build_world()
+    hs = make_set(
+        set_id=f"hst:reject-{root_cause}", root_cause=root_cause, inverted_retrieval_required=False
+    )
+    target = make_certificate("contact_discontinuity", hs)
+    world.hypotheses.add_set(hs)
+    world.hypotheses.add_certificate(target)
+    verdict = world.revision_gate.evaluate(
+        project_id=PROJECT,
+        hypothesis_id=target.hypothesis_id,
+        to_state=BeliefState.CONTRADICTED,
+        triggering_attestations=[],
+        at=LATER,
+    )
+    assert verdict.governs
+    assert (RevisionPrecondition.NO_INDEPENDENT_CRITIQUE in verdict.codes) is major
+    assert (RevisionPrecondition.ADJUDICATED_BY_MODEL_OPINION in verdict.codes) is major

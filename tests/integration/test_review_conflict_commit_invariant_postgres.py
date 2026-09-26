@@ -39,7 +39,7 @@ import psycopg
 import pytest
 
 from tests.conftest_fixtures import make_artifact
-from tests.postgres_fixtures import DEFAULT_URL
+from tests.postgres_fixtures import DEFAULT_URL, admit_hypothesis_identity
 
 #: ONE PAIR, THOUGH THE INVARIANT SPANS TWO REQUIREMENTS. Markers multiply out, so declaring both
 #: EPI-004 and EPI-006 here would claim (EPI-004, T-EPI-006) -- a pair §26 does not map, and
@@ -132,6 +132,8 @@ def second(db) -> Iterator[psycopg.Connection]:  # type: ignore[no-untyped-def]
 
 def _event(db, event_id: str, project: str = PROJECT) -> str:  # type: ignore[no-untyped-def]
     """A real `BeliefRevisionEvent`, since every closure reference is a composite foreign key."""
+    # M3 / R-12 (`011j`): the target is admitted first, in the event's project.
+    admit_hypothesis_identity(db, f"hyp:{event_id}", project_id=project)
     db.execute(
         "SELECT belief_revision_event_append(%s, %s, 'HYPOTHESIS', %s, NULL, 'ACTIVE',"
         " %s, ARRAY[]::text[], %s, '1.0.0', NULL, NULL, NULL, %s, %s, NULL)",
@@ -181,6 +183,10 @@ def world(db):  # type: ignore[no-untyped-def]
         "INSERT INTO projects (project_id, name) VALUES (%s, 'Other') ON CONFLICT DO NOTHING",
         (OTHER,),
     )
+    # M3 / R-12 (`011j`): a belief event names a hypothesis admitted through §8's gate in its own
+    # project, so the identity this fixture always meant is established first.
+    admit_hypothesis_identity(db, HYP, project_id=PROJECT)
+    admit_hypothesis_identity(db, HYP, project_id=OTHER)
     artifact = make_artifact(b"a commit-invariant fixture")
     db.execute(
         "INSERT INTO artifacts (artifact_id, content_hash, uri, media_type, source_origin,"

@@ -26,6 +26,7 @@ from lab_brain.core.models.conflict import (
 )
 from lab_brain.core.repositories.conflicts import ConflictStoreError, SqlConflictStore
 from tests.conftest_fixtures import make_artifact
+from tests.postgres_fixtures import admit_hypothesis_identity
 
 pytestmark = [
     pytest.mark.postgres,
@@ -52,6 +53,10 @@ def seeded(db):  # type: ignore[no-untyped-def]
         "INSERT INTO projects (project_id, name) VALUES (%s, 'Other') ON CONFLICT DO NOTHING",
         (OTHER,),
     )
+    # M3 / R-12 (`011j`): a belief event names a hypothesis admitted through §8's gate in its own
+    # project, so the identity this fixture always meant is established first.
+    admit_hypothesis_identity(db, HYP, project_id=PROJECT)
+    admit_hypothesis_identity(db, HYP, project_id=OTHER)
     artifact = make_artifact(b"a conflict fixture")
     db.execute(
         "INSERT INTO artifacts (artifact_id, content_hash, uri, media_type, source_origin,"

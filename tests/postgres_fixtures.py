@@ -127,6 +127,83 @@ def postgres_connection() -> Iterator[object]:
         yield connection
 
 
+def admit_hypothesis_identity(
+    connection,  # type: ignore[no-untyped-def]
+    hypothesis_id: str,
+    *,
+    project_id: str = "prj:test",
+    actor_id: str = "act:test",
+) -> None:
+    """Give a pre-M3 fixture's hypothesis the identity `011j` requires (M3 / R-12).
+
+    Since `011j` a belief event must name a hypothesis admitted through §8's gate in its own
+    project. The M0b–M2 suites predate that gate and wrote events for hypothesis ids nothing had
+    admitted; this establishes the identity they always meant, rather than loosening the key: a
+    human-authored §8 certificate -- mechanism, falsifier, assumptions, confounders, minimal test and
+    one typed Prediction -- in a ROUTINE set (not root-cause, below its policy's inverted-retrieval
+    threshold). Routine because those suites test M0b–M2 semantics, which M3's debate rules leave
+    unchanged for a routine set (`011j`'s header). Called before the fixture's genesis event;
+    idempotent, and a no-op once the hypothesis exists.
+    """
+    exists = connection.execute(
+        "SELECT 1 FROM hypotheses WHERE project_id = %s AND hypothesis_id = %s",
+        (project_id, hypothesis_id),
+    ).fetchone()
+    if exists:
+        return
+    episode = f"epi:identity:{project_id}"
+    hypothesis_set = f"hst:identity:{project_id}"
+    connection.execute(
+        "INSERT INTO research_episodes (episode_id, project_id, trace_id, goal, start_time)"
+        " VALUES (%s, %s, 'trc:identity', 'pre-M3 fixture hypotheses', '2026-09-01T00:00:00Z')"
+        " ON CONFLICT DO NOTHING",
+        (episode, project_id),
+    )
+    connection.execute(
+        "INSERT INTO outcome_spaces (outcome_space_id, version, domain, action_type, outcomes)"
+        " VALUES ('os:test.identity', '1.0.0', 'core', 'MEASUREMENT',"
+        " ARRAY['OBSERVED', 'NOT_OBSERVED']) ON CONFLICT DO NOTHING"
+    )
+    connection.execute(
+        "INSERT INTO hypothesis_sets (set_id, project_id, episode_id, question, research_intent,"
+        " stakes, root_cause, source_policy_id, source_policy_version,"
+        " inverted_retrieval_required, created_at)"
+        " VALUES (%s, %s, %s, 'pre-M3 fixture hypotheses', 'DIAGNOSIS', 'NORMAL', FALSE,"
+        " 'srcpol:diagnosis', '1.0.0', FALSE, '2026-09-01T00:00:00Z') ON CONFLICT DO NOTHING",
+        (hypothesis_set, project_id, episode),
+    )
+    connection.execute(
+        "INSERT INTO hypotheses (hypothesis_id, project_id, hypothesis_set_id, statement,"
+        " mechanism, assumptions, falsifier, confounders, minimal_test_ref, created_in_episode,"
+        " authored_by_actor_id, created_at)"
+        " VALUES (%s, %s, %s, %s, %s, ARRAY['the fixture conditions hold'],"
+        " 'the predicted observation is absent', ARRAY['measurement drift'], 'test:fixture',"
+        " %s, %s, '2026-09-01T00:00:00Z')",
+        (
+            hypothesis_id,
+            project_id,
+            hypothesis_set,
+            f"{hypothesis_id} holds",
+            f"the mechanism {hypothesis_id} names",
+            episode,
+            actor_id,
+        ),
+    )
+    connection.execute(
+        "INSERT INTO predictions (prediction_id, project_id, hypothesis_id, observable_ref,"
+        " outcome_space_id, outcome_space_version, expected_outcome,"
+        " relation_effect_if_observed, created_at)"
+        " VALUES (%s, %s, %s, 'test.observable', 'os:test.identity', '1.0.0', 'OBSERVED',"
+        " %s::jsonb, '2026-09-01T00:00:00Z')",
+        (
+            f"prd:identity:{project_id}:{hypothesis_id}",
+            project_id,
+            hypothesis_id,
+            f'[{{"relation_type": "SUPPORTS", "to_entity_id": "{hypothesis_id}"}}]',
+        ),
+    )
+
+
 @pytest.fixture
 def db(postgres_connection):  # type: ignore[no-untyped-def]
     """A clean database for one test."""
