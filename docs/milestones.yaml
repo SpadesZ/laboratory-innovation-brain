@@ -180,14 +180,18 @@ milestones:
 
   - id: M3
     name: Hypothesis Brain
-    # IN_PROGRESS from 2026-09-25, when M2 was signed off and M3 implementation began.
-    # 2026-09-26: implementation complete through the exit gate and submitted for independent
-    # review -- evidence in docs/implementation/M3-readiness.md. Still IN_PROGRESS.
-    # 2026-09-26: the review's two blockers repaired (§11 there: SRC-002 adjudication, R-12).
+    # IN_PROGRESS from 2026-09-25 to 2026-09-27.
     #
-    # IN_PROGRESS IS NOT A SIGN-OFF AND CARRIES NO GATE. The ratchet enforces a milestone only once
-    # it is DONE; moving this to DONE is the maintainer's act on independent review.
-    status: IN_PROGRESS
+    # DONE 2026-09-27 on independent review sign-off / HARD-LOCK APPROVED at
+    # 6416adb1f72ada341f82fb04731e1fababd140d9 -- the commit that proved §7.6 adjudication from the
+    # durable record and closed R-12 (readiness §11, repairs G and H). Readiness evidence and the
+    # per-requirement matrix are in docs/implementation/M3-readiness.md; the exit gate is its §1.
+    #
+    # FROM THIS POINT THE EXECUTED-COVERAGE RATCHET ENFORCES M3 ON EVERY CI RUN, the same way it
+    # enforces M0a since 2026-09-13, M0b since 2026-09-20, M1 since 2026-09-23 and M2 since
+    # 2026-09-25: each of the five requirements below needs a traceability test that ACTUALLY
+    # EXECUTED AND PASSED under gate_profile [postgres].
+    status: DONE
     exit_gate: >-
       role I/O + Position/Critique contracts pass; Critic bundle divergence measurable;
       benchmark thresholds calibrated and stored in BenchmarkPolicy before gate
@@ -202,7 +206,11 @@ milestones:
 
   - id: M4
     name: First Vertical (VS-SP-001)
-    status: NOT_STARTED
+    # IN_PROGRESS from 2026-09-27, when M3 was signed off and M4 implementation began.
+    #
+    # IN_PROGRESS IS NOT A SIGN-OFF AND CARRIES NO GATE. The ratchet enforces a milestone only once
+    # it is DONE; moving this to DONE is the maintainer's act on independent review.
+    status: IN_PROGRESS
     exit_gate: >-
       a fixed, non-cherry-picked benchmark set demonstrates root-cause correctness and
       avoids unnecessary high-cost action in predefined cases.

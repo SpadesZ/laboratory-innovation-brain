@@ -1,9 +1,8 @@
 # M3 — Hypothesis Brain: readiness for independent sign-off
 
 Date: 2026-09-26; revised the same day for the two blockers the independent M3 review named (§11)
-Milestone: **M3 — Hypothesis Brain**, **`IN_PROGRESS`** — implementation complete through the exit
-gate and submitted for independent review. Moving it to `DONE` is the maintainer's act on that
-review, not this document's.
+Milestone: **M3 — Hypothesis Brain**, **`DONE` / HARD-LOCKED** 2026-09-27 on independent review
+sign-off at `6416adb1f72ada341f82fb04731e1fababd140d9` (§12)
 M2: **`DONE` / HARD-LOCKED** 2026-09-25 at `66ef099f965a0f6a8e7aa1ecd836eec4555a26f3`; the sign-off
 is recorded at `a3209b8` and the executed-coverage ratchet enforces its 8 requirements on every run
 M1 / M1-P1 / M0a / M0b: `DONE`, hard-locked — **no behaviour changed** (§5 lists every additive edit;
@@ -301,3 +300,26 @@ target; the foreign key holds with the trigger disabled; two projects keep separ
 one id; the schema carries the pair; `011j` refuses to run over an orphan history.
 `integration/test_hypothesis_storage_postgres.py` pins the REJECT scope from both sides. The full
 PostgreSQL regression passes with the constraint in place (§8).
+
+## 12. Sign-off
+
+**M3 DONE / HARD-LOCKED**, 2026-09-27, on independent review, at
+`6416adb1f72ada341f82fb04731e1fababd140d9` -- the commit that proved §7.6 adjudication from the durable
+record and closed R-12 (§11, repairs G and H). Recorded, not decided, by the implementing agent:
+`docs/milestones.yaml` moves M3 to `DONE`, and from this commit the executed-coverage ratchet
+enforces all five M3 requirements on every CI run under `gate_profile: [postgres]`, as it already
+does for M0a, M0b, M1 and M2.
+
+What the lock covers is the accepted architecture: §8's admission gate and the competing
+HypothesisSet; `HypothesisBrain` as the precondition gate in front of M1's unchanged `BeliefEpisode`;
+the stake-adaptive StructuredDebate with the Critic's own inverted retrieval and exhibited
+independence (`005e`); §7.6 adjudication proven from the record (`core.adjudication`) on both
+triggers; the calibrated, inactive-until-activated BenchmarkPolicy and the fixed debate benchmark;
+coverage-recorded novelty; DomainPack-declared, tabulated disagreement metrics; and `011j`'s
+`(project_id, hypothesis_id)` identity with every belief event referencing an admitted hypothesis.
+Later milestones may extend these at their declared extension points; they may not refactor them
+for cleanliness. Reopen only on a reproducible violation of a locked invariant or a demonstrated
+spec contradiction.
+
+What the lock does not cover, because it was never claimed: a real model (the benchmark's reasoner
+is a deterministic mock), a Supervisor model call and the persisted VerificationPlan (M4).
