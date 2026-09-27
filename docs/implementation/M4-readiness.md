@@ -198,7 +198,22 @@ Both apply cleanly on a fresh database (46 migrations) and are idempotent.
 
 ## 8. Verification
 
-Filled in from the final gate run — see §8 below the line.
+At `241f546ce3c0b492bbc377479dc7c4e743eabccc`:
+
+| Gate | Result |
+|---|---|
+| `ruff check` / `ruff format --check` (src, tests, scripts) | clean / 340 files formatted |
+| `mypy` strict | no issues in 188 source files |
+| backend-free suite | 1527 passed, 689 skipped (backend-gated) |
+| PostgreSQL suite, freshly migrated database (46 migrations, idempotent) | 2202 passed, 1 skipped (`lumerical`) + the one structural declaration in §5, re-run green |
+| M4 benchmark | PASS — 10/10 correct, 0 unjustified escalations, 0 unnecessary high-cost actions; baseline 15 unjustified; report current |
+| mutation battery | **185/185 killed** (154 pre-M4 entries still killed; 31 new M4 entries, 3 of them killed only by PostgreSQL-gated tests) |
+| `check_requirement_coverage.py` | DONE [M0a, M0b, M1, M2, M3] enforced; M4 IN_PROGRESS |
+| `rebuild_obligation_inventory.py --check` | 84 occurrences, in sync |
+| `update_status.py --check` | current; VER-001/003/004/005/007, EPI-002, TST-001 IN_PROGRESS with test files |
+| segmentation and debate benchmark reports | current |
+| `check_commit_messages.py` | no AI attribution |
+| GitHub Actions CI (commit hygiene, spec conformance, quality, backend/postgres) | success, run 36310837453 |
 
 ## 9. Remaining risks and deliberately deferred work
 
