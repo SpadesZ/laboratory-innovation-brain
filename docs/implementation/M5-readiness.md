@@ -191,8 +191,9 @@ Applies cleanly on a fresh database (47 migrations) and is idempotent.
 
 ## 9. Verification
 
-On the M5 implementation tree (the commit that follows this record's first version; its hash and
-the CI run are added by the verification-record commit after it):
+At the M5 implementation commit `3361c77c3f3ffe1e4b3864029fd7e1b92f109423` (lineage: `6416adb` M3
+hard-lock → `a0b9fcf` M3 sign-off, M4 begins → `241f546` M4 → `457252c` M4 verification record →
+`3361c77` M5):
 
 | Gate | Result |
 |---|---|
@@ -208,7 +209,7 @@ the CI run are added by the verification-record commit after it):
 | `update_status.py --check` | current; GH-001/002/003 IN_PROGRESS with test files |
 | segmentation and debate benchmark reports | current |
 | `check_commit_messages.py` | no AI attribution |
-| GitHub Actions CI | pending at the implementation commit; recorded by the verification-record commit that follows it |
+| GitHub Actions CI (commit hygiene, spec conformance, lint/types/full suite, PostgreSQL backend) | success, run 36326456910 |
 | live GitHub (`network` marker) | **not run** — no external access was attempted |
 
 ## 10. M4, observed from M5 (M4 is a provisional baseline here)
