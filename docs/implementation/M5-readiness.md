@@ -315,11 +315,11 @@ as an upgrade of a database holding legacy rows.
 
 ## 9. Verification
 
-**At the closure commit** — upgrade safety (§4.7) and the normative gate profile (§5.7). Lineage:
-`6416adb` M3 hard-lock → `a0b9fcf` M3 sign-off, M4 begins → `241f546` M4 → `457252c` M4
-verification record → `3361c77` M5 → `9cf5ba8` verification record → `26ad26c` P0 repair +
-TST-001 blocker record → `e9c9dd0` verification record → the closure commit (its hash and CI run are
-added by the verification-record commit after it).
+**At the closure commit `5876751150fd5120a9a6689830436cdbb43a1676`** — upgrade safety (§4.7) and
+the normative gate profile (§5.7). Lineage: `6416adb` M3 hard-lock → `a0b9fcf` M3 sign-off, M4
+begins → `241f546` M4 → `457252c` M4 verification record → `3361c77` M5 → `9cf5ba8` verification
+record → `26ad26c` P0 repair + TST-001 blocker record → `e9c9dd0` verification record → `5876751`
+closure.
 
 | Gate | Result |
 |---|---|
@@ -336,7 +336,7 @@ added by the verification-record commit after it).
 | `rebuild_obligation_inventory.py --check`; segmentation and debate benchmark reports | 84 occurrences, in sync; both reports current |
 | `update_status.py --check` | current |
 | `check_commit_messages.py` | no AI attribution |
-| GitHub Actions CI | recorded by the verification-record commit that follows |
+| GitHub Actions CI (commit hygiene, spec conformance, lint/types/full suite, PostgreSQL backend incl. the `002e` upgrade test) | success, run 36334962866 |
 | live GitHub (`network` marker) | optional; **not run** — no external access was attempted |
 
 Earlier records: `26ad26c` — backend-free 1585, PostgreSQL 2289 on 48 migrations, battery 232/232,
