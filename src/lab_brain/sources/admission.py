@@ -187,6 +187,14 @@ class ExternalEvidenceAdmission:
                 f"{snapshot.snapshot_id} is not the durable snapshot of that id; external evidence "
                 "is admitted from the provenance record, never from an object a caller assembled",
             )
+        quarantined = self._snapshots.quarantine_reason(durable.project_id, durable.snapshot_id)
+        if quarantined is not None:
+            raise ExternalAdmissionRefused(
+                "SNAPSHOT_QUARANTINED",
+                f"{durable.snapshot_id} is quarantined ({quarantined}): its project and access "
+                "scope could not be proven coherent, so nothing is admitted from it; read it again "
+                "under this project's own scope (GH-002)",
+            )
         if epistemic_type is not EpistemicType.REPORTED:
             technical = durable.source_type in TECHNICAL_SOURCE_TYPES
             raise ExternalAdmissionRefused(

@@ -237,10 +237,18 @@ milestones:
     # implementation is treated as a provisional baseline and neither redesigned nor repaired here.
     # Implementation and verification record: docs/implementation/M5-readiness.md. Every external
     # provider this milestone exercises is a deterministic fixture -- no live GitHub or literature
-    # request is part of the recorded verification; the `network` half of the gate profile is a
-    # marked test that is deselected by default and has not been run.
+    # request is part of the recorded verification.
     # The review's P0 -- project B consuming project A's access policy, allowlist or credential --
-    # is repaired (access scopes, `002d`); READY FOR INDEPENDENT REVIEW, M5-readiness.md §4.6.
+    # is repaired (access scopes, `002d`), and snapshots that predate it fail closed on upgrade
+    # (`002e`); READY FOR INDEPENDENT REVIEW, M5-readiness.md §4.6-§4.7.
+    #
+    # GATE PROFILE: [postgres], not [postgres, network]. The normative tests are fixture-based --
+    # T-GH-001 is "public fixture repo 可 search/fetch" (§26), and T-GH-002/003 are security and
+    # epistemic tests over the same fixtures -- and they need PostgreSQL, not the internet. The
+    # profile was [postgres, network] from the catalog's first version, which is stricter than SAI
+    # and unsatisfiable by the offline CI AGT-007 requires: the ratchet could never have signed M5
+    # off. The live GitHub test stays, optional and unmarked (`integration/test_github_network.py`,
+    # `LAB_BRAIN_TEST_NETWORK=1`); it is not evidence for any requirement.
     #
     # IN_PROGRESS IS NOT A SIGN-OFF AND CARRIES NO GATE; DONE is the maintainer's act on review.
     status: IN_PROGRESS
@@ -248,7 +256,7 @@ milestones:
       external evidence enters with source/condition/rights/provenance metadata;
       GitHub source traces to repo + resolved commit/ref; removing the GitHub provider
       does not affect core cognition.
-    gate_profile: [postgres, network]
+    gate_profile: [postgres]
     requirements:
       - GH-001
       - GH-002

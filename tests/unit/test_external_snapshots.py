@@ -302,3 +302,23 @@ def test_the_store_keeps_a_snapshot_only_under_a_recorded_scope_of_its_own_proje
     with pytest.raises(ExternalSourceStoreError, match="cannot be re-pointed"):
         store.record_access_scope(scope.model_copy(update={"project_id": "prj:b"}))
     store.add_snapshot(snapshot.model_copy(update={"project_id": "prj:a"}))
+
+
+def test_a_quarantined_snapshot_is_never_a_cache_hit_and_a_fresh_read_supersedes_it():
+    """GH-002 upgrade safety: a snapshot whose scope cannot be proven is not served as trusted.
+    The next read under the project's own scope is a new snapshot, with its own provenance."""
+    world = build()
+    locator = file_locator(PUBLIC_REPO, "main", "README.md")
+    legacy = _snap(world, "github", locator)
+    world.store.quarantine(PROJECT, legacy.snapshot_id, "SCOPE_NOT_RECORDED")
+    assert world.store.quarantine_reason(PROJECT, legacy.snapshot_id) == "SCOPE_NOT_RECORDED"
+    fresh = _snap(world, "github", locator)
+    assert fresh.snapshot_id != legacy.snapshot_id
+    assert fresh.canonical_locator == legacy.canonical_locator
+    assert world.store.quarantine_reason(PROJECT, fresh.snapshot_id) is None
+    assert ExternalSourceEventKind.CACHE_HIT not in _kinds(world)
+    assert _snap(world, "github", locator) == fresh, "the fresh row is now the cache"
+    # The quarantined row stays on record, and quarantine is scoped to its project.
+    assert world.store.snapshot(PROJECT, legacy.snapshot_id) == legacy
+    with pytest.raises(ExternalSourceStoreError):
+        world.store.quarantine("prj:other", legacy.snapshot_id, "QUARANTINED_BY_OPERATOR")

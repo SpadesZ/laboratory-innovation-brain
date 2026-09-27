@@ -2054,6 +2054,50 @@ MUTATIONS: tuple[Mutation, ...] = (
             "tests/integration/test_external_access_scopes_postgres.py",
         ),
     ),
+    # -- M5 upgrade safety: pre-scope snapshots fail closed (GH-002, `002e`) ------------------
+    Mutation(
+        name="quarantined_snapshot_is_a_cache_hit",
+        guards="GH-002 upgrade — a quarantined snapshot is never served from the cache",
+        path="src/lab_brain/core/repositories/external_sources.py",
+        old="                == (project_id, provider, canonical_locator)\n                and s.snapshot_id not in self._quarantine",
+        new="                == (project_id, provider, canonical_locator)",
+        tests=("tests/unit/test_external_snapshots.py",),
+    ),
+    Mutation(
+        name="sql_quarantined_snapshot_is_a_cache_hit",
+        guards="GH-002 upgrade — the SQL cache lookup skips quarantined rows",
+        path="src/lab_brain/core/repositories/external_sources.py",
+        old='            " (SELECT 1 FROM external_snapshot_quarantine q"\n            " WHERE q.snapshot_id = external_snapshots.snapshot_id)",',
+        new='            " (SELECT 1 WHERE FALSE)",',
+        tests=("tests/integration/test_external_snapshot_quarantine_postgres.py",),
+    ),
+    Mutation(
+        name="admission_from_quarantined_snapshot",
+        guards="GH-002 upgrade — nothing is admitted from a quarantined snapshot",
+        path="src/lab_brain/sources/admission.py",
+        old="        if quarantined is not None:\n            raise ExternalAdmissionRefused(",
+        new="        if False:\n            raise ExternalAdmissionRefused(",
+        tests=(
+            "tests/unit/test_external_admission.py",
+            "tests/integration/test_external_snapshot_quarantine_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="quarantine_reason_forgotten",
+        guards="GH-002 upgrade — a store reports a quarantine it holds",
+        path="src/lab_brain/core/repositories/external_sources.py",
+        old="        return self._quarantine.get(snapshot_id)",
+        new="        return None",
+        tests=("tests/unit/test_external_snapshots.py", "tests/unit/test_external_admission.py"),
+    ),
+    Mutation(
+        name="replay_selection_empty",
+        guards="§6.18 / GH-002 upgrade — evidence from quarantined snapshots is the replay selection",
+        path="src/lab_brain/core/repositories/external_sources.py",
+        old='            " WHERE project_id = %s ORDER BY attestation_id",',
+        new='            " WHERE project_id = %s AND FALSE ORDER BY attestation_id",',
+        tests=("tests/integration/test_external_snapshot_quarantine_postgres.py",),
+    ),
 )
 
 

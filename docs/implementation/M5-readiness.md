@@ -2,10 +2,12 @@
 
 Date: 2026-09-27
 Milestone: **M5 — External Evidence Expansion**, `IN_PROGRESS` (was `DEFERRED`) — **READY FOR
-INDEPENDENT REVIEW**. The review's remaining P0 (project B consuming project A's access policy,
-allowlist or credential) is repaired: §4.6. The implementing agent does not sign off its own work;
-moving M5 to DONE is the maintainer's act on independent review.
-M4: **`IN_PROGRESS`, externally blocked on TST-001's licensed Lumerical replay** (attempted; the
+INDEPENDENT REVIEW**. The review's P0 (project B consuming project A's access policy, allowlist
+or credential) is repaired and accepted (§4.6); the two items the review left open are closed:
+snapshots that predate the repair fail closed on upgrade (§4.7), and M5's gate profile is the
+normative one, `[postgres]` (§5.7). The implementing agent does not sign off its own work; moving M5
+to DONE is the maintainer's act on independent review.
+M4: **`IN_PROGRESS`, paused** — externally blocked on TST-001's licensed Lumerical replay (attempted; the
 environment has no Lumerical installation, `lumapi`, licence or licensed provider — see
 M4-readiness.md §11). M5 was built on M4's final SHA `457252c` as a *provisional baseline*: no M4
 file was changed and nothing in M4 was repaired or redesigned. §10 records what M5's work observed
@@ -18,7 +20,8 @@ they are made. M6 was not started.
 
 **No external service was contacted.** Every GitHub and literature response in the recorded
 verification comes from a deterministic fixture (`fixtures/external/`). The live-GitHub test is
-marked `network`, is deselected by default, and **was not run**; nothing below claims it was.
+optional -- marked `network`, deselected by default, evidence for no requirement -- and **was not
+run**; nothing below claims it was.
 
 ## 1. The exit gate, clause by clause
 
@@ -49,8 +52,8 @@ marked `network`, is deselected by default, and **was not run**; nothing below c
 
 | Req | Where it is implemented | Where it is proven |
 |---|---|---|
-| **GH-001** | `GitHubConnector.search` / `fetch` / `retrieve`; locator grammar; commit pinning; `PinnedContent` refuses a record whose hash is not the hash of the bytes; `ExternalSnapshotService`; `002c` `external_snapshots` | `unit/test_github_connector.py` (7), `unit/test_github_http_transport.py` (7, offline), `unit/test_external_snapshots.py`, `integration/test_external_snapshots_postgres.py` (T-GH-001), `e2e/test_external_evidence_postgres.py` (T-GH-001); `integration/test_github_network.py` — **deselected, not run** |
-| **GH-002** | `GitHubAccessPolicy` (authored, versioned, project-scoped, private label never PUBLIC); **one project's authorization serves no other** — `ExternalAccessScope`, project-scoped registration and lookup, project-bound routers, `retrieve(..., project_id=)` refused first by a connector of another project, credentials resolved per project, the record's scope re-checked before anything is kept, `002d` for every writer (§4.6); `_access` (a credential only for an allowlisted repository; allowlisted without a credential refused before any request); anonymous not-found and refused credentials audited by **locator digest and reason code only**; `ConnectorError.audited` so no caller re-logs the locator; discovery always anonymous; `max_sensitivity = PUBLIC` so SEC-001's gate refuses a restricted-context query before the transport; `002c` forbids a refusal row carrying a locator and any event detail carrying a query, text, content, token or credential | `security/test_github_private_access.py` (7, T-GH-002), `security/test_github_project_scope.py` (10, T-GH-002, cross-project), `integration/test_external_access_scopes_postgres.py` (4, T-GH-002), `integration/test_external_snapshots_postgres.py::test_a_refused_private_request_is_a_durable_audit_row_that_names_nothing_private` |
+| **GH-001** | `GitHubConnector.search` / `fetch` / `retrieve`; locator grammar; commit pinning; `PinnedContent` refuses a record whose hash is not the hash of the bytes; `ExternalSnapshotService`; `002c` `external_snapshots` | `unit/test_github_connector.py` (7), `unit/test_github_http_transport.py` (7, offline), `unit/test_external_snapshots.py`, `integration/test_external_snapshots_postgres.py` (T-GH-001), `e2e/test_external_evidence_postgres.py` (T-GH-001). T-GH-001 is fixture-based ("public fixture repo 可 search/fetch"); the optional live check `integration/test_github_network.py` carries no requirement marker and was not run (§5.7) |
+| **GH-002** | `GitHubAccessPolicy` (authored, versioned, project-scoped, private label never PUBLIC); **one project's authorization serves no other** — `ExternalAccessScope`, project-scoped registration and lookup, project-bound routers, `retrieve(..., project_id=)` refused first by a connector of another project, credentials resolved per project, the record's scope re-checked before anything is kept, `002d` for every writer (§4.6); `_access` (a credential only for an allowlisted repository; allowlisted without a credential refused before any request); anonymous not-found and refused credentials audited by **locator digest and reason code only**; `ConnectorError.audited` so no caller re-logs the locator; discovery always anonymous; `max_sensitivity = PUBLIC` so SEC-001's gate refuses a restricted-context query before the transport; `002c` forbids a refusal row carrying a locator and any event detail carrying a query, text, content, token or credential | `security/test_github_private_access.py` (7, T-GH-002), `security/test_github_project_scope.py` (10, T-GH-002, cross-project), `integration/test_external_access_scopes_postgres.py` (4, T-GH-002), `integration/test_external_snapshot_quarantine_postgres.py` (3, T-GH-002, upgrade from a real pre-`002d` database), `integration/test_external_snapshots_postgres.py::test_a_refused_private_request_is_a_durable_audit_row_that_names_nothing_private` |
 | **GH-003** | GitHub records are TECHNICAL_ARTIFACT, whatever the repository claims; the registry refuses a scientific ceiling for a technical provider and clamps every record; the snapshot model, `002c` CHECKs and the admission refuse promotion; `002c` refuses a non-REPORTED/INFERRED attestation citing a TECHNICAL_ARTIFACT work or an external snapshot's artifact, and a SOFTWARE_REPOSITORY work labelled PEER_REVIEWED or internal; repo, ref and commit are kept on the snapshot and the attestation | `contract/test_external_source_registry.py`, `unit/test_external_admission.py`, `unit/test_external_snapshots.py`, `e2e/test_external_evidence_postgres.py::test_a_github_record_is_technical_and_cannot_pose_as_measured_or_peer_reviewed` (T-GH-003) |
 
 Normative text M5 also had to honour, without owning the requirement: §6.16's connector failure
@@ -125,6 +128,43 @@ private repository and each hold their own credential each read it with **their 
 (the fixture host records which token reached it), each snapshot lands in its own project under its
 own scope, and neither is visible from, or a cache hit for, the other.
 
+**4.7 Snapshots that predate the repair fail closed on upgrade (`002e`).** `002d` checks new writes
+only. A database that ran the vulnerable code can hold rows read for one project under another
+project's policy with no scope recorded anywhere, and such a row cannot be told from a legitimate
+one by looking at it. So on upgrade every existing snapshot is checked by the **same rule `002d`
+applies to new writes**, against the scopes recorded by then, and every row that cannot be proven
+coherent is **quarantined** with its reason:
+
+| Legacy row | Result |
+|---|---|
+| no scope named, PUBLIC material (e.g. a literature passage) | coherent — no authorization was involved |
+| no scope named, private material | `PRIVATE_WITHOUT_SCOPE` |
+| a scope named that was never recorded (every pre-`002d` GitHub row, until its project re-reads) | `SCOPE_NOT_RECORDED` |
+| a scope of another project or provider (the P0 pattern) | `SCOPE_OF_ANOTHER_PROJECT` |
+| private material off its scope's allowlist | `NOT_ON_ALLOWLIST` |
+
+A quarantined row stays on record (it is provenance, append-only, re-readable), but it is no longer
+trusted anywhere it could be used:
+
+- **cache** — never a cache hit (in Python and SQL); a fresh read under the project's own scope
+  supersedes it. The cache key moved from a UNIQUE constraint to a trigger — one TRUSTED row per
+  (project, provider, pinned locator), serialised by an advisory lock — because a unique index
+  cannot read the quarantine table.
+- **admission** — nothing is admitted from it (`SNAPSHOT_QUARANTINED` in Python; a trigger on
+  `attestations` for every writer).
+- **use** — an attestation admitted from it before the upgrade cannot be cited by a new relation,
+  evidence bundle or belief event (triggers on `relation_judgments`, `evidence_bundle_members`,
+  `belief_revision_event_attestations`).
+- **replay** — `external_quarantined_attestations` / `SqlExternalSourceStore.
+  quarantined_attestation_ids` is the §6.18 quarantine selection, so belief events those
+  attestations triggered before the upgrade are skipped when the projection is replayed, never kept
+  by default.
+
+Quarantine is append-only; any writer may add to it (the fail-safe direction, reason
+`QUARANTINED_BY_OPERATOR`), nothing releases a row. The upgrade test builds a real database at the
+pre-`002d` state, writes legacy rows the way the old code did (including the P0 pattern and an
+attestation admitted from it), applies `002d` and `002e`, and checks all of the above.
+
 ## 5. Architectural decisions and the interpretations they rest on
 
 **5.1 §17.21's `snapshot` is split into a provider half and a storage half.** `RetrievingAdapter.
@@ -163,14 +203,29 @@ it is given (EVI-008) and `evidence.source_status` (M1, unchanged) decides what 
 (404/401/403-rate-limit/429/451/URL errors, base64 content, token in the header only) is tested with
 `urlopen` stubbed; the live test is `network`-marked and deselected.
 
+**5.7 M5's gate profile is `[postgres]`, the normative one.** It was `[postgres, network]` from the
+catalog's first version. SAI does not ask for that: T-GH-001 is "public fixture repo 可
+search/fetch" and T-GH-002/003 are security and epistemic tests over the same fixtures (§26), and
+AGT-007 requires CI to pass offline. A `network` gate the CI job never enables meant the ratchet
+could never sign M5 off. The live check stays, optional and unmarked, so it is evidence for no
+requirement. `spec/test_ci_workflow.py::test_every_declared_gate_profile_can_be_met_where_the_ratchet_runs`
+now checks every milestone's profile — not only DONE ones — against the gates the ratchet's CI job
+enables; against the old catalog it fails.
+
 ## 6. What changed outside the new modules (all additive)
 
 - `core/models/identifiers.py`: id prefixes `xsn` (external snapshot) and `xev` (external source
   event).
-- `scripts/migrate.py`: `002c_external_snapshots.sql` appended to `APPLY_ORDER`.
-  `tests/postgres_fixtures.py`: the two new tables in `_TABLES`.
-- `scripts/mutation_battery.py`: 47 M5 entries appended (34 at `3361c77`, 13 for the P0 repair);
-  no pre-M5 entry changed.
+- `scripts/migrate.py`: `002c`, `002d`, `002e` appended to `APPLY_ORDER`.
+  `tests/postgres_fixtures.py`: the new tables in `_TABLES`.
+- `scripts/mutation_battery.py`: 52 M5 entries appended (34 at `3361c77`, 13 for the P0 repair,
+  5 for upgrade safety); no pre-M5 entry changed.
+- `tests/spec/test_ci_workflow.py`: one added test (every declared gate profile must be meetable
+  where the ratchet runs); nothing existing changed.
+- `002e` adds BEFORE INSERT guards to four pre-M5 tables (`attestations`, `relation_judgments`,
+  `evidence_bundle_members`, `belief_revision_event_attestations`). They refuse only rows citing
+  quarantined external material, which no pre-M5 flow produces; every pre-M5 suite passes
+  unchanged.
 - `docs/milestones.yaml`: M5 `DEFERRED` → `IN_PROGRESS`, with the comment stating the mock
   boundary and, since the P0 repair, readiness for independent review. M4's entry gained a comment
   recording TST-001's external blocker; its status is unchanged.
@@ -212,10 +267,28 @@ snapshot is the provenance of an artifact and the manifestation of a SourceWork)
   and provider; private material names a scope and its repository is on the scope's allowlist. A
   trigger rather than a foreign key, so rows written before `002d` are not re-validated.
 
-Both apply cleanly on a fresh database (48 migrations) and are idempotent.
+`002e_external_snapshot_quarantine.sql` (after `002d`; upgrade safety, §4.7):
+
+- `external_snapshot_quarantine` — snapshot (PK), project (must be the snapshot's), reason code,
+  time; append-only; populated at upgrade by `external_snapshot_scope_problem`, `002d`'s rule as a
+  function of a row.
+- `external_snapshots` — the UNIQUE cache key becomes a trigger admitting one trusted row per key
+  (advisory-locked); an index keeps the lookup.
+- `external_quarantined_attestations` (view) — the §6.18 selection.
+- guards on `attestations`, `relation_judgments`, `evidence_bundle_members`,
+  `belief_revision_event_attestations` (§4.7).
+
+All apply cleanly on a fresh database (49 migrations) and are idempotent; `002e` is also exercised
+as an upgrade of a database holding legacy rows.
 
 ## 8. Adversarial cases tested
 
+- **upgrade**: legacy rows read for B under A's policy, under a scope never recorded, private with
+  no scope, private off the allowlist, next to provable ones (a scopeless literature passage, A's
+  own read, a row written after `002d`); an attestation admitted from a quarantined row; admitting,
+  relating, bundling or triggering a belief event from it afterwards; re-snapshotting a quarantined
+  key and duplicating a trusted one; deleting a quarantine; a quarantine naming another project or
+  an unknown reason;
 - **across projects (the P0)**: project B snapshotting project A's private and public files through
   A's connector; A's connector called directly for B (and with an unparsable locator); A's
   connector registered for B or deployment-wide; B's router given A's connector; A's router asked
@@ -242,30 +315,33 @@ Both apply cleanly on a fresh database (48 migrations) and are idempotent.
 
 ## 9. Verification
 
-**At the P0-repair commit `26ad26cab27dda75b288c0d14fd77f6f4d2ab922`** (lineage: `6416adb` M3
-hard-lock → `a0b9fcf` M3 sign-off, M4 begins → `241f546` M4 → `457252c` M4 verification record →
-`3361c77` M5 → `9cf5ba8` M5 verification record → `26ad26c` P0 repair + TST-001 blocker record):
+**At the closure commit** — upgrade safety (§4.7) and the normative gate profile (§5.7). Lineage:
+`6416adb` M3 hard-lock → `a0b9fcf` M3 sign-off, M4 begins → `241f546` M4 → `457252c` M4
+verification record → `3361c77` M5 → `9cf5ba8` verification record → `26ad26c` P0 repair +
+TST-001 blocker record → `e9c9dd0` verification record → the closure commit (its hash and CI run are
+added by the verification-record commit after it).
 
 | Gate | Result |
 |---|---|
-| `ruff check` / `ruff format --check` (src, tests, scripts) | clean / 367 files formatted |
+| `ruff check` / `ruff format --check` (src, tests, scripts) | clean / 368 files formatted |
 | `mypy` strict | no issues in 201 source files |
-| backend-free suite | **1585 passed**, 706 skipped (backend-gated), 0 failed |
-| PostgreSQL suite, freshly migrated database (48 migrations; re-applying is a no-op) | **2289 passed**, 2 skipped (`lumerical`, `network`) |
-| M5's own tests | 75 collected across 13 files; 74 run (the `network` one is deselected) |
-| M4 root-cause benchmark `--check` (regression, PostgreSQL) | report current |
-| mutation battery (PostgreSQL profile on) | **232/232 killed** — the 185 pre-M5 entries still killed; 47 M5 entries (13 new for the P0 repair, each killed by its intended cross-project test) |
+| backend-free suite | **1588 passed**, 709 skipped (backend-gated), 0 failed |
+| PostgreSQL suite, freshly migrated database (49 migrations; re-applying is a no-op) | **2295 passed**, 2 skipped (`lumerical`, `network`) |
+| `002e` as an upgrade | a database migrated to `002c` with legacy rows, then `002d` + `002e`: exactly the four unprovable rows quarantined, the provable ones kept, every use guard holding |
+| M5's own tests | 80 collected across 14 files; 79 run (the optional `network` check is deselected) |
+| M4 root-cause benchmark `--check` (regression; M4 untouched) | report current |
+| mutation battery (PostgreSQL profile on) | **237/237 killed** — the 185 pre-M5 entries still killed; 52 M5 entries (5 new for upgrade safety, 2 of them killed only by the PostgreSQL upgrade test) |
 | `check_requirement_coverage.py` (whole-suite PostgreSQL report) | DONE [M0a, M0b, M1, M2, M3] enforced; M4 and M5 IN_PROGRESS |
+| gate profiles | every milestone's declared profile is meetable where the ratchet runs (new spec test; fails against the old catalog) |
 | `rebuild_obligation_inventory.py --check`; segmentation and debate benchmark reports | 84 occurrences, in sync; both reports current |
-| `update_status.py --check` | current; GH-001/002/003 IN_PROGRESS with test files |
+| `update_status.py --check` | current |
 | `check_commit_messages.py` | no AI attribution |
-| GitHub Actions CI (commit hygiene, spec conformance, lint/types/full suite, PostgreSQL backend) | success, run 36330841315 |
-| live GitHub (`network` marker) | **not run** — no external access was attempted |
-| TST-001 licensed Lumerical replay (M4) | **attempted; externally blocked** — M4-readiness.md §11 |
+| GitHub Actions CI | recorded by the verification-record commit that follows |
+| live GitHub (`network` marker) | optional; **not run** — no external access was attempted |
 
-At the first M5 commit `3361c77`: backend-free 1574 passed; PostgreSQL 2274 passed on 47
-migrations; mutation battery 219/219; CI success, run 36326456910. The verification record
-`9cf5ba8`: CI success, run 36326718489.
+Earlier records: `26ad26c` — backend-free 1585, PostgreSQL 2289 on 48 migrations, battery 232/232,
+CI run 36330841315; `e9c9dd0` — CI run 36331109992; `3361c77` — backend-free 1574, PostgreSQL 2274
+on 47 migrations, battery 219/219, CI run 36326456910.
 
 ## 10. M4, observed from M5 (M4 is a provisional baseline here)
 
@@ -294,6 +370,14 @@ automatic escalation of INCOMPARABLE authority) are unchanged and are not M5's t
   own connector (its own policy and credential namespace); a project with none gets public access
   only if a deployment-wide, credential-free connector is registered for it. M1's `fetch` path is
   anonymous only, so private material is read solely through the project-bound snapshot path.
+- **Upgrade quarantine is conservative.** Every GitHub snapshot written before `002d` names a
+  policy ref no scope row existed for, so it is quarantined unless its project's scope was recorded
+  (by a read after `002d`) before `002e` ran. Such material is re-read under the project's own scope
+  rather than trusted by default; nothing releases a quarantine.
+- **§6.18 replay is where pre-upgrade belief events are excluded.** The quarantine selection is
+  provided (`quarantined_attestation_ids`); belief events already in the log stay there (append-only)
+  and are skipped by a replay given the selection, as §6.18 prescribes — `002e` does not rewrite
+  the log.
 - **A changed allowlist is a new policy version.** Scopes are immutable per policy ref, so editing
   an allowlist in place is refused once material has been read under it.
 - **The deleted-public-repository rule rests on an inference**: an anonymous "not found" for
@@ -303,7 +387,7 @@ automatic escalation of INCOMPARABLE authority) are unchanged and are not M5's t
 
 ## 12. Governance
 
-M5 is `IN_PROGRESS` in `docs/milestones.yaml` and **ready for independent review**; M4 remains
-`IN_PROGRESS`, **externally blocked on TST-001**; the executed-coverage ratchet enforces neither.
+M5 is `IN_PROGRESS` in `docs/milestones.yaml`, gate profile `[postgres]`, and **ready for
+independent review**; M4 remains `IN_PROGRESS`, paused and **externally blocked on TST-001**; the executed-coverage ratchet enforces neither.
 M6 was not started. No commit carries AI authorship attribution
 (`scripts/check_commit_messages.py`).

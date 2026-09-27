@@ -211,3 +211,14 @@ def test_removal_after_admission_records_source_unavailable_on_the_admitted_work
     work_id = admitted.source_work.source_work_id
     assert (work_id, SourceWorkStatus.SOURCE_UNAVAILABLE) in works.statuses
     assert all(w != untouched.source_work.source_work_id for w, _ in works.statuses)
+
+
+def test_nothing_is_admitted_from_a_quarantined_snapshot():
+    world = build()
+    admission, _ = _admission(world)
+    paper = _snap(world, "literature", "doi:10.5555/sp.2019.041#p3")
+    world.store.quarantine(PROJECT, paper.snapshot_id, "QUARANTINED_BY_OPERATOR")
+    with pytest.raises(ExternalAdmissionRefused) as refused:
+        _admit(admission, paper)
+    assert refused.value.reason_code == "SNAPSHOT_QUARANTINED"
+    assert ExternalSourceEventKind.ADMITTED not in [e.kind for e in world.store.events(PROJECT)]

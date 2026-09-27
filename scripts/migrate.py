@@ -234,6 +234,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # M5 / GH-002. Access scopes, and the guard that a snapshot was read under its own project's
     # scope. After 002c, whose table it guards and whose append-only function it reuses.
     "002d_external_access_scopes.sql",
+    # M5 / GH-002, upgrade safety. Quarantines every pre-existing snapshot whose project and access
+    # scope cannot be proven coherent, and keeps quarantined material out of use. After 002d, whose
+    # scope table it reads, and after 003/004/004a/005a, whose tables it guards.
+    "002e_external_snapshot_quarantine.sql",
 )
 
 _BOOTSTRAP = """

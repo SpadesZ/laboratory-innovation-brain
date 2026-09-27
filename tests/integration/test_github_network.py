@@ -1,5 +1,11 @@
-"""GH-001 against the real api.github.com -- marked `network`, deselected unless
+"""An OPTIONAL live check against the real api.github.com -- marked `network`, deselected unless
 `LAB_BRAIN_TEST_NETWORK=1`. Nothing in this repository's recorded verification claims this ran.
+
+Not evidence for any requirement, and deliberately carrying no requirement marker: GH-001's
+normative test T-GH-001 is fixture-based ("public fixture repo 可 search/fetch", §26) and is
+discharged by the fixture tests, and M5's gate profile is `[postgres]` so offline CI (AGT-007) can
+validate it. This check exists for an operator who wants to see the same contract hold against the
+live host.
 
 When enabled, it performs anonymous, read-only requests against a well-known public repository and
 checks the same contract the fixture tests check: a ref resolves to a 40-hex commit, the pinned
@@ -23,8 +29,6 @@ from lab_brain.tool_providers.github import (
 
 
 @pytest.mark.network
-@pytest.mark.requirement("GH-001")
-@pytest.mark.spec_test("T-GH-001")
 def test_a_public_file_on_github_pins_to_a_commit_and_hashes_what_was_read():
     connector = GitHubConnector(
         transport=HttpGitHubTransport(),
