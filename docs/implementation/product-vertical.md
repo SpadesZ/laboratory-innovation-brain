@@ -120,6 +120,7 @@ catalog bound to declared outcome spaces), the renderer, the import boundary.
 | mutation battery (PostgreSQL profile on) | **244/244 killed** (237 prior entries still killed; 7 new product entries) |
 | coverage ratchet, obligation inventory, status, benchmark reports | current; M0a-M3 enforced, M4 and M5 IN_PROGRESS |
 | commit hygiene | no AI attribution |
+| GitHub Actions CI at `f81b1492a52e7f81099208ef0c0902f7413382fb` (commit hygiene, spec conformance, lint/types/full suite, PostgreSQL backend) | success, run 36345691524 |
 
 ## 7. Limits
 
