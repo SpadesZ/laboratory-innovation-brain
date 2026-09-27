@@ -9,10 +9,15 @@ WHAT A PACK MAY DO, AND WHY THE LIST IS SHORT. §24.3 declares nineteen `registe
 methods. This protocol declares the subset M2 authorised -- condition schema, authority policy,
 backend validity, validators, metric extractors, capabilities, tools -- plus the two M3 authorises:
 `register_specialists` (§7.1's "N Domain Specialists", §26.1's "selected Domain Specialists") and
-`register_disagreement_metrics` (VER-008). `register_workflows`, `declared_outcome_space` and
-`disagreement_metric` remain M4's, and declaring them now would mean a `pass` in every pack, which
-is a contract that has stopped being one. OutcomeSpaces reach the registry through
-`register_disagreement_metrics`, because a metric is bound to one and they are declared together.
+`register_disagreement_metrics` (VER-008) -- and the one M4 authorises: `register_workflows`
+(§24.3), how a planned Capability becomes typed tool calls (`lab_brain.verification.workflows`).
+§24.3's `declared_outcome_space(action, hypothesis)` and `disagreement_metric(outcome_space)` are
+answered by the registries rather than by new pack methods: the space an action's outcome is read
+in is the one the hypothesis's admitted Prediction is bound to and the pack declared through
+`register_disagreement_metrics`, and the metric is `DisagreementMetricRegistry.for_space`. A pack
+method returning the same object would be a second source for one answer. OutcomeSpaces reach the
+registry through `register_disagreement_metrics`, because a metric is bound to one and they are
+declared together.
 
 `DomainRegistries` IS THE WHOLE EXTENSION SURFACE. A pack receives it, writes into it, and has no
 other way in: it is handed no repository, no connection, no store and no projection. That is the
@@ -47,6 +52,7 @@ from lab_brain.tools.registry import ToolRegistry
 from lab_brain.tools.simulation import BackendValidityRegistry
 from lab_brain.verification.capability_registry import CapabilityRegistry
 from lab_brain.verification.disagreement import DisagreementMetricRegistry
+from lab_brain.verification.workflows import WorkflowRegistry
 
 
 class DomainInstallError(RuntimeError):
@@ -212,6 +218,8 @@ class DomainRegistries:
     disagreement_metrics: DisagreementMetricRegistry = field(
         default_factory=DisagreementMetricRegistry
     )
+    #: M4. §24.3's `register_workflows`: capability id -> how it is executed.
+    workflows: WorkflowRegistry = field(default_factory=WorkflowRegistry)
 
 
 @runtime_checkable
@@ -250,6 +258,8 @@ class DomainPack(Protocol):
     def register_specialists(self, registry: SpecialistRegistry) -> None: ...
 
     def register_disagreement_metrics(self, registry: DisagreementMetricRegistry) -> None: ...
+
+    def register_workflows(self, registry: WorkflowRegistry) -> None: ...
 
 
 __all__ = [

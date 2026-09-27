@@ -710,11 +710,15 @@ def test_cognition_cannot_write_a_projection_because_there_is_nothing_to_write_t
     #: did this parse finish -- and UX-001 derives the ITEM's state from a precedence over these
     #: rather than reading any one of them as a verdict. Nothing about belief is representable in
     #: it; the vocabulary is SUCCEEDED/FAILED/SKIPPED/PENDING/DEGRADED.
+    #: `candidate_heuristics.status` joined with `011l` (M4). It is §17.11's review state of a mined
+    #: candidate, CHECK-constrained to PENDING_REVIEW and append-only -- a statement about whether a
+    #: person has reviewed a proposal, never about what any hypothesis is believed to be.
     declared_non_belief = {
         "review_items",
         "execution_spans",
         "runs",
         "ingestion_stage_results",
+        "candidate_heuristics",
     }
     bare_status = {
         table

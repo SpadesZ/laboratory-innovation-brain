@@ -1,7 +1,11 @@
-"""`lab-brain inbox` and `lab-brain explain` (UX-001, UX-003, UX-006, §17.22, §17.23, §17.24).
+"""`lab-brain inbox`, `explain` and `episode open` (UX-001, UX-003, UX-006, §17.22-§17.24, §25.4).
 
-M1's scope names *IngestionItem / ErrorRecord / MessageCatalog + CLI inbox*. This is the CLI, and
-it is deliberately two commands.
+M1's scope names *IngestionItem / ErrorRecord / MessageCatalog + CLI inbox*, and M4's VS-SP-001
+definition of done adds one sentence: "CLI 可從一個 project/fixture 建立 episode". So there are
+three commands. `episode open` starts a ResearchEpisode and ingests the files it is given into it
+through the same `IngestionService` production uses -- raw bytes hashed and stored before any
+parsing stage (UX-004), each file one IngestionItem in the Knowledge Inbox -- and prints the
+episode and the derived inbox rows. It runs no model and no solver: diagnosing is the loop's.
 
 IT IS NOT A DASHBOARD, and the restraint is the design. Every line it prints comes from a
 projection or a catalog entry that already exists and is already tested:
@@ -39,13 +43,16 @@ was missing and the part a unit test of `run_inbox` cannot reach.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, TextIO
 
 from lab_brain.composition import IngestionService
+from lab_brain.core.models.enums import SensitivityLabel
 from lab_brain.core.models.job import Job
 from lab_brain.core.scientific_read import ScientificReadRefused
 from lab_brain.interfaces.config import (
@@ -54,6 +61,7 @@ from lab_brain.interfaces.config import (
     open_connection,
     read_settings,
 )
+from lab_brain.storage.artifacts.local import LocalArtifactStore
 from lab_brain.surface.catalog import MessageCatalog, Severity, default_catalog
 from lab_brain.surface.disclosure import DiagnosticsService, ErrorNotFound
 from lab_brain.surface.ingestion_item import IngestionItem, ItemState, derive_state
@@ -220,7 +228,96 @@ def build_parser() -> argparse.ArgumentParser:
             "server-side; the flag asks, it does not grant"
         ),
     )
+    episode = sub.add_parser("episode", help="research episodes")
+    episode_sub = episode.add_subparsers(dest="episode_command", required=True)
+    opened = episode_sub.add_parser(
+        "open", help="open an episode and ingest a project's fixture files into it"
+    )
+    opened.add_argument("fixtures", nargs="+", help="files to ingest into the episode")
+    opened.add_argument("--project", required=True)
+    opened.add_argument("--actor", required=True)
+    opened.add_argument("--goal", required=True)
+    opened.add_argument("--trace", required=True)
+    opened.add_argument("--episode", help="episode id; minted when omitted")
+    # Required, not defaulted: where raw bytes are stored is a deployment decision, and a
+    # command that picked a temp directory would store evidence nobody can find again.
+    opened.add_argument("--artifact-root", required=True)
+    opened.add_argument(
+        "--sensitivity",
+        default=SensitivityLabel.INTERNAL.value,
+        choices=[label.value for label in SensitivityLabel],
+    )
     return parser
+
+
+_MEDIA_TYPES: Mapping[str, str] = {
+    ".md": "text/markdown",
+    ".txt": "text/plain",
+    ".json": "application/json",
+    ".csv": "text/csv",
+}
+
+
+def run_episode_open(
+    service: IngestionService,
+    *,
+    project_id: str,
+    actor_id: str,
+    goal: str,
+    trace_id: str,
+    episode_id: str | None,
+    fixtures: Sequence[Path],
+    sensitivity: SensitivityLabel,
+    out: TextIO,
+) -> int:
+    """Open the episode, ingest each file under its own Job, then print the derived inbox.
+
+    One Job per file, keyed by the episode and the file's content hash, so re-running the same
+    command resumes the same Jobs rather than creating duplicates (UX-001's idempotency).
+    """
+    episode = service.open_episode(
+        project_id=project_id, goal=goal, trace_id=trace_id, episode_id=episode_id
+    )
+    print(f"episode   {episode.episode_id}", file=out)
+    print(f"trace     {episode.trace_id}", file=out)
+    print(f"project   {episode.project_id}", file=out)
+    failed = 0
+    for path in fixtures:
+        data = path.read_bytes()
+        digest = hashlib.sha256(data).hexdigest()
+        job = service.submit(
+            project_id=project_id,
+            actor_id=actor_id,
+            idempotency_key=f"episode:{episode.episode_id}:{digest}",
+            trace_id=trace_id,
+            episode_id=episode.episode_id,
+        )
+        result = service.ingest(
+            data,
+            job_id=job.job_id,
+            actor_id=actor_id,
+            sensitivity_label=sensitivity,
+            uri=path.resolve().as_uri(),
+            media_type=_MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream"),
+        )
+        artifact = result.artifact.artifact_id if result.artifact is not None else "-"
+        state = "SUCCEEDED" if result.succeeded else "NOT SUCCEEDED"
+        print(f"ingested  {path.name}  job={job.job_id}  artifact={artifact}  {state}", file=out)
+        failed += 0 if result.succeeded else 1
+    print("", file=out)
+    try:
+        view = service.inbox(actor_id=actor_id, project_id=project_id)
+    except ScientificReadRefused:
+        print(f"No inbox for {actor_id} in {project_id}.", file=out)
+        return 1
+    run_inbox(
+        view.items,
+        jobs_for=view.jobs_for,
+        open_review_ids=view.open_review_ids,
+        blocking_conflict_ids=view.blocking_conflict_ids,
+        out=out,
+    )
+    return 0 if failed == 0 else 1
 
 
 def main(
@@ -264,6 +361,21 @@ def main(
         return 2
 
     try:
+        if args.command == "episode":
+            return run_episode_open(
+                IngestionService(
+                    connection=connection,
+                    artifact_store=LocalArtifactStore(Path(args.artifact_root)),
+                ),
+                project_id=args.project,
+                actor_id=args.actor,
+                goal=args.goal,
+                trace_id=args.trace,
+                episode_id=args.episode,
+                fixtures=tuple(Path(f) for f in args.fixtures),
+                sensitivity=SensitivityLabel(args.sensitivity),
+                out=stream,
+            )
         service = IngestionService(connection=connection, artifact_store=_NoArtifactStore())
         if args.command == "inbox":
             try:
@@ -386,6 +498,7 @@ __all__ = [
     "main",
     "render_explanation",
     "render_inbox",
+    "run_episode_open",
     "run_explain",
     "run_inbox",
     "summarise",

@@ -207,6 +207,10 @@ milestones:
   - id: M4
     name: First Vertical (VS-SP-001)
     # IN_PROGRESS from 2026-09-27, when M3 was signed off and M4 implementation began.
+    # Implementation complete and READY FOR INDEPENDENT SIGN-OFF 2026-09-27: all seven requirements
+    # carry marked tests, and the fixed VS-SP-001 benchmark passes the exit gate below -- see
+    # docs/implementation/M4-readiness.md and benchmarks/root_cause_benchmark_report.md. TST-001's
+    # licensed replay is NOT performed (no Lumerical seat, risk R-1); only its mock half runs.
     #
     # IN_PROGRESS IS NOT A SIGN-OFF AND CARRIES NO GATE. The ratchet enforces a milestone only once
     # it is DONE; moving this to DONE is the maintainer's act on independent review.

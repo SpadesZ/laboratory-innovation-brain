@@ -219,8 +219,8 @@ UNBOUND: dict[str, str] = {
     "defined over one OutcomeSpace version is undefined on outcomes a later version adds. There "
     "is no DDL side: VER-008's §26 row is unit, and the registry tabulates the metric in memory.",
     "ResearchContract": "§17.14.1's block and the model agree field for field, and there is no DDL "
-    "side: M3 carries the Supervisor's contract in memory for one debate, and it is persisted with "
-    "§17.14.1's VerificationPlan in M4.",
+    "side: M3 carries the Supervisor's contract in memory for one debate. M4 persists the "
+    "VerificationPlan (`011k`) but not the contract, which the debate request still carries.",
     "ValidationReport": "§17.19.2 writes `status:PASS|WARN|FAIL|UNKNOWN` as one token, which this "
     "parser cannot read as a field name -- so the canonical set comes back as nine fields against "
     "an implementation of ten and `status` is reported as undeclared. The same shape as §17.16's "
@@ -228,6 +228,21 @@ UNBOUND: dict[str, str] = {
     "VER-002 and DOM-SP-001 rows are `unit` and `domain` -- what they require is that a validator "
     "RETURNS this shape. Bindable once §17.19.2 states `status` as its own field and VER-004's "
     "planner-side plausibility check brings the table.",
+    "FailureAnalysis": "§17.6's block reaches the project through `episode_id` and states no "
+    "audit time; the model and `011l`'s table add `project_id` (SEC-002 scopes every read, and the "
+    "composite key into `hypotheses` needs it) and `created_at` (case memory reads the most recent "
+    "first). Otherwise exact. Bindable once §17.6 states the scope key.",
+    "CandidateHeuristic": "§17.11's block omits the scope key and the confirmed failures a "
+    "candidate generalises; the model and `011l`'s table add `project_id`, "
+    "`derived_from_failures` (§17.7's own field on the approved Heuristic, needed so `011l` can "
+    "refuse a candidate resting on an unconfirmed analysis) and `created_at`. `status` is written "
+    "`status=PENDING_REVIEW` in the block, which this parser reads as the field `status`. "
+    "Bindable once §17.11 states the scope key and lineage.",
+    "VerificationPlan": "§17.14.1's block omits the scope key and the rationale body its "
+    "`rationale_ref` names; the model and `011k`'s table add `project_id` and store `rationale` "
+    "(decision, escalation, precedents, trade-offs) beside `rationale_ref`, which is required to "
+    "be `<plan_id>#rationale` -- a reference that always resolves to the record it sits in. "
+    "Otherwise exact. Bindable once §17.14.1 states where the rationale lives.",
     "RelationJudgmentTemplate": "§17.5.1's block describes a value object embedded in Prediction, "
     "not a table -- the same shape as EvidenceField.",
     "RetrievalCandidate": "§17.25's block describes a retrieval result, not stored state -- the "

@@ -38,7 +38,14 @@ from lab_brain.domains.base import (
     SpecialistRegistry,
     ValidatorRegistry,
 )
-from lab_brain.domains.silicon_photonics import backend_validity, reasoning, tools
+from lab_brain.domains.silicon_photonics import (
+    backend_validity,
+    diagnosis,
+    reasoning,
+    tools,
+    vertical,
+    vertical_tools,
+)
 from lab_brain.domains.silicon_photonics.authority_policy import (
     SIM_STANDARD,
     SiliconPhotonicsAuthorityPolicy,
@@ -57,6 +64,7 @@ from lab_brain.tools.registry import ToolRegistry
 from lab_brain.tools.simulation import BackendValidityRegistry
 from lab_brain.verification.capability_registry import CapabilityRegistry
 from lab_brain.verification.disagreement import DisagreementMetricRegistry
+from lab_brain.verification.workflows import WorkflowRegistry
 
 PACK_ID: Final = DOMAIN
 PACK_VERSION: Final = "1.0.0"
@@ -74,6 +82,11 @@ BENCHMARK_FIXTURE: Final = "fixtures/silicon_photonics/cj_rs_paired/"
 #: `lab_brain.cognition.debate_benchmark`.
 DEBATE_BENCHMARK_ID: Final = "bench:sp.rs_anomaly_debate"
 DEBATE_BENCHMARK_FIXTURE: Final = "fixtures/debate/sp_rs_anomaly_debate.json"
+
+#: M4 / VS-SP-001. The FIXED root-cause benchmark §26.1's M4 exit gate is read from. Locked by
+#: digest; see `lab_brain.verification.benchmark`.
+ROOT_CAUSE_BENCHMARK_ID: Final = "bench:sp.rs_root_cause"
+ROOT_CAUSE_BENCHMARK_FIXTURE: Final = "fixtures/vertical/sp_rs_root_cause_benchmark.json"
 
 
 def reasoning_benchmark_id() -> str:
@@ -137,7 +150,12 @@ class SiliconPhotonicsPack:
         self._extractor = CjRsExtractor(conditions)
         self._validator = ExpectedTrendValidator()
         self._authority = SiliconPhotonicsAuthorityPolicy()
+        self._vertical_authority = vertical.VerticalAuthorityPolicy()
         self._comparator = PnJunctionConditionComparator()
+        # A second instance for the device schema: a comparator is registered per schema, and one
+        # object under two keys would make a version bump of one silently bump the other.
+        self._device_comparator = PnJunctionConditionComparator()
+        self._outcome_validator = vertical.OutcomePlausibilityValidator()
 
     @property
     def id(self) -> str:
@@ -163,18 +181,27 @@ class SiliconPhotonicsPack:
         # `get_comparator` resolves through `schema.comparator_version`, so a mismatch here fails
         # closed rather than comparing conditions under rules the schema never named.
         registry.register_comparator(schema.domain, schema.schema_id, self._comparator)
+        # M4 / VS-SP-001: WHICH device a diagnosis result is about (`pn_junction_device`).
+        device = vertical.device_schema_registration()
+        registry.register_schema(device)
+        registry.register_comparator(device.domain, device.schema_id, self._device_comparator)
 
     def register_evidence_authority_policy(self, registry: AuthorityPolicyRegistry) -> None:
         # `register` verifies §10.5.1's laws over the declared classes before accepting. A ranking
         # that is not a partial order cannot be installed, which is stronger than a test that
         # checks it -- the pack cannot be present and wrong at the same time.
         registry.register(self._authority)
+        # M4: 1.1.0 adds DESIGN_INSPECTION. 1.0.0 stays: every M2 decision re-derives under it.
+        registry.register(self._vertical_authority)
 
     def register_backend_validity_schemas(self, registry: BackendValidityRegistry) -> None:
         registry.register(backend_validity.schema())
+        registry.register(diagnosis.inspection_validity_schema())
 
     def register_validators(self, registry: ValidatorRegistry) -> None:
         registry.register(self._validator)
+        # M4 / VER-004: §9.1's plausibility clauses 3-4, under `outcome_validator_id(DOMAIN)`.
+        registry.register(self._outcome_validator)
 
     def register_metric_extractors(self, registry: ExtractorRegistry) -> None:
         registry.register(self._extractor)
@@ -186,6 +213,11 @@ class SiliconPhotonicsPack:
         # resolves against it -- one place a price comes from, whether or not the tool is
         # backend-bound.
         registry.register_estimator(tools.LOCAL_TOOL_COST_CONTRACT, estimate_local_tool_cost)
+        # M4 / VS-SP-001: the verification actions §25.1 names, as descriptors with CostVectors.
+        for contract, estimator in vertical.ESTIMATORS:
+            registry.register_estimator(contract, estimator)
+        for capability in vertical.capabilities():
+            registry.register(capability)
         registry.register(
             Capability(
                 capability_id=tools.CHARGE_AC_CAPABILITY,
@@ -214,11 +246,19 @@ class SiliconPhotonicsPack:
         registry.register(
             tools.validate_trends_descriptor(), tools.ExpectedTrendTool(self._validator)
         )
+        # M4 / §25.2: DOM-SP-TOOL-001, 003, 005 and 011, each executing through the runner.
+        for descriptor, request_type in vertical_tools.descriptors():
+            registry.register(
+                descriptor,
+                vertical_tools.DesignExecutionTool(descriptor.tool_id, request_type, self._runner),
+            )
 
     def register_benchmarks(self, registry: BenchmarkRegistry) -> None:
         registry.register(BENCHMARK_ID, BENCHMARK_FIXTURE)
         # M3 / LLM-002. The fixed debate benchmark calibration is run against.
         registry.register(reasoning_benchmark_id(), DEBATE_BENCHMARK_FIXTURE)
+        # M4. The fixed VS-SP-001 root-cause benchmark (§26.1's M4 exit gate).
+        registry.register(ROOT_CAUSE_BENCHMARK_ID, ROOT_CAUSE_BENCHMARK_FIXTURE)
 
     # -- M3 registrations (§24.3) -------------------------------------------
 
@@ -230,6 +270,19 @@ class SiliconPhotonicsPack:
         # The space first: the registry refuses a metric bound to an undeclared one (VER-008).
         registry.declare_space(reasoning.rs_response_space())
         registry.register(reasoning.RsResponseRankDistance())
+        # M4 / VS-SP-001: one declared space per diagnosis observable, each with its metric.
+        for space in vertical.outcome_spaces():
+            registry.declare_space(space)
+        for metric in vertical.disagreement_metrics():
+            registry.register(metric)
+
+    # -- M4 registrations (§24.3) -------------------------------------------
+
+    def register_workflows(self, registry: WorkflowRegistry) -> None:
+        """How each executable VS-SP-001 capability runs. Measurement and fabrication have none:
+        choosing one is a request for a person to act, and the loop says so."""
+        for workflow in vertical_tools.workflows():
+            registry.register(workflow)
 
     # -- offered, not registered -------------------------------------------
 
@@ -241,6 +294,10 @@ class SiliconPhotonicsPack:
         registers them into the store `005b` provides.
         """
         return transition_policies()
+
+    def vertical_transition_policies(self) -> tuple[TransitionPolicy, ...]:
+        """M4's ACTIVE->SUPPORTED pair. Offered, like SIM-002's pair, for the same reason."""
+        return vertical.vertical_transition_policies()
 
     @property
     def authority_policy(self) -> SiliconPhotonicsAuthorityPolicy:
@@ -263,6 +320,8 @@ __all__ = [
     "DEBATE_BENCHMARK_ID",
     "PACK_ID",
     "PACK_VERSION",
+    "ROOT_CAUSE_BENCHMARK_FIXTURE",
+    "ROOT_CAUSE_BENCHMARK_ID",
     "SiliconPhotonicsPack",
     "estimate_charge_ac_cost",
     "estimate_local_tool_cost",

@@ -219,6 +219,13 @@ APPLY_ORDER: tuple[str, ...] = (
     # identity for a history, and makes every belief event name an admitted hypothesis of its own
     # project. After 011i, whose two functions it replaces with project-scoped lookups.
     "011j_belief_event_targets.sql",
+    # M4 / VER-001, VER-005. SelectionPolicy and VerificationPlan (§9.6, §17.14.1). After 006b
+    # (episodes) and 005e, whose episode-in-project trigger function it reuses.
+    "011k_verification_plans.sql",
+    # M4 / EPI-002. FailureAnalysis and CandidateHeuristic, with the Run/Artifact trace in SQL.
+    # After 011j (hypotheses keyed on the pair), 006 (runs), 003 (observations, attestations),
+    # 004 and 005a (relations and the events that cite them).
+    "011l_failure_analyses.sql",
 )
 
 _BOOTSTRAP = """

@@ -116,7 +116,12 @@ def test_installing_the_pack_is_what_makes_the_rule_reachable():
         runner=lambda request: None,  # type: ignore[arg-type,return-value]
         conditions=registries.conditions,
     ).register_validators(registries.validators)
-    assert registries.validators.registered() == ("validate_expected_trends",)
+    # M4 adds the §9.1 outcome validator (VER-004) beside M2's trend rule. Still an exact set:
+    # the point is that nothing arrives without the plugin, and nothing extra arrives with it.
+    assert registries.validators.registered() == (
+        "silicon_photonics.outcome_plausibility",
+        "validate_expected_trends",
+    )
     resolved = registries.validators.resolve("validate_expected_trends")
     assert resolved.validator_version == "1.0.0"
 

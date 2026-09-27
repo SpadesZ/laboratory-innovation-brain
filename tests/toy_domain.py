@@ -65,6 +65,12 @@ from lab_brain.tools.registry import ToolRegistry
 from lab_brain.tools.simulation import BackendValidityRegistry, BackendValiditySchema
 from lab_brain.verification.capability_registry import CapabilityRegistry
 from lab_brain.verification.disagreement import DisagreementMetricRegistry
+from lab_brain.verification.workflows import (
+    WorkflowContext,
+    WorkflowRegistry,
+    WorkflowResult,
+    WorkflowStatus,
+)
 
 TOY_DOMAIN: Final = "toy_widgets"
 TOY_VERSION: Final = "1.0.0"
@@ -338,6 +344,35 @@ def estimate_toy_cost(params: Mapping[str, Any]) -> CostVector:
     return CostVector(wall_clock_s=1, license_seat_s=1)
 
 
+class ToyWidgetWorkflow:
+    """EXT-001 for M4's `register_workflows`: a second domain binds its capability to its tool.
+
+    The toy bench mints no Run, so what it reports is not a verification result; the workflow
+    says so rather than inventing one. What this proves is the extension surface: a domain other
+    than silicon photonics registers how its capability executes without a core change.
+    """
+
+    capability_id = TOY_CAPABILITY
+    tool_ids = ("DOM-TOY-TOOL-001",)
+
+    def execute(self, context: WorkflowContext) -> WorkflowResult:
+        dispatched = context.dispatch(
+            "DOM-TOY-TOOL-001",
+            ToyBenchRequest(
+                project_id=context.project_id,
+                trace_id=context.trace_id,
+                episode_id=context.episode_id,
+                widget_id="widget-1",
+            ),
+        )
+        if dispatched.blocked:
+            return WorkflowResult(status=WorkflowStatus.BUDGET_BLOCKED, detail="gate refused")
+        return WorkflowResult(
+            status=WorkflowStatus.FAILED,
+            detail="the toy bench records no Run, so its reading cannot become evidence",
+        )
+
+
 class ToyDomainPack:
     """§24.3, for the methods M2 authorises. No core file names this class."""
 
@@ -466,6 +501,9 @@ class ToyDomainPack:
             )
         )
         registry.register(ToyCategoricalMismatch())
+
+    def register_workflows(self, registry: WorkflowRegistry) -> None:
+        registry.register(ToyWidgetWorkflow())
 
 
 __all__ = [

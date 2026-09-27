@@ -105,6 +105,7 @@ from lab_brain.core.models.execution_span import (
     SpanStatus,
     SpanType,
 )
+from lab_brain.core.models.failure import CandidateHeuristic, FailureAnalysis, ResolutionStatus
 from lab_brain.core.models.governance_event import (
     GovernanceEvent,
     GovernanceEventType,
@@ -181,6 +182,13 @@ from lab_brain.core.models.validation import (
     ValidationReport,
     ValidationStatus,
 )
+from lab_brain.core.models.verification import (
+    PlanDecision,
+    PlanRationale,
+    SelectionPolicy,
+    SufficiencySummary,
+    VerificationPlan,
+)
 
 __all__ = [
     "ACTIVE_JOB_STATES",
@@ -215,6 +223,7 @@ __all__ = [
     "BeliefTargetType",
     "BenchmarkPolicy",
     "BudgetCaps",
+    "CandidateHeuristic",
     "Capability",
     "Claim",
     "ClaimIdentityStatus",
@@ -242,6 +251,7 @@ __all__ = [
     "ExecutionSpan",
     "ExtractionProvenance",
     "ExtractionStatus",
+    "FailureAnalysis",
     "FalsifierChallenge",
     "FieldStatus",
     "FigureContext",
@@ -267,6 +277,8 @@ __all__ = [
     "ObjectionSeverity",
     "Observation",
     "OutcomeSpace",
+    "PlanDecision",
+    "PlanRationale",
     "Position",
     "Prediction",
     "PredictionAdmissionError",
@@ -282,6 +294,7 @@ __all__ = [
     "ResearchContract",
     "ResearchIntent",
     "ResolutionEventKind",
+    "ResolutionStatus",
     "RetractionCheck",
     "RetrievalCandidate",
     "RetrievalIndexKind",
@@ -292,6 +305,7 @@ __all__ = [
     "RunStatus",
     "SecretScanStatus",
     "SegmenterProvenance",
+    "SelectionPolicy",
     "SensitivityLabel",
     "SourceLocator",
     "SourceOrigin",
@@ -301,6 +315,7 @@ __all__ = [
     "SpanStatus",
     "SpanType",
     "SubdivisionReason",
+    "SufficiencySummary",
     "TableContext",
     "TransitionDecision",
     "TransitionOutcome",
@@ -311,6 +326,7 @@ __all__ = [
     "ValidationFinding",
     "ValidationReport",
     "ValidationStatus",
+    "VerificationPlan",
     "VerificationStatus",
     "WorkIdentifier",
     "artifact_id_for",

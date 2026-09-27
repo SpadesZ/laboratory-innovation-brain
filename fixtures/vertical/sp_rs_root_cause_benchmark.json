@@ -1,0 +1,199 @@
+{
+  "benchmark_set_id": "bench:sp.rs_root_cause",
+  "version": "1.0.0",
+  "domain": "silicon_photonics",
+  "description": "Fixed VS-SP-001 root-cause benchmark for the M4 exit gate (section 26.1): the Rs bias-insensitive anomaly on a PN phase shifter, diagnosed from a normalized mock device project. NOT CHERRY-PICKED: the mechanism catalog was written first, then one case per mechanism and per operating condition the loop must survive (a recurrence, a licence outage, a closed lab, a non-converged solver), each with its expected stop written before any loop was run. Cases the loop cannot resolve are included and expected to end unresolved. Devices are mock projects: the fault is visible only as the geometry or configuration that would cause it, never as a label the backends read.",
+  "intent": "DIAGNOSIS",
+  "stakes": "HIGH",
+  "question": "Why is Rs extremely high and weakly bias dependent while Cj trends normally",
+  "symptom": "Rs extremely high and weakly bias-dependent while Cj trends normally",
+  "expected_behavior": "Rs per length of the design order, falling slightly with reverse bias as the access region depletes",
+  "observed_behavior": "Rs per length several times the design value, flat across the reverse-bias sweep; Cj falls with reverse bias as designed",
+  "primary_terms": ["series", "resistance", "rs", "bias", "contact"],
+  "evidence": [
+    {"attestation_id": "att:vs1-anomaly", "source_work_id": "swk:vs1-anomaly", "text": "rs extremely high and weakly bias dependent while cj trends normally on the phase shifter", "trust_class": "INTERNAL_MEASUREMENT"},
+    {"attestation_id": "att:vs1-history", "source_work_id": "swk:vs1-history", "text": "an earlier charge simulation of this device reported a convergence warning in the access region", "trust_class": "INTERNAL_RUN"},
+    {"attestation_id": "att:vs1-heuristic", "source_work_id": "swk:vs1-heuristic", "text": "high series resistance with flat bias often comes from a contact via or access region defect", "trust_class": "EXPERT_HEURISTIC"},
+    {"attestation_id": "att:vs1-review", "source_work_id": "swk:vs1-review", "text": "review of series resistance extraction and normalization in carrier depletion phase shifters", "trust_class": "PEER_REVIEWED"},
+    {"attestation_id": "att:vs1-preprint", "source_work_id": "swk:vs1-preprint", "text": "counterdoping in the rib raises the series resistance of pn phase shifters", "trust_class": "PREPRINT"},
+    {"attestation_id": "att:vs1-probe", "source_work_id": "swk:vs1-probe", "text": "probe contact resistance inflates series resistance in two point measurements", "trust_class": "TECHNICAL_ARTIFACT"}
+  ],
+  "mechanisms": {
+    "contact_discontinuity": {
+      "statement": "An access or contact discontinuity dominates the series resistance.",
+      "mechanism": "access contact discontinuity",
+      "assumptions": ["the contact via geometry is taken unmodified from the device project"],
+      "confounders": ["probe contact resistance during measurement"],
+      "cues": ["contact via", "access region"],
+      "counter_cues": ["contact continuity verified"],
+      "falsifier": "the connectivity inspection finds every contact tied to metal with full overlap",
+      "minimal_test_ref": "cap:sp.inspect_contact_connectivity",
+      "predictions": [
+        {"observable_ref": "sp.contact_connectivity", "outcome_space_id": "os:sp.contact_connectivity", "outcome_space_version": "1.0.0", "expected_outcome": "DISCONTINUOUS", "relation_effect": "SUPPORTS"},
+        {"observable_ref": "sp.contact_connectivity", "outcome_space_id": "os:sp.contact_connectivity", "outcome_space_version": "1.0.0", "expected_outcome": "CONTINUOUS", "relation_effect": "CONTRADICTS"}
+      ]
+    },
+    "normalization_error": {
+      "statement": "A length normalization error in extraction inflates the per-length resistance.",
+      "mechanism": "length normalization error",
+      "assumptions": ["the extraction divides by a single device length"],
+      "confounders": ["taper sections excluded from the drawn length"],
+      "cues": ["normalization"],
+      "counter_cues": ["normalization crosschecked"],
+      "falsifier": "the extraction's normalization length matches the drawn length",
+      "minimal_test_ref": "cap:sp.extraction_consistency",
+      "predictions": [
+        {"observable_ref": "sp.normalization_basis", "outcome_space_id": "os:sp.normalization_basis", "outcome_space_version": "1.0.0", "expected_outcome": "DISAGREES", "relation_effect": "SUPPORTS"},
+        {"observable_ref": "sp.normalization_basis", "outcome_space_id": "os:sp.normalization_basis", "outcome_space_version": "1.0.0", "expected_outcome": "AGREES", "relation_effect": "CONTRADICTS"}
+      ]
+    },
+    "mesh_artifact": {
+      "statement": "A mesh convergence artifact in the access region inflates the extracted series resistance.",
+      "mechanism": "mesh convergence artifact",
+      "assumptions": ["the solver mesh in the access region is the project default"],
+      "confounders": ["solver tolerance settings"],
+      "cues": ["convergence warning", "mesh"],
+      "counter_cues": ["refinement left rs unchanged"],
+      "falsifier": "refining the access mesh leaves the extracted Rs unchanged",
+      "minimal_test_ref": "cap:sp.mesh_sensitivity",
+      "predictions": [
+        {"observable_ref": "sp.mesh_stability", "outcome_space_id": "os:sp.mesh_stability", "outcome_space_version": "1.0.0", "expected_outcome": "UNSTABLE", "relation_effect": "SUPPORTS"},
+        {"observable_ref": "sp.mesh_stability", "outcome_space_id": "os:sp.mesh_stability", "outcome_space_version": "1.0.0", "expected_outcome": "STABLE", "relation_effect": "CONTRADICTS"}
+      ]
+    },
+    "dopant_compensation": {
+      "statement": "Counter-doping compensates the rib and raises the resistance of the undepleted access path.",
+      "mechanism": "dopant compensation in the rib",
+      "assumptions": ["the implant recipe matches the process design kit"],
+      "confounders": ["anneal temperature variation"],
+      "cues": ["counterdoping", "compensation"],
+      "counter_cues": ["implant dose measured nominal"],
+      "falsifier": "the DC sweep shows the design free-carrier density in the access region",
+      "minimal_test_ref": "cap:sp.charge_dc_sweep",
+      "predictions": [
+        {"observable_ref": "sp.carrier_profile", "outcome_space_id": "os:sp.carrier_profile", "outcome_space_version": "1.0.0", "expected_outcome": "COMPENSATED", "relation_effect": "SUPPORTS"},
+        {"observable_ref": "sp.carrier_profile", "outcome_space_id": "os:sp.carrier_profile", "outcome_space_version": "1.0.0", "expected_outcome": "NOMINAL", "relation_effect": "CONTRADICTS"}
+      ]
+    },
+    "probe_artifact": {
+      "statement": "Probe contact resistance in the two-point measurement inflates the reported series resistance.",
+      "mechanism": "measurement probe contact artifact",
+      "assumptions": ["the anomaly was measured with a two point probe"],
+      "confounders": ["pad metallization variation"],
+      "cues": ["probe contact"],
+      "counter_cues": ["four point probing confirms"],
+      "falsifier": "a four point measurement reports the same series resistance",
+      "minimal_test_ref": "cap:sp.fourpoint_probe",
+      "predictions": [
+        {"observable_ref": "sp.probe_contact_resistance", "outcome_space_id": "os:sp.probe_contact_resistance", "outcome_space_version": "1.0.0", "expected_outcome": "ELEVATED", "relation_effect": "SUPPORTS"},
+        {"observable_ref": "sp.probe_contact_resistance", "outcome_space_id": "os:sp.probe_contact_resistance", "outcome_space_version": "1.0.0", "expected_outcome": "NOMINAL", "relation_effect": "CONTRADICTS"}
+      ]
+    }
+  },
+  "nominal_device": {
+    "format": "sp.device_project@1",
+    "device_id": "PS-500",
+    "drawn_length_um": "500",
+    "contacts": [
+      {"contact_id": "anode", "region": "p_plus", "via_to_metal": true, "overlap_nm": "400"},
+      {"contact_id": "cathode", "region": "n_plus", "via_to_metal": true, "overlap_nm": "400"}
+    ],
+    "extraction_normalization_length_um": "500",
+    "access_mesh_max_edge_nm": "5",
+    "rib_doping_cm3": "5E17",
+    "counterdoping_cm3": "0",
+    "solver_converges": true
+  },
+  "cases": [
+    {
+      "case_id": "contact-open-via",
+      "note": "cathode via never drawn to metal",
+      "device": {"device_id": "PS-501", "contacts": [
+        {"contact_id": "anode", "region": "p_plus", "via_to_metal": true, "overlap_nm": "400"},
+        {"contact_id": "cathode", "region": "n_plus", "via_to_metal": false, "overlap_nm": "400"}]},
+      "truth": "contact_discontinuity",
+      "expected": {"stop": "CONFIRMED", "cause": "contact_discontinuity"},
+      "cheap_resolvable": true
+    },
+    {
+      "case_id": "contact-thin-overlap",
+      "note": "a recurrence on another device: anode via overlap below the rule; the earlier case is on record",
+      "history": ["contact-open-via"],
+      "device": {"device_id": "PS-502", "contacts": [
+        {"contact_id": "anode", "region": "p_plus", "via_to_metal": true, "overlap_nm": "40"},
+        {"contact_id": "cathode", "region": "n_plus", "via_to_metal": true, "overlap_nm": "400"}]},
+      "truth": "contact_discontinuity",
+      "expected": {"stop": "CONFIRMED", "cause": "contact_discontinuity", "heuristic_candidates": 1},
+      "cheap_resolvable": true
+    },
+    {
+      "case_id": "normalization-taper",
+      "note": "extraction divides by the taper-inclusive 1000 um instead of the drawn 500 um",
+      "device": {"device_id": "PS-503", "extraction_normalization_length_um": "1000"},
+      "truth": "normalization_error",
+      "expected": {"stop": "CONFIRMED", "cause": "normalization_error"},
+      "cheap_resolvable": true
+    },
+    {
+      "case_id": "mesh-coarse-access",
+      "note": "access-region mesh edge 40 nm, well above the resolution length",
+      "device": {"device_id": "PS-504", "access_mesh_max_edge_nm": "40"},
+      "truth": "mesh_artifact",
+      "expected": {"stop": "CONFIRMED", "cause": "mesh_artifact"},
+      "cheap_resolvable": false
+    },
+    {
+      "case_id": "dopant-counterdoped",
+      "note": "counter-doping 3E17 against a 5E17 rib",
+      "device": {"device_id": "PS-505", "counterdoping_cm3": "3E17"},
+      "truth": "dopant_compensation",
+      "expected": {"stop": "CONFIRMED", "cause": "dopant_compensation"},
+      "cheap_resolvable": false
+    },
+    {
+      "case_id": "outage-contact",
+      "note": "the only simulator seat is held by another job; the fault is a contact the inspection can see",
+      "device": {"device_id": "PS-506", "contacts": [
+        {"contact_id": "anode", "region": "p_plus", "via_to_metal": false, "overlap_nm": "400"},
+        {"contact_id": "cathode", "region": "n_plus", "via_to_metal": true, "overlap_nm": "400"}]},
+      "seat_held_elsewhere": true,
+      "truth": "contact_discontinuity",
+      "expected": {"stop": "CONFIRMED", "cause": "contact_discontinuity"},
+      "cheap_resolvable": true
+    },
+    {
+      "case_id": "outage-mesh",
+      "note": "the only simulator seat is held by another job; the fault needs a solve",
+      "device": {"device_id": "PS-507", "access_mesh_max_edge_nm": "40"},
+      "seat_held_elsewhere": true,
+      "truth": "mesh_artifact",
+      "expected": {"stop": "AWAITING_RESOURCE", "cause": null, "waiting_on": "cap:sp.mesh_sensitivity"},
+      "cheap_resolvable": false
+    },
+    {
+      "case_id": "probe-artifact",
+      "note": "the design is sound; the anomaly is the two-point measurement",
+      "device": {"device_id": "PS-508"},
+      "truth": "probe_artifact",
+      "expected": {"stop": "HUMAN_ACTION_REQUIRED", "cause": null, "next_action": "cap:sp.fourpoint_probe"},
+      "cheap_resolvable": false
+    },
+    {
+      "case_id": "probe-lab-closed",
+      "note": "the design is sound and the probe station is unavailable: nothing sufficient remains",
+      "device": {"device_id": "PS-509"},
+      "unavailable": ["cap:sp.fourpoint_probe"],
+      "truth": "probe_artifact",
+      "expected": {"stop": "NO_SUFFICIENT_ACTION", "cause": null},
+      "cheap_resolvable": false
+    },
+    {
+      "case_id": "dopant-nonconverged",
+      "note": "counter-doped, but the solver does not converge: coarse evidence may challenge and may not confirm (SIM-002)",
+      "device": {"device_id": "PS-510", "counterdoping_cm3": "3E17", "solver_converges": false},
+      "truth": "dopant_compensation",
+      "expected": {"stop": "HUMAN_ACTION_REQUIRED", "cause": null, "next_action": "cap:sp.fourpoint_probe"},
+      "cheap_resolvable": false
+    }
+  ]
+}

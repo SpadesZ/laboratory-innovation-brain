@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from typing import Any
 
 import pytest
 
@@ -38,6 +39,13 @@ _TABLES = (
     # ADR-0011 keeps out of this direction.
     "retrieval_representations",
     "evidence_units",
+    # M4 (`011k`, `011l`). Child first and append-only: a candidate cites failures, a failure
+    # cites hypotheses, a plan cites its selection policy. Selection policies are not
+    # project-scoped, so nothing cascades them away.
+    "candidate_heuristics",
+    "failure_analyses",
+    "verification_plans",
+    "selection_policies",
     # M3 (`005e`, `011i`, `002b`, `010c`). Child first, and all append-only, so TRUNCATE is the
     # only way to clear them. `predictions` and the debate objects reference `hypotheses`, which
     # references `hypothesis_sets` and `inference_provenance`; the novelty status references the
@@ -204,15 +212,25 @@ def admit_hypothesis_identity(
     )
 
 
-@pytest.fixture
-def db(postgres_connection):  # type: ignore[no-untyped-def]
-    """A clean database for one test."""
-    postgres_connection.execute("TRUNCATE " + ", ".join(_TABLES) + " RESTART IDENTITY CASCADE")
-    postgres_connection.execute(
+def reset_database(connection: Any) -> Any:
+    """Every table empty, then the one actor and project every test may assume.
+
+    A function as well as the `db` fixture's body, because M4's root-cause benchmark runs many
+    independent episodes in one test and resets between them -- in autocommit, as production
+    runs: the stores and the seat broker refuse, or misbehave inside, someone else's transaction.
+    """
+    connection.execute("TRUNCATE " + ", ".join(_TABLES) + " RESTART IDENTITY CASCADE")
+    connection.execute(
         "INSERT INTO actors (actor_id, actor_type, display_name) "
         "VALUES ('act:test', 'HUMAN', 'Test Actor')"
     )
-    postgres_connection.execute(
+    connection.execute(
         "INSERT INTO projects (project_id, name) VALUES ('prj:test', 'Test Project')"
     )
-    return postgres_connection
+    return connection
+
+
+@pytest.fixture
+def db(postgres_connection):  # type: ignore[no-untyped-def]
+    """A clean database for one test."""
+    return reset_database(postgres_connection)

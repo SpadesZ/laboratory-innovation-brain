@@ -94,8 +94,11 @@ class ToolRequest(CoreModel):
     def job_binding(self) -> JobBinding | None:
         """The durable Job this request executes, and the scope it executes it under -- if any.
 
-        `None` for a request that executes no Job, which is every `extract_*`, `inspect_*` and
-        `validate_*` request. A request that DOES execute one must say so by overriding this:
+        `None` for a request that executes no Job, which is every `extract_*` and `validate_*`
+        request and, by default, an `inspect_*` one. (M4's design readers override it: their reading
+        is recorded as a Job and Run so a confirmed root cause can trace to it -- EPI-002 -- while
+        their descriptors stay unbound; see `domains.silicon_photonics.vertical_tools`.) A request
+        that DOES execute one must say so by overriding this:
         `BudgetedToolDispatcher` resolves the Job it names and binds it before the gate, and it
         refuses a `run_*` request that binds none, because a backend execution nobody can check
         against its Job is one whose Episode the gate never saw (§17.16, COST-001).

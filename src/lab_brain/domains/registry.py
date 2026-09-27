@@ -25,6 +25,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 from lab_brain.domains.base import DomainInstallError, DomainPack, DomainRegistries
+from lab_brain.verification.workflows import WorkflowError
 
 
 class DomainPackRegistry:
@@ -88,6 +89,13 @@ class DomainPackRegistry:
         # metric binds to an OutcomeSpace the same call declares.
         pack.register_specialists(self._registries.specialists)
         pack.register_disagreement_metrics(self._registries.disagreement_metrics)
+        # M4. Last, because a workflow names a capability and the tools it dispatches, and both
+        # must already be registered for `verify` to check them.
+        pack.register_workflows(self._registries.workflows)
+        try:
+            self._registries.workflows.verify(self._registries.capabilities, self._registries.tools)
+        except WorkflowError as bad:
+            raise DomainInstallError(f"{pack.id}: {bad}") from bad
 
         self._packs[pack.id] = pack
         return pack

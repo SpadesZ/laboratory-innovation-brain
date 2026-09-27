@@ -89,6 +89,13 @@ _ID_PREFIXES: Final[dict[str, str]] = {
     "prior_art_search": "pas",
     "novelty_assessment": "nov",
     "research_contract": "rct",
+    # M4 / §9.6, §17.14.1, §17.6, §17.11 -- VS-SP-001. Event-addressed: re-planning after a
+    # result is a new plan (the old one is what was decided then), a second analysis of the same
+    # failure is a second analysis, and a heuristic candidate is one mining pass's proposal.
+    "selection_policy": "slp",
+    "verification_plan": "vpl",
+    "failure_analysis": "fan",
+    "candidate_heuristic": "chr",
 }
 
 
