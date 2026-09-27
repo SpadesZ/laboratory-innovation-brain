@@ -1,0 +1,100 @@
+{
+ "description": "Deterministic code host for M5's GitHub connector tests. No network: every repository, ref, commit and file below is fixture data, and FixtureGitHubTransport says so in its name.",
+ "repositories": [
+  {
+   "full_name": "photonics-lab/pn-modulator-sim",
+   "id": 7001,
+   "private": false,
+   "default_branch": "main",
+   "license": "MIT",
+   "description": "carrier depletion phase shifter charge simulation scripts series resistance extraction",
+   "refs": {
+    "main": "0973bc59702b6e5d7b2470d896983afd84c6d958",
+    "v1.0": "006f0988d53f7c488aa9a457948d4fb6d23a548a"
+   },
+   "commits": {
+    "0973bc59702b6e5d7b2470d896983afd84c6d958": {
+     "README.md": "PN modulator simulation scripts.\n",
+     "extract/rs_extraction.py": "\"\"\"Series resistance per unit length from a small-signal sweep.\"\"\"\n\ndef rs_per_length(z_real_ohm: float, length_um: float) -> float:\n    \"\"\"Rs * L: normalise by the DRAWN active length, not the taper-inclusive one.\"\"\"\n    return z_real_ohm * length_um\n",
+     "config/deploy.env": "AWS_ACCESS_KEY_ID=AKIAABCDEFGHIJKLMNOP\n"
+    },
+    "006f0988d53f7c488aa9a457948d4fb6d23a548a": {
+     "README.md": "PN modulator simulation scripts (v1.0).\n",
+     "extract/rs_extraction.py": "def rs_per_length(z_real_ohm, length_um):\n    return z_real_ohm * length_um * 2  # taper-inclusive length, superseded in v1.1\n"
+    }
+   }
+  },
+  {
+   "full_name": "photonics-lab/calibration-private",
+   "id": 7002,
+   "private": true,
+   "default_branch": "main",
+   "license": null,
+   "description": "private probe station calibration scripts series resistance",
+   "refs": {
+    "main": "45db93d58731cd658d1e9cc2fc0a59e2093d64c3"
+   },
+   "commits": {
+    "45db93d58731cd658d1e9cc2fc0a59e2093d64c3": {
+     "probe/fourpoint.py": "def four_point(v, i):\n    return v / i\n"
+    }
+   }
+  },
+  {
+   "full_name": "someone/unlicensed-rs-tools",
+   "id": 7003,
+   "private": false,
+   "default_branch": "main",
+   "license": null,
+   "description": "series resistance fitting tools phase shifter",
+   "refs": {
+    "main": "74a155412f6ba47d2c183bfd8c3b5272a7a17cf8"
+   },
+   "commits": {
+    "74a155412f6ba47d2c183bfd8c3b5272a7a17cf8": {
+     "rs.py": "def fit(points):\n    return sum(points) / len(points)\n"
+    }
+   }
+  },
+  {
+   "full_name": "gpl-org/rs-fit",
+   "id": 7004,
+   "private": false,
+   "default_branch": "main",
+   "license": "GPL-3.0-only",
+   "description": "copyleft series resistance fit library",
+   "refs": {
+    "main": "fd86fe8eed5fca7c9bc646b41513dd7fd6d68e66"
+   },
+   "commits": {
+    "fd86fe8eed5fca7c9bc646b41513dd7fd6d68e66": {
+     "fit.py": "def fit(x):\n    return x\n"
+    }
+   }
+  },
+  {
+   "full_name": "old-org/soon-removed",
+   "id": 7005,
+   "private": false,
+   "default_branch": "main",
+   "license": "Apache-2.0",
+   "description": "legacy phase shifter mesh scripts",
+   "refs": {
+    "main": "56348ff69019a266378bb20ce82ad378c3e5fb09"
+   },
+   "commits": {
+    "56348ff69019a266378bb20ce82ad378c3e5fb09": {
+     "mesh.py": "EDGE_NM = 5\n"
+    }
+   }
+  }
+ ],
+ "tokens": [
+  {
+   "token": "fixture-token-lab",
+   "can_read": [
+    "photonics-lab/calibration-private"
+   ]
+  }
+ ]
+}

@@ -96,6 +96,9 @@ _ID_PREFIXES: Final[dict[str, str]] = {
     "verification_plan": "vpl",
     "failure_analysis": "fan",
     "candidate_heuristic": "chr",
+    # M5 / §17.21, §6.16. A pinned external snapshot, and one lifecycle event of external material.
+    "external_snapshot": "xsn",
+    "external_source_event": "xev",
 }
 
 

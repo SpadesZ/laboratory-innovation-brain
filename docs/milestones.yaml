@@ -230,7 +230,15 @@ milestones:
 
   - id: M5
     name: External Evidence Expansion
-    status: DEFERRED
+    # IN_PROGRESS from 2026-09-27, taken up while M4 awaits independent sign-off: M4's
+    # implementation is treated as a provisional baseline and neither redesigned nor repaired here.
+    # Implementation and verification record: docs/implementation/M5-readiness.md. Every external
+    # provider this milestone exercises is a deterministic fixture -- no live GitHub or literature
+    # request is part of the recorded verification; the `network` half of the gate profile is a
+    # marked test that is deselected by default and has not been run.
+    #
+    # IN_PROGRESS IS NOT A SIGN-OFF AND CARRIES NO GATE; DONE is the maintainer's act on review.
+    status: IN_PROGRESS
     exit_gate: >-
       external evidence enters with source/condition/rights/provenance metadata;
       GitHub source traces to repo + resolved commit/ref; removing the GitHub provider

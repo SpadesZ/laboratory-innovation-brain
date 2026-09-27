@@ -226,6 +226,11 @@ APPLY_ORDER: tuple[str, ...] = (
     # After 011j (hypotheses keyed on the pair), 006 (runs), 003 (observations, attestations),
     # 004 and 005a (relations and the events that cite them).
     "011l_failure_analyses.sql",
+    # M5 / GH-001, GH-002, GH-003. External snapshots and their lifecycle, and GH-003's guards on
+    # attestations and source works. In Appendix A's 002 slot (artifacts / source works); applied
+    # last because its attestation guard reads source_works and it references actors, projects and
+    # artifacts only.
+    "002c_external_snapshots.sql",
 )
 
 _BOOTSTRAP = """
