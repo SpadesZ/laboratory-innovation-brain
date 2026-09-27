@@ -255,6 +255,23 @@ class SqlExternalSourceStore:
         ).fetchone()
         return None if row is None else str(row[0])
 
+    def snapshot_artifact_of_attestation(self, attestation_id: str, project_id: str) -> str | None:
+        """The kept artifact behind an attestation admitted from an external snapshot.
+
+        External evidence cites a SourceWork (EVI-004's identity), so the attestation records no
+        `source_artifact_id`; the bytes it was read from are the snapshot its `method` names.
+        Resolved only within the attestation's own project, and never for a quarantined snapshot
+        -- quarantined material is not trusted anywhere, classification included.
+        """
+        row = self._connection.execute(
+            "SELECT s.artifact_id FROM attestations a JOIN external_snapshots s"
+            " ON s.snapshot_id = a.method ->> 'snapshot_id' AND s.project_id = a.project_id"
+            " WHERE a.attestation_id = %s AND a.project_id = %s AND NOT EXISTS"
+            " (SELECT 1 FROM external_snapshot_quarantine q WHERE q.snapshot_id = s.snapshot_id)",
+            (attestation_id, project_id),
+        ).fetchone()
+        return None if row is None else str(row[0])
+
     def quarantined_attestation_ids(self, project_id: str) -> tuple[str, ...]:
         """The §6.18 selection: attestations admitted from snapshots quarantined since (`002e`).
 

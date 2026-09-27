@@ -2098,6 +2098,66 @@ MUTATIONS: tuple[Mutation, ...] = (
         new='            " WHERE project_id = %s AND FALSE ORDER BY attestation_id",',
         tests=("tests/integration/test_external_snapshot_quarantine_postgres.py",),
     ),
+    # -- product vertical: research run, end to end, with no simulator -----------------------
+    Mutation(
+        name="product_simulator_left_available",
+        guards="product vertical -- a capability with no backend here is UNAVAILABLE, never attempted",
+        path="src/lab_brain/domains/silicon_photonics/product.py",
+        old="            capabilities.set_availability(capability.capability_id, Availability.UNAVAILABLE)",
+        new="            pass",
+        tests=(
+            "tests/unit/test_research_vertical.py",
+            "tests/e2e/test_research_episode_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="product_research_without_membership",
+        guards="product vertical -- a non-member gets no episode, no rows and no report (SEC-002)",
+        path="src/lab_brain/research/service.py",
+        old="        self._service.read_gate().require_project(\n            actor_id=request.actor_id, project_id=request.project_id\n        )",
+        new="        pass",
+        tests=("tests/e2e/test_research_episode_postgres.py",),
+    ),
+    Mutation(
+        name="product_pending_includes_runnable_actions",
+        guards="product vertical -- only what cannot run here is reported as pending",
+        path="src/lab_brain/research/service.py",
+        old="            if action_id not in blocked or not summary.sufficient:",
+        new="            if not summary.sufficient:",
+        tests=("tests/e2e/test_research_episode_postgres.py",),
+    ),
+    Mutation(
+        name="product_blocked_episode_closed_as_finished",
+        guards="product vertical -- an episode waiting on a simulator or a person is parked, not finished",
+        path="src/lab_brain/research/service.py",
+        old="        if stop in _WAITING or best is not None:",
+        new="        if False:",
+        tests=("tests/e2e/test_research_episode_postgres.py",),
+    ),
+    Mutation(
+        name="product_literature_query_not_declared",
+        guards="product vertical -- a provider is searched only with a query the actor declared public",
+        path="src/lab_brain/interfaces/cli.py",
+        old="        if not (args.literature_corpus and args.literature_query):",
+        new="        if False:",
+        tests=("tests/e2e/test_research_episode_postgres.py",),
+    ),
+    Mutation(
+        name="reasoner_critic_uses_uninverted_evidence",
+        guards="catalog reasoner -- the Critic objects only from the inverted evidence it was shown",
+        path="src/lab_brain/cognition/catalog_reasoner.py",
+        old='                if e["attestation_id"] not in inverted:\n                    continue',
+        new="                pass",
+        tests=("tests/unit/test_catalog_reasoner.py",),
+    ),
+    Mutation(
+        name="classifier_ignores_cited_work_artifact",
+        guards="SEC-001 -- external evidence is classified by its snapshot artifact, or refused",
+        path="src/lab_brain/composition.py",
+        old="                return own if own is not None else fallback(attestation_id, project_id)",
+        new="                return own",
+        tests=("tests/e2e/test_research_episode_postgres.py",),
+    ),
 )
 
 

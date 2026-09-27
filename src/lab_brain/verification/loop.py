@@ -405,6 +405,20 @@ class VerificationLoop:
             )
         return self._conclude(request, stop, tuple(steps), tuple(notes))
 
+    # -- reads for callers ----------
+
+    def planning_inputs(
+        self, request: LoopRequest
+    ) -> tuple[tuple[HypothesisState, ...], ConditionMatch]:
+        """The planner's inputs for `request` as they stand now -- the states and the projected
+        ConditionMatch the loop itself plans from. Read-only.
+
+        Public so a caller can ask the planner a SEPARATE question over exactly the state the loop
+        acted on -- e.g. which action it would choose if a capability this deployment cannot run
+        were available -- without re-deriving the evidence, matches or independence here.
+        """
+        return self._states(request), self._projected_match(request)
+
     # -- 1. revise ----------
 
     def _revise(self, request: LoopRequest, notes: list[str]) -> tuple[Transition, ...]:

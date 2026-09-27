@@ -1,4 +1,11 @@
-"""`lab-brain inbox`, `explain` and `episode open` (UX-001, UX-003, UX-006, §17.22-§17.24, §25.4).
+"""`lab-brain inbox`, `explain`, `episode open`, `research run` (UX-001/003/006, §17.22-24, §25.4).
+
+`research run` is the product vertical: a research goal plus local files in, one report out. It is
+a thin entry point over `lab_brain.research.ResearchEpisodeService`, which composes the existing
+authorities (ingestion, evidence admission, external literature, the M3 debate, the M4 verification
+loop) and decides nothing itself; this module parses arguments, opens the connection, selects the
+domain's product vertical BY NAME (the `lab_brain.domain_verticals` entry points -- no pack is
+imported here), and prints the rendered report.
 
 M1's scope names *IngestionItem / ErrorRecord / MessageCatalog + CLI inbox*, and M4's VS-SP-001
 definition of done adds one sentence: "CLI 可從一個 project/fixture 建立 episode". So there are
@@ -52,7 +59,8 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from lab_brain.composition import IngestionService
-from lab_brain.core.models.enums import SensitivityLabel
+from lab_brain.core.models.base import utc_now
+from lab_brain.core.models.enums import SensitivityLabel, TrustClass
 from lab_brain.core.models.job import Job
 from lab_brain.core.scientific_read import ScientificReadRefused
 from lab_brain.interfaces.config import (
@@ -61,6 +69,10 @@ from lab_brain.interfaces.config import (
     open_connection,
     read_settings,
 )
+from lab_brain.research.literature import LiteratureRequest
+from lab_brain.research.render import render_markdown
+from lab_brain.research.service import InputDocument, ResearchEpisodeService, ResearchRequest
+from lab_brain.research.vertical import ENTRY_POINT_GROUP, VerticalNotFound, load_vertical_factory
 from lab_brain.storage.artifacts.local import LocalArtifactStore
 from lab_brain.surface.catalog import MessageCatalog, Severity, default_catalog
 from lab_brain.surface.disclosure import DiagnosticsService, ErrorNotFound
@@ -247,6 +259,73 @@ def build_parser() -> argparse.ArgumentParser:
         default=SensitivityLabel.INTERNAL.value,
         choices=[label.value for label in SensitivityLabel],
     )
+
+    research = sub.add_parser("research", help="research episodes, end to end")
+    research_sub = research.add_subparsers(dest="research_command", required=True)
+    ran = research_sub.add_parser(
+        "run",
+        help=(
+            "open an episode for a research goal, read the given files, debate competing "
+            "hypotheses, run the verification this deployment can run, and report"
+        ),
+    )
+    ran.add_argument("--project", required=True)
+    ran.add_argument("--actor", required=True)
+    ran.add_argument("--goal", required=True, help="the research question, in your own words")
+    ran.add_argument("--artifact-root", required=True, help="where raw bytes are stored")
+    ran.add_argument(
+        "--domain",
+        help=f"the product vertical (an entry point in {ENTRY_POINT_GROUP}); "
+        "optional when exactly one is installed",
+    )
+    # The trust class each file's statements carry is DECLARED by the user, never inferred.
+    ran.add_argument(
+        "--measurement",
+        action="append",
+        default=[],
+        metavar="FILE",
+        help="a record of the lab's measurements (statements retrieved as INTERNAL_MEASUREMENT)",
+    )
+    ran.add_argument(
+        "--run-record",
+        action="append",
+        default=[],
+        metavar="FILE",
+        help="a record of earlier simulations or runs (INTERNAL_RUN)",
+    )
+    ran.add_argument(
+        "--note",
+        action="append",
+        default=[],
+        metavar="FILE",
+        help="notes or expert heuristics (EXPERT_HEURISTIC)",
+    )
+    ran.add_argument(
+        "--verification-input",
+        metavar="FILE",
+        help="the domain's verification input (silicon_photonics: a device project JSON)",
+    )
+    ran.add_argument(
+        "--literature-corpus",
+        metavar="FILE",
+        help="a local literature corpus to search (requires --literature-query)",
+    )
+    ran.add_argument(
+        "--literature-query",
+        help="the query to send to the literature provider, which you declare PUBLIC",
+    )
+    ran.add_argument("--symptom")
+    ran.add_argument("--expected")
+    ran.add_argument("--observed")
+    ran.add_argument("--episode", help="episode id; minted when omitted")
+    ran.add_argument("--trace", help="trace id; minted when omitted")
+    ran.add_argument(
+        "--sensitivity",
+        default=SensitivityLabel.INTERNAL.value,
+        choices=[label.value for label in SensitivityLabel],
+        help="the classification of the goal and the files in this project",
+    )
+    ran.add_argument("--report", metavar="FILE", help="also write the report (Markdown) here")
     return parser
 
 
@@ -320,6 +399,99 @@ def run_episode_open(
     return 0 if failed == 0 else 1
 
 
+_DOCUMENT_KINDS: Mapping[str, TrustClass] = {
+    "measurement": TrustClass.INTERNAL_MEASUREMENT,
+    "run_record": TrustClass.INTERNAL_RUN,
+    "note": TrustClass.EXPERT_HEURISTIC,
+}
+
+
+def run_research(
+    service: ResearchEpisodeService,
+    request: ResearchRequest,
+    *,
+    out: TextIO,
+    report_path: Path | None = None,
+) -> int:
+    """Run one episode and print its report. The service decides everything; this prints it."""
+    try:
+        report = service.run(request)
+    except ScientificReadRefused:
+        # One message for every refusal reason -- see `inbox`.
+        print(f"No research for {request.actor_id} in {request.project_id}.", file=out)
+        return 1
+    text = render_markdown(report)
+    if report_path is not None:
+        report_path.write_text(text, encoding="utf-8")
+    _emit(out, text)
+    return 0
+
+
+def _emit(out: TextIO, text: str) -> None:
+    """Write the report even to a console that cannot encode every character in it.
+
+    The report quotes the user's documents, which may be in any language; a terminal whose code
+    page lacks a character gets a replacement rather than a traceback. `--report` is always UTF-8.
+    """
+    try:
+        out.write(text + "\n")
+    except UnicodeEncodeError:
+        encoding = getattr(out, "encoding", None) or "ascii"
+        out.write(text.encode(encoding, errors="replace").decode(encoding) + "\n")
+
+
+def _research_request(args: argparse.Namespace) -> ResearchRequest:
+    documents: list[InputDocument] = []
+    for option, trust_class in _DOCUMENT_KINDS.items():
+        for name in getattr(args, option):
+            path = Path(name)
+            documents.append(
+                InputDocument(
+                    name=path.name,
+                    data=path.read_bytes(),
+                    media_type=_MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream"),
+                    uri=path.resolve().as_uri(),
+                    trust_class=trust_class,
+                )
+            )
+    verification = None
+    if args.verification_input:
+        path = Path(args.verification_input)
+        verification = (path.name, path.read_bytes())
+    literature = None
+    if args.literature_corpus or args.literature_query:
+        if not (args.literature_corpus and args.literature_query):
+            raise ConfigurationError(
+                "--literature-corpus and --literature-query go together: a provider is only "
+                "searched with a query you declare public"
+            )
+        # A provider package, not a DomainPack: `interfaces -> tool_providers` is permitted.
+        from lab_brain.tool_providers.literature import LiteratureCorpusAdapter
+        from lab_brain.tool_providers.literature import declaration as literature_declaration
+
+        corpus = Path(args.literature_corpus)
+        literature = LiteratureRequest(
+            adapter=LiteratureCorpusAdapter.from_file(corpus, now=utc_now),
+            declaration=literature_declaration(),
+            query=args.literature_query,
+            description=f"the local literature corpus file {corpus.name} (no network)",
+        )
+    return ResearchRequest(
+        project_id=args.project,
+        actor_id=args.actor,
+        goal=args.goal,
+        documents=tuple(documents),
+        verification_input=verification,
+        literature=literature,
+        episode_id=args.episode,
+        trace_id=args.trace,
+        sensitivity=SensitivityLabel(args.sensitivity),
+        symptom=args.symptom,
+        expected_behavior=args.expected,
+        observed_behavior=args.observed,
+    )
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -361,11 +533,31 @@ def main(
         return 2
 
     try:
+        if args.command == "research":
+            try:
+                factory = load_vertical_factory(args.domain or _only_vertical())
+                request = _research_request(args)
+            except (VerticalNotFound, ConfigurationError, OSError) as exc:
+                print(f"lab-brain: {exc}", file=stream)
+                return 2
+            # The verification stores require autocommit, as every M4 caller runs them; the
+            # ingestion writes keep their own explicit transactions either way.
+            connection.autocommit = True
+            return run_research(
+                ResearchEpisodeService(
+                    connection=connection,
+                    artifact_store=LocalArtifactStore(Path(args.artifact_root).resolve()),
+                    vertical_factory=factory,
+                ),
+                request,
+                out=stream,
+                report_path=Path(args.report) if args.report else None,
+            )
         if args.command == "episode":
             return run_episode_open(
                 IngestionService(
                     connection=connection,
-                    artifact_store=LocalArtifactStore(Path(args.artifact_root)),
+                    artifact_store=LocalArtifactStore(Path(args.artifact_root).resolve()),
                 ),
                 project_id=args.project,
                 actor_id=args.actor,
@@ -407,6 +599,17 @@ def main(
         )
     finally:
         connection.close()
+
+
+def _only_vertical() -> str:
+    from importlib.metadata import entry_points
+
+    names = sorted(ep.name for ep in entry_points(group=ENTRY_POINT_GROUP))
+    if len(names) != 1:
+        raise VerticalNotFound(
+            f"--domain is required: installed product verticals are {names or 'none'}"
+        )
+    return names[0]
 
 
 class _NoArtifactStore:
@@ -501,5 +704,6 @@ __all__ = [
     "run_episode_open",
     "run_explain",
     "run_inbox",
+    "run_research",
     "summarise",
 ]

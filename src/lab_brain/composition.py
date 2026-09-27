@@ -615,17 +615,36 @@ class IngestionService:
         """
         return ScientificInferenceService(llm=llm, store=self._inferences, commit=self._connection)
 
-    def classifier(self) -> ContextClassifier:
+    def classifier(
+        self,
+        *,
+        artifact_of_cited_work: Callable[[str, str], str | None] | None = None,
+    ) -> ContextClassifier:
         """Derives what material carries, from the rows ingestion wrote (SEC-001, §14.1).
 
         Built on the SAME occurrence loader `read_gate` uses. A separate lookup here would let
         the label that decides a read and the label that decides an egress drift apart -- and the
         egress one is the copy that would be quietly more permissive, because that is the
         direction a bug in a send path fails.
+
+        ``artifact_of_cited_work`` (optional; default behaviour unchanged) resolves an attestation
+        that cites a SourceWork rather than an artifact -- M5's external evidence, whose bytes
+        are a pinned snapshot's EXTERNAL_CONNECTOR artifact -- to that artifact. It is consulted
+        only when the attestation records no `source_artifact_id`, and the label it leads to is
+        still the occurrence this loader reads: the fallback can name WHICH artifact, never what
+        it carries. Without it such an attestation stays unresolved and classification refuses.
         """
+        if artifact_of_cited_work is None:
+            resolve = self._artifact_of_attestation
+        else:
+            fallback = artifact_of_cited_work
+
+            def resolve(attestation_id: str, project_id: str) -> str | None:
+                own = self._artifact_of_attestation(attestation_id, project_id)
+                return own if own is not None else fallback(attestation_id, project_id)
+
         return ContextClassifier(
-            load_occurrence=self._load_occurrence,
-            artifact_of_attestation=self._artifact_of_attestation,
+            load_occurrence=self._load_occurrence, artifact_of_attestation=resolve
         )
 
     def _artifact_of_attestation(self, attestation_id: str, project_id: str) -> str | None:

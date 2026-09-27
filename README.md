@@ -43,6 +43,35 @@ docker compose up -d
 .\.venv\Scripts\python.exe -m pytest -m postgres
 ```
 
+## 研究一個問題：`lab-brain research run`
+
+給一個研究目標與本地檔案，開一個 ResearchEpisode，得到一份完整報告：輸入狀態、證據與來源、
+互相競爭的假說、辯論與批判、目前信念狀態、驗證計畫、已執行的檢查、**等待中的模擬**、溯源與下一步。
+
+```powershell
+$env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/lab_brain"
+.\.venv\Scripts\python.exe scripts\migrate.py
+.\.venv\Scripts\lab-brain.exe research run `
+  --project prj:ps-rs --actor act:rkuo `
+  --goal "Why is Rs extremely high and weakly bias dependent while Cj trends normally?" `
+  --measurement fixtures\evidence\rs_anomaly_report.md `
+  --verification-input PS-504.device.json `
+  --literature-corpus fixtures\external\literature_corpus.json `
+  --literature-query "series resistance contact normalization reverse bias" `
+  --artifact-root .\artifacts --report report.md
+```
+
+- 執行者必須是該 project 的有效成員；否則沒有 episode、沒有資料列、沒有報告。
+- 每個檔案的 trust class 由使用者宣告（`--measurement` / `--run-record` / `--note`），系統不推斷。
+- 外部文獻只在同時給出 provider 與**使用者宣告為 public 的查詢**時才會被搜尋。
+- **沒有模擬器時不會假裝有**：Lumerical 未安裝／無授權時，所有 SIMULATION capability 標為
+  UNAVAILABLE；便宜的檢查照常執行，最佳下一步若需要模擬，則在報告中列為 **BLOCKED / pending**，
+  episode 以 SUSPENDED 停放，等可用時以同一個 episode 續跑。
+- 沒有設定語言模型時，假說／批判由 DomainPack 機制目錄的本地規則推理器產生，並在
+  InferenceProvenance 與報告中如實標示（`rules:<catalog>`，非 LLM）。
+
+設計與驗證記錄：[`docs/implementation/product-vertical.md`](docs/implementation/product-vertical.md)。
+
 ## 專案結構
 
 | 路徑 | 內容 |

@@ -27,6 +27,12 @@ dev = [
 [project.scripts]
 lab-brain = "lab_brain.interfaces.cli:main"
 
+# The product research vertical a deployment runs is chosen BY NAME (`lab-brain research run
+# --domain ...`). Naming the factory here, rather than importing a pack from the CLI, keeps §24.2's
+# rule that orchestration never imports a DomainPack: this table is the one place a pack is named.
+[project.entry-points."lab_brain.domain_verticals"]
+silicon_photonics = "lab_brain.domains.silicon_photonics.product:product_vertical"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

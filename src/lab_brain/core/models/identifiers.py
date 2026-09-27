@@ -99,6 +99,11 @@ _ID_PREFIXES: Final[dict[str, str]] = {
     # M5 / §17.21, §6.16. A pinned external snapshot, and one lifecycle event of external material.
     "external_snapshot": "xsn",
     "external_source_event": "xev",
+    # §17.3's ResearchEpisode. Missing until the product vertical opened an episode without an
+    # explicit id: `IngestionService.open_episode` has always minted `new_id("episode")` when none
+    # is given, and that raised -- so `lab-brain episode open` without `--episode` could not work.
+    # `epi` is the prefix every episode id in the repository already uses.
+    "episode": "epi",
 }
 
 
