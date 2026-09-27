@@ -13,6 +13,7 @@ from lab_brain.sources.errors import ConnectorError, ConnectorErrorKind
 from lab_brain.tool_providers.github.connector import Locator, license_class_for
 from tests.external_fixtures import (
     MAIN_COMMIT,
+    PROJECT,
     PUBLIC_REPO,
     REMOVABLE_REPO,
     V10_COMMIT,
@@ -41,7 +42,9 @@ def test_public_repositories_are_discoverable_and_every_record_is_technical():
 @pytest.mark.spec_test("T-GH-001")
 def test_a_requested_ref_resolves_to_a_fixed_commit_and_the_record_pins_it():
     world = build()
-    pinned = world.github.retrieve(file_locator(PUBLIC_REPO, "main", "extract/rs_extraction.py"))
+    pinned = world.github.retrieve(
+        file_locator(PUBLIC_REPO, "main", "extract/rs_extraction.py"), project_id=PROJECT
+    )
     record = pinned.record
     assert record.version_ref == MAIN_COMMIT
     assert record.canonical_locator == (
@@ -56,12 +59,14 @@ def test_a_requested_ref_resolves_to_a_fixed_commit_and_the_record_pins_it():
     assert record.visibility is SourceVisibility.PUBLIC
     assert record.sensitivity is SensitivityLabel.PUBLIC
     # A tag pins to its own commit and returns that commit's bytes.
-    tagged = world.github.retrieve(file_locator(PUBLIC_REPO, "v1.0", "extract/rs_extraction.py"))
+    tagged = world.github.retrieve(
+        file_locator(PUBLIC_REPO, "v1.0", "extract/rs_extraction.py"), project_id=PROJECT
+    )
     assert tagged.record.version_ref == V10_COMMIT
     assert tagged.content != pinned.content
     # Asking for the commit itself is idempotent.
     again = world.github.retrieve(
-        file_locator(PUBLIC_REPO, MAIN_COMMIT, "extract/rs_extraction.py")
+        file_locator(PUBLIC_REPO, MAIN_COMMIT, "extract/rs_extraction.py"), project_id=PROJECT
     )
     assert again.record.canonical_locator == record.canonical_locator
     assert again.content == pinned.content
@@ -73,7 +78,9 @@ def test_a_pinned_commit_that_no_longer_resolves_is_ref_drift_not_a_silent_subst
     world = build()
     missing = "f" * 40
     with pytest.raises(ConnectorError) as drift:
-        world.github.retrieve(file_locator(PUBLIC_REPO, missing, "extract/rs_extraction.py"))
+        world.github.retrieve(
+            file_locator(PUBLIC_REPO, missing, "extract/rs_extraction.py"), project_id=PROJECT
+        )
     assert drift.value.kind is ConnectorErrorKind.REF_DRIFT
     assert drift.value.error_class == "EXTERNAL_SERVICE_ERROR"
 
@@ -97,7 +104,7 @@ def test_every_connector_failure_is_structured_and_carries_no_guessed_content(
     else:
         world.transport.remove(REMOVABLE_REPO)
     with pytest.raises(ConnectorError) as failed:
-        world.github.retrieve(file_locator(REMOVABLE_REPO, "main", "mesh.py"))
+        world.github.retrieve(file_locator(REMOVABLE_REPO, "main", "mesh.py"), project_id=PROJECT)
     assert failed.value.kind is kind
     assert failed.value.error_class == error_class
     assert failed.value.retryable is retryable

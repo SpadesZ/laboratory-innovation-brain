@@ -43,7 +43,9 @@ CONCEPT = SanitizedConcept(
 
 
 def _search(world):  # type: ignore[no-untyped-def]
-    router = world.registry.router(runner=world.runner, classifier=labelled({}, project_id=PROJECT))
+    router = world.registry.router(
+        project_id=PROJECT, runner=world.runner, classifier=labelled({}, project_id=PROJECT)
+    )
     counter = iter(range(1, 100))
     return PriorArtSearch(
         router=router,

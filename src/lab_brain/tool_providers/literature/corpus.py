@@ -161,9 +161,15 @@ class LiteratureCorpusAdapter:
         return paper, passage
 
     def fetch(self, locator: str) -> ExternalSourceRecord | None:
-        return self.retrieve(locator).record
+        return self._retrieve(locator).record
 
-    def retrieve(self, locator: str) -> PinnedContent:
+    def retrieve(self, locator: str, *, project_id: str) -> PinnedContent:
+        """Project-neutral: the corpus holds no allowlist and no credential, so it declares no
+        access scope and reads the same public passage for any project."""
+        del project_id
+        return self._retrieve(locator)
+
+    def _retrieve(self, locator: str) -> PinnedContent:
         paper, passage = self._locate(locator)
         record = self._record(paper, passage, 0)
         match = _LOCATOR.match(locator)

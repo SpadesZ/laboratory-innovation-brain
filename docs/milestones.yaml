@@ -211,6 +211,9 @@ milestones:
     # carry marked tests, and the fixed VS-SP-001 benchmark passes the exit gate below -- see
     # docs/implementation/M4-readiness.md and benchmarks/root_cause_benchmark_report.md. TST-001's
     # licensed replay is NOT performed (no Lumerical seat, risk R-1); only its mock half runs.
+    # EXTERNALLY BLOCKED on TST-001 from 2026-09-27: the licensed replay was attempted and cannot
+    # run here -- no Lumerical/Ansys installation, no lumapi, no licence server or seat, no licensed
+    # provider module, no Lumerical project for the case. M4-readiness.md §11 records the probe.
     #
     # IN_PROGRESS IS NOT A SIGN-OFF AND CARRIES NO GATE. The ratchet enforces a milestone only once
     # it is DONE; moving this to DONE is the maintainer's act on independent review.
@@ -236,6 +239,8 @@ milestones:
     # provider this milestone exercises is a deterministic fixture -- no live GitHub or literature
     # request is part of the recorded verification; the `network` half of the gate profile is a
     # marked test that is deselected by default and has not been run.
+    # The review's P0 -- project B consuming project A's access policy, allowlist or credential --
+    # is repaired (access scopes, `002d`); READY FOR INDEPENDENT REVIEW, M5-readiness.md §4.6.
     #
     # IN_PROGRESS IS NOT A SIGN-OFF AND CARRIES NO GATE; DONE is the maintainer's act on review.
     status: IN_PROGRESS

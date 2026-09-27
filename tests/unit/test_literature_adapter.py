@@ -10,7 +10,7 @@ from lab_brain.core.models.enums import LicenseClass, TrustClass
 from lab_brain.sources.adapter import SourceQuery
 from lab_brain.sources.errors import ConnectorError, ConnectorErrorKind
 from lab_brain.tool_providers.literature.corpus import license_class_for
-from tests.external_fixtures import build
+from tests.external_fixtures import PROJECT, build
 
 
 def test_retrieval_returns_citable_passages_ranked_by_relevance():
@@ -29,13 +29,13 @@ def test_retrieval_returns_citable_passages_ranked_by_relevance():
 
 def test_a_passage_is_pinned_hashed_and_carries_its_rights_and_status():
     adapter = build().literature
-    pinned = adapter.retrieve("doi:10.5555/sp.2018.007#p1")
+    pinned = adapter.retrieve("doi:10.5555/sp.2018.007#p1", project_id=PROJECT)
     assert pinned.record.canonical_locator == "doi:10.5555/sp.2018.007@vor#p1"
     assert pinned.record.content_hash == "sha256:" + hashlib.sha256(pinned.content).hexdigest()
     assert pinned.record.metadata["status"] == "RETRACTED"
     assert pinned.record.license_class is LicenseClass.UNKNOWN
     assert pinned.record.trust_class is TrustClass.PEER_REVIEWED
-    preprint = adapter.retrieve("doi:10.5555/sp.2021.113#p2").record
+    preprint = adapter.retrieve("doi:10.5555/sp.2021.113#p2", project_id=PROJECT).record
     assert preprint.trust_class is TrustClass.PREPRINT
 
 
@@ -53,5 +53,5 @@ def test_licences_map_to_sec_004_classes_and_unknowns_are_refused_not_guessed():
         ("doi:10.5555/sp.2019.041@am#p3", ConnectorErrorKind.REF_DRIFT),
     ):
         with pytest.raises(ConnectorError) as failed:
-            adapter.retrieve(locator)
+            adapter.retrieve(locator, project_id=PROJECT)
         assert failed.value.kind is kind

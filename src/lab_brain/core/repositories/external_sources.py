@@ -7,6 +7,12 @@ holds for any writer of SQL what the model holds here: a commit-pinned snapshot 
 repository, technical material is TECHNICAL_ARTIFACT, the kept artifact exists as an
 EXTERNAL_CONNECTOR artifact present in the project, and a FULL_CONTENT artifact hashes to the
 recorded content hash.
+
+ACCESS SCOPES (`002d`, GH-002). The authorization an adapter read under is recorded before any
+snapshot that names it, and is immutable per policy version: one `policy_ref` is bound to one
+project, one provider and one allowlist forever. Re-recording the same scope is a no-op; recording a
+different scope under the same ref is refused -- a policy reference cannot be quietly re-pointed at
+another project, which is exactly the substitution the scope exists to prevent.
 """
 
 from __future__ import annotations
@@ -14,7 +20,11 @@ from __future__ import annotations
 import json
 from typing import Any, Protocol, runtime_checkable
 
-from lab_brain.core.models.external_source import ExternalSnapshot, ExternalSourceEvent
+from lab_brain.core.models.external_source import (
+    ExternalAccessScope,
+    ExternalSnapshot,
+    ExternalSourceEvent,
+)
 from lab_brain.core.repositories.budget import SqlConnection
 from lab_brain.core.repositories.protocols import RepositoryError
 
@@ -41,13 +51,37 @@ class ExternalSourceStore(Protocol):
 
     def events(self, project_id: str) -> tuple[ExternalSourceEvent, ...]: ...
 
+    def record_access_scope(self, scope: ExternalAccessScope) -> ExternalAccessScope: ...
+
+
+def _same_scope(stored: ExternalAccessScope, scope: ExternalAccessScope) -> ExternalAccessScope:
+    if stored != scope:
+        raise ExternalSourceStoreError(
+            f"access scope {scope.policy_ref} is recorded for project {stored.project_id} / "
+            f"{stored.provider}; a policy version is bound to one project and one allowlist and "
+            "cannot be re-pointed (GH-002)"
+        )
+    return stored
+
 
 class InMemoryExternalSourceStore:
     def __init__(self) -> None:
         self._snapshots: dict[str, ExternalSnapshot] = {}
         self._events: list[ExternalSourceEvent] = []
+        self._scopes: dict[str, ExternalAccessScope] = {}
+
+    def record_access_scope(self, scope: ExternalAccessScope) -> ExternalAccessScope:
+        stored = self._scopes.setdefault(scope.policy_ref, scope)
+        return _same_scope(stored, scope)
 
     def add_snapshot(self, snapshot: ExternalSnapshot) -> ExternalSnapshot:
+        if snapshot.access_policy_ref is not None:
+            scope = self._scopes.get(snapshot.access_policy_ref)
+            if scope is None or scope.project_id != snapshot.project_id:
+                raise ExternalSourceStoreError(
+                    f"{snapshot.snapshot_id} in {snapshot.project_id} names access scope "
+                    f"{snapshot.access_policy_ref}, which is not recorded for that project (GH-002)"
+                )
         if snapshot.snapshot_id in self._snapshots:
             raise ExternalSourceStoreError(f"{snapshot.snapshot_id} is append-only")
         if self.pinned(snapshot.project_id, snapshot.provider, snapshot.canonical_locator):
@@ -127,6 +161,14 @@ _SNAPSHOT_COLUMNS = (
     "created_at",
 )
 
+_SCOPE_COLUMNS = (
+    "policy_ref",
+    "project_id",
+    "provider",
+    "declared_by_actor_id",
+    "private_allowlist",
+)
+
 _EVENT_COLUMNS = (
     "event_id",
     "project_id",
@@ -148,6 +190,28 @@ def _value(value: Any) -> Any:
 class SqlExternalSourceStore:
     def __init__(self, connection: SqlConnection) -> None:
         self._connection = connection
+
+    def record_access_scope(self, scope: ExternalAccessScope) -> ExternalAccessScope:
+        self._connection.execute(
+            "INSERT INTO external_access_scopes (policy_ref, project_id, provider,"
+            " declared_by_actor_id, private_allowlist) VALUES (%s, %s, %s, %s, %s)"
+            " ON CONFLICT (policy_ref) DO NOTHING",
+            (
+                scope.policy_ref,
+                scope.project_id,
+                scope.provider,
+                scope.declared_by_actor_id,
+                sorted(scope.private_allowlist),
+            ),
+        )
+        row = self._connection.execute(
+            f"SELECT {', '.join(_SCOPE_COLUMNS)} FROM external_access_scopes WHERE policy_ref = %s",
+            (scope.policy_ref,),
+        ).fetchone()
+        if row is None:
+            raise ExternalSourceStoreError(f"access scope {scope.policy_ref} was not recorded")
+        stored = ExternalAccessScope.model_validate(dict(zip(_SCOPE_COLUMNS, row, strict=True)))
+        return _same_scope(stored, scope)
 
     def add_snapshot(self, snapshot: ExternalSnapshot) -> ExternalSnapshot:
         dumped = snapshot.model_dump(mode="python")

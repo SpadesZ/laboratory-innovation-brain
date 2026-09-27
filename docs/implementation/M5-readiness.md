@@ -1,12 +1,15 @@
 # M5 — External Evidence Expansion: readiness for independent review
 
 Date: 2026-09-27
-Milestone: **M5 — External Evidence Expansion**, `IN_PROGRESS` (was `DEFERRED`). The implementing
-agent does not sign off its own work; moving M5 to DONE is the maintainer's act on independent
-review.
-M4: **`IN_PROGRESS`, not signed off.** M5 was built on M4's final SHA `457252c` as a *provisional
-baseline*: no M4 file was changed, nothing in M4 was repaired or redesigned, and M4 stays
-`IN_PROGRESS` pending its own review. §10 records what M5's work observed about M4.
+Milestone: **M5 — External Evidence Expansion**, `IN_PROGRESS` (was `DEFERRED`) — **READY FOR
+INDEPENDENT REVIEW**. The review's remaining P0 (project B consuming project A's access policy,
+allowlist or credential) is repaired: §4.6. The implementing agent does not sign off its own work;
+moving M5 to DONE is the maintainer's act on independent review.
+M4: **`IN_PROGRESS`, externally blocked on TST-001's licensed Lumerical replay** (attempted; the
+environment has no Lumerical installation, `lumapi`, licence or licensed provider — see
+M4-readiness.md §11). M5 was built on M4's final SHA `457252c` as a *provisional baseline*: no M4
+file was changed and nothing in M4 was repaired or redesigned. §10 records what M5's work observed
+about M4.
 M3 and earlier: `DONE` / hard-locked — **no locked behaviour changed** (§6 lists every edit outside
 the new modules; all additive).
 Spec: SAI 3.3, amendments `v3.3-a1` … `v3.3-a18`. **No amendment, no ADR, no new Requirement or
@@ -47,7 +50,7 @@ marked `network`, is deselected by default, and **was not run**; nothing below c
 | Req | Where it is implemented | Where it is proven |
 |---|---|---|
 | **GH-001** | `GitHubConnector.search` / `fetch` / `retrieve`; locator grammar; commit pinning; `PinnedContent` refuses a record whose hash is not the hash of the bytes; `ExternalSnapshotService`; `002c` `external_snapshots` | `unit/test_github_connector.py` (7), `unit/test_github_http_transport.py` (7, offline), `unit/test_external_snapshots.py`, `integration/test_external_snapshots_postgres.py` (T-GH-001), `e2e/test_external_evidence_postgres.py` (T-GH-001); `integration/test_github_network.py` — **deselected, not run** |
-| **GH-002** | `GitHubAccessPolicy` (authored, versioned, project-scoped, private label never PUBLIC); `_access` (a credential only for an allowlisted repository; allowlisted without a credential refused before any request); anonymous not-found and refused credentials audited by **locator digest and reason code only**; `ConnectorError.audited` so no caller re-logs the locator; discovery always anonymous; `max_sensitivity = PUBLIC` so SEC-001's gate refuses a restricted-context query before the transport; `002c` forbids a refusal row carrying a locator and any event detail carrying a query, text, content, token or credential | `security/test_github_private_access.py` (7, T-GH-002), `integration/test_external_snapshots_postgres.py::test_a_refused_private_request_is_a_durable_audit_row_that_names_nothing_private` |
+| **GH-002** | `GitHubAccessPolicy` (authored, versioned, project-scoped, private label never PUBLIC); **one project's authorization serves no other** — `ExternalAccessScope`, project-scoped registration and lookup, project-bound routers, `retrieve(..., project_id=)` refused first by a connector of another project, credentials resolved per project, the record's scope re-checked before anything is kept, `002d` for every writer (§4.6); `_access` (a credential only for an allowlisted repository; allowlisted without a credential refused before any request); anonymous not-found and refused credentials audited by **locator digest and reason code only**; `ConnectorError.audited` so no caller re-logs the locator; discovery always anonymous; `max_sensitivity = PUBLIC` so SEC-001's gate refuses a restricted-context query before the transport; `002c` forbids a refusal row carrying a locator and any event detail carrying a query, text, content, token or credential | `security/test_github_private_access.py` (7, T-GH-002), `security/test_github_project_scope.py` (10, T-GH-002, cross-project), `integration/test_external_access_scopes_postgres.py` (4, T-GH-002), `integration/test_external_snapshots_postgres.py::test_a_refused_private_request_is_a_durable_audit_row_that_names_nothing_private` |
 | **GH-003** | GitHub records are TECHNICAL_ARTIFACT, whatever the repository claims; the registry refuses a scientific ceiling for a technical provider and clamps every record; the snapshot model, `002c` CHECKs and the admission refuse promotion; `002c` refuses a non-REPORTED/INFERRED attestation citing a TECHNICAL_ARTIFACT work or an external snapshot's artifact, and a SOFTWARE_REPOSITORY work labelled PEER_REVIEWED or internal; repo, ref and commit are kept on the snapshot and the attestation | `contract/test_external_source_registry.py`, `unit/test_external_admission.py`, `unit/test_external_snapshots.py`, `e2e/test_external_evidence_postgres.py::test_a_github_record_is_technical_and_cannot_pose_as_measured_or_peer_reviewed` (T-GH-003) |
 
 Normative text M5 also had to honour, without owning the requirement: §6.16's connector failure
@@ -96,6 +99,32 @@ SOURCE_UNAVAILABLE recorded at once**, which `evidence.source_status` maps to NE
 for a major revision (EVI-008). A later admission from a kept snapshot of vanished material is
 still possible and records the same status.
 
+**4.6 One project's authorization serves no other (GH-002; the review's P0, repaired).** Before the
+repair, a GitHub connector was built for one project's policy but registered deployment-wide, and
+nothing bound a request to the project that asked: project B's `snapshot` of project A's allowlisted
+private file was served by A's connector with A's token and stored in B under A's policy (reproduced
+before the fix; egress approval is per requesting project and never asked whose authorization the
+adapter carried). The substitution is now closed at every layer it could pass through, each before
+the next step happens:
+
+| Layer | What holds |
+|---|---|
+| declaration | an adapter that holds an allowlist or can resolve a credential declares an `ExternalAccessScope` (policy ref, project, provider, allowlist; never the secret) |
+| registry | a scoped adapter is registered for its own project only — never deployment-wide, never for another project; lookup is by project: its own adapter, else a project-neutral one, never another project's |
+| router | `registry.router(project_id=)` returns a `ProjectBoundRouter` (a subclass; M1's router is unchanged) that holds no other project's adapter, refuses to be given one, and refuses a search, fetch or authorization read for any other project |
+| service, before egress | a provider present only under other projects' scopes is refused and audited **in the requesting project's log, by digest** (`NO_ACCESS_SCOPE_FOR_PROJECT`); a foreign-scoped adapter is refused even if a registry misroutes one |
+| connector | `retrieve(locator, project_id=)` refuses any project but its own FIRST — before parsing, credential resolution or any request (`PROJECT_SCOPE_MISMATCH`, audited in the requesting project) |
+| credentials | references resolve in the asking project's namespace only: project B's policy naming project A's reference resolves to nothing (`PRIVATE_ACCESS_WITHOUT_CREDENTIAL`, before any request) |
+| M1 fetch path | `fetch(locator)` carries no project, so it is **anonymous only** and can never present a credential |
+| service, before storage | the record must say it was read under this project's scope; material read under another scope, or private material from an adapter with no scope, is refused and nothing is kept (`ACCESS_SCOPE_MISMATCH`) |
+| store | the scope is recorded before the snapshot naming it; a policy version is bound to one project and allowlist forever (re-pointing refused); the in-memory store refuses a snapshot whose scope is unrecorded or another project's |
+| SQL (`002d`) | for every writer: a snapshot naming a scope is in that scope's project and provider; private material names a scope and its repository is on that scope's allowlist; scopes are append-only |
+
+The valid half is tested as carefully as the refusals: two projects that each allowlist the same
+private repository and each hold their own credential each read it with **their own token only**
+(the fixture host records which token reached it), each snapshot lands in its own project under its
+own scope, and neither is visible from, or a cache hit for, the other.
+
 ## 5. Architectural decisions and the interpretations they rest on
 
 **5.1 §17.21's `snapshot` is split into a provider half and a storage half.** `RetrievingAdapter.
@@ -140,10 +169,17 @@ it is given (EVI-008) and `evidence.source_status` (M1, unchanged) decides what 
   event).
 - `scripts/migrate.py`: `002c_external_snapshots.sql` appended to `APPLY_ORDER`.
   `tests/postgres_fixtures.py`: the two new tables in `_TABLES`.
-- `scripts/mutation_battery.py`: 34 M5 entries appended; no existing entry changed.
+- `scripts/mutation_battery.py`: 47 M5 entries appended (34 at `3361c77`, 13 for the P0 repair);
+  no pre-M5 entry changed.
 - `docs/milestones.yaml`: M5 `DEFERRED` → `IN_PROGRESS`, with the comment stating the mock
-  boundary. M4's entry is untouched.
-- No M0–M4 source module, migration or test was modified.
+  boundary and, since the P0 repair, readiness for independent review. M4's entry gained a comment
+  recording TST-001's external blocker; its status is unchanged.
+- `docs/implementation/M4-readiness.md` §11: the TST-001 licensed-replay attempt and its blockers
+  (documentation only; no M4 code changed).
+- No M0–M4 source module, migration or test was modified. The P0 repair changed only M5 modules
+  and M5 tests (the connector's `retrieve` and the registry's `register`/`adapter`/`router` now
+  take the project; one existing `002c` test gives its forged private row a valid scope so the
+  CHECK it exercises is still reached after `002d`'s trigger, and asserts the new refusal too).
 
 New modules: `sources/{errors,external,snapshots,admission}.py`,
 `core/models/external_source.py`, `core/repositories/{external_sources,source_works}.py`,
@@ -168,10 +204,25 @@ snapshot is the provenance of an artifact and the manifestation of a SourceWork)
   snapshot is in that snapshot's project and claims no deeper §6.4 stage than the snapshot kept.
 - `source_works` (additive trigger) — a SOFTWARE_REPOSITORY is never PEER_REVIEWED or internal.
 
-Applies cleanly on a fresh database (47 migrations) and is idempotent.
+`002d_external_access_scopes.sql` (after `002c`; the P0 repair, §4.6):
+
+- `external_access_scopes` — policy ref (PK), project, provider, declaring actor, private
+  allowlist; append-only; the credential is never stored.
+- `external_snapshots` (additive trigger) — a snapshot naming a scope is in that scope's project
+  and provider; private material names a scope and its repository is on the scope's allowlist. A
+  trigger rather than a foreign key, so rows written before `002d` are not re-validated.
+
+Both apply cleanly on a fresh database (48 migrations) and are idempotent.
 
 ## 8. Adversarial cases tested
 
+- **across projects (the P0)**: project B snapshotting project A's private and public files through
+  A's connector; A's connector called directly for B (and with an unparsable locator); A's
+  connector registered for B or deployment-wide; B's router given A's connector; A's router asked
+  to search, fetch or authorize for B; B's policy naming A's credential reference; a registry that
+  misroutes A's connector to B; an adapter that ignores the asked-for project, and one that strips
+  the scope from a private record; SQL rows in B naming A's scope, private rows with no scope or
+  off the allowlist, a scope re-pointed at another project, UPDATE/DELETE on scopes;
 - a private repository with no allowlist, allowlisted with no credential, with a refused credential,
   with a working deployment token but no allowlist entry; a withdrawn allowlist after an authorized
   read; a restricted-context query to public code search (refused by SEC-001 before the transport);
@@ -191,26 +242,30 @@ Applies cleanly on a fresh database (47 migrations) and is idempotent.
 
 ## 9. Verification
 
-At the M5 implementation commit `3361c77c3f3ffe1e4b3864029fd7e1b92f109423` (lineage: `6416adb` M3
-hard-lock → `a0b9fcf` M3 sign-off, M4 begins → `241f546` M4 → `457252c` M4 verification record →
-`3361c77` M5):
+**At the P0-repair commit** (lineage: `6416adb` M3 hard-lock → `a0b9fcf` M3 sign-off, M4 begins →
+`241f546` M4 → `457252c` M4 verification record → `3361c77` M5 → `9cf5ba8` M5 verification record
+→ the P0-repair commit; its hash and CI run are added by the verification-record commit after it):
 
 | Gate | Result |
 |---|---|
-| `ruff check` / `ruff format --check` (src, tests, scripts) | clean / 365 files formatted |
+| `ruff check` / `ruff format --check` (src, tests, scripts) | clean / 367 files formatted |
 | `mypy` strict | no issues in 201 source files |
-| backend-free suite | 1574 passed, 702 skipped (backend-gated) |
-| PostgreSQL suite, freshly migrated database (47 migrations; re-applying is a no-op) | **2274 passed**, 2 skipped (`lumerical`, `network`) |
-| M5's own tests | 59 collected across 11 files; 58 run (the `network` one is deselected) |
+| backend-free suite | **1585 passed**, 706 skipped (backend-gated), 0 failed |
+| PostgreSQL suite, freshly migrated database (48 migrations; re-applying is a no-op) | **2289 passed**, 2 skipped (`lumerical`, `network`) |
+| M5's own tests | 75 collected across 13 files; 74 run (the `network` one is deselected) |
 | M4 root-cause benchmark `--check` (regression, PostgreSQL) | report current |
-| mutation battery (PostgreSQL profile on) | **219/219 killed** — the 185 pre-M5 entries still killed; 34 new M5 entries, 1 of them (`sql_sink_secret_scan_skipped`) killed only by a PostgreSQL-gated test |
+| mutation battery (PostgreSQL profile on) | **232/232 killed** — the 185 pre-M5 entries still killed; 47 M5 entries (13 new for the P0 repair, each killed by its intended cross-project test) |
 | `check_requirement_coverage.py` (whole-suite PostgreSQL report) | DONE [M0a, M0b, M1, M2, M3] enforced; M4 and M5 IN_PROGRESS |
-| `rebuild_obligation_inventory.py --check` | 84 occurrences, in sync |
+| `rebuild_obligation_inventory.py --check`; segmentation and debate benchmark reports | 84 occurrences, in sync; both reports current |
 | `update_status.py --check` | current; GH-001/002/003 IN_PROGRESS with test files |
-| segmentation and debate benchmark reports | current |
 | `check_commit_messages.py` | no AI attribution |
-| GitHub Actions CI (commit hygiene, spec conformance, lint/types/full suite, PostgreSQL backend) | success, run 36326456910 |
+| GitHub Actions CI | recorded by the verification-record commit that follows |
 | live GitHub (`network` marker) | **not run** — no external access was attempted |
+| TST-001 licensed Lumerical replay (M4) | **attempted; externally blocked** — M4-readiness.md §11 |
+
+At the first M5 commit `3361c77`: backend-free 1574 passed; PostgreSQL 2274 passed on 47
+migrations; mutation battery 219/219; CI success, run 36326456910. The verification record
+`9cf5ba8`: CI success, run 36326718489.
 
 ## 10. M4, observed from M5 (M4 is a provisional baseline here)
 
@@ -235,6 +290,12 @@ automatic escalation of INCOMPARABLE authority) are unchanged and are not M5's t
   as the admission path writes them; a hand-written attestation that omits the name is bounded
   only by the other `002c` rules.
 - **Patent and web connectors are not built** (§5.4).
+- **Private GitHub access needs one connector per project.** A deployment registers each project's
+  own connector (its own policy and credential namespace); a project with none gets public access
+  only if a deployment-wide, credential-free connector is registered for it. M1's `fetch` path is
+  anonymous only, so private material is read solely through the project-bound snapshot path.
+- **A changed allowlist is a new policy version.** Scopes are immutable per policy ref, so editing
+  an allowlist in place is refused once material has been read under it.
 - **The deleted-public-repository rule rests on an inference**: an anonymous "not found" for
   material this project once read publicly is treated as a change at the source. A repository made
   private by its owner is therefore also marked SOURCE_UNAVAILABLE — which, for a conclusion that
@@ -242,6 +303,7 @@ automatic escalation of INCOMPARABLE authority) are unchanged and are not M5's t
 
 ## 12. Governance
 
-M5 is `IN_PROGRESS` in `docs/milestones.yaml`; M4 remains `IN_PROGRESS`; the executed-coverage
-ratchet enforces neither. M6 was not started. No commit carries AI authorship attribution
+M5 is `IN_PROGRESS` in `docs/milestones.yaml` and **ready for independent review**; M4 remains
+`IN_PROGRESS`, **externally blocked on TST-001**; the executed-coverage ratchet enforces neither.
+M6 was not started. No commit carries AI authorship attribution
 (`scripts/check_commit_messages.py`).

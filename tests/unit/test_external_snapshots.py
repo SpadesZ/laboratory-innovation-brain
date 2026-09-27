@@ -10,11 +10,16 @@ from pydantic import ValidationError
 
 from lab_brain.core.models.enums import LicenseClass, SensitivityLabel, TrustClass
 from lab_brain.core.models.external_source import (
+    ExternalAccessScope,
     ExternalSnapshot,
     ExternalSourceEvent,
     ExternalSourceEventKind,
     Retention,
     Visibility,
+)
+from lab_brain.core.repositories.external_sources import (
+    ExternalSourceStoreError,
+    InMemoryExternalSourceStore,
 )
 from lab_brain.security.egress import CodePolicy, may_enter_generation_context
 from lab_brain.sources.errors import ConnectorError, ConnectorErrorKind
@@ -275,3 +280,25 @@ def test_a_pinned_version_that_re_hashes_differently_is_refused_not_replaced():
     assert ExternalSourceEventKind.CACHE_HIT not in _kinds(world)
     with pytest.raises(SnapshotRefused, match="no provider"):
         _snap(world, "patents", "pat:US1")
+
+
+def test_the_store_keeps_a_snapshot_only_under_a_recorded_scope_of_its_own_project():
+    """The in-memory store holds what `002d` holds in SQL (GH-002)."""
+    store = InMemoryExternalSourceStore()
+    scope = ExternalAccessScope(
+        policy_ref="ghp:a@1.0.0",
+        project_id="prj:a",
+        provider="github",
+        declared_by_actor_id="act:pi",
+    )
+    snapshot = ExternalSnapshot(
+        **_snapshot_fields(project_id="prj:b", access_policy_ref="ghp:a@1.0.0")
+    )
+    with pytest.raises(ExternalSourceStoreError, match="not recorded for that project"):
+        store.add_snapshot(snapshot)
+    store.record_access_scope(scope)
+    with pytest.raises(ExternalSourceStoreError, match="not recorded for that project"):
+        store.add_snapshot(snapshot)
+    with pytest.raises(ExternalSourceStoreError, match="cannot be re-pointed"):
+        store.record_access_scope(scope.model_copy(update={"project_id": "prj:b"}))
+    store.add_snapshot(snapshot.model_copy(update={"project_id": "prj:a"}))

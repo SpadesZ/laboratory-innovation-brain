@@ -42,9 +42,11 @@ _TABLES = (
     # M4 (`011k`, `011l`). Child first and append-only: a candidate cites failures, a failure
     # cites hypotheses, a plan cites its selection policy. Selection policies are not
     # project-scoped, so nothing cascades them away.
-    # M5 (`002c`). Events reference snapshots, snapshots reference artifacts; both append-only.
+    # M5 (`002c`, `002d`). Events reference snapshots, snapshots reference artifacts and name an
+    # access scope; all append-only.
     "external_source_events",
     "external_snapshots",
+    "external_access_scopes",
     "candidate_heuristics",
     "failure_analyses",
     "verification_plans",

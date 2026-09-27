@@ -1,8 +1,12 @@
 # M4 — First Vertical (VS-SP-001): readiness for independent sign-off
 
 Date: 2026-09-27
-Milestone: **M4 — First Vertical (VS-SP-001)**, `IN_PROGRESS` — **READY FOR INDEPENDENT SIGN-OFF**.
-The implementing agent does not sign off its own work; moving M4 to DONE is the maintainer's act.
+Milestone: **M4 — First Vertical (VS-SP-001)**, `IN_PROGRESS` — **EXTERNALLY BLOCKED on TST-001's
+licensed Lumerical replay** (§11: attempted; no Lumerical installation, `lumapi`, licence
+configuration or licensed provider exists in this environment). Everything else is ready for
+independent review. The implementing agent does not sign off its own work; moving M4 to DONE is
+the maintainer's act, and it cannot happen before the licensed replay is performed somewhere that
+can run it.
 M3: **`DONE` / HARD-LOCKED** 2026-09-27 at `6416adb1f72ada341f82fb04731e1fababd140d9`; the sign-off
 is recorded at `a0b9fcf` and the executed-coverage ratchet enforces its 5 requirements.
 M0a–M2: `DONE`, hard-locked — **no locked behaviour changed** (§5 lists every edit outside the new
@@ -234,3 +238,51 @@ At `241f546ce3c0b492bbc377479dc7c4e743eabccc`:
 
 M4 remains `IN_PROGRESS` in `docs/milestones.yaml`; the executed-coverage ratchet does not yet
 enforce it. No commit carries AI authorship attribution (`scripts/check_commit_messages.py`).
+
+## 11. TST-001's licensed replay: attempted, externally blocked
+
+> TST-001  同一案例要能以 mock dataset 在 CI 重播，並以真實 Lumerical project 在有 license 的環境重播。
+
+The mock half passes (§1, §8). The licensed half was **attempted on 2026-09-27 and could not be
+performed. Nothing below is a substitute for it**: no mock was run in its place, no replay was
+emulated, and TST-001 is not claimed complete.
+
+**What the attempt was.** The same Rs-anomaly case, through the repository's licensed path:
+`tests/e2e/test_vs_sp_001_licensed_replay.py` enabled with `LAB_BRAIN_TEST_LUMERICAL=1`. That test
+is the only real-backend path this repository has; it requires a licensed provider module
+(`lab_brain.tool_providers.lumerical.charge`, implementing the same `SimulationBackend` contract
+the mocks satisfy for `cap:sp.mesh_sensitivity` and `cap:sp.charge_dc_sweep`) and a Lumerical
+installation it can drive. Before and alongside it, the machine was probed for every prerequisite.
+
+**What was found — the precise blockers, all external to the repository's code:**
+
+| Prerequisite | Probe | Result |
+|---|---|---|
+| Lumerical / Ansys installation | `C:\Program Files\Lumerical`, `C:\Program Files\ANSYS Inc`, `C:\Program Files\AnsysEM`, `C:\Program Files (x86)\Lumerical`, `C:\ProgramData\Lumerical`; directory search for `*lumerical*` / `*ansys*` under both Program Files trees and to depth 3 on `D:\` | **none present** |
+| Installed-program records | Windows uninstall registry (HKLM, HKLM WOW6432Node, HKCU) for `lumerical` or `ansys`; `HKLM/HKCU\SOFTWARE\Lumerical`, `HKLM\SOFTWARE\ANSYS, Inc.` | **none** |
+| Solver executables | `fdtd-solutions`, `fdtd-engine*`, `device`, `device-engine`, `mode-solutions`, `interconnect` on `PATH` (`Get-Command`, `where.exe`) | **not found** |
+| Python API | `import lumapi` in the project interpreter; `lumapi.py` searched under Program Files, ProgramData, the user profile and `D:\` (depth 6); `ansys.lumerical.core` | **not importable / not present.** `ansys-lumerical-core` exists on PyPI (0.4.0), but it is a binding that locates a local Lumerical installation and licence; installing it cannot supply either, so it was not installed |
+| Licence | `ANSYSLMD_LICENSE_FILE`, `LM_LICENSE_FILE`, `ANSYSLI_SERVERS`, `LUMERICAL_LICENSE_FILE` unset; no `lmutil` / `ansyslmd`; no FlexLM / Ansys licence service registered | **no licence server or seat configured** (Risk R-1) |
+| Licensed provider in this repository | `importlib.util.find_spec("lab_brain.tool_providers.lumerical.charge")` | **absent**; `tool_providers/lumerical` holds only `mock.py` and `mock_vertical.py` |
+| Lumerical project for the Rs-anomaly case | tracked `*.ldev`, `*.fsp`, `*.lms`, `*.icp`, `*.lsf` files | **none**; the case exists as the mock dataset only |
+| The licensed gate itself | `LAB_BRAIN_TEST_LUMERICAL=1 pytest tests/e2e/test_vs_sp_001_licensed_replay.py` | **FAILED, as designed**: "no licensed Lumerical provider is wired (lab_brain.tool_providers.lumerical.charge does not exist); the licensed replay TST-001 requires has not been performed" |
+
+**Why no provider module was written here.** A `lumapi`-backed provider cannot be executed, tested
+or even imported in this environment, so writing one would ship an unverified claim; and
+`test_no_vendor_sdk_is_imported_anywhere_in_the_shipped_package` deliberately keeps the vendor SDK
+out of the shipped package until a licensed environment exists to prove it. The contract such a
+provider must meet is already fixed and tested against the mocks.
+
+**What unblocks it**, in a licensed environment: a Lumerical/Ansys installation (DEVICE CHARGE for
+`cap:sp.charge_dc_sweep`, and the mesh study for `cap:sp.mesh_sensitivity`) with `lumapi`
+importable; a reachable licence server with at least one seat; a Lumerical project for the
+Rs-anomaly device supplied by the lab (§23.4: the physics is not invented by an agent); and the
+provider module wired into `CapabilityRoutedRunner` in place of `mock_vertical`, emitting raw output
+through the `RunOutputSink` with a complete `simulator_validity` record naming the solver and its
+version. The durable evidence the replay must leave is what the mock half already records: backend
+id and version on the Run's validity record; project and artifact identity (content-hashed
+artifacts present in the project); the Job and Run lineage; the extracted attestations; and the
+FailureAnalysis whose confirmation EPI-002's trace walks back to that Run.
+
+**Status: M4 is `IN_PROGRESS`, externally blocked on TST-001.** No other M4 work is outstanding in
+this record.

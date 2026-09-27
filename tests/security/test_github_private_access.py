@@ -73,7 +73,7 @@ def test_a_credential_is_never_presented_for_a_repository_nobody_allowlisted():
     world = build(credential_ref="lab-token", secrets={"lab-token": TOKEN})
     assert world.github.search(SourceQuery(text="series resistance")), "discovery is anonymous"
     with pytest.raises(ConnectorError):
-        world.github.retrieve(LOCATOR)
+        world.github.retrieve(LOCATOR, project_id=PROJECT)
     assert world.transport.calls, "the anonymous request was made"
     assert any(op == "search" for op, _, _ in world.transport.calls)
     assert all(not token for _, _, token in world.transport.calls), "the token was sent"
@@ -85,7 +85,7 @@ def test_a_credential_is_never_presented_for_a_repository_nobody_allowlisted():
 def test_allowlisted_without_a_credential_is_refused_before_any_request():
     world = build(allowlist=frozenset({PRIVATE_REPO}), credential_ref=None)
     with pytest.raises(ConnectorError) as refused:
-        world.github.retrieve(LOCATOR)
+        world.github.retrieve(LOCATOR, project_id=PROJECT)
     assert refused.value.kind is ConnectorErrorKind.NOT_AUTHORIZED
     assert refused.value.error_class == "POLICY_BLOCK" and not refused.value.retryable
     assert world.transport.calls == [], "fail closed means nothing was sent"
@@ -102,7 +102,7 @@ def test_a_refused_credential_is_audited_and_the_token_appears_nowhere():
         secrets={"lab-token": "not-a-real-token"},
     )
     with pytest.raises(ConnectorError) as refused:
-        world.github.retrieve(LOCATOR)
+        world.github.retrieve(LOCATOR, project_id=PROJECT)
     assert refused.value.kind is ConnectorErrorKind.AUTHENTICATION_FAILED
     assert "not-a-real-token" not in str(refused.value)
     assert _refusals(world)[0].detail["reason_code"] == "CREDENTIAL_REFUSED"
@@ -161,12 +161,14 @@ def test_a_withdrawn_allowlist_is_a_refusal_not_a_removal_and_names_nothing():
     world.registry.register(
         GitHubConnector(
             transport=world.transport,
-            policy=access_policy(credential_ref="lab-token"),
-            credentials=StaticCredentials({"lab-token": TOKEN}),
+            # The withdrawal is a new version of the project's policy, not an edit of the old one.
+            policy=access_policy(credential_ref="lab-token", version="1.1.0"),
+            credentials=StaticCredentials(world.secrets),
             audit=world.service,
             now=world.clock,
         ),
         github_declaration(),
+        project_id=PROJECT,
     )
     with pytest.raises(ConnectorError) as refused:
         world.service.snapshot("github", LOCATOR, project_id=PROJECT, actor_id=ACTOR)

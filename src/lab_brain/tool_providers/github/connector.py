@@ -34,6 +34,15 @@ found", which is refused and audited. An allowlisted repository with no resolvab
 refused BEFORE any request. Every refusal is recorded through `ConnectorAudit` as a digest of the
 locator and a reason code: no repository name, no query, no token.
 
+ONE CONNECTOR, ONE PROJECT (GH-002). A connector is built for one project's access policy and
+declares that as its `ExternalAccessScope`. `retrieve` takes the requesting project and refuses any
+other one FIRST -- before the locator is parsed, a credential resolved or a request made -- so a
+request for project B can never be served by project A's allowlist or token, whatever registry or
+router it came through. Credentials are resolved per project: a policy naming a credential
+reference resolves it in its own project's namespace, so project B's policy cannot name project A's
+secret. `fetch`, the M1 path that carries no project, is anonymous only: it never presents a
+credential, so it cannot be the way around the binding.
+
 GITHUB IS TECHNICAL MATERIAL (GH-003). Every record is TECHNICAL_ARTIFACT, whatever the
 repository's stars or README claim; the registry refuses a declaration that would let this provider
 label anything higher, and `002c` refuses a snapshot or an attestation that tries.
@@ -44,11 +53,12 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
 from lab_brain.core.models.enums import LicenseClass, SensitivityLabel, TrustClass
+from lab_brain.core.models.external_source import ExternalAccessScope
 from lab_brain.security.external import ExternalReach
 from lab_brain.sources.adapter import (
     ExternalSourceRecord,
@@ -117,17 +127,23 @@ class Locator:
 
 
 class CredentialResolver(Protocol):
-    """Resolves a credential REFERENCE to a secret. The reference is config; the secret is not."""
+    """Resolves a credential REFERENCE to a secret, within one project's namespace (GH-002).
 
-    def resolve(self, credential_ref: str) -> str | None: ...
+    The reference is config; the secret is not. The same reference in two projects names two
+    different secrets, and a reference with no secret in the asking project resolves to nothing --
+    never to another project's secret of that name.
+    """
+
+    def resolve(self, project_id: str, credential_ref: str) -> str | None: ...
 
 
 @dataclass(frozen=True)
 class StaticCredentials:
-    secrets: dict[str, str]
+    #: project id -> credential reference -> secret
+    secrets: Mapping[str, Mapping[str, str]]
 
-    def resolve(self, credential_ref: str) -> str | None:
-        return self.secrets.get(credential_ref)
+    def resolve(self, project_id: str, credential_ref: str) -> str | None:
+        return self.secrets.get(project_id, {}).get(credential_ref)
 
 
 @dataclass(frozen=True)
@@ -204,6 +220,16 @@ class GitHubConnector:
     def policy(self) -> GitHubAccessPolicy:
         return self._policy
 
+    def access_scope(self) -> ExternalAccessScope:
+        """The one project this connector's allowlist and credential belong to (GH-002)."""
+        return ExternalAccessScope(
+            policy_ref=self._policy.ref,
+            project_id=self._policy.project_id,
+            provider=PROVIDER_ID,
+            declared_by_actor_id=self._policy.declared_by_actor_id,
+            private_allowlist=self._policy.private_allowlist,
+        )
+
     def healthcheck(self) -> SourceHealthReport:
         try:
             status = self._transport.rate_limit()
@@ -224,17 +250,33 @@ class GitHubConnector:
         return tuple(self._repository_record(info, pinned=None) for info in found)
 
     def fetch(self, locator: str) -> ExternalSourceRecord | None:
+        """M1's project-unaware lookup. ANONYMOUS ONLY: it never presents a credential (GH-002)."""
         parsed = Locator.parse(locator)
         if parsed.path is None:
-            token = self._access(parsed, locator)
-            info = self._repository(parsed, token, locator)
-            commit = self._pin(parsed, info.default_branch, token)
+            info = self._repository(parsed, None, locator)
+            commit = self._pin(parsed, info.default_branch, None)
             return self._repository_record(info, pinned=commit)
-        return self.retrieve(locator).record
+        return self._read(parsed, locator, token=None).record
 
-    def retrieve(self, locator: str) -> PinnedContent:
-        """The provider half of §17.21's snapshot: resolve, pin, read, hash. GH-001."""
+    def retrieve(self, locator: str, *, project_id: str) -> PinnedContent:
+        """The provider half of §17.21's snapshot: resolve, pin, read, hash. GH-001.
+
+        For ``project_id`` only, and only if it is this connector's project: checked before
+        anything else (GH-002).
+        """
+        if project_id != self._policy.project_id:
+            self._refuse(
+                "PROJECT_SCOPE_MISMATCH",
+                locator,
+                ConnectorErrorKind.NOT_AUTHORIZED,
+                "this connector carries another project's access policy and serves no other "
+                "project; nothing was resolved or requested (GH-002)",
+                project_id=project_id,
+            )
         parsed = Locator.parse(locator)
+        return self._read(parsed, locator, token=self._access(parsed, locator))
+
+    def _read(self, parsed: Locator, locator: str, *, token: str | None) -> PinnedContent:
         if parsed.path is None or parsed.ref is None:
             raise ConnectorError(
                 ConnectorErrorKind.NOT_FOUND,
@@ -242,7 +284,6 @@ class GitHubConnector:
                 detail="retrieval needs a file locator with a ref: "
                 "github:<owner>/<repo>@<ref>:<path>",
             )
-        token = self._access(parsed, locator)
         info = self._repository(parsed, token, locator)
         commit = self._pin(parsed, parsed.ref, token)
         try:
@@ -273,6 +314,8 @@ class GitHubConnector:
                 "resolved_commit": commit,
                 "path": parsed.path,
                 "access_policy": self._policy.ref,
+                "access_project": self._policy.project_id,
+                "authenticated": "yes" if token is not None else "no",
             },
         )
         return PinnedContent(
@@ -281,11 +324,20 @@ class GitHubConnector:
 
     # -- internals ------------------------------------------------------------------------
 
-    def _refuse(self, reason: str, locator: str, kind: ConnectorErrorKind, detail: str) -> None:
+    def _refuse(
+        self,
+        reason: str,
+        locator: str,
+        kind: ConnectorErrorKind,
+        detail: str,
+        *,
+        project_id: str | None = None,
+    ) -> None:
+        """Audit by digest and raise. The refusal is recorded in the REQUESTING project's log."""
         self._audit.record_refusal(
             ConnectorRefusal(
                 provider_id=PROVIDER_ID,
-                project_id=self._policy.project_id,
+                project_id=project_id or self._policy.project_id,
                 reason_code=reason,
                 locator_digest=ConnectorRefusal.digest(locator),
                 at=self._now(),
@@ -298,7 +350,7 @@ class GitHubConnector:
         if parsed.full_name not in self._policy.private_allowlist:
             return None
         token = (
-            self._credentials.resolve(self._policy.credential_ref)
+            self._credentials.resolve(self._policy.project_id, self._policy.credential_ref)
             if self._policy.credential_ref is not None
             else None
         )

@@ -61,6 +61,35 @@ class Visibility(StrEnum):
     PRIVATE = "PRIVATE"
 
 
+class ExternalAccessScope(CoreModel):
+    """Whose authorization an adapter carries (GH-002): one project's, and only that project's.
+
+    An adapter that holds an allowlist or can resolve a credential belongs to exactly one project,
+    and serves no other. This is the provider-neutral statement of that binding -- what the
+    registry checks at registration, what the snapshot service checks before any authenticated
+    request and again before any snapshot is written, and what `002d` checks for every writer of
+    SQL: material read under a scope is stored only in the scope's project, and private material
+    only when its repository is on the scope's allowlist.
+
+    The credential itself is not here and never is; `policy_ref` names the authored, versioned
+    policy the credential reference belongs to.
+    """
+
+    policy_ref: str
+    project_id: str
+    provider: str
+    declared_by_actor_id: str
+    #: Container names (e.g. "owner/repo") this project may read privately. Empty: public only.
+    private_allowlist: frozenset[str] = frozenset()
+
+    @model_validator(mode="after")
+    def _a_scope_is_declared(self) -> Self:
+        for name in ("policy_ref", "project_id", "provider", "declared_by_actor_id"):
+            if not str(getattr(self, name)).strip():
+                raise ValueError(f"an access scope names its {name}")
+        return self
+
+
 class ExternalSnapshot(CoreModel):
     snapshot_id: str
     project_id: str
@@ -172,6 +201,7 @@ __all__ = [
     "COMMIT_PINNED_SOURCE_TYPES",
     "NON_EXTERNAL_TRUST",
     "TECHNICAL_SOURCE_TYPES",
+    "ExternalAccessScope",
     "ExternalSnapshot",
     "ExternalSourceEvent",
     "ExternalSourceEventKind",

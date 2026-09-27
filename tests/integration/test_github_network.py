@@ -34,11 +34,11 @@ def test_a_public_file_on_github_pins_to_a_commit_and_hashes_what_was_read():
             project_id="prj:live",
             declared_by_actor_id="act:pi",
         ),
-        credentials=StaticCredentials({}),
+        credentials=StaticCredentials({"prj:live": {}}),
         audit=InMemoryConnectorAudit(),
         now=lambda: dt.datetime.now(dt.UTC),
     )
-    pinned = connector.retrieve("github:octocat/Hello-World@master:README")
+    pinned = connector.retrieve("github:octocat/Hello-World@master:README", project_id="prj:live")
     commit = pinned.record.version_ref
     assert commit is not None and len(commit) == 40
     assert pinned.record.canonical_locator == f"github:octocat/Hello-World@{commit}:README"

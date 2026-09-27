@@ -84,7 +84,9 @@ def test_registration_refuses_declarations_that_contradict_the_adapter():
 @pytest.mark.spec_test("T-GH-003")
 def test_a_provider_cannot_promote_its_own_records_above_its_ceiling():
     world = build()
-    record = world.github.retrieve("github:photonics-lab/pn-modulator-sim@main:README.md").record
+    record = world.github.retrieve(
+        "github:photonics-lab/pn-modulator-sim@main:README.md", project_id=PROJECT
+    ).record
     assert world.registry.clamp(record) == record
     promoted = ExternalSourceRecord(**{**record.__dict__, "trust_class": TrustClass.PEER_REVIEWED})
     with pytest.raises(ConnectorRegistrationError, match="does not get to promote"):
@@ -106,7 +108,9 @@ def test_removing_the_github_provider_changes_nothing_but_the_searched_set():
     assert {r.canonical_locator for r in after} == {
         r.canonical_locator for r in before if r.provider == "literature"
     }
-    assert world.registry.router(runner=world.runner, classifier=None).providers == (  # type: ignore[arg-type]
+    assert world.registry.router(
+        project_id=PROJECT, runner=world.runner, classifier=None
+    ).providers == (  # type: ignore[arg-type]
         "literature",
     )
 

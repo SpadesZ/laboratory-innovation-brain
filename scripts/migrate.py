@@ -231,6 +231,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # last because its attestation guard reads source_works and it references actors, projects and
     # artifacts only.
     "002c_external_snapshots.sql",
+    # M5 / GH-002. Access scopes, and the guard that a snapshot was read under its own project's
+    # scope. After 002c, whose table it guards and whose append-only function it reuses.
+    "002d_external_access_scopes.sql",
 )
 
 _BOOTSTRAP = """

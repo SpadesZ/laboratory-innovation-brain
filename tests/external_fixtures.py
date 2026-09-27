@@ -7,7 +7,14 @@ literature request except the `network`-marked one, which is deselected by defau
 
 The egress policy opens GitHub and the literature provider to PUBLIC material only, so a query
 derived from INTERNAL or restricted context is refused before the transport is entered (SEC-001,
-§22 "restricted context 不得被用於 uncontrolled public search").
+§22 "restricted context 不得被用於 uncontrolled public search"). It approves GitHub for every project
+on purpose: egress approval is per project, and it is NOT what keeps project B out of project A's
+authorization -- the access scope is (GH-002), and the cross-project tests rely on egress saying yes.
+
+The GitHub connector is registered for the world's project, as its access scope requires; the
+literature adapter holds no authorization and is registered deployment-wide. Credentials live in one
+deployment-wide resolver, namespaced by project -- `world.secrets` -- so a test can give project A a
+secret and check that project B's policy cannot reach it by naming the same reference.
 """
 
 from __future__ import annotations
@@ -84,13 +91,14 @@ class Ids:
 
 
 def runner(project_id: str = PROJECT) -> AuthorizedExternalRunner:
+    del project_id  # every project gets the same egress approval; see the module docstring
     public_only = frozenset({SensitivityLabel.PUBLIC})
     return AuthorizedExternalRunner(
         gate=EgressGate(
-            policy_for=lambda _p: EgressPolicy(
-                policy_id="egp:m5",
+            policy_for=lambda p: EgressPolicy(
+                policy_id=f"egp:{p}",
                 version="1.0.0",
-                project_id=project_id,
+                project_id=p,
                 mode=PrivacyMode.RESEARCH,
                 declared_by_actor_id="act:pi",
                 permitted_labels=public_only,
@@ -109,10 +117,11 @@ def access_policy(
     allowlist: frozenset[str] = frozenset(),
     credential_ref: str | None = None,
     project_id: str = PROJECT,
+    version: str = "1.0.0",
 ) -> GitHubAccessPolicy:
     return GitHubAccessPolicy(
-        policy_id="ghp:m5",
-        version="1.0.0",
+        policy_id="ghp:" + project_id.removeprefix("prj:"),
+        version=version,
         project_id=project_id,
         declared_by_actor_id="act:pi",
         private_allowlist=allowlist,
@@ -132,7 +141,34 @@ class ExternalWorld:
     runner: AuthorizedExternalRunner
     clock: Clock
     mint: Ids
+    #: project id -> credential reference -> secret; the deployment's one resolver reads this.
+    secrets: dict[str, dict[str, str]] = field(default_factory=dict)
     extra: dict[str, Any] = field(default_factory=dict)
+
+    def github_for(
+        self,
+        project_id: str,
+        *,
+        allowlist: frozenset[str] = frozenset(),
+        credential_ref: str | None = None,
+        secrets: dict[str, str] | None = None,
+        register: bool = True,
+    ) -> GitHubConnector:
+        """A second project's own connector on the same host, resolver and audit."""
+        if secrets:
+            self.secrets.setdefault(project_id, {}).update(secrets)
+        connector = GitHubConnector(
+            transport=self.transport,
+            policy=access_policy(
+                allowlist=allowlist, credential_ref=credential_ref, project_id=project_id
+            ),
+            credentials=StaticCredentials(self.secrets),
+            audit=self.service,
+            now=self.clock,
+        )
+        if register:
+            self.registry.register(connector, github_declaration(), project_id=project_id)
+        return connector
 
 
 def build(
@@ -156,6 +192,7 @@ def build(
     authorized = runner(project_id)
     classifier = labelled(context_labels or {}, project_id=project_id)
     service_holder: dict[str, ExternalSnapshotService] = {}
+    vault: dict[str, dict[str, str]] = {project_id: dict(secrets or {})}
 
     class _Audit:
         def record_refusal(self, refusal: Any) -> None:
@@ -166,13 +203,13 @@ def build(
         policy=access_policy(
             allowlist=allowlist, credential_ref=credential_ref, project_id=project_id
         ),
-        credentials=StaticCredentials(secrets or {}),
+        credentials=StaticCredentials(vault),
         audit=_Audit(),
         now=clock,
     )
     literature = LiteratureCorpusAdapter.from_file(LITERATURE_FIXTURE, now=clock)
     if with_github:
-        registry.register(github, github_declaration())
+        registry.register(github, github_declaration(), project_id=project_id)
     registry.register(literature, literature_declaration())
     service = ExternalSnapshotService(
         registry=registry,
@@ -197,6 +234,7 @@ def build(
         runner=authorized,
         clock=clock,
         mint=mint,
+        secrets=vault,
     )
 
 

@@ -39,6 +39,15 @@ narrowly, because an unavailable source pushes every conclusion on it to review:
                                             the project's own decision, not the source's removal
     any other NOT_FOUND                     the container or version is gone
 
+ONE PROJECT'S AUTHORIZATION SERVES ONE PROJECT (GH-002). The adapter is looked up for the
+requesting project -- its own scoped adapter, else a project-neutral one, never another project's --
+and a provider registered only under other projects' authorization is refused and audited by digest
+in the requesting project's log BEFORE any egress. The adapter is then asked to retrieve FOR that
+project and refuses any other. After retrieval, and before anything is kept, the record must say it
+was read under this project's scope; private material read under any other is refused and nothing
+is stored. The scope is recorded before the snapshot that names it, and `002d` refuses a snapshot
+whose scope belongs to another project, or private material off its scope's allowlist.
+
 SECRET SCAN FIRST (SEC-003). Material that fails the scan is not stored; the snapshot is downgraded
 to METADATA_ONLY with a rule that says why. External code is exactly where credentials leak.
 """
@@ -54,6 +63,7 @@ from lab_brain.core.canonical_json import canonical_bytes
 from lab_brain.core.models.artifact import RightsMetadata
 from lab_brain.core.models.enums import LicenseClass, SensitivityLabel, SourceWorkStatus
 from lab_brain.core.models.external_source import (
+    ExternalAccessScope,
     ExternalSnapshot,
     ExternalSourceEvent,
     ExternalSourceEventKind,
@@ -73,6 +83,7 @@ from lab_brain.sources.external import (
     ConnectorRegistry,
     PinnedContent,
     RetrievingAdapter,
+    access_scope_of,
 )
 
 TEXT_SOURCE_TYPES = frozenset({"paper_passage", "web_page"})
@@ -245,7 +256,9 @@ class ExternalSnapshotService:
         context_artifact_ids: Sequence[str] = (),
         escalate: frozenset[SensitivityLabel] = frozenset({SensitivityLabel.PUBLIC}),
     ) -> tuple[ExternalSourceRecord, ...]:
-        router = self._registry.router(runner=self._runner, classifier=self._classifier)
+        router = self._registry.router(
+            project_id=project_id, runner=self._runner, classifier=self._classifier
+        )
         found = router.search(
             query,
             project_id=project_id,
@@ -278,9 +291,19 @@ class ExternalSnapshotService:
         context_artifact_ids: Sequence[str] = (),
         escalate: frozenset[SensitivityLabel] = frozenset({SensitivityLabel.PUBLIC}),
     ) -> ExternalSnapshot:
-        adapter = self._registry.adapter(provider_id)
-        if adapter is None:
-            raise SnapshotRefused(f"no provider {provider_id} is registered")
+        adapter = self._registry.adapter(provider_id, project_id=project_id)
+        scope = access_scope_of(adapter)
+        if adapter is None or (scope is not None and scope.project_id != project_id):
+            if adapter is not None or self._registry.registered_elsewhere(
+                provider_id, project_id=project_id
+            ):
+                # Another project's authorization exists for this provider; this project has
+                # none. Refused before egress, and audited here, by digest (GH-002).
+                self._refuse_scope(provider_id, locator, project_id, "NO_ACCESS_SCOPE_FOR_PROJECT")
+            raise SnapshotRefused(
+                f"no provider {provider_id} is registered for project {project_id}; another "
+                "project's access is never used in its place (GH-002)"
+            )
         if not isinstance(adapter, RetrievingAdapter) or not adapter.capabilities().can_snapshot:
             raise SnapshotRefused(f"{provider_id} cannot retrieve pinned content")
         effect = ExternalEffect(
@@ -295,7 +318,7 @@ class ExternalSnapshotService:
         )
 
         def _retrieve() -> PinnedContent:
-            return adapter.retrieve(locator)
+            return adapter.retrieve(locator, project_id=project_id)
 
         try:
             pinned = self._runner.execute(effect, _retrieve)
@@ -303,6 +326,7 @@ class ExternalSnapshotService:
             self._record_failure(failed, project_id, provider_id, locator, actor_id)
             raise
         record = self._registry.clamp(pinned.record)
+        self._within_scope(record, scope, project_id, locator)
         cached = self._store.pinned(project_id, provider_id, record.canonical_locator)
         if cached is not None:
             if cached.content_hash != record.content_hash:
@@ -321,6 +345,8 @@ class ExternalSnapshotService:
             )
             return cached
         earlier = self._store.for_request(project_id, provider_id, locator)
+        if scope is not None:
+            self._store.record_access_scope(scope)
         retention, rule = self._retention.decide(record)
         artifact_id, retention, rule = self._keep(pinned, record, retention, rule, project_id)
         snapshot = self._store.add_snapshot(
@@ -372,6 +398,38 @@ class ExternalSnapshotService:
                 resolved_ref=snapshot.resolved_ref,
             )
         return snapshot
+
+    def _refuse_scope(self, provider_id: str, locator: str, project_id: str, reason: str) -> None:
+        self.record_refusal(
+            ConnectorRefusal(
+                provider_id=provider_id,
+                project_id=project_id,
+                reason_code=reason,
+                locator_digest=ConnectorRefusal.digest(locator),
+                at=self._now(),
+            )
+        )
+
+    def _within_scope(
+        self,
+        record: ExternalSourceRecord,
+        scope: ExternalAccessScope | None,
+        project_id: str,
+        locator: str,
+    ) -> None:
+        """Before anything is kept: the record was read under THIS project's scope (GH-002)."""
+        read_for = record.metadata.get("access_project")
+        policy = record.metadata.get("access_policy")
+        foreign = read_for is not None and read_for != project_id
+        if scope is not None:
+            foreign = foreign or policy != scope.policy_ref or scope.project_id != project_id
+        unscoped_private = record.visibility.value != Visibility.PUBLIC.value and scope is None
+        if foreign or unscoped_private:
+            self._refuse_scope(record.provider, locator, project_id, "ACCESS_SCOPE_MISMATCH")
+            raise SnapshotRefused(
+                f"{record.provider} returned material read under another access scope than "
+                f"project {project_id}'s; nothing is kept (GH-002)"
+            )
 
     def _keep(
         self,

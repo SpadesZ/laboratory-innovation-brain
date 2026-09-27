@@ -10,6 +10,7 @@ import json
 
 import pytest
 
+from lab_brain.core.models.external_source import ExternalAccessScope
 from lab_brain.core.repositories.external_sources import SqlExternalSourceStore
 from lab_brain.sources.adapter import SourceQuery
 from lab_brain.sources.errors import ConnectorError
@@ -174,8 +175,21 @@ def test_sql_refuses_unpinned_promoted_or_misattributed_snapshots(db):
     for internal in ("INTERNAL_RUN", "INTERNAL_MEASUREMENT", "EXPERT_HEURISTIC"):
         with pytest.raises(Exception, match="external_snapshots_trust_class_check"):
             _insert_snapshot(db, artifact, source_type="paper_passage", trust_class=internal)
-    with pytest.raises(Exception, match="external_snapshots_private_is_not_public"):
+    # `002d`: private material names an access scope of its own project...
+    with pytest.raises(Exception, match="no access scope"):
         _insert_snapshot(db, artifact, visibility="PRIVATE")
+    # ...and with one, `002c`'s label CHECK still holds on its own.
+    SqlExternalSourceStore(db).record_access_scope(
+        ExternalAccessScope(
+            policy_ref="ghp:raw@1.0.0",
+            project_id=PROJECT,
+            provider="github",
+            declared_by_actor_id="act:pi",
+            private_allowlist=frozenset({"o/r"}),
+        )
+    )
+    with pytest.raises(Exception, match="external_snapshots_private_is_not_public"):
+        _insert_snapshot(db, artifact, visibility="PRIVATE", access_policy_ref="ghp:raw@1.0.0")
     with pytest.raises(Exception, match="FULL_CONTENT"):
         _insert_snapshot(db, artifact, retention="FULL_CONTENT")
     db.execute(

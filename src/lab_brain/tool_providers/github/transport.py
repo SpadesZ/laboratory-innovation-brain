@@ -91,6 +91,8 @@ class FixtureGitHubTransport:
     rate_limited: bool = False
     network_down: bool = False
     calls: list[tuple[str, str, bool]] = field(default_factory=list)
+    #: Every token presented, in order -- so a test can say WHOSE credential reached the host.
+    presented: list[str] = field(default_factory=list)
 
     name: str = "fixture-github (no network)"
 
@@ -104,6 +106,8 @@ class FixtureGitHubTransport:
 
     def _gate(self, op: str, full_name: str, token: str | None) -> dict[str, Any]:
         self.calls.append((op, full_name, token is not None))
+        if token is not None:
+            self.presented.append(token)
         if self.network_down:
             raise TransportError(NETWORK, "connection refused")
         if self.rate_limited:
