@@ -242,9 +242,9 @@ Both apply cleanly on a fresh database (48 migrations) and are idempotent.
 
 ## 9. Verification
 
-**At the P0-repair commit** (lineage: `6416adb` M3 hard-lock → `a0b9fcf` M3 sign-off, M4 begins →
-`241f546` M4 → `457252c` M4 verification record → `3361c77` M5 → `9cf5ba8` M5 verification record
-→ the P0-repair commit; its hash and CI run are added by the verification-record commit after it):
+**At the P0-repair commit `26ad26cab27dda75b288c0d14fd77f6f4d2ab922`** (lineage: `6416adb` M3
+hard-lock → `a0b9fcf` M3 sign-off, M4 begins → `241f546` M4 → `457252c` M4 verification record →
+`3361c77` M5 → `9cf5ba8` M5 verification record → `26ad26c` P0 repair + TST-001 blocker record):
 
 | Gate | Result |
 |---|---|
@@ -259,7 +259,7 @@ Both apply cleanly on a fresh database (48 migrations) and are idempotent.
 | `rebuild_obligation_inventory.py --check`; segmentation and debate benchmark reports | 84 occurrences, in sync; both reports current |
 | `update_status.py --check` | current; GH-001/002/003 IN_PROGRESS with test files |
 | `check_commit_messages.py` | no AI attribution |
-| GitHub Actions CI | recorded by the verification-record commit that follows |
+| GitHub Actions CI (commit hygiene, spec conformance, lint/types/full suite, PostgreSQL backend) | success, run 36330841315 |
 | live GitHub (`network` marker) | **not run** — no external access was attempted |
 | TST-001 licensed Lumerical replay (M4) | **attempted; externally blocked** — M4-readiness.md §11 |
 
