@@ -238,6 +238,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # scope cannot be proven coherent, and keeps quarantined material out of use. After 002d, whose
     # scope table it reads, and after 003/004/004a/005a, whose tables it guards.
     "002e_external_snapshot_quarantine.sql",
+    # Product vertical / episode continuation. The research runs of an episode: the opener
+    # binding, one live run, one reasoning history. After 006b (episodes), 005e (hypothesis sets
+    # and `m3_episode_is_in_project`), 001 (actors, projects) and 002 (artifacts).
+    "012c_research_runs.sql",
 )
 
 _BOOTSTRAP = """

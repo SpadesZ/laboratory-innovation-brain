@@ -70,6 +70,20 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
 - 沒有設定語言模型時，假說／批判由 DomainPack 機制目錄的本地規則推理器產生，並在
   InferenceProvenance 與報告中如實標示（`rules:<catalog>`，非 LLM）。
 
+### 續跑同一個 episode：`--episode`
+
+```powershell
+.\.venv\Scripts\lab-brain.exe research run `
+  --project prj:ps-rs --actor act:rkuo --episode <episode id> --artifact-root .\artifacts
+```
+
+- `research run` 不帶 `--episode` 一律開**新** episode（id 由系統產生）；帶 `--episode` 只代表**續跑**。
+- 只能續跑**自己開的**、**同一 project** 內、處於 SUSPENDED 的 episode；未知的 id、別的 project 的
+  episode、同事開的 episode 一律得到同一句拒絕，且不寫入任何資料列。
+- COMPLETED / ABANDONED 的 episode 不接受新的 research run；另一個 run 正在進行時也拒絕。
+- 續跑經由 `episode_resume`（正式生命週期）恢復，沿用第一次 run 的假說集合、辯論、驗證輸入與框架，
+  **不重新辯論**、不接受新輸入；已執行過的檢查不會再執行；每次 run 記錄於 `research_runs`。
+
 設計與驗證記錄：[`docs/implementation/product-vertical.md`](docs/implementation/product-vertical.md)。
 
 ## 專案結構

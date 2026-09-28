@@ -7,6 +7,7 @@ import datetime as dt
 from lab_brain.research.render import render_markdown
 from lab_brain.research.report import (
     Conclusion,
+    ContinuationSection,
     EpisodeReport,
     InputStatus,
     PendingAction,
@@ -92,3 +93,32 @@ def test_the_report_is_plain_markdown_and_table_cells_cannot_break_their_table()
     assert "a\\|b.md" in text
     rows = [line for line in text.splitlines() if line.startswith("| a")]
     assert len(rows) == 1 and rows[0].count(" | ") == 6, "one row, seven cells"
+
+
+def test_a_continuation_says_which_run_it_is_and_what_it_did_not_redo():
+    """A reader must never mistake a continuation for a fresh episode, or a check an earlier run
+    executed for one this run skipped."""
+    fresh = render_markdown(_report())
+    assert "Continuation" not in fresh
+    text = render_markdown(
+        _report(
+            continuation=ContinuationSection(
+                run_ordinal=2,
+                resumed_from="SUSPENDED (awaiting simulator) to EVIDENCE_GATHERING through "
+                "episode_resume",
+                reasoning="hypothesis set `hst:1` and debate `dbt:1`, recorded by run 1 -- reused, "
+                "not debated again",
+                earlier_runs=("run 1 (`rrn:1`) by `act:a`, started T: SUSPENDED:PROVISIONAL",),
+                earlier_checks=("`cap:x` -- job `job:1`, run `run:1`",),
+                superseded_jobs=("job `job:2` was parked by an earlier run and never ran",),
+            )
+        )
+    )
+    assert "## Continuation: run 2 of this episode" in text
+    assert "Resumed from SUSPENDED (awaiting simulator)" in text
+    assert "- run 1 (`rrn:1`)" in text
+    assert "Checks executed by earlier runs (not executed again):" in text
+    assert "- `cap:x` -- job `job:1`, run `run:1`" in text
+    assert "- job `job:2` was parked" in text
+    assert "This run admitted no statement." in text
+    assert text.index("## Continuation") < text.index("## Result")

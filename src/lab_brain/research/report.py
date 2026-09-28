@@ -151,6 +151,21 @@ class Conclusion:
 
 
 @dataclass(frozen=True)
+class ContinuationSection:
+    """A continued episode: which run of it this is, what it resumed from and over which reasoning,
+    and what earlier runs already did -- so a reader never mistakes a continuation for a fresh
+    episode, or a check an earlier run executed for one this run skipped."""
+
+    run_ordinal: int
+    resumed_from: str
+    reasoning: str
+    earlier_runs: tuple[str, ...]
+    earlier_checks: tuple[str, ...]
+    superseded_jobs: tuple[str, ...] = ()
+    recovered: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class EpisodeReport:
     episode_id: str
     project_id: str
@@ -181,12 +196,15 @@ class EpisodeReport:
     deployment: tuple[str, ...]
     not_performed: tuple[str, ...]
     notes: tuple[str, ...] = field(default_factory=tuple)
+    #: Set when this run CONTINUED an episode (`research.continuation`); `None` for an opening run.
+    continuation: ContinuationSection | None = None
 
 
 __all__ = [
     "ActionLine",
     "BeliefLine",
     "Conclusion",
+    "ContinuationSection",
     "DebateSection",
     "EpisodeReport",
     "EvidenceLine",

@@ -104,6 +104,8 @@ _ID_PREFIXES: Final[dict[str, str]] = {
     # is given, and that raised -- so `lab-brain episode open` without `--episode` could not work.
     # `epi` is the prefix every episode id in the repository already uses.
     "episode": "epi",
+    # One `lab-brain research run` against an episode (`012c`): the opening run or a continuation.
+    "research_run": "rrn",
 }
 
 

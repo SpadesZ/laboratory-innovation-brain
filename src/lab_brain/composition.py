@@ -54,7 +54,7 @@ from lab_brain.core.models.evidence_unit import EvidenceUnit
 from lab_brain.core.models.identifiers import new_id
 from lab_brain.core.models.inference import InferenceProvenance
 from lab_brain.core.models.job import Job, JobState, Run, RunStatus
-from lab_brain.core.repositories.episodes import SqlEpisodeStore
+from lab_brain.core.repositories.episodes import EpisodeStoreError, SqlEpisodeStore
 from lab_brain.core.repositories.inference import SqlInferenceProvenanceStore
 from lab_brain.core.repositories.jobs import SqlJobStore
 from lab_brain.core.scientific_read import (
@@ -567,8 +567,14 @@ class IngestionService:
 
         The episode owns the trace and every Job in it inherits that trace -- `006b` refuses a
         Job on a different one, so the chain cannot be broken at its head.
+
+        Idempotent for a RETRY of this open: the same id, project, trace and goal return the
+        episode that landed. An id that already names a DIFFERENT episode -- another project's
+        above all -- is refused, never returned: returning it would hand the caller an episode it
+        did not open and let an id be probed across projects. The refusal names only the id the
+        caller chose. (Continuing an episode is not opening one: see `research.continuation`.)
         """
-        return self._episodes.open(
+        stored = self._episodes.open(
             ResearchEpisode(
                 episode_id=episode_id or new_id("episode"),
                 project_id=project_id,
@@ -578,6 +584,12 @@ class IngestionService:
                 start_time=self._clock(),
             )
         )
+        if (stored.project_id, stored.trace_id, stored.goal) != (project_id, trace_id, goal):
+            raise EpisodeStoreError(
+                f"episode id {stored.episode_id} is already taken by another episode; an episode "
+                "is opened once, under an id of its own"
+            )
+        return stored
 
     def suspend_episode(self, episode_id: str, *, reason: str) -> ResearchEpisode:
         """Park the EPISODE, not just its job.

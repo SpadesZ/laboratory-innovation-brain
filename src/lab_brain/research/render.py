@@ -32,6 +32,26 @@ def render_markdown(report: EpisodeReport) -> str:
     add(f"Started {r.started_at.isoformat()} | finished {r.finished_at.isoformat()}")
     add("")
 
+    if r.continuation is not None:
+        k = r.continuation
+        add(f"## Continuation: run {k.run_ordinal} of this episode")
+        add("")
+        add(f"Resumed from {k.resumed_from}.")
+        add("")
+        add(f"Reasoning: {k.reasoning}.")
+        add("")
+        add("Earlier runs:")
+        for line in k.earlier_runs:
+            add(f"- {line}")
+        if k.earlier_checks:
+            add("")
+            add("Checks executed by earlier runs (not executed again):")
+            for line in k.earlier_checks:
+                add(f"- {line}")
+        for line in (*k.superseded_jobs, *k.recovered):
+            add(f"- {line}")
+        add("")
+
     add("## Result")
     add("")
     add(f"**{r.conclusion.status}** -- {r.conclusion.statement}")
@@ -83,6 +103,11 @@ def render_markdown(report: EpisodeReport) -> str:
                 f"- `{e.attestation_id}` ({e.origin}, {e.trust_class}) {_cell(e.source)} "
                 f"[{e.locator}]: '{_clip(e.excerpt)}'"
             )
+    elif r.continuation is not None:
+        add(
+            "- This run admitted no statement. The statements the hypotheses were debated over "
+            "were admitted by run 1 of this episode and stand unchanged."
+        )
     else:
         add("- No statement was admitted as evidence.")
     add("")

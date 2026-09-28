@@ -5,7 +5,9 @@ a thin entry point over `lab_brain.research.ResearchEpisodeService`, which compo
 authorities (ingestion, evidence admission, external literature, the M3 debate, the M4 verification
 loop) and decides nothing itself; this module parses arguments, opens the connection, selects the
 domain's product vertical BY NAME (the `lab_brain.domain_verticals` entry points -- no pack is
-imported here), and prints the rendered report.
+imported here), and prints the rendered report. Without `--episode` it opens a new episode; with
+`--episode E` it CONTINUES E -- the actor's own suspended episode in that project, over its own
+inputs and hypotheses -- and refuses everything else (`lab_brain.research.continuation`).
 
 M1's scope names *IngestionItem / ErrorRecord / MessageCatalog + CLI inbox*, and M4's VS-SP-001
 definition of done adds one sentence: "CLI 可從一個 project/fixture 建立 episode". So there are
@@ -62,6 +64,7 @@ from lab_brain.composition import IngestionService
 from lab_brain.core.models.base import utc_now
 from lab_brain.core.models.enums import SensitivityLabel, TrustClass
 from lab_brain.core.models.job import Job
+from lab_brain.core.repositories.episodes import EpisodeStoreError
 from lab_brain.core.scientific_read import ScientificReadRefused
 from lab_brain.interfaces.config import (
     ConfigurationError,
@@ -69,6 +72,7 @@ from lab_brain.interfaces.config import (
     open_connection,
     read_settings,
 )
+from lab_brain.research.continuation import ContinuationRefused
 from lab_brain.research.literature import LiteratureRequest
 from lab_brain.research.render import render_markdown
 from lab_brain.research.service import InputDocument, ResearchEpisodeService, ResearchRequest
@@ -271,7 +275,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ran.add_argument("--project", required=True)
     ran.add_argument("--actor", required=True)
-    ran.add_argument("--goal", required=True, help="the research question, in your own words")
+    ran.add_argument(
+        "--goal",
+        help="the research question, in your own words (required unless --episode continues one)",
+    )
     ran.add_argument("--artifact-root", required=True, help="where raw bytes are stored")
     ran.add_argument(
         "--domain",
@@ -317,13 +324,19 @@ def build_parser() -> argparse.ArgumentParser:
     ran.add_argument("--symptom")
     ran.add_argument("--expected")
     ran.add_argument("--observed")
-    ran.add_argument("--episode", help="episode id; minted when omitted")
+    ran.add_argument(
+        "--episode",
+        help=(
+            "CONTINUE this suspended episode of yours in --project: resumed through its lifecycle, "
+            "over its own hypotheses and inputs (no new inputs are taken). Omit to open a new "
+            "episode, whose id is minted"
+        ),
+    )
     ran.add_argument("--trace", help="trace id; minted when omitted")
     ran.add_argument(
         "--sensitivity",
-        default=SensitivityLabel.INTERNAL.value,
         choices=[label.value for label in SensitivityLabel],
-        help="the classification of the goal and the files in this project",
+        help="the classification of the goal and the files in this project (default INTERNAL)",
     )
     ran.add_argument("--report", metavar="FILE", help="also write the report (Markdown) here")
     return parser
@@ -354,9 +367,14 @@ def run_episode_open(
     One Job per file, keyed by the episode and the file's content hash, so re-running the same
     command resumes the same Jobs rather than creating duplicates (UX-001's idempotency).
     """
-    episode = service.open_episode(
-        project_id=project_id, goal=goal, trace_id=trace_id, episode_id=episode_id
-    )
+    try:
+        episode = service.open_episode(
+            project_id=project_id, goal=goal, trace_id=trace_id, episode_id=episode_id
+        )
+    except EpisodeStoreError as taken:
+        # The id names another episode. Nothing of it is printed and nothing is ingested into it.
+        print(f"lab-brain: {taken}", file=out)
+        return 1
     print(f"episode   {episode.episode_id}", file=out)
     print(f"trace     {episode.trace_id}", file=out)
     print(f"project   {episode.project_id}", file=out)
@@ -420,6 +438,11 @@ def run_research(
         # One message for every refusal reason -- see `inbox`.
         print(f"No research for {request.actor_id} in {request.project_id}.", file=out)
         return 1
+    except ContinuationRefused as refused:
+        # `EpisodeNotContinuable` is one message for an unknown id, another project's episode and
+        # another actor's; the others are about the actor's own episode.
+        print(str(refused), file=out)
+        return 1
     text = render_markdown(report)
     if report_path is not None:
         report_path.write_text(text, encoding="utf-8")
@@ -440,7 +463,31 @@ def _emit(out: TextIO, text: str) -> None:
         out.write(text.encode(encoding, errors="replace").decode(encoding) + "\n")
 
 
+#: What a continuation cannot carry: it resumes the episode's own inputs and framing.
+_NEW_INPUTS: tuple[tuple[str, str], ...] = (
+    ("measurement", "--measurement"),
+    ("run_record", "--run-record"),
+    ("note", "--note"),
+    ("verification_input", "--verification-input"),
+    ("literature_corpus", "--literature-corpus"),
+    ("literature_query", "--literature-query"),
+    ("symptom", "--symptom"),
+    ("expected", "--expected"),
+    ("observed", "--observed"),
+    ("sensitivity", "--sensitivity"),
+)
+
+
 def _research_request(args: argparse.Namespace) -> ResearchRequest:
+    if args.episode:
+        given = [flag for attribute, flag in _NEW_INPUTS if getattr(args, attribute)]
+        if given:
+            raise ConfigurationError(
+                f"--episode continues an episode over its own inputs; {', '.join(given)} "
+                "cannot be added to it. New evidence to debate is a new episode: omit --episode."
+            )
+    elif not args.goal:
+        raise ConfigurationError("--goal is required to open an episode")
     documents: list[InputDocument] = []
     for option, trust_class in _DOCUMENT_KINDS.items():
         for name in getattr(args, option):
@@ -479,13 +526,13 @@ def _research_request(args: argparse.Namespace) -> ResearchRequest:
     return ResearchRequest(
         project_id=args.project,
         actor_id=args.actor,
-        goal=args.goal,
+        goal=args.goal or "",
         documents=tuple(documents),
         verification_input=verification,
         literature=literature,
         episode_id=args.episode,
         trace_id=args.trace,
-        sensitivity=SensitivityLabel(args.sensitivity),
+        sensitivity=SensitivityLabel(args.sensitivity or SensitivityLabel.INTERNAL.value),
         symptom=args.symptom,
         expected_behavior=args.expected,
         observed_behavior=args.observed,

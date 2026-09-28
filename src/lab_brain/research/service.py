@@ -25,6 +25,12 @@ THE EPISODE ENDS HONESTLY. Confirmed -> the episode is closed with that outcome.
 simulator, a person or a seat -> the episode is SUSPENDED with the reason, so it can be resumed as
 the same episode when the blocker is gone. Nothing sufficient left -> closed INCONCLUSIVE.
 
+A NEW RUN ALWAYS OPENS A NEW EPISODE, under an id this service mints; a caller never names the
+episode a first run writes into. `ResearchRequest.episode_id` means CONTINUE that episode, and only
+`research.continuation`'s rules lead there: the opener's own, SUSPENDED (or left by a run that
+died) episode in this project, resumed through `006b`'s lifecycle, reasoning over the hypothesis set
+it already debated. Every run is recorded in `012c`'s `research_runs` under a lease on its episode.
+
 A STAGE THAT FAILS DOES NOT TAKE THE REPORT WITH IT. Each stage records DONE / SKIPPED / REFUSED /
 FAILED with its reason; later stages that depend on it are SKIPPED and say why. Only authorization
 is fatal: an actor who may not read the project gets no report at all (`ScientificReadRefused`).
@@ -32,9 +38,11 @@ is fatal: an actor who may not read the project gets no report at all (`Scientif
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import hashlib
 from collections.abc import Callable, Sequence
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -55,8 +63,10 @@ from lab_brain.core.models.base import utc_now
 from lab_brain.core.models.belief_event import BeliefRevisionEvent, BeliefState
 from lab_brain.core.models.cost import BudgetCaps, CostVector
 from lab_brain.core.models.enums import SensitivityLabel, TrustClass
+from lab_brain.core.models.episode import EpisodeState
 from lab_brain.core.models.identifiers import new_id
 from lab_brain.core.models.inference import LogicalSlot
+from lab_brain.core.models.job import JobState
 from lab_brain.core.models.transition import TransitionPolicy
 from lab_brain.core.repositories.belief_events import (
     SqlBeliefEventStore,
@@ -84,6 +94,20 @@ from lab_brain.core.revision_gate import HypothesisRevisionGate
 from lab_brain.evidence.dense_index import EmbeddingSpace, hashing_embedder
 from lab_brain.evidence.source_policy import SourcePolicyRegistry, default_source_policies
 from lab_brain.ingestion.admission_gate import EvidenceAdmissionGate
+from lab_brain.research.continuation import (
+    INTERRUPTED,
+    ContinuationJobs,
+    ContinuationRefused,
+    EpisodeFinished,
+    EpisodeInProgress,
+    EpisodeNotContinuable,
+    ExcludingPlanner,
+    PriorVerification,
+    ResearchRunRecord,
+    SqlResearchRunStore,
+    load_debate,
+    prior_verification,
+)
 from lab_brain.research.evidence import (
     DOCUMENT_STATEMENT_SCHEMA,
     AdmittedStatement,
@@ -94,6 +118,7 @@ from lab_brain.research.report import (
     ActionLine,
     BeliefLine,
     Conclusion,
+    ContinuationSection,
     DebateSection,
     EpisodeReport,
     EvidenceLine,
@@ -171,6 +196,9 @@ class ResearchRequest:
     #: (display name, bytes) of the pack's verification input, e.g. a device project.
     verification_input: tuple[str, bytes] | None = None
     literature: LiteratureRequest | None = None
+    #: CONTINUE this episode (`research.continuation`). `None` opens a new one under a minted id.
+    #: A continuation carries no documents, verification input, literature or framing, and its
+    #: goal, when given, must be the episode's.
     episode_id: str | None = None
     trace_id: str | None = None
     #: The classification of the goal and the documents in this project (§14.1).
@@ -199,10 +227,26 @@ class UuidEpisodeIds:
         return f"rvw:{new_id('trace').split(':', 1)[1]}"
 
 
+@dataclass(frozen=True)
+class _Continuation:
+    """What a continuation resumed from, checked before anything was written."""
+
+    earlier: tuple[ResearchRunRecord, ...]
+    resumed_from: str
+    resumed_reason: str | None
+    interrupted: tuple[int, ...]
+    orphaned_jobs: tuple[str, ...]
+    superseded_jobs: tuple[str, ...]
+    prior: PriorVerification
+    debate: DebateOutcome | None
+
+
 @dataclass
 class _Run:
     """What the stages produced, as the report is assembled from it."""
 
+    record: ResearchRunRecord
+    continuation: _Continuation | None = None
     stages: list[StageStatus] = field(default_factory=list)
     inputs: list[InputStatus] = field(default_factory=list)
     statements: list[AdmittedStatement] = field(default_factory=list)
@@ -241,26 +285,291 @@ class ResearchEpisodeService:
     # -- the episode --------------------------------------------------------------------------
 
     def run(self, request: ResearchRequest) -> EpisodeReport:
-        c = self._connection
         # Authorization first and fatal: no episode, no rows, no report for a non-member.
         self._service.read_gate().require_project(
             actor_id=request.actor_id, project_id=request.project_id
         )
-        started = self._clock()
-        jobs = SqlJobStore(c)
+        if request.episode_id is not None:
+            return self._continue(request, request.episode_id)
+        return self._open(request)
+
+    def _open(self, request: ResearchRequest) -> EpisodeReport:
+        """A new episode, under an id minted here -- never one the caller names."""
+        if not request.goal.strip():
+            raise ValueError("a research run that opens an episode needs a goal")
+        c = self._connection
+        ledger = SqlResearchRunStore(c)
+        episode_id = self._mint("episode")
+        if not ledger.lease(episode_id):  # pragma: no cover - nobody else knows a minted id
+            raise EpisodeInProgress(f"episode {episode_id} is held by another research run")
+        record: ResearchRunRecord | None = None
+        try:
+            started = self._clock()
+            vertical, outputs = self._vertical()
+            episode = self._service.open_episode(
+                project_id=request.project_id,
+                goal=request.goal,
+                trace_id=request.trace_id or new_id("trace"),
+                episode_id=episode_id,
+            )
+            # `012c` refuses this row unless the episode is this project's, new and gathering.
+            record = ledger.start(
+                ResearchRunRecord(
+                    research_run_id=self._mint("research_run"),
+                    episode_id=episode.episode_id,
+                    project_id=request.project_id,
+                    actor_id=request.actor_id,
+                    ordinal=1,
+                    hypothesis_set_id=None,
+                    verification_artifact_id=None,
+                    symptom=request.symptom,
+                    expected_behavior=request.expected_behavior,
+                    observed_behavior=request.observed_behavior,
+                    started_at=started,
+                )
+            )
+            run = _Run(record=record)
+            budget = self._budget(request)
+            self._ingest(request, episode.episode_id, episode.trace_id, run)
+            self._verification_input(request, vertical, outputs, run)
+            if run.verification_artifact is not None:
+                ledger.record_verification_input(record.research_run_id, run.verification_artifact)
+            self._literature(request, vertical, run)
+            debated = self._debate(
+                request, vertical, episode.episode_id, episode.trace_id, budget, run
+            )
+            if run.debate is not None:
+                ledger.record_hypothesis_set(
+                    record.research_run_id, run.debate.hypothesis_set.set_id
+                )
+            if debated is not None:
+                self._verify(
+                    request, vertical, episode.episode_id, episode.trace_id, budget, *debated, run
+                )
+            report = self._report(
+                request, vertical, episode.episode_id, episode.trace_id, started, run
+            )
+            ledger.finish(record.research_run_id, outcome=_outcome(report), at=self._clock())
+            return report
+        except BaseException as failed:
+            self._abandon(ledger, record, failed)
+            raise
+        finally:
+            with suppress(Exception):
+                ledger.release(episode_id)
+
+    def _continue(self, request: ResearchRequest, episode_id: str) -> EpisodeReport:
+        """The same episode, resumed through its lifecycle, over the reasoning it already has.
+
+        Every refusal happens before the first write. The order is the security argument: the
+        request's own shape first (no read at all), then ONE scoped lookup whose every miss gets
+        the same answer, and only then -- for the opener's own episode -- the lease and the state.
+        """
+        _require_nothing_new(request)
+        c = self._connection
+        ledger = SqlResearchRunStore(c)
+        opener = ledger.opener(project_id=request.project_id, episode_id=episode_id)
+        if opener is None or opener.actor_id != request.actor_id:
+            raise EpisodeNotContinuable(
+                episode_id=episode_id, actor_id=request.actor_id, project_id=request.project_id
+            )
+        if not ledger.lease(episode_id):
+            raise EpisodeInProgress(
+                f"Episode {episode_id} has a research run in progress; continue it after that "
+                "run has finished."
+            )
+        record: ResearchRunRecord | None = None
+        try:
+            # Read again under the lease: the opening run records its set and input while it is
+            # live, so only now is what it recorded final. Who opened it cannot have changed.
+            opener = ledger.opener(project_id=request.project_id, episode_id=episode_id) or opener
+            episodes = SqlEpisodeStore(c)
+            episode = episodes.get(episode_id)
+            assert episode is not None  # `012c`'s foreign key from the opening run
+            if episode.state in (EpisodeState.COMPLETED, EpisodeState.ABANDONED):
+                raise EpisodeFinished(
+                    f"Episode {episode_id} is {episode.state.value} "
+                    f"({episode.outcome_status or 'no outcome recorded'}); a finished episode "
+                    "receives no new research run. Open a new episode: `research run` without "
+                    "--episode."
+                )
+            if request.goal.strip() and request.goal != episode.goal:
+                raise ContinuationRefused(
+                    f"Episode {episode_id} is about {episode.goal!r}; a continuation keeps the "
+                    "episode's goal. Open a new episode for a new question."
+                )
+            if request.trace_id is not None and request.trace_id != episode.trace_id:
+                raise ContinuationRefused(
+                    f"Episode {episode_id} runs on trace {episode.trace_id}; a continuation keeps "
+                    "the episode's trace."
+                )
+            # The reasoning history, loaded and checked BEFORE anything is written.
+            debate: DebateOutcome | None = None
+            if opener.hypothesis_set_id is not None:
+                debate = load_debate(
+                    c,
+                    project_id=request.project_id,
+                    episode_id=episode_id,
+                    set_id=opener.hypothesis_set_id,
+                )
+            elif sets := ledger.other_hypothesis_sets(
+                project_id=request.project_id, episode_id=episode_id
+            ):
+                raise ContinuationRefused(
+                    f"Episode {episode_id}'s opening run was interrupted after its debate wrote "
+                    f"{', '.join(sets)} and before the run recorded it; an incomplete reasoning "
+                    "history is neither continued nor replaced. Open a new episode."
+                )
+            if (
+                opener.verification_artifact_id is not None
+                and self._read_bytes(opener.verification_artifact_id) is None
+            ):
+                raise ContinuationRefused(
+                    f"Episode {episode_id}'s verification input {opener.verification_artifact_id} "
+                    "is not in this artifact store; continue with the --artifact-root the episode "
+                    "was run with."
+                )
+
+            # -- writes start here -----------------------------------------------------------
+            started = self._clock()
+            # We hold the lease, so a run still marked live died with its connection.
+            interrupted = ledger.interrupt_live(
+                project_id=request.project_id, episode_id=episode_id, at=started
+            )
+            jobs = SqlJobStore(c)
+            prior = prior_verification(
+                jobs, c, project_id=request.project_id, episode_id=episode_id
+            )
+            research_run_id = self._mint("research_run")
+            for orphan in prior.orphaned:
+                jobs.transition(
+                    orphan.job_id,
+                    JobState.FAILED,
+                    started,
+                    structured_error={
+                        "code": "RESEARCH_RUN_INTERRUPTED",
+                        "detail": (
+                            f"the research run executing this job on episode {episode_id} ended "
+                            "without recording a Run; a continuation does not resume an "
+                            "execution whose outcome it cannot know"
+                        ),
+                    },
+                )
+            for parked in prior.parked:
+                jobs.transition(
+                    parked.job_id,
+                    JobState.CANCELLED,
+                    started,
+                    structured_error={
+                        "code": "SUPERSEDED_BY_CONTINUATION",
+                        "detail": (
+                            f"parked by an earlier research run of episode {episode_id} and never "
+                            f"run; research run {research_run_id} continues the episode and "
+                            "submits its own job if it still chooses this check"
+                        ),
+                    },
+                )
+            resumed_from, resumed_reason = episode.state.value, episode.suspend_reason
+            # THE AUTHORITATIVE LIFECYCLE: `episode_resume` locks the row and refuses a finished
+            # episode; `012c` refuses the run below unless the episode is now gathering evidence.
+            episode = episodes.resume(episode_id)
+            earlier = ledger.runs(project_id=request.project_id, episode_id=episode_id)
+            record = ledger.start(
+                ResearchRunRecord(
+                    research_run_id=research_run_id,
+                    episode_id=episode_id,
+                    project_id=request.project_id,
+                    actor_id=request.actor_id,
+                    ordinal=len(earlier) + 1,
+                    hypothesis_set_id=opener.hypothesis_set_id,
+                    verification_artifact_id=opener.verification_artifact_id,
+                    symptom=opener.symptom,
+                    expected_behavior=opener.expected_behavior,
+                    observed_behavior=opener.observed_behavior,
+                    started_at=started,
+                )
+            )
+            # The episode's own framing, from here on: this request adds nothing.
+            effective = dataclasses.replace(
+                request,
+                goal=episode.goal,
+                trace_id=episode.trace_id,
+                symptom=opener.symptom,
+                expected_behavior=opener.expected_behavior,
+                observed_behavior=opener.observed_behavior,
+            )
+            run = _Run(
+                record=record,
+                continuation=_Continuation(
+                    earlier=earlier,
+                    resumed_from=resumed_from,
+                    resumed_reason=resumed_reason,
+                    interrupted=interrupted,
+                    orphaned_jobs=tuple(o.job_id for o in prior.orphaned),
+                    superseded_jobs=tuple(j.job_id for j in prior.parked),
+                    prior=prior,
+                    debate=debate,
+                ),
+            )
+            vertical, _outputs = self._vertical()
+            budget = self._budget(effective)
+            run.stage(
+                "episode",
+                "RESUMED",
+                f"run {record.ordinal} of this episode; resumed through episode_resume from "
+                f"{resumed_from}" + (f" ({resumed_reason})" if resumed_reason else ""),
+            )
+            run.stage(
+                "ingestion",
+                "SKIPPED",
+                "a continuation takes no new documents; the episode's evidence stands as admitted",
+            )
+            run.stage("evidence", "SKIPPED", "no statements added; the episode's own are unchanged")
+            self._resumed_input(vertical, opener, run)
+            run.stage("external evidence", "SKIPPED", "a continuation contacts no external source")
+            debated = self._debate(
+                effective, vertical, episode_id, episode.trace_id, budget, run, resumed=debate
+            )
+            if debated is not None:
+                self._verify(
+                    effective, vertical, episode_id, episode.trace_id, budget, *debated, run
+                )
+            report = self._report(effective, vertical, episode_id, episode.trace_id, started, run)
+            ledger.finish(record.research_run_id, outcome=_outcome(report), at=self._clock())
+            return report
+        except BaseException as failed:
+            self._abandon(ledger, record, failed)
+            raise
+        finally:
+            with suppress(Exception):
+                ledger.release(episode_id)
+
+    def _abandon(
+        self, ledger: SqlResearchRunStore, record: ResearchRunRecord | None, failed: BaseException
+    ) -> None:
+        """Finish a run that raised, if the connection still allows it. If not, its lease dies
+        with the session and the next continuation records it INTERRUPTED."""
+        if record is None:
+            return
+        with suppress(Exception):
+            ledger.finish(
+                record.research_run_id,
+                outcome=f"FAILED:{type(failed).__name__}",
+                at=self._clock(),
+            )
+
+    def _vertical(self) -> tuple[ProductVertical, SqlRunOutputSink]:
+        c = self._connection
         outputs = SqlRunOutputSink(connection=c, store=self._store, now=self._clock)
         vertical = self._factory(
-            outputs=outputs, jobs=jobs, broker=PostgresResourceBroker(c), now=self._clock
+            outputs=outputs, jobs=SqlJobStore(c), broker=PostgresResourceBroker(c), now=self._clock
         )
         self._register(vertical)
-        episode = self._service.open_episode(
-            project_id=request.project_id,
-            goal=request.goal,
-            trace_id=request.trace_id or new_id("trace"),
-            episode_id=request.episode_id,
-        )
-        run = _Run()
-        budget = BudgetPolicy(
+        return vertical, outputs
+
+    @staticmethod
+    def _budget(request: ResearchRequest) -> BudgetPolicy:
+        return BudgetPolicy(
             policy_id=BUDGET_POLICY_ID,
             policy_version="1.0.0",
             project_id=request.project_id,
@@ -268,16 +577,51 @@ class ResearchEpisodeService:
                 token_count=request.token_budget, wall_clock_s=request.wall_clock_budget_s
             ),
         )
-        self._ingest(request, episode.episode_id, episode.trace_id, run)
-        self._verification_input(request, vertical, outputs, run)
-        self._literature(request, vertical, run)
-        debated = self._debate(request, vertical, episode.episode_id, episode.trace_id, budget, run)
-        if debated is not None:
-            self._verify(
-                request, vertical, episode.episode_id, episode.trace_id, budget, *debated, run
+
+    def _resumed_input(
+        self, vertical: ProductVertical, opener: ResearchRunRecord, run: _Run
+    ) -> None:
+        """The opening run's verification input, read back from the artifact store."""
+        artifact_id = opener.verification_artifact_id
+        data = self._read_bytes(artifact_id) if artifact_id is not None else None
+        if artifact_id is None or data is None:
+            run.stage(
+                "verification input",
+                "SKIPPED",
+                "the episode's opening run recorded no verification input",
             )
-        report = self._report(request, vertical, episode.episode_id, episode.trace_id, started, run)
-        return report
+            return
+        name = f"verification input of run {opener.ordinal}"
+        try:
+            reading = vertical.read_input(data)
+        except InputRefused as refused:
+            run.inputs.append(
+                InputStatus(
+                    name,
+                    "verification input",
+                    vertical.input_media_type,
+                    artifact_id,
+                    "REFUSED",
+                    detail=str(refused),
+                )
+            )
+            run.stage("verification input", "REFUSED", str(refused))
+            return
+        run.verification = reading
+        run.verification_artifact = artifact_id
+        run.inputs.append(
+            InputStatus(
+                name,
+                "verification input",
+                reading.kind,
+                artifact_id,
+                "STORED",
+                detail=reading.summary,
+            )
+        )
+        run.stage(
+            "verification input", "DONE", f"reused from run {opener.ordinal}: {reading.summary}"
+        )
 
     # -- durable registrations the episode stands on --------------------------------------------
 
@@ -512,10 +856,23 @@ class ResearchEpisodeService:
         trace_id: str,
         budget: BudgetPolicy,
         run: _Run,
+        *,
+        resumed: DebateOutcome | None = None,
     ) -> tuple[HypothesisBrain, BeliefEpisode] | None:
+        """The episode's competing hypotheses: debated now, or -- continuing -- the debate the
+        opening run recorded, and never a second one."""
         c = self._connection
         regs = vertical.registry.registries
-        if not run.statements:
+        if run.continuation is not None and resumed is None:
+            run.stage(
+                "hypotheses",
+                "SKIPPED",
+                "the episode has no recorded hypothesis set -- its opening run ended before a "
+                "debate -- and a continuation never starts one",
+            )
+            run.stage("verification", "SKIPPED", "no hypotheses to verify")
+            return None
+        if resumed is None and not run.statements:
             run.stage("hypotheses", "SKIPPED", "no admitted evidence to debate over")
             run.stage("verification", "SKIPPED", "no hypotheses to verify")
             return None
@@ -610,6 +967,17 @@ class ResearchEpisodeService:
             mint=self._mint,
             now=self._clock,
         )
+        if resumed is not None:
+            outcome = resumed
+            run.debate = outcome
+            run.stage(
+                "hypotheses",
+                "RESUMED",
+                f"hypothesis set `{outcome.hypothesis_set.set_id}` and debate "
+                f"`{outcome.record.debate_id}` recorded by run 1: {len(outcome.certificates)} "
+                "competing hypotheses, not debated again",
+            )
+            return self._brain(vertical, debate, hypotheses, events, debates, attestations, gate)
         try:
             outcome = debate.run(
                 DebateRequest(
@@ -642,6 +1010,19 @@ class ResearchEpisodeService:
             f"{len(outcome.certificates)} competing hypotheses admitted after "
             f"{outcome.record.rounds} debate round(s) and an independent critique",
         )
+        return self._brain(vertical, debate, hypotheses, events, debates, attestations, gate)
+
+    def _brain(
+        self,
+        vertical: ProductVertical,
+        debate: StructuredDebate,
+        hypotheses: SqlHypothesisStore,
+        events: SqlBeliefEventStore,
+        debates: SqlDebateStore,
+        attestations: SqlAttestationStore,
+        gate: DebateGate,
+    ) -> tuple[HypothesisBrain, BeliefEpisode]:
+        c = self._connection
         episode = BeliefEpisode(
             policies=SqlTransitionPolicyStore(c),
             decisions=SqlBeliefTransitionDecisionStore(c),
@@ -706,6 +1087,13 @@ class ResearchEpisodeService:
                 case_memory=failures,
             ),
         )
+        loop_jobs: Any = jobs
+        continuing = run.continuation
+        if continuing is not None:
+            # What earlier runs of THIS episode executed is never executed again, and this run's
+            # jobs are keyed in its own namespace (`research.continuation`).
+            planner = ExcludingPlanner(planner, _executed_before(run))
+            loop_jobs = ContinuationJobs(jobs, episode_id=episode_id, ordinal=run.record.ordinal)
         loop = VerificationLoop(
             LoopDependencies(
                 planner=planner,
@@ -724,7 +1112,7 @@ class ResearchEpisodeService:
                     load_run=jobs.get_run,
                     is_artifact_in_project=evidence.artifact_in_project,
                 ),
-                jobs=jobs,
+                jobs=loop_jobs,
                 dispatcher=BudgetedToolDispatcher(
                     tools=regs.tools,
                     capabilities=regs.capabilities,
@@ -815,7 +1203,7 @@ class ResearchEpisodeService:
             available_inputs=loop_request.available_inputs,
             conditions=loop_request.conditions,
             symptom=loop_request.symptom,
-            exclude=frozenset(result.executed),
+            exclude=frozenset(result.executed) | _executed_before(run),
             projected_condition_match=match,
         )
         plan = what_if.plan
@@ -1016,6 +1404,22 @@ class ResearchEpisodeService:
             conclusion, episode_state = self._conclude(
                 loop, hypotheses, mechanisms, run, request, episode_id
             )
+        elif any(s.stage == "verification" and s.status == "FAILED" for s in run.stages):
+            # An error is not an answer. Closing the episode would make the failure final and
+            # forbid the retry; parked, it is continued -- same episode, same hypotheses.
+            episode_store.suspend(
+                episode_id,
+                reason="verification failed with an error; continue the episode to retry",
+                at=self._clock(),
+            )
+            episode_state = "SUSPENDED"
+            conclusion = Conclusion(
+                status="NOT_REACHED",
+                statement=(
+                    "verification failed with an error before reaching a result (see Stages); "
+                    "the episode is SUSPENDED so it can be continued, not closed"
+                ),
+            )
         else:
             episode_store.close(episode_id, outcome="NOT_REACHED", at=self._clock())
             episode_state = "COMPLETED"
@@ -1086,7 +1490,7 @@ class ResearchEpisodeService:
             conclusion=conclusion,
             failure_analysis=failure,
             heuristic_candidates=candidates,
-            next_steps=self._next_steps(run, conclusion, human, request),
+            next_steps=self._next_steps(run, conclusion, human, request, episode_id, episode_state),
             provenance=self._provenance(run, episode_id, trace_id),
             deployment=(
                 f"Reasoner: rules:{vertical.catalog.catalog_id}@{vertical.catalog.version}, a "
@@ -1102,6 +1506,7 @@ class ResearchEpisodeService:
             ),
             not_performed=self._not_performed(run, vertical),
             notes=tuple(run.notes) + (tuple(loop.notes) if loop is not None else ()),
+            continuation=self._continuation_section(run),
         )
 
     def _conclude(
@@ -1186,7 +1591,12 @@ class ResearchEpisodeService:
 
     @staticmethod
     def _next_steps(
-        run: _Run, conclusion: Conclusion, human: Sequence[str], request: ResearchRequest
+        run: _Run,
+        conclusion: Conclusion,
+        human: Sequence[str],
+        request: ResearchRequest,
+        episode_id: str,
+        episode_state: str,
     ) -> tuple[str, ...]:
         steps: list[str] = []
         for p in run.pending:
@@ -1194,6 +1604,13 @@ class ResearchEpisodeService:
                 steps.append(
                     f"Run `{p.capability_id}` once {p.requires}; then resume this episode."
                 )
+        if episode_state == EpisodeState.SUSPENDED.value:
+            steps.append(
+                "Continue this same episode -- its hypotheses, belief states and executed checks "
+                f"carry over -- with `lab-brain research run --project {request.project_id} "
+                f"--actor {request.actor_id} --episode {episode_id} --artifact-root <the same "
+                "artifact root>` (no new inputs)."
+            )
         for action in human:
             steps.append(f"A person can act now: {action}")
         if conclusion.status == "CONFIRMED":
@@ -1203,9 +1620,11 @@ class ResearchEpisodeService:
                 "Some inputs did not become ready; `lab-brain inbox` and `lab-brain explain` "
                 "show why."
             )
-        if run.verification is None:
+        if run.continuation is not None:
+            pass  # a continuation takes no inputs; what it could add belongs to a new episode
+        elif run.verification is None:
             steps.append("Provide the pack's verification input (a device project) to plan checks.")
-        if request.literature is None:
+        if run.continuation is None and request.literature is None:
             steps.append(
                 "Optionally re-run with a literature provider and a query you declare public, so "
                 "the Critic's inverted retrieval can search external literature."
@@ -1213,7 +1632,10 @@ class ResearchEpisodeService:
         return tuple(steps) or ("Nothing further is required.",)
 
     def _provenance(self, run: _Run, episode_id: str, trace_id: str) -> tuple[str, ...]:
-        lines = [f"Episode `{episode_id}`, trace `{trace_id}`."]
+        lines = [
+            f"Episode `{episode_id}`, trace `{trace_id}`; research run "
+            f"`{run.record.research_run_id}` (run {run.record.ordinal} of this episode)."
+        ]
         if run.debate is not None:
             outcome = run.debate
             lines.append(
@@ -1255,11 +1677,60 @@ class ResearchEpisodeService:
         return tuple(lines)
 
     @staticmethod
+    def _continuation_section(run: _Run) -> ContinuationSection | None:
+        k = run.continuation
+        if k is None:
+            return None
+        return ContinuationSection(
+            run_ordinal=run.record.ordinal,
+            resumed_from=(
+                k.resumed_from
+                + (f" ({k.resumed_reason})" if k.resumed_reason else "")
+                + " to EVIDENCE_GATHERING through episode_resume"
+            ),
+            reasoning=(
+                f"hypothesis set `{k.debate.hypothesis_set.set_id}` and debate "
+                f"`{k.debate.record.debate_id}`, recorded by run 1 -- reused, not debated again"
+                if k.debate is not None
+                else "none -- the opening run recorded no hypothesis set, and a continuation "
+                "never starts a debate"
+            ),
+            earlier_runs=tuple(
+                f"run {r.ordinal} (`{r.research_run_id}`) by `{r.actor_id}`, started "
+                f"{r.started_at.isoformat()}: {r.outcome or 'unfinished'}"
+                for r in k.earlier
+            ),
+            earlier_checks=tuple(
+                f"`{capability}` -- job `{job.job_id}`, run `{job.result_run_id}`"
+                for capability, job in sorted(k.prior.executed.items())
+            ),
+            superseded_jobs=tuple(
+                f"job `{j}` was parked by an earlier run and never ran; recorded CANCELLED "
+                "(SUPERSEDED_BY_CONTINUATION) -- this run submits its own if it still chooses it"
+                for j in k.superseded_jobs
+            ),
+            recovered=tuple(
+                f"run {n} was left unfinished by a process that ended; recorded {INTERRUPTED}"
+                for n in k.interrupted
+            )
+            + tuple(
+                f"job `{j}` was left RUNNING by it with no Run; recorded FAILED "
+                "(RESEARCH_RUN_INTERRUPTED) and not resumed"
+                for j in k.orphaned_jobs
+            ),
+        )
+
+    @staticmethod
     def _not_performed(run: _Run, vertical: ProductVertical) -> tuple[str, ...]:
         lines = [
             "no language model was called; every hypothesis, position and critique came from the "
             "local rule-based catalog reasoner, recorded as such in its InferenceProvenance",
         ]
+        if run.continuation is not None:
+            lines.append(
+                "this run did not debate, ingest or search: it continued the episode's recorded "
+                "hypotheses and inputs, and executed no check an earlier run had executed"
+            )
         if vertical.blocked:
             lines.append(
                 "no simulation was run and none was emulated: "
@@ -1336,8 +1807,46 @@ def _candidate(action_id: str, summary: Any) -> str:
     return f"`{action_id}` -- {verdict}{reason}"
 
 
+def _require_nothing_new(request: ResearchRequest) -> None:
+    """A continuation resumes the episode's own inputs. Checked on the request alone, before any
+    read, so the refusal says nothing about any episode."""
+    given = [
+        name
+        for name, value in (
+            ("documents", request.documents),
+            ("a verification input", request.verification_input),
+            ("literature", request.literature),
+            ("a symptom", request.symptom),
+            ("an expected behavior", request.expected_behavior),
+            ("an observed behavior", request.observed_behavior),
+        )
+        if value
+    ]
+    if given:
+        raise ContinuationRefused(
+            "A continuation resumes the episode's own inputs and takes no new ones (given: "
+            + ", ".join(given)
+            + "). New evidence to debate is a new episode: `research run` without --episode."
+        )
+
+
+def _executed_before(run: _Run) -> frozenset[str]:
+    """Capabilities an earlier run of this episode executed. Empty for an opening run."""
+    if run.continuation is None:
+        return frozenset()
+    return frozenset(run.continuation.prior.executed)
+
+
+def _outcome(report: EpisodeReport) -> str:
+    return f"{report.episode_state}:{report.conclusion.status}"
+
+
 __all__ = [
     "ADMISSION_POLICY",
+    "ContinuationRefused",
+    "EpisodeFinished",
+    "EpisodeInProgress",
+    "EpisodeNotContinuable",
     "InputDocument",
     "ResearchEpisodeService",
     "ResearchRequest",

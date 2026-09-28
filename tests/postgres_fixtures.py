@@ -34,6 +34,9 @@ DEFAULT_URL = "postgresql://lab_brain:lab_brain@localhost:5433/lab_brain"
 #: RAISE the moment any row survives from an earlier test. TRUNCATE does not fire row-level DELETE
 #: triggers, so naming them here is both correct and the only safe way to clear them.
 _TABLES = (
+    # Product vertical (`012c`). The research runs of an episode reference the episode, its
+    # hypothesis set and its verification input, and are append-only: child of all three.
+    "research_runs",
     # M1-P1 / EVI-010. Child first: a representation references a unit, and the unit references
     # the artifact. The reverse order would rely on the CASCADE, which is exactly the coupling
     # ADR-0011 keeps out of this direction.
