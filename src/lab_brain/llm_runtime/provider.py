@@ -49,6 +49,12 @@ class ChatReply:
     latency_ms: int
 
 
+#: The name Docker gives a container for the machine it runs on. It is this machine only for a
+#: containerised workspace, so it counts as LOCAL only where the deployment says so (see
+#: `is_this_machine_url`); it is always reached directly, never through a proxy.
+DOCKER_HOST_GATEWAY = "host.docker.internal"
+
+
 def is_loopback_url(url: str) -> bool:
     host = (urlsplit(url).hostname or "").strip("[]").lower()
     if host == "localhost":
@@ -59,14 +65,21 @@ def is_loopback_url(url: str) -> bool:
         return False
 
 
+def is_this_machine_url(url: str, local_hosts: frozenset[str] = frozenset()) -> bool:
+    """Loopback, or a host name the deployment declared to be this machine (`local_hosts`)."""
+    return is_loopback_url(url) or (urlsplit(url).hostname or "").lower() in local_hosts
+
+
 class OpenAICompatibleClient:
     def __init__(self, base_url: str, api_key: str | None, *, timeout: float = 120.0) -> None:
         self._base = base_url.rstrip("/")
         self._key = api_key
         self._timeout = timeout
-        # A loopback endpoint is reached directly, never through an environment proxy.
+        # This machine is reached directly, never through an environment proxy: a proxy would
+        # carry a LOCAL call off the machine.
+        direct = is_this_machine_url(base_url, frozenset({DOCKER_HOST_GATEWAY}))
         handlers: list[urllib.request.BaseHandler] = (
-            [urllib.request.ProxyHandler({})] if is_loopback_url(base_url) else []
+            [urllib.request.ProxyHandler({})] if direct else []
         )
         self._opener = urllib.request.build_opener(*handlers)
 
@@ -153,9 +166,11 @@ class OpenAICompatibleClient:
 
 
 __all__ = [
+    "DOCKER_HOST_GATEWAY",
     "ChatReply",
     "OpenAICompatibleClient",
     "ProviderError",
     "ProviderFailure",
     "is_loopback_url",
+    "is_this_machine_url",
 ]

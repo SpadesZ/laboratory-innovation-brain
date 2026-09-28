@@ -9,7 +9,8 @@ Evaluated on the server from the rows (`012e`) and the credential store, never i
                    exactly that: no model-route independence; the critique's independence then
                    rests on the inverted evidence path (§7.3, §7.6)
     EMBEDDING      the built-in local embedder
-    egress         what evidence an EXTERNAL route may carry, and what the egress gate refuses
+    egress         the most an EXTERNAL route may carry; each project's own policy (`012f`) decides
+                   whether its evidence uses the route at all
     blockers       everything that makes activation (or use) fail closed: an unbound required slot,
                    an unlocked model, a disabled connection, an unreadable credential, a failing or
                    missing health check
@@ -211,10 +212,11 @@ def egress_route(external: Sequence[str], labels: Sequence[str]) -> str:
     if not external:
         return "Every bound model is LOCAL: no model call leaves this machine."
     return (
-        f"External model routes ({', '.join(external)}) may carry evidence classified "
-        f"{', '.join(labels)}. Evidence classified above that is refused by the egress gate, and "
-        "the refusal is recorded; RESTRICTED_NDA never leaves. Each call also needs the "
-        "researcher's own clearance."
+        f"External model routes ({', '.join(external)}) may carry at most evidence classified "
+        f"{', '.join(labels)} -- and only a project's evidence, only if THAT project's own egress "
+        "policy approves the route: this runtime supplies routes, not permission. Anything else "
+        "is refused by the egress gate and the refusal is recorded; RESTRICTED_NDA never leaves. "
+        "Each call also needs the researcher's own clearance."
     )
 
 

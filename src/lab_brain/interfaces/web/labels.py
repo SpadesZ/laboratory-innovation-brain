@@ -140,11 +140,13 @@ Messages.extend(
             "所有模型都在本機執行：沒有任何模型呼叫離開本機。",
         ),
         "lbl.egress.external": (
-            "External services ({names}) may receive evidence classified {labels}. Anything "
-            "classified higher is refused and the refusal is recorded; RESTRICTED_NDA never "
-            "leaves. The researcher's own clearance also applies.",
-            "外部服務（{names}）可接收分級為 {labels} 的證據。分級更高的內容會被拒絕並記錄；"
-            "RESTRICTED_NDA 永遠不會離開本機。研究者本身的權限同樣適用。",
+            "External services ({names}) may receive at most evidence classified {labels} -- and "
+            "a project's evidence only if that project's own egress policy approves them: this "
+            "runtime supplies routes, not permission. Anything else is refused and the refusal is "
+            "recorded; RESTRICTED_NDA never leaves. The researcher's own clearance also applies.",
+            "外部服務（{names}）最多只能接收分級為 {labels} 的證據，而且只有在該專案自己的外送"
+            "政策核准時，該專案的證據才會送出：執行環境只提供路由，不提供授權。其他內容一律被"
+            "拒絕並記錄；RESTRICTED_NDA 永遠不會離開本機。研究者本身的權限同樣適用。",
         ),
         "lbl.rule_text": ("The server's rule text", "伺服器規則原文"),
     }

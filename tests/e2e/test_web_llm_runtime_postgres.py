@@ -15,6 +15,11 @@ reached over a real socket with a real Bearer credential. No simulator exists an
     fallback          the Critic's fallback to PRIMARY shown as such and recorded as such; no
                       runtime -> the catalog reasoner; an unusable runtime -> the run refused
     restart           settings, locks, the active runtime and the OS-stored credential persist
+
+Every test that configures routes does so as an actor the operator granted LLM administration
+(`012f`), and every test that sends a project's evidence to an EXTERNAL route first has that project
+declare its own egress policy: a global runtime supplies routes, never that permission
+(`test_web_llm_authority_postgres` holds the refusals).
 """
 
 from __future__ import annotations
@@ -223,6 +228,41 @@ def _dump(db) -> str:  # type: ignore[no-untyped-def]
     )
 
 
+def _admin(db, actor: str = ACTOR) -> None:  # type: ignore[no-untyped-def]
+    """The operator's grant (`lab-brain admin llm-admin`): LLM administration, `012f`."""
+    db.execute(
+        "INSERT INTO llm_administrators (actor_id, granted_at, granted_through)"
+        " VALUES (%s, now(), 'OPERATOR_CLI')",
+        (actor,),
+    )
+
+
+def _egress(browser: Browser, db, labels: tuple[str, ...] = ("PUBLIC", "INTERNAL")) -> Reply:  # type: ignore[no-untyped-def]
+    """The project declares, through its own egress page, that its evidence may reach every
+    EXTERNAL connection here. It must be out of Private Mode, and the declaring member must hold
+    the LLM_EGRESS approval scope -- both the operator's decisions, made here in SQL."""
+    db.execute("UPDATE projects SET privacy_mode = 'RESEARCH' WHERE project_id = %s", (PROJECT,))
+    db.execute(
+        "UPDATE project_memberships SET approval_scopes = ARRAY['LLM_EGRESS']"
+        " WHERE actor_id = %s AND project_id = %s",
+        (ACTOR, PROJECT),
+    )
+    external = [
+        r[0]
+        for r in db.execute(
+            "SELECT connection_id FROM llm_connections WHERE reach = 'EXTERNAL'"
+            " AND lifecycle = 'ENABLED'"
+        ).fetchall()
+    ]
+    token = _token(browser.get(f"/projects/{PROJECT}/egress"))
+    declared = browser.post(
+        f"/projects/{PROJECT}/egress",
+        {"csrf": token, "connections": external, "labels": list(labels)},
+    )
+    assert declared.status == 303, _text(declared)[:600]
+    return declared
+
+
 # -- language -------------------------------------------------------------------------------------
 
 
@@ -278,6 +318,7 @@ def test_the_interface_switches_language_and_the_research_does_not(db, tmp_path,
 
 def test_credentials_are_referenced_never_stored_shown_or_echoed(db, tmp_path, fake):
     _member(db)
+    _admin(db)
     store = MemoryCredentialStore()
     browser = _browser(tmp_path, credentials=store)
     seen: list[str] = []
@@ -337,6 +378,7 @@ def test_credentials_are_referenced_never_stored_shown_or_echoed(db, tmp_path, f
 
 def test_connection_configuration_health_and_model_lifecycle(db, tmp_path, fake):
     _member(db)
+    _admin(db)
     browser = _browser(tmp_path)
     before = db.execute("SELECT count(*) FROM llm_connections").fetchone()[0]
     for fields, reason in (
@@ -420,7 +462,10 @@ def test_connection_configuration_health_and_model_lifecycle(db, tmp_path, fake)
     refused = _post(browser, f"/settings/llm/connections/{connection_id}/fetch", {})
     assert refused.status == 409 and "is DISABLED" in _text(refused)
 
-    # LLM settings belong to researchers of this deployment.
+    # LLM settings are deployment administration: membership of the project is not enough.
+    _member(db, "act:colleague")
+    colleague = _browser(tmp_path, actor="act:colleague")
+    assert colleague.get("/settings/llm").status == 403
     stranger = _browser(tmp_path, actor="act:test")
     assert stranger.get("/settings/llm").status == 403
 
@@ -430,6 +475,7 @@ def test_connection_configuration_health_and_model_lifecycle(db, tmp_path, fake)
 
 def test_a_slot_takes_only_a_locked_model_that_proved_what_its_roles_need(db, tmp_path, fake):
     _member(db)
+    _admin(db)
     browser = _browser(tmp_path)
     external = _id(_connect(browser, fake))
     ids = _proven(browser, db, external, "fake-reasoner", "fake-chatty")
@@ -463,11 +509,18 @@ def test_a_slot_takes_only_a_locked_model_that_proved_what_its_roles_need(db, tm
 
 def test_an_active_runtime_reasons_new_research_through_the_provenance_path(db, tmp_path, fake):
     _member(db)
+    _admin(db)
     browser = _browser(tmp_path)
     _active(browser, db, fake, critic=True)
+    _egress(browser, db)
     runtime = _text(browser.get("/runtime"))
     assert "The Adversarial Critic has its own model route: fake-critic" in runtime
-    assert "External model routes (fake) may carry evidence classified PUBLIC, INTERNAL" in runtime
+    assert (
+        "External model routes (fake) may carry at most evidence classified PUBLIC, INTERNAL -- "
+        "and only a project's evidence, only if THAT project's own egress policy approves"
+        in runtime
+    )
+    assert f"{PROJECT} Rs anomaly: INTERNAL, PUBLIC to fake" in runtime
     assert "The active LLM runtime fake runtime serves the model slots" in _text(
         browser.get("/runs/new")
     )
@@ -500,6 +553,11 @@ def test_an_active_runtime_reasons_new_research_through_the_provenance_path(db, 
 
     page = _text(browser.get(sent.location))
     assert "Reasoner: the active LLM runtime fake runtime" in page
+    (policy,) = db.execute("SELECT policy_id FROM project_llm_egress_policies").fetchone()
+    assert (
+        f"Project egress ({PROJECT}): policy {policy} version 1, declared by {ACTOR} for this "
+        "project (RESEARCH mode): evidence classified INTERNAL, PUBLIC may reach fake" in page
+    )
     assert "No language model is configured" not in page
     assert "language model: REASONING_ADVERSARIAL -> fake-critic@" in page
     assert (
@@ -518,8 +576,11 @@ def test_an_active_runtime_reasons_new_research_through_the_provenance_path(db, 
 
 def test_an_external_route_carries_only_the_evidence_it_was_permitted(db, tmp_path, fake):
     _member(db)
+    _admin(db)
     browser = _browser(tmp_path)
     _active(browser, db, fake, critic=True, labels=("PUBLIC",))
+    # The project would let INTERNAL leave; the runtime lets no project send more than PUBLIC.
+    _egress(browser, db)
     sent = _research(browser, tmp_path)
     page = _text(browser.get(sent.location))
     assert "hypotheses FAILED ExternalEffectRefused" in page
@@ -529,8 +590,10 @@ def test_an_external_route_carries_only_the_evidence_it_was_permitted(db, tmp_pa
 
 def test_the_critic_fallback_is_shown_and_recorded_as_a_fallback(db, tmp_path, fake):
     _member(db)
+    _admin(db)
     browser = _browser(tmp_path)
     runtime_id, ids = _active(browser, db, fake, critic=False)
+    _egress(browser, db)
     shown = _text(browser.get(f"/settings/llm/runtimes/{runtime_id}"))
     assert (
         "FALLBACK: REASONING_ADVERSARIAL is not bound, so the Adversarial Critic runs on "
@@ -567,6 +630,7 @@ def test_the_critic_fallback_is_shown_and_recorded_as_a_fallback(db, tmp_path, f
 
 def test_an_unusable_active_runtime_refuses_research_rather_than_rerouting_it(db, tmp_path, fake):
     _member(db)
+    _admin(db)
     _active(_browser(tmp_path), db, fake, critic=True)
     # Restarted without the variable the credential lives in.
     browser = _browser(tmp_path, environ={})
@@ -581,6 +645,7 @@ def test_an_unusable_active_runtime_refuses_research_rather_than_rerouting_it(db
 
 def test_settings_locks_and_the_active_runtime_survive_a_restart(db, tmp_path, fake):
     _member(db)
+    _admin(db)
     store = MemoryCredentialStore()  # the operating system's store outlives the process
     first = _browser(tmp_path, environ={}, credentials=store)
     connection_id = _id(_connect(first, fake, mode="store", value=KEY))
@@ -589,6 +654,7 @@ def test_settings_locks_and_the_active_runtime_survive_a_restart(db, tmp_path, f
     assert _bind(first, runtime_id, "REASONING_PRIMARY", ids["fake-reasoner"]).status == 303
     assert _bind(first, runtime_id, "FAST_UTILITY", ids["fake-reasoner"]).status == 303
     assert _post(first, f"/settings/llm/runtimes/{runtime_id}/activate", {}).status == 303
+    _egress(first, db)
 
     again = _browser(tmp_path, environ={}, credentials=store)
     overview = _text(again.get("/settings/llm"))
@@ -606,6 +672,7 @@ def test_the_runtime_page_speaks_to_researchers_and_keeps_the_ids_one_click_away
     db, tmp_path, fake
 ):
     _member(db)
+    _admin(db)
     browser = _browser(tmp_path)
     runtime_id, _ids = _active(browser, db, fake, critic=False)
     token = _token(browser.get("/runtime"))
@@ -654,6 +721,7 @@ def test_the_command_line_never_reaches_a_model_and_refuses_while_a_runtime_is_a
     from lab_brain.interfaces import cli
 
     _member(db)
+    _admin(db)
     _active(_browser(tmp_path), db, fake, critic=True)
     before = db.execute("SELECT count(*) FROM research_episodes").fetchone()[0]
     out = io.StringIO()

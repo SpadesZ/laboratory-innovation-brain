@@ -10,9 +10,11 @@ deployment:
                    provider, and declared reach (LOCAL or EXTERNAL); never EMBEDDING, which stays
                    the built-in local embedder
     complete       the `Completion` transport, called only by `ScientificLLM` after the gates
-    egress_policy  the policy the egress gate consults for an EXTERNAL route, per project: the
-                   evidence labels the runtime's activator declared external routes may carry.
-                   A runtime with no EXTERNAL route declares none, and needs none
+    egress_policy  the policy the egress gate consults for an EXTERNAL route, per project: THAT
+                   PROJECT'S OWN declaration (`012f`), narrowed to the routes this runtime serves.
+                   A runtime supplies routes, never permission: a project that declared nothing
+                   gets `None`, and the gate refuses its every external call
+    egress_statement  how the report states the egress a given project's run was held to
     description    how the report names what reasoned, including the Critic's route
 """
 
@@ -35,6 +37,7 @@ class ReasoningRuntime:
     complete: Completion
     egress_policy: Callable[[str], EgressPolicy | None]
     description: tuple[str, ...]
+    egress_statement: Callable[[str], str]
 
     def __post_init__(self) -> None:
         bound = [s.logical_slot for s in self.slots]

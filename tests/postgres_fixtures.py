@@ -39,7 +39,10 @@ _TABLES = (
     # Research workspace (`012d`): a run's recorded report references the run.
     "research_run_reports",
     # Research workspace V2 (`012e`). Bindings reference runtimes and models, probes and health
-    # reference models and connections: children first.
+    # reference models and connections: children first. `012f`: a project's egress policies name
+    # connections; administrator grants reference actors.
+    "project_llm_egress_policies",
+    "llm_administrators",
     "llm_slot_bindings",
     "llm_runtimes",
     "llm_capability_probes",

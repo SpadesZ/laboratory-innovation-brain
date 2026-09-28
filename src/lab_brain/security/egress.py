@@ -41,6 +41,11 @@ NEVER_EGRESS: frozenset[SensitivityLabel] = frozenset({SensitivityLabel.RESTRICT
 #: Requires an explicit project policy AND actor clearance.
 POLICY_GATED_EGRESS: frozenset[SensitivityLabel] = frozenset({SensitivityLabel.CONFIDENTIAL_LAB})
 
+#: The `ProjectMembership.approval_scopes` entry that authorises declaring a project's own
+#: external-model egress policy (`012f`). A named scope, as `BUDGET_OVERRUN` is: granted explicitly
+#: to a membership, or absent.
+LLM_EGRESS_SCOPE = "LLM_EGRESS"
+
 
 class PrivacyMode(StrEnum):
     """§14.2's three modes."""
@@ -365,6 +370,7 @@ def sanitised_providers(policy: EgressPolicy | None, available: Sequence[str]) -
 
 __all__ = [
     "DEFAULT_CODE_POLICY",
+    "LLM_EGRESS_SCOPE",
     "NEVER_EGRESS",
     "POLICY_GATED_EGRESS",
     "CodeAdmission",

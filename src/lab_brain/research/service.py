@@ -1026,7 +1026,7 @@ class ResearchEpisodeService:
                 EgressGate(policy_for=lambda _p: None, clearance_of=lambda _a, _p: frozenset()),
             )
         # An active runtime: its slots and transport, the SAME gates. An EXTERNAL route leaves
-        # only under the runtime's declared policy AND the actor's own clearance.
+        # only under THIS project's own egress policy AND the actor's own clearance.
         return (
             [*self._reasoning.slots, EMBEDDING_SLOT],
             self._reasoning.complete,
@@ -1519,7 +1519,10 @@ class ResearchEpisodeService:
                         "is configured or was called.",
                     )
                     if self._reasoning is None
-                    else self._reasoning.description
+                    else (
+                        *self._reasoning.description,
+                        self._reasoning.egress_statement(request.project_id),
+                    )
                 ),
                 "Executable verification backends: "
                 + ", ".join(f"`{k}` via {v}" for k, v in sorted(vertical.backends.items())),

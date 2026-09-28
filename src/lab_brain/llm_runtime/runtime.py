@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import datetime as dt
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, TypeVar
 from urllib.parse import urlsplit
@@ -29,13 +29,14 @@ from lab_brain.cognition.llm import ModelSlot
 from lab_brain.core.models.base import utc_now
 from lab_brain.core.models.enums import SensitivityLabel
 from lab_brain.core.models.inference import LogicalSlot
+from lab_brain.llm_runtime.authority import ProjectEgressPolicies, is_administrator
 from lab_brain.llm_runtime.capabilities import BUILTIN_EMBEDDING, Capability, roles_on
 from lab_brain.llm_runtime.contracts import contract_for
 from lab_brain.llm_runtime.probes import PROBE_ORDER, run_probe
 from lab_brain.llm_runtime.provider import (
     OpenAICompatibleClient,
     ProviderError,
-    is_loopback_url,
+    is_this_machine_url,
 )
 from lab_brain.llm_runtime.readiness import Readiness, critic_route, egress_route, evaluate
 from lab_brain.llm_runtime.registry import (
@@ -57,7 +58,7 @@ from lab_brain.llm_runtime.secrets import (
     redact,
 )
 from lab_brain.research.reasoning import ReasoningRuntime
-from lab_brain.security.egress import EgressPolicy, PrivacyMode
+from lab_brain.security.egress import EgressPolicy
 from lab_brain.security.external import ExternalReach
 
 _NAME = re.compile(r"^[a-z0-9][a-z0-9._-]{0,47}$")
@@ -88,6 +89,10 @@ def _client(base_url: str, key: str | None, timeout: float) -> OpenAICompatibleC
 
 
 class LLMSettings:
+    """Every step that changes configuration -- or probes, or records health -- is deployment
+    administration: it refuses an actor who is not a current LLM administrator (`012f`), before
+    anything is written or sent. Reads (the registry, a readiness evaluation) are not."""
+
     def __init__(
         self,
         connection: Any,
@@ -97,13 +102,30 @@ class LLMSettings:
         clock: Callable[[], dt.datetime] = utc_now,
         client: ClientFactory = _client,
         timeout: float = 120.0,
+        local_hosts: Iterable[str] = (),
     ) -> None:
         self.registry = SqlLLMRegistry(connection)
+        self._db = connection
         self._secrets = secrets
         self._actor = actor_id
         self._clock = clock
         self._client = client
         self._timeout = timeout
+        #: Host names besides loopback that are this machine: the Docker host of a containerised
+        #: workspace (`host.docker.internal`), and only when the deployment says it is one.
+        self._local_hosts = frozenset(h.lower() for h in local_hosts)
+
+    @property
+    def is_administrator(self) -> bool:
+        return is_administrator(self._db, self._actor)
+
+    def _require_admin(self) -> None:
+        if not self.is_administrator:
+            raise SettingsRefused(
+                f"{self._actor} is not an LLM administrator of this deployment. The language-model "
+                "routes are deployment configuration, granted by the deployment's operator "
+                f"(lab-brain admin llm-admin {self._actor}); project membership does not grant it"
+            )
 
     # -- 1. connection ----------------------------------------------------------------------------
 
@@ -117,6 +139,7 @@ class LLMSettings:
         env_name: str = "",
         secret_value: str = "",
     ) -> ConnectionRow:
+        self._require_admin()
         name = name.strip().lower()
         base_url = base_url.strip().rstrip("/")
         if not _NAME.match(name) or looks_like_credential(name):
@@ -133,10 +156,11 @@ class LLMSettings:
             )
         if reach not in ("LOCAL", "EXTERNAL"):
             raise SettingsRefused("reach is LOCAL or EXTERNAL")
-        if reach == "LOCAL" and not is_loopback_url(base_url):
+        if reach == "LOCAL" and not is_this_machine_url(base_url, self._local_hosts):
+            also = "".join(f", or {h}" for h in sorted(self._local_hosts))
             raise SettingsRefused(
-                "LOCAL may only be declared of this machine (127.0.0.1, localhost or [::1]); a "
-                "model on any other host is EXTERNAL"
+                "LOCAL may only be declared of this machine (127.0.0.1, localhost or "
+                f"[::1]{also}); a model on any other host is EXTERNAL"
             )
         if any(c.name == name for c in self.registry.connections()):
             raise SettingsRefused(f"a connection named {name} already exists")
@@ -157,6 +181,7 @@ class LLMSettings:
     def replace_secret(
         self, connection_id: str, *, secret_mode: str, env_name: str = "", secret_value: str = ""
     ) -> None:
+        self._require_admin()
         connection = self._connection(connection_id)
         ref, print_ = self._secret(secret_mode, env_name, secret_value)
         self._refusing(
@@ -166,6 +191,7 @@ class LLMSettings:
         )
 
     def set_connection_lifecycle(self, connection_id: str, lifecycle: str) -> None:
+        self._require_admin()
         if lifecycle not in ("ENABLED", "DISABLED", "RETIRED"):
             raise SettingsRefused("a connection is ENABLED, DISABLED or RETIRED")
         connection = self._connection(connection_id)
@@ -177,6 +203,7 @@ class LLMSettings:
 
     def check_health(self, connection_id: str) -> HealthRow:
         """Whether the endpoint answers with this credential. Recorded; changes no lifecycle."""
+        self._require_admin()
         connection = self._connection(connection_id)
         outcome, detail, latency, _ = self._list(connection)
         return self.registry.record_health(
@@ -190,6 +217,7 @@ class LLMSettings:
     # -- 2. models --------------------------------------------------------------------------------
 
     def fetch_models(self, connection_id: str) -> list[ModelRow]:
+        self._require_admin()
         connection = self._enabled(connection_id)
         outcome, detail, latency, names = self._list(connection)
         self.registry.record_health(
@@ -205,6 +233,7 @@ class LLMSettings:
         return [self.registry.add_model(connection.connection_id, n, "FETCHED", at) for n in names]
 
     def declare_model(self, connection_id: str, model_name: str) -> ModelRow:
+        self._require_admin()
         connection = self._enabled(connection_id)
         name = model_name.strip()
         if not name or len(name) > 200 or looks_like_credential(name):
@@ -220,6 +249,7 @@ class LLMSettings:
     def test_model(
         self, model_profile_id: str, capabilities: Sequence[Capability] | None = None
     ) -> list[ProbeRow]:
+        self._require_admin()
         model = self._model(model_profile_id)
         if model.lifecycle in ("LOCKED", "RETIRED"):
             raise SettingsRefused(
@@ -243,6 +273,7 @@ class LLMSettings:
         return rows
 
     def lock(self, model_profile_id: str) -> ModelRow:
+        self._require_admin()
         model = self._model(model_profile_id)
         return self._refusing(
             lambda: self.registry.lock(
@@ -251,16 +282,19 @@ class LLMSettings:
         )
 
     def unlock(self, model_profile_id: str) -> None:
+        self._require_admin()
         model = self._model(model_profile_id)
         self._refusing(lambda: self.registry.unlock(model.model_profile_id))
 
     def retire_model(self, model_profile_id: str) -> None:
+        self._require_admin()
         model = self._model(model_profile_id)
         self._refusing(lambda: self.registry.retire_model(model.model_profile_id))
 
     # -- 5. binding, 6. readiness, 7. activation --------------------------------------------------
 
     def create_runtime(self, name: str, external_labels: Sequence[str]) -> RuntimeRow:
+        self._require_admin()
         labels = [x for x in EXTERNAL_LABELS if x in set(external_labels)]
         if set(external_labels) - set(EXTERNAL_LABELS):
             raise SettingsRefused(
@@ -279,6 +313,7 @@ class LLMSettings:
         )
 
     def bind(self, runtime_id: str, slot: LogicalSlot, model_profile_id: str) -> None:
+        self._require_admin()
         self._runtime(runtime_id)
         self._model(model_profile_id)
         self._refusing(
@@ -288,6 +323,7 @@ class LLMSettings:
         )
 
     def unbind(self, runtime_id: str, slot: LogicalSlot) -> None:
+        self._require_admin()
         self._runtime(runtime_id)
         self._refusing(lambda: self.registry.unbind(runtime_id, slot))
 
@@ -295,6 +331,7 @@ class LLMSettings:
         """`live` first checks the health of every connection the runtime binds (recorded)."""
         runtime = self._runtime(runtime_id)
         if live:
+            self._require_admin()
             bound = {
                 m.connection_id
                 for b in self.registry.bindings(runtime_id).values()
@@ -306,6 +343,7 @@ class LLMSettings:
 
     def activate(self, runtime_id: str) -> Readiness:
         """Live readiness first; activation only with no blocker. The database checks again."""
+        self._require_admin()
         readiness = self.readiness(runtime_id, live=True)
         if not readiness.ready:
             raise SettingsRefused("not ready: " + "; ".join(readiness.blockers))
@@ -315,6 +353,7 @@ class LLMSettings:
         return readiness
 
     def retire_runtime(self, runtime_id: str) -> None:
+        self._require_admin()
         self._runtime(runtime_id)
         self._refusing(lambda: self.registry.retire_runtime(runtime_id, self._clock()))
 
@@ -429,7 +468,8 @@ def load_active_runtime(
     routes: dict[LogicalSlot, _Route] = {}
     served: dict[LogicalSlot, ModelRow] = {}
     lines: list[str] = []
-    external: set[str] = set()
+    #: EXTERNAL connection id -> the provider name its `ModelSlot` records.
+    external: dict[str, str] = {}
     for slot, binding in sorted(registry.bindings(active.runtime_id).items()):
         model = registry.model(binding.model_profile_id)
         connection_row = registry.connection(model.connection_id) if model is not None else None
@@ -464,7 +504,7 @@ def load_active_runtime(
         )
         served[slot] = model
         if reach is ExternalReach.EXTERNAL:
-            external.add(connection_row.name)
+            external[connection_row.connection_id] = connection_row.name
         roles = ", ".join(r.value for r in roles_on(slot)) or "no role in this version"
         lines.append(
             f"{slot.value}: `{model.model_name}` via `{connection_row.name}` "
@@ -481,24 +521,21 @@ def load_active_runtime(
         *lines,
         f"EMBEDDING: the built-in local embedder ({BUILTIN_EMBEDDING}).",
         critic,
-        egress_route(sorted(external), active.external_labels),
+        egress_route(sorted(external.values()), active.external_labels),
     )
-    labels = frozenset(SensitivityLabel(x) for x in active.external_labels)
-    approved = frozenset(external)
-    activator = active.activated_by or active.created_by
+    # A global runtime supplies ROUTES, never permission. Each call's policy is the policy of the
+    # project the evidence belongs to, read when the gate asks: that project's own declaration and
+    # privacy mode, narrowed to these routes and to what this runtime lets any project send.
+    ceiling = frozenset(SensitivityLabel(x) for x in active.external_labels)
+    policies = ProjectEgressPolicies(connection)
 
     def policy(project_id: str) -> EgressPolicy | None:
-        if not approved:
+        if not external:
             return None
-        return EgressPolicy(
-            policy_id=f"egp:llm-runtime:{active.runtime_id}",
-            version="1",
-            project_id=project_id,
-            mode=PrivacyMode.RESEARCH,
-            declared_by_actor_id=activator,
-            permitted_labels=labels,
-            approved_providers=approved,
-        )
+        return policies.effective(project_id, routes=external, ceiling=ceiling)
+
+    def statement(project_id: str) -> str:
+        return policies.statement(project_id, routes=external, ceiling=ceiling)
 
     return ReasoningRuntime(
         runtime_id=active.runtime_id,
@@ -507,6 +544,7 @@ def load_active_runtime(
         complete=RouteCompletion(routes),
         egress_policy=policy,
         description=description,
+        egress_statement=statement,
     )
 
 

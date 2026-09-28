@@ -113,6 +113,8 @@ _ID_PREFIXES: Final[dict[str, str]] = {
     "llm_model": "llm",
     "llm_probe": "lcp",
     "llm_runtime": "lrt",
+    # `012f`: a project's own, versioned external-model egress declaration.
+    "llm_egress_policy": "lep",
 }
 
 

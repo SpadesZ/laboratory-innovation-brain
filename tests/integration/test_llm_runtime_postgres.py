@@ -6,6 +6,9 @@ tested -> locked, a lock that freezes exactly what the latest probes proved), ap
 health, a slot that takes only a locked model proving what the slot needs, PRIVATE_LOCAL only on a
 LOCAL connection, M3's minimum route and the Critic's fallback at activation, one active runtime,
 frozen active bindings, and nothing an active runtime depends on unlocked or disabled under it.
+
+These writers act as `act:test`, whom the operator granted LLM administration (`012f`); what a
+writer who is NOT an administrator meets is `test_llm_authority_postgres`'s subject.
 """
 
 from __future__ import annotations
@@ -27,6 +30,14 @@ ALL = [
     "ROLE_SPECIALIST",
     "ROLE_CRITIQUE",
 ]
+
+
+@pytest.fixture(autouse=True)
+def _administrator(db):  # type: ignore[no-untyped-def]
+    db.execute(
+        "INSERT INTO llm_administrators (actor_id, granted_at, granted_through)"
+        " VALUES ('act:test', now(), 'OPERATOR_CLI')"
+    )
 
 
 def _connection(
@@ -119,7 +130,7 @@ def test_a_connection_holds_a_reference_never_a_credential(db):
 
 
 def test_local_is_declared_only_of_this_machine_and_an_endpoint_is_its_identity(db):
-    with _refused("local_is_loopback"):
+    with _refused("local_is_this_machine"):
         _connection(db, "llc:lan", reach="LOCAL", url="http://10.1.2.3:8000/v1")
     _connection(db, "llc:here", reach="LOCAL", url="http://127.0.0.1:11434/v1")
     with _refused("endpoint is its identity"):

@@ -1,27 +1,162 @@
-# Local development stack. §6.6: PostgreSQL + JSONB + pgvector is the single source of
-# truth for v1. No graph database and no second store is added until a measured traversal
-# workload demands it (P20).
+# Laboratory Innovation Brain -- the research workspace as a local product.
+#
+#     docker compose up --build        start (then open http://127.0.0.1:8765/)
+#     docker compose down              stop; every volume and all research data are kept
+#     docker compose down -v           RESET: delete the database, artifacts and generated secret
+#
+# The development/test database is `compose.dev.yaml`; this file never uses it.
+#
+# WHAT RUNS
+#   secrets       once: generates the database password into the `secrets` volume (first start)
+#   db            PostgreSQL 17 + pgvector; on the internal network only, never published
+#   init          once per start: every migration, then the operator's bootstrap -- the researcher,
+#                 their project and membership, their LLM administration (deployment/docker/.
+#                 bootstrap.sh, configured by the LAB_BRAIN_* variables below)
+#   web           the workspace, published on the HOST'S LOOPBACK ONLY (127.0.0.1). It has no login:
+#                 whoever reaches it acts as its actor, so nothing beyond this machine may
+#   local-models  once per start: the lightweight LOCAL routes -- the host's Ollama probed through
+#                 the ordinary capability tests; never a reasoning route (llm_runtime.local_setup)
+#
+# NO SECRET IS BAKED IN. The database password is generated at first start and lives only in the
+# `secrets` volume. Language-model API keys are read from the optional, git-ignored file
+# deployment/docker/llm-keys.env and referenced in LLM settings as `env:NAME`; the workspace stores
+# a reference and a fingerprint, never a key. A typed-in key is refused here (fail closed): a
+# container has no operating-system credential store.
+#
+# CONFIGURATION (all optional; put overrides in a git-ignored `.env` next to this file):
+#   LAB_BRAIN_PORT            host loopback port of the workspace (default 8765)
+#   LAB_BRAIN_ACTOR           the researcher the workspace acts as (default act:researcher)
+#   LAB_BRAIN_ACTOR_NAME      their display name
+#   LAB_BRAIN_PROJECT         their first project (default prj:lab), created PRIVATE: no egress
+#   LAB_BRAIN_PROJECT_NAME    its name
+#   LAB_BRAIN_CLEARANCE       their clearance in it (default PUBLIC,INTERNAL)
+#   LAB_BRAIN_LOCALE          en or zh-TW (default en)
+#   LAB_BRAIN_OLLAMA_URL      the host's OpenAI-compatible local endpoint
+#                             (default http://host.docker.internal:11434/v1; empty skips it)
 
-name: lab-brain
+name: lab-brain-workspace
+
+x-app: &app
+  # Built once, by `web`; every other service runs the same local image and never pulls it.
+  image: lab-brain-workspace:local
+  pull_policy: never
+  environment: &app-env
+    LAB_BRAIN_DATABASE_PASSWORD_FILE: /run/lab-brain-secrets/db_password
+    LAB_BRAIN_DATABASE_HOST: db
+    LAB_BRAIN_ACTOR: ${LAB_BRAIN_ACTOR:-act:researcher}
+    LAB_BRAIN_ACTOR_NAME: ${LAB_BRAIN_ACTOR_NAME:-Local researcher}
+    LAB_BRAIN_PROJECT: ${LAB_BRAIN_PROJECT:-prj:lab}
+    LAB_BRAIN_PROJECT_NAME: ${LAB_BRAIN_PROJECT_NAME:-Laboratory}
+    LAB_BRAIN_CLEARANCE: ${LAB_BRAIN_CLEARANCE:-PUBLIC,INTERNAL}
+  volumes:
+    - secrets:/run/lab-brain-secrets:ro
 
 services:
-  postgres:
+  secrets:
+    <<: *app
+    user: "0:0"
+    entrypoint: ["python", "/app/deployment/docker/make_secret.py"]
+    command: ["/run/lab-brain-secrets/db_password"]
+    environment: {}
+    volumes:
+      - secrets:/run/lab-brain-secrets
+    restart: "no"
+
+  db:
     image: pgvector/pgvector:pg17
     environment:
       POSTGRES_USER: lab_brain
-      POSTGRES_PASSWORD: lab_brain
       POSTGRES_DB: lab_brain
-    ports:
-      # 5433 on the host so a lab machine's existing 5432 Postgres is left alone.
-      - "5433:5432"
+      POSTGRES_PASSWORD_FILE: /run/lab-brain-secrets/db_password
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - db:/var/lib/postgresql/data
+      - secrets:/run/lab-brain-secrets:ro
+    depends_on:
+      secrets:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U lab_brain -d lab_brain"]
       interval: 5s
       timeout: 5s
-      retries: 20
+      retries: 30
     restart: unless-stopped
 
+  init:
+    <<: *app
+    command: ["sh", "/app/deployment/docker/bootstrap.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    <<: *app
+    build: .
+    pull_policy: build
+    environment:
+      <<: *app-env
+      LAB_BRAIN_PUBLISHED_PORT: ${LAB_BRAIN_PORT:-8765}
+    env_file:
+      - path: deployment/docker/llm-keys.env
+        required: false
+    command:
+      - sh
+      - -c
+      - >-
+        exec lab-brain web --actor "$$LAB_BRAIN_ACTOR"
+        --artifact-root /var/lib/lab-brain/artifacts
+        --host 0.0.0.0 --port 8765 --in-container
+        --published-port "$$LAB_BRAIN_PUBLISHED_PORT"
+        --host-gateway host.docker.internal
+        --locale ${LAB_BRAIN_LOCALE:-en}
+    ports:
+      # The HOST's loopback only. Never "8765:8765", which publishes on every interface.
+      - "127.0.0.1:${LAB_BRAIN_PORT:-8765}:8765"
+    extra_hosts:
+      # The machine this container runs on (Docker Desktop provides it; Linux needs the mapping).
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - secrets:/run/lab-brain-secrets:ro
+      - artifacts:/var/lib/lab-brain/artifacts
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import os, urllib.request as u;
+          r = u.Request('http://127.0.0.1:8765/healthz',
+          headers={'Host': 'localhost:' + os.environ['LAB_BRAIN_PUBLISHED_PORT']});
+          u.build_opener(u.ProxyHandler({})).open(r, timeout=5)
+      interval: 10s
+      timeout: 6s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  local-models:
+    <<: *app
+    environment:
+      <<: *app-env
+      LAB_BRAIN_OLLAMA_URL: ${LAB_BRAIN_OLLAMA_URL-http://host.docker.internal:11434/v1}
+    command:
+      - sh
+      - -c
+      - >-
+        if [ -z "$$LAB_BRAIN_OLLAMA_URL" ]; then echo "local models: not configured"; exit 0; fi;
+        exec python -m lab_brain.llm_runtime.local_setup --actor "$$LAB_BRAIN_ACTOR"
+        --base-url "$$LAB_BRAIN_OLLAMA_URL" --host-gateway host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    restart: "no"
+
 volumes:
-  postgres_data:
+  db:
+  artifacts:
+  secrets:

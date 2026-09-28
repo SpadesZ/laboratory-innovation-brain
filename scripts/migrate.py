@@ -248,6 +248,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # Research workspace V2. Model connections (credential references only), health, models,
     # capability probes, locks, runtimes and slot bindings. After 001 (actors).
     "012e_llm_runtime.sql",
+    # Research workspace V2, closure. Deployment LLM administration apart from project egress
+    # authorization; LOCAL may name the Docker host. After 012e (llm_*) and 001 (actors,
+    # projects, memberships).
+    "012f_llm_authority.sql",
 )
 
 _BOOTSTRAP = """

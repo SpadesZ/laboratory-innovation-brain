@@ -16,6 +16,8 @@ htmlcov/
 .env.local
 *.pem
 *.key
+# The container deployment's language-model API keys (the committed file is the .example)
+deployment/docker/llm-keys.env
 
 # Local artifact store and numerical arrays live outside version control
 var/

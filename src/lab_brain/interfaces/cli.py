@@ -365,6 +365,72 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["en", "zh-TW"],
         help="the interface language a browser starts in (each browser may switch)",
     )
+    web.add_argument(
+        "--in-container",
+        action="store_true",
+        help=(
+            "the container deployment: listen on 0.0.0.0 inside a container whose port is "
+            "published on the host's loopback only; refused anywhere but inside a container"
+        ),
+    )
+    web.add_argument(
+        "--published-port",
+        type=int,
+        help="with --in-container: the host loopback port the browser uses (default --port)",
+    )
+    web.add_argument(
+        "--host-gateway",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help=(
+            "with --in-container: a host name that is the machine running the container "
+            "(host.docker.internal), so a model there may be declared LOCAL"
+        ),
+    )
+
+    admin = sub.add_parser(
+        "admin",
+        help=(
+            "the deployment operator: actors, projects, memberships and LLM administrators "
+            "(whoever holds the database credentials)"
+        ),
+    )
+    admin_sub = admin.add_subparsers(dest="admin_command", required=True)
+    actor = admin_sub.add_parser("actor", help="create or rename a person (a HUMAN actor)")
+    actor.add_argument("actor_id")
+    actor.add_argument("--name", required=True, help="display name")
+    project = admin_sub.add_parser("project", help="create or update a project")
+    project.add_argument("project_id")
+    project.add_argument("--name", required=True)
+    project.add_argument(
+        "--privacy-mode",
+        choices=["PRIVATE", "RESEARCH", "NOVELTY_AUDIT"],
+        help="§14.2; a new project is PRIVATE (no egress) unless named",
+    )
+    member = admin_sub.add_parser(
+        "member", help="set an actor's membership: exactly the clearance and scopes named"
+    )
+    member.add_argument("project_id")
+    member.add_argument("actor_id")
+    member.add_argument("--role", default="researcher")
+    member.add_argument(
+        "--clearance",
+        default="",
+        help="comma-separated sensitivity labels the actor may read (default none)",
+    )
+    member.add_argument(
+        "--scope",
+        action="append",
+        default=[],
+        help="an approval scope, e.g. LLM_EGRESS (repeatable; default none)",
+    )
+    llm_admin = admin_sub.add_parser(
+        "llm-admin", help="grant (or --revoke) administration of the deployment's LLM routes"
+    )
+    llm_admin.add_argument("actor_id")
+    llm_admin.add_argument("--revoke", action="store_true")
+    admin_sub.add_parser("show", help="list actors, projects, memberships, LLM administrators")
     return parser
 
 
@@ -611,6 +677,9 @@ def main(
         return run_web(args, settings=settings, connect=opener, out=stream)
 
     try:
+        if args.command == "admin":
+            connection.autocommit = True
+            return run_admin(args, connection, out=stream)
         if args.command == "research":
             try:
                 factory = load_vertical_factory(args.domain or _only_vertical())
@@ -710,26 +779,77 @@ def run_web(
     except (VerticalNotFound, ConfigurationError) as exc:
         print(f"lab-brain: {exc}", file=out)
         return 2
+    container = bool(getattr(args, "in_container", False))
+    gateways = tuple(getattr(args, "host_gateway", ()) or ())
+    if gateways and not container:
+        print(
+            "lab-brain: --host-gateway names the machine a container runs on, and applies only "
+            "with --in-container",
+            file=out,
+        )
+        return 2
+    # In a container the browser reaches the workspace through the host's loopback port, so that
+    # is the Host it must name; outside one, the port it binds.
+    published = getattr(args, "published_port", None) or args.port
     workspace = Workspace(
         actor_id=args.actor,
         settings=settings,
         connect=connect,
         artifact_root=Path(args.artifact_root),
         vertical_factory=factory,
-        allowed_hosts=allowed_hosts(args.host, args.port),
+        allowed_hosts=allowed_hosts("127.0.0.1" if container else args.host, published),
         default_locale=args.locale,
+        local_hosts=gateways,
     )
     print(
-        f"Research workspace for {args.actor}: http://{args.host}:{args.port}/ (Ctrl+C stops it)",
+        f"Research workspace for {args.actor}: http://"
+        f"{'127.0.0.1' if container else args.host}:{published}/ (Ctrl+C stops it)",
         file=out,
     )
     try:
-        (serve or serve_workspace)(workspace, host=args.host, port=args.port)
+        # `container` only when set: the accepted call is exactly the loopback one.
+        extra = {"container": True} if container else {}
+        (serve or serve_workspace)(workspace, host=args.host, port=args.port, **extra)
     except ConfigurationError as exc:
         print(f"lab-brain: {exc}", file=out)
         return 2
     except KeyboardInterrupt:  # pragma: no cover - interactive
         pass
+    return 0
+
+
+def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
+    """`lab-brain admin ...`: the operator's decisions, explicit and recorded (`deployment`)."""
+    from lab_brain.interfaces import deployment
+
+    try:
+        if args.admin_command == "actor":
+            lines = [deployment.ensure_actor(connection, args.actor_id, args.name)]
+        elif args.admin_command == "project":
+            lines = [
+                deployment.ensure_project(connection, args.project_id, args.name, args.privacy_mode)
+            ]
+        elif args.admin_command == "member":
+            lines = [
+                deployment.set_membership(
+                    connection,
+                    args.project_id,
+                    args.actor_id,
+                    role=args.role,
+                    clearance=[x.strip() for x in args.clearance.split(",") if x.strip()],
+                    scopes=args.scope,
+                )
+            ]
+        elif args.admin_command == "llm-admin":
+            change = deployment.revoke_llm_admin if args.revoke else deployment.grant_llm_admin
+            lines = [change(connection, args.actor_id, utc_now())]
+        else:
+            lines = deployment.describe(connection)
+    except deployment.OperatorRefused as refused:
+        print(f"lab-brain: {refused}", file=out)
+        return 2
+    for line in lines:
+        print(line, file=out)
     return 0
 
 

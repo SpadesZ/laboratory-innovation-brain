@@ -273,6 +273,16 @@ _M: dict[str, tuple[str, str]] = {
     "msg.not_found": ("Not found", "找不到"),
     "msg.no_page": ("There is no such page.", "沒有這個頁面。"),
     "msg.no_research": ("No research", "無法研究"),
+    "msg.not_llm_admin.title": ("LLM administration only", "僅限 LLM 管理者"),
+    "msg.not_llm_admin": (
+        "{actor} is not an LLM administrator of this deployment. The language-model routes are "
+        "deployment configuration, granted by the deployment's operator (lab-brain admin "
+        "llm-admin {actor}); membership of a project does not grant it. Whether a project's "
+        "evidence may use an external model is that project's own egress policy (Runtime page).",
+        "{actor} 不是此部署的 LLM 管理者。語言模型路由屬於部署層級的設定，由部署的管理者授予"
+        "（lab-brain admin llm-admin {actor}）；專案成員資格不會給予此權限。專案的證據能否送往"
+        "外部模型，由該專案自己的外送政策決定（見「執行環境」頁面）。",
+    ),
     "msg.no_research_text": (
         "No research for {actor} in {project}.",
         "{actor} 無法在 {project} 進行研究。",

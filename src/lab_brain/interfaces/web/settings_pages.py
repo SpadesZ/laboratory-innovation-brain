@@ -13,7 +13,10 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from lab_brain.core.models.inference import LogicalSlot
-from lab_brain.interfaces.web import labels
+from lab_brain.interfaces.web import (
+    egress_pages,  # noqa: F401 - the eg.* messages used below
+    labels,
+)
 from lab_brain.interfaces.web.i18n import RESEARCH_OUTPUT_LANGUAGE, Messages
 from lab_brain.interfaces.web.pages import Chrome, Html, cat, e, h, page, state
 from lab_brain.llm_runtime.capabilities import (
@@ -1012,24 +1015,54 @@ def runtime_page(
 
 
 def active_runtime_page(
-    chrome: Chrome, readiness: Readiness | None, *, unusable: str | None = None
+    chrome: Chrome,
+    readiness: Readiness | None,
+    *,
+    unusable: str | None = None,
+    admin: bool = False,
+    projects: Sequence[tuple[str, str, str]] = (),
 ) -> bytes:
+    """`projects`: (id, name, egress summary) of every project this actor may act in -- whether
+    each one's evidence may use the runtime's external routes is that project's own policy."""
     m = chrome.m
+    egress = (
+        h(
+            "<h2>{}</h2><ul>{}</ul>",
+            m("eg.status"),
+            cat(
+                h(
+                    '<li><code>{}</code> {}: {} <a href="/projects/{}/egress">{}</a></li>',
+                    project_id,
+                    name,
+                    status,
+                    project_id,
+                    m("eg.link"),
+                )
+                for project_id, name, status in projects
+            ),
+        )
+        if projects
+        else Html("")
+    )
     if readiness is None:
-        body = h('<h1>{}</h1><p class="box">{}</p>', m("rt.title"), m("rt.none"))
+        body = h('<h1>{}</h1><p class="box">{}</p>{}', m("rt.title"), m("rt.none"), egress)
     else:
         runtime = readiness.runtime
+        name = (
+            h('<a href="/settings/llm/runtimes/{}">{}</a>', runtime.runtime_id, runtime.name)
+            if admin
+            else e(runtime.name)
+        )
         body = h(
-            '<h1>{}</h1><div class="box">{}: <a href="/settings/llm/runtimes/{}">{}</a> {}</div>'
-            "{}{}",
+            '<h1>{}</h1><div class="box">{}: {} {}</div>{}{}{}',
             m("rt.title"),
             m("rt.active"),
-            runtime.runtime_id,
-            runtime.name,
+            name,
             state(runtime.state),
             h('<p class="box error">{}</p>', m("rt.unusable", reason=unusable))
             if unusable
             else Html(""),
+            egress,
             readiness_block(chrome, readiness),
         )
     return page(m("rt.title"), body, chrome=chrome)

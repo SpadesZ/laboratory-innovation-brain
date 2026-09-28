@@ -16,7 +16,13 @@ the actor now. An episode is shown or continued only if this actor OPENED it (`0
 and the gate still admits the actor to its project; every other id -- unknown, another project's,
 a colleague's -- gets one answer, a 404 that names only the id asked for. A stored report's
 evidence excerpts are re-authorized against the actor's CURRENT clearance each time they are shown.
-LLM settings are open to an actor who is an active member of at least one project here.
+
+TWO AUTHORITIES OVER LANGUAGE MODELS (`012f`). LLM settings -- connections, models, locks,
+runtimes, bindings -- are deployment configuration: open only to an actor the operator granted LLM
+administration, and project membership grants none of it. Whether a PROJECT's evidence may reach
+an external model route is that project's own policy (`/projects/<id>/egress`), declared by a
+member holding its `LLM_EGRESS` approval scope; the active runtime supplies routes, never that
+permission.
 
 FORGERY. Every state-changing request is a POST that must carry this process's CSRF token (and,
 when the browser sends one, an Origin of this workspace), and every request must name an allowed
@@ -54,13 +60,19 @@ from lab_brain.core.repositories.external_sources import SqlExternalSourceStore
 from lab_brain.core.scientific_read import ScientificReadRefused
 from lab_brain.interfaces.cli import _DOCUMENT_KINDS, _MEDIA_TYPES
 from lab_brain.interfaces.config import Settings
-from lab_brain.interfaces.web import pages, settings_pages
+from lab_brain.interfaces.web import egress_pages, pages, settings_pages
 from lab_brain.interfaces.web.forms import Form, FormError, read_form
 from lab_brain.interfaces.web.i18n import DEFAULT_LOCALE, LOCALES, Messages
 from lab_brain.interfaces.web.pages import Chrome
+from lab_brain.llm_runtime.authority import (
+    LLM_EGRESS_SCOPE,
+    AuthorityRefused,
+    ProjectEgressPolicies,
+)
 from lab_brain.llm_runtime.capabilities import BINDABLE_SLOTS, SLOT_REQUIREMENTS, Capability
 from lab_brain.llm_runtime.registry import ModelRow, ProbeRow
 from lab_brain.llm_runtime.runtime import (
+    EXTERNAL_LABELS,
     LLMSettings,
     RuntimeUnavailable,
     SettingsRefused,
@@ -96,6 +108,7 @@ _MARKDOWN_PATH = re.compile(rf"^/episodes/{_ID}/runs/([0-9]{{1,6}})/report\.md$"
 _CONNECTION_PATH = re.compile(rf"^/settings/llm/connections/{_ID}(?:/([a-z]+))?$")
 _MODEL_PATH = re.compile(rf"^/settings/llm/models/{_ID}(?:/([a-z]+))?$")
 _RUNTIME_PATH = re.compile(rf"^/settings/llm/runtimes/{_ID}(?:/([a-z]+))?$")
+_EGRESS_PATH = re.compile(rf"^/projects/{_ID}/egress$")
 
 #: Where a form posted to a collection path came from.
 _POSTED_FROM = {
@@ -137,6 +150,8 @@ class _Req:
         """The page to come back to after switching language: this one, or -- after a form was
         sent -- the page that form belongs to (an action URL answers only POST)."""
         if self.method == "POST":
+            if _EGRESS_PATH.match(self.path):
+                return self.path
             return _POSTED_FROM.get(self.path) or (
                 self.path.rsplit("/", 1)[0] if self.path.count("/") >= 4 else "/"
             )
@@ -170,8 +185,12 @@ class Workspace:
         csrf_token: str | None = None,
         secrets: SecretStore | None = None,
         default_locale: str = DEFAULT_LOCALE,
+        local_hosts: Iterable[str] = (),
     ) -> None:
         self._actor = actor_id
+        #: Host names besides loopback that are this machine (the container deployment's Docker
+        #: host): a model there may be declared LOCAL.
+        self._local_hosts = tuple(local_hosts)
         self._settings = settings
         self._connect = connect
         self._artifacts = LocalArtifactStore(artifact_root.resolve())
@@ -235,6 +254,13 @@ class Workspace:
             return self._switch_locale(form)
 
         connection = self._connect(self._settings)
+        if path == "/healthz" and method == "GET":
+            # For the container health check: the database answers. Nothing about any actor.
+            try:
+                connection.execute("SELECT 1").fetchone()
+            finally:
+                connection.close()
+            return Response("200 OK", b"ok", content_type="text/plain; charset=utf-8")
         try:
             connection.autocommit = True
             return self._route(connection, req)
@@ -259,8 +285,13 @@ class Workspace:
             return self._markdown(c, req, m.group(1), int(m.group(2)))
         if path == "/runtime" and method == "GET":
             return self._active_runtime(c, req)
+        if m := _EGRESS_PATH.match(path):
+            if method == "GET":
+                return self._egress(c, req, m.group(1))
+            if method == "POST" and form is not None:
+                return self._declare_egress(c, req, m.group(1), form)
         if path.startswith("/settings/llm"):
-            self._require_researcher(c, req)
+            self._require_llm_admin(c, req)
             if path == "/settings/llm" and method == "GET":
                 return self._overview(c, req)
             if path == "/settings/llm/connections" and method == "POST" and form is not None:
@@ -561,18 +592,90 @@ class Workspace:
     # -- LLM settings -----------------------------------------------------------------------------
 
     def _llm(self, c: Any) -> LLMSettings:
-        return LLMSettings(c, secrets=self._secrets, actor_id=self._actor)
+        return LLMSettings(
+            c, secrets=self._secrets, actor_id=self._actor, local_hosts=self._local_hosts
+        )
 
-    def _require_researcher(self, c: Any, req: _Req) -> None:
-        if not self._projects(c):
+    def _require_llm_admin(self, c: Any, req: _Req) -> None:
+        """LLM settings are deployment administration (`012f`): membership of a project -- of
+        every project -- grants none of it. Refused before anything is read or written."""
+        if not self._llm(c).is_administrator:
             raise _Refused(
                 self._message(
                     req,
                     "403 Forbidden",
-                    req.m("msg.no_research"),
-                    req.m("home.no_projects", actor=self._actor),
+                    req.m("msg.not_llm_admin.title"),
+                    req.m("msg.not_llm_admin", actor=self._actor),
                 )
             )
+
+    # -- a project's own external-model egress ----------------------------------------------------
+
+    def _egress(self, c: Any, req: _Req, project_id: str, *, error: str | None = None) -> Response:
+        view = self._egress_view(c, project_id)
+        if view is None:
+            return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
+        return Response(
+            "409 Conflict" if error else "200 OK",
+            egress_pages.egress_page(self._chrome(req, "runtime"), view, error=error),
+        )
+
+    def _declare_egress(self, c: Any, req: _Req, project_id: str, form: Form) -> Response:
+        # The database decides who may declare (`012f`). A refusal re-renders the page, which an
+        # actor the gate does not admit to the project gets as the unknown-project 404: nothing
+        # about who belongs where.
+        withdraw = form.value("withdraw") == "yes"
+        try:
+            ProjectEgressPolicies(c).declare(
+                project_id,
+                actor_id=self._actor,
+                connection_ids=() if withdraw else form.fields.get("connections", ()),
+                labels=() if withdraw else form.fields.get("labels", ()),
+                at=utc_now(),
+            )
+        except AuthorityRefused as refused:
+            return self._egress(c, req, project_id, error=str(refused))
+        return _redirect(f"/projects/{_path(project_id)}/egress")
+
+    def _egress_view(self, c: Any, project_id: str) -> egress_pages.EgressView | None:
+        """The project's egress, for an actor the read gate admits to it -- else `None`."""
+        admitted = {p.project_id: p for p in self._projects(c)}
+        project = admitted.get(project_id)
+        if project is None:
+            return None
+        row = c.execute(
+            "SELECT p.privacy_mode, m.sensitivity_clearance, m.approval_scopes"
+            " FROM projects p JOIN project_memberships m ON m.project_id = p.project_id"
+            " WHERE p.project_id = %s AND m.actor_id = %s AND m.active",
+            (project_id, self._actor),
+        ).fetchone()
+        if row is None:  # pragma: no cover - the gate just admitted this membership
+            return None
+        registry = self._llm(c).registry
+        return egress_pages.EgressView(
+            project_id=project_id,
+            project_name=project.name,
+            privacy_mode=str(row[0]),
+            history=ProjectEgressPolicies(c).history(project_id),
+            connections={x.connection_id: x for x in registry.connections()},
+            routes=self._external_routes(c),
+            may_declare=LLM_EGRESS_SCOPE in (row[2] or ()),
+            clearance=[x for x in EXTERNAL_LABELS if x in set(row[1] or ())],
+        )
+
+    def _external_routes(self, c: Any) -> list[str]:
+        """The connection ids of the active runtime's EXTERNAL routes."""
+        registry = self._llm(c).registry
+        active = registry.active_runtime()
+        if active is None:
+            return []
+        ids = set()
+        for binding in registry.bindings(active.runtime_id).values():
+            model = registry.model(binding.model_profile_id)
+            conn = registry.connection(model.connection_id) if model is not None else None
+            if conn is not None and conn.reach == "EXTERNAL":
+                ids.add(conn.connection_id)
+        return sorted(ids)
 
     def _overview(self, c: Any, req: _Req, *, error: str | None = None) -> Response:
         llm = self._llm(c)
@@ -835,12 +938,29 @@ class Workspace:
                 load_active_runtime(c, self._secrets)
             except RuntimeUnavailable as problem:
                 unusable = str(problem)
+        policies = ProjectEgressPolicies(c)
+        connections = {x.connection_id: x for x in llm.registry.connections()}
+        projects = [
+            (
+                p.project_id,
+                p.name,
+                egress_pages.summary(
+                    policies.current(p.project_id),
+                    policies.privacy_mode(p.project_id) or "PRIVATE",
+                    connections,
+                    req.m,
+                ),
+            )
+            for p in self._projects(c)
+        ]
         return Response(
             "200 OK",
             settings_pages.active_runtime_page(
                 self._chrome(req, "runtime"),
                 llm.readiness(active.runtime_id) if active is not None else None,
                 unusable=unusable,
+                admin=llm.is_administrator,
+                projects=projects,
             ),
         )
 

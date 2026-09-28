@@ -1,0 +1,2478 @@
+{
+ "description": "Lumi Agent blind benchmark v1 reasoning corpus: public scholarly works published before 2026-03-23, selected by bootstrap_corpus.py's fixed rule; each passage is the work's own abstract text (OpenAlex). The target and its derivatives are excluded (holdout.json).",
+ "papers": [
+  {
+   "doi": "10.1002/advs.202002923",
+   "version": "openalex-2021-01-07",
+   "title": "Tackling Photonic Inverse Design with Machine Learning",
+   "authors": [
+    "Zhaocheng Liu",
+    "Dayu Zhu",
+    "Lakshmi Raju",
+    "Wenshan Cai"
+   ],
+   "venue": "Advanced Science",
+   "year": 2021,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Machine learning, as a study of algorithms that automate prediction and decision-making based on complex data, has become one of the most effective tools in the study of artificial intelligence. In recent years, scientific communities have been gradually merging data-driven approaches with research, enabling dramatic progress in revealing underlying mechanisms, predicting essential properties, and discovering unconventional phenomena."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "It is becoming an indispensable tool in the fields of, for instance, quantum physics, organic chemistry, and medical imaging. Very recently, machine learning has been adopted in the research of photonics and optics as an alternative approach to address the inverse design problem. In this report, the fast advances of machine-learning-enabled photonic design strategies in the past few years are summarized. In particular, deep learning methods, a subset of machine learning algorithms, dealing with intractable high degrees-of-freedom structure design are focused upon."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3119472565",
+    "publication_date": "2021-01-07",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C01"
+    ],
+    "snapshot": "snapshots/openalex/C01.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1038/s41598-018-37952-2",
+   "version": "openalex-2019-02-04",
+   "title": "Deep Neural Network Inverse Design of Integrated Photonic Power Splitters",
+   "authors": [
+    "Mohammad Hossein Tahersima",
+    "Keisuke Kojima",
+    "Toshiaki Koike–Akino",
+    "Devesh K. Jha",
+    "Bingnan Wang",
+    "Chung-Wei Lin",
+    "Kieran Parsons"
+   ],
+   "venue": "Scientific Reports",
+   "year": 2019,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Abstract Predicting physical response of an artificially structured material is of particular interest for scientific and engineering applications. Here we use deep learning to predict optical response of artificially engineered nanophotonic devices. In addition to predicting forward approximation of transmission response for any given topology, this approach allows us to inversely approximate designs for a targeted optical response."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "Our Deep Neural Network (DNN) could design compact (2.6 × 2.6 μm 2 ) silicon-on-insulator (SOI)-based 1 × 2 power splitters with various target splitting ratios in a fraction of a second. This model is trained to minimize the reflection (to smaller than ~ −20 dB) while achieving maximum transmission efficiency above 90% and target splitting specifications. This approach paves the way for rapid design of integrated photonic components relying on complex nanostructures."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2914274640",
+    "publication_date": "2019-02-04",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C01"
+    ],
+    "snapshot": "snapshots/openalex/C01.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1515/nanoph-2019-0474",
+   "version": "openalex-2020-02-01",
+   "title": "Deep learning enabled inverse design in nanophotonics",
+   "authors": [
+    "Sunae So",
+    "Trevon Badloe",
+    "Jaebum Noh",
+    "Junsuk Rho",
+    "Jorge Bravo‐Abad"
+   ],
+   "venue": "Nanophotonics",
+   "year": 2020,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Abstract Deep learning has become the dominant approach in artificial intelligence to solve complex data‐driven problems. Originally applied almost exclusively in computer‐science areas such as image analysis and nature language processing, deep learning has rapidly entered a wide variety of scientific fields including physics, chemistry and material science. Very recently, deep neural networks have been introduced in the field of nanophotonics as a powerful way of obtaining the nonlinear mapping between the topology and composition of arbitrary nanophotonic structures and their associated functional properties."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "In this paper, we have discussed the recent progress in the application of deep learning to the inverse design of nanophotonic devices, mainly focusing on the three existing learning paradigms of supervised‐, unsupervised‐, and reinforcement learning. Deep learning forward modelling i.e. how artificial intelligence learns how to solve Maxwell’s equations, is also discussed, along with an outlook of this rapidly evolving research area."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3008967825",
+    "publication_date": "2020-02-01",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C01"
+    ],
+    "snapshot": "snapshots/openalex/C01.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1007/s10915-022-01939-z",
+   "version": "openalex-2022-07-26",
+   "title": "Scientific Machine Learning Through Physics–Informed Neural Networks: Where we are and What’s Next",
+   "authors": [
+    "Salvatore Cuomo",
+    "Vincenzo Schiano Di Cola",
+    "Fabio Giampaolo",
+    "Gianluigi Rozza",
+    "Maziar Raissi",
+    "Francesco Piccialli"
+   ],
+   "venue": "Journal of Scientific Computing",
+   "year": 2022,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Abstract Physics-Informed Neural Networks (PINN) are neural networks (NNs) that encode model equations, like Partial Differential Equations (PDE), as a component of the neural network itself. PINNs are nowadays used to solve PDEs, fractional equations, integral-differential equations, and stochastic PDEs. This novel methodology has arisen as a multi-task learning framework in which a NN must fit observed data while reducing a PDE residual."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "This article provides a comprehensive review of the literature on PINNs: while the primary goal of the study was to characterize these networks and their related advantages and disadvantages. The review also attempts to incorporate publications on a broader range of collocation-based physics informed neural networks, which stars form the vanilla PINN, as well as many other variants, such as physics-constrained neural networks (PCNN), variational hp-VPINN, and conservative PINN (CPINN)."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "The study indicates that most research has focused on customizing the PINN through different activation functions, gradient optimization techniques, neural network structures, and loss function structures. Despite the wide range of applications for which PINNs have been used, by demonstrating their ability to be more feasible in some contexts than classical numerical techniques like Finite Element Method (FEM), advancements are still possible, most notably theoretical issues that remain unresolved."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W4288039037",
+    "publication_date": "2022-07-26",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C02"
+    ],
+    "snapshot": "snapshots/openalex/C02.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1038/s41586-021-04223-6",
+   "version": "openalex-2022-01-26",
+   "title": "Deep physical neural networks trained with backpropagation",
+   "authors": [
+    "Logan G. Wright",
+    "Tatsuhiro Onodera",
+    "Martin M. Stein",
+    "Tianyu Wang",
+    "Darren T. Schachter",
+    "Zoey Hu",
+    "Peter L. McMahon"
+   ],
+   "venue": "Nature",
+   "year": 2022,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Abstract Deep-learning models have become pervasive tools in science and engineering. However, their energy requirements now increasingly limit their scalability 1 . Deep-learning accelerators 2–9 aim to perform deep learning energy-efficiently, usually targeting the inference phase and often by exploiting physical substrates beyond conventional electronics. Approaches so far 10–22 have been unable to apply the backpropagation algorithm to train unconventional novel hardware in situ."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "The advantages of backpropagation have made it the de facto training method for large-scale neural networks, so this deficiency constitutes a major impediment. Here we introduce a hybrid in situ–in silico algorithm, called physics-aware training, that applies backpropagation to train controllable physical systems. Just as deep learning realizes computations with deep neural networks made from layers of mathematical functions, our approach allows us to train deep physical neural networks made from layers of controllable physical systems, even when the physical layers lack any mathematical isomorphism to conventional artificial neural network layers."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "To demonstrate the universality of our approach, we train diverse physical neural networks based on optics, mechanics and electronics to experimentally perform audio and image classification tasks. Physics-aware training combines the scalability of backpropagation with the automatic mitigation of imperfections and noise achievable with in situ algorithms. Physical neural networks have the potential to perform machine learning faster and more energy-efficiently than conventional electronic processors and, more broadly, can endow physical systems with automatically designed physical functionalities, for example, for robotics 23–26 , materials 27–29 and smart sensors 30–32 ."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W4210678178",
+    "publication_date": "2022-01-26",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C02"
+    ],
+    "snapshot": "snapshots/openalex/C02.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1115/1.4053859",
+   "version": "openalex-2022-02-16",
+   "title": "Deep Generative Models in Engineering Design: A Review",
+   "authors": [
+    "Lyle Regenwetter",
+    "Amin Heyrani Nobari",
+    "Faez Ahmed"
+   ],
+   "venue": "Journal of Mechanical Design",
+   "year": 2022,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Abstract Automated design synthesis has the potential to revolutionize the modern engineering design process and improve access to highly optimized and customized products across countless industries. Successfully adapting generative machine learning to design engineering may enable such automated design synthesis and is a research subject of great importance. We present a review and analysis of deep generative machine learning models in engineering design."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "Deep generative models (DGMs) typically leverage deep networks to learn from an input dataset and synthesize new designs. Recently, DGMs such as feedforward neural networks (NNs), generative adversarial networks (GANs), variational autoencoders (VAEs), and certain deep reinforcement learning (DRL) frameworks have shown promising results in design applications like structural optimization, materials design, and shape synthesis."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "The prevalence of DGMs in engineering design has skyrocketed since 2016. Anticipating the continued growth, we conduct a review of recent advances to benefit researchers interested in DGMs for design. We structure our review as an exposition of the algorithms, datasets, representation methods, and applications commonly used in the current literature. In particular, we discuss key works that have introduced new techniques and methods in DGMs, successfully applied DGMs to a design-related domain, or directly supported the development of DGMs through datasets or auxiliary methods."
+    },
+    {
+     "id": "abs4",
+     "section": "Abstract",
+     "page": "",
+     "text": "We further identify key challenges and limitations currently seen in DGMs across design fields, such as design creativity, handling constraints and objectives, and modeling both form and functional performance simultaneously. In our discussion, we identify possible solution pathways as key areas on which to target the future work."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3206790237",
+    "publication_date": "2022-02-16",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C02"
+    ],
+    "snapshot": "snapshots/openalex/C02.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1038/s41578-018-0005-z",
+   "version": "openalex-2018-04-26",
+   "title": "Accelerating the discovery of materials for clean energy in the era of smart automation",
+   "authors": [
+    "Daniel P. Tabor",
+    "Loı̈c M. Roch",
+    "Semion K. Saikin",
+    "Christoph Kreisbeck",
+    "Dennis Sheberla",
+    "Joseph H. Montoya",
+    "Shyam Dwaraknath",
+    "Muratahan Aykol"
+   ],
+   "venue": "Nature Reviews Materials",
+   "year": 2018,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "The discovery and development of novel materials in the field of energy are essential to accelerate the transition to a low-carbon economy. Bringing recent technological innovations in automation, robotics and computer science together with current approaches in chemistry, materials synthesis and characterization will act as a catalyst for revolutionizing traditional research and development in both industry and academia."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "This Perspective provides a vision for an integrated artificial intelligence approach towards autonomous materials discovery, which, in our opinion, will emerge within the next 5 to 10 years. The approach we discuss requires the integration of the following tools, which have already seen substantial development to date: high-throughput virtual screening, automated synthesis planning, automated laboratories and machine learning algorithms."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "In addition to reducing the time to deployment of new materials by an order of magnitude, this integrated approach is expected to lower the cost associated with the initial discovery. Thus, the price of the final products (for example, solar panels, batteries and electric vehicles) will also decrease. This in turn will enable industries and governments to meet more ambitious targets in terms of reducing greenhouse gas emissions at a faster pace."
+    },
+    {
+     "id": "abs4",
+     "section": "Abstract",
+     "page": "",
+     "text": "The discovery and development of advanced materials are imperative for the clean energy sector. We envision that a closed-loop approach, which combines high-throughput computation, artificial intelligence and advanced robotics, will sizeably reduce the time to deployment and the costs associated with materials development."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2799915630",
+    "publication_date": "2018-04-26",
+    "type": "review",
+    "source_type": "journal",
+    "found_by": [
+     "C03"
+    ],
+    "snapshot": "snapshots/openalex/C03.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1109/jstqe.2013.2295882",
+   "version": "openalex-2014-01-31",
+   "title": "Design Challenges in Silicon Photonics",
+   "authors": [
+    "Wim Bogaerts",
+    "Martin Fiers",
+    "Pieter Dumon"
+   ],
+   "venue": "IEEE Journal of Selected Topics in Quantum Electronics",
+   "year": 2014,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Silicon photonics is rapidly gaining maturity in high-bandwidth optical communication, with applications in datacom, access networks, and I/O for bandwidth-intensive electronics. Also, applications are emerging in spectroscopy and sensing. To get the best performance out of the photonics, co-integration with electronics is needed: side-by-side, stacked, or on the same chip. However, the combination of photonics and electronics introduces a range of new problems on the design side: Codesign and cosimulation of complex photonic and electronic circuits, tolerance to variability, and verification algorithms that can handle photonic circuits."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "We will discuss these challenges and give an outlook on how tools need to evolve to address the needs of photonic-electronic IC designers."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W1990459252",
+    "publication_date": "2014-01-31",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C03"
+    ],
+    "snapshot": "snapshots/openalex/C03.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1109/jstqe.2019.2918949",
+   "version": "openalex-2019-05-24",
+   "title": "Photonic Integrated Circuit Design in a Foundry+Fabless Ecosystem",
+   "authors": [
+    "Umar Khan",
+    "Yufei Xing",
+    "Yinghao Ye",
+    "Wim Bogaerts"
+   ],
+   "venue": "IEEE Journal of Selected Topics in Quantum Electronics",
+   "year": 2019,
+   "peer_reviewed": true,
+   "license": "other-oa",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "A foundry-based photonic ecosystem is expected to become necessary with increasing demand and adoption of photonics for commercial products. To make foundry-enabled photonics a real success, the photonic circuit design flow should adopt known concepts from analog and mixed signal electronics. Based on the similarities and differences between the existing photonic and the standardized electronics design flow, we project the needs and evolution of the photonic design flow, such as schematic driven design, accurate behavioral models, and yield prediction in the presence of fabrication variability."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2946493845",
+    "publication_date": "2019-05-24",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C03"
+    ],
+    "snapshot": "snapshots/openalex/C03.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1038/s41586-023-06291-2",
+   "version": "openalex-2023-07-12",
+   "title": "Large language models encode clinical knowledge",
+   "authors": [
+    "Karan Singhal",
+    "Shekoofeh Azizi",
+    "Tao Tu",
+    "S. Sara Mahdavi",
+    "JASON KAI WEI LEE",
+    "Hyung Won Chung",
+    "Nathan B. Scales",
+    "Ajay Kumar Tanwani"
+   ],
+   "venue": "Nature",
+   "year": 2023,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Abstract Large language models (LLMs) have demonstrated impressive capabilities, but the bar for clinical applications is high. Attempts to assess the clinical knowledge of models typically rely on automated evaluations based on limited benchmarks. Here, to address these limitations, we present MultiMedQA, a benchmark combining six existing medical question answering datasets spanning professional medicine, research and consumer queries and a new dataset of medical questions searched online, HealthSearchQA."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "We propose a human evaluation framework for model answers along multiple axes including factuality, comprehension, reasoning, possible harm and bias. In addition, we evaluate Pathways Language Model 1 (PaLM, a 540-billion parameter LLM) and its instruction-tuned variant, Flan-PaLM 2 on MultiMedQA. Using a combination of prompting strategies, Flan-PaLM achieves state-of-the-art accuracy on every MultiMedQA multiple-choice dataset (MedQA 3 , MedMCQA 4 , PubMedQA 5 and Measuring Massive Multitask Language Understanding (MMLU) clinical topics 6 ), including 67.6% accuracy on MedQA (US Medical Licensing Exam-style questions), surpassing the prior state of the art by more than 17%."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "However, human evaluation reveals key gaps. To resolve this, we introduce instruction prompt tuning, a parameter-efficient approach for aligning LLMs to new domains using a few exemplars. The resulting model, Med-PaLM, performs encouragingly, but remains inferior to clinicians. We show that comprehension, knowledge recall and reasoning improve with model scale and instruction prompt tuning, suggesting the potential utility of LLMs in medicine."
+    },
+    {
+     "id": "abs4",
+     "section": "Abstract",
+     "page": "",
+     "text": "Our human evaluations reveal limitations of today’s models, reinforcing the importance of both evaluation frameworks and method development in creating safe, helpful LLMs for clinical applications."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W4384071683",
+    "publication_date": "2023-07-12",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C04",
+     "C05",
+     "C06"
+    ],
+    "snapshot": "snapshots/openalex/C04.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1038/s41586-024-07421-0",
+   "version": "openalex-2024-06-19",
+   "title": "Detecting hallucinations in large language models using semantic entropy",
+   "authors": [
+    "Sebastian Farquhar",
+    "Jannik Kossen",
+    "Lorenz Kuhn",
+    "Yarin Gal"
+   ],
+   "venue": "Nature",
+   "year": 2024,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Abstract Large language model (LLM) systems, such as ChatGPT 1 or Gemini 2 , can show impressive reasoning and question-answering capabilities but often ‘hallucinate’ false outputs and unsubstantiated answers 3,4 . Answering unreliably or without the necessary information prevents adoption in diverse fields, with problems including fabrication of legal precedents 5 or untrue facts in news articles 6 and even posing a risk to human life in medical domains such as radiology 7 ."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "Encouraging truthfulness through supervision or reinforcement has been only partially successful 8 . Researchers need a general method for detecting hallucinations in LLMs that works even with new and unseen questions to which humans might not know the answer. Here we develop new methods grounded in statistics, proposing entropy-based uncertainty estimators for LLMs to detect a subset of hallucinations—confabulations—which are arbitrary and incorrect generations."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "Our method addresses the fact that one idea can be expressed in many ways by computing uncertainty at the level of meaning rather than specific sequences of words. Our method works across datasets and tasks without a priori knowledge of the task, requires no task-specific data and robustly generalizes to new tasks not seen before. By detecting when a prompt is likely to produce a confabulation, our method helps users understand when they must take extra care with LLMs and opens up new possibilities for using LLMs that are otherwise prevented by their unreliability."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W4399803256",
+    "publication_date": "2024-06-19",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C04"
+    ],
+    "snapshot": "snapshots/openalex/C04.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1037/0033-295x.103.4.650",
+   "version": "openalex-1996-10-01",
+   "title": "Reasoning the fast and frugal way: Models of bounded rationality.",
+   "authors": [
+    "Gerd Gigerenzer",
+    "Daniel G. Goldstein"
+   ],
+   "venue": "Psychological Review",
+   "year": 1996,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Humans and animals make inferences about the world under limited time and knowledge. In contrast, many models of rational inference treat the mind as a Laplacean Demon, equipped with unlimited time, knowledge, and computational might. Following H. Simon's notion of satisfying, the authors have proposed a family of algorithms based on a simple psychological mechanism: one-reason decision making. These fast and frugal algorithms violate fundamental tenets of classical rationality: They neither look up nor integrate all information."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "By computer simulation, the authors held a competition between the satisfying \"Take The Best\" algorithm and various \"rational\" inference procedures (e.g., multiple regression). The Take The Best algorithm matched or outperformed all competitors in inferential speed and accuracy. This result in an existence proof that cognitive mechanisms capable of successful performance in the real world do not need to satisfy the classical norms of rational inference."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2159071801",
+    "publication_date": "1996-10-01",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C05"
+    ],
+    "snapshot": "snapshots/openalex/C05.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1002/advs.202105553",
+   "version": "openalex-2022-02-07",
+   "title": "Dielectric Loss Mechanism in Electromagnetic Wave Absorbing Materials",
+   "authors": [
+    "Ming Li Qin",
+    "Limin Zhang",
+    "Hongjing Wu"
+   ],
+   "venue": "Advanced Science",
+   "year": 2022,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Electromagnetic (EM) wave absorbing materials play an increasingly important role in modern society for their multi-functional in military stealth and incoming 5G smart era. Dielectric loss EM wave absorbers and underlying loss mechanism investigation are of great significance to unveil EM wave attenuation behaviors of materials and guide novel dielectric loss materials design. However, current researches focus more on materials synthesis rather than in-depth mechanism study."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "Herein, comprehensive views toward dielectric loss mechanisms including interfacial polarization, dipolar polarization, conductive loss, and defect-induced polarization are provided. Particularly, some misunderstandings and ambiguous concepts for each mechanism are highlighted. Besides, in-depth dielectric loss study and novel dielectric loss mechanisms are emphasized. Moreover, new dielectric loss mechanism regulation strategies instead of regular components compositing are summarized to provide inspiring thoughts toward simple and effective EM wave attenuation behavior modulation."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W4210860941",
+    "publication_date": "2022-02-07",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C07"
+    ],
+    "snapshot": "snapshots/openalex/C07.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1088/0031-9155/57/11/r99",
+   "version": "openalex-2012-05-09",
+   "title": "Range uncertainties in proton therapy and the role of Monte Carlo simulations",
+   "authors": [
+    "Harald Paganetti"
+   ],
+   "venue": "Physics in Medicine and Biology",
+   "year": 2012,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "The main advantages of proton therapy are the reduced total energy deposited in the patient as compared to photon techniques and the finite range of the proton beam. The latter adds an additional degree of freedom to treatment planning. The range in tissue is associated with considerable uncertainties caused by imaging, patient setup, beam delivery and dose calculation. Reducing the uncertainties would allow a reduction of the treatment volume and thus allow a better utilization of the advantages of protons."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "This paper summarizes the role of Monte Carlo simulations when aiming at a reduction of range uncertainties in proton therapy. Differences in dose calculation when comparing Monte Carlo with analytical algorithms are analyzed as well as range uncertainties due to material constants and CT conversion. Range uncertainties due to biological effects and the role of Monte Carlo for in vivo range verification are discussed."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "Furthermore, the current range uncertainty recipes used at several proton therapy facilities are revisited. We conclude that a significant impact of Monte Carlo dose calculation can be expected in complex geometries where local range uncertainties due to multiple Coulomb scattering will reduce the accuracy of analytical algorithms. In these cases Monte Carlo techniques might reduce the range uncertainty by several mm."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W1999189079",
+    "publication_date": "2012-05-09",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C07"
+    ],
+    "snapshot": "snapshots/openalex/C07.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1103/physrevb.75.155410",
+   "version": "openalex-2007-04-11",
+   "title": "Epsilon-near-zero metamaterials and electromagnetic sources: Tailoring the radiation phase pattern",
+   "authors": [
+    "Andrea Alù",
+    "Mário G. Silveirinha",
+    "Alessandro Salandrino",
+    "Nader Engheta"
+   ],
+   "venue": "Physical Review B",
+   "year": 2007,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "In this work, we investigate the response of epsilon-near-zero metamaterials and plasmonic materials to electromagnetic source excitation. The use of these media for tailoring the phase of radiation pattern of arbitrary sources is proposed and analyzed numerically and analytically for some canonical geometries. In particular, the possibility of employing planar layers, cylindrical shells, or other more complex shapes made of such materials in order to isolate two regions of space and to tailor the phase pattern in one region, fairly independent of the excitation shape present in the other region, is demonstrated with theoretical arguments and some numerical examples."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "Physical insights into the phenomenon are also presented and discussed together with potential applications of the phenomenon."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2088625008",
+    "publication_date": "2007-04-11",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C07"
+    ],
+    "snapshot": "snapshots/openalex/C07.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1109/tpwrd.2020.3018647",
+   "version": "openalex-2020-08-21",
+   "title": "Modeling of Grid-Forming and Grid-Following Inverters for Dynamic Simulation of Large-Scale Distribution Systems",
+   "authors": [
+    "Wei Du",
+    "Francis Tuffner",
+    "Kevin P. Schneider",
+    "Robert H. Lasseter",
+    "Jing Xie",
+    "Zhe Chen",
+    "Bishnu Prasad Bhattarai"
+   ],
+   "venue": "IEEE Transactions on Power Delivery",
+   "year": 2020,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Historically, distribution system planning studies mainly focused on steady state and quasi-steady state analysis, with limited attention paid to dynamic analysis. This paper develops three-phase, electromechanical models for both grid-forming and grid-following inverters, and integrates them into an open source, three-phase distribution network solver, thereby enabling dynamic simulation of large-scale, three-phase unbalanced distribution systems with high penetration of inverter-based DERs."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "The proposed inverter models are validated against electromagnetic simulation and field test data from the CERTS/AEP microgrid testbed, and simulated in an islanded 5252 node distribution system in the GridLAB-D simulation environment. Simulation verifies the effectiveness of the proposed inverter models for large-scale distribution system analysis. Study results show that compared to traditional grid-following inverters, the high penetration of grid-forming inverters can improve the voltage and frequency stability of islanded distribution systems."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3081336446",
+    "publication_date": "2020-08-21",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "C07"
+    ],
+    "snapshot": "snapshots/openalex/C07.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1002/lpor.201700237",
+   "version": "openalex-2018-03-12",
+   "title": "Silicon Photonics Circuit Design: Methods, Tools and Challenges",
+   "authors": [
+    "Wim Bogaerts",
+    "Lukas Chrostowski"
+   ],
+   "venue": "Laser & Photonics Review",
+   "year": 2018,
+   "peer_reviewed": true,
+   "license": "other-oa",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Abstract Silicon Photonics technology is rapidly maturing as a platform for larger‐scale photonic circuits. As a result, the associated design methodologies are also evolving from component‐oriented design to a more circuit‐oriented design flow, that makes abstraction from the very detailed geometry and enables design on a larger scale. In this paper, the state of this emerging photonic circuit design flow and its synergies with electronic design automation (EDA) are reviewed."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "The design flow from schematic capture, circuit simulation, layout and verification is covered. The similarities and the differences between photonic and electronic design, and the challenges and opportunities that present themselves in the new photonic design landscape, such as variability analysis, photonic‐electronic co‐simulation and compact model definition are discussed."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2789555118",
+    "publication_date": "2018-03-12",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D01",
+     "D02",
+     "D03",
+     "C01",
+     "C03"
+    ],
+    "snapshot": "snapshots/openalex/D01.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1016/j.cpc.2016.08.020",
+   "version": "openalex-2016-09-12",
+   "title": "gprMax: Open source software to simulate electromagnetic wave propagation for Ground Penetrating Radar",
+   "authors": [
+    "Craig Russell Warren",
+    "Antonios V. Giannopoulos",
+    "Iraklis Giannakis"
+   ],
+   "venue": "Computer Physics Communications",
+   "year": 2016,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "gprMax is open source software that simulates electromagnetic wave propagation, using the Finite-Difference Time-Domain (FDTD) method, for the numerical modelling of Ground Penetrating Radar (GPR). gprMax was originally developed in 1996 when numerical modelling using the FDTD method and, in general, the numerical modelling of GPR were in their infancy. Current computing resources offer the opportunity to build detailed and complex FDTD models of GPR to an extent that was not previously possible."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "To enable these types of simulations to be more easily realised, and also to facilitate the addition of more advanced features, gprMax has been redeveloped and significantly modernised. The original C-based code has been completely rewritten using a combination of Python and Cython programming languages. Standard and robust file formats have been chosen for geometry and field output files. New advanced modelling features have been added including: an unsplit implementation of higher order Perfectly Matched Layers (PMLs) using a recursive integration approach; diagonally anisotropic materials; dispersive media using multi-pole Debye, Drude or Lorenz expressions; soil modelling using a semi-empirical formulation for dielectric properties and fractals for geometric characteristics; rough surface generation; and the ability to embed complex transducers and targets."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "Program title: gprMax Catalogue identifier: AFBG_v1_0 Program summary URL:http://cpc.cs.qub.ac.uk/summaries/AFBG_v1_0.html Program obtainable from: CPC Program Library, Queen’s University, Belfast, N. Ireland Licensing provisions: GNU GPL v3 No. of lines in distributed program, including test data, etc.: 627180 No. of bytes in distributed program, including test data, etc.: 26762280 Distribution format: tar.gz Programming language: Python."
+    },
+    {
+     "id": "abs4",
+     "section": "Abstract",
+     "page": "",
+     "text": "Computer: Any computer with a Python interpreter and a C compiler. Operating system: Microsoft Windows, Mac OS X, and Linux. RAM: Problem dependent Classification: 10. External routines: Cython[1], h5py[2], matplotlib[3], NumPy[4], mpi4py[5] Nature of problem: Classical electrodynamics Solution method: Finite-Difference Time-Domain (FDTD) Running time: Problem dependent References: Cython, http://www.cython.org h5py, http://www.h5py.org matplotlib, http://www.matplotlib.org NumPy, http://www.numpy.org mpi4py, http://mpi4py.scipy.org"
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2518909974",
+    "publication_date": "2016-09-12",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D01"
+    ],
+    "snapshot": "snapshots/openalex/D01.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.3389/fninf.2013.00010",
+   "version": "openalex-2013-01-01",
+   "title": "The Virtual Brain: a simulator of primate brain network dynamics",
+   "authors": [
+    "Paula Sanz‐Leon",
+    "Stuart A. Knock",
+    "Marmaduke Woodman",
+    "Lia Domide",
+    "Jochen Mersmann",
+    "Anthony Randal McIntosh",
+    "Viktor Jirsa"
+   ],
+   "venue": "Frontiers in Neuroinformatics",
+   "year": 2013,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "We present The Virtual Brain (TVB), a neuroinformatics platform for full brain network simulations using biologically realistic connectivity. This simulation environment enables the model-based inference of neurophysiological mechanisms across different brain scales that underlie the generation of macroscopic neuroimaging signals including functional MRI (fMRI), EEG and MEG. Researchers from different backgrounds can benefit from an integrative software platform including a supporting framework for data management (generation, organization, storage, integration and sharing) and a simulation core written in Python."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "TVB allows the reproduction and evaluation of personalized configurations of the brain by using individual subject data. This personalization facilitates an exploration of the consequences of pathological changes in the system, permitting to investigate potential ways to counteract such unfavorable processes. The architecture of TVB supports interaction with MATLAB packages, for example, the well known Brain Connectivity Toolbox."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "TVB can be used in a client-server configuration, such that it can be remotely accessed through the Internet thanks to its web-based HTML5, JS, and WebGL graphical user interface. TVB is also accessible as a standalone cross-platform Python library and application, and users can interact with the scientific core through the scripting interface IDLE, enabling easy modeling, development and debugging of the scientific kernel."
+    },
+    {
+     "id": "abs4",
+     "section": "Abstract",
+     "page": "",
+     "text": "This second interface makes TVB extensible by combining it with other libraries and modules developed by the Python scientific community. In this article, we describe the theoretical background and foundations that led to the development of TVB, the architecture and features of its major software components as well as potential neuroscience applications."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2145749918",
+    "publication_date": "2013-01-01",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D01"
+    ],
+    "snapshot": "snapshots/openalex/D01.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.3390/app11062445",
+   "version": "openalex-2021-03-10",
+   "title": "A Trial Acoustic Improvement in a Lecture Hall with MPP Sound Absorbers and FDTD Acoustic Simulations",
+   "authors": [
+    "Matteo Cingolani",
+    "Giulia Fratoni",
+    "Luca Barbaresi",
+    "Dario D’Orazio",
+    "Brian J. Hamilton",
+    "Massimo Garai"
+   ],
+   "venue": "Applied Sciences",
+   "year": 2021,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Sound absorbing micro-perforated panels (MPPs) are being increasingly used because of their high quality in terms of hygiene, sustainability and durability. The present work investigates the feasibility and the performance of MPPs when used as an acoustic treatment in lecture rooms. With this purpose, three different micro-perforated steel specimens were first designed following existing predictive models and then physically manufactured through 3D additive metal printing."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "The specimens’ acoustic behavior was analyzed with experimental measurements in single-layer and double-layer configurations. Then, the investigation was focused on the application of double-layer MPPs to the ceiling of an existing university lecture hall to enhance speech intelligibility. Numerical simulations were carried out using a full-spectrum wave-based method: a finite-difference time-domain (FDTD) code was chosen to better handle time-dependent signals as the verbal communication."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "The present work proposes a workflow to explore the suitability of a specific material to speech requirements. The measured specific impedance complex values allowed to derive the input data referred to MPPs in FDTD simulations. The outcomes of the process show the influence of the acoustic treatment in terms of reverberation time (T30) and sound clarity (C50). A systematic comparison with a standard geometrical acoustic (GA) technique is reported as well."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3134298921",
+    "publication_date": "2021-03-10",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D01"
+    ],
+    "snapshot": "snapshots/openalex/D01.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1038/s41467-024-44750-0",
+   "version": "openalex-2024-01-25",
+   "title": "Roadmapping the next generation of silicon photonics",
+   "authors": [
+    "Sudip Shekhar",
+    "Wim Bogaerts",
+    "Lukas Chrostowski",
+    "John Edward Bowers",
+    "Michael Hochberg",
+    "Richard A. Soref",
+    "Bhavin J. Shastri"
+   ],
+   "venue": "Nature Communications",
+   "year": 2024,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Silicon photonics has developed into a mainstream technology driven by advances in optical communications. The current generation has led to a proliferation of integrated photonic devices from thousands to millions-mainly in the form of communication transceivers for data centers. Products in many exciting applications, such as sensing and computing, are around the corner. What will it take to increase the proliferation of silicon photonics from millions to billions of units shipped?"
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "What will the next generation of silicon photonics look like? What are the common threads in the integration and fabrication bottlenecks that silicon photonic applications face, and which emerging technologies can solve them? This perspective article is an attempt to answer such questions. We chart the generational trends in silicon photonics technology, drawing parallels from the generational definitions of CMOS technology."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "We identify the crucial challenges that must be solved to make giant strides in CMOS-foundry-compatible devices, circuits, integration, and packaging. We identify challenges critical to the next generation of systems and applications-in communication, signal processing, and sensing. By identifying and summarizing such challenges and opportunities, we aim to stimulate further research on devices, circuits, and systems for the silicon photonics ecosystem."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W4391232091",
+    "publication_date": "2024-01-25",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D02"
+    ],
+    "snapshot": "snapshots/openalex/D02.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1038/s41586-020-2649-2",
+   "version": "openalex-2020-09-16",
+   "title": "Array programming with NumPy",
+   "authors": [
+    "Charles R. Harris",
+    "K. Jarrod Millman",
+    "Stéfan J. van der Walt",
+    "Ralf Gommers",
+    "Pauli Virtanen",
+    "David Cournapeau",
+    "Eric Wieser",
+    "Julian Taylor"
+   ],
+   "venue": "Nature",
+   "year": 2020,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Abstract Array programming provides a powerful, compact and expressive syntax for accessing, manipulating and operating on data in vectors, matrices and higher-dimensional arrays. NumPy is the primary array programming library for the Python language. It has an essential role in research analysis pipelines in fields as diverse as physics, chemistry, astronomy, geoscience, biology, psychology, materials science, engineering, finance and economics."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "For example, in astronomy, NumPy was an important part of the software stack used in the discovery of gravitational waves 1 and in the first imaging of a black hole 2 . Here we review how a few fundamental array concepts lead to a simple and powerful programming paradigm for organizing, exploring and analysing scientific data. NumPy is the foundation upon which the scientific Python ecosystem is constructed. It is so pervasive that several projects, targeting audiences with specialized needs, have developed their own NumPy-like interfaces and array objects."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "Owing to its central position in the ecosystem, NumPy increasingly acts as an interoperability layer between such array computation libraries and, together with its application programming interface (API), provides a flexible framework to support the next decade of scientific and industrial analysis."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3035965352",
+    "publication_date": "2020-09-16",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D02"
+    ],
+    "snapshot": "snapshots/openalex/D02.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1103/revmodphys.91.015006",
+   "version": "openalex-2019-03-25",
+   "title": "Topological photonics",
+   "authors": [
+    "Tomoki Ozawa",
+    "Hannah M. Price",
+    "Alberto Amo",
+    "Nathan Goldman",
+    "Mohammad Reza Hafezi",
+    "Ling Lü",
+    "Mikael C. Rechtsman",
+    "David Schuster"
+   ],
+   "venue": "Reviews of Modern Physics",
+   "year": 2019,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "The robustness of the integer quantum Hall effect of electron systems is due to the existence of a topological invariant that characterizes the variation of the electron wave function over the Brillouin zone. Topological phenomena are generic features of waves in periodic media, and this article reviews how photonic systems such as waveguide arrays and photonic metamaterials allow exploration and application of topological effects in new physical regimes and in new devices."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W4211161891",
+    "publication_date": "2019-03-25",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D02",
+     "D03"
+    ],
+    "snapshot": "snapshots/openalex/D02.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1038/s41377-022-00717-8",
+   "version": "openalex-2022-02-03",
+   "title": "Photonic matrix multiplication lights up photonic accelerator and beyond",
+   "authors": [
+    "Hailong Zhou",
+    "Jianji Dong",
+    "Junwei Cheng",
+    "Wenchan Dong",
+    "Chaoran Huang",
+    "Yichen Shen",
+    "Qiming Zhang",
+    "Min Guk Gu"
+   ],
+   "venue": "Light Science & Applications",
+   "year": 2022,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Matrix computation, as a fundamental building block of information processing in science and technology, contributes most of the computational overheads in modern signal processing and artificial intelligence algorithms. Photonic accelerators are designed to accelerate specific categories of computing in the optical domain, especially matrix multiplication, to address the growing demand for computing resources and capacity."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "Photonic matrix multiplication has much potential to expand the domain of telecommunication, and artificial intelligence benefiting from its superior performance. Recent research in photonic matrix multiplication has flourished and may provide opportunities to develop applications that are unachievable at present by conventional electronic processors. In this review, we first introduce the methods of photonic matrix multiplication, mainly including the plane light conversion method, Mach-Zehnder interferometer method and wavelength division multiplexing method."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "We also summarize the developmental milestones of photonic matrix multiplication and the related applications. Then, we review their detailed advances in applications to optical signal processing and artificial neural networks in recent years. Finally, we comment on the challenges and perspectives of photonic matrix multiplication and photonic acceleration."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W4210305137",
+    "publication_date": "2022-02-03",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D03"
+    ],
+    "snapshot": "snapshots/openalex/D03.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1364/prj.415960",
+   "version": "openalex-2021-01-29",
+   "title": "Deep learning in nano-photonics: inverse design and beyond",
+   "authors": [
+    "Peter R. Wiecha",
+    "Arnaud Arbouet",
+    "Christian Girard",
+    "Otto L. Muskens"
+   ],
+   "venue": "Photonics Research",
+   "year": 2021,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Deep learning in the context of nano-photonics is mostly discussed in terms of its potential for inverse design of photonic devices or nano-structures. Many of the recent works on machine-learning inverse design are highly specific, and the drawbacks of the respective approaches are often not immediately clear. In this review we want therefore to provide a critical review on the capabilities of deep learning for inverse design and the progress which has been made so far."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "We classify the different deep-learning-based inverse design approaches at a higher level as well as by the context of their respective applications and critically discuss their strengths and weaknesses. While a significant part of the community’s attention lies on nano-photonic inverse design, deep learning has evolved as a tool for a large variety of applications. The second part of the review will focus therefore on machine learning research in nano-photonics “beyond inverse design.” This spans from physics-informed neural networks for tremendous acceleration of photonics simulations, over sparse data reconstruction, imaging and “knowledge discovery” to experimental applications."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3109834426",
+    "publication_date": "2021-01-29",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D03",
+     "C02"
+    ],
+    "snapshot": "snapshots/openalex/D03.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1038/s41592-019-0686-2",
+   "version": "openalex-2020-02-03",
+   "title": "SciPy 1.0: fundamental algorithms for scientific computing in Python",
+   "authors": [
+    "Pauli Virtanen",
+    "Ralf Gommers",
+    "Travis E. Oliphant",
+    "Matt Haberland",
+    "Tyler Reddy",
+    "David Cournapeau",
+    "Evgeni Burovski",
+    "Pearu Peterson"
+   ],
+   "venue": "Nature Methods",
+   "year": 2020,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "SciPy is an open-source scientific computing library for the Python programming language. Since its initial release in 2001, SciPy has become a de facto standard for leveraging scientific algorithms in Python, with over 600 unique code contributors, thousands of dependent packages, over 100,000 dependent repositories and millions of downloads per year. In this work, we provide an overview of the capabilities and development practices of SciPy 1.0 and highlight some recent technical developments."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3003257820",
+    "publication_date": "2020-02-03",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D04",
+     "D06",
+     "D09",
+     "C06"
+    ],
+    "snapshot": "snapshots/openalex/D04.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1088/0953-8984/14/11/301",
+   "version": "openalex-2002-03-08",
+   "title": "First-principles simulation: ideas, illustrations and the CASTEP code",
+   "authors": [
+    "Matthew Segall",
+    "Philip J. D. Lindan",
+    "Matt I. J. Probert",
+    "Chris J. Pickard",
+    "Philip J. Hasnip",
+    "Stewart J. Clark",
+    "Mike C. Payne"
+   ],
+   "venue": "Journal of Physics Condensed Matter",
+   "year": 2002,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "First-principles simulation, meaning density-functional theory calculations with plane waves and pseudopotentials, has become a prized technique in condensed-matter theory. Here I look at the basics of the suject, give a brief review of the theory, examining the strengths and weaknesses of its implementation, and illustrating some of the ways simulators approach problems through a small case study. I also discuss why and how modern software design methods have been used in writing a completely new modular version of the CASTEP code."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2166244948",
+    "publication_date": "2002-03-08",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D04"
+    ],
+    "snapshot": "snapshots/openalex/D04.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1088/0953-8984/21/39/395502",
+   "version": "openalex-2009-09-01",
+   "title": "QUANTUM ESPRESSO: a modular and open-source software project for quantum simulations of materials",
+   "authors": [
+    "Paolo Giannozzi",
+    "Stefano Baroni",
+    "Nicola Bonini",
+    "Matteo Calandra",
+    "Roberto Car",
+    "Carlo Cavazzoni",
+    "Davide Ceresoli",
+    "G. Chiarotti"
+   ],
+   "venue": "Journal of Physics Condensed Matter",
+   "year": 2009,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "QUANTUM ESPRESSO is an integrated suite of computer codes for electronic-structure calculations and materials modeling, based on density-functional theory, plane waves, and pseudopotentials (norm-conserving, ultrasoft, and projector-augmented wave). The acronym ESPRESSO stands for opEn Source Package for Research in Electronic Structure, Simulation, and Optimization. It is freely available to researchers around the world under the terms of the GNU General Public License."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "QUANTUM ESPRESSO builds upon newly-restructured electronic-structure codes that have been developed and tested by some of the original authors of novel electronic-structure algorithms and applied in the last twenty years by some of the leading materials modeling groups worldwide. Innovation and efficiency are still its main focus, with special attention paid to massively parallel architectures, and a great effort being devoted to user friendliness."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "QUANTUM ESPRESSO is evolving towards a distribution of independent and interoperable codes in the spirit of an open-source project, where researchers active in the field of electronic-structure calculations are encouraged to participate in the project by contributing their own codes or by implementing their own ideas into existing codes."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2120145199",
+    "publication_date": "2009-09-01",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D04",
+     "D05",
+     "D06"
+    ],
+    "snapshot": "snapshots/openalex/D04.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.17863/cam.64134",
+   "version": "openalex-2019-07-28",
+   "title": "SciPy 1.0: fundamental algorithms for scientific computing in Python",
+   "authors": [
+    "Pauli Virtanen",
+    "Ralf Gommers",
+    "Travis E. Oliphant",
+    "Matt Haberland",
+    "Tyler J. Reddy",
+    "David Cournapeau",
+    "Evgeni Burovski",
+    "Pearu Peterson"
+   ],
+   "venue": "LA Referencia (Red Federada de Repositorios Institucionales de Publicaciones Científicas)",
+   "year": 2019,
+   "peer_reviewed": false,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Abstract: SciPy is an open-source scientific computing library for the Python programming language. Since its initial release in 2001, SciPy has become a de facto standard for leveraging scientific algorithms in Python, with over 600 unique code contributors, thousands of dependent packages, over 100,000 dependent repositories and millions of downloads per year. In this work, we provide an overview of the capabilities and development practices of SciPy 1.0 and highlight some recent technical developments."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3103145119",
+    "publication_date": "2019-07-28",
+    "type": "dissertation",
+    "source_type": "repository",
+    "found_by": [
+     "D04",
+     "D09",
+     "C06"
+    ],
+    "snapshot": "snapshots/openalex/D04.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1016/j.cpc.2021.108171",
+   "version": "openalex-2021-09-22",
+   "title": "LAMMPS - a flexible simulation tool for particle-based materials modeling at the atomic, meso, and continuum scales",
+   "authors": [
+    "Aidan P. Thompson",
+    "Hasan Metin Aktulga",
+    "Richard A. Berger",
+    "Dan Bolintineanu",
+    "William M. Brown",
+    "Paul Crozier",
+    "Pieter J. in ’t Veld",
+    "Axel Kohlmeyer"
+   ],
+   "venue": "Computer Physics Communications",
+   "year": 2021,
+   "peer_reviewed": true,
+   "license": "CC-BY-NC-ND",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Since the classical molecular dynamics simulator LAMMPS was released as an open source code in 2004, it has become a widely-used tool for particle-based modeling of materials at length scales ranging from atomic to mesoscale to continuum. Reasons for its popularity are that it provides a wide variety of particle interaction models for different materials, that it runs on any platform from a single CPU core to the largest supercomputers with accelerators, and that it gives users control over simulation details, either via the input script or by adding code for new interatomic potentials, constraints, diagnostics, or other features needed for their models."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "As a result, hundreds of people have contributed new capabilities to LAMMPS and it has grown from fifty thousand lines of code in 2004 to a million lines today. In this paper several of the fundamental algorithms used in LAMMPS are described along with the design strategies which have made it flexible for both users and developers. We also highlight some capabilities recently added to the code which were enabled by this flexibility, including dynamic load balancing, on-the-fly visualization, magnetic spin dynamics models, and quantum-accuracy machine learning interatomic potentials."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "Program Title: Large-scale Atomic/Molecular Massively Parallel Simulator (LAMMPS) CPC Library link to program files: https://doi.org/10.17632/cxbxs9btsv.1 Developer's repository link: https://github.com/lammps/lammps Licensing provisions: GPLv2 Programming language: C++, Python, C, Fortran Supplementary material: https://www.lammps.org Nature of problem: Many science applications in physics, chemistry, materials science, and related fields require parallel, scalable, and efficient generation of long, stable classical particle dynamics trajectories."
+    },
+    {
+     "id": "abs4",
+     "section": "Abstract",
+     "page": "",
+     "text": "Within this common problem definition, there lies a great diversity of use cases, distinguished by different particle interaction models, external constraints, as well as timescales and lengthscales ranging from atomic to mesoscale to macroscopic. Solution method: The LAMMPS code uses parallel spatial decomposition, distributed neighbor lists, and parallel FFTs for long-range Coulombic interactions [1]. The time integration algorithm is based on the Størmer-Verlet symplectic integrator [2], which provides better stability than higher-order non-symplectic methods."
+    },
+    {
+     "id": "abs5",
+     "section": "Abstract",
+     "page": "",
+     "text": "In addition, LAMMPS supports a wide range of interatomic potentials, constraints, diagnostics, software interfaces, and pre- and post-processing features. Additional comments including restrictions and unusual features: This paper serves as the definitive reference for the LAMMPS code. S. Plimpton, Fast parallel algorithms for short-range molecular dynamics. J. Comp. Phys. 117 (1995) 1–19. L. Verlet, Computer experiments on classical fluids: I."
+    },
+    {
+     "id": "abs6",
+     "section": "Abstract",
+     "page": "",
+     "text": "Thermodynamical properties of Lennard–Jones molecules, Phys. Rev. 159 (1967) 98–103."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3201073812",
+    "publication_date": "2021-09-22",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D05",
+     "D09"
+    ],
+    "snapshot": "snapshots/openalex/D05.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.48550/arxiv.2204.02311",
+   "version": "openalex-2022-04-05",
+   "title": "PaLM: Scaling Language Modeling with Pathways",
+   "authors": [
+    "Aakanksha Chowdhery",
+    "Sharan Narang",
+    "Jacob Devlin",
+    "Maarten Bosma",
+    "Gaurav Mishra",
+    "Adam Roberts",
+    "Paul Barham",
+    "Hyung Won Chung"
+   ],
+   "venue": "arXiv (Cornell University)",
+   "year": 2022,
+   "peer_reviewed": false,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Large language models have been shown to achieve remarkable performance across a variety of natural language tasks using few-shot learning, which drastically reduces the number of task-specific training examples needed to adapt the model to a particular application. To further our understanding of the impact of scale on few-shot learning, we trained a 540-billion parameter, densely activated, Transformer language model, which we call Pathways Language Model PaLM."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "We trained PaLM on 6144 TPU v4 chips using Pathways, a new ML system which enables highly efficient training across multiple TPU Pods. We demonstrate continued benefits of scaling by achieving state-of-the-art few-shot learning results on hundreds of language understanding and generation benchmarks. On a number of these tasks, PaLM 540B achieves breakthrough performance, outperforming the finetuned state-of-the-art on a suite of multi-step reasoning tasks, and outperforming average human performance on the recently released BIG-bench benchmark."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "A significant number of BIG-bench tasks showed discontinuous improvements from model scale, meaning that performance steeply increased as we scaled to our largest model. PaLM also has strong capabilities in multilingual tasks and source code generation, which we demonstrate on a wide array of benchmarks. We additionally provide a comprehensive analysis on bias and toxicity, and study the extent of training data memorization with respect to model scale."
+    },
+    {
+     "id": "abs4",
+     "section": "Abstract",
+     "page": "",
+     "text": "Finally, we discuss the ethical considerations related to large language models and discuss potential mitigation strategies."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W4224308101",
+    "publication_date": "2022-04-05",
+    "type": "preprint",
+    "source_type": "repository",
+    "found_by": [
+     "D05",
+     "C04",
+     "C05"
+    ],
+    "snapshot": "snapshots/openalex/D05.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.48550/arxiv.2302.13971",
+   "version": "openalex-2023-02-27",
+   "title": "LLaMA: Open and Efficient Foundation Language Models",
+   "authors": [
+    "Hugo Touvron",
+    "Thibaut Lavril",
+    "Gautier Izacard",
+    "Xavier Martinet",
+    "Marie-Anne Lachaux",
+    "Timothée Lacroix",
+    "Baptiste Rozière",
+    "Naman Goyal"
+   ],
+   "venue": "arXiv (Cornell University)",
+   "year": 2023,
+   "peer_reviewed": false,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "We introduce LLaMA, a collection of foundation language models ranging from 7B to 65B parameters. We train our models on trillions of tokens, and show that it is possible to train state-of-the-art models using publicly available datasets exclusively, without resorting to proprietary and inaccessible datasets. In particular, LLaMA-13B outperforms GPT-3 (175B) on most benchmarks, and LLaMA-65B is competitive with the best models, Chinchilla-70B and PaLM-540B."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "We release all our models to the research community."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W4322718191",
+    "publication_date": "2023-02-27",
+    "type": "preprint",
+    "source_type": "repository",
+    "found_by": [
+     "D05",
+     "C06"
+    ],
+    "snapshot": "snapshots/openalex/D05.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1145/3637528.3671470",
+   "version": "openalex-2024-08-24",
+   "title": "A Survey on RAG Meeting LLMs: Towards Retrieval-Augmented Large Language Models",
+   "authors": [
+    "Wenqi Fan",
+    "Yujuan Ding",
+    "Liangbo Ning",
+    "Shijie Wang",
+    "Hengyun Li",
+    "Dawei Yin",
+    "Tat‐Seng Chua",
+    "Qing Li"
+   ],
+   "venue": "",
+   "year": 2024,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "As one of the most advanced techniques in AI, Retrieval-Augmented Generation (RAG) can offer reliable and up-to-date external knowledge, providing huge convenience for numerous tasks. Particularly in the era of AI-Generated Content (AIGC), the powerful capacity of retrieval in providing additional knowledge enables RAG to assist existing generative AI in producing high-quality outputs. Recently, Large Language Models (LLMs) have demonstrated revolutionary abilities in language understanding and generation, while still facing inherent limitations such as hallucinations and out-of-date internal knowledge."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "Given the powerful abilities of RAG in providing the latest and helpful auxiliary information, Retrieval-Augmented Large Language Models (RA-LLMs) have emerged to harness external and authoritative knowledge bases, rather than solely relying on the model's internal knowledge, to augment the quality of the generated content of LLMs. In this survey, we comprehensively review existing research studies in RA-LLMs, covering three primary technical perspectives: Furthermore, to deliver deeper insights, we discuss current limitations and several promising directions for future research."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "Updated information about this survey can be found at: https://advanced-recommender-systems.github.io/RAG-Meets-LLMs/"
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W4401857375",
+    "publication_date": "2024-08-24",
+    "type": "conference-paper",
+    "source_type": null,
+    "found_by": [
+     "D06"
+    ],
+    "snapshot": "snapshots/openalex/D06.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.18653/v1/2021.findings-emnlp.232",
+   "version": "openalex-2021-01-01",
+   "title": "Retrieval Augmented Code Generation and Summarization",
+   "authors": [
+    "Rizwan Parvez",
+    "Wasi Uddin Ahmad",
+    "Saikat Chakraborty",
+    "Baishakhi Ray",
+    "Kai-Wei Chang"
+   ],
+   "venue": "",
+   "year": 2021,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Software developers write a lot of source code and documentation during software development.Intrinsically, developers often recall parts of source code or code summaries that they had written in the past while implementing software or documenting them.To mimic developers' code or summary generation behavior, we propose a retrieval augmented framework, REDCODER, that retrieves relevant code or summaries from a retrieval database and provides them as a supplement to code generation or summarization models.REDCODER has a couple of uniqueness.First, it extends the state-of-the-art dense retrieval technique to search for relevant code or summaries.Second, it can work with retrieval databases that include unimodal (only code or natural language description) or bimodal instances (code-description pairs).We conduct experiments and extensive analysis on two benchmark datasets of code generation and summarization in Java and Python, and the promising results endorse the effectiveness of our proposed retrieval augmented framework."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3194195934",
+    "publication_date": "2021-01-01",
+    "type": "conference-paper",
+    "source_type": null,
+    "found_by": [
+     "D06"
+    ],
+    "snapshot": "snapshots/openalex/D06.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1016/0005-1098(94)90209-7",
+   "version": "openalex-1994-07-01",
+   "title": "A survey of models, analysis tools and compensation methods for the control of machines with friction",
+   "authors": [
+    "Brian Armstrong-Hélouvry",
+    "Pierre E. Dupont",
+    "Carlos Canudas de Wit"
+   ],
+   "venue": "Automatica",
+   "year": 1994,
+   "peer_reviewed": true,
+   "license": "CC-BY-NC-ND",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "While considerable progress has been made in friction compensation, this is, apparently, the first survey on the topic. In particular, it is the first to bring to the attention of the controls community the important contributions from the tribology, lubrication and physics literatures. By uniting these results with those of the controls community, a set of models and tools for friction compensation is provided which will be of value to both research and application engineers."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "The successful design and analysis of friction compensators depends heavily upon the quality of the friction model used, and the suitability of the analysis technique employed. Consequently, this survey first describes models of machine friction, followed by a discussion of relevant analysis techniques and concludes with a survey of friction compensation methods reported in the literature. An overview of techniques used by practising engineers and a bibliography of 280 papers is included."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2091881639",
+    "publication_date": "1994-07-01",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D07"
+    ],
+    "snapshot": "snapshots/openalex/D07.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1109/access.2020.2970143",
+   "version": "openalex-2020-01-01",
+   "title": "Digital Twin: Values, Challenges and Enablers From a Modeling Perspective",
+   "authors": [
+    "Adil Rasheed",
+    "Omer San",
+    "Trond Kvamsdal"
+   ],
+   "venue": "IEEE Access",
+   "year": 2020,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Digital twin can be defined as a virtual representation of a physical asset enabled through data and simulators for real-time prediction, optimization, monitoring, controlling, and improved decision making. Recent advances in computational pipelines, multiphysics solvers, artificial intelligence, big data cybernetics, data processing and management tools bring the promise of digital twins and their impact on society closer to reality."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "Digital twinning is now an important and emerging trend in many applications. Also referred to as a computational megamodel, device shadow, mirrored system, avatar or a synchronized virtual prototype, there can be no doubt that a digital twin plays a transformative role not only in how we design and operate cyber-physical intelligent systems, but also in how we advance the modularity of multi-disciplinary systems to tackle fundamental barriers not addressed by the current, evolutionary modeling practices."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "In this work, we review the recent status of methodologies and techniques related to the construction of digital twins mostly from a modeling perspective. Our aim is to provide a detailed coverage of the current challenges and enabling technologies along with recommendations and reflections for various stakeholders."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3003667836",
+    "publication_date": "2020-01-01",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D07"
+    ],
+    "snapshot": "snapshots/openalex/D07.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1109/jpets.2015.2427370",
+   "version": "openalex-2015-06-01",
+   "title": "Real-Time Simulation Technologies for Power Systems Design, Testing, and Analysis",
+   "authors": [
+    "M O Faruque",
+    "Thomas Strasser",
+    "Georg F. Lauss",
+    "Vahid Jalili-Marandi",
+    "Paul Forsyth",
+    "Christian Dufour",
+    "Venkata Dinavahi",
+    "Antonello Monti"
+   ],
+   "venue": "IEEE Power and Energy Technology Systems Journal",
+   "year": 2015,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "This task force paper summarizes the state-of-the-art real-time digital simulation concepts and technologies that are used for the analysis, design, and testing of the electric power system and its apparatus. This paper highlights the main building blocks of the real-time simulator, i.e., hardware, software, input-output systems, modeling, and solution techniques, interfacing capabilities to external hardware and various applications."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "It covers the most commonly used real-time digital simulators in both industry and academia. A comprehensive list of the real-time simulators is provided in a tabular review. The objective of this paper is to summarize salient features of various real-time simulators, so that the reader can benefit from understanding the relevant technologies and their applications, which will be presented in a separate paper."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2147889003",
+    "publication_date": "2015-06-01",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D07"
+    ],
+    "snapshot": "snapshots/openalex/D07.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.4173/mic.2020.4.1",
+   "version": "openalex-2020-01-01",
+   "title": "The OpenModelica Integrated Environment for Modeling, Simulation, and Model-Based Development",
+   "authors": [
+    "Peter Fritzson",
+    "Adrian Pop",
+    "Karim Abdelhak",
+    "Adeel Ashgar",
+    "Bernhard Bachmann",
+    "Willi Braun",
+    "Daniel Bouskela",
+    "Robert Braun"
+   ],
+   "venue": "Modeling Identification and Control A Norwegian Research Bulletin",
+   "year": 2020,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "OpenModelica is a unique large-scale integrated open-source Modelica-and FMI-based modeling, simulation, optimization, model-based analysis and development environment.Moreover, the OpenModelica environment provides a number of facilities such as debugging; optimization; visualization and 3D animation; web-based model editing and simulation; scripting from Modelica, Python, Julia, and Matlab; efficient simulation and co-simulation of FMI-based models; compilation for embedded systems; Modelica-UML integration; requirement verification; and generation of parallel code for multi-core architectures.The environment is based on the equation-based object-oriented Modelica language and currently uses the MetaModelica extended version of Modelica for its model compiler implementation.This overview paper gives an up-to-date description of the capabilities of the system, short overviews of used open source symbolic and numeric algorithms with pointers to published literature, tool integration aspects, some lessons learned, and the main vision behind its development."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3105860145",
+    "publication_date": "2020-01-01",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D07"
+    ],
+    "snapshot": "snapshots/openalex/D07.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1007/s11082-019-1838-4",
+   "version": "openalex-2019-04-24",
+   "title": "FDTD modelling of nanostructured OLEDs: analysis of simulation parameters for accurate radiation patterns",
+   "authors": [
+    "Hannes Lüder",
+    "Martina Gerken"
+   ],
+   "venue": "Optical and Quantum Electronics",
+   "year": 2019,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Nanostructures in OLEDs allow to manipulate the radiation pattern and direct light of a specific wavelength into a specific angle in the far field by resonant light outcoupling. We present a theoretical study investigating simulation conditions for accurate radiation patterns employing the FDTD method. Radiation patterns of single dipole emitters placed in a sufficiently large simulation domain are superimposed to model the incoherent emission of a continuous emission layer."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "The necessary simulation domain size is derived by considering propagation length and field profile of the guided mode of a corresponding unstructured OLED. A 5 nm mesh resolution is determined as a good compromise between accuracy and simulation time. The position of an emitter with respect to the grating has a large influence on the radiation pattern. Nevertheless, we demonstrate for nine different OLED structures that the radiation pattern of a homogeneous emission layer is approximated with an amplitude error of less than 5% by superimposing only four equally spaced dipoles at positions $$\\pm \\,(1/8, 3/8, 5/8, 7/8) \\cdot \\varLambda /2$$ , which avoid points of high symmetry."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2941961581",
+    "publication_date": "2019-04-24",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D08"
+    ],
+    "snapshot": "snapshots/openalex/D08.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1109/tgrs.2018.2869027",
+   "version": "openalex-2018-09-27",
+   "title": "Realistic FDTD GPR Antenna Models Optimized Using a Novel Linear/Nonlinear Full-Waveform Inversion",
+   "authors": [
+    "Iraklis Giannakis",
+    "Antonios V. Giannopoulos",
+    "Craig Russell Warren"
+   ],
+   "venue": "IEEE Transactions on Geoscience and Remote Sensing",
+   "year": 2018,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Finite-difference time-domain forward modeling of ground-penetrating radar (GPR) is becoming regularly used in model-based interpretation methods, such as full-waveform inversion (FWI) and machine learning schemes. Oversimplifications in such forward models can compromise the accuracy and realism with which real GPR responses can be simulated, which degrades the overall performance of interpretation techniques. A forward model must be able to accurately simulate every part of the GPR problem that affects the resulting scattered field."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "A key element, especially for near-field applications, is the antenna system. Therefore, the model must contain a complete description of the antenna, including the excitation source and waveform, the geometry, and the dielectric properties of any materials in the antenna. The challenge is that some of these parameters are not known or cannot be easily measured, especially for commercial GPR antennas that are used in practice."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "We present a novel hybrid linear/nonlinear FWI approach that can be used, with only knowledge of the basic antenna geometry, to simultaneously optimize the dielectric properties and excitation waveform of the antenna and minimize the error between real and synthetic data. The accuracy and stability of our proposed methodology are demonstrated by successfully modeling a 1.5-GHz commercial antenna from Geophysical Survey Systems, Inc."
+    },
+    {
+     "id": "abs4",
+     "section": "Abstract",
+     "page": "",
+     "text": "Our framework allows accurate models of GPR antennas to be developed without requiring detailed knowledge of every component of the antenna. This is significant because it allows commercial GPR antennas, regularly used in GPR surveys, to be more readily simulated."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2893824312",
+    "publication_date": "2018-09-27",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D08"
+    ],
+    "snapshot": "snapshots/openalex/D08.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1115/1.4026911",
+   "version": "openalex-2014-02-20",
+   "title": "Dynamics of Phononic Materials and Structures: Historical Origins, Recent Progress, and Future Outlook",
+   "authors": [
+    "Mahmoud I. Hussein",
+    "Michael Joseph Leamy",
+    "Massimo Ruzzene"
+   ],
+   "venue": "Applied Mechanics Reviews",
+   "year": 2014,
+   "peer_reviewed": true,
+   "license": "CC-BY-NC-SA",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Abstract The study of phononic materials and structures is an emerging discipline that lies at the crossroads of vibration and acoustics engineering and condensed matter physics. Broadly speaking, a phononic medium is a material or structural system that usually exhibits some form of periodicity, which can be in the constituent material phases, or the internal geometry, or even the boundary conditions. As such, its overall dynamical characteristics are compactly described by a frequency band structure, in analogy to an electronic band diagram."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "With roots extended to early studies of periodic systems by Newton and Rayleigh, the field has grown to encompass engineering configurations ranging from trusses and ribbed shells to phononic crystals and metamaterials. While applied research in this area has been abundant in recent years, treatment from a fundamental mechanics perspective, and particularly from the standpoint of dynamical systems, is needed to advance the field in new directions."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "For example, techniques already developed for the incorporation of damping and nonlinearities have recently been applied to wave propagation in phononic materials and structures. Similarly, numerical and experimental approaches originally developed for the characterization of conventional materials and structures are now being employed toward better understanding and exploitation of phononic systems. This article starts with an overview of historical developments and follows with an in-depth literature and technical review of recent progress in the field with special consideration given to aspects pertaining to the fundamentals of dynamics, vibrations, and acoustics."
+    },
+    {
+     "id": "abs4",
+     "section": "Abstract",
+     "page": "",
+     "text": "Finally, an outlook is projected onto the future on the basis of the current trajectories of the field."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2047622789",
+    "publication_date": "2014-02-20",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D08"
+    ],
+    "snapshot": "snapshots/openalex/D08.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1364/oe.22.00a589",
+   "version": "openalex-2014-03-12",
+   "title": "RCWA and FDTD modeling of light emission from internally structured OLEDs",
+   "authors": [
+    "Michiel Koen Callens",
+    "Herman Marsman",
+    "Lieven Penninck",
+    "Patrick P. G. J. M. Peeters",
+    "Harry de Groot",
+    "Jan Matthijs ter Meulen",
+    "Kristiaan Neyts"
+   ],
+   "venue": "Optics Express",
+   "year": 2014,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "We report on the fabrication and simulation of a green OLED with an Internal Light Extraction (ILE) layer. The optical behavior of these devices is simulated using both Rigorous Coupled Wave Analysis (RCWA) and Finite Difference Time-Domain (FDTD) methods. Results obtained using these two different techniques show excellent agreement and predict the experimental results with good precision. By verifying the validity of both simulation methods on the internal light extraction structure we pave the way to optimization of ILE layers using either of these methods."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2066993766",
+    "publication_date": "2014-03-12",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D08"
+    ],
+    "snapshot": "snapshots/openalex/D08.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1186/s12859-017-1934-z",
+   "version": "openalex-2017-11-29",
+   "title": "ImageJ2: ImageJ for the next generation of scientific image data",
+   "authors": [
+    "Curtis Rueden",
+    "Johannes Schindelin",
+    "Mark Hiner",
+    "Barry E. DeZonia",
+    "Alison Walter",
+    "Ellen T. Arena",
+    "Kevin W. Eliceiri"
+   ],
+   "venue": "BMC Bioinformatics",
+   "year": 2017,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "BACKGROUND: ImageJ is an image analysis program extensively used in the biological sciences and beyond. Due to its ease of use, recordable macro language, and extensible plug-in architecture, ImageJ enjoys contributions from non-programmers, amateur programmers, and professional developers alike. Enabling such a diversity of contributors has resulted in a large community that spans the biological and physical sciences."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "However, a rapidly growing user base, diverging plugin suites, and technical limitations have revealed a clear need for a concerted software engineering effort to support emerging imaging paradigms, to ensure the software's ability to handle the requirements of modern science. RESULTS: We rewrote the entire ImageJ codebase, engineering a redesigned plugin mechanism intended to facilitate extensibility at every level, with the goal of creating a more powerful tool that continues to serve the existing community while addressing a wider range of scientific requirements."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "This next-generation ImageJ, called \"ImageJ2\" in places where the distinction matters, provides a host of new functionality. It separates concerns, fully decoupling the data model from the user interface. It emphasizes integration with external applications to maximize interoperability. Its robust new plugin framework allows everything from image formats, to scripting languages, to visualization to be extended by the community."
+    },
+    {
+     "id": "abs4",
+     "section": "Abstract",
+     "page": "",
+     "text": "The redesigned data model supports arbitrarily large, N-dimensional datasets, which are increasingly common in modern image acquisition. Despite the scope of these changes, backwards compatibility is maintained such that this new functionality can be seamlessly integrated with the classic ImageJ interface, allowing users and developers to migrate to these new methods at their own pace. CONCLUSIONS: Scientific imaging benefits from open-source programs that advance new method development and deployment to a diverse audience."
+    },
+    {
+     "id": "abs5",
+     "section": "Abstract",
+     "page": "",
+     "text": "ImageJ has continuously evolved with this idea in mind; however, new and emerging scientific requirements have posed corresponding challenges for ImageJ's development. The described improvements provide a framework engineered for flexibility, intended to support these requirements as well as accommodate future needs. Future efforts will focus on implementing new algorithms in this framework and expanding collaborations with other popular scientific software suites."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2580035316",
+    "publication_date": "2017-11-29",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D09"
+    ],
+    "snapshot": "snapshots/openalex/D09.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1007/s11704-024-40231-1",
+   "version": "openalex-2024-03-22",
+   "title": "A survey on large language model based autonomous agents",
+   "authors": [
+    "Lei Wang",
+    "Chen Ma",
+    "Xueyang Feng",
+    "Zeyu Zhang",
+    "Hao Yuan Yang",
+    "Jingsen Zhang",
+    "Zhiyuan Chen",
+    "Jiakai Tang"
+   ],
+   "venue": "Frontiers of Computer Science",
+   "year": 2024,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Abstract Autonomous agents have long been a research focus in academic and industry communities. Previous research often focuses on training agents with limited knowledge within isolated environments, which diverges significantly from human learning processes, and makes the agents hard to achieve human-like decisions. Recently, through the acquisition of vast amounts of Web knowledge, large language models (LLMs) have shown potential in human-level intelligence, leading to a surge in research on LLM-based autonomous agents."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "In this paper, we present a comprehensive survey of these studies, delivering a systematic review of LLM-based autonomous agents from a holistic perspective. We first discuss the construction of LLM-based autonomous agents, proposing a unified framework that encompasses much of previous work. Then, we present a overview of the diverse applications of LLM-based autonomous agents in social science, natural science, and engineering."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "Finally, we delve into the evaluation strategies commonly used for LLM-based autonomous agents. Based on the previous studies, we also present several challenges and future directions in this field."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W4393065402",
+    "publication_date": "2024-03-22",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D10",
+     "D11",
+     "C04",
+     "C05"
+    ],
+    "snapshot": "snapshots/openalex/D10.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1107/s0907444909052925",
+   "version": "openalex-2010-01-21",
+   "title": "PHENIX : a comprehensive Python-based system for macromolecular structure solution",
+   "authors": [
+    "Paul D. Adams",
+    "Pavel V. Afonine",
+    "G. Bunkóczi",
+    "Vincent B. Chen",
+    "Ian Davis",
+    "Nathaniel Echols",
+    "Jeffrey J. Headd",
+    "Li‐Wei Hung"
+   ],
+   "venue": "Acta Crystallographica Section D Biological Crystallography",
+   "year": 2010,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Macromolecular X-ray crystallography is routinely applied to understand biological processes at a molecular level. However, significant time and effort are still required to solve and complete many of these structures because of the need for manual interpretation of complex numerical data using many software packages and the repeated use of interactive three-dimensional graphics. PHENIX has been developed to provide a comprehensive system for macromolecular crystallographic structure solution with an emphasis on the automation of all procedures."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "This has relied on the development of algorithms that minimize or eliminate subjective input, the development of algorithms that automate procedures that are traditionally performed by hand and, finally, the development of a framework that allows a tight integration between the algorithms."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2180229411",
+    "publication_date": "2010-01-21",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D10",
+     "D11"
+    ],
+    "snapshot": "snapshots/openalex/D10.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1109/5.726791",
+   "version": "openalex-1998-01-01",
+   "title": "Gradient-based learning applied to document recognition",
+   "authors": [
+    "Yann LeCun",
+    "Léon Bottou",
+    "Yoshua Bengio",
+    "Patrick Haffner"
+   ],
+   "venue": "Proceedings of the IEEE",
+   "year": 1998,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Multilayer neural networks trained with the back-propagation algorithm constitute the best example of a successful gradient based learning technique. Given an appropriate network architecture, gradient-based learning algorithms can be used to synthesize a complex decision surface that can classify high-dimensional patterns, such as handwritten characters, with minimal preprocessing. This paper reviews various methods applied to handwritten character recognition and compares them on a standard handwritten digit recognition task."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "Convolutional neural networks, which are specifically designed to deal with the variability of 2D shapes, are shown to outperform all other techniques. Real-life document recognition systems are composed of multiple modules including field extraction, segmentation recognition, and language modeling. A new learning paradigm, called graph transformer networks (GTN), allows such multimodule systems to be trained globally using gradient-based methods so as to minimize an overall performance measure."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "Two systems for online handwriting recognition are described. Experiments demonstrate the advantage of global training, and the flexibility of graph transformer networks. A graph transformer network for reading a bank cheque is also described. It uses convolutional neural network character recognizers combined with global training techniques to provide record accuracy on business and personal cheques. It is deployed commercially and reads several million cheques per day."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2112796928",
+    "publication_date": "1998-01-01",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D10"
+    ],
+    "snapshot": "snapshots/openalex/D10.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.48550/arxiv.2107.03374",
+   "version": "openalex-2021-07-07",
+   "title": "Evaluating Large Language Models Trained on Code",
+   "authors": [
+    "Mark I-Cheng Chen",
+    "Jerry Tworek",
+    "Heewoo Jun",
+    "Qiming Yuan",
+    "Henrique Pondé de Oliveira Pinto",
+    "Jared Kaplan",
+    "Harrison S. Edwards",
+    "Yuri Burda"
+   ],
+   "venue": "arXiv (Cornell University)",
+   "year": 2021,
+   "peer_reviewed": false,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "I created a basic proof of concept of LMVM (Language Model Virtual Machine), a command line toolchain that English instructions into native binaries without intermediary high-level language compilation. The command line uses a large language model (LLM) as IR generation backend, producing LLVM Intermediate Representation (IR) directly from user instructions coding. The IR is compiled and linked to machine code (-o files) via `clang` (with an `llc`/`lld` fallback on POSIX hosts) and executed on bare metal, within Docker sandboxes, on AWS Lambda, or as standalone HTTP servers."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "How It Works (5 Steps) 1. You type an instruction - e.g. \"Create a rest api running on localhost port 3000 and return hello world\" 2. LMVM checks your computer - It figures out if you're on Windows/Mac/Linux, what CPU you have (Intel vs ARM), and makes sure clang (the compiler) is installed. If not, it offers to install it for you (with your permission). 3. An AI writes LLVM IR - Instead of writing C or Python, the LLM writes LLVM IR -- a low-level assembly-like language that sits between source code and machine code."
+    },
+    {
+     "id": "abs3",
+     "section": "Abstract",
+     "page": "",
+     "text": "The prompt includes your OS details so the AI generates code that works on your platform (e.g. Winsock on Windows vs POSIX sockets on Mac/Linux). 4. Clang turns IR into a native binary - clang compiles the IR and links it with system libraries (PostgreSQL, OpenSSL, SQLite, etc.) into a real executable. One step, no extra tools needed. 5. It runs - The binary executes directly on your CPU. If it's a Docker target, it runs sandboxed."
+    },
+    {
+     "id": "abs4",
+     "section": "Abstract",
+     "page": "",
+     "text": "If it's Lambda, it packages for AWS. 2. Why we care : Compiled native binaries outperform interpreted languages by 10-50x in CPU usage and 5-15x in memory for compute-heavy tasks, because interpreters add overhead with every instruction they process and their single-threaded execution model blocks true parallelism. Few runtimes that compile code on the fly, the gap narrows to 2-5x in CPU since those systems optimize hot code paths over time -- but native code still starts faster, uses less memory, and can run true parallel threads instead of juggling everything through a single event loop."
+    },
+    {
+     "id": "abs5",
+     "section": "Abstract",
+     "page": "",
+     "text": "The biggest gains show up in recursive and number-crunching workloads (where the cost of \"figuring out what to do next\" dominates) and memory-heavy tasks (where automatic garbage collection and wrapping every value in an object bloats memory usage). I/O-bound tasks show the smallest differences, because the operating system does the real work regardless of what language runtime sits on top. This also means we need to think carefully about maintainability, especially now that AI agents can generate code as a complete black box sometimes even producing low-level output that humans rarely inspect. 3."
+    },
+    {
+     "id": "abs6",
+     "section": "Abstract",
+     "page": "",
+     "text": "System Architecture [CLI] → [Toolchain] → [LLM Client] → [Compiler] → [Runner] → Output ↑ | Error Feedback | Self‑Correction Loop (x10) 3.1 CLI and Interactive Setup The command-line interface (built on Commander.js) exposes four commands: `run` (compile and execute), `compile` (IR generation only), `build` (compile existing IR), and `targets` (list output targets). 3.2 LLM Client The LLM client wraps an OpenAI-compatible API, supporting providers examples (OpenAI, Groq, Together AI, OpenRouter, and local llm instances)."
+    },
+    {
+     "id": "abs7",
+     "section": "Abstract",
+     "page": "",
+     "text": "The command line agent constructs prompts from two sources: a system prompt (loaded from `Prompt.md`, ~4000 tokens) containing LLVM IR generation rules, security constraints, and code templates; and a user prompt containing a platform descriptor (host OS, exact target triple, sockets dialect), the instruction, target, and error context for retry attempts. A secondary method, is used by the toolchain bootstrapper to obtain package-manager commands for the detected host. 3.3 Platform Abstraction and Toolchain Bootstrapper Since LMVM builds real native programs, it has to know exactly what computer it's running on -- the same code won't work the same way on Windows vs Mac vs Linux."
+    },
+    {
+     "id": "abs8",
+     "section": "Abstract",
+     "page": "",
+     "text": "So a platform module figures out three things: 1. The \"target triple\" -- a label that tells the compiler exactly which OS and CPU to build for (like x86_64-pc-windows-msvc for 64-bit Windows, or arm64-apple-darwin for an M-series Mac). 2. How to do networking -- Windows uses its own socket system (Winsock), while Mac and Linux use the standard POSIX approach. The code has to match. 3. What package manager is available -- winget/choco/scoop on Windows, brew on Mac, apt/dnf/pacman on Linux."
+    },
+    {
+     "id": "abs9",
+     "section": "Abstract",
+     "page": "",
+     "text": "This matters if LMVM needs to install something. All of this gets described in plain text and injected into the AI's prompt, so it writes code that actually compiles on your machine instead of assuming you're on Linux. Before talking to the AI, LMVM runs a checklist to make sure your computer can actually compile things: 1. PATH fix - If you just installed clang but your terminal hasn't refreshed yet, LMVM detects the install location and patches its own PATH so it finds clang right away, no need to restart your terminal. 2."
+    },
+    {
+     "id": "abs10",
+     "section": "Abstract",
+     "page": "",
+     "text": "Is clang there? - It checks that the compiler is actually available. 3. Can clang actually build a program? (Windows only) -- On Windows, having clang isn't enough -- it also needs the MSVC linker and Windows SDK behind it. LMVM compiles a tiny test program to verify the full chain works. If it fails, the Visual Studio Build Tools are probably missing. 4. Install with user's permission - If anything is missing, LMVM asks the AI for the right install commands, shows them to you, and waits for your yes before running anything."
+    },
+    {
+     "id": "abs11",
+     "section": "Abstract",
+     "page": "",
+     "text": "Then it checks again. If the toolchain still can't work after all that, LMVM stops early and tells you exactly what to do (install manually, open a new terminal, or use Docker instead). It doesn't waste your AI API calls retrying something a code fix can't solve. 3.4 Code Compiler Compilation is driven by `clang`, which lowers the `.ll` and invokes the platform linker in a single step: Primary path (all platforms) - `clang output.ll -o `."
+    },
+    {
+     "id": "abs12",
+     "section": "Abstract",
+     "page": "",
+     "text": "Library flags are platform-aware: POSIX hosts use `-lpq`, `-lcurl`, `-lssl`, etc.; Windows links `ws2_32` for socket/server targets and relies on the MSVC C runtime. For the AWS Lambda target, static linking is applied. POSIX fallback - If `clang` is unavailable on macOS/Linux, the system falls back to the classic cascade: the LLVM Static Compiler (`llc -filetype=obj -relocation-model=pic`) to produce a position-independent object file, then `ld.lld` (`-flavor gnu`), the system C compiler (`cc`), or `clang` as a linker."
+    },
+    {
+     "id": "abs13",
+     "section": "Abstract",
+     "page": "",
+     "text": "A 60-second timeout bounds each invocation. The compiler maps library names to their respective linker flags through platform-specific lookup tables, covering PostgreSQL (libpq), HTTP (libcurl), JSON (cJSON), SSL/TLS (OpenSSL), image processing (libpng, libjpeg), databases (libsqlite3, libmysqlclient), compression (zlib), encryption (libcrypto), caching (hiredis), and message queues (librdkafka). 3.5 Execution Runner The runner dispatches binary execution based on the detected target like native , docker or AWS or GCR. 3.6 Self-Correction Loop When compilation or execution fails, the runtime updates a VM state object (`VMState`) with the error type (compiler/linker/runtime), error message, error line number, previous IR, and a compressed memory object (`VMMemory`) tracking accumulated errors and resolved dependencies."
+    },
+    {
+     "id": "abs14",
+     "section": "Abstract",
+     "page": "",
+     "text": "This enriched context is fed back to the LLM in the next attempt, enabling targeted correction. The loop terminates after a configurable maximum number of attempts (default: 10). 3.7 Security Layer LMVM employs defense-in-depth across three layers: 1. AI rules -- The instructions sent to the AI explicitly say: don't generate code that runs shell commands with user input, don't write files outside the allowed folder, don't read sensitive system files, don't hardcode passwords, and don't allocate unlimited memory."
+    },
+    {
+     "id": "abs15",
+     "section": "Abstract",
+     "page": "",
+     "text": "Think of this as a \"don't do bad things\" rulebook for the AI. 2. Sandbox -- When running in Docker, the program is locked down. A seccomp profile blocks the most dangerous system calls -- things like creating new processes, mounting drives, rebooting the machine, loading kernel modules, or snooping on other programs. Docker also limits the program to 512 MB of RAM and 1 CPU core, so it can't eat all your resources. This follows NIST security guidelines. 3."
+    },
+    {
+     "id": "abs16",
+     "section": "Abstract",
+     "page": "",
+     "text": "Input protection -- When LMVM runs the compiler or your program, it passes arguments as a structured list, not a single string. This means a hacker can't sneak in shell commands the way they might with string concatenation (the classic \"shell injection\" attack). The one exception is the toolchain installer, which does run shell commands -- but it always shows you the exact commands first and waits for your approval before running them."
+    },
+    {
+     "id": "abs17",
+     "section": "Abstract",
+     "page": "",
+     "text": "API keys are hidden in console output, and data buffers are capped at 10 MB to prevent memory explosions Appendix : As a demo using command LMVMcli command line we created a basic rest api directly as a machice code. Generated IR by GPT"
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W3177813494",
+    "publication_date": "2021-07-07",
+    "type": "preprint",
+    "source_type": "repository",
+    "found_by": [
+     "D10"
+    ],
+    "snapshot": "snapshots/openalex/D10.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1038/s41586-023-06792-0",
+   "version": "openalex-2023-12-20",
+   "title": "Autonomous chemical research with large language models",
+   "authors": [
+    "Daniil A. Boiko",
+    "Robert MacKnight",
+    "Ben Kline",
+    "Gabe Gomes"
+   ],
+   "venue": "Nature",
+   "year": 2023,
+   "peer_reviewed": true,
+   "license": "CC-BY",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Abstract Transformer-based large language models are making significant strides in various fields, such as natural language processing 1–5 , biology 6,7 , chemistry 8–10 and computer programming 11,12 . Here, we show the development and capabilities of Coscientist, an artificial intelligence system driven by GPT-4 that autonomously designs, plans and performs complex experiments by incorporating large language models empowered by tools such as internet and documentation search, code execution and experimental automation."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "Coscientist showcases its potential for accelerating research across six diverse tasks, including the successful reaction optimization of palladium-catalysed cross-couplings, while exhibiting advanced capabilities for (semi-)autonomous experimental design and execution. Our findings demonstrate the versatility, efficacy and explainability of artificial intelligence systems like Coscientist in advancing research."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W4389991792",
+    "publication_date": "2023-12-20",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D11"
+    ],
+    "snapshot": "snapshots/openalex/D11.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  },
+  {
+   "doi": "10.1088/1361-648x/aa8f79",
+   "version": "openalex-2017-09-27",
+   "title": "Advanced capabilities for materials modelling with Q uantum ESPRESSO",
+   "authors": [
+    "P Giannozzi",
+    "O Andreussi",
+    "T Brumme",
+    "O Bunau",
+    "M Buongiorno Nardelli",
+    "M Calandra",
+    "R Car",
+    "C Cavazzoni"
+   ],
+   "venue": "Journal of Physics Condensed Matter",
+   "year": 2017,
+   "peer_reviewed": true,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "abs1",
+     "section": "Abstract",
+     "page": "",
+     "text": "Quantum EXPRESSO is an integrated suite of open-source computer codes for quantum simulations of materials using state-of-the-art electronic-structure techniques, based on density-functional theory, density-functional perturbation theory, and many-body perturbation theory, within the plane-wave pseudopotential and projector-augmented-wave approaches. Quantum EXPRESSO owes its popularity to the wide variety of properties and processes it allows to simulate, to its performance on an increasingly broad array of hardware architectures, and to a community of researchers that rely on its capabilities as a core open-source development platform to implement their ideas."
+    },
+    {
+     "id": "abs2",
+     "section": "Abstract",
+     "page": "",
+     "text": "In this paper we describe recent extensions and improvements, covering new methodologies and property calculators, improved parallelization, code modularization, and extended interoperability both within the distribution and with external software."
+    }
+   ],
+   "provenance": {
+    "provider": "OpenAlex",
+    "openalex_id": "https://openalex.org/W2757803490",
+    "publication_date": "2017-09-27",
+    "type": "article",
+    "source_type": "journal",
+    "found_by": [
+     "D11"
+    ],
+    "snapshot": "snapshots/openalex/D11.json",
+    "status_basis": "OpenAlex is_retracted (Retraction Watch data); not a full erratum check",
+    "evidence_text": "the work's own abstract as OpenAlex holds it; the full text was not read"
+   }
+  }
+ ]
+}

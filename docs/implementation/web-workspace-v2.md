@@ -7,6 +7,14 @@ Workspace. **Not a milestone.** No Requirement or Test ID was added and no miles
 simulation was implemented, and the research workflow is unchanged: with no LLM runtime active a run
 is byte-for-byte the accepted one.
 
+> **Corrected by the system closure (2026-09-28, `012f`,
+> [`system-closure.md`](system-closure.md)).** As built here, LLM settings were open to any member of
+> any project, and the active runtime's egress policy (section 3, "egress gate" row) was one policy
+> for every project, declared by the activator in RESEARCH mode. That was a P0: a global runtime
+> could let another project's evidence leave. LLM settings are now deployment administration (an
+> operator grant), and the egress gate applies each project's OWN declared policy and privacy mode.
+> The text below is kept as the V2 record.
+
 ## 1. What a researcher sees
 
 A stable header on every page: **Episodes · New research run · LLM settings · Runtime**, the actor,

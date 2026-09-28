@@ -38,10 +38,42 @@ python -m venv .venv
 `postgres` / `lumerical` / `network` marker 標記並預設跳過。
 
 ```powershell
-# 需要真實 PostgreSQL 的測試
-docker compose up -d
+# 需要真實 PostgreSQL 的測試（開發／測試用資料庫，不是產品）
+docker compose -f compose.dev.yaml up -d
 .\.venv\Scripts\python.exe -m pytest -m postgres
 ```
+
+## 以 Docker 執行本機產品
+
+```powershell
+docker compose up --build        # 啟動；開啟 http://127.0.0.1:8765/
+docker compose down              # 停止；資料庫、artifact 與產生的密碼全部保留
+docker compose down -v           # 重設：刪除資料庫、artifact 與產生的密碼（無法復原）
+docker compose logs -f web       # 工作區日誌
+docker compose logs local-models # 本機模型（Ollama）探測結果
+```
+
+- 包含：PostgreSQL 17 + pgvector、每次啟動自動 migration、管理者 bootstrap（研究者、其 project 與
+  成員資格、LLM 管理權）、研究工作區、本機輕量模型路由設定；皆有 health check。
+- **只綁定主機的 loopback**（`127.0.0.1:8765`）：工作區沒有登入機制，區網中任何人都不能連到它。
+- **不在映像檔或 compose 檔中放任何密碼**：資料庫密碼在第一次啟動時產生，只存在 `secrets`
+  volume；LLM API 金鑰放在 git 忽略的 `deployment/docker/llm-keys.env`（範本為
+  `llm-keys.env.example`），在 LLM 設定中以 `env:名稱` 引用。容器內沒有作業系統憑證儲存區，
+  直接輸入的金鑰會被拒絕（fail closed）。
+- 持久資料位於 Docker named volumes：`lab-brain-workspace_db`（資料庫）、
+  `lab-brain-workspace_artifacts`（上傳檔案原始位元組）、`lab-brain-workspace_secrets`（產生的密碼）。
+  以 `docker volume inspect <名稱>` 查看。
+- 可在同目錄的 `.env`（git 忽略）覆寫：`LAB_BRAIN_PORT`、`LAB_BRAIN_ACTOR`、`LAB_BRAIN_PROJECT`、
+  `LAB_BRAIN_CLEARANCE`、`LAB_BRAIN_LOCALE`、`LAB_BRAIN_OLLAMA_URL`（見 `compose.yaml` 開頭）。
+- 主機上的 Ollama 經由 `host.docker.internal` 以 LOCAL 路由連線（Linux 需讓 Ollama 監聽
+  docker bridge，例如 `OLLAMA_HOST=0.0.0.0`）。本機模型只經既有能力探測、只自動綁定輕量 slot，
+  主要推理與獨立批判永遠由研究者自行選擇。
+- 管理指令（持有資料庫憑證者即為部署管理者），經由映像檔的 entrypoint 取得資料庫連線：
+  `docker compose run --rm --no-deps init lab-brain admin show`；同樣方式執行
+  `admin member <project> <actor> --clearance ... --scope LLM_EGRESS`、
+  `admin project <project> --name ... --privacy-mode RESEARCH`、`admin llm-admin <actor>`。
+
+設計與驗證記錄：[`docs/implementation/system-closure.md`](docs/implementation/system-closure.md)。
 
 ## 研究一個問題：`lab-brain research run`
 
@@ -119,6 +151,10 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
 - 執行環境頁面以研究者看得懂的名稱顯示（主要推理、快速輔助、獨立批判、假說產生與比較、反方審查…），
   內部識別碼保留在提示與「技術細節」中。
 - 命令列（`lab-brain research run`）永遠不呼叫語言模型；有 LLM 執行環境啟用時會拒絕執行，請改用工作區。
+- **兩種權限分開**：LLM 設定是部署層級的管理，只有部署管理者授予的 LLM 管理者可以操作（專案成員資格
+  不給予此權限）；某個專案的證據能否送往外部模型，由**該專案自己**的外送政策決定（「執行環境」頁面 →
+  專案的「外部模型外送設定」），需該專案成員具有 `LLM_EGRESS` 核准範圍、只能核准自己有權限的分級、
+  私有模式的專案不能外送。全域執行環境只提供路由，不提供授權。
 
 設計與驗證記錄：[`docs/implementation/web-workspace-v2.md`](docs/implementation/web-workspace-v2.md)。
 
