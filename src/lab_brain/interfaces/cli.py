@@ -1,4 +1,4 @@
-"""`lab-brain inbox`, `explain`, `episode open`, `research run` (UX-001/003/006, §17.22-24, §25.4).
+"""`lab-brain inbox`, `explain`, `episode open`, `research run`, `web` (UX-001/003/006, §17.22-24).
 
 `research run` is the product vertical: a research goal plus local files in, one report out. It is
 a thin entry point over `lab_brain.research.ResearchEpisodeService`, which composes the existing
@@ -7,7 +7,9 @@ loop) and decides nothing itself; this module parses arguments, opens the connec
 domain's product vertical BY NAME (the `lab_brain.domain_verticals` entry points -- no pack is
 imported here), and prints the rendered report. Without `--episode` it opens a new episode; with
 `--episode E` it CONTINUES E -- the actor's own suspended episode in that project, over its own
-inputs and hypotheses -- and refuses everything else (`lab_brain.research.continuation`).
+inputs and hypotheses -- and refuses everything else (`lab_brain.research.continuation`). `web`
+serves the same workflow, unchanged, as a browser workspace on this machine
+(`lab_brain.interfaces.web`).
 
 M1's scope names *IngestionItem / ErrorRecord / MessageCatalog + CLI inbox*, and M4's VS-SP-001
 definition of done adds one sentence: "CLI 可從一個 project/fixture 建立 episode". So there are
@@ -339,6 +341,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="the classification of the goal and the files in this project (default INTERNAL)",
     )
     ran.add_argument("--report", metavar="FILE", help="also write the report (Markdown) here")
+
+    web = sub.add_parser(
+        "web",
+        help=(
+            "the research workspace: start and continue research runs in a browser, on this "
+            "machine, as --actor"
+        ),
+    )
+    web.add_argument("--actor", required=True, help="the actor every request is made as")
+    web.add_argument("--artifact-root", required=True, help="where raw bytes are stored")
+    web.add_argument(
+        "--domain",
+        help=f"the product vertical (an entry point in {ENTRY_POINT_GROUP}); "
+        "optional when exactly one is installed",
+    )
+    web.add_argument("--host", default="127.0.0.1", help="loopback only (default 127.0.0.1)")
+    web.add_argument("--port", type=int, default=8765)
     return parser
 
 
@@ -579,6 +598,11 @@ def main(
         print(f"lab-brain: {exc}", file=stream)
         return 2
 
+    if args.command == "web":
+        # The database answered; the workspace opens its own connection per request.
+        connection.close()
+        return run_web(args, settings=settings, connect=opener, out=stream)
+
     try:
         if args.command == "research":
             try:
@@ -646,6 +670,45 @@ def main(
         )
     finally:
         connection.close()
+
+
+def run_web(
+    args: argparse.Namespace,
+    *,
+    settings: Settings,
+    connect: Callable[[Settings], Any],
+    out: TextIO,
+    serve: Callable[..., None] | None = None,
+) -> int:
+    """Start the research workspace (`lab_brain.interfaces.web`) and serve until interrupted."""
+    from lab_brain.interfaces.web import Workspace, allowed_hosts
+    from lab_brain.interfaces.web import serve as serve_workspace
+
+    try:
+        factory = load_vertical_factory(args.domain or _only_vertical())
+    except (VerticalNotFound, ConfigurationError) as exc:
+        print(f"lab-brain: {exc}", file=out)
+        return 2
+    workspace = Workspace(
+        actor_id=args.actor,
+        settings=settings,
+        connect=connect,
+        artifact_root=Path(args.artifact_root),
+        vertical_factory=factory,
+        allowed_hosts=allowed_hosts(args.host, args.port),
+    )
+    print(
+        f"Research workspace for {args.actor}: http://{args.host}:{args.port}/ (Ctrl+C stops it)",
+        file=out,
+    )
+    try:
+        (serve or serve_workspace)(workspace, host=args.host, port=args.port)
+    except ConfigurationError as exc:
+        print(f"lab-brain: {exc}", file=out)
+        return 2
+    except KeyboardInterrupt:  # pragma: no cover - interactive
+        pass
+    return 0
 
 
 def _only_vertical() -> str:
@@ -752,5 +815,6 @@ __all__ = [
     "run_explain",
     "run_inbox",
     "run_research",
+    "run_web",
     "summarise",
 ]

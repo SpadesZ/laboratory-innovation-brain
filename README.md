@@ -84,6 +84,23 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
 - 續跑經由 `episode_resume`（正式生命週期）恢復，沿用第一次 run 的假說集合、辯論、驗證輸入與框架，
   **不重新辯論**、不接受新輸入；已執行過的檢查不會再執行；每次 run 記錄於 `research_runs`。
 
+### 在瀏覽器中研究：`lab-brain web`
+
+```powershell
+.\.venv\Scripts\lab-brain.exe web --actor act:rkuo --artifact-root .\artifacts
+# 開啟 http://127.0.0.1:8765/
+```
+
+- 同一個研究流程的網頁介面：選 project、輸入目標、上傳 measurement / run record / note、
+  （選填）verification input 與 literature corpus，送出後即得到 episode；之後可再回來查看並
+  **Continue** 一個 SUSPENDED 的 episode；COMPLETED 的 episode 為唯讀。
+- 頁面顯示的是該次 run 由研究服務回傳、原樣記錄的報告（與 CLI 同一份資料、同一個 Markdown
+  renderer），加上 episode 與 research run 的即時狀態；前端沒有任何 JavaScript，也不做任何推導。
+- 一個 workspace 代表一個 actor（與 CLI 的 `--actor` 相同的信任模型），只綁定本機
+  loopback；授權每個請求都在伺服器端檢查；所有 POST 需要 CSRF token。
+
+設計與驗證記錄：[`docs/implementation/web-workspace.md`](docs/implementation/web-workspace.md)。
+
 設計與驗證記錄：[`docs/implementation/product-vertical.md`](docs/implementation/product-vertical.md)。
 
 ## 專案結構

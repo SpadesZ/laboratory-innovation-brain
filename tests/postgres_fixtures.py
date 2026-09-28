@@ -36,6 +36,8 @@ DEFAULT_URL = "postgresql://lab_brain:lab_brain@localhost:5433/lab_brain"
 _TABLES = (
     # Product vertical (`012c`). The research runs of an episode reference the episode, its
     # hypothesis set and its verification input, and are append-only: child of all three.
+    # Research workspace (`012d`): a run's recorded report references the run.
+    "research_run_reports",
     "research_runs",
     # M1-P1 / EVI-010. Child first: a representation references a unit, and the unit references
     # the artifact. The reverse order would rely on the CASCADE, which is exactly the coupling

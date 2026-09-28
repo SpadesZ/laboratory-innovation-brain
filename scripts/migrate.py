@@ -242,6 +242,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # binding, one live run, one reasoning history. After 006b (episodes), 005e (hypothesis sets
     # and `m3_episode_is_in_project`), 001 (actors, projects) and 002 (artifacts).
     "012c_research_runs.sql",
+    # Research workspace (web). The report each finished research run returned, bound to its
+    # run. After 012c (research_runs) and 006b/001 (episodes, projects).
+    "012d_research_run_reports.sql",
 )
 
 _BOOTSTRAP = """
