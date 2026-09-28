@@ -219,3 +219,4 @@ refusal:
 | coverage ratchet, obligation inventory, status, debate and segmentation benchmark reports | current; M0a-M3 enforced, M4 and M5 IN_PROGRESS |
 | mutation battery (PostgreSQL profile on) | **258/258 killed** (244 prior entries still killed; 14 new: project scope, opener binding, lifecycle resume, finished episode, re-debate, executed checks excluded from the loop and from the pending question, run-scoped job keys, parked jobs superseded, interrupted runs recorded, the live-run lease, no new inputs, `open_episode` handing out another episode, a verification error parking the episode) |
 | commit hygiene | no AI attribution |
+| GitHub Actions CI at `ee83eea72d9b0700507679c83b1d653b97a9e188` (commit hygiene, spec conformance, lint/types/full suite, PostgreSQL backend incl. the fresh 50-migration apply) | success, run 36380571805 |
