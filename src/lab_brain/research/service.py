@@ -12,8 +12,9 @@ Each stage calls the service that already owns it, unchanged, and records what i
     external       `research.literature` over M5's registry, snapshot service and admission -- only
                    with a provider and a query the actor declared PUBLIC
     hypotheses     M3's `StructuredDebate` -- intent-aware retrieval, Stage A positions, the
-                   Critic's inverted retrieval, §8 admission, typed predictions -- with the pack's
-                   rule-based catalog reasoner behind the model slots (no model is configured)
+                   Critic's inverted retrieval, §8 admission, typed predictions -- with the
+                   ACTIVE LLM runtime behind the model slots (`research.reasoning`), or, with none
+                   active, the pack's rule-based catalog reasoner (the explicit fallback)
     verification   M4's `VerificationLoop` -- least-cost planning, typed tools, Jobs and Runs,
                    evidence admission, governed belief moves, the failure analysis
     pending        M4's `LeastCostPlanner` asked, over the loop's own final state, which action it
@@ -48,11 +49,12 @@ from typing import Any, cast
 
 from lab_brain.cognition.brain import HypothesisBrain, set_divergence_gate
 from lab_brain.cognition.budgeted import BudgetedInferenceDispatcher, cost_contract_for
+from lab_brain.cognition.catalog_reasoner import PROVIDER as CATALOG_PROVIDER
 from lab_brain.cognition.catalog_reasoner import CatalogReasoner, reasoner_slots
 from lab_brain.cognition.debate import DebateOutcome, DebatePolicy, DebateRequest, StructuredDebate
 from lab_brain.cognition.debate_metrics import DebateGate
 from lab_brain.cognition.evidence import EvidenceItem, EvidenceResearcher, StaticEvidenceCatalog
-from lab_brain.cognition.llm import ModelSlot, PromptTemplate, ScientificLLM
+from lab_brain.cognition.llm import Completion, ModelSlot, PromptTemplate, ScientificLLM
 from lab_brain.cognition.roles import core_prompts
 from lab_brain.cognition.routing import ModelRouter
 from lab_brain.composition import IngestionService
@@ -114,6 +116,7 @@ from lab_brain.research.evidence import (
     StatementAdmitter,
 )
 from lab_brain.research.literature import LiteratureRequest, LiteratureResult, run_literature_stage
+from lab_brain.research.reasoning import ReasoningRuntime
 from lab_brain.research.report import (
     ActionLine,
     BeliefLine,
@@ -272,12 +275,16 @@ class ResearchEpisodeService:
         vertical_factory: VerticalFactory,
         clock: Callable[[], dt.datetime] = utc_now,
         mint: Callable[[str], str] = new_id,
+        reasoning: ReasoningRuntime | None = None,
     ) -> None:
+        """`reasoning` is the active language-model runtime, if one is active. `None` is the
+        explicit fallback: the pack's local catalog reasoner serves every model slot."""
         self._connection = connection
         self._store = artifact_store
         self._factory = vertical_factory
         self._clock = clock
         self._mint = mint
+        self._reasoning = reasoning
         self._service = IngestionService(
             connection=connection, artifact_store=artifact_store, clock=clock
         )
@@ -876,13 +883,13 @@ class ResearchEpisodeService:
             run.stage("hypotheses", "SKIPPED", "no admitted evidence to debate over")
             run.stage("verification", "SKIPPED", "no hypotheses to verify")
             return None
-        for slot in (*REASONING_SLOTS, LogicalSlot.EMBEDDING):
+        model_slots, complete, egress = self._model_route(vertical)
+        for slot in sorted({s.logical_slot for s in model_slots}):
             contract = cost_contract_for(slot)
             if regs.capabilities.estimator(contract) is None:
                 regs.capabilities.register_estimator(
                     contract, lambda params: CostVector(token_count=int(params["prompt_tokens"]))
                 )
-        reasoner = CatalogReasoner(vertical.catalog)
         prompts = [
             *core_prompts(),
             *(
@@ -891,17 +898,10 @@ class ResearchEpisodeService:
             ),
         ]
         llm = ScientificLLM(
-            slots=[*reasoner_slots(vertical.catalog, REASONING_SLOTS), EMBEDDING_SLOT],
+            slots=model_slots,
             prompts=prompts,
-            complete=reasoner,
-            # Every slot is LOCAL: nothing leaves this machine, and no egress policy is declared
-            # for model calls -- a slot that were EXTERNAL would be refused by this gate.
-            runner=AuthorizedExternalRunner(
-                gate=EgressGate(
-                    policy_for=lambda _p: None, clearance_of=lambda _a, _p: frozenset()
-                ),
-                audit=EgressAuditLog(),
-            ),
+            complete=complete,
+            runner=AuthorizedExternalRunner(gate=egress, audit=EgressAuditLog()),
             classifier=self._classifier(),
             source_policy_version="srcpol@1.0.0",
         )
@@ -934,7 +934,7 @@ class ResearchEpisodeService:
             benchmark_set_id=vertical.debate_benchmark_id,
         )
         debate = StructuredDebate(
-            router=ModelRouter([*REASONING_SLOTS, LogicalSlot.EMBEDDING]),
+            router=ModelRouter([s.logical_slot for s in model_slots]),
             dispatcher=dispatcher,
             researcher=EvidenceResearcher(
                 catalog=StaticEvidenceCatalog(items),
@@ -1011,6 +1011,27 @@ class ResearchEpisodeService:
             f"{outcome.record.rounds} debate round(s) and an independent critique",
         )
         return self._brain(vertical, debate, hypotheses, events, debates, attestations, gate)
+
+    def _model_route(
+        self, vertical: ProductVertical
+    ) -> tuple[list[ModelSlot], Completion, EgressGate]:
+        """The slots, transport and egress gate the one `ScientificLLM` is built from."""
+        if self._reasoning is None:
+            # The explicit fallback. Every slot is LOCAL: nothing leaves this machine, and no
+            # egress policy is declared for model calls -- a slot that were EXTERNAL would be
+            # refused by this gate.
+            return (
+                [*reasoner_slots(vertical.catalog, REASONING_SLOTS), EMBEDDING_SLOT],
+                CatalogReasoner(vertical.catalog),
+                EgressGate(policy_for=lambda _p: None, clearance_of=lambda _a, _p: frozenset()),
+            )
+        # An active runtime: its slots and transport, the SAME gates. An EXTERNAL route leaves
+        # only under the runtime's declared policy AND the actor's own clearance.
+        return (
+            [*self._reasoning.slots, EMBEDDING_SLOT],
+            self._reasoning.complete,
+            EgressGate(policy_for=self._reasoning.egress_policy, clearance_of=self._clearance),
+        )
 
     def _brain(
         self,
@@ -1311,10 +1332,7 @@ class ResearchEpisodeService:
                 )
                 belief.append(BeliefLine(h.hypothesis_id, h.mechanism, state_name, moves))
             record = outcome.record
-            reasoner = (
-                f"rules:{vertical.catalog.catalog_id}@{vertical.catalog.version} "
-                "(local rule-based catalog reasoner; no language model)"
-            )
+            reasoner = self._reasoner_of(outcome, vertical)
             debate_section = DebateSection(
                 debate_id=record.debate_id,
                 reasoner=reasoner,
@@ -1493,9 +1511,16 @@ class ResearchEpisodeService:
             next_steps=self._next_steps(run, conclusion, human, request, episode_id, episode_state),
             provenance=self._provenance(run, episode_id, trace_id),
             deployment=(
-                f"Reasoner: rules:{vertical.catalog.catalog_id}@{vertical.catalog.version}, a "
-                "local rule-based reader of the pack's mechanism catalog (provider local-rules, "
-                "reach LOCAL). No language model is configured or was called.",
+                *(
+                    (
+                        f"Reasoner: rules:{vertical.catalog.catalog_id}@"
+                        f"{vertical.catalog.version}, a local rule-based reader of the pack's "
+                        "mechanism catalog (provider local-rules, reach LOCAL). No language model "
+                        "is configured or was called.",
+                    )
+                    if self._reasoning is None
+                    else self._reasoning.description
+                ),
                 "Executable verification backends: "
                 + ", ".join(f"`{k}` via {v}" for k, v in sorted(vertical.backends.items())),
                 "Unavailable here: "
@@ -1504,7 +1529,7 @@ class ResearchEpisodeService:
                     or "none"
                 ),
             ),
-            not_performed=self._not_performed(run, vertical),
+            not_performed=self._not_performed(run, vertical, self._reasoning is not None),
             notes=tuple(run.notes) + (tuple(loop.notes) if loop is not None else ()),
             continuation=self._continuation_section(run),
         )
@@ -1676,6 +1701,29 @@ class ResearchEpisodeService:
             )
         return tuple(lines)
 
+    def _reasoner_of(self, outcome: DebateOutcome, vertical: ProductVertical) -> str:
+        """What produced this debate, as its InferenceProvenance records it -- not as the current
+        configuration says: a continuation reuses a debate an earlier run's reasoner produced."""
+        ids = sorted(
+            {p.inference_provenance_id for p in outcome.positions}
+            | {cr.inference_provenance_id for cr in outcome.critiques}
+        )
+        recorded = self._connection.execute(
+            "SELECT DISTINCT provider, model_id, model_version, logical_slot"
+            " FROM inference_provenance WHERE inference_id = ANY(%s)"
+            " ORDER BY logical_slot, model_id",
+            (ids,),
+        ).fetchall()
+        if all(r[0] == CATALOG_PROVIDER for r in recorded):
+            return (
+                f"rules:{vertical.catalog.catalog_id}@{vertical.catalog.version} "
+                "(local rule-based catalog reasoner; no language model)"
+            )
+        return "language model: " + "; ".join(
+            f"{slot} -> {model}@{version} via {provider}"
+            for provider, model, version, slot in recorded
+        )
+
     @staticmethod
     def _continuation_section(run: _Run) -> ContinuationSection | None:
         k = run.continuation
@@ -1721,11 +1769,18 @@ class ResearchEpisodeService:
         )
 
     @staticmethod
-    def _not_performed(run: _Run, vertical: ProductVertical) -> tuple[str, ...]:
-        lines = [
-            "no language model was called; every hypothesis, position and critique came from the "
-            "local rule-based catalog reasoner, recorded as such in its InferenceProvenance",
-        ]
+    def _not_performed(
+        run: _Run, vertical: ProductVertical, language_model: bool = False
+    ) -> tuple[str, ...]:
+        lines = (
+            []
+            if language_model
+            else [
+                "no language model was called; every hypothesis, position and critique came from "
+                "the local rule-based catalog reasoner, recorded as such in its "
+                "InferenceProvenance",
+            ]
+        )
         if run.continuation is not None:
             lines.append(
                 "this run did not debate, ingest or search: it continued the episode's recorded "

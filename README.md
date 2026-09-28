@@ -84,6 +84,8 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
 - 續跑經由 `episode_resume`（正式生命週期）恢復，沿用第一次 run 的假說集合、辯論、驗證輸入與框架，
   **不重新辯論**、不接受新輸入；已執行過的檢查不會再執行；每次 run 記錄於 `research_runs`。
 
+設計與驗證記錄：[`docs/implementation/product-vertical.md`](docs/implementation/product-vertical.md)。
+
 ### 在瀏覽器中研究：`lab-brain web`
 
 ```powershell
@@ -101,7 +103,24 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
 
 設計與驗證記錄：[`docs/implementation/web-workspace.md`](docs/implementation/web-workspace.md)。
 
-設計與驗證記錄：[`docs/implementation/product-vertical.md`](docs/implementation/product-vertical.md)。
+### Web Workspace V2：語言切換與 LLM 設定
+
+- 頁首固定導覽（研究 Episode／新研究／LLM 設定／執行環境）與 **English／繁體中文** 切換
+  （`lab-brain web --locale zh-TW` 可設定預設）。只翻譯介面；報告內容、證據、識別碼與狀態值
+  一律原樣顯示。介面語言與研究輸出語言（英文）是分開的。
+- **LLM 設定**：連線 → 取得／宣告模型 → 能力測試 → 鎖定 → Slot 綁定 → 執行環境就緒 → 啟用。
+  角色永遠不直接綁定模型（CognitiveRole → LogicalSlot 唯讀顯示）；每個 slot 只能綁定已鎖定、且
+  實際通過該 slot 所需能力探測的模型。
+- 憑證只以參照保存：`env:變數名稱`，或 Windows Credential Manager（`wincred:`）；資料庫只存參照
+  與指紋（`****abcd`）。沒有安全儲存區時，直接輸入的金鑰會被拒絕（fail closed）。
+- 啟用執行環境後，新研究經由同一個 `ScientificLLM`、預算／外送閘門、型別化角色解析器與
+  InferenceProvenance 使用真實模型；未啟用時由本機機制目錄推理器負責（明示的備援）。
+  「反方審查」退回「主要推理」時會明確標示「沒有模型路由獨立性」。
+- 執行環境頁面以研究者看得懂的名稱顯示（主要推理、快速輔助、獨立批判、假說產生與比較、反方審查…），
+  內部識別碼保留在提示與「技術細節」中。
+- 命令列（`lab-brain research run`）永遠不呼叫語言模型；有 LLM 執行環境啟用時會拒絕執行，請改用工作區。
+
+設計與驗證記錄：[`docs/implementation/web-workspace-v2.md`](docs/implementation/web-workspace-v2.md)。
 
 ## 專案結構
 

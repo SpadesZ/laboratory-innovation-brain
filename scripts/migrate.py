@@ -245,6 +245,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # Research workspace (web). The report each finished research run returned, bound to its
     # run. After 012c (research_runs) and 006b/001 (episodes, projects).
     "012d_research_run_reports.sql",
+    # Research workspace V2. Model connections (credential references only), health, models,
+    # capability probes, locks, runtimes and slot bindings. After 001 (actors).
+    "012e_llm_runtime.sql",
 )
 
 _BOOTSTRAP = """

@@ -106,6 +106,13 @@ _ID_PREFIXES: Final[dict[str, str]] = {
     "episode": "epi",
     # One `lab-brain research run` against an episode (`012c`): the opening run or a continuation.
     "research_run": "rrn",
+    # Research workspace V2 (`012e`): model connections, their health checks, model profiles,
+    # capability probes and runtimes.
+    "llm_connection": "llc",
+    "llm_health_check": "lch",
+    "llm_model": "llm",
+    "llm_probe": "lcp",
+    "llm_runtime": "lrt",
 }
 
 

@@ -76,6 +76,7 @@ from lab_brain.interfaces.config import (
 )
 from lab_brain.research.continuation import ContinuationRefused
 from lab_brain.research.literature import LiteratureRequest
+from lab_brain.research.reasoning import active_runtime_name
 from lab_brain.research.render import render_markdown
 from lab_brain.research.service import InputDocument, ResearchEpisodeService, ResearchRequest
 from lab_brain.research.vertical import ENTRY_POINT_GROUP, VerticalNotFound, load_vertical_factory
@@ -358,6 +359,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     web.add_argument("--host", default="127.0.0.1", help="loopback only (default 127.0.0.1)")
     web.add_argument("--port", type=int, default=8765)
+    web.add_argument(
+        "--locale",
+        default="en",
+        choices=["en", "zh-TW"],
+        help="the interface language a browser starts in (each browser may switch)",
+    )
     return parser
 
 
@@ -614,6 +621,20 @@ def main(
             # The verification stores require autocommit, as every M4 caller runs them; the
             # ingestion writes keep their own explicit transactions either way.
             connection.autocommit = True
+            # The CLI never reaches a language model (T-UX-006): it reasons only with the local
+            # catalog reasoner. While an LLM runtime is ACTIVE for this deployment, a CLI run
+            # would silently reason with something other than what is active -- so it refuses,
+            # exit 2, before anything is written.
+            active = active_runtime_name(connection)
+            if active is not None:
+                print(
+                    f"lab-brain: the LLM runtime {active!r} is active in this deployment, and the "
+                    "command line never calls a language model. Run this research from the "
+                    "workspace (lab-brain web), or deactivate the runtime to use the local "
+                    "catalog reasoner.",
+                    file=stream,
+                )
+                return 2
             return run_research(
                 ResearchEpisodeService(
                     connection=connection,
@@ -696,6 +717,7 @@ def run_web(
         artifact_root=Path(args.artifact_root),
         vertical_factory=factory,
         allowed_hosts=allowed_hosts(args.host, args.port),
+        default_locale=args.locale,
     )
     print(
         f"Research workspace for {args.actor}: http://{args.host}:{args.port}/ (Ctrl+C stops it)",

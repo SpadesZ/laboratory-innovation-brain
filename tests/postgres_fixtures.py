@@ -38,6 +38,15 @@ _TABLES = (
     # hypothesis set and its verification input, and are append-only: child of all three.
     # Research workspace (`012d`): a run's recorded report references the run.
     "research_run_reports",
+    # Research workspace V2 (`012e`). Bindings reference runtimes and models, probes and health
+    # reference models and connections: children first.
+    "llm_slot_bindings",
+    "llm_runtimes",
+    "llm_capability_probes",
+    "llm_models",
+    "llm_connection_health",
+    "llm_connections",
+    "llm_secret_salt",
     "research_runs",
     # M1-P1 / EVI-010. Child first: a representation references a unit, and the unit references
     # the artifact. The reverse order would rely on the CASCADE, which is exactly the coupling

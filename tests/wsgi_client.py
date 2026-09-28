@@ -36,6 +36,8 @@ class Browser:
     def __init__(self, app: WSGIApp, *, host: str = "127.0.0.1:8765") -> None:
         self._app = app
         self.host = host
+        #: Cookies the application set, sent back on every later request, as a browser does.
+        self.cookies: dict[str, str] = {}
 
     def get(self, url: str, *, host: str | None = None) -> Reply:
         return self._call("GET", url, b"", "", host=host)
@@ -89,6 +91,8 @@ class Browser:
         }
         if origin is not None:
             environ["HTTP_ORIGIN"] = f"http://{host or self.host}" if origin == "same" else origin
+        if self.cookies:
+            environ["HTTP_COOKIE"] = "; ".join(f"{k}={v}" for k, v in self.cookies.items())
         captured: dict[str, Any] = {}
 
         def start_response(status: str, headers: list[tuple[str, str]]) -> None:
@@ -96,7 +100,12 @@ class Browser:
             captured["headers"] = dict(headers)
 
         chunks = self._app(environ, start_response)
-        return Reply(captured["status"], captured["headers"], b"".join(chunks))
+        reply = Reply(captured["status"], captured["headers"], b"".join(chunks))
+        cookie = reply.headers.get("Set-Cookie")
+        if cookie:
+            name, _, value = cookie.split(";", 1)[0].partition("=")
+            self.cookies[name.strip()] = value.strip()
+        return reply
 
 
 def _multipart(
