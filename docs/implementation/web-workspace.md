@@ -133,3 +133,4 @@ database: an episode opened with the CLI was listed, shown and continued from th
 | coverage ratchet, obligation inventory, status, debate and segmentation benchmark reports | current; M0a-M3 enforced, M4 and M5 IN_PROGRESS |
 | mutation battery (PostgreSQL profile on) | **269/269 killed** (258 prior entries still killed; 11 new: host, CSRF and Origin checks, opener binding, lapsed membership, projects through the gate, excerpt re-authorization, the literature declaration, completed episodes read-only, escaping, the report dropping a section). `continuation_scope_ignores_project` now binds a typed parameter, so it is killed by the cross-project test and not by PostgreSQL failing to type `%s IS NOT NULL` |
 | commit hygiene | no AI attribution |
+| GitHub Actions CI at `01de9a2aad9754c5b5b216c6c726cf03f58fe36d` (commit hygiene, spec conformance, lint/types/full suite, PostgreSQL backend incl. the fresh 51-migration apply) | success, run 36403145079 |
