@@ -223,3 +223,4 @@ database and the provider, and its settings and Runtime pages checked in a real 
 | coverage ratchet, obligation inventory, status, debate and segmentation benchmark reports | current; M0a-M3 enforced, M4 and M5 IN_PROGRESS |
 | mutation battery (`scripts/mutation_battery.py`, PostgreSQL) | 288/288 killed -- the accepted 269 plus 19 new (15 runtime, 4 labels); no backup left |
 | OS credential store after every run | no test credential left behind |
+| GitHub Actions CI at `8f708d792e972026d015b868245f68a2dcf25a78` (commit hygiene, spec conformance, lint/types/full suite, PostgreSQL backend incl. the fresh 52-migration apply) | success, run 36418503706 |
