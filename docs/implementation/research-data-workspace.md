@@ -255,4 +255,17 @@ simulator, report recorded. The AI model settings were walked with a real local 
 qwen2.5:7b) through add → get models → test → confirm → assign 主要推理 and 快速處理 → apply, the
 next step and the checklist correct at every stage, in the development database only.
 
-The GitHub Actions run and the deployed verification are recorded in the follow-up commit.
+**CI.** GitHub Actions run 36482135433 at `7f795c0` succeeded: commit hygiene, spec conformance,
+lint / types / full suite, and the PostgreSQL backend profile (fresh 54-migration apply).
+
+**Deployed.** `docker compose up --build -d` from `7f795c0`: `init` applied `012g` to the existing
+deployment database (53 → 54 migrations, an upgrade, nothing reset), every service healthy, pages
+in Asia/Taipei time. In the deployed browser UI at `http://127.0.0.1:8765/` (繁體中文), in project
+`prj:lab`: 研究資料 → 匯入 the demo report as 量測報告或實驗紀錄 / 實驗室內部 → 可用於研究 →
+新增研究 (default project `prj:lab`, the report listed once, pre-selected as measurement) → a new
+note and a verification input → 確認研究輸入 listing exactly those → 開始研究 → 研究任務 等待中，可以
+繼續, waiting on `cap:sp.mesh_sensitivity`, the report recorded with both items as research data
+"used as ingested". 系統狀態: database, storage, import, Ollama reachable, no external API, Lumerical
+a known limit. AI 模型設定: the local setup's confirmed models are listed and the page says
+下一步：替「主要推理」指派模型 — the binding is left to the user. The Lumi Agent benchmark project
+was not touched.
