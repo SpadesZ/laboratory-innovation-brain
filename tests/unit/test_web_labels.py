@@ -32,7 +32,7 @@ T0 = dt.datetime(2026, 9, 28, tzinfo=dt.UTC)
 
 ZH_SLOTS = {
     "REASONING_PRIMARY": "主要推理",
-    "FAST_UTILITY": "快速輔助",
+    "FAST_UTILITY": "快速處理",
     "REASONING_ADVERSARIAL": "獨立批判",
     "PRIVATE_LOCAL": "本機私有模型",
     "CODE": "程式與運算",
@@ -50,7 +50,7 @@ ZH_ROLES = {
 }
 EN_SLOTS = {
     "REASONING_PRIMARY": "Primary reasoning",
-    "FAST_UTILITY": "Fast assistance",
+    "FAST_UTILITY": "Fast processing",
     "REASONING_ADVERSARIAL": "Independent critique",
     "PRIVATE_LOCAL": "Private local model",
     "CODE": "Code and computation",
@@ -179,9 +179,9 @@ def test_traditional_chinese_shows_the_researchers_names():
         if name == "反方審查":
             continue  # the Critic has no slot of its own here; it is named in the fallback line
         assert name in shown, name
-    assert "「反方審查」改由「主要推理」（fake-reasoner）執行" in shown
+    assert "「反方審查」改由「主要推理」（fake-reasoner）處理" in shown
     assert "能以規定格式提出競爭假說" in shown and "能輸出結構化資料（JSON）" in shown
-    assert "改由主要推理執行" in shown and "未設定（選用）" in shown
+    assert "改由主要推理處理" in shown and "未設定（選用）" in shown
 
 
 def test_english_shows_the_researchers_names():
@@ -217,7 +217,7 @@ def test_switching_language_changes_every_label_and_no_id():
     assert [strip(d) for d in re.findall(r"<details.*?</details>", zh, flags=re.S)] == [
         strip(d)
         .replace("Primary reasoning", "主要推理")
-        .replace("Fast assistance", "快速輔助")
+        .replace("Fast processing", "快速處理")
         .replace("Independent critique", "獨立批判")
         .replace("Private local model", "本機私有模型")
         .replace("Code and computation", "程式與運算")

@@ -123,8 +123,10 @@ def test_a_researcher_runs_the_vertical_in_the_workspace_and_continues_it_later(
 
     home = browser.get("/")
     assert home.status == 200 and PROJECT in home.text
-    assert "You have not opened a research episode yet." in home.text
-    assert f'<option value="{PROJECT}">' in browser.get("/runs/new").text
+    assert "No research yet." in _text(home)
+    assert (
+        f'<input type="hidden" name="project" value="{PROJECT}">' in browser.get("/runs/new").text
+    )
 
     # -- input: the form, as a researcher fills it in ----------------------------------------
     sent = _start(browser, tmp_path, literature=True)
@@ -156,7 +158,11 @@ def test_a_researcher_runs_the_vertical_in_the_workspace_and_continues_it_later(
     assert page.status == 200
     shown = _text(page)
     assert pages.report_html(report) in page.text, "the page shows the report the run returned"
-    assert "Episode state now: SUSPENDED -- awaiting simulator for cap:sp.mesh_sensitivity" in shown
+    assert (
+        "Status now: Waiting -- can be continued waiting for a simulation that cannot run here "
+        "(cap:sp.mesh_sensitivity)" in shown
+    )
+    assert "awaiting simulator for cap:sp.mesh_sensitivity" in shown, "stored, in the details"
     assert f"{REPORT.name} document INTERNAL_MEASUREMENT READY" in shown
     for attestation_id in report_ids(db, episode_id, "attestation"):
         assert attestation_id in shown
@@ -180,7 +186,7 @@ def test_a_researcher_runs_the_vertical_in_the_workspace_and_continues_it_later(
     ).fetchall():
         assert capability in shown and run_id in shown
     assert "Actions awaiting a person cap:sp.fourpoint_probe (MEASUREMENT)" in shown
-    assert "cap:sp.mesh_sensitivity (SIMULATION, best next action) -- BLOCKED" in shown
+    assert "cap:sp.mesh_sensitivity (SIMULATION, best next check) -- BLOCKED" in shown
     assert "Result PROVISIONAL -- not confirmed" in shown
     (run_1,) = db.execute(
         "SELECT research_run_id FROM research_runs WHERE episode_id = %s", (episode_id,)
@@ -195,7 +201,7 @@ def test_a_researcher_runs_the_vertical_in_the_workspace_and_continues_it_later(
     stale = _token(page)
     later = _workspace(tmp_path)
     home = later.get("/")
-    assert episode_id in home.text and "SUSPENDED" in _text(home)
+    assert episode_id in home.text and "Waiting -- can be continued" in _text(home)
     assert later.post(f"/episodes/{episode_id}/continue", {"csrf": stale}).status == 403
     reopened = later.get(f"/episodes/{episode_id}")
     assert pages.report_html(report) in reopened.text
@@ -210,7 +216,7 @@ def test_a_researcher_runs_the_vertical_in_the_workspace_and_continues_it_later(
     first, second = _stored(db, episode_id)
     assert first == report
     assert pages.report_html(second) in page.text
-    assert "Continuation: run 2 of this episode" in shown
+    assert "Continuation: run 2 of this research" in shown
     assert (
         "Resumed from SUSPENDED (awaiting simulator for cap:sp.mesh_sensitivity) to "
         "EVIDENCE_GATHERING through episode_resume." in shown
@@ -226,7 +232,7 @@ def test_a_researcher_runs_the_vertical_in_the_workspace_and_continues_it_later(
         ).fetchone()[0]
         == "SUSPENDED"
     )
-    assert "Report of run 1" in _text(later.get(f"/episodes/{episode_id}?run=1"))
+    assert "Research report -- run 1" in _text(later.get(f"/episodes/{episode_id}?run=1"))
 
 
 def report_ids(db, episode_id: str, kind: str) -> list[str]:  # type: ignore[no-untyped-def]
@@ -243,8 +249,8 @@ def test_a_completed_episode_is_read_only(db, tmp_path):
     episode_id = sent.location.rsplit("/", 1)[1]
     page = browser.get(sent.location)
     shown = _text(page)
-    assert "Episode state now: COMPLETED -- CONFIRMED:hyp:" in shown
-    assert "Result CONFIRMED" in shown and "read-only" in shown
+    assert "Status now: Finished" in shown and "CONFIRMED:hyp:" in shown
+    assert "Result CONFIRMED" in shown and "it can be read" in shown
     assert "/continue" not in page.text
     before = _census(db)
 
@@ -283,10 +289,10 @@ def test_another_actor_or_project_sees_nothing_and_writes_nothing(db, tmp_path):
     token = _token(mallory.get("/runs/new"))
     for probe in (episode_id, unknown):
         seen = mallory.get(f"/episodes/{probe}")
-        assert seen.status == 404 and f"No episode {probe} for {MALLORY}." in _text(seen)
+        assert seen.status == 404 and f"No research {probe} for {MALLORY}." in _text(seen)
         assert mallory.get(f"/episodes/{probe}/runs/1/report.md").status == 404
         pushed = mallory.post(f"/episodes/{probe}/continue", {"csrf": token})
-        assert pushed.status == 404 and f"No episode {probe} for {MALLORY}." in _text(pushed)
+        assert pushed.status == 404 and f"No research {probe} for {MALLORY}." in _text(pushed)
     refused = mallory.post(
         "/runs",
         {"csrf": token, "project": PROJECT, "goal": "probe"},
@@ -297,7 +303,7 @@ def test_another_actor_or_project_sees_nothing_and_writes_nothing(db, tmp_path):
     colleague = _workspace(tmp_path, COLLEAGUE)
     assert episode_id not in colleague.get("/").text
     seen = colleague.get(f"/episodes/{episode_id}")
-    assert seen.status == 404 and f"No episode {episode_id} for {COLLEAGUE}." in _text(seen)
+    assert seen.status == 404 and f"No research {episode_id} for {COLLEAGUE}." in _text(seen)
     pushed = colleague.post(
         f"/episodes/{episode_id}/continue", {"csrf": _token(colleague.get("/runs/new"))}
     )
@@ -376,9 +382,10 @@ def test_forged_and_undeclared_requests_write_nothing(db, tmp_path):
 
     corpus = {**upload, "literature_corpus": [(CORPUS.name, CORPUS.read_bytes())]}
     undeclared = browser.post("/runs", {**fields, "csrf": token, "literature_query": QUERY}, corpus)
-    assert undeclared.status == 400 and "Declare the literature query PUBLIC" in _text(undeclared)
+    assert undeclared.status == 400
+    assert "Confirm that the literature query may be made public" in _text(undeclared)
     alone = browser.post("/runs", {**fields, "csrf": token}, corpus)
     assert alone.status == 400 and "go together" in _text(alone)
     empty = browser.post("/runs", {"csrf": token, "project": PROJECT, "goal": " "}, upload)
-    assert empty.status == 400 and "needs a goal" in _text(empty)
+    assert empty.status == 400 and "Describe the research question." in _text(empty)
     assert _census(db) == before

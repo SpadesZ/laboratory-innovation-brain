@@ -252,6 +252,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # authorization; LOCAL may name the Docker host. After 012e (llm_*) and 001 (actors,
     # projects, memberships).
     "012f_llm_authority.sql",
+    # Research data intake: the material kind a researcher declared for a file added outside a
+    # research run, bound to its ingestion item. After 012 (ingestion_items) and 001.
+    "012g_research_data_declarations.sql",
 )
 
 _BOOTSTRAP = """

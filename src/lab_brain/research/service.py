@@ -42,7 +42,7 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 import hashlib
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any, cast
@@ -93,6 +93,7 @@ from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from lab_brain.core.repositories.source_works import SqlClaimStore, SqlSourceWorkStore
 from lab_brain.core.repositories.verification_plans import SqlVerificationPlanStore
 from lab_brain.core.revision_gate import HypothesisRevisionGate
+from lab_brain.core.scientific_read import ScientificReadRefused
 from lab_brain.evidence.dense_index import EmbeddingSpace, hashing_embedder
 from lab_brain.evidence.source_policy import SourcePolicyRegistry, default_source_policies
 from lab_brain.ingestion.admission_gate import EvidenceAdmissionGate
@@ -134,6 +135,7 @@ from lab_brain.research.report import (
     StageStatus,
 )
 from lab_brain.research.vertical import (
+    BlockedCapability,
     InputRefused,
     ProductVertical,
     VerificationInput,
@@ -191,6 +193,18 @@ class InputDocument:
 
 
 @dataclass(frozen=True)
+class ProjectData:
+    """Research data ALREADY in the project (`research.data`): an artifact ingested earlier, used
+    as it was ingested. Its units are admitted for this run exactly as an uploaded document's are;
+    nothing is ingested again and no unit is copied."""
+
+    artifact_id: str
+    name: str
+    #: The trust class the USER declares for this material in this run (§6.5) -- never inferred.
+    trust_class: TrustClass
+
+
+@dataclass(frozen=True)
 class ResearchRequest:
     project_id: str
     actor_id: str
@@ -212,6 +226,8 @@ class ResearchRequest:
     token_budget: int = 200_000
     wall_clock_budget_s: int = 86_400
     max_steps: int = 8
+    #: Research data already in the project, used as ingested (see `ProjectData`).
+    project_data: tuple[ProjectData, ...] = ()
 
 
 class UuidEpisodeIds:
@@ -293,9 +309,18 @@ class ResearchEpisodeService:
 
     def run(self, request: ResearchRequest) -> EpisodeReport:
         # Authorization first and fatal: no episode, no rows, no report for a non-member.
-        self._service.read_gate().require_project(
-            actor_id=request.actor_id, project_id=request.project_id
-        )
+        gate = self._service.read_gate()
+        gate.require_project(actor_id=request.actor_id, project_id=request.project_id)
+        # Research data the run will use must be THIS project's and readable by this actor --
+        # checked before anything is written, with the same one refusal for every reason.
+        for data in request.project_data:
+            decision = gate.authorize_artifact(
+                actor_id=request.actor_id,
+                project_id=request.project_id,
+                artifact_id=data.artifact_id,
+            )
+            if not decision.allowed:
+                raise ScientificReadRefused(decision)
         if request.episode_id is not None:
             return self._continue(request, request.episode_id)
         return self._open(request)
@@ -565,6 +590,19 @@ class ResearchEpisodeService:
                 at=self._clock(),
             )
 
+    def capabilities(self) -> tuple[str, Mapping[str, str], tuple[BlockedCapability, ...]]:
+        """What this deployment can execute and what it cannot, as the report's deployment
+        section states it: (domain, executable backends, blocked capabilities). A read: the
+        vertical is built and nothing is registered or written."""
+        c = self._connection
+        vertical = self._factory(
+            outputs=SqlRunOutputSink(connection=c, store=self._store, now=self._clock),
+            jobs=SqlJobStore(c),
+            broker=PostgresResourceBroker(c),
+            now=self._clock,
+        )
+        return vertical.domain, dict(vertical.backends), tuple(vertical.blocked)
+
     def _vertical(self) -> tuple[ProductVertical, SqlRunOutputSink]:
         c = self._connection
         outputs = SqlRunOutputSink(connection=c, store=self._store, now=self._clock)
@@ -650,7 +688,7 @@ class ResearchEpisodeService:
     # -- 1. ingest + 2. statements ----------------------------------------------------------------
 
     def _ingest(self, request: ResearchRequest, episode_id: str, trace_id: str, run: _Run) -> None:
-        if not request.documents:
+        if not request.documents and not request.project_data:
             run.stage("ingestion", "SKIPPED", "no research documents were given")
             run.stage("evidence", "SKIPPED", "no documents to read statements from")
             return
@@ -712,12 +750,45 @@ class ResearchEpisodeService:
                     detail=detail,
                 )
             )
+        # Research data already in the project: its units, admitted as they were ingested. No job,
+        # no second ingestion, no copied unit -- the run's admission is the only new record, and
+        # it is the one an uploaded document gets.
+        for data in request.project_data:
+            statements = admitter.admit(
+                project_id=request.project_id,
+                actor_id=request.actor_id,
+                artifact_id=data.artifact_id,
+                trust_class=data.trust_class,
+                source_name=data.name,
+            )
+            run.statements.extend(statements)
+            run.inputs.append(
+                InputStatus(
+                    name=data.name,
+                    role="research data",
+                    declared_kind=data.trust_class.value,
+                    artifact_id=data.artifact_id,
+                    state=self._artifact_state(request, data.artifact_id),
+                    evidence_units=self._unit_count(request.project_id, data.artifact_id),
+                    statements=len(statements),
+                    detail="already in the project; used as ingested, not ingested again",
+                )
+            )
         total = len(request.documents)
-        run.stage(
-            "ingestion",
-            "DONE" if ingested == total else ("PARTIAL" if ingested else "FAILED"),
-            f"{ingested} of {total} document(s) stored, parsed and segmented",
-        )
+        if request.project_data:
+            run.stage(
+                "ingestion",
+                "DONE" if ingested == total else ("PARTIAL" if ingested else "FAILED"),
+                f"{ingested} of {total} new document(s) stored, parsed and segmented; "
+                f"{len(request.project_data)} research data item(s) already in the project used "
+                "as ingested",
+            )
+        else:
+            run.stage(
+                "ingestion",
+                "DONE" if ingested == total else ("PARTIAL" if ingested else "FAILED"),
+                f"{ingested} of {total} document(s) stored, parsed and segmented",
+            )
         run.stage(
             "evidence",
             "DONE" if run.statements else "SKIPPED",
@@ -736,6 +807,23 @@ class ResearchEpisodeService:
                     blocking_conflict_ids=view.blocking_conflict_ids,
                 ).value
         return "UNKNOWN"
+
+    def _artifact_state(self, request: ResearchRequest, artifact_id: str) -> str:
+        """The derived state of the project's FIRST item holding this artifact."""
+        view = self._service.inbox(actor_id=request.actor_id, project_id=request.project_id)
+        holders = sorted(
+            (i for i in view.items if i.raw_artifact_id == artifact_id),
+            key=lambda i: (i.submitted_at, i.item_id),
+        )
+        return self._inbox_state(request, holders[0].item_id) if holders else "UNKNOWN"
+
+    def _unit_count(self, project_id: str, artifact_id: str) -> int:
+        row = self._connection.execute(
+            "SELECT count(*) FROM evidence_unit_occurrences"
+            " WHERE project_id = %s AND artifact_id = %s",
+            (project_id, artifact_id),
+        ).fetchone()
+        return int(row[0]) if row is not None else 0
 
     def _read_bytes(self, artifact_id: str) -> bytes | None:
         content_hash = artifact_id.removeprefix("art:")
@@ -1872,6 +1960,7 @@ def _require_nothing_new(request: ResearchRequest) -> None:
         name
         for name, value in (
             ("documents", request.documents),
+            ("research data", request.project_data),
             ("a verification input", request.verification_input),
             ("literature", request.literature),
             ("a symptom", request.symptom),

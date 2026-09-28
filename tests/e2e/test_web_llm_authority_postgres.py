@@ -105,7 +105,7 @@ def test_project_membership_does_not_administer_the_deployment_llm_runtime(
     before = _dump(db)
     refused = bob.get("/settings/llm")
     assert refused.status == 403
-    assert f"{B} is not an LLM administrator of this deployment" in _text(refused)
+    assert f"{B} is not an AI model administrator of this deployment" in _text(refused)
     token = _token(bob.get("/"))
     for path, fields in (
         (
@@ -137,7 +137,7 @@ def test_a_global_runtime_never_authorizes_another_projects_egress(
 
     # B's evidence reaches no model: nobody in B allowed it.
     runtime = _text(bob.get("/runtime"))
-    assert f"{PB} Beta: no external egress" in runtime
+    assert "Beta: nothing is sent to external APIs" in runtime
     assert "/settings/llm/runtimes/" not in bob.get("/runtime").text
     sent = _research(bob, PB)
     assert sent.status == 303, _text(sent)[:400]
@@ -159,7 +159,7 @@ def test_a_global_runtime_never_authorizes_another_projects_egress(
     # A member of B without the scope reads B's policy and cannot declare it.
     page = bob.get(f"/projects/{PB}/egress")
     assert page.status == 200
-    assert "You may read this project's policy but not declare it" in _text(page)
+    assert "You may read this project's setting but not change it" in _text(page)
     refused = _declare(bob, PB, db)
     assert refused.status == 409 and "LLM_EGRESS approval scope" in _text(refused)
 
@@ -169,7 +169,7 @@ def test_a_global_runtime_never_authorizes_another_projects_egress(
         (B,),
     )
     assert _declare(bob, PB, db).status == 303
-    assert "Beta: INTERNAL, PUBLIC to fake" in _text(bob.get("/runtime"))
+    assert "Beta: Lab internal, Public to fake" in _text(bob.get("/runtime"))
     sent = _research(bob, PB)
     report = _text(bob.get(sent.location))
     assert "hypotheses DONE" in report

@@ -382,6 +382,11 @@ class LLMSettings:
         except (SecretError, SecretUnavailable) as unavailable:
             raise SettingsRefused(f"{connection.name}: {unavailable}") from None
 
+    def credential_problem(self, connection: ConnectionRow) -> str | None:
+        """Why this connection's credential cannot be read now, or None. A read: nothing is
+        written, sent or shown of the credential itself."""
+        return self._secret_problem(connection)
+
     def _secret_problem(self, connection: ConnectionRow) -> str | None:
         try:
             self._key(connection)

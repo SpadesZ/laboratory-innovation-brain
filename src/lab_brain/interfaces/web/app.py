@@ -39,12 +39,17 @@ header); stored text and identifiers are shown as stored (`i18n`).
 
 from __future__ import annotations
 
+import base64
+import binascii
 import dataclasses
 import hmac
 import json
+import os
 import re
 import secrets
+import shutil
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from contextlib import suppress
 from dataclasses import dataclass
 from http.cookies import CookieError, SimpleCookie
 from pathlib import Path
@@ -53,24 +58,36 @@ from urllib.parse import parse_qs, quote
 
 from lab_brain.composition import IngestionService
 from lab_brain.core.models.base import utc_now
-from lab_brain.core.models.enums import SensitivityLabel
+from lab_brain.core.models.enums import SensitivityLabel, TrustClass
 from lab_brain.core.models.identifiers import new_id
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.core.repositories.external_sources import SqlExternalSourceStore
 from lab_brain.core.scientific_read import ScientificReadRefused
 from lab_brain.interfaces.cli import _DOCUMENT_KINDS, _MEDIA_TYPES
 from lab_brain.interfaces.config import Settings
-from lab_brain.interfaces.web import egress_pages, pages, settings_pages
-from lab_brain.interfaces.web.forms import Form, FormError, read_form
+from lab_brain.interfaces.web import (
+    egress_pages,
+    llm_guide,
+    pages,
+    settings_pages,
+    workspace_pages,
+)
+from lab_brain.interfaces.web.forms import Form, FormError, Upload, read_form
 from lab_brain.interfaces.web.i18n import DEFAULT_LOCALE, LOCALES, Messages
 from lab_brain.interfaces.web.pages import Chrome
+from lab_brain.interfaces.web.workspace_pages import kind_key
 from lab_brain.llm_runtime.authority import (
     LLM_EGRESS_SCOPE,
     AuthorityRefused,
     ProjectEgressPolicies,
 )
-from lab_brain.llm_runtime.capabilities import BINDABLE_SLOTS, SLOT_REQUIREMENTS, Capability
-from lab_brain.llm_runtime.registry import ModelRow, ProbeRow
+from lab_brain.llm_runtime.capabilities import (
+    BINDABLE_SLOTS,
+    SLOT_REQUIREMENTS,
+    Capability,
+    roles_on,
+)
+from lab_brain.llm_runtime.registry import ModelRow, ProbeRow, RuntimeRow
 from lab_brain.llm_runtime.runtime import (
     EXTERNAL_LABELS,
     LLMSettings,
@@ -83,14 +100,28 @@ from lab_brain.research.continuation import (
     ContinuationRefused,
     EpisodeNotContinuable,
 )
+from lab_brain.research.data import (
+    MATERIAL_KINDS,
+    DataItem,
+    LabelNotCleared,
+    NewFile,
+    ResearchData,
+    UsableData,
+)
 from lab_brain.research.literature import LiteratureRequest
 from lab_brain.research.reasoning import ReasoningRuntime
 from lab_brain.research.render import render_markdown
 from lab_brain.research.report import EpisodeReport, EvidenceLine
 from lab_brain.research.report_store import RecordedReport, SqlResearchReportStore
-from lab_brain.research.service import InputDocument, ResearchEpisodeService, ResearchRequest
+from lab_brain.research.service import (
+    InputDocument,
+    ProjectData,
+    ResearchEpisodeService,
+    ResearchRequest,
+)
 from lab_brain.research.vertical import VerticalFactory
 from lab_brain.storage.artifacts.local import LocalArtifactStore
+from lab_brain.surface.disclosure import ErrorNotFound
 
 #: The largest request body the workspace reads (all uploads of one run together).
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -113,9 +144,22 @@ _EGRESS_PATH = re.compile(rf"^/projects/{_ID}/egress$")
 #: Where a form posted to a collection path came from.
 _POSTED_FROM = {
     "/runs": "/runs/new",
+    "/runs/new": "/runs/new",
+    "/runs/review": "/runs/new",
+    "/data": "/data",
+    "/status/check": "/status",
+    "/settings/llm/assign": "/settings/llm",
     "/settings/llm/connections": "/settings/llm",
     "/settings/llm/runtimes": "/settings/llm",
 }
+
+#: The media type of an upload whose suffix is none the ingestion knows: the CLI's, so the one
+#: authoritative path reads it the same way from both (and says why when it cannot).
+_UNKNOWN_MEDIA = "application/octet-stream"
+
+#: The one place a settings form may ask to be sent back to: the guided overview. Anything else a
+#: form names is ignored -- a `next` field is never a redirect to wherever it says.
+_OVERVIEW = "/settings/llm"
 
 #: Shown in place of an evidence excerpt the actor can no longer read.
 WITHHELD = "[withheld: this excerpt is not readable under your current clearance]"
@@ -193,7 +237,8 @@ class Workspace:
         self._local_hosts = tuple(local_hosts)
         self._settings = settings
         self._connect = connect
-        self._artifacts = LocalArtifactStore(artifact_root.resolve())
+        self._artifact_root = artifact_root.resolve()
+        self._artifacts = LocalArtifactStore(self._artifact_root)
         self._factory = vertical_factory
         self._hosts = frozenset(allowed_hosts)
         self._csrf = csrf_token or _token()
@@ -273,8 +318,23 @@ class Workspace:
         method, path, form = req.method, req.path, req.form
         if path == "/" and method == "GET":
             return self._home(c, req)
+        if path == "/data" and method == "GET":
+            return self._data(c, req)
+        if path == "/data" and method == "POST" and form is not None:
+            return self._add_data(c, req, form)
+        if path == "/episodes" and method == "GET":
+            return self._episodes(c, req)
+        if path == "/status" and method == "GET":
+            return self._status(c, req)
+        if path == "/status/check" and method == "POST":
+            self._require_llm_admin(c, req)
+            return self._recheck(c, req)
         if path == "/runs/new" and method == "GET":
             return self._new_run(c, req)
+        if path == "/runs/new" and method == "POST" and form is not None:
+            return self._switch_project(c, req, form)
+        if path == "/runs/review" and method == "POST" and form is not None:
+            return self._review(c, req, form)
         if path == "/runs" and method == "POST" and form is not None:
             return self._create_run(c, req, form)
         if (m := _EPISODE_PATH.match(path)) and method == "GET":
@@ -298,6 +358,8 @@ class Workspace:
                 return self._add_connection(c, req, form)
             if path == "/settings/llm/runtimes" and method == "POST" and form is not None:
                 return self._create_runtime(c, req, form)
+            if path == "/settings/llm/assign" and method == "POST" and form is not None:
+                return self._assign(c, req, form)
             if m := _CONNECTION_PATH.match(path):
                 return self._connection_route(c, req, m.group(1), m.group(2))
             if m := _MODEL_PATH.match(path):
@@ -343,31 +405,388 @@ class Workspace:
         projects = self._projects(c)
         allowed = {p.project_id for p in projects}
         episodes = [e for e in self._opened_episodes(c) if e.project_id in allowed]
+        recent: list[tuple[pages.ProjectRow, DataItem]] = []
+        for project in projects:
+            recent.extend((project, item) for item in self._data_items(c, project.project_id))
+        recent.sort(key=lambda pair: (pair[1].submitted_at, pair[1].item_id), reverse=True)
         return Response(
             "200 OK",
-            pages.home_page(
-                actor_id=self._actor,
+            workspace_pages.home_page(
+                self._chrome(req, "home"),
                 projects=projects,
+                recent=recent,
+                counts=workspace_pages.DataCounts.of([item for _p, item in recent]),
                 episodes=episodes,
-                chrome=self._chrome(req, "episodes"),
+                ai=self._ai_status(c, req.m),
+                capabilities=self._capabilities(c),
             ),
         )
 
-    def _new_run(
-        self, c: Any, req: _Req, *, error: str | None = None, status: str = "200 OK"
-    ) -> Response:
+    def _episodes(self, c: Any, req: _Req) -> Response:
+        names = {p.project_id: p.name for p in self._projects(c)}
+        episodes = [e for e in self._opened_episodes(c) if e.project_id in names]
         return Response(
-            status,
-            pages.new_run_page(
-                actor_id=self._actor,
-                projects=self._projects(c),
-                csrf=self._csrf,
-                sensitivities=[s.value for s in SensitivityLabel],
-                error=error,
-                reasoner=self._reasoner_line(c, req.m),
-                chrome=self._chrome(req, "new"),
+            "200 OK",
+            workspace_pages.episodes_page(
+                self._chrome(req, "episodes"), episodes=episodes, projects=names
             ),
         )
+
+    # -- research data ----------------------------------------------------------------------------
+
+    def _research_data(self, c: Any) -> ResearchData:
+        return ResearchData(connection=c, artifact_store=self._artifacts)
+
+    def _data_items(self, c: Any, project_id: str) -> list[DataItem]:
+        try:
+            return self._research_data(c).items(project_id=project_id, actor_id=self._actor)
+        except ScientificReadRefused:  # pragma: no cover - the gate admitted the project just now
+            return []
+
+    def _cleared(self, c: Any, project_id: str) -> frozenset[str]:
+        """The labels this actor may declare -- and read -- in the project."""
+        held = self._research_data(c).clearance(project_id=project_id, actor_id=self._actor)
+        return frozenset(label.value for label in held)
+
+    def _chosen_project(
+        self, c: Any, projects: Sequence[pages.ProjectRow], wanted: str
+    ) -> pages.ProjectRow | None:
+        """The project asked for if the gate admits this actor to it; with none asked for, the one
+        whose research data arrived last (else the first) -- never a project the actor may not
+        see."""
+        asked = next((p for p in projects if p.project_id == wanted), None)
+        if asked is not None or wanted or len(projects) < 2:
+            return asked or (projects[0] if projects else None)
+        latest = {
+            p.project_id: max(i.submitted_at for i in items)
+            for p in projects
+            if (items := self._data_items(c, p.project_id))
+        }
+        dated = [p for p in projects if p.project_id in latest]
+        return max(dated, key=lambda p: latest[p.project_id]) if dated else projects[0]
+
+    def _data(
+        self,
+        c: Any,
+        req: _Req,
+        *,
+        project_id: str = "",
+        error: str | None = None,
+        status: str = "200 OK",
+    ) -> Response:
+        projects = self._projects(c)
+        project = self._chosen_project(c, projects, project_id or req.query.get("project", [""])[0])
+        items = self._data_items(c, project.project_id) if project is not None else []
+        data = self._research_data(c)
+        # Why an item failed: the M1 message catalog's own summary, authorized as `explain` is.
+        reasons: dict[str, tuple[str, ...]] = {}
+        for item in items:
+            sentences = []
+            for error_id in item.error_ids:
+                with suppress(ErrorNotFound):
+                    code, summary = data.explain(
+                        error_id,
+                        project_id=project.project_id if project else "",
+                        actor_id=self._actor,
+                    )
+                    sentences.append(workspace_pages.reason(code, summary, req.m))
+            if sentences:
+                reasons[item.item_id] = tuple(sentences)
+        added = [x for x in req.query.get("added", [""])[0].split(",") if x] if not error else []
+        return Response(
+            status,
+            workspace_pages.data_page(
+                self._chrome(req, "data"),
+                projects=projects,
+                project=project,
+                items=items,
+                reasons=reasons,
+                sensitivities=[s.value for s in reversed(SensitivityLabel)],
+                cleared=self._cleared(c, project.project_id) if project else frozenset(),
+                added=added,
+                error=error,
+            ),
+        )
+
+    def _add_data(self, c: Any, req: _Req, form: Form) -> Response:
+        m = req.m
+        project_id = form.value("project")
+        if project_id not in {p.project_id for p in self._projects(c)}:
+            return self._message(
+                req,
+                "403 Forbidden",
+                m("msg.no_research"),
+                m("msg.no_research_text", actor=self._actor, project=project_id),
+            )
+        try:
+            files, kind, sensitivity = self._new_files(
+                form,
+                "files",
+                "kind",
+                "sensitivity",
+                kind_error=m("data.need.kind"),
+                sensitivity_error=m("data.need.sensitivity"),
+            )
+            if not files:
+                raise FormError(m("data.need.files"))
+            assert kind is not None and sensitivity is not None
+            added = self._research_data(c).add(
+                project_id=project_id,
+                actor_id=self._actor,
+                files=files,
+                kind=kind,
+                sensitivity=sensitivity,
+            )
+        except FormError as refused:
+            return self._data(
+                c, req, project_id=project_id, error=str(refused), status="400 Bad Request"
+            )
+        except LabelNotCleared as refused:
+            return self._data(
+                c,
+                req,
+                project_id=project_id,
+                error=m("data.not_cleared", label=m(f"sens.{refused.label.value}")),
+                status="403 Forbidden",
+            )
+        # Post/Redirect/Get: reloading the page shows the result again, it never imports twice.
+        return _redirect(f"/data?project={quote(project_id)}&added={quote(','.join(added))}#result")
+
+    @staticmethod
+    def _new_files(
+        form: Form,
+        field: str,
+        kind_field: str,
+        sensitivity_field: str,
+        *,
+        kind_error: str,
+        sensitivity_error: str,
+    ) -> tuple[list[NewFile], TrustClass | None, SensitivityLabel | None]:
+        """The files of a form and what the researcher DECLARED them to be. With files, both
+        declarations are required: nothing is defaulted, nothing is guessed from the file."""
+        files = [
+            NewFile(
+                name=u.filename,
+                data=u.data,
+                media_type=_MEDIA_TYPES.get(Path(u.filename).suffix.lower(), _UNKNOWN_MEDIA),
+            )
+            for u in form.uploads(field)
+            if u.filename
+        ]
+        if not files:
+            return [], None, None
+        kind = form.value(kind_field)
+        if kind not in MATERIAL_KINDS:
+            raise FormError(kind_error)
+        label = form.value(sensitivity_field)
+        if label not in {s.value for s in SensitivityLabel}:
+            raise FormError(sensitivity_error)
+        return files, MATERIAL_KINDS[kind], SensitivityLabel(label)
+
+    # -- new research: question, project, data, files, sources -> confirm -> start -----------
+
+    @staticmethod
+    def _draft(form: Form | None) -> workspace_pages.Draft:
+        if form is None:
+            return workspace_pages.Draft()
+        return workspace_pages.Draft(
+            goal=form.value("goal"),
+            sensitivity=form.value("sensitivity"),
+            symptom=form.value("symptom"),
+            expected=form.value("expected"),
+            observed=form.value("observed"),
+            chosen={a: form.value(f"kind:{a}") for a in form.fields.get("use", ())},
+            literature_query=form.value("literature_query"),
+            literature_public=form.value("literature_query_public") == "yes",
+        )
+
+    def _new_run(
+        self,
+        c: Any,
+        req: _Req,
+        *,
+        project_id: str = "",
+        draft: workspace_pages.Draft | None = None,
+        error: str | None = None,
+        status: str = "200 OK",
+    ) -> Response:
+        projects = self._projects(c)
+        project = self._chosen_project(c, projects, project_id or req.query.get("project", [""])[0])
+        usable = (
+            self._research_data(c).usable(project_id=project.project_id, actor_id=self._actor)
+            if project is not None
+            else []
+        )
+        return Response(
+            status,
+            workspace_pages.new_research_page(
+                self._chrome(req, "new"),
+                projects=projects,
+                project=project,
+                usable=usable,
+                sensitivities=[s.value for s in reversed(SensitivityLabel)],
+                cleared=self._cleared(c, project.project_id) if project else frozenset(),
+                reasoner=self._reasoner_line(c, req.m),
+                draft=draft or workspace_pages.Draft(),
+                error=error,
+            ),
+        )
+
+    def _switch_project(self, c: Any, req: _Req, form: Form) -> Response:
+        """The researcher switched project on the new-research form: what they typed is kept;
+        what they ticked is kept only if the project is the same -- another project's data is
+        never carried across."""
+        draft = self._draft(form)
+        wanted = form.value("switch_to") or form.value("project")
+        if wanted != form.value("project"):
+            draft = dataclasses.replace(draft, chosen={})
+        return self._new_run(c, req, project_id=wanted, draft=draft)
+
+    def _review(self, c: Any, req: _Req, form: Form) -> Response:
+        """Step 6: import any new files as research data, then show exactly what the research
+        would use. Nothing is reasoned until the researcher starts it."""
+        m = req.m
+        project_id = form.value("project")
+        project = next((p for p in self._projects(c) if p.project_id == project_id), None)
+        if project is None:
+            return self._message(
+                req,
+                "403 Forbidden",
+                m("msg.no_research"),
+                m("msg.no_research_text", actor=self._actor, project=project_id),
+            )
+        data = self._research_data(c)
+        draft = self._draft(form)
+        new_ids: list[str] = []
+        try:
+            # Everything is checked before anything is written: a refusal leaves no row behind.
+            if not draft.goal:
+                raise FormError(m("msg.needs_goal"))
+            if draft.sensitivity not in {s.value for s in SensitivityLabel}:
+                raise FormError(m("new.need.goal_sensitivity"))
+            usable = {
+                u.artifact_id: u for u in data.usable(project_id=project_id, actor_id=self._actor)
+            }
+            chosen = self._chosen_data(form, m, usable)
+            files, kind, label = self._new_files(
+                form,
+                "files",
+                "files_kind",
+                "files_sensitivity",
+                kind_error=m("new.need.files_kind"),
+                sensitivity_error=m("new.need.files_sensitivity"),
+            )
+            literature = self._carry_literature(form, m)
+            devices = form.uploads("verification_input")
+            verification = _carry(devices[0]) if devices else None
+            if files:
+                assert kind is not None and label is not None
+                new_ids = data.add(
+                    project_id=project_id,
+                    actor_id=self._actor,
+                    files=files,
+                    kind=kind,
+                    sensitivity=label,
+                )
+        except FormError as refused:
+            return self._new_run(
+                c,
+                req,
+                project_id=project_id,
+                draft=draft,
+                error=str(refused),
+                status="400 Bad Request",
+            )
+        except LabelNotCleared as refused:
+            return self._new_run(
+                c,
+                req,
+                project_id=project_id,
+                draft=draft,
+                error=m("data.not_cleared", label=m(f"sens.{refused.label.value}")),
+                status="403 Forbidden",
+            )
+        added: list[DataItem] = []
+        excluded: list[DataItem] = []
+        same_as: dict[str, str] = {}
+        fresh: set[str] = set()
+        if new_ids:
+            items = {i.item_id: i for i in data.items(project_id=project_id, actor_id=self._actor)}
+            usable = {
+                u.artifact_id: u for u in data.usable(project_id=project_id, actor_id=self._actor)
+            }
+            assert kind is not None
+            for item_id in new_ids:
+                item = items[item_id]
+                added.append(item)
+                if item.artifact_id is None or item.artifact_id not in usable:
+                    excluded.append(item)
+                    continue
+                if item.duplicate_of is not None:
+                    # The same bytes are already in the project: THAT artifact is used, once.
+                    same_as[item.artifact_id] = item.name
+                else:
+                    fresh.add(item.artifact_id)
+                chosen.setdefault(item.artifact_id, kind_key(kind.value) or "note")
+        selected = [
+            workspace_pages.Selected(
+                artifact_id=artifact_id,
+                name=usable[artifact_id].name,
+                kind=chosen_kind,
+                sensitivity=usable[artifact_id].sensitivity,
+                state=usable[artifact_id].state.value,
+                new=artifact_id in fresh,
+                same_as=same_as.get(artifact_id),
+            )
+            for artifact_id, chosen_kind in chosen.items()
+        ]
+        return Response(
+            "200 OK",
+            workspace_pages.review_page(
+                self._chrome(req, "new"),
+                project=project,
+                draft=dataclasses.replace(draft, chosen=chosen),
+                selected=selected,
+                added=added,
+                excluded=excluded,
+                literature=literature,
+                verification=verification,
+                reasoner=self._reasoner_line(c, m),
+                egress=self._egress_line(c, project_id, m),
+                simulation=m("home.sim.none")
+                if self._capabilities(c).blocked
+                else m("home.sim.all"),
+            ),
+        )
+
+    def _carry_literature(self, form: Form, m: Messages) -> workspace_pages.Carried | None:
+        """The literature file and its query, checked as the start will check them, carried to
+        the confirmation as the bytes that were sent."""
+        uploads = form.uploads("literature_corpus")
+        query = form.value("literature_query")
+        if not uploads and not query:
+            return None
+        if not (uploads and query):
+            raise FormError(m("msg.literature_together"))
+        if form.value("literature_query_public") != "yes":
+            raise FormError(m("msg.literature_public"))
+        self._literature(uploads[0], query, m)
+        return _carry(uploads[0])
+
+    @staticmethod
+    def _chosen_data(form: Form, m: Messages, usable: Mapping[str, UsableData]) -> dict[str, str]:
+        """The project data a form selected, each with the kind the researcher chose for it.
+        Only this project's usable data; a kind for each, or the form is refused."""
+        chosen: dict[str, str] = {}
+        for artifact_id in form.fields.get("use", ()):
+            item = usable.get(artifact_id)
+            if item is None:
+                raise FormError(m("new.not_usable", name=artifact_id))
+            key = form.value(f"kind:{artifact_id}")
+            if key not in MATERIAL_KINDS:
+                raise FormError(m("new.need.kind", name=item.name))
+            chosen[artifact_id] = key
+        return chosen
 
     def _reasoner_line(self, c: Any, m: Messages) -> pages.Html:
         try:
@@ -379,14 +798,237 @@ class Workspace:
         return pages.h(
             '{} <a href="/runtime">{}</a>',
             m("new.reasoner.runtime", name=runtime.name),
-            m("nav.runtime"),
+            m("ai.detail"),
         )
 
-    def _create_run(self, c: Any, req: _Req, form: Form) -> Response:
+    def _egress_line(self, c: Any, project_id: str, m: Messages) -> pages.Html:
+        """Whether this project's evidence could leave, in the researcher's words."""
+        if not self._external_routes(c):
+            return pages.e(m("lbl.egress.local"))
+        policies = ProjectEgressPolicies(c)
+        connections = {x.connection_id: x for x in self._llm(c).registry.connections()}
+        return pages.h(
+            '{}: {} <a href="/projects/{}/egress">{}</a>',
+            m("llm.egress"),
+            egress_pages.summary(
+                policies.current(project_id),
+                policies.privacy_mode(project_id) or "PRIVATE",
+                connections,
+                m,
+            ),
+            project_id,
+            m("eg.link"),
+        )
+
+    # -- the system's state -----------------------------------------------------------------------
+
+    def _ai_status(self, c: Any, m: Messages) -> workspace_pages.AiStatus:
+        llm = self._llm(c)
+        admin = llm.is_administrator
+        active = llm.registry.active_runtime()
+        if active is None:
+            return workspace_pages.AiStatus(
+                m("ai.none"), m("ai.next.admin") if admin else m("ai.next.member"), admin
+            )
         try:
-            request = self._research_request(form, req.m)
+            load_active_runtime(c, self._secrets)
+        except RuntimeUnavailable as unusable:
+            return workspace_pages.AiStatus(
+                m("ai.unusable", name=active.name, reason=str(unusable)),
+                m("ai.next.fix") if admin else m("ai.next.member"),
+                admin,
+                problem=True,
+                configured=True,
+            )
+        return workspace_pages.AiStatus(
+            m("ai.active", name=active.name), m("ai.next.ok"), admin, configured=True
+        )
+
+    def _capabilities(self, c: Any) -> workspace_pages.Capabilities:
+        domain, backends, blocked = ResearchEpisodeService(
+            connection=c, artifact_store=self._artifacts, vertical_factory=self._factory
+        ).capabilities()
+        return workspace_pages.Capabilities(
+            domain,
+            backends,
+            [(b.capability_id, b.action_type, b.reason, b.requires) for b in blocked],
+        )
+
+    def _status(self, c: Any, req: _Req) -> Response:
+        m = req.m
+        projects = self._projects(c)
+        llm = self._llm(c)
+        policies = ProjectEgressPolicies(c)
+        connections = llm.registry.connections()
+        by_id = {x.connection_id: x for x in connections}
+        capabilities = self._capabilities(c)
+        parts: list[workspace_pages.Part] = []
+
+        applied = c.execute("SELECT count(*) FROM schema_migrations").fetchone()
+        parts.append(
+            workspace_pages.Part(
+                m("st.db"),
+                "ok",
+                pages.e(m("st.db.ok", n=int(applied[0]) if applied else 0)),
+                f"schema_migrations={applied[0] if applied else 0}",
+            )
+        )
+        root = self._artifact_root
+        writable = root.is_dir() and os.access(root, os.W_OK)
+        free = shutil.disk_usage(root).free if root.is_dir() else 0
+        parts.append(
+            workspace_pages.Part(
+                m("st.storage"),
+                "ok" if writable else "problem",
+                pages.e(m("st.storage.ok", free=_size(free)))
+                if writable
+                else pages.e(m("st.storage.problem")),
+                f"{root} writable={writable} free={free}",
+            )
+        )
+        counts = [
+            (p, workspace_pages.DataCounts.of(self._data_items(c, p.project_id))) for p in projects
+        ]
+        parts.append(
+            workspace_pages.Part(
+                m("st.data"),
+                "ok",
+                pages.h(
+                    "{}{}",
+                    pages.cat(
+                        pages.h(
+                            '<div><a href="/data?project={}">{}</a></div>',
+                            p.project_id,
+                            m("st.data.row", project=p.name, **vars(n)),
+                        )
+                        for p, n in counts
+                    ),
+                    pages.h('<div class="warn-line">{}</div>', m("st.data.attention"))
+                    if any(n.attention for _p, n in counts)
+                    else pages.Html(""),
+                ),
+            )
+        )
+        ai = self._ai_status(c, m)
+        parts.append(
+            workspace_pages.Part(
+                m("st.ai"),
+                "problem" if ai.problem else ("ok" if ai.configured else "missing"),
+                pages.h(
+                    '{}<div class="purpose">{} {}</div>', ai.sentence, m("home.next"), ai.next_step
+                ),
+            )
+        )
+        for reach, key in (("LOCAL", "st.local"), ("EXTERNAL", "st.external")):
+            mine = [x for x in connections if x.reach == reach and x.lifecycle == "ENABLED"]
+            if not mine:
+                parts.append(workspace_pages.Part(m(key), "missing", pages.e(m(f"{key}.none"))))
+                continue
+            lines = []
+            healthy = False
+            for conn in mine:
+                health = llm.registry.latest_health(conn.connection_id)
+                problem = llm.credential_problem(conn)
+                if health is None:
+                    lines.append(m("st.local.never", name=conn.name))
+                    continue
+                healthy = healthy or (health.outcome == "REACHABLE" and problem is None)
+                lines.append(
+                    m(
+                        "st.local.row",
+                        name=conn.name,
+                        outcome=m(f"llm.h.{health.outcome}"),
+                        at=workspace_pages.status_when(health.checked_at),
+                    )
+                )
+            parts.append(
+                workspace_pages.Part(
+                    m(key),
+                    "ok" if healthy else "problem",
+                    pages.cat(pages.h("<div>{}</div>", x) for x in lines),
+                    "; ".join(f"{x.name} {x.base_url}" for x in mine),
+                )
+            )
+        parts.append(
+            workspace_pages.Part(
+                m("st.sim"),
+                "limit" if capabilities.blocked else "ok",
+                pages.e(m("st.sim.cannot", why=m("st.sim.why")))
+                if capabilities.blocked
+                else pages.e(m("st.sim.can")),
+                f"domain={capabilities.domain} blocked={len(capabilities.blocked)}",
+            )
+        )
+        parts.append(
+            workspace_pages.Part(
+                m("st.checks"),
+                "ok",
+                pages.e(m("st.checks.ok", n=len(capabilities.backends))),
+                ", ".join(sorted(capabilities.backends)),
+            )
+        )
+        return Response(
+            "200 OK",
+            workspace_pages.status_page(
+                self._chrome(req, "status"),
+                parts=parts,
+                capabilities=capabilities,
+                egress=[
+                    (
+                        p.project_id,
+                        p.name,
+                        egress_pages.summary(
+                            policies.current(p.project_id),
+                            policies.privacy_mode(p.project_id) or "PRIVATE",
+                            by_id,
+                            m,
+                        ),
+                    )
+                    for p in projects
+                ],
+                admin=llm.is_administrator,
+            ),
+        )
+
+    def _recheck(self, c: Any, req: _Req) -> Response:
+        """Ask every enabled model connection whether it answers, and record it. Administration:
+        a health check is recorded, so it is the settings service's -- which refuses a
+        non-administrator before anything is sent."""
+        llm = self._llm(c)
+        for conn in llm.registry.connections():
+            if conn.lifecycle == "ENABLED":
+                with suppress(SettingsRefused):
+                    llm.check_health(conn.connection_id)
+        return _redirect("/status")
+
+    def _create_run(self, c: Any, req: _Req, form: Form) -> Response:
+        project_id = form.value("project")
+        allowed = {p.project_id for p in self._projects(c)}
+        if project_id and project_id not in allowed:
+            # Authorization first: one sentence for every reason, before the form is read.
+            return self._message(
+                req,
+                "403 Forbidden",
+                req.m("msg.no_research"),
+                req.m("msg.no_research_text", actor=self._actor, project=project_id),
+            )
+        usable: dict[str, UsableData] = {}
+        if form.fields.get("use") and project_id in allowed:
+            usable = {
+                u.artifact_id: u
+                for u in self._research_data(c).usable(project_id=project_id, actor_id=self._actor)
+            }
+        try:
+            request = self._research_request(form, req.m, usable)
         except FormError as refused:
-            return self._new_run(c, req, error=str(refused), status="400 Bad Request")
+            return self._new_run(
+                c,
+                req,
+                project_id=project_id,
+                draft=self._draft(form),
+                error=str(refused),
+                status="400 Bad Request",
+            )
         try:
             report, run_id = self._run(c, req, request)
         except ScientificReadRefused:
@@ -432,6 +1074,9 @@ class Workspace:
                 # service's answer when the form is sent.
                 continuable=opened.row.state not in ("COMPLETED", "ABANDONED"),
                 chrome=self._chrome(req, "episodes"),
+                project_name={p.project_id: p.name for p in self._projects(c)}.get(
+                    opened.project_id
+                ),
             ),
         )
 
@@ -523,7 +1168,9 @@ class Workspace:
         # ledger recorded for it, and the run's own id in its provenance.
         SqlResearchReportStore(c).record(research_run_id, report, at=utc_now())
 
-    def _research_request(self, form: Form, m: Messages) -> ResearchRequest:
+    def _research_request(
+        self, form: Form, m: Messages, usable: Mapping[str, UsableData]
+    ) -> ResearchRequest:
         project = form.value("project")
         goal = form.value("goal")
         if not project:
@@ -543,12 +1190,17 @@ class Workspace:
                         trust_class=trust_class,
                     )
                 )
+        # A file the confirmation carried is the bytes the researcher confirmed; a file sent with
+        # the form (the direct form, or a client of it) is read as sent. Either is checked here.
         verification = None
-        devices = form.uploads("verification_input")
+        devices = [*_uncarry(form, "verification", m), *form.uploads("verification_input")]
         if devices:
             verification = (devices[0].filename or "verification input", devices[0].data)
         literature = None
-        corpus_uploads = form.uploads("literature_corpus")
+        corpus_uploads = [
+            *_uncarry(form, "literature_corpus", m),
+            *form.uploads("literature_corpus"),
+        ]
         query = form.value("literature_query")
         if corpus_uploads or query:
             if not (corpus_uploads and query):
@@ -556,9 +1208,14 @@ class Workspace:
             if form.value("literature_query_public") != "yes":
                 raise FormError(m("msg.literature_public"))
             literature = self._literature(corpus_uploads[0], query, m)
-        sensitivity = form.value("sensitivity") or SensitivityLabel.INTERNAL.value
+        # Declared, never defaulted: a request that does not say how sensitive the question is
+        # is refused rather than filed under a label nobody chose.
+        sensitivity = form.value("sensitivity")
+        if not sensitivity:
+            raise FormError(m("new.need.goal_sensitivity"))
         if sensitivity not in {s.value for s in SensitivityLabel}:
             raise FormError(m("msg.unknown_classification", value=repr(sensitivity)))
+        chosen = self._chosen_data(form, m, usable)
         return ResearchRequest(
             project_id=project,
             actor_id=self._actor,
@@ -570,6 +1227,14 @@ class Workspace:
             symptom=form.value("symptom") or None,
             expected_behavior=form.value("expected") or None,
             observed_behavior=form.value("observed") or None,
+            project_data=tuple(
+                ProjectData(
+                    artifact_id=artifact_id,
+                    name=usable[artifact_id].name,
+                    trust_class=MATERIAL_KINDS[key],
+                )
+                for artifact_id, key in chosen.items()
+            ),
         )
 
     @staticmethod
@@ -617,7 +1282,7 @@ class Workspace:
             return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
         return Response(
             "409 Conflict" if error else "200 OK",
-            egress_pages.egress_page(self._chrome(req, "runtime"), view, error=error),
+            egress_pages.egress_page(self._chrome(req, "status"), view, error=error),
         )
 
     def _declare_egress(self, c: Any, req: _Req, project_id: str, form: Form) -> Response:
@@ -683,56 +1348,120 @@ class Workspace:
         connections = registry.connections()
         models = registry.models()
         runtimes = registry.runtimes()
-        bindings = {
+        bound = {
             r.runtime_id: {
-                slot: (registry.model(b.model_profile_id) or _missing()).model_name
-                for slot, b in registry.bindings(r.runtime_id).items()
+                slot: b.model_profile_id for slot, b in registry.bindings(r.runtime_id).items()
             }
             for r in runtimes
         }
-        verified = {
-            m.model_profile_id: registry.verified_capabilities(m.model_profile_id) for m in models
-        }
-        drafts = [r for r in runtimes if r.state in ("ACTIVE", "DRAFT")]
-        ready = any(llm.readiness(r.runtime_id).ready for r in drafts[:1])
-        progress = (
-            bool(connections),
-            bool(models),
-            any(m.lifecycle in ("TESTED", "LOCKED") for m in models),
-            any(m.lifecycle == "LOCKED" for m in models),
-            any(bindings[r.runtime_id] for r in runtimes),
-            ready or any(r.state == "ACTIVE" for r in runtimes),
-            any(r.state == "ACTIVE" for r in runtimes),
-        )
-        data = settings_pages.Overview(
+        draft = next((r for r in runtimes if r.state == "DRAFT"), None)
+        active_problem = None
+        if registry.active_runtime() is not None:
+            try:
+                load_active_runtime(c, self._secrets)
+            except RuntimeUnavailable as unusable:
+                active_problem = str(unusable)
+        guide = llm_guide.build(
             connections=connections,
             health={x.connection_id: registry.latest_health(x.connection_id) for x in connections},
+            credential_problems={x.connection_id: llm.credential_problem(x) for x in connections},
             models=models,
-            verified=verified,
+            passed={
+                x.model_profile_id: frozenset(
+                    cap.value for cap in registry.verified_capabilities(x.model_profile_id)
+                )
+                for x in models
+            },
             runtimes=runtimes,
-            bindings=bindings,
+            bindings=bound,
+            readiness=llm.readiness(draft.runtime_id) if draft is not None else None,
+            active_problem=active_problem,
+            roles={slot: tuple(r.value for r in roles_on(slot)) for slot in BINDABLE_SLOTS},
+        )
+        names = {x.model_profile_id: x.model_name for x in models}
+        data = settings_pages.Overview(
+            guide=guide,
+            runtimes=runtimes,
+            bindings={
+                rid: {slot: names.get(mid, mid) for slot, mid in slots.items()}
+                for rid, slots in bound.items()
+            },
             secure_store=self._secrets.secure_store,
-            progress=progress,
         )
         return Response(
             "409 Conflict" if error else "200 OK",
             settings_pages.overview_page(self._chrome(req, "llm"), data, error=error),
         )
 
+    @staticmethod
+    def _back(form: Form, default: str, anchor: str = "") -> str:
+        """Where a settings action returns: the guided overview when the form came from it (the
+        only other place it may name), else the page of the thing it changed."""
+        return f"{_OVERVIEW}{anchor}" if form.value("next") == _OVERVIEW else default
+
+    def _refused(
+        self, c: Any, req: _Req, form: Form | None, error: str, page: Callable[[], Response]
+    ) -> Response:
+        """A refused settings step answers on the page it was taken from."""
+        if form is not None and form.value("next") == _OVERVIEW:
+            return self._overview(c, req, error=error)
+        return page()
+
     def _add_connection(self, c: Any, req: _Req, form: Form) -> Response:
         try:
-            created = self._llm(c).add_connection(
-                name=form.value("name"),
-                base_url=form.value("base_url"),
-                reach=form.value("reach"),
-                secret_mode=form.value("secret_mode") or "none",
-                env_name=form.value("env_name"),
-                # Read, used, and never echoed back into any page.
-                secret_value=form.value("secret_value"),
+            spec = (
+                self._connection_spec(c, form, req.m)
+                if form.value("provider")
+                else {
+                    "name": form.value("name"),
+                    "base_url": form.value("base_url"),
+                    "reach": form.value("reach"),
+                    "secret_mode": form.value("secret_mode") or "none",
+                    "env_name": form.value("env_name"),
+                    # Read, used, and never echoed back into any page.
+                    "secret_value": form.value("secret_value"),
+                }
             )
+            created = self._llm(c).add_connection(**spec)
         except SettingsRefused as refused:
             return self._overview(c, req, error=str(refused))
+        if form.value("provider"):
+            return _redirect(f"{_OVERVIEW}#c-{quote(created.connection_id, safe=':')}")
         return _redirect(f"/settings/llm/connections/{_path(created.connection_id)}")
+
+    def _connection_spec(self, c: Any, form: Form, m: Messages) -> dict[str, str]:
+        """The simple form -- provider, name, API key or a local model -- as the settings
+        service's parameters. A preset only fills in the usual URL and reach; the service checks
+        everything as it checks any connection (LOCAL only of this machine, and so on)."""
+        preset = form.value("provider")
+        if preset not in settings_pages.PROVIDERS:
+            raise SettingsRefused(m("llm.bad_provider"))
+        url, reach = settings_pages.PROVIDERS[preset]
+        custom = form.value("base_url")
+        if custom:
+            url = custom
+            reach = form.value("reach") or reach
+        elif preset == "ollama":
+            gateway = "host.docker.internal"
+            host = gateway if gateway in self._local_hosts else "127.0.0.1"
+            url = f"http://{host}:11434/v1"
+        if url is None:
+            raise SettingsRefused(m("llm.need_url"))
+        secret_value = form.value("secret_value")
+        env_name = form.value("env_name")
+        mode = "store" if secret_value else ("env" if env_name else "none")
+        if mode == "none" and preset not in ("ollama", "custom"):
+            raise SettingsRefused(m("llm.need_key"))
+        taken = {x.name for x in self._llm(c).registry.connections()}
+        name = _slug(form.value("name")) or _free_name(preset, taken)
+        return {
+            "name": name,
+            "base_url": url,
+            "reach": reach,
+            "secret_mode": mode,
+            "env_name": env_name,
+            "secret_value": secret_value,
+        }
 
     def _connection_route(
         self, c: Any, req: _Req, connection_id: str, action: str | None
@@ -752,6 +1481,12 @@ class Workspace:
                 llm.check_health(connection_id)
             elif action == "fetch":
                 llm.fetch_models(connection_id)
+            elif action == "test":
+                # From the guided overview: the model chosen in the connection's row.
+                model = llm.registry.model(form.value("model_profile_id"))
+                if model is None or model.connection_id != connection_id:
+                    raise SettingsRefused(req.m("msg.no_page"))
+                llm.test_model(model.model_profile_id)
             elif action == "declare":
                 model = llm.declare_model(connection_id, form.value("model_name"))
                 return _redirect(f"/settings/llm/models/{_path(model.model_profile_id)}")
@@ -767,8 +1502,16 @@ class Workspace:
             else:
                 raise SettingsRefused(req.m("msg.no_page"))
         except SettingsRefused as refused:
-            return self._connection_page(c, req, connection_id, error=str(refused))
-        return _redirect(here)
+            problem = str(refused)
+            return self._refused(
+                c,
+                req,
+                form,
+                problem,
+                lambda: self._connection_page(c, req, connection_id, error=problem),
+            )
+        assert form is not None
+        return _redirect(self._back(form, here, f"#c-{quote(connection_id, safe=':')}"))
 
     def _connection_page(
         self, c: Any, req: _Req, connection_id: str, *, error: str | None = None
@@ -812,8 +1555,17 @@ class Workspace:
             else:
                 raise SettingsRefused(req.m("msg.no_page"))
         except SettingsRefused as refused:
-            return self._model_page(c, req, model_id, error=str(refused))
-        return _redirect(f"/settings/llm/models/{_path(model_id)}")
+            problem = str(refused)
+            return self._refused(
+                c,
+                req,
+                form,
+                problem,
+                lambda: self._model_page(c, req, model_id, error=problem),
+            )
+        model = llm.registry.model(model_id)
+        anchor = f"#c-{quote(model.connection_id, safe=':')}" if model is not None else ""
+        return _redirect(self._back(form, f"/settings/llm/models/{_path(model_id)}", anchor))
 
     def _model_page(
         self, c: Any, req: _Req, model_id: str, *, error: str | None = None
@@ -871,7 +1623,10 @@ class Workspace:
                 else:
                     llm.unbind(runtime_id, slot)
             elif action == "check":
-                return self._runtime_page(c, req, runtime_id, live=True)
+                if form.value("next") != _OVERVIEW:
+                    return self._runtime_page(c, req, runtime_id, live=True)
+                # From the overview: check live (recorded), then show the overview's list.
+                llm.readiness(runtime_id, live=True)
             elif action == "activate":
                 llm.activate(runtime_id)
             elif action == "retire":
@@ -879,8 +1634,57 @@ class Workspace:
             else:
                 raise SettingsRefused(req.m("msg.no_page"))
         except SettingsRefused as refused:
-            return self._runtime_page(c, req, runtime_id, error=str(refused))
-        return _redirect(here)
+            problem = str(refused)
+            return self._refused(
+                c,
+                req,
+                form,
+                problem,
+                lambda: self._runtime_page(c, req, runtime_id, error=problem),
+            )
+        return _redirect(self._back(form, here, "#apply"))
+
+    def _assign(self, c: Any, req: _Req, form: Form) -> Response:
+        """Step 3 of the overview: a confirmed model to a use, in the configuration being
+        prepared -- the newest DRAFT, or a new one started from the applied configuration (an
+        ACTIVE configuration is never changed in place: `012e` binds only a DRAFT). The binding
+        rules are the database's; this only finds the draft."""
+        llm = self._llm(c)
+        try:
+            try:
+                slot = LogicalSlot(form.value("slot"))
+            except ValueError:
+                raise SettingsRefused(form.value("slot")) from None
+            if slot not in BINDABLE_SLOTS:
+                raise SettingsRefused(slot.value)
+            draft = self._draft_runtime(llm)
+            if form.value("action") == "unassign":
+                llm.unbind(draft.runtime_id, slot)
+            else:
+                llm.bind(draft.runtime_id, slot, form.value("model"))
+        except SettingsRefused as refused:
+            return self._overview(c, req, error=str(refused))
+        return _redirect(f"{_OVERVIEW}#assign")
+
+    @staticmethod
+    def _draft_runtime(llm: LLMSettings) -> RuntimeRow:
+        registry = llm.registry
+        draft = next((r for r in registry.runtimes() if r.state == "DRAFT"), None)
+        if draft is not None:
+            return draft
+        active = registry.active_runtime()
+        # The most restrictive ceiling unless the applied configuration already allowed more:
+        # an external route then carries PUBLIC evidence at most (each project's own policy and
+        # each researcher's clearance still decide).
+        draft = llm.create_runtime(
+            f"config {utc_now().astimezone():%Y-%m-%d %H:%M:%S}",
+            active.external_labels if active is not None else ["PUBLIC"],
+        )
+        if active is not None:
+            for slot, binding in registry.bindings(active.runtime_id).items():
+                with suppress(SettingsRefused):
+                    llm.bind(draft.runtime_id, slot, binding.model_profile_id)
+        return draft
 
     def _runtime_page(
         self,
@@ -956,7 +1760,7 @@ class Workspace:
         return Response(
             "200 OK",
             settings_pages.active_runtime_page(
-                self._chrome(req, "runtime"),
+                self._chrome(req, "status"),
                 llm.readiness(active.runtime_id) if active is not None else None,
                 unusable=unusable,
                 admin=llm.is_administrator,
@@ -1092,6 +1896,50 @@ class Workspace:
 
 def _token() -> str:
     return secrets.token_urlsafe(32)
+
+
+def _slug(name: str) -> str:
+    """A connection name as `012e` accepts it: lower case, letters, digits, '.', '_', '-'."""
+    slug = re.sub(r"[^a-z0-9._-]+", "-", name.strip().lower()).strip("-._")
+    return slug[:48]
+
+
+def _free_name(base: str, taken: set[str]) -> str:
+    base = "local-ollama" if base == "ollama" else base
+    if base not in taken:
+        return base
+    return next(f"{base}-{n}" for n in range(2, 1000) if f"{base}-{n}" not in taken)
+
+
+def _carry(upload: Upload) -> workspace_pages.Carried:
+    """A file the confirmation page carries to the start, unchanged: its bytes, base64."""
+    return workspace_pages.Carried(
+        name=upload.filename or "unnamed",
+        size=len(upload.data),
+        encoded=base64.b64encode(upload.data).decode("ascii"),
+    )
+
+
+def _uncarry(form: Form, prefix: str, m: Messages) -> list[Upload]:
+    """The file a confirmation carried under `prefix`, as it was sent; none if it carried none."""
+    encoded = form.value(f"{prefix}_b64")
+    if not encoded:
+        return []
+    try:
+        data = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError):
+        raise FormError(m("msg.refused")) from None
+    return [Upload(filename=form.value(f"{prefix}_name") or prefix, data=data)]
+
+
+def _size(n: int) -> str:
+    """Bytes, for a person."""
+    value = float(n)
+    for unit in ("B", "KB", "MB"):
+        if value < 1024:
+            return f"{value:.0f} {unit}" if unit == "B" else f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{value:.1f} GB"
 
 
 def _missing() -> ModelRow:  # pragma: no cover - a binding's model is a foreign key

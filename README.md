@@ -53,6 +53,10 @@ docker compose logs -f web       # 工作區日誌
 docker compose logs local-models # 本機模型（Ollama）探測結果
 ```
 
+- 導覽：首頁 `/` · 研究資料 `/data` · 新增研究 `/runs/new` · 研究紀錄 `/episodes` · AI 模型設定
+  `/settings/llm` · 系統狀態 `/status`。頁面時間以 `LAB_BRAIN_TZ`（預設 `Asia/Taipei`）顯示；儲存的時間
+  一律為 UTC。
+
 - 包含：PostgreSQL 17 + pgvector、每次啟動自動 migration、管理者 bootstrap（研究者、其 project 與
   成員資格、LLM 管理權）、研究工作區、本機輕量模型路由設定；皆有 health check。
 - **只綁定主機的 loopback**（`127.0.0.1:8765`）：工作區沒有登入機制，區網中任何人都不能連到它。
@@ -125,38 +129,50 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
 # 開啟 http://127.0.0.1:8765/
 ```
 
-- 同一個研究流程的網頁介面：選 project、輸入目標、上傳 measurement / run record / note、
-  （選填）verification input 與 literature corpus，送出後即得到 episode；之後可再回來查看並
-  **Continue** 一個 SUSPENDED 的 episode；COMPLETED 的 episode 為唯讀。
-- 頁面顯示的是該次 run 由研究服務回傳、原樣記錄的報告（與 CLI 同一份資料、同一個 Markdown
-  renderer），加上 episode 與 research run 的即時狀態；前端沒有任何 JavaScript，也不做任何推導。
-- 一個 workspace 代表一個 actor（與 CLI 的 `--actor` 相同的信任模型），只綁定本機
-  loopback；授權每個請求都在伺服器端檢查；所有 POST 需要 CSRF token。
+導覽依研究者的工作順序排列：**首頁**（現在該做什麼）· **研究資料**（要把資料交給 Lab Brain，就是來這裡）·
+**新增研究** · **研究紀錄** · **AI 模型設定**（僅 AI 模型管理者）· **系統狀態**。
 
-設計與驗證記錄：[`docs/implementation/web-workspace.md`](docs/implementation/web-workspace.md)。
+- **研究資料**（`/data`）：「＋ 匯入研究資料」→ 選檔案 → 宣告資料類型（量測報告或實驗紀錄／模擬或運算
+  紀錄／筆記、想法或文獻摘錄）→ 宣告資料分級（公開／實驗室內部／實驗室機密／保密協議）。兩者都必填、
+  沒有預設值、系統不推斷；超出自己閱讀權限的分級不能選（會說明原因）。檔案走唯一的正式匯入路徑
+  （secret scan → artifact 與 occurrence → 段落 → inbox item），狀態為 可用於研究／部分可用／處理中／
+  需要人工確認／與既有檔案內容相同／已被安全規則擋下／處理失敗，每一種都說明發生了什麼、下一步怎麼做。
+  相同內容再次上傳是同一個 artifact（DUPLICATE），不會產生第二份證據。
+- **新增研究**（`/runs/new`）：研究問題與其分級 → 研究專案 → 勾選研究專案中已可用的資料（不必重新
+  上傳；別的研究專案的資料永遠不會出現）→ 選填新檔案 → 選填外部資料來源（本機文獻檔＋確認可公開的
+  查詢、驗證輸入）→ **確認研究輸入**（列出這次研究將使用的全部內容）→ 開始研究。選用既有資料時直接
+  使用已處理好的段落，不會重新匯入、不會複製證據。
+- **研究任務**頁面顯示目前狀態（例如「等待中，可以繼續」）、繼續研究、執行紀錄與原樣保存的研究報告；
+  識別碼放在「技術細節」。沒有模擬器時，需要模擬的檢查列為等待中，之後可以繼續同一項研究。
+- **系統狀態**：資料庫、檔案儲存、研究資料匯入、AI 模型配置、本機模型（Ollama）、外部 AI API、
+  模擬（Lumerical 未安裝時顯示為已知限制，不是故障）與無法使用的功能及原因。
+- 一個 workspace 代表一個 actor（與 CLI 的 `--actor` 相同的信任模型），只綁定本機 loopback；授權在
+  伺服器端逐一請求檢查；所有 POST 需要 CSRF token；前端沒有任何 JavaScript。
 
-### Web Workspace V2：語言切換與 LLM 設定
+設計與驗證記錄：[`docs/implementation/research-data-workspace.md`](docs/implementation/research-data-workspace.md)
+（先前版本：[`web-workspace.md`](docs/implementation/web-workspace.md)）。
 
-- 頁首固定導覽（研究 Episode／新研究／LLM 設定／執行環境）與 **English／繁體中文** 切換
-  （`lab-brain web --locale zh-TW` 可設定預設）。只翻譯介面；報告內容、證據、識別碼與狀態值
-  一律原樣顯示。介面語言與研究輸出語言（英文）是分開的。
-- **LLM 設定**：連線 → 取得／宣告模型 → 能力測試 → 鎖定 → Slot 綁定 → 執行環境就緒 → 啟用。
-  角色永遠不直接綁定模型（CognitiveRole → LogicalSlot 唯讀顯示）；每個 slot 只能綁定已鎖定、且
-  實際通過該 slot 所需能力探測的模型。
-- 憑證只以參照保存：`env:變數名稱`，或 Windows Credential Manager（`wincred:`）；資料庫只存參照
-  與指紋（`****abcd`）。沒有安全儲存區時，直接輸入的金鑰會被拒絕（fail closed）。
-- 啟用執行環境後，新研究經由同一個 `ScientificLLM`、預算／外送閘門、型別化角色解析器與
-  InferenceProvenance 使用真實模型；未啟用時由本機機制目錄推理器負責（明示的備援）。
-  「反方審查」退回「主要推理」時會明確標示「沒有模型路由獨立性」。
-- 執行環境頁面以研究者看得懂的名稱顯示（主要推理、快速輔助、獨立批判、假說產生與比較、反方審查…），
-  內部識別碼保留在提示與「技術細節」中。
-- 命令列（`lab-brain research run`）永遠不呼叫語言模型；有 LLM 執行環境啟用時會拒絕執行，請改用工作區。
-- **兩種權限分開**：LLM 設定是部署層級的管理，只有部署管理者授予的 LLM 管理者可以操作（專案成員資格
-  不給予此權限）；某個專案的證據能否送往外部模型，由**該專案自己**的外送政策決定（「執行環境」頁面 →
-  專案的「外部模型外送設定」），需該專案成員具有 `LLM_EGRESS` 核准範圍、只能核准自己有權限的分級、
-  私有模式的專案不能外送。全域執行環境只提供路由，不提供授權。
+### 介面語言與 AI 模型設定
 
-設計與驗證記錄：[`docs/implementation/web-workspace-v2.md`](docs/implementation/web-workspace-v2.md)。
+- 頁首 **English／繁體中文** 切換（`lab-brain web --locale zh-TW` 可設定預設）。只翻譯介面；報告內容、
+  證據、識別碼與狀態值一律原樣保存與顯示。介面語言與研究輸出語言（英文）是分開的。
+- **AI 模型設定**（僅部署授權的 AI 模型管理者）分四步：① 新增模型連線（模型服務／名稱／API 金鑰或本機
+  模型／新增；自訂網址與環境變數在「進階設定」）② 取得可用模型 → 選模型 → 執行模型能力測試 → 確認此
+  模型 ③ 指派模型給研究工作（研究角色 → 模型用途寫在程式中；只能選已確認、且通過該用途所需測試的模型）
+  ④ 檢查並套用配置。每個階段都顯示「下一步」，缺什麼以「尚待處理／怎麼完成」清單呈現，完成後只有一個
+  「套用配置」按鈕；服務網址、金鑰來源、內部識別碼與路由細節放在「進階設定與技術細節」。
+- 金鑰只以參照保存：`env:變數名稱`，或 Windows Credential Manager（`wincred:`）；資料庫只存參照與指紋
+  （`****abcd`）。沒有安全儲存區時（例如 Docker），請填環境變數名稱；直接輸入的金鑰會被拒絕（fail closed）。
+- 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
+  InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
+  「主要推理」時會明確標示「不是獨立的模型」。
+- 命令列（`lab-brain research run`）永遠不呼叫語言模型；有配置套用中時會拒絕執行，請改用工作台。
+- **兩種權限分開**：AI 模型設定是部署層級的管理（研究專案成員資格不給予此權限）；某個研究專案的證據
+  能否送往外部 AI API，由**該研究專案自己**的外部傳輸設定決定（`/projects/<id>/egress`），需要該專案的
+  `LLM_EGRESS` 核准權限、只能核准自己有閱讀權限的分級、私有模式的專案不能外送。
+
+設計與驗證記錄：[`docs/implementation/web-workspace-v2.md`](docs/implementation/web-workspace-v2.md)、
+[`docs/implementation/research-data-workspace.md`](docs/implementation/research-data-workspace.md)。
 
 ## 專案結構
 

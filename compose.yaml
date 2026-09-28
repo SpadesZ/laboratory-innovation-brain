@@ -31,6 +31,7 @@
 #   LAB_BRAIN_PROJECT_NAME    its name
 #   LAB_BRAIN_CLEARANCE       their clearance in it (default PUBLIC,INTERNAL)
 #   LAB_BRAIN_LOCALE          en or zh-TW (default en)
+#   LAB_BRAIN_TZ              the time zone pages show times in (default Asia/Taipei)
 #   LAB_BRAIN_OLLAMA_URL      the host's OpenAI-compatible local endpoint
 #                             (default http://host.docker.internal:11434/v1; empty skips it)
 
@@ -96,6 +97,8 @@ services:
     environment:
       <<: *app-env
       LAB_BRAIN_PUBLISHED_PORT: ${LAB_BRAIN_PORT:-8765}
+      # The clock the pages show times in (stored times are UTC and unchanged).
+      TZ: ${LAB_BRAIN_TZ:-Asia/Taipei}
     env_file:
       - path: deployment/docker/llm-keys.env
         required: false

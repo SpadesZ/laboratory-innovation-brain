@@ -273,7 +273,7 @@ def test_the_interface_switches_language_and_the_research_does_not(db, tmp_path,
     episode = sent.location
     stored_before = db.execute("SELECT report::text FROM research_run_reports").fetchone()[0]
     english = browser.get(episode)
-    assert '<html lang="en">' in english.text and "Episode state now:" in _text(english)
+    assert '<html lang="en">' in english.text and "Status now:" in _text(english)
     markdown_en = browser.get(f"{episode}/runs/1/report.md").text
 
     token = _token(english)
@@ -286,8 +286,8 @@ def test_the_interface_switches_language_and_the_research_does_not(db, tmp_path,
     chinese = browser.get(episode)
     shown = _text(chinese)
     assert '<html lang="zh-TW">' in chinese.text
-    assert "目前 episode 狀態" in shown and "LLM 設定" in shown
-    assert "Episode state now:" not in shown
+    assert "目前狀態" in shown and "AI 模型設定" in shown
+    assert "Status now:" not in shown
     (report,) = [
         report_from_json(json.loads(r[0]))
         for r in db.execute("SELECT report::text FROM research_run_reports").fetchall()
@@ -303,7 +303,7 @@ def test_the_interface_switches_language_and_the_research_does_not(db, tmp_path,
     assert (
         db.execute("SELECT report::text FROM research_run_reports").fetchone()[0] == stored_before
     )
-    assert "新研究" in _text(browser.get("/runs/new"))
+    assert "新增研究" in _text(browser.get("/runs/new"))
 
     # Nothing but a known locale is set, and the way back is only ever this workspace.
     bogus = browser.post("/locale", {"csrf": token, "locale": "fr", "next": "/"})
@@ -520,8 +520,8 @@ def test_an_active_runtime_reasons_new_research_through_the_provenance_path(db, 
         "and only a project's evidence, only if THAT project's own egress policy approves"
         in runtime
     )
-    assert f"{PROJECT} Rs anomaly: INTERNAL, PUBLIC to fake" in runtime
-    assert "The active LLM runtime fake runtime serves the model slots" in _text(
+    assert "Rs anomaly: Lab internal, Public to fake" in runtime
+    assert "The AI model configuration “fake runtime” does the reasoning." in _text(
         browser.get("/runs/new")
     )
 
@@ -615,7 +615,7 @@ def test_the_critic_fallback_is_shown_and_recorded_as_a_fallback(db, tmp_path, f
 
     # Deactivated: the explicit fallback reasons, and says so.
     assert _post(browser, f"/settings/llm/runtimes/{runtime_id}/retire", {}).status == 303
-    assert "No LLM runtime is active" in _text(browser.get("/runtime"))
+    assert "No AI model configuration is applied." in _text(browser.get("/runtime"))
     calls = len(fake.calls)
     second = _research(browser, tmp_path, case=None)
     assert len(fake.calls) == calls, "no model was called"
@@ -658,9 +658,10 @@ def test_settings_locks_and_the_active_runtime_survive_a_restart(db, tmp_path, f
 
     again = _browser(tmp_path, environ={}, credentials=store)
     overview = _text(again.get("/settings/llm"))
-    assert "fake" in overview and "persisted ACTIVE" in overview
-    assert "LOCKED" in _text(again.get(f"/settings/llm/models/{ids['fake-reasoner']}"))
-    assert "Ready to activate." in _text(again.get("/runtime"))
+    assert "fake" in overview and "Applied: “persisted”." in overview
+    model = again.get(f"/settings/llm/models/{ids['fake-reasoner']}")
+    assert "confirmed" in _text(model) and 'title="LOCKED"' in model.text
+    assert "Complete: nothing is missing." in _text(again.get("/runtime"))
     sent = _research(again, tmp_path, case=None)
     assert sent.status == 303
     assert db.execute("SELECT DISTINCT model_id FROM inference_provenance").fetchall() == [
@@ -684,14 +685,14 @@ def test_the_runtime_page_speaks_to_researchers_and_keeps_the_ids_one_click_away
     main = _text(re.sub(r"<details.*?</details>", " ", page, flags=re.S))
     for name in (
         "主要推理",
-        "快速輔助",
+        "快速處理",
         "獨立批判",
         "語意向量",
         "假說產生與比較",
         "證據與資料搜尋",
     ):
         assert name in main, name
-    assert "「反方審查」改由「主要推理」（fake-reasoner）執行" in main
+    assert "「反方審查」改由「主要推理」（fake-reasoner）處理" in main
     for raw in (
         "REASONING_PRIMARY",
         "REASONING_ADVERSARIAL",

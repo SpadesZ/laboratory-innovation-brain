@@ -15,6 +15,7 @@ follow the chosen locale; a report's text, every identifier and every stored val
 
 from __future__ import annotations
 
+import datetime as dt
 import html
 import re
 from collections.abc import Iterable, Sequence
@@ -78,6 +79,49 @@ ol.steps{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:8p
 ol.steps li{background:#fff;border:1px solid #d9dde5;border-radius:14px;padding:3px 12px;
 font-size:13px}ol.steps li.done{background:#d7f2de;border-color:#9fd6ad}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.lede{color:#3a4254;margin:4px 0 12px}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin:14px 0 6px}
+a.button{display:inline-block;padding:10px 18px;border-radius:6px;background:#1f2a44;color:#fff;
+font-weight:700;text-decoration:none}a.button.secondary{background:#fff;color:#1f2a44;
+border:1px solid #1f2a44}a.button.small{padding:4px 10px;font-size:13px;font-weight:600}
+.card{background:#fff;border:1px solid #d9dde5;border-radius:8px;padding:12px 16px}
+.card h2{margin-top:0;border:0;font-size:16px}.card h2 small{font-weight:400;color:#5b6475;
+font-size:13px;margin-left:6px}
+.next{background:#eef4ff;border:1px solid #bcd0f5;border-radius:6px;padding:10px 14px;
+margin:10px 0}.next strong{color:#1f3d7a}
+.step{display:inline-block;min-width:22px;height:22px;line-height:22px;text-align:center;
+border-radius:11px;background:#1f2a44;color:#fff;font-size:12px;margin-right:6px}
+fieldset{border:1px solid #d9dde5;border-radius:6px;margin:12px 0;padding:8px 14px;
+background:#fff}legend{font-weight:700;padding:0 6px}
+label.choice{font-weight:400;display:block;margin:6px 0}label.choice .hint{display:block;
+margin-left:22px}
+.state-PARTIAL,.state-PROCESSING,.state-NEEDS_REVIEW,.state-DUPLICATE,.state-WAITING,
+.state-EVIDENCE_GATHERING{background:#fff1c2;color:#6b4e00}
+.info{background:#f2f4f8;border-color:#d9dde5}
+.cta>div{display:flex;flex-direction:column;gap:4px;max-width:360px}
+button.primary{font-size:16px;padding:10px 22px}
+.card.intake{border:2px solid #1f2a44;margin:14px 0}.card.intake h2 small{font-size:14px}
+label.choice.off{color:#8a91a0}label.inline{display:inline;font-weight:600;margin:0}
+.warn-line{margin-top:4px;padding:4px 8px;background:#fff1c2;border-radius:4px}
+form.picker{display:flex;gap:8px;align-items:center;margin:8px 0}form.picker label{margin:0}
+form.picker select{width:auto}p.actions{display:flex;gap:16px;align-items:center}
+ol.steps li.here{background:#1f2a44;color:#fff;border-color:#1f2a44}
+details.legend{margin:12px 0}details.legend dt{margin-top:6px}details.legend dd{margin:2px 0 0 12px;
+color:#3a4254;font-size:13px}
+table.status td:first-child{width:22%}table.status td:nth-child(2){width:12%}
+.checklist td:first-child{width:45%}
+table.summary th{width:22%;font-weight:600}table.summary td{font-size:14px}
+header.top .muted{color:#aeb7cc}
+.conn{border:1px solid #d9dde5;border-radius:6px;padding:10px 12px;margin:8px 0;background:#fcfcfd}
+.conn .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.conn .row form{display:inline-flex;gap:6px;align-items:center;margin:0}
+.conn .row select{width:auto;max-width:320px}
+.badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;background:#e3e7ee}
+button[disabled]{background:#b9bfca;cursor:not-allowed}
+.field{display:flex;flex-direction:column}.field label{margin-top:0}
+.next-step{color:#1f3d7a}details.advanced{margin:10px 0}details.advanced>summary{cursor:pointer;
+font-weight:600;color:#1f3d7a}details.advanced.card{margin-top:24px}
+.card{margin:12px 0}
 """
 
 
@@ -117,6 +161,28 @@ def state(value: str | None) -> Html:
     return h('<span class="state state-{}">{}</span>', css, label)
 
 
+def when_text(value: object) -> str:
+    """A stored timestamp in this machine's local time, as plain text (for inside a sentence)."""
+    if not isinstance(value, dt.datetime):
+        return "-" if value is None else str(value)
+    moment = value if value.tzinfo is not None else value.replace(tzinfo=dt.UTC)
+    return moment.astimezone().strftime("%Y-%m-%d %H:%M")
+
+
+def when(value: object) -> Html:
+    """A stored timestamp in this machine's local time (the deployment sets `TZ`), the stored
+    UTC instant as its tooltip."""
+    if not isinstance(value, dt.datetime):
+        return e("-" if value is None else value)
+    moment = value if value.tzinfo is not None else value.replace(tzinfo=dt.UTC)
+    return h(
+        '<time datetime="{}" title="{}">{}</time>',
+        moment.astimezone(dt.UTC).isoformat(timespec="seconds"),
+        moment.astimezone(dt.UTC).strftime("%Y-%m-%d %H:%M:%S UTC"),
+        moment.astimezone().strftime("%Y-%m-%d %H:%M"),
+    )
+
+
 @dataclass(frozen=True)
 class Chrome:
     """What every page's frame needs: who, in which language, and the form token for the switch."""
@@ -132,11 +198,15 @@ class Chrome:
         return Messages(self.locale)
 
 
+#: The main entries, in the order a researcher works: add data, start research, read what came of
+#: it; then the AI models and the system's state. Each answers the question in its `.hint`.
 _SECTIONS = (
-    ("episodes", "/", "nav.episodes"),
+    ("home", "/", "nav.home"),
+    ("data", "/data", "nav.data"),
     ("new", "/runs/new", "nav.new"),
+    ("episodes", "/episodes", "nav.episodes"),
     ("llm", "/settings/llm", "nav.llm"),
-    ("runtime", "/runtime", "nav.runtime"),
+    ("status", "/status", "nav.status"),
 )
 
 
@@ -144,8 +214,9 @@ def page(title: str, body: Html, *, chrome: Chrome) -> bytes:
     m = chrome.m
     nav = cat(
         h(
-            '<a href="{}"{}>{}</a>',
+            '<a href="{}" title="{}"{}>{}</a>',
             href,
+            m(f"{label}.hint"),
             Html(' class="here"' if chrome.section == key else ""),
             m(label),
         )
@@ -245,142 +316,6 @@ def _chrome(actor_id: str, chrome: Chrome | None, section: str) -> Chrome:
     return Chrome(chrome.actor_id, chrome.locale, chrome.csrf, chrome.path, section)
 
 
-def home_page(
-    *,
-    actor_id: str,
-    projects: Sequence[ProjectRow],
-    episodes: Sequence[EpisodeRow],
-    chrome: Chrome | None = None,
-) -> bytes:
-    frame = _chrome(actor_id, chrome, "episodes")
-    m = frame.m
-    if projects:
-        project_list = _table(
-            (m("col.project"), m("col.name")),
-            ((h("<code>{}</code>", p.project_id), p.name) for p in projects),
-        )
-    else:
-        project_list = h('<p class="box">{}</p>', m("home.no_projects", actor=actor_id))
-    if episodes:
-        rows = (
-            (
-                h('<a href="/episodes/{}"><code>{}</code></a>', ep.episode_id, ep.episode_id),
-                h("<code>{}</code>", ep.project_id),
-                ep.goal,
-                state(ep.state),
-                ep.suspend_reason or ep.outcome_status or "-",
-                ep.runs,
-                str(ep.start_time),
-            )
-            for ep in episodes
-        )
-        episode_list = _table(
-            (
-                m("col.episode"),
-                m("col.project"),
-                m("col.goal"),
-                m("col.state"),
-                m("col.reason"),
-                m("col.runs"),
-                m("col.opened"),
-            ),
-            rows,
-        )
-    else:
-        episode_list = h('<p class="muted">{}</p>', m("home.no_episodes"))
-    body = h(
-        '<h1>{}</h1><p class="muted">{}</p><p><a href="/runs/new">{}</a></p><h2>{}</h2>{}'
-        "<h2>{}</h2>{}",
-        m("home.title"),
-        m("home.intro"),
-        m("home.start"),
-        m("home.episodes"),
-        episode_list,
-        m("home.projects"),
-        project_list,
-    )
-    return page(m("home.title"), body, chrome=frame)
-
-
-def new_run_page(
-    *,
-    actor_id: str,
-    projects: Sequence[ProjectRow],
-    csrf: str,
-    sensitivities: Sequence[str],
-    error: str | None = None,
-    reasoner: Html | None = None,
-    chrome: Chrome | None = None,
-) -> bytes:
-    frame = _chrome(actor_id, chrome, "new")
-    m = frame.m
-    if not projects:
-        body = h(
-            '<h1>{}</h1><p class="box">{}</p>', m("new.title"), m("new.no_projects", actor=actor_id)
-        )
-        return page(m("new.title"), body, chrome=frame)
-    options = cat(
-        h('<option value="{}">{} ({})</option>', p.project_id, p.name, p.project_id)
-        for p in projects
-    )
-    levels = cat(
-        h('<option value="{}"{}>{}</option>', s, Html(" selected" if s == "INTERNAL" else ""), s)
-        for s in sensitivities
-    )
-    failure = h('<p class="box error">{}</p>', error) if error else Html("")
-
-    def field(key: str, name: str, kind: str, hint: str | None = None, extra: str = "") -> Html:
-        return h(
-            '<label for="{}">{}{}</label><input type="{}" id="{}" name="{}"{}>',
-            name,
-            m(key),
-            h(' <span class="hint">{}</span>', hint) if hint else Html(""),
-            kind,
-            name,
-            name,
-            Html(extra),
-        )
-
-    body = h(
-        '<h1>{}</h1>{}<p class="muted">{}</p>{}'
-        '<form method="post" action="/runs" enctype="multipart/form-data" class="box">'
-        '<input type="hidden" name="csrf" value="{}">'
-        '<label for="project">{}</label><select id="project" name="project">{}</select>'
-        '<label for="goal">{} <span class="hint">{}</span></label>'
-        '<textarea id="goal" name="goal" required></textarea>'
-        "{}{}{}{}{}{}"
-        '<label class="check"><input type="checkbox" name="literature_query_public" value="yes"> '
-        "{}</label>{}{}{}"
-        '<label for="sensitivity">{}</label><select id="sensitivity" name="sensitivity">{}'
-        '</select><button type="submit">{}</button></form>',
-        m("new.title"),
-        failure,
-        m("new.intro"),
-        h('<div class="box"><strong>{}:</strong> {}</div>', m("new.reasoner"), reasoner)
-        if reasoner is not None
-        else Html(""),
-        csrf,
-        m("new.project"),
-        options,
-        m("new.goal"),
-        m("new.goal.hint"),
-        field("new.measurement", "measurement", "file", m("new.measurement.hint"), " multiple"),
-        field("new.run_record", "run_record", "file", m("new.run_record.hint"), " multiple"),
-        field("new.note", "note", "file", m("new.note.hint"), " multiple"),
-        field("new.verification", "verification_input", "file", m("new.verification.hint")),
-        field("new.corpus", "literature_corpus", "file", m("new.corpus.hint")),
-        field("new.query", "literature_query", "text", m("new.query.hint")),
-        m("new.query.public"),
-        field("new.symptom", "symptom", "text", m("optional")),
-        field("new.expected", "expected", "text", m("optional")),
-        field("new.observed", "observed", "text", m("optional")),
-        m("new.sensitivity"),
-        levels,
-        m("new.submit"),
-    )
-    return page(m("new.title"), body, chrome=frame)
-
-
 def message_page(
     *,
     actor_id: str,
@@ -400,6 +335,39 @@ def message_page(
     return page(title, body, chrome=frame)
 
 
+def outcome_words(outcome: str | None, m: Messages) -> Html:
+    """A research run's recorded outcome (`SUSPENDED:PROVISIONAL`, `CONFIRMED:<cause>`, ...) in
+    the researcher's words; the stored value is its tooltip."""
+    if not outcome:
+        return e(m("ep.running"))
+    head, _, rest = outcome.partition(":")
+    key = f"outcome.{head}"
+    try:
+        text = m(key)
+    except KeyError:
+        return h('<span title="{}">{}</span>', outcome, outcome)
+    detail = rest if head in ("FAILED",) else ""
+    status = f"outcome.status.{rest}" if head == "SUSPENDED" and rest else ""
+    if status:
+        try:
+            detail = m(status)
+        except KeyError:
+            detail = rest
+    return h(
+        '<span title="{}">{}{}</span>', outcome, text, h(" ({})", detail) if detail else Html("")
+    )
+
+
+def waiting_words(reason: str | None, m: Messages) -> str:
+    """Why an episode waits, in the researcher's words where the reason is a known shape."""
+    if not reason:
+        return ""
+    prefix = "awaiting simulator for "
+    if reason.startswith(prefix):
+        return m("ep.waiting.simulator", capability=reason.removeprefix(prefix))
+    return reason
+
+
 def episode_page(
     *,
     actor_id: str,
@@ -411,71 +379,74 @@ def episode_page(
     continuable: bool,
     notice: str | None = None,
     chrome: Chrome | None = None,
+    project_name: str | None = None,
 ) -> bytes:
     frame = _chrome(actor_id, chrome, "episodes")
     m = frame.m
+    state_key = f"ep.{episode.state}"
+    try:
+        state_text = m(state_key)
+    except KeyError:
+        state_text = episode.state
+    waiting = waiting_words(episode.suspend_reason, m)
     live = h(
-        '<div class="box"><div>{} {} {}</div>'
-        '<div class="muted">{} <code>{}</code> | {} <code>{}</code> | {} {}{}</div>'
-        "</div>",
+        '<div class="box"><div><strong>{}</strong> '
+        '<span class="state state-{}" title="{}">{}</span>{}</div>'
+        '<div class="muted">{} {} · {} {} · {}</div></div>',
         m("ep.state_now"),
-        state(episode.state),
-        (
-            h("-- {}", episode.suspend_reason)
-            if episode.suspend_reason
-            else (h("-- {}", episode.outcome_status) if episode.outcome_status else Html(""))
-        ),
+        re.sub(r"[^A-Z_]", "", episode.state),
+        episode.state,
+        state_text,
+        h(' <span class="purpose">{}</span>', waiting) if waiting else Html(""),
         m("ep.project"),
-        episode.project_id,
-        m("ep.trace"),
-        episode.trace_id,
+        project_name or episode.project_id,
         m("ep.opened"),
-        str(episode.start_time),
-        h(" | {} {}", m("ep.closed"), str(episode.end_time)) if episode.end_time else Html(""),
+        when(episode.start_time),
+        m("ep.run_count", n=episode.runs),
     )
     if continuable:
         action = h(
             '<form method="post" action="/episodes/{}/continue" class="box">'
             '<input type="hidden" name="csrf" value="{}">'
-            '<div>{}</div><button type="submit">{}</button></form>',
+            '<div>{}</div><button type="submit" class="primary">{}</button></form>',
             episode.episode_id,
             csrf,
             m("ep.continue.text"),
             m("ep.continue.button"),
         )
     else:
-        action = h('<p class="box muted">{}</p>', m("ep.readonly", state=episode.state))
+        action = h(
+            '<p class="box muted">{}</p>',
+            m("ep.readonly", state=state_text),
+        )
     run_rows = []
     for r in runs:
         link = (
             h(
-                '<a href="/episodes/{}?run={}">{}</a> | '
-                '<a href="/episodes/{}/runs/{}/report.md">Markdown</a>',
+                '<a href="/episodes/{}?run={}">{}</a> · '
+                '<a href="/episodes/{}/runs/{}/report.md">{}</a>',
                 episode.episode_id,
                 r.ordinal,
                 m("ep.report_link"),
                 episode.episode_id,
                 r.ordinal,
+                m("ep.markdown"),
             )
             if r.recorded
             else h('<span class="muted">{}</span>', m("ep.not_recorded"))
         )
         run_rows.append(
             (
-                r.ordinal,
-                h("<code>{}</code>", r.research_run_id),
-                h("<code>{}</code>", r.actor_id),
-                str(r.started_at),
-                str(r.finished_at or "-"),
-                r.outcome or m("ep.running"),
+                m("ep.run_n", n=r.ordinal),
+                when(r.started_at),
+                when(r.finished_at) if r.finished_at else "-",
+                outcome_words(r.outcome, m),
                 link,
             )
         )
     runs_table = _table(
         (
             m("col.run"),
-            m("col.research_run"),
-            m("col.actor"),
             m("col.started"),
             m("col.finished"),
             m("col.outcome"),
@@ -483,28 +454,50 @@ def episode_page(
         ),
         run_rows,
     )
+    technical = h(
+        '<details class="tech"><summary>{}</summary><table>{}</table></details>',
+        m("tech.details"),
+        cat(
+            h("<tr><th>{}</th><td><code>{}</code></td></tr>", k, v)
+            for k, v in (
+                ("episode", episode.episode_id),
+                ("state", episode.state),
+                ("outcome_status", episode.outcome_status or "-"),
+                ("suspend_reason", episode.suspend_reason or "-"),
+                ("project", episode.project_id),
+                ("trace", episode.trace_id),
+                *(
+                    (
+                        f"run {r.ordinal}",
+                        f"{r.research_run_id} actor={r.actor_id} {r.outcome or ''}",
+                    )
+                    for r in runs
+                ),
+            )
+        ),
+    )
     if report is None:
         shown = h('<p class="box muted">{}</p>', m("ep.no_report"))
     else:
         shown = h(
-            "<h2>{}</h2>{}",
+            '<h2>{}</h2><p class="muted">{}</p><section class="report">{}</section>',
             m("ep.report_of", n=report_ordinal if report_ordinal else "-"),
+            m("ep.report_language"),
             report_html(report, locale=m.locale),
         )
     body = h(
-        "<h1>{} <code>{}</code></h1><p><strong>{}</strong> {}</p>{}{}{}<h2>{}</h2>{}{}",
+        '<p class="muted">{}</p><h1>{}</h1>{}{}{}<h2>{}</h2>{}{}{}',
         m("ep.title"),
-        episode.episode_id,
-        m("ep.goal"),
         episode.goal,
         h('<p class="box notice">{}</p>', notice) if notice else Html(""),
         live,
         action,
         m("ep.runs"),
         runs_table,
+        technical,
         shown,
     )
-    return page(f"Episode {episode.episode_id}", body, chrome=frame)
+    return page(f"{m('ep.title')}: {episode.goal[:60]}", body, chrome=frame)
 
 
 # -- the report: `render_markdown`'s sections, as HTML --------------------------------------------
@@ -899,11 +892,13 @@ __all__ = [
     "e",
     "episode_page",
     "h",
-    "home_page",
     "message_page",
-    "new_run_page",
+    "outcome_words",
     "page",
     "report_html",
     "rich",
     "state",
+    "waiting_words",
+    "when",
+    "when_text",
 ]

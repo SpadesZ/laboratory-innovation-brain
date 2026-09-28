@@ -219,7 +219,8 @@ def test_the_transport_speaks_openai_compatible_http_and_redacts_what_comes_back
 def test_every_interface_message_exists_in_every_locale_with_the_same_placeholders():
     import string
 
-    import lab_brain.interfaces.web.settings_pages  # noqa: F401 - registers its messages
+    import lab_brain.interfaces.web.settings_pages
+    import lab_brain.interfaces.web.workspace_pages  # noqa: F401 - registers its messages
 
     for key in keys():
         texts = templates(key)
@@ -233,7 +234,7 @@ def test_the_report_keeps_every_stored_value_in_any_interface_language():
     english = pages.report_html(report)
     chinese = pages.report_html(report, locale="zh-TW")
     assert english != chinese
-    assert "Competing hypotheses" in english and "競爭假說" in chinese
+    assert "Competing hypotheses" in english and "互相競爭的假說" in chinese
     shown = " ".join(
         html.unescape(
             re.sub(r"<[^>]+>", " ", re.sub(r"</?(?:code|strong|span|a)\b[^>]*>", "", chinese))

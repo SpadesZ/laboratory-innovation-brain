@@ -39,7 +39,7 @@ def _text(markup: str) -> str:
 
 def _shown(leaf: Any) -> str:
     if isinstance(leaf, bool):
-        return "best next action" if leaf else "also sufficient"
+        return "best next check" if leaf else "also sufficient"
     if isinstance(leaf, dt.datetime):
         return leaf.isoformat()
     return " ".join(str(leaf).replace("`", "").replace("**", "").split())
@@ -125,7 +125,7 @@ def test_a_finished_episode_page_offers_no_continuation():
             csrf="tok",
             continuable=False,
         ).decode()
-        assert "/continue" not in page and "read-only" in page
+        assert "/continue" not in page and "it can be read" in page
     page = pages.episode_page(
         actor_id="act:1",
         episode=_episode("SUSPENDED"),

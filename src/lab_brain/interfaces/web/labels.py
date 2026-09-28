@@ -26,7 +26,7 @@ _Pair = tuple[str, str]
 
 SLOT_NAMES: Mapping[LogicalSlot, _Pair] = {
     LogicalSlot.REASONING_PRIMARY: ("Primary reasoning", "主要推理"),
-    LogicalSlot.FAST_UTILITY: ("Fast assistance", "快速輔助"),
+    LogicalSlot.FAST_UTILITY: ("Fast processing", "快速處理"),
     LogicalSlot.REASONING_ADVERSARIAL: ("Independent critique", "獨立批判"),
     LogicalSlot.PRIVATE_LOCAL: ("Private local model", "本機私有模型"),
     LogicalSlot.CODE: ("Code and computation", "程式與運算"),
@@ -87,17 +87,17 @@ CAPABILITY_NAMES: Mapping[Capability, _Pair] = {
 }
 
 STATE_NAMES: Mapping[str, _Pair] = {
-    "READY": ("Ready", "就緒"),
-    "MISSING": ("Missing (required)", "缺少（必要）"),
-    "FALLBACK": ("Uses primary reasoning", "改由主要推理執行"),
+    "READY": ("Ready", "已就緒"),
+    "MISSING": ("No model yet (required)", "還沒有模型（必要）"),
+    "FALLBACK": ("Uses primary reasoning", "改由主要推理處理"),
     "BUILTIN": ("Built in", "內建"),
     "UNBOUND": ("Not set (optional)", "未設定（選用）"),
-    "BLOCKED": ("Blocked", "受阻"),
+    "BLOCKED": ("Cannot be used", "目前無法使用"),
 }
 
 REACH_NAMES: Mapping[str, _Pair] = {
-    "LOCAL": ("this machine", "本機"),
-    "EXTERNAL": ("external service", "外部服務"),
+    "LOCAL": ("local model", "本機模型"),
+    "EXTERNAL": ("external API", "外部 API"),
 }
 
 Messages.extend(
@@ -105,52 +105,54 @@ Messages.extend(
         "lbl.technical": ("Technical details (internal IDs)", "技術細節（內部識別碼）"),
         "lbl.col.use": ("Used for", "用途"),
         "lbl.col.status": ("Status", "狀態"),
-        "lbl.col.who": ("Who relies on it", "由誰使用"),
-        "lbl.col.needs": ("What the model must prove", "模型必須通過的能力"),
+        "lbl.col.who": ("Who relies on it", "由哪些研究角色使用"),
+        "lbl.col.needs": ("What the model must pass", "模型必須通過的測試"),
         "lbl.col.model": ("Model", "模型"),
         "lbl.col.notes": ("Notes", "說明"),
         "lbl.col.internal": ("Internal ID", "內部識別碼"),
         "lbl.col.shown_as": ("Shown as", "顯示名稱"),
         "lbl.via": ("via {connection}, {reach}", "經由 {connection}（{reach}）"),
-        "lbl.nobody": ("no research step in this version", "此版本沒有研究步驟使用"),
+        "lbl.nobody": ("no research step in this version", "這個版本沒有研究步驟使用"),
         "lbl.builtin_model": ("the built-in local embedder", "內建的本機向量模型"),
         "lbl.builtin_note": (
             "Always available on this machine; provider embeddings are not used in this version.",
-            "一律在本機提供；此版本不使用外部提供者的向量模型。",
+            "一律在本機提供；這個版本不使用外部服務的向量模型。",
         ),
         "lbl.critic.fallback": (
-            "Independent critique is not set, so Adversarial review runs on Primary reasoning "
-            "({model}). This is NOT an independent model route: the critique's independence rests "
-            "only on its separate evidence retrieval.",
-            "未設定「獨立批判」，因此「反方審查」改由「主要推理」（{model}）執行。這不是獨立的"
-            "模型路由：批判的獨立性僅來自其獨立的證據檢索。",
+            "Independent critique has no model, so Adversarial review runs on Primary reasoning "
+            "({model}). This is NOT an independent model: the critique's independence rests "
+            "only on its separate evidence search.",
+            "「獨立批判」沒有指派模型，因此「反方審查」改由「主要推理」（{model}）處理。這不是獨立的模型："
+            "反方審查的獨立性只來自它另外進行的證據搜尋。",
         ),
         "lbl.critic.same": (
             "Independent critique uses the same model as Primary reasoning ({model}): a separate "
-            "slot, but NOT an independent model route.",
-            "「獨立批判」與「主要推理」使用同一個模型（{model}）：雖是不同的 slot，但不是獨立的"
-            "模型路由。",
+            "use, but NOT an independent model.",
+            "「獨立批判」與「主要推理」使用同一個模型（{model}）：用途分開，但不是獨立的模型。",
         ),
         "lbl.critic.own": (
-            "Adversarial review has its own model route: {model}.",
-            "「反方審查」有自己的模型路由：{model}。",
+            "Adversarial review has its own model: {model}.",
+            "「反方審查」有自己的模型：{model}。",
         ),
         "lbl.egress.local": (
             "Every model runs on this machine: no model call leaves it.",
-            "所有模型都在本機執行：沒有任何模型呼叫離開本機。",
+            "所有模型都在這台電腦上執行：沒有任何模型呼叫會離開這台電腦。",
         ),
         "lbl.egress.external": (
-            "External services ({names}) may receive at most evidence classified {labels} -- and "
-            "a project's evidence only if that project's own egress policy approves them: this "
-            "runtime supplies routes, not permission. Anything else is refused and the refusal is "
-            "recorded; RESTRICTED_NDA never leaves. The researcher's own clearance also applies.",
-            "外部服務（{names}）最多只能接收分級為 {labels} 的證據，而且只有在該專案自己的外送"
-            "政策核准時，該專案的證據才會送出：執行環境只提供路由，不提供授權。其他內容一律被"
-            "拒絕並記錄；RESTRICTED_NDA 永遠不會離開本機。研究者本身的權限同樣適用。",
+            "External APIs ({names}) may receive at most evidence classified {labels} -- and a "
+            "project's evidence only if that project's own external transfer setting approves "
+            "them: this configuration supplies models, not permission. Anything else is refused "
+            "and the refusal is recorded; NDA material never leaves. The researcher's own access "
+            "also applies.",
+            "外部 API（{names}）最多只能收到分級為 {labels} 的證據，而且只有在該研究專案自己的外部"
+            "傳輸設定"
+            "核准時才會送出：模型配置只提供模型，不提供授權。其他內容一律拒絕並留下紀錄；保密協議（NDA）的"
+            "資料永遠不會送出。研究者本身的閱讀權限同樣適用。",
         ),
-        "lbl.rule_text": ("The server's rule text", "伺服器規則原文"),
+        "lbl.rule_text": ("The server's rule text", "系統規則原文"),
     }
 )
+
 
 _ALL_IDS: dict[str, tuple[str, _Pair]] = {
     **{s.value: ("slot", n) for s, n in SLOT_NAMES.items()},
