@@ -145,3 +145,5 @@ project egress pages checked in a browser.
 | mutation battery (`scripts/mutation_battery.py`, PostgreSQL) | 293/293 killed -- the accepted 288, 4 re-anchored to the new code, 5 added (project-scoped policy, the project's own privacy mode, every settings step administrative, the container listening rule, the host gateway as LOCAL); no backup left |
 | coverage ratchet, obligation inventory, status, root-cause / debate / segmentation benchmark reports | current; M0a-M3 enforced, M4 and M5 IN_PROGRESS |
 | M1's T-UX-006 (`test_no_cli_path_can_reach_a_model`) | passing: the operator commands import nothing that can generate |
+| OS credential store after every run | no test credential left behind |
+| GitHub Actions CI at `dc181e58baa488560b2f669ba2483512ccf08bd6` (commit hygiene, spec conformance, lint/types/full suite, PostgreSQL backend incl. the fresh 53-migration apply) | success, run 36442409378 |
