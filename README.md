@@ -1,5 +1,41 @@
 # Laboratory Innovation Brain
 
+Keep scientific evidence connected to the claims it supports or challenges.
+
+This research system records evidence, checks proposed changes to a claim's
+state, and retains the reasons and source links behind each accepted revision.
+Conflicting or insufficient evidence can block a change or require review.
+
+![Evidence and claim checks route to blocked changes, human review or a recorded revision](docs/assets/claim-revision.svg)
+
+**Core evidence and revision logic is implemented; lab applications are planned.**
+The current milestone remains M0b. Paper ingestion, the Silicon Photonics
+DomainPack, Lumerical integration and a dashboard are not available yet.
+See [implementation status](IMPLEMENTATION_STATUS.md) for the current limits.
+
+[Inspect a small fixture](tests/contract/test_belief_transition.py) · [Run core checks](#quick-start-core-checks) · [Read the specification](docs/spec/SAI_3.3.md)
+
+## Quick Start: core checks
+
+Use Python 3.12+. These tests exercise toy evidence and revision policies,
+including refused transitions. They need no database, model API or simulator.
+
+```powershell
+git clone https://github.com/SpadesZ/laboratory-innovation-brain.git
+cd laboratory-innovation-brain
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -e ".[dev,postgres]"
+.\.venv\Scripts\python -m pytest tests/contract/test_belief_transition.py tests/contract/test_transition_policy.py -q
+```
+
+Installing dependencies needs network access. Running these core checks after
+installation does not. A pass verifies this fixture path, not a complete lab
+application or a scientific finding.
+
+---
+
+## 技術細節與原始設計說明（繁體中文）
+
 實驗室的科研信念狀態，作為可追溯、可反駁、可繼承的結構化記憶。
 
 - **規格**：[SAI 3.3](docs/spec/SAI_3.3.md)（`SAI` 是規格文件名稱，不是產品名稱）
@@ -34,12 +70,13 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-不需要 PostgreSQL、Lumerical license 或外網即可跑完核心測試（AGT-007）。需要真實後端的測試以
+安裝完成後，核心測試不需要 PostgreSQL、Lumerical license 或外網（AGT-007）。需要真實後端的測試以
 `postgres` / `lumerical` / `network` marker 標記並預設跳過。
 
 ```powershell
 # 需要真實 PostgreSQL 的測試
 docker compose up -d
+$env:LAB_BRAIN_TEST_POSTGRES = "1"
 .\.venv\Scripts\python.exe -m pytest -m postgres
 ```
 
@@ -48,7 +85,7 @@ docker compose up -d
 | 路徑 | 內容 |
 |---|---|
 | `src/lab_brain/core/` | domain-agnostic 核心：models / epistemic / provenance / repositories / policies |
-| `src/lab_brain/domains/` | DomainPack；`silicon_photonics/` 擁有全部光子物理與 Lumerical specifics |
+| `src/lab_brain/domains/` | 規劃中的 DomainPack 路徑；目前尚未建立。Silicon Photonics 與 Lumerical 整合屬後續里程碑 |
 | `src/lab_brain/spec/` | 規格的機器可讀投影，供 T-SPEC-001 / T-SPEC-002 使用 |
 | `migrations/` | 版本化 SQL migration，schema 語意的唯一落地處 |
 | `docs/normative_statements.yaml` | Normative Statement Registry（§23.6） |
