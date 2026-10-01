@@ -6,9 +6,10 @@ policy path in `tests/contract/test_belief_transition.py` and
 `tests/contract/test_transition_policy.py`.
 
 Sources: `src/lab_brain/core/belief.py`, `authority.py`, `escalation.py` and
-`repositories/reviews.py`. Solid arrows show evaluation; the dashed loop shows
-human review and reconsideration. A review does not itself promote a claim.
-The footer distinguishes the core from planned lab applications.
+`repositories/reviews.py`. The three toy cases compare support with two independent
+attestations, no admitted support, and an open blocking conflict. Only ALLOW can
+record a revision. A review does not itself promote a claim. The footer distinguishes
+the core fixture from planned lab applications; no scientific result is depicted.
 
 The original layout uses typography and vector-export guidance from
 [figures4papers](https://github.com/ChenLiu-1996/figures4papers).

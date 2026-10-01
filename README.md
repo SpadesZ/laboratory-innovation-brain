@@ -6,14 +6,19 @@ This research system records evidence, checks proposed changes to a claim's
 state, and retains the reasons and source links behind each accepted revision.
 Conflicting or insufficient evidence can block a change or require review.
 
-![Evidence and claim checks route to blocked changes, human review or a recorded revision](docs/assets/claim-revision.svg)
-
 **Core evidence and revision logic is implemented; lab applications are planned.**
 The current milestone remains M0b. Paper ingestion, the Silicon Photonics
 DomainPack, Lumerical integration and a dashboard are not available yet.
 See [implementation status](IMPLEMENTATION_STATUS.md) for the current limits.
 
 [Inspect a small fixture](tests/contract/test_belief_transition.py) · [Run core checks](#quick-start-core-checks) · [Read the specification](docs/spec/SAI_3.3.md)
+
+![Toy claim change evaluated with support, missing evidence and blocking conflict cases](docs/assets/claim-revision.svg)
+
+The figure compares three **toy policy cases**, not scientific findings. A
+request to change a claim from `ACTIVE` to `SUPPORTED` can be allowed, held for
+more evidence, or sent for human review. Only an allowed decision can create
+a recorded revision. A review request does not itself change the claim.
 
 ## Quick Start: core checks
 

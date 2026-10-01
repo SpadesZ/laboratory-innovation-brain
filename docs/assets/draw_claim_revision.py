@@ -1,59 +1,42 @@
-# 文件圖稿；來源為 core/belief.py、authority.py、escalation.py、repositories/reviews.py。
-# 本檔不評估科學假說；例子為 tests/contract 的 toy policies，並非研究成果。
-# 執行本檔檢查英文標籤、版面與文字重疊，再匯出 SVG/PNG。
+# 文件圖稿：核對 test_transition_policy.py 與 test_belief_transition.py。
+# Toy claim/evidence/policy 示意；不是科研結論、paper ingestion 或 DomainPack。
+# 執行本檔匯出 SVG/PNG；檢查英文文字、字體、邊界與重疊。
 from pathlib import Path
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch,FancyArrowPatch,Polygon
-plt.rcParams.update({'font.family':'DejaVu Sans','svg.fonttype':'none','svg.hashsalt':'lib-claim-revision-v1'})
-fig,ax=plt.subplots(figsize=(16,8),dpi=160); fig.subplots_adjust(0,0,1,1)
-ax.set(xlim=(0,16),ylim=(0,8)); ax.axis('off'); fig.patch.set_facecolor('#FAFBFD')
-ink,muted,blue,teal,amber='#193048','#56697D','#2C62A2','#197B76','#A46D25'
-texts=[]
-def t(x,y,s,size=14,c=ink,b=False,ha='left'):
-    assert s.isascii(); texts.append(ax.text(x,y,s,fontsize=size,color=c,fontweight='bold' if b else 'normal',ha=ha,va='center',linespacing=1.45))
-def box(x,y,w,h,fc='white',ec='#CAD6E2'):
-    ax.add_patch(FancyBboxPatch((x,y),w,h,boxstyle='round,pad=.02,rounding_size=.14',fc=fc,ec=ec,lw=1.4))
-def arr(a,b,c=blue,dash=False): ax.add_patch(FancyArrowPatch(a,b,arrowstyle='-|>',mutation_scale=17,lw=2,color=c,ls='--' if dash else '-'))
-t(.65,7.4,'LABORATORY INNOVATION BRAIN  /  CLAIM REVISION',12,blue,True)
-t(.65,6.85,'Keep the reason behind a scientific claim',25,ink,True)
-t(.65,6.25,'Toy example: a proposed claim update must pass evidence and policy checks.',14,muted)
-box(.65,3.65,3.05,1.92,'#EFF5FC','#ABC3DF')
-t(.96,5.14,'Evidence + claim',18,ink,True)
-t(.96,4.48,'Source locator\nObserved conditions\nProposed state change',13,muted)
-arr((3.7,4.62),(4.3,4.62))
-box(4.3,3.65,3.35,1.92)
-t(4.63,5.13,'Check the links',18,ink,True)
-t(4.63,4.47,'Support / contradiction\nSource independence\nEvidence authority',13,muted)
-arr((7.65,4.62),(8.17,4.62))
-ax.add_patch(Polygon([(8.17,4.62),(9.38,5.56),(10.59,4.62),(9.38,3.68)],fc='#EAF5F2',ec=teal,lw=1.6))
-t(9.38,4.83,'Policy',18,teal,True,'center'); t(9.38,4.38,'decision',14,teal,False,'center')
-arr((10.59,4.62),(11.5,4.62),teal)
-t(11.04,4.94,'Allow',12,teal,ha='center')
-box(11.5,3.57,3.84,2.0,'#EAF5F2','#A8CEC7')
-t(11.84,5.12,'Revision record',18,ink,True)
-t(11.84,4.45,'Before / after state\nPolicy + source links\nReplayable event history',13,muted)
-arr((9.38,3.68),(9.38,2.95),amber,True)
-box(7.54,1.55,3.69,1.36,'#FFF5E7','#E0C195')
-t(9.38,2.52,'Human review',17,amber,True,'center')
-t(9.38,1.98,'Unresolved conflict blocks change',11,muted,ha='center')
-ax.plot([7.54,6,6],[2.2,2.2,3.1],color=amber,lw=2,ls='--')
-arr((6,3.1),(6,3.65),amber,True)
-t(5.83,1.35,'Resolve, then reconsider',12,amber,ha='center')
-box(11.85,1.55,3.5,1.36,'#F1F3F6','#C6CFD9')
-t(13.6,2.48,'No accepted update',16,ink,True,'center')
-t(13.6,1.98,'Denied / insufficient evidence',11,muted,ha='center')
-arr((10.43,3.95),(12,2.95),muted)
-t(.7,2.4,'OUTPUT: A TRACEABLE DECISION',12,teal,True)
-t(.7,1.94,'A model response alone cannot change a claim.',12,ink)
-ax.plot([.65,15.35],[.85,.85],color='#CAD6E2',lw=1)
-t(.65,.44,'Implemented core only. Paper ingestion, domain applications, simulator integration and a dashboard are planned.',12,muted)
-fig.canvas.draw();ren=fig.canvas.get_renderer();bb=[x.get_window_extent(ren) for x in texts]
-for b in bb: assert fig.bbox.contains(b.x0,b.y0) and fig.bbox.contains(b.x1,b.y1)
-for i,b in enumerate(bb):
-    for j,c in enumerate(bb[:i]): assert not b.overlaps(c),(texts[i].get_text(),texts[j].get_text())
+from matplotlib.patches import Rectangle,FancyArrowPatch
+plt.rcParams.update({'font.family':'DejaVu Sans','svg.fonttype':'none','svg.hashsalt':'lib-v04'})
+fig,ax=plt.subplots(figsize=(6,8.5),dpi=160);fig.subplots_adjust(0,0,1,1)
+ax.set(xlim=(0,6),ylim=(0,8.5));ax.axis('off')
+ink,teal,amber,red='#18324B','#087F83','#995719','#A34334'
+def t(y,s,size=18,c=ink,b=False):
+    assert s.isascii()
+    ax.text(3,y,s,fontsize=size,color=c,weight='bold' if b else 'normal',ha='center',va='center',linespacing=1.35)
+t(8.12,'What can change a claim?',24,b=True)
+t(7.65,'Toy claim H: ACTIVE',20,b=True)
+t(7.22,'Request: change H to SUPPORTED')
+t(6.79,'Versioned policy evaluates evidence')
+for top,fill,color,condition,outcome in [
+ (6.30,'#E7F4F1',teal,'Support + 2 independent attestations','ALLOW'),
+ (4.82,'#FFF2DE',amber,'No admitted support relation','NEED_MORE_EVIDENCE'),
+ (3.34,'#FFF0E8',red,'Open blocking conflict','NEED_HUMAN_REVIEW')]:
+    ax.add_patch(Rectangle((.35,top-1.18),5.3,1.18,fc=fill,ec=color,lw=1.4))
+    t(top-.31,condition,c=color)
+    t(top-.81,outcome,20,c=color,b=True)
+t(1.75,'Only ALLOW can record a revision',20,c=teal,b=True)
+ax.add_patch(FancyArrowPatch((3,1.52),(3,1.15),arrowstyle='-|>',mutation_scale=15,color=teal,lw=1.7))
+t(1.06,'State + source links + policy reason',c=teal)
+t(.63,'Refused changes leave state unchanged')
+t(.23,'Core fixture; lab applications planned',c=amber)
+fig.canvas.draw();ren=fig.canvas.get_renderer();bounds=[]
+for label in ax.texts:
+    assert label.get_fontsize()>=18
+    box=label.get_window_extent(ren)
+    assert fig.bbox.contains(box.x0,box.y0) and fig.bbox.contains(box.x1,box.y1),label.get_text()
+    for other,b in bounds:assert not box.overlaps(b),(other,label.get_text())
+    bounds.append((label.get_text(),box))
 out=Path(__file__).resolve().parent
-fig.savefig(out/'claim-revision.png',dpi=180); fig.savefig(out/'claim-revision.svg',metadata={'Date':None})
-p=out/'claim-revision.svg';p.write_text('\n'.join(l.rstrip() for l in p.read_text(encoding='utf-8').splitlines())+'\n',encoding='utf-8')
-print('English labels, bounds and overlap checks passed.')
+fig.savefig(out/'claim-revision.svg',facecolor='white',metadata={'Date':None});fig.savefig(out/'claim-revision.png',dpi=240,facecolor='white')
+p=out/'claim-revision.svg';p.write_text('\n'.join(x.rstrip() for x in p.read_text(encoding='utf-8').splitlines())+'\n',encoding='utf-8')
+print('PASS: toy policy cases, English >=18pt, no clipping or overlaps.')
