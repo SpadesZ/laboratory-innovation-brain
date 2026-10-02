@@ -20,7 +20,10 @@ Whether a given database has *applied* those migrations is not a property of thi
 
 <!-- END GENERATED: spec-baseline -->
 
-## Environment
+## Environment snapshot (2026-09-16)
+
+The following records the original development environment. It is not a live
+health report for a fresh clone; verify services and configuration on each host.
 
 - Python: 3.12.10 (`.venv`)
 - PostgreSQL: 17 + pgvector via `compose.yaml` (host port 5433); **running**

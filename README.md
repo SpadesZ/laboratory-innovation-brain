@@ -2,23 +2,30 @@
 
 Keep scientific evidence connected to the claims it supports or challenges.
 
-This research system records evidence, checks proposed changes to a claim's
-state, and retains the reasons and source links behind each accepted revision.
-Conflicting or insufficient evidence can block a change or require review.
+Connect a source to the claim it supports or challenges, then check whether
+that evidence permits a change. An accepted revision records the previous and
+new state, evidence links, time and the rule used. The history can be replayed
+to trace how the claim reached its current state.
 
 **Core evidence and revision logic is implemented; lab applications are planned.**
-The current milestone remains M0b. Paper ingestion, the Silicon Photonics
+Paper ingestion, the Silicon Photonics
 DomainPack, Lumerical integration and a dashboard are not available yet.
 See [implementation status](IMPLEMENTATION_STATUS.md) for the current limits.
 
 [Inspect a small fixture](tests/contract/test_belief_transition.py) · [Run core checks](#quick-start-core-checks) · [Read the specification](docs/spec/SAI_3.3.md)
 
-![Toy claim change evaluated with support, missing evidence and blocking conflict cases](docs/assets/claim-revision.svg)
+<img src="docs/assets/claim-revision.svg" alt="Toy evidence policies allow, hold or refer a claim revision" width="480">
 
 The figure compares three **toy policy cases**, not scientific findings. A
 request to change a claim from `ACTIVE` to `SUPPORTED` can be allowed, held for
 more evidence, or sent for human review. Only an allowed decision can create
 a recorded revision. A review request does not itself change the claim.
+
+A small fixture changes `ACTIVE` to `SUPPORTED` and records relation `rel:1`
+under policy version `1.0.0`. These are test identifiers, not measured findings.
+[Inspect the recorded revision](tests/contract/test_belief_transition.py) and
+[replay checks](tests/contract/test_belief_replay.py) show how the history stays
+connected to its evidence.
 
 ## Quick Start: core checks
 
@@ -30,7 +37,11 @@ git clone https://github.com/SpadesZ/laboratory-innovation-brain.git
 cd laboratory-innovation-brain
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -e ".[dev,postgres]"
-.\.venv\Scripts\python -m pytest tests/contract/test_belief_transition.py tests/contract/test_transition_policy.py -q
+.\.venv\Scripts\python -m pytest `
+  tests/contract/test_belief_transition.py `
+  tests/contract/test_transition_policy.py `
+  tests/contract/test_belief_replay.py `
+  tests/contract/test_belief_revision_event.py -q
 ```
 
 Installing dependencies needs network access. Running these core checks after
@@ -40,6 +51,9 @@ application or a scientific finding.
 ---
 
 ## 技術細節與原始設計說明（繁體中文）
+
+M0a 已有 maintainer sign-off；M0b 仍為當前里程碑。已實作的核心證據與修訂邏輯，
+不代表 lab applications 或整個後續研究流程已完成。
 
 實驗室的科研信念狀態，作為可追溯、可反駁、可繼承的結構化記憶。
 
