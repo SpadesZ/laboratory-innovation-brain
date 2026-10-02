@@ -52,7 +52,8 @@ application or a scientific finding.
 
 ## 技術細節與原始設計說明（繁體中文）
 
-M0a 已有 maintainer sign-off；M0b 仍為當前里程碑。已實作的核心證據與修訂邏輯，
+依 `docs/milestones.yaml`，M0a 與 M0b 均為 DONE；M0b 於 2026-09-20 完成 maintainer sign-off。
+下一里程碑 M1（Research Memory）為 NOT_STARTED。已實作的核心證據與修訂邏輯，
 不代表 lab applications 或整個後續研究流程已完成。
 
 實驗室的科研信念狀態，作為可追溯、可反駁、可繼承的結構化記憶。

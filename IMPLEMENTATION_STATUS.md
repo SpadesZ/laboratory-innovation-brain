@@ -1,8 +1,8 @@
 # Laboratory Innovation Brain - Implementation Status
 
 System Version: 0.0.1
-Current Milestone: **M0b — Execution-Governance Foundation** (M0a **DONE** 2026-09-13, maintainer sign-off)
-Last Updated: 2026-09-16
+Current Milestone: **No active milestone** — M0a **DONE** (2026-09-13, maintainer sign-off); M0b **DONE** (2026-09-20, maintainer sign-off); next: M1 — Research Memory **NOT_STARTED**. Source: [`docs/milestones.yaml`](docs/milestones.yaml).
+Last Updated: 2026-10-02 (milestone metadata refreshed; dated snapshots below retain their original dates)
 
 ## Spec Baseline
 
