@@ -87,4 +87,25 @@ handler, the redirect's words, creation, use, re-enabling, readiness, the active
 
 ## 5. Verification
 
-Recorded in the follow-up commit, once CI and the full mutation battery have run.
+Code: `c3e7181`. CI run `37203562579`: commit hygiene, spec conformance, lint/types/full suite
+and the PostgreSQL backend profile, all green; the TLS transport tests ran there (Linux, `openssl`
+present -- in CI a missing `openssl` fails them rather than skipping).
+
+| Check | Result |
+|---|---|
+| ruff check / ruff format / strict mypy | clean (237 source files) |
+| backend-free `pytest` | 1664 passed, 804 skipped (PostgreSQL / Lumerical / network) |
+| fresh PostgreSQL database (56 migrations), whole suite | 2468 passed, 2 skipped (Lumerical, network), 0 failed; requirement coverage current |
+| the new tests, repeated | unit 9/9 x 10 runs, unit + e2e 15/15 x 3 runs |
+| `update_status.py --check`, obligation inventory `--check`, spec tests | current; 206 passed |
+| evidence, debate and root-cause benchmark reports `--check` | current (offline reports; the Lumi Agent benchmark was not run) |
+| mutation battery, the nine transport entries (fresh database) | 9/9 killed |
+| mutation battery, all entries (fresh database, PostgreSQL profile) | 334/334 killed, no anchor missing (41 min) |
+
+**Deployed** (`docker compose -p lab-brain-workspace up --build -d` from `c3e7181`): `init` applied
+`012i`; the constraint is present and NOT VALID; the existing rows (the `ollama` LOCAL connection and
+two DISABLED loopback-gateway stand-ins) were untouched. Through the deployed form, with cookies and
+CSRF as a browser: an external service at `http://models.example.org/v1` with a throwaway dummy key
+answered 409 with 「An external service must use https://…」, repeated no key, wrote no file to the
+credentials volume (still the same two) and added no row; 本機模型（Ollama） → 取得可用模型 answered
+303 and recorded `REACHABLE`, 4 models -- plain `http://` to the Docker host is this machine.
