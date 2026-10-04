@@ -97,4 +97,57 @@ retry, recording the retried set.
 
 ## 6. Verification
 
-Recorded in the follow-up commit, once CI and the full mutation battery have run.
+Code: `6e6c917`. CI run `37226299217`: commit hygiene, spec conformance, lint/types/full suite and
+the PostgreSQL backend profile, all green; the socket and TLS tests ran there.
+
+**Counts.** Every run collects **2481** tests; every skip is accounted for, and none failed.
+
+| Run | Passed | Skipped | The skips |
+|---|---|---|---|
+| local, Windows: `pytest -q` | 1672 | 809 | 807 PostgreSQL-gated, 1 Lumerical, 1 network -- the status file's 809 backend-gated |
+| CI, Linux: `pytest -q` | 1669 | 812 | the same 809 + the Windows Credential Manager test + 2 commit-range tests a shallow checkout cannot walk |
+| local, fresh database (58 migrations): `LAB_BRAIN_TEST_POSTGRES=1 pytest -q` | 2479 | 2 | 1 Lumerical, 1 network |
+| CI: the same | 2476 | 5 | 1 Lumerical, 1 network + the 3 environment skips |
+
+The bare run before `update_status.py` regenerated the file for `012j`/`012k` had the two
+status-freshness failures (1670 passed, 2 failed, 809 skipped); the counts above were taken after.
+
+| Check | Result |
+|---|---|
+| ruff check / ruff format / strict mypy | clean (237 source files) |
+| `update_status.py --check` (also `--requirements-only`), obligation inventory, requirement coverage | current |
+| evidence, debate and root-cause benchmark reports `--check` | current (the Lumi Agent benchmark was not run) |
+| mutation battery, the eleven new entries and the two re-anchored locality ones (fresh database) | 13/13 killed |
+| mutation battery, all entries (fresh database, PostgreSQL profile) | 351/351 killed, no anchor missing (`6e6c917`, 48 min) |
+
+**Deployed** (`docker compose -p lab-brain-workspace up --build -d` from `6e6c917`, with
+`LAB_BRAIN_INFERENCE_DEADLINE=1200` in the git-ignored `.env`; `init` applied `012j` and `012k`;
+`web` and `local-models` both run with `--inference-deadline 1200`):
+
+- *Readiness of the same ACTIVE `local-first` (qwen2.5:7b on the three reasoning slots), read-only:*
+  at 180 s -- not ready, "REASONING_PRIMARY: model qwen2.5:7b's recorded ROLE_HYPOTHESIS probe
+  took 194 s, longer than this deployment's inference deadline (180 s)", and `load_active_runtime`
+  refuses it; at 1200 s -- ready, and it loads ("Each model call waits at most 1200 s"). The probe
+  records were unchanged (8 probes, slowest 193 636 ms).
+- *A new smoke episode* (`epi:500ca3b7…`, `prj:smoke-local`, PRIVATE, LOCAL-only, the synthetic
+  `rs_anomaly_report.md` selected as existing research data -- not uploaded again): the Evidence
+  Researcher answered in 31 s; the Hypothesis Engine answered in **253 s** -- past the old 180 s,
+  inside the deadline -- and the typed parser refused the answer: `RoleOutputRefused:
+  HYPOTHESIS_ENGINE: expected at least 5 hypotheses, got 2`. The episode was SUSPENDED / NOT_REACHED
+  with that reason (no hypothesis set), not closed. Both calls are in InferenceProvenance (qwen2.5:7b,
+  route `lk:0de60d9b48831245`, `prm:evidence-query-rewrite` / `prm:hypothesis-engine` 1.0.0, their
+  bundle hashes, the refused output kept); the BudgetGate recorded each call's estimate and actual
+  (253 s, 655 tokens). All provenance is `ollama`, LOCAL; the project has no egress policy and the
+  membership no egress scope.
+- *Continuing the SAME episode* from its page: run 2 resumed it from SUSPENDED, skipped ingestion,
+  reasoned over the 19 statements run 1 admitted ("nothing ingested or admitted again"), and the
+  Hypothesis Engine produced the same two hypotheses: refused again, SUSPENDED again. Ingestion items
+  (3) and the fixture's attestations (38) were unchanged by the continuation. The old smoke episode
+  `epi:226036fa…` is still `COMPLETED / NOT_REACHED`, as recorded.
+- *Restart*: after `docker compose restart web` the deadline (1200), the ACTIVE runtime and its
+  three bindings, and the suspended episode (with its Continue form) were all there.
+
+**What the deployment still lacks.** The smoke reasons into the hypothesis stage and stops there on a
+capability shortfall, not a timeout: qwen2.5:7b proposes 2 competing hypotheses where this vertical
+requires one per catalogued mechanism (5). Its ROLE_HYPOTHESIS probe asks for at least 2, so the
+lock does not certify what research here demands. Neither the probe nor the requirement was changed.
