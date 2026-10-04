@@ -203,7 +203,10 @@ def test_the_transport_speaks_openai_compatible_http_and_redacts_what_comes_back
         with pytest.raises(ProviderError) as refused:
             wrong.list_models()
         assert refused.value.failure is ProviderFailure.AUTH_FAILED
-        assert "sk-test-wrong" not in str(refused.value) and "[redacted]" in str(refused.value)
+        # The refusal's body -- which quotes the key back -- is never read into the error.
+        assert "sk-test-wrong" not in str(refused.value)
+        assert "Incorrect API key" not in str(refused.value)
+        assert "HTTP 401: the provider refused the credential" in str(refused.value)
     finally:
         fake.stop()
     with pytest.raises(ProviderError) as down:

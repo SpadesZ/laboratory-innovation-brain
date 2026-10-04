@@ -61,9 +61,11 @@ docker compose logs local-models # 本機模型（Ollama）探測結果
   成員資格、LLM 管理權）、研究工作區、本機輕量模型路由設定；皆有 health check。
 - **只綁定主機的 loopback**（`127.0.0.1:8765`）：工作區沒有登入機制，區網中任何人都不能連到它。
 - **不在映像檔或 compose 檔中放任何密碼**：資料庫密碼在第一次啟動時產生，只存在 `secrets`
-  volume；LLM API 金鑰放在 git 忽略的 `deployment/docker/llm-keys.env`（範本為
-  `llm-keys.env.example`），在 LLM 設定中以 `env:名稱` 引用。容器內沒有作業系統憑證儲存區，
-  直接輸入的金鑰會被拒絕（fail closed）。
+  volume。在「AI 模型設定」直接貼上的 API 金鑰保存在只掛載到 `web` 的 `credentials` volume（每把金鑰
+  一個 0600 檔案、以不透明 ID 命名），資料庫只存參照與指紋；這是**檔案權限隔離，不是加密**——能讀取
+  Docker volume 的人就能讀取金鑰。`docker compose down` 會保留金鑰，`docker compose down -v` 會一併
+  刪除。也可在「進階設定」改用 git 忽略的 `deployment/docker/llm-keys.env`（範本為
+  `llm-keys.env.example`）中的環境變數。
 - 持久資料位於 Docker named volumes：`lab-brain-workspace_db`（資料庫）、
   `lab-brain-workspace_artifacts`（上傳檔案原始位元組）、`lab-brain-workspace_secrets`（產生的密碼）。
   以 `docker volume inspect <名稱>` 查看。
@@ -161,8 +163,12 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   模型 ③ 指派模型給研究工作（研究角色 → 模型用途寫在程式中；只能選已確認、且通過該用途所需測試的模型）
   ④ 檢查並套用配置。每個階段都顯示「下一步」，缺什麼以「尚待處理／怎麼完成」清單呈現，完成後只有一個
   「套用配置」按鈕；服務網址、金鑰來源、內部識別碼與路由細節放在「進階設定與技術細節」。
-- 金鑰只以參照保存：`env:變數名稱`，或 Windows Credential Manager（`wincred:`）；資料庫只存參照與指紋
-  （`****abcd`）。沒有安全儲存區時（例如 Docker），請填環境變數名稱；直接輸入的金鑰會被拒絕（fail closed）。
+- 外部 API：選模型服務、填名稱、貼上 API 金鑰、按「＋ 新增」。金鑰保存在此部署的憑證儲存空間
+  （Docker：`credentials` volume，以檔案權限保護、未加密；Windows 原生執行：Windows 認證管理員），
+  資料庫只存參照（`file:` / `wincred:` / `env:`）與指紋（`****abcd`），之後不會再顯示。更換金鑰後舊金鑰
+  立即停用並刪除；移除連線時，除非另一個連線仍在使用，否則一併刪除。環境變數與既有憑證參照在「進階設定」。
+- 本機模型（Ollama）：不需要也不顯示任何金鑰欄位；頁面直接顯示能否連上本機 Ollama，按「取得可用模型」
+  即建立連線並取得模型清單。設計記錄：[`docs/implementation/model-credentials.md`](docs/implementation/model-credentials.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。

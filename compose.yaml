@@ -18,10 +18,13 @@
 #                 the ordinary capability tests; never a reasoning route (llm_runtime.local_setup)
 #
 # NO SECRET IS BAKED IN. The database password is generated at first start and lives only in the
-# `secrets` volume. Language-model API keys are read from the optional, git-ignored file
-# deployment/docker/llm-keys.env and referenced in LLM settings as `env:NAME`; the workspace stores
-# a reference and a fingerprint, never a key. A typed-in key is refused here (fail closed): a
-# container has no operating-system credential store.
+# `secrets` volume. A model-provider API key pasted in AI model settings is kept in the
+# `credentials` volume -- mounted on `web` and nowhere else, one 0600 file per key in a 0700
+# directory, named by an opaque id -- and the database stores only that reference and a
+# fingerprint. That is FILESYSTEM ISOLATION, NOT ENCRYPTION: whoever can read the Docker volume can
+# read the keys. `docker compose down` keeps the volume; `docker compose down -v` deletes it with
+# the keys in it. Keys may instead come from the optional, git-ignored file
+# deployment/docker/llm-keys.env, referenced under the advanced settings as `env:NAME`.
 #
 # CONFIGURATION (all optional; put overrides in a git-ignored `.env` next to this file):
 #   LAB_BRAIN_PORT            host loopback port of the workspace (default 8765)
@@ -99,6 +102,7 @@ services:
       LAB_BRAIN_PUBLISHED_PORT: ${LAB_BRAIN_PORT:-8765}
       # The clock the pages show times in (stored times are UTC and unchanged).
       TZ: ${LAB_BRAIN_TZ:-Asia/Taipei}
+      LAB_BRAIN_OLLAMA_URL: ${LAB_BRAIN_OLLAMA_URL-http://host.docker.internal:11434/v1}
     env_file:
       - path: deployment/docker/llm-keys.env
         required: false
@@ -111,6 +115,8 @@ services:
         --host 0.0.0.0 --port 8765 --in-container
         --published-port "$$LAB_BRAIN_PUBLISHED_PORT"
         --host-gateway host.docker.internal
+        --credential-dir /var/lib/lab-brain/credentials
+        $${LAB_BRAIN_OLLAMA_URL:+--ollama-url "$$LAB_BRAIN_OLLAMA_URL"}
         --locale ${LAB_BRAIN_LOCALE:-en}
     ports:
       # The HOST's loopback only. Never "8765:8765", which publishes on every interface.
@@ -121,6 +127,8 @@ services:
     volumes:
       - secrets:/run/lab-brain-secrets:ro
       - artifacts:/var/lib/lab-brain/artifacts
+      # Pasted model-provider keys: this service only (see the header).
+      - credentials:/var/lib/lab-brain/credentials
     depends_on:
       init:
         condition: service_completed_successfully
@@ -163,3 +171,4 @@ volumes:
   db:
   artifacts:
   secrets:
+  credentials:

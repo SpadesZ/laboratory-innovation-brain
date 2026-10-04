@@ -25,8 +25,9 @@ RUN pip install -e ".[postgres]" \
     && groupadd --system --gid 10001 labbrain \
     && useradd --system --uid 10001 --gid labbrain --home-dir /var/lib/lab-brain \
        --shell /usr/sbin/nologin labbrain \
-    && mkdir -p /var/lib/lab-brain/artifacts \
-    && chown -R labbrain:labbrain /var/lib/lab-brain
+    && mkdir -p /var/lib/lab-brain/artifacts /var/lib/lab-brain/credentials \
+    && chown -R labbrain:labbrain /var/lib/lab-brain \
+    && chmod 0700 /var/lib/lab-brain/credentials
 
 USER labbrain
 ENTRYPOINT ["lab-brain-entrypoint"]

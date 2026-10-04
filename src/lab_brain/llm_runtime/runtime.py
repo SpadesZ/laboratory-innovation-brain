@@ -21,6 +21,7 @@ from __future__ import annotations
 import datetime as dt
 import re
 from collections.abc import Callable, Iterable, Sequence
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any, TypeVar
 from urllib.parse import urlsplit
@@ -50,6 +51,7 @@ from lab_brain.llm_runtime.registry import (
 )
 from lab_brain.llm_runtime.secrets import (
     SecretError,
+    SecretRef,
     SecretStore,
     SecretUnavailable,
     fingerprint,
@@ -74,7 +76,14 @@ EXTERNAL_LABELS: tuple[str, ...] = (
 
 
 class SettingsRefused(ValueError):
-    """A settings step cannot be taken as asked. Nothing was written."""
+    """A settings step cannot be taken as asked. Nothing was written.
+
+    `code` names the case (`secret.<...>`, `provider.<...>`) for a page to explain in the
+    researcher's words; the message is the rule as the server says it, and never a credential."""
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class RuntimeUnavailable(RuntimeError):
@@ -138,6 +147,7 @@ class LLMSettings:
         secret_mode: str,
         env_name: str = "",
         secret_value: str = "",
+        secret_ref: str = "",
     ) -> ConnectionRow:
         self._require_admin()
         name = name.strip().lower()
@@ -163,32 +173,52 @@ class LLMSettings:
                 f"[::1]{also}); a model on any other host is EXTERNAL"
             )
         if any(c.name == name for c in self.registry.connections()):
-            raise SettingsRefused(f"a connection named {name} already exists")
-        secret_ref, secret_fingerprint = self._secret(secret_mode, env_name, secret_value)
+            raise SettingsRefused(f"a connection named {name} already exists", code="name_taken")
+        ref, secret_fingerprint, stored = self._secret(
+            secret_mode, env_name, secret_value, secret_ref
+        )
         try:
             return self.registry.create_connection(
                 name=name,
                 base_url=base_url,
                 reach=reach,
-                secret_ref=secret_ref,
+                secret_ref=ref,
                 secret_fingerprint=secret_fingerprint,
                 actor_id=self._actor,
                 at=self._clock(),
             )
         except RegistryRefused as refused:
+            # A key stored for a connection that was never created would be kept for nothing.
+            if stored and ref is not None:
+                self._secrets.forget(parse_secret_ref(ref))
             raise SettingsRefused(str(refused)) from None
 
     def replace_secret(
-        self, connection_id: str, *, secret_mode: str, env_name: str = "", secret_value: str = ""
+        self,
+        connection_id: str,
+        *,
+        secret_mode: str,
+        env_name: str = "",
+        secret_value: str = "",
+        secret_ref: str = "",
     ) -> None:
+        """Rotation: the new credential is stored and referenced first; only then is the old one
+        released -- deleted from its store unless another live connection still references it."""
         self._require_admin()
         connection = self._connection(connection_id)
-        ref, print_ = self._secret(secret_mode, env_name, secret_value)
-        self._refusing(
-            lambda: self.registry.replace_secret(
-                connection.connection_id, ref, print_, self._clock()
+        ref, print_, stored = self._secret(secret_mode, env_name, secret_value, secret_ref)
+        try:
+            self._refusing(
+                lambda: self.registry.replace_secret(
+                    connection.connection_id, ref, print_, self._clock()
+                )
             )
-        )
+        except SettingsRefused:
+            if stored and ref is not None:
+                self._secrets.forget(parse_secret_ref(ref))
+            raise
+        if connection.secret_ref is not None and connection.secret_ref != ref:
+            self._release(connection.secret_ref)
 
     def set_connection_lifecycle(self, connection_id: str, lifecycle: str) -> None:
         self._require_admin()
@@ -200,6 +230,10 @@ class LLMSettings:
                 connection.connection_id, lifecycle, self._clock()
             )
         )
+        if lifecycle == "RETIRED" and connection.secret_ref is not None:
+            # A removed connection is never used again: its stored key goes with it -- unless
+            # another live connection references the same stored key.
+            self._release(connection.secret_ref)
 
     def check_health(self, connection_id: str) -> HealthRow:
         """Whether the endpoint answers with this credential. Recorded; changes no lifecycle."""
@@ -228,7 +262,10 @@ class LLMSettings:
             at=self._clock(),
         )
         if outcome != "REACHABLE":
-            raise SettingsRefused(f"the model list could not be fetched: {outcome} {detail}")
+            raise SettingsRefused(
+                f"the model list could not be fetched: {outcome} {detail}",
+                code=f"provider.{outcome.lower()}",
+            )
         at = self._clock()
         return [self.registry.add_model(connection.connection_id, n, "FETCHED", at) for n in names]
 
@@ -359,20 +396,48 @@ class LLMSettings:
 
     # -- plumbing ---------------------------------------------------------------------------------
 
-    def _secret(self, mode: str, env_name: str, secret_value: str) -> tuple[str | None, str | None]:
+    def _secret(
+        self, mode: str, env_name: str, secret_value: str, secret_ref: str = ""
+    ) -> tuple[str | None, str | None, bool]:
+        """(reference, fingerprint, whether a key was stored just now for it). The credential is
+        read once, to fingerprint it, and goes no further."""
         if mode == "none":
-            return None, None
+            return None, None, False
+        stored = False
+        ref: SecretRef | None = None
         try:
             if mode == "env":
                 ref = parse_secret_ref(f"env:{env_name.strip()}")
             elif mode == "store":
                 ref = self._secrets.store(secret_value)
+                stored = True
+            elif mode == "ref":
+                ref = parse_secret_ref(secret_ref)
             else:
-                raise SettingsRefused("the credential is none, an environment variable, or stored")
+                raise SettingsRefused(
+                    "the credential is none, an environment variable, a stored reference, or "
+                    "typed in",
+                    code="secret.mode",
+                )
             value = self._secrets.resolve(ref)
         except (SecretError, SecretUnavailable) as refused:
-            raise SettingsRefused(str(refused)) from None
-        return str(ref), fingerprint(value, self.registry.salt())
+            if stored and ref is not None:
+                self._secrets.forget(ref)
+            raise SettingsRefused(str(refused), code=f"secret.{refused.code}") from None
+        return str(ref), fingerprint(value, self.registry.salt()), stored
+
+    def _release(self, secret_ref: str) -> None:
+        """Delete a stored credential no live connection references any more. An `env:` variable
+        is the operator's and is never touched; a reference still in use elsewhere is kept."""
+        still = [
+            c
+            for c in self.registry.connections()
+            if c.secret_ref == secret_ref and c.lifecycle != "RETIRED"
+        ]
+        if still:
+            return
+        with suppress(SecretError, SecretUnavailable, OSError):
+            self._secrets.forget(parse_secret_ref(secret_ref))
 
     def _key(self, connection: ConnectionRow) -> str | None:
         if connection.secret_ref is None:
@@ -380,7 +445,9 @@ class LLMSettings:
         try:
             return self._secrets.resolve(parse_secret_ref(connection.secret_ref))
         except (SecretError, SecretUnavailable) as unavailable:
-            raise SettingsRefused(f"{connection.name}: {unavailable}") from None
+            raise SettingsRefused(
+                f"{connection.name}: {unavailable}", code=f"secret.{unavailable.code}"
+            ) from None
 
     def credential_problem(self, connection: ConnectionRow) -> str | None:
         """Why this connection's credential cannot be read now, or None. A read: nothing is

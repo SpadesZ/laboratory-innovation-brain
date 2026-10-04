@@ -342,8 +342,9 @@ def test_credentials_are_referenced_never_stored_shown_or_echoed(db, tmp_path, f
     )
     page = browser.get(f"/settings/llm/connections/{typed_id}")
     seen.append(page.text)
-    assert re.search(r'<input type="password" name="secret_value"[^>]*>', page.text)
-    assert 'name="secret_value" value' not in page.text
+    fields = re.findall(r'<input type="password"[^>]*name="secret_value"[^>]*>', page.text)
+    assert fields, "the key is replaced through a password field"
+    assert all(" value=" not in f for f in fields), "and it is never filled back in"
 
     # No secure store here: a typed-in credential is refused, and nothing is written.
     bare = _browser(tmp_path)
@@ -356,14 +357,15 @@ def test_credentials_are_referenced_never_stored_shown_or_echoed(db, tmp_path, f
     seen.append(pasted.text)
     assert pasted.status == 409 and "looks like a credential" in _text(pasted)
 
-    # A wrong key: the provider echoes it back; the workspace records and shows it redacted.
+    # A wrong key: the provider echoes it back; the workspace does not read that refusal's body at
+    # all (an echo may be masked past any redaction), so it records only the status.
     wrong = _browser(tmp_path, environ={"WRONG_KEY": WRONG_KEY})
     wrong_id = _id(_connect(wrong, fake, name="wrong", env="WRONG_KEY"))
     assert _post(wrong, f"/settings/llm/connections/{wrong_id}/health", {}).status == 303
     outcome, detail = db.execute(
         "SELECT outcome, detail FROM llm_connection_health WHERE connection_id = %s", (wrong_id,)
     ).fetchone()
-    assert outcome == "AUTH_FAILED" and "[redacted]" in detail
+    assert outcome == "AUTH_FAILED" and detail == "HTTP 401: the provider refused the credential"
     seen.append(wrong.get(f"/settings/llm/connections/{wrong_id}").text)
     seen.extend(browser.get(p).text for p in ("/settings/llm", "/runtime", "/runs/new"))
 

@@ -255,6 +255,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # Research data intake: the material kind a researcher declared for a file added outside a
     # research run, bound to its ingestion item. After 012 (ingestion_items) and 001.
     "012g_research_data_declarations.sql",
+    # A pasted model-provider key kept in this deployment's credential directory: the reference
+    # `file:lab-brain/llm/<uuid>` beside env: and wincred:. After 012e (llm_connections).
+    "012h_llm_credential_directory.sql",
 )
 
 _BOOTSTRAP = """

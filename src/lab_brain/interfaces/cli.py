@@ -388,6 +388,24 @@ def build_parser() -> argparse.ArgumentParser:
             "(host.docker.internal), so a model there may be declared LOCAL"
         ),
     )
+    web.add_argument(
+        "--credential-dir",
+        metavar="DIR",
+        help=(
+            "keep model-provider keys a researcher pastes in this directory (the container "
+            "deployment's credentials volume): one file per key, 0600, never in the database. "
+            "Filesystem isolation, not encryption. Without it, a pasted key goes to the "
+            "operating system's credential store where there is one, and is refused elsewhere"
+        ),
+    )
+    web.add_argument(
+        "--ollama-url",
+        metavar="URL",
+        help=(
+            "this machine's Ollama (OpenAI-compatible /v1), offered as the local model in AI "
+            "model settings (default http://127.0.0.1:11434/v1, or the container host's)"
+        ),
+    )
 
     admin = sub.add_parser(
         "admin",
@@ -791,6 +809,7 @@ def run_web(
     # In a container the browser reaches the workspace through the host's loopback port, so that
     # is the Host it must name; outside one, the port it binds.
     published = getattr(args, "published_port", None) or args.port
+    credential_dir = getattr(args, "credential_dir", None)
     workspace = Workspace(
         actor_id=args.actor,
         settings=settings,
@@ -800,6 +819,8 @@ def run_web(
         allowed_hosts=allowed_hosts("127.0.0.1" if container else args.host, published),
         default_locale=args.locale,
         local_hosts=gateways,
+        credential_dir=Path(credential_dir) if credential_dir else None,
+        ollama_url=getattr(args, "ollama_url", None) or None,
     )
     print(
         f"Research workspace for {args.actor}: http://"

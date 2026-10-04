@@ -144,13 +144,18 @@ class OpenAICompatibleClient:
             with self._opener.open(request, timeout=self._timeout) as response:
                 raw = response.read()
         except urllib.error.HTTPError as exc:
+            if exc.code in (401, 403):
+                # An authentication refusal is ABOUT the credential, and providers quote it back --
+                # often masked ("sk-proj-abc****wxyz"), a shape no redaction can recognise. Its body
+                # is never read, kept or shown: the status says what happened.
+                raise ProviderError(
+                    ProviderFailure.AUTH_FAILED,
+                    f"HTTP {exc.code}: the provider refused the credential",
+                ) from None
             detail = self._clean(exc.read().decode("utf-8", "replace"))
-            failure = (
-                ProviderFailure.AUTH_FAILED
-                if exc.code in (401, 403)
-                else ProviderFailure.PROTOCOL_ERROR
-            )
-            raise ProviderError(failure, f"HTTP {exc.code}: {detail}") from None
+            raise ProviderError(
+                ProviderFailure.PROTOCOL_ERROR, f"HTTP {exc.code}: {detail}"
+            ) from None
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             reason = getattr(exc, "reason", exc)
             raise ProviderError(ProviderFailure.UNREACHABLE, self._clean(str(reason))) from None

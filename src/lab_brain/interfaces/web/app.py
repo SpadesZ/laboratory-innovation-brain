@@ -66,6 +66,7 @@ from lab_brain.core.scientific_read import ScientificReadRefused
 from lab_brain.interfaces.cli import _DOCUMENT_KINDS, _MEDIA_TYPES
 from lab_brain.interfaces.config import Settings
 from lab_brain.interfaces.web import (
+    credential_forms,
     egress_pages,
     llm_guide,
     pages,
@@ -87,6 +88,11 @@ from lab_brain.llm_runtime.capabilities import (
     Capability,
     roles_on,
 )
+from lab_brain.llm_runtime.provider import (
+    DOCKER_HOST_GATEWAY,
+    OpenAICompatibleClient,
+    ProviderError,
+)
 from lab_brain.llm_runtime.registry import ModelRow, ProbeRow, RuntimeRow
 from lab_brain.llm_runtime.runtime import (
     EXTERNAL_LABELS,
@@ -95,7 +101,7 @@ from lab_brain.llm_runtime.runtime import (
     SettingsRefused,
     load_active_runtime,
 )
-from lab_brain.llm_runtime.secrets import SecretStore
+from lab_brain.llm_runtime.secrets import DirectoryCredentialStore, SecretStore
 from lab_brain.research.continuation import (
     ContinuationRefused,
     EpisodeNotContinuable,
@@ -230,11 +236,19 @@ class Workspace:
         secrets: SecretStore | None = None,
         default_locale: str = DEFAULT_LOCALE,
         local_hosts: Iterable[str] = (),
+        ollama_url: str | None = None,
+        credential_dir: Path | None = None,
     ) -> None:
         self._actor = actor_id
         #: Host names besides loopback that are this machine (the container deployment's Docker
         #: host): a model there may be declared LOCAL.
         self._local_hosts = tuple(local_hosts)
+        #: This machine's Ollama, offered as the local model: the container host's when the
+        #: deployment says the workspace runs in a container, else this machine's loopback.
+        ollama_host = (
+            DOCKER_HOST_GATEWAY if DOCKER_HOST_GATEWAY in self._local_hosts else "127.0.0.1"
+        )
+        self._ollama_url = (ollama_url or f"http://{ollama_host}:11434/v1").rstrip("/")
         self._settings = settings
         self._connect = connect
         self._artifact_root = artifact_root.resolve()
@@ -242,7 +256,15 @@ class Workspace:
         self._factory = vertical_factory
         self._hosts = frozenset(allowed_hosts)
         self._csrf = csrf_token or _token()
-        self._secrets = secrets if secrets is not None else SecretStore()
+        # A pasted key goes to the deployment's credential directory when it names one (the
+        # container deployment), else to the operating system's store where there is one.
+        if secrets is None:
+            secrets = (
+                SecretStore(credentials=DirectoryCredentialStore(credential_dir))
+                if credential_dir is not None
+                else SecretStore()
+            )
+        self._secrets = secrets
         self._locale = default_locale if default_locale in LOCALES else DEFAULT_LOCALE
 
     # -- WSGI -------------------------------------------------------------------------------------
@@ -360,6 +382,8 @@ class Workspace:
                 return self._create_runtime(c, req, form)
             if path == "/settings/llm/assign" and method == "POST" and form is not None:
                 return self._assign(c, req, form)
+            if path == "/settings/llm/ollama" and method == "POST" and form is not None:
+                return self._add_ollama(c, req, form)
             if m := _CONNECTION_PATH.match(path):
                 return self._connection_route(c, req, m.group(1), m.group(2))
             if m := _MODEL_PATH.match(path):
@@ -1342,7 +1366,7 @@ class Workspace:
                 ids.add(conn.connection_id)
         return sorted(ids)
 
-    def _overview(self, c: Any, req: _Req, *, error: str | None = None) -> Response:
+    def _overview(self, c: Any, req: _Req, *, error: object = None) -> Response:
         llm = self._llm(c)
         registry = llm.registry
         connections = registry.connections()
@@ -1387,11 +1411,30 @@ class Workspace:
                 for rid, slots in bound.items()
             },
             secure_store=self._secrets.secure_store,
+            store_protection=self._secrets.store_protection,
+            ollama=self._ollama_state(connections),
         )
         return Response(
             "409 Conflict" if error else "200 OK",
             settings_pages.overview_page(self._chrome(req, "llm"), data, error=error),
         )
+
+    def _ollama_state(self, connections: Sequence[Any]) -> credential_forms.OllamaState:
+        """Whether this machine's Ollama answers right now -- one short model-list request to
+        this machine, no credential -- and the connection already made to it, if any."""
+        made = next(
+            (
+                x.name
+                for x in connections
+                if x.base_url.rstrip("/") == self._ollama_url and x.lifecycle != "RETIRED"
+            ),
+            None,
+        )
+        try:
+            names = OpenAICompatibleClient(self._ollama_url, None, timeout=2.0).list_models()
+        except ProviderError:
+            return credential_forms.OllamaState(self._ollama_url, False, 0, made)
+        return credential_forms.OllamaState(self._ollama_url, True, len(names), made)
 
     @staticmethod
     def _back(form: Form, default: str, anchor: str = "") -> str:
@@ -1400,7 +1443,7 @@ class Workspace:
         return f"{_OVERVIEW}{anchor}" if form.value("next") == _OVERVIEW else default
 
     def _refused(
-        self, c: Any, req: _Req, form: Form | None, error: str, page: Callable[[], Response]
+        self, c: Any, req: _Req, form: Form | None, error: object, page: Callable[[], Response]
     ) -> Response:
         """A refused settings step answers on the page it was taken from."""
         if form is not None and form.value("next") == _OVERVIEW:
@@ -1424,7 +1467,7 @@ class Workspace:
             )
             created = self._llm(c).add_connection(**spec)
         except SettingsRefused as refused:
-            return self._overview(c, req, error=str(refused))
+            return self._overview(c, req, error=refused)
         if form.value("provider"):
             return _redirect(f"{_OVERVIEW}#c-{quote(created.connection_id, safe=':')}")
         return _redirect(f"/settings/llm/connections/{_path(created.connection_id)}")
@@ -1442,16 +1485,20 @@ class Workspace:
             url = custom
             reach = form.value("reach") or reach
         elif preset == "ollama":
-            gateway = "host.docker.internal"
-            host = gateway if gateway in self._local_hosts else "127.0.0.1"
-            url = f"http://{host}:11434/v1"
+            url = self._ollama_url
         if url is None:
             raise SettingsRefused(m("llm.need_url"))
-        secret_value = form.value("secret_value")
-        env_name = form.value("env_name")
-        mode = "store" if secret_value else ("env" if env_name else "none")
-        if mode == "none" and preset not in ("ollama", "custom"):
-            raise SettingsRefused(m("llm.need_key"))
+        if preset == "ollama":
+            # A local model takes no credential: whatever a form sent beside it is not read.
+            secret_value = env_name = secret_ref = ""
+            mode = "none"
+        else:
+            secret_value = form.value("secret_value")
+            env_name = form.value("env_name")
+            secret_ref = form.value("secret_ref")
+            mode = _credential_mode(secret_value, env_name, secret_ref, m)
+            if mode == "none" and preset != "custom":
+                raise SettingsRefused(m("llm.need_key"), code="secret.needed")
         taken = {x.name for x in self._llm(c).registry.connections()}
         name = _slug(form.value("name")) or _free_name(preset, taken)
         return {
@@ -1461,7 +1508,43 @@ class Workspace:
             "secret_mode": mode,
             "env_name": env_name,
             "secret_value": secret_value,
+            "secret_ref": secret_ref,
         }
+
+    def _add_ollama(self, c: Any, req: _Req, form: Form) -> Response:
+        """The local model in one step: this machine's Ollama -- checked to answer BEFORE anything
+        is created -- made a LOCAL connection with no credential (made once; again it is reused),
+        and its models fetched. The lifecycle from there is the ordinary one: test, confirm,
+        assign, apply. The form has no credential field and none is read."""
+        llm = self._llm(c)
+        url = (form.value("base_url") or self._ollama_url).rstrip("/")
+        try:
+            try:
+                OpenAICompatibleClient(url, None, timeout=5.0).list_models()
+            except ProviderError:
+                raise SettingsRefused(
+                    f"this machine's Ollama does not answer at {url}", code="ollama.unreachable"
+                ) from None
+            connections = llm.registry.connections()
+            made = next(
+                (
+                    x
+                    for x in connections
+                    if x.base_url.rstrip("/") == url and x.lifecycle != "RETIRED"
+                ),
+                None,
+            )
+            if made is None:
+                made = llm.add_connection(
+                    name=_free_name("ollama", {x.name for x in connections}),
+                    base_url=url,
+                    reach="LOCAL",
+                    secret_mode="none",
+                )
+            llm.fetch_models(made.connection_id)
+        except SettingsRefused as refused:
+            return self._overview(c, req, error=refused)
+        return _redirect(f"{_OVERVIEW}#c-{quote(made.connection_id, safe=':')}")
 
     def _connection_route(
         self, c: Any, req: _Req, connection_id: str, action: str | None
@@ -1493,16 +1576,29 @@ class Workspace:
             elif action == "lifecycle":
                 llm.set_connection_lifecycle(connection_id, form.value("lifecycle"))
             elif action == "secret":
+                if form.value("secret_mode"):
+                    # The explicit form of the earlier page and of scripted clients.
+                    mode = form.value("secret_mode")
+                else:
+                    mode = _credential_mode(
+                        form.value("secret_value"),
+                        form.value("env_name"),
+                        form.value("secret_ref"),
+                        req.m,
+                    )
+                    if mode == "none":
+                        raise SettingsRefused(req.m("cred.replace.need"), code="secret.needed")
                 llm.replace_secret(
                     connection_id,
-                    secret_mode=form.value("secret_mode") or "none",
+                    secret_mode=mode,
                     env_name=form.value("env_name"),
                     secret_value=form.value("secret_value"),
+                    secret_ref=form.value("secret_ref"),
                 )
             else:
                 raise SettingsRefused(req.m("msg.no_page"))
         except SettingsRefused as refused:
-            problem = str(refused)
+            problem = refused
             return self._refused(
                 c,
                 req,
@@ -1514,7 +1610,7 @@ class Workspace:
         return _redirect(self._back(form, here, f"#c-{quote(connection_id, safe=':')}"))
 
     def _connection_page(
-        self, c: Any, req: _Req, connection_id: str, *, error: str | None = None
+        self, c: Any, req: _Req, connection_id: str, *, error: object = None
     ) -> Response:
         registry = self._llm(c).registry
         connection = registry.connection(connection_id)
@@ -1527,6 +1623,7 @@ class Workspace:
                 registry.health(connection_id, limit=20),
                 registry.models(connection_id),
                 secure_store=self._secrets.secure_store,
+                store_protection=self._secrets.store_protection,
                 error=error,
             ),
         )
@@ -1555,7 +1652,7 @@ class Workspace:
             else:
                 raise SettingsRefused(req.m("msg.no_page"))
         except SettingsRefused as refused:
-            problem = str(refused)
+            problem = refused
             return self._refused(
                 c,
                 req,
@@ -1567,9 +1664,7 @@ class Workspace:
         anchor = f"#c-{quote(model.connection_id, safe=':')}" if model is not None else ""
         return _redirect(self._back(form, f"/settings/llm/models/{_path(model_id)}", anchor))
 
-    def _model_page(
-        self, c: Any, req: _Req, model_id: str, *, error: str | None = None
-    ) -> Response:
+    def _model_page(self, c: Any, req: _Req, model_id: str, *, error: object = None) -> Response:
         registry = self._llm(c).registry
         model = registry.model(model_id)
         assert model is not None
@@ -1599,7 +1694,7 @@ class Workspace:
                 form.value("name"), form.fields.get("external_labels", ())
             )
         except SettingsRefused as refused:
-            return self._overview(c, req, error=str(refused))
+            return self._overview(c, req, error=refused)
         return _redirect(f"/settings/llm/runtimes/{_path(runtime.runtime_id)}")
 
     def _runtime_route(self, c: Any, req: _Req, runtime_id: str, action: str | None) -> Response:
@@ -1634,7 +1729,7 @@ class Workspace:
             else:
                 raise SettingsRefused(req.m("msg.no_page"))
         except SettingsRefused as refused:
-            problem = str(refused)
+            problem = refused
             return self._refused(
                 c,
                 req,
@@ -1663,7 +1758,7 @@ class Workspace:
             else:
                 llm.bind(draft.runtime_id, slot, form.value("model"))
         except SettingsRefused as refused:
-            return self._overview(c, req, error=str(refused))
+            return self._overview(c, req, error=refused)
         return _redirect(f"{_OVERVIEW}#assign")
 
     @staticmethod
@@ -1692,7 +1787,7 @@ class Workspace:
         req: _Req,
         runtime_id: str,
         *,
-        error: str | None = None,
+        error: object = None,
         live: bool = False,
     ) -> Response:
         llm = self._llm(c)
@@ -1896,6 +1991,15 @@ class Workspace:
 
 def _token() -> str:
     return secrets.token_urlsafe(32)
+
+
+def _credential_mode(secret_value: str, env_name: str, secret_ref: str, m: Messages) -> str:
+    """Which one credential a form gave: a pasted key ("store"), an environment variable, a
+    reference -- or none. More than one is refused: the page never picks for the researcher."""
+    try:
+        return credential_forms.one_source(secret_value, env_name, secret_ref)
+    except ValueError:
+        raise SettingsRefused(m("cred.one_source"), code="secret.one_source") from None
 
 
 def _slug(name: str) -> str:

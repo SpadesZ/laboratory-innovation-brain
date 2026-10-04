@@ -122,6 +122,10 @@ button[disabled]{background:#b9bfca;cursor:not-allowed}
 .next-step{color:#1f3d7a}details.advanced{margin:10px 0}details.advanced>summary{cursor:pointer;
 font-weight:600;color:#1f3d7a}details.advanced.card{margin-top:24px}
 .card{margin:12px 0}
+#add:has(#kind-ollama:checked) #f-external,#add:has(#kind-external:checked) #f-ollama{display:none}
+fieldset.kinds{display:flex;flex-wrap:wrap;gap:18px;border:0;padding:0;margin:6px 0 10px;
+background:none}
+p.ready{color:#11522a;font-weight:700}form.kind-form{margin-top:6px}
 """
 
 

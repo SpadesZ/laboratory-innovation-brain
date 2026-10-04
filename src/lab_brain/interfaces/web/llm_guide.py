@@ -137,6 +137,14 @@ def connection_step(
         return "llm.cstep.disabled", None
     if credential_problem:
         return "llm.cstep.credential", None
+    if (
+        health is not None
+        and health.outcome in ("AUTH_FAILED", "SECRET_UNAVAILABLE")
+        and not any(x.model.lifecycle == "LOCKED" for x in live)
+    ):
+        # The service answered and refused the key (or the key could not be read): the next step
+        # is the key, not the network.
+        return "llm.cstep.credential", None
     if not live:
         if health is not None and health.outcome != "REACHABLE":
             return "llm.cstep.unreachable", None

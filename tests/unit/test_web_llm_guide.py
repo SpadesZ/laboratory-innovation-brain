@@ -170,6 +170,11 @@ def test_the_credential_comes_before_every_other_connection_step():
     assert off.connections[0].step == "llm.cstep.disabled"
     down = _guide([conn], health={conn.connection_id: _health("UNREACHABLE")})
     assert down.connections[0].step == "llm.cstep.unreachable"
+    # The service answered and refused the key: the next step is the key, not the network.
+    for outcome in ("AUTH_FAILED", "SECRET_UNAVAILABLE"):
+        refused = _guide([conn], health={conn.connection_id: _health(outcome)})
+        assert refused.connections[0].step == "llm.cstep.credential", outcome
+        assert refused.next_step == "llm.next.credential", outcome
 
 
 def test_every_readiness_blocker_becomes_a_line_and_none_is_dropped():

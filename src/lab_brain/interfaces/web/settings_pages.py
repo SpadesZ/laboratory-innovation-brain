@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.interfaces.web import (
+    credential_forms,
     egress_pages,
     labels,
 )
@@ -627,6 +628,9 @@ class Overview:
     runtimes: Sequence[RuntimeRow]
     bindings: Mapping[str, Mapping[LogicalSlot, str]]
     secure_store: str | None
+    #: What protects a pasted key here ("os", "filesystem") -- or None: no store.
+    store_protection: str | None
+    ollama: credential_forms.OllamaState
 
 
 def _csrf(chrome: Chrome) -> Html:
@@ -671,9 +675,14 @@ def _named(prefix: str, value: str, m: Messages, css: str | None = None) -> Html
 
 
 def _credential(c: ConnectionRow, m: Messages) -> Html:
+    """Where the key is, in words, and its fingerprint: never the key, and the reference itself
+    only in the technical details."""
     if c.secret_ref is None:
         return e(m("llm.no_credential"))
-    return h("<code>{}</code> {}", c.secret_ref, c.secret_fingerprint or "")
+    scheme, _, name = c.secret_ref.partition(":")
+    if scheme == "env":
+        return h("{} <code>{}</code>", m("cred.where.env", name=name), c.secret_fingerprint or "")
+    return h("{} <code>{}</code>", m("cred.where.stored"), c.secret_fingerprint or "")
 
 
 def _health(row: HealthRow | None, m: Messages) -> Html:
@@ -750,14 +759,8 @@ def _warnings(todos: Sequence[Todo], m: Messages) -> Html:
     )
 
 
-def _error(chrome: Chrome, error: str | None) -> Html:
-    if not error:
-        return Html("")
-    return h(
-        '<div class="box error">{}{}</div>',
-        labels.humanize(error, chrome.m.locale),
-        labels.technical(chrome.m.locale, [], [error]),
-    )
+def _error(chrome: Chrome, error: object) -> Html:
+    return credential_forms.problem(chrome, error)
 
 
 def _next_box(m: Messages, guide: Guide) -> Html:
@@ -773,73 +776,6 @@ def _next_box(m: Messages, guide: Guide) -> Html:
 
 def _caps(values: Iterable[str], m: Messages) -> Html:
     return labels.listing((labels.capability(c, m.locale) for c in sorted(values)), m.locale)
-
-
-# -- step 1 ---------------------------------------------------------------------------------------
-
-
-def _add_connection(chrome: Chrome, secure_store: str | None) -> Html:
-    m = chrome.m
-    options = cat(h('<option value="{}">{}</option>', key, m(f"llm.p.{key}")) for key in PROVIDERS)
-    if secure_store:
-        key_field = h(
-            '<div class="field"><label for="c_key">{}</label>'
-            '<input type="password" id="c_key" name="secret_value" autocomplete="off">'
-            '<span class="hint">{}</span></div>',
-            m("llm.key"),
-            m("llm.key.hint", store=secure_store),
-        )
-        env_field = h(
-            '<label for="c_env">{} <span class="hint">{}</span></label>'
-            '<input type="text" id="c_env" name="env_name" autocomplete="off">',
-            m("llm.env_name"),
-            m("llm.env_name.hint"),
-        )
-    else:
-        key_field = h(
-            '<div class="field"><label for="c_env">{}</label>'
-            '<input type="text" id="c_env" name="env_name" autocomplete="off"'
-            ' placeholder="OPENAI_API_KEY"><span class="hint">{}</span></div>',
-            m("llm.key.env"),
-            m("llm.key.env.hint"),
-        )
-        env_field = Html("")
-    return h(
-        '<section class="card" id="add"><h2>{}</h2><p class="lede">{}</p>'
-        '<form method="post" action="/settings/llm/connections">{}'
-        '<div class="grid">'
-        '<div class="field"><label for="c_provider">{}</label>'
-        '<select id="c_provider" name="provider">{}</select></div>'
-        '<div class="field"><label for="c_name">{}</label>'
-        '<input type="text" id="c_name" name="name"><span class="hint">{}</span></div>'
-        "{}</div>"
-        '<details class="advanced"><summary>{}</summary>'
-        '<label for="c_url">{} <span class="hint">{}</span></label>'
-        '<input type="text" id="c_url" name="base_url">'
-        '<label for="c_reach">{} <span class="hint">{}</span></label>'
-        '<select id="c_reach" name="reach"><option value="">-</option>'
-        '<option value="EXTERNAL">{}</option><option value="LOCAL">{}</option></select>{}'
-        '<p class="muted">{}</p></details>'
-        '<button type="submit" class="primary">{}</button></form></section>',
-        m("llm.s1"),
-        m("llm.s1.lede"),
-        _csrf(chrome),
-        m("llm.provider"),
-        options,
-        m("llm.name"),
-        m("llm.name.hint"),
-        key_field,
-        m("llm.advanced"),
-        m("llm.base_url"),
-        m("llm.base_url.hint"),
-        m("llm.reach"),
-        m("llm.reach.hint"),
-        m("llm.reach.EXTERNAL"),
-        m("llm.reach.LOCAL"),
-        env_field,
-        m("llm.credential.note"),
-        m("llm.add"),
-    )
 
 
 # -- step 2 ---------------------------------------------------------------------------------------
@@ -1054,7 +990,7 @@ def _assign_rows(chrome: Chrome, guide: Guide, slots: Sequence[LogicalSlot]) -> 
 # -- the page -------------------------------------------------------------------------------------
 
 
-def overview_page(chrome: Chrome, data: Overview, *, error: str | None = None) -> bytes:
+def overview_page(chrome: Chrome, data: Overview, *, error: object = None) -> bytes:
     m = chrome.m
     guide = data.guide
     now = [
@@ -1137,7 +1073,13 @@ def overview_page(chrome: Chrome, data: Overview, *, error: str | None = None) -
         _error(chrome, error),
         m("llm.intro"),
         status,
-        _add_connection(chrome, data.secure_store),
+        credential_forms.add_connection_card(
+            chrome,
+            providers=tuple(k for k in PROVIDERS if k != "ollama"),
+            protection=data.store_protection,
+            store=data.secure_store,
+            ollama=data.ollama,
+        ),
         step2,
         step3,
         step4,
@@ -1277,32 +1219,6 @@ def _advanced(chrome: Chrome, data: Overview) -> Html:
 # -- a connection's details -----------------------------------------------------------------------
 
 
-def _secret_fields(chrome: Chrome, secure_store: str | None, prefix: str = "") -> Html:
-    m = chrome.m
-    store = (
-        h(
-            '<label class="check"><input type="radio" name="secret_mode" value="store"> {}</label>'
-            '<input type="password" name="secret_value" autocomplete="off">',
-            m("llm.credential.store", store=secure_store),
-        )
-        if secure_store
-        else h('<p class="muted">{}</p>', m("llm.credential.nostore"))
-    )
-    return h(
-        "<label>{}</label>"
-        '<label class="check"><input type="radio" name="secret_mode" value="none" checked> {}'
-        "</label>"
-        '<label class="check"><input type="radio" name="secret_mode" value="env"> {}</label>'
-        '<input type="text" name="env_name" placeholder="OPENAI_API_KEY" autocomplete="off">'
-        '{}<p class="muted">{}</p>',
-        prefix or m("llm.credential"),
-        m("llm.credential.none"),
-        m("llm.credential.env"),
-        store,
-        m("llm.credential.note"),
-    )
-
-
 def connection_page(
     chrome: Chrome,
     connection: ConnectionRow,
@@ -1310,7 +1226,8 @@ def connection_page(
     models: Sequence[ModelRow],
     *,
     secure_store: str | None,
-    error: str | None = None,
+    store_protection: str | None = None,
+    error: object = None,
 ) -> bytes:
     m = chrome.m
     base = f"/settings/llm/connections/{connection.connection_id}"
@@ -1345,15 +1262,7 @@ def connection_page(
         m("llm.declare"),
         m("llm.declare.button"),
     )
-    replace = h(
-        '<form method="post" action="{}/secret" class="box"><h3>{}</h3>{}{}'
-        '<button type="submit">{}</button></form>',
-        base,
-        m("llm.replace_credential"),
-        _csrf(chrome),
-        _secret_fields(chrome, secure_store, prefix=m("llm.credential")),
-        m("llm.save"),
-    )
+    replace = credential_forms.replace_key_form(chrome, base, store_protection, secure_store)
     body = h(
         '<p><a href="/settings/llm">{}</a></p><p class="muted">{}</p><h1>{}</h1>{}'
         '<div class="box"><div>{} · {}: {} · {}: {}</div>'
@@ -1409,6 +1318,18 @@ def connection_page(
         ),
         replace if connection.lifecycle != "RETIRED" else Html(""),
     )
+    body = h(
+        "{}{}",
+        body,
+        labels.technical(
+            m.locale,
+            [
+                ("connection_id", connection.connection_id),
+                ("secret_ref", connection.secret_ref or "-"),
+                ("secret_fingerprint", connection.secret_fingerprint or "-"),
+            ],
+        ),
+    )
     return page(connection.name, body, chrome=chrome)
 
 
@@ -1422,7 +1343,7 @@ def model_page(
     latest: Mapping[Capability, ProbeRow],
     history: Sequence[ProbeRow],
     *,
-    error: str | None = None,
+    error: object = None,
 ) -> bytes:
     m = chrome.m
     base = f"/settings/llm/models/{model.model_profile_id}"
@@ -1681,7 +1602,7 @@ def runtime_page(
     eligible: Mapping[LogicalSlot, Sequence[tuple[ModelRow, str]]],
     ineligible: Mapping[LogicalSlot, Sequence[tuple[ModelRow, str]]],
     *,
-    error: str | None = None,
+    error: object = None,
     notice: str | None = None,
 ) -> bytes:
     m = chrome.m
