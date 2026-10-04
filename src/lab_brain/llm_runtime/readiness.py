@@ -33,6 +33,7 @@ from lab_brain.llm_runtime.capabilities import (
     critic_fallback,
     roles_on,
 )
+from lab_brain.llm_runtime.provider import plaintext_refusal
 from lab_brain.llm_runtime.registry import (
     ConnectionRow,
     ModelRow,
@@ -75,8 +76,15 @@ def evaluate(
     runtime: RuntimeRow,
     *,
     secret_problem: Callable[[ConnectionRow], str | None],
+    transport_problem: Callable[[ConnectionRow], str | None] | None = None,
 ) -> Readiness:
-    """`secret_problem` answers, for a connection, why its credential cannot be read (or None)."""
+    """`secret_problem` answers, for a connection, why its credential cannot be read (or None);
+    `transport_problem`, why the transport rule refuses it (by default `plaintext_refusal`)."""
+    if transport_problem is None:
+
+        def transport_problem(connection: ConnectionRow) -> str | None:
+            return plaintext_refusal(connection.base_url)
+
     bindings = registry.bindings(runtime.runtime_id)
     locked = [m for m in registry.models() if m.lifecycle == "LOCKED"]
     connections = {c.connection_id: c for c in registry.connections()}
@@ -109,6 +117,9 @@ def evaluate(
             problems.append(f"model {model.model_name} is {model.lifecycle}, not LOCKED")
         if connection.lifecycle != "ENABLED":
             problems.append(f"connection {connection.name} is {connection.lifecycle}")
+        transport = transport_problem(connection)
+        if transport is not None:
+            problems.append(f"connection {connection.name}: {transport}")
         if connection.secret_ref is not None:
             problem = secret_problem(connection)
             if problem is not None:

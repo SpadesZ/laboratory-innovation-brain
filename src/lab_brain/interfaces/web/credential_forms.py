@@ -196,9 +196,20 @@ Messages.extend(
             "連不上這個服務。請確認服務網址與網路；如果是本機模型，請確認 Ollama 已啟動。",
         ),
         "err.provider.protocol_error": (
-            "The service did not answer as an OpenAI-compatible API. Check the service URL "
-            "(usually ending in /v1).",
-            "服務的回應不符合 OpenAI 相容介面。請確認服務網址（通常以 /v1 結尾）。",
+            "The service did not answer as an OpenAI-compatible API, or it redirected the call "
+            "to another address (a model connection never follows a redirect, so the key and the "
+            "research content go nowhere else). Check the service URL (usually ending in /v1).",
+            "服務的回應不符合 OpenAI 相容介面，或把連線轉址到其他位址（模型連線一律不跟隨轉址，"
+            "金鑰與研究內容不會被送到別處）。請確認服務網址（通常以 /v1 結尾）。",
+        ),
+        "err.url.plaintext": (
+            "An external service must use https://. Plain http:// is only for a model on this "
+            "machine (such as the local Ollama); anywhere else the API key and the research "
+            "content would travel unencrypted. Nothing was saved or sent. Add the service again "
+            "with its https:// address.",
+            "外部服務的網址必須是 https://。只有這台電腦上的模型（例如本機 Ollama）可以使用 "
+            "http://；連到其他主機時，API 金鑰與研究內容會以未加密方式傳送。沒有保存或傳送任何"
+            "內容。請以 https:// 網址重新新增這個服務。",
         ),
         "err.provider.secret_unavailable": (
             "This connection's API key cannot be read. Use “Replace the API key” on the "

@@ -169,6 +169,10 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   立即停用並刪除；移除連線時，除非另一個連線仍在使用，否則一併刪除。環境變數與既有憑證參照在「進階設定」。
 - 本機模型（Ollama）：不需要也不顯示任何金鑰欄位；頁面直接顯示能否連上本機 Ollama，按「取得可用模型」
   即建立連線並取得模型清單。設計記錄：[`docs/implementation/model-credentials.md`](docs/implementation/model-credentials.md)。
+- 傳輸：連到其他主機的模型服務一律必須是 `https://`；明文 `http://` 只能連到這台電腦（本機 Ollama、
+  容器部署宣告的 Docker 主機）。模型呼叫一律不跟隨轉址（redirect），金鑰與研究內容不會被帶到別處。
+  舊資料中違反此規則的連線無法啟用、測試或用於研究。設計記錄：
+  [`docs/implementation/model-transport.md`](docs/implementation/model-transport.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。

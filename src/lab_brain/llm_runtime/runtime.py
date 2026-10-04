@@ -38,6 +38,7 @@ from lab_brain.llm_runtime.provider import (
     OpenAICompatibleClient,
     ProviderError,
     is_this_machine_url,
+    plaintext_refusal,
 )
 from lab_brain.llm_runtime.readiness import Readiness, critic_route, egress_route, evaluate
 from lab_brain.llm_runtime.registry import (
@@ -172,6 +173,10 @@ class LLMSettings:
                 "LOCAL may only be declared of this machine (127.0.0.1, localhost or "
                 f"[::1]{also}); a model on any other host is EXTERNAL"
             )
+        # Before any credential is stored, resolved or even parsed: whichever way it would come
+        # (pasted, environment variable, existing reference), it would cross a network in clear.
+        if (refusal := plaintext_refusal(base_url, self._local_hosts)) is not None:
+            raise SettingsRefused(refusal, code="url.plaintext")
         if any(c.name == name for c in self.registry.connections()):
             raise SettingsRefused(f"a connection named {name} already exists", code="name_taken")
         ref, secret_fingerprint, stored = self._secret(
@@ -206,6 +211,7 @@ class LLMSettings:
         released -- deleted from its store unless another live connection still references it."""
         self._require_admin()
         connection = self._connection(connection_id)
+        self._require_transport(connection)
         ref, print_, stored = self._secret(secret_mode, env_name, secret_value, secret_ref)
         try:
             self._refusing(
@@ -225,6 +231,10 @@ class LLMSettings:
         if lifecycle not in ("ENABLED", "DISABLED", "RETIRED"):
             raise SettingsRefused("a connection is ENABLED, DISABLED or RETIRED")
         connection = self._connection(connection_id)
+        if lifecycle == "ENABLED":
+            # Disabling or removing a connection the transport rule refuses is always possible;
+            # enabling one is not.
+            self._require_transport(connection)
         self._refusing(
             lambda: self.registry.set_connection_lifecycle(
                 connection.connection_id, lifecycle, self._clock()
@@ -239,6 +249,7 @@ class LLMSettings:
         """Whether the endpoint answers with this credential. Recorded; changes no lifecycle."""
         self._require_admin()
         connection = self._connection(connection_id)
+        self._require_transport(connection)
         outcome, detail, latency, _ = self._list(connection)
         return self.registry.record_health(
             connection.connection_id,
@@ -253,6 +264,7 @@ class LLMSettings:
     def fetch_models(self, connection_id: str) -> list[ModelRow]:
         self._require_admin()
         connection = self._enabled(connection_id)
+        self._require_transport(connection)
         outcome, detail, latency, names = self._list(connection)
         self.registry.record_health(
             connection.connection_id,
@@ -293,6 +305,7 @@ class LLMSettings:
                 f"model {model.model_name} is {model.lifecycle}; unlock it to test it again"
             )
         connection = self._enabled(model.connection_id)
+        self._require_transport(connection)
         key = self._key(connection)
         client = self._client(connection.base_url, key, self._timeout)
         wanted = [c for c in PROBE_ORDER if capabilities is None or c in capabilities]
@@ -375,8 +388,16 @@ class LLMSettings:
                 if (m := self.registry.model(b.model_profile_id)) is not None
             }
             for connection_id in sorted(bound):
-                self.check_health(connection_id)
-        return evaluate(self.registry, runtime, secret_problem=self._secret_problem)
+                connection = self._connection(connection_id)
+                # One the transport rule refuses is not contacted; the evaluation blocks it.
+                if self._transport_problem(connection) is None:
+                    self.check_health(connection_id)
+        return evaluate(
+            self.registry,
+            runtime,
+            secret_problem=self._secret_problem,
+            transport_problem=self._transport_problem,
+        )
 
     def activate(self, runtime_id: str) -> Readiness:
         """Live readiness first; activation only with no blocker. The database checks again."""
@@ -460,6 +481,15 @@ class LLMSettings:
         except SettingsRefused as refused:
             return str(refused).split(": ", 1)[-1]
         return None
+
+    def _transport_problem(self, connection: ConnectionRow) -> str | None:
+        """Why the transport rule refuses this connection, or None. The rule binds every USE, not
+        only creation: a row written before it, or around the application, is refused the same."""
+        return plaintext_refusal(connection.base_url, self._local_hosts)
+
+    def _require_transport(self, connection: ConnectionRow) -> None:
+        if (refusal := self._transport_problem(connection)) is not None:
+            raise SettingsRefused(f"{connection.name}: {refusal}", code="url.plaintext")
 
     def _list(self, connection: ConnectionRow) -> tuple[str, str, int | None, list[str]]:
         try:
@@ -551,6 +581,13 @@ def load_active_runtime(
             raise RuntimeUnavailable(
                 f"runtime {active.name}: connection {connection_row.name} is "
                 f"{connection_row.lifecycle}"
+            )
+        # Before the credential is read: a route over plaintext to another host -- a row that
+        # predates the rule, or was written around it -- refuses the run, never reasons it.
+        if (refusal := plaintext_refusal(connection_row.base_url)) is not None:
+            raise RuntimeUnavailable(
+                f"the active LLM runtime {active.name} cannot be used: "
+                f"{connection_row.name}: {refusal}"
             )
         key: str | None = None
         if connection_row.secret_ref is not None:

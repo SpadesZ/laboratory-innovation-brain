@@ -9,6 +9,16 @@ context or interprets an answer.
 Every message that comes back from a provider -- an error body above all, which some providers
 fill with the key they were sent -- is REDACTED of the credential before it is raised, so no
 refusal, health record or page can carry it.
+
+A call carries the credential (`Authorization: Bearer ...`) and, for a research step, the prompt
+with its evidence. So the transport itself refuses two ways those could travel further than the
+endpoint the connection names, whoever built the client and whatever row it was built from:
+
+    plaintext       http:// only to THIS machine (`plaintext_refusal`); any other host is https://.
+                    Refused before a connection is opened: nothing is sent.
+    redirects       never followed (`_NoRedirects`). urllib would re-send the request, Authorization
+                    header included, to whatever the answer names -- another host, or https://
+                    down to http://. A 3xx ends the call; neither its body nor its target is kept.
 """
 
 from __future__ import annotations
@@ -21,7 +31,8 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from http.client import HTTPMessage
+from typing import IO, Any
 from urllib.parse import urlsplit
 
 from lab_brain.llm_runtime.secrets import redact
@@ -70,18 +81,62 @@ def is_this_machine_url(url: str, local_hosts: frozenset[str] = frozenset()) -> 
     return is_loopback_url(url) or (urlsplit(url).hostname or "").lower() in local_hosts
 
 
+def plaintext_refusal(
+    url: str, local_hosts: frozenset[str] = frozenset({DOCKER_HOST_GATEWAY})
+) -> str | None:
+    """Why a model-provider call may not go to `url`, or None when it may.
+
+    https:// may go anywhere. Plaintext http:// may go only where there is no network to cross:
+    this machine -- loopback, or a host the deployment declared to be this machine (`local_hosts`;
+    the transport's own default is the Docker host, which it already treats as this machine). So
+    a LOCAL model, which is this machine by definition, may be plain http://, and an EXTERNAL one
+    on any other host must be https:// -- wherever its credential came from. The reason names the
+    scheme and host only: never the rest of the URL."""
+    parts = urlsplit(url)
+    scheme, host = parts.scheme.lower(), (parts.hostname or "")
+    if host and scheme == "https":
+        return None
+    if host and scheme == "http" and is_this_machine_url(url, local_hosts):
+        return None
+    return (
+        f"{scheme or '?'}://{host or '?'} is neither https:// nor this machine: a model-provider "
+        "call carries the credential and the research prompt, so a service on another host must "
+        "be reached over https://"
+    )
+
+
+class _NoRedirects(urllib.request.HTTPRedirectHandler):
+    """Every redirect is refused, the same-origin ones included: one policy, no judgement of which
+    target is safe. urllib would follow a 3xx with the original headers -- the credential among
+    them -- to any host and any scheme. Declining here makes urllib raise the 3xx as an HTTPError,
+    which `_request` turns into a refusal."""
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: IO[bytes],
+        code: int,
+        msg: str,
+        headers: HTTPMessage,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        return None
+
+
 class OpenAICompatibleClient:
     def __init__(self, base_url: str, api_key: str | None, *, timeout: float = 120.0) -> None:
         self._base = base_url.rstrip("/")
         self._key = api_key
         self._timeout = timeout
+        #: Not None: this endpoint is refused by the transport rule, and nothing is ever sent to it.
+        self._refused = plaintext_refusal(base_url)
         # This machine is reached directly, never through an environment proxy: a proxy would
         # carry a LOCAL call off the machine.
         direct = is_this_machine_url(base_url, frozenset({DOCKER_HOST_GATEWAY}))
         handlers: list[urllib.request.BaseHandler] = (
             [urllib.request.ProxyHandler({})] if direct else []
         )
-        self._opener = urllib.request.build_opener(*handlers)
+        self._opener = urllib.request.build_opener(*handlers, _NoRedirects())
 
     def list_models(self) -> list[str]:
         body = self._request("GET", "/models", None)
@@ -130,6 +185,9 @@ class OpenAICompatibleClient:
         return ChatReply(text=message, latency_ms=latency)
 
     def _request(self, method: str, path: str, payload: dict[str, Any] | None) -> Any:
+        if self._refused is not None:
+            # Before a request is even built: no credential, no payload, no connection.
+            raise ProviderError(ProviderFailure.PROTOCOL_ERROR, self._refused)
         headers = {"Accept": "application/json"}
         if self._key:
             headers["Authorization"] = f"Bearer {self._key}"
@@ -151,6 +209,15 @@ class OpenAICompatibleClient:
                 raise ProviderError(
                     ProviderFailure.AUTH_FAILED,
                     f"HTTP {exc.code}: the provider refused the credential",
+                ) from None
+            if 300 <= exc.code < 400:
+                # Not followed (`_NoRedirects`). Its body and its Location are the redirecting
+                # server's words, so neither is read into the record.
+                raise ProviderError(
+                    ProviderFailure.PROTOCOL_ERROR,
+                    f"HTTP {exc.code}: the endpoint redirected the call, and a model-provider call "
+                    "never follows a redirect (it would carry the credential and the request to "
+                    "another address)",
                 ) from None
             detail = self._clean(exc.read().decode("utf-8", "replace"))
             raise ProviderError(
@@ -178,4 +245,5 @@ __all__ = [
     "ProviderFailure",
     "is_loopback_url",
     "is_this_machine_url",
+    "plaintext_refusal",
 ]

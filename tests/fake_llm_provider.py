@@ -15,6 +15,11 @@ with a real Bearer credential, exactly as it would reach a hosted model. Its mod
 
 A wrong or missing credential gets 401 with the key it was sent ECHOED in the error body, as some
 providers do -- so a test can show the workspace never repeats it.
+
+`redirect_to` (off by default) makes it answer EVERY request with a redirect there instead
+(`redirect_status`, the request's path appended): a provider that moved, or one that tries to
+send the call -- credential and prompt -- somewhere else. Its body carries `REDIRECT_BODY`, so a
+test can show none of it is kept.
 """
 
 from __future__ import annotations
@@ -30,6 +35,7 @@ from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.domains.silicon_photonics.product import mechanism_catalog
 
 MODELS = ("fake-reasoner", "fake-critic", "fake-chatty")
+REDIRECT_BODY = "moved: follow me to the new address"
 _MARKER = "\n\nCONTEXT:\n"
 
 
@@ -46,6 +52,9 @@ class FakeProvider:
     api_key: str | None = None
     calls: list[Call] = field(default_factory=list)
     port: int = 0
+    redirect_to: str | None = None
+    redirect_status: int = 307
+    redirected: int = 0
     _server: ThreadingHTTPServer | None = None
 
     @property
@@ -78,8 +87,21 @@ class FakeProvider:
                 self.end_headers()
                 self.wfile.write(raw)
 
+            def _moved(self) -> bool:
+                if provider.redirect_to is None:
+                    return False
+                provider.redirected += 1
+                raw = REDIRECT_BODY.encode()
+                self.send_response(provider.redirect_status)
+                self.send_header("Location", provider.redirect_to + self.path)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+                return True
+
             def do_GET(self) -> None:
-                if not self._authorized():
+                if self._moved() or not self._authorized():
                     return
                 if self.path == "/v1/models":
                     self._send(200, {"object": "list", "data": [{"id": m} for m in MODELS]})
@@ -87,7 +109,7 @@ class FakeProvider:
                     self._send(404, {"error": {"message": "not found"}})
 
             def do_POST(self) -> None:
-                if not self._authorized():
+                if self._moved() or not self._authorized():
                     return
                 if self.path != "/v1/chat/completions":
                     self._send(404, {"error": {"message": "not found"}})
@@ -204,4 +226,4 @@ def _probe_answer(prompt: str, ctx: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-__all__ = ["MODELS", "Call", "FakeProvider"]
+__all__ = ["MODELS", "REDIRECT_BODY", "Call", "FakeProvider"]

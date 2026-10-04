@@ -321,8 +321,10 @@ Messages.extend(
         "llm.base_url": ("Service URL", "服務網址"),
         "llm.base_url.hint": (
             "only for “other service”, or to override a provider's usual address; an "
-            "OpenAI-compatible endpoint, e.g. http://127.0.0.1:11434/v1",
-            "只有「其他服務」或要改用其他位址時才需要填；需為 OpenAI 相容端點，例如 http://127.0.0.1:11434/v1",
+            "OpenAI-compatible endpoint, https:// unless it runs on this machine, e.g. "
+            "https://api.example.com/v1",
+            "只有「其他服務」或要改用其他位址時才需要填；需為 OpenAI 相容端點，"
+            "除了這台電腦上的服務以外都必須是 https://，例如 https://api.example.com/v1",
         ),
         "llm.reach": ("Type", "類型"),
         "llm.reach.hint": (

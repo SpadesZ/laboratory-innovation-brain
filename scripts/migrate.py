@@ -258,6 +258,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # A pasted model-provider key kept in this deployment's credential directory: the reference
     # `file:lab-brain/llm/<uuid>` beside env: and wincred:. After 012e (llm_connections).
     "012h_llm_credential_directory.sql",
+    # An ENABLED model connection reaches another host over https:// only; plaintext http:// only
+    # on this machine (NOT VALID: older rows are refused where they are used). After 012f (the
+    # this-machine host list it repeats).
+    "012i_llm_transport.sql",
 )
 
 _BOOTSTRAP = """

@@ -59,8 +59,9 @@ not run.
   read the keys. The page says so: 「以檔案權限保護，未加密」.
 - **Windows Credential Manager** is the operating system's per-user store; the page names it and
   claims nothing more.
-- **In transit** the key goes only to the provider, in the `Authorization` header, over whatever
-  scheme the connection's URL names (`https://` for every external preset).
+- **In transit** the key goes only to the provider, in the `Authorization` header: over `https://`
+  to any other host, plain `http://` only to this machine, and never on to a redirect's target --
+  see [model-transport.md](model-transport.md).
 - **Never anywhere else**: not in PostgreSQL, a page, a log, a health record, a probe record, an
   error, a report or a fingerprint. A provider's authentication refusal (HTTP 401/403) is no longer
   read at all: providers quote the key back, often masked (`sk-proj-abc****wxyz`), a shape no
