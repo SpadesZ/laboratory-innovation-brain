@@ -814,7 +814,7 @@ class Workspace:
 
     def _reasoner_line(self, c: Any, m: Messages) -> pages.Html:
         try:
-            runtime = load_active_runtime(c, self._secrets)
+            runtime = self._load_runtime(c)
         except RuntimeUnavailable as unusable:
             return pages.e(m("new.reasoner.unusable", reason=str(unusable)))
         if runtime is None:
@@ -855,7 +855,7 @@ class Workspace:
                 m("ai.none"), m("ai.next.admin") if admin else m("ai.next.member"), admin
             )
         try:
-            load_active_runtime(c, self._secrets)
+            self._load_runtime(c)
         except RuntimeUnavailable as unusable:
             return workspace_pages.AiStatus(
                 m("ai.unusable", name=active.name, reason=str(unusable)),
@@ -1177,9 +1177,16 @@ class Workspace:
             raise RuntimeError(f"the research service minted {len(minted)} research run ids")
         return report, minted[0]
 
+    def _load_runtime(self, c: Any) -> ReasoningRuntime | None:
+        """The active runtime, judged under THIS deployment's declaration of which hosts are this
+        machine (`--host-gateway`). Every page and the research path load it here, so none of them
+        can load it without the declaration -- `load_active_runtime` requires it, and a host the
+        deployment did not declare is refused there, before a credential is read."""
+        return load_active_runtime(c, self._secrets, local_hosts=self._local_hosts)
+
     def _reasoning(self, c: Any, req: _Req) -> ReasoningRuntime | None:
         try:
-            return load_active_runtime(c, self._secrets)
+            return self._load_runtime(c)
         except RuntimeUnavailable as unusable:
             raise _Refused(
                 self._message(
@@ -1382,7 +1389,7 @@ class Workspace:
         active_problem = None
         if registry.active_runtime() is not None:
             try:
-                load_active_runtime(c, self._secrets)
+                self._load_runtime(c)
             except RuntimeUnavailable as unusable:
                 active_problem = str(unusable)
         guide = llm_guide.build(
@@ -1431,7 +1438,9 @@ class Workspace:
             None,
         )
         try:
-            names = OpenAICompatibleClient(self._ollama_url, None, timeout=2.0).list_models()
+            names = OpenAICompatibleClient(
+                self._ollama_url, None, timeout=2.0, local_hosts=self._local_hosts
+            ).list_models()
         except ProviderError:
             return credential_forms.OllamaState(self._ollama_url, False, 0, made)
         return credential_forms.OllamaState(self._ollama_url, True, len(names), made)
@@ -1520,7 +1529,9 @@ class Workspace:
         url = (form.value("base_url") or self._ollama_url).rstrip("/")
         try:
             try:
-                OpenAICompatibleClient(url, None, timeout=5.0).list_models()
+                OpenAICompatibleClient(
+                    url, None, timeout=5.0, local_hosts=self._local_hosts
+                ).list_models()
             except ProviderError:
                 raise SettingsRefused(
                     f"this machine's Ollama does not answer at {url}", code="ollama.unreachable"
@@ -1838,7 +1849,7 @@ class Workspace:
         unusable = None
         if active is not None:
             try:
-                load_active_runtime(c, self._secrets)
+                self._load_runtime(c)
             except RuntimeUnavailable as problem:
                 unusable = str(problem)
         policies = ProjectEgressPolicies(c)

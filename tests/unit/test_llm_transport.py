@@ -8,6 +8,10 @@ Two rules of `llm_runtime.provider`, each checked against real sockets:
                 down to http://, to another host, or to another path of itself -- gets its one
                 request; the target gets nothing: no Authorization header, no prompt, no evidence.
 
+"This machine" is loopback plus exactly the hosts a deployment DECLARES. The Docker host
+(`host.docker.internal`) is never trusted for its name: undeclared, it is a remote host like any
+other -- for the predicate, for a client built directly, and for a LOCAL row at the moment of use.
+
 The four paths a call takes are all exercised: discovery and health (`list_models`), capability
 probes (`run_probe`), and research inference (`RouteCompletion`, what `ScientificLLM` calls). The
 settings service and an active runtime are driven end to end in
@@ -17,6 +21,7 @@ settings service and an active runtime are driven end to end in
 from __future__ import annotations
 
 import os
+import socket
 import urllib.request
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -31,6 +36,7 @@ from lab_brain.llm_runtime.provider import (
     OpenAICompatibleClient,
     ProviderError,
     ProviderFailure,
+    endpoint_refusal,
     plaintext_refusal,
 )
 from lab_brain.llm_runtime.runtime import RouteCompletion, _Route
@@ -40,6 +46,11 @@ KEY = "sk-test-transport-0123456789abcdefABCDEF"
 #: What a research call carries: a prompt with the project's evidence in it.
 EVIDENCE = "EVIDENCE-7f3a: pad P4 read 41 ohm after the anneal; the oxide was not stripped"
 REDIRECTS = (301, 302, 303, 307, 308)
+GATEWAY = "host.docker.internal"
+#: No declaration: loopback is this machine, nothing else is.
+UNDECLARED: frozenset[str] = frozenset()
+#: The container deployment's declaration (`--host-gateway host.docker.internal`).
+DECLARED = frozenset({GATEWAY})
 
 
 @pytest.fixture(scope="session")
@@ -78,6 +89,33 @@ def _said(error: ProviderError) -> str:
     return f"{error} {error.detail}"
 
 
+@pytest.fixture
+def docker_host_resolves_here(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`host.docker.internal` resolves to 127.0.0.1, as Docker makes it resolve to the machine a
+    container runs on -- so a test can reach an endpoint by that name. Name resolution only: what
+    the workspace may SEND there is still decided by the declaration alone."""
+    real = socket.getaddrinfo
+
+    def resolve(host: object, *args: object, **kwargs: object) -> object:
+        return real("127.0.0.1" if host == GATEWAY else host, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(socket, "getaddrinfo", resolve)
+
+
+@pytest.fixture
+def opened(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Every URL a client opens (and the call still goes through)."""
+    seen: list[str] = []
+    original = urllib.request.OpenerDirector.open
+
+    def recording(self, request, *args, **kwargs):  # type: ignore[no-untyped-def]
+        seen.append(getattr(request, "full_url", str(request)))
+        return original(self, request, *args, **kwargs)
+
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", recording)
+    return seen
+
+
 # -- plaintext ------------------------------------------------------------------------------------
 
 
@@ -89,9 +127,9 @@ def test_plaintext_goes_only_to_this_machine():
         "http://127.8.9.10:8000/v1",
         "http://localhost:8000/v1",
         "http://[::1]:8000/v1",
-        "http://host.docker.internal:11434/v1",  # the transport's default: the Docker host
     ):
-        assert plaintext_refusal(allowed) is None, allowed
+        assert plaintext_refusal(allowed, UNDECLARED) is None, allowed
+        assert plaintext_refusal(allowed, DECLARED) is None, allowed
     for refused in (
         "http://api.openai.com/v1",
         "http://models.example.org/v1",
@@ -104,12 +142,65 @@ def test_plaintext_goes_only_to_this_machine():
         "ftp://files.example.org/v1",
         "models.example.org/v1",
     ):
-        assert plaintext_refusal(refused) is not None, refused
-    # The Docker host is this machine only where the deployment says so.
-    assert plaintext_refusal("http://host.docker.internal:11434/v1", frozenset()) is not None
+        assert plaintext_refusal(refused, UNDECLARED) is not None, refused
+        assert plaintext_refusal(refused, DECLARED) is not None, refused
     # The reason names a scheme and a host, never the rest of the address.
-    reason = plaintext_refusal("http://user:hunter2@models.example.org/v1/secret-path")
+    reason = plaintext_refusal("http://user:hunter2@models.example.org/v1/secret-path", DECLARED)
     assert reason is not None and "hunter2" not in reason and "secret-path" not in reason
+
+
+def test_the_docker_host_is_this_machine_only_where_the_deployment_declares_it():
+    plain, tls = f"http://{GATEWAY}:11434/v1", f"https://{GATEWAY}:11434/v1"
+    # Undeclared: a remote host like any other -- for plaintext, and for LOCAL even over https.
+    assert plaintext_refusal(plain, UNDECLARED) is not None
+    for reach in ("LOCAL", "EXTERNAL"):
+        assert endpoint_refusal(plain, reach, UNDECLARED) is not None, reach
+    assert "declared LOCAL but is not this machine" in str(
+        endpoint_refusal(tls, "LOCAL", UNDECLARED)
+    )
+    assert endpoint_refusal(tls, "EXTERNAL", UNDECLARED) is None  # https:// goes anywhere
+    # Declared: this machine.
+    for reach in ("LOCAL", "EXTERNAL"):
+        assert endpoint_refusal(plain, reach, DECLARED) is None, reach
+    # Loopback needs no declaration -- including an EXTERNAL local gateway over plain http://.
+    for reach in ("LOCAL", "EXTERNAL"):
+        assert endpoint_refusal("http://127.0.0.1:4000/v1", reach, UNDECLARED) is None, reach
+    # A declaration names one host, not its look-alikes, and makes no remote host local.
+    for url in (f"http://{GATEWAY}.evil.test/v1", "http://models.example.org/v1"):
+        assert endpoint_refusal(url, "EXTERNAL", DECLARED) is not None, url
+        assert endpoint_refusal(url, "LOCAL", DECLARED) is not None, url
+
+
+def test_a_client_built_without_a_declaration_never_trusts_the_docker_host(
+    opened: list[str], docker_host_resolves_here: None
+):
+    endpoint = Endpoint().start()  # plain http://, answering as a provider
+    try:
+        url = f"http://{GATEWAY}:{endpoint.port}/v1"
+        # Built directly, with no declaration: refused before a connection, though it would answer.
+        bare = OpenAICompatibleClient(url, KEY)
+        for call in (bare.list_models, lambda: bare.chat("m", EVIDENCE)):
+            error = _refusal(call)
+            assert error.failure is ProviderFailure.PROTOCOL_ERROR
+            assert "neither https:// nor this machine" in error.detail
+        assert opened == [] and endpoint.seen == []
+        # Given the deployment's declaration, the same address is this machine and is reached.
+        declared = OpenAICompatibleClient(url, KEY, local_hosts=(GATEWAY,))
+        assert declared.list_models() == ["m"]
+        assert declared.chat("m", "Reply with exactly one word: pong").text == "ok"
+        assert [s.authorization for s in endpoint.seen] == [f"Bearer {KEY}"] * 2
+    finally:
+        endpoint.stop()
+
+
+def test_loopback_plain_http_needs_no_declaration():
+    """The local model, and an EXTERNAL local gateway on loopback: plain http:// as before."""
+    endpoint = Endpoint().start()
+    try:
+        client = OpenAICompatibleClient(endpoint.origin + "/v1", KEY)
+        assert client.list_models() == ["m"]
+    finally:
+        endpoint.stop()
 
 
 def test_nothing_is_sent_to_a_remote_plaintext_endpoint(monkeypatch: pytest.MonkeyPatch):

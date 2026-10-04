@@ -12,8 +12,10 @@ provider actually answered.
 `load_active_runtime` turns the ACTIVE runtime into the `ReasoningRuntime` the research service
 builds its one `ScientificLLM` from. With no active runtime it returns `None`, and the service
 uses its explicit fallback, the local catalog reasoner. With an active runtime that cannot be used
--- a credential that is no longer readable -- it RAISES: a research run is refused rather than
-silently reasoned by something other than what is active.
+-- a credential that is no longer readable, or a route this deployment may not use (judged under
+the deployment's own declaration of which hosts are this machine, a required argument) -- it
+RAISES: a research run is refused rather than silently reasoned by something other than what is
+active.
 """
 
 from __future__ import annotations
@@ -37,6 +39,7 @@ from lab_brain.llm_runtime.probes import PROBE_ORDER, run_probe
 from lab_brain.llm_runtime.provider import (
     OpenAICompatibleClient,
     ProviderError,
+    endpoint_refusal,
     is_this_machine_url,
     plaintext_refusal,
 )
@@ -94,10 +97,6 @@ class RuntimeUnavailable(RuntimeError):
 ClientFactory = Callable[[str, str | None, float], OpenAICompatibleClient]
 
 
-def _client(base_url: str, key: str | None, timeout: float) -> OpenAICompatibleClient:
-    return OpenAICompatibleClient(base_url, key, timeout=timeout)
-
-
 class LLMSettings:
     """Every step that changes configuration -- or probes, or records health -- is deployment
     administration: it refuses an actor who is not a current LLM administrator (`012f`), before
@@ -110,7 +109,7 @@ class LLMSettings:
         secrets: SecretStore,
         actor_id: str,
         clock: Callable[[], dt.datetime] = utc_now,
-        client: ClientFactory = _client,
+        client: ClientFactory | None = None,
         timeout: float = 120.0,
         local_hosts: Iterable[str] = (),
     ) -> None:
@@ -119,11 +118,18 @@ class LLMSettings:
         self._secrets = secrets
         self._actor = actor_id
         self._clock = clock
-        self._client = client
         self._timeout = timeout
         #: Host names besides loopback that are this machine: the Docker host of a containerised
         #: workspace (`host.docker.internal`), and only when the deployment says it is one.
         self._local_hosts = frozenset(h.lower() for h in local_hosts)
+        self._client: ClientFactory = client if client is not None else self._declared_client
+
+    def _declared_client(
+        self, base_url: str, key: str | None, timeout: float
+    ) -> OpenAICompatibleClient:
+        """Every client this service builds carries the deployment's declaration, so the
+        transport's own check decides with it -- not with a guess from the host name."""
+        return OpenAICompatibleClient(base_url, key, timeout=timeout, local_hosts=self._local_hosts)
 
     @property
     def is_administrator(self) -> bool:
@@ -483,13 +489,19 @@ class LLMSettings:
         return None
 
     def _transport_problem(self, connection: ConnectionRow) -> str | None:
-        """Why the transport rule refuses this connection, or None. The rule binds every USE, not
-        only creation: a row written before it, or around the application, is refused the same."""
-        return plaintext_refusal(connection.base_url, self._local_hosts)
+        """Why this connection may not be used in THIS deployment, or None: plaintext only to this
+        machine, and LOCAL only of this machine, both under the deployment's declaration. The rules
+        bind every USE, not only creation: a row written before them, around the application, or
+        under another deployment's declaration is refused the same."""
+        return endpoint_refusal(connection.base_url, connection.reach, self._local_hosts)
 
     def _require_transport(self, connection: ConnectionRow) -> None:
         if (refusal := self._transport_problem(connection)) is not None:
-            raise SettingsRefused(f"{connection.name}: {refusal}", code="url.plaintext")
+            local = connection.reach == "LOCAL" and not is_this_machine_url(
+                connection.base_url, self._local_hosts
+            )
+            code = "local_remote" if local else "url.plaintext"
+            raise SettingsRefused(f"{connection.name}: {refusal}", code=code)
 
     def _list(self, connection: ConnectionRow) -> tuple[str, str, int | None, list[str]]:
         try:
@@ -560,8 +572,17 @@ class RouteCompletion:
 
 
 def load_active_runtime(
-    connection: Any, secrets: SecretStore, *, timeout: float = 180.0
+    connection: Any,
+    secrets: SecretStore,
+    *,
+    local_hosts: Iterable[str],
+    timeout: float = 180.0,
 ) -> ReasoningRuntime | None:
+    """`local_hosts`: the hosts THIS deployment declared to be this machine, besides loopback --
+    required, because this is the last boundary before research reaches a network: a route is
+    checked against the running deployment's declaration, never against what a row or a host name
+    suggests, and its client is built with the same declaration."""
+    declared = frozenset(h.lower() for h in local_hosts)
     registry = SqlLLMRegistry(connection)
     active = registry.active_runtime()
     if active is None:
@@ -582,9 +603,11 @@ def load_active_runtime(
                 f"runtime {active.name}: connection {connection_row.name} is "
                 f"{connection_row.lifecycle}"
             )
-        # Before the credential is read: a route over plaintext to another host -- a row that
-        # predates the rule, or was written around it -- refuses the run, never reasons it.
-        if (refusal := plaintext_refusal(connection_row.base_url)) is not None:
+        # Before the credential is read: a route this deployment may not use -- plaintext to a
+        # host it did not declare to be this machine, or LOCAL of such a host -- refuses the run,
+        # never reasons it. A row that predates the rules, or was written around them, included.
+        refusal = endpoint_refusal(connection_row.base_url, connection_row.reach, declared)
+        if refusal is not None:
             raise RuntimeUnavailable(
                 f"the active LLM runtime {active.name} cannot be used: "
                 f"{connection_row.name}: {refusal}"
@@ -609,7 +632,10 @@ def load_active_runtime(
             )
         )
         routes[slot] = _Route(
-            OpenAICompatibleClient(connection_row.base_url, key, timeout=timeout), model.model_name
+            OpenAICompatibleClient(
+                connection_row.base_url, key, timeout=timeout, local_hosts=declared
+            ),
+            model.model_name,
         )
         served[slot] = model
         if reach is ExternalReach.EXTERNAL:

@@ -19,6 +19,13 @@ endpoint the connection names, whoever built the client and whatever row it was 
     redirects       never followed (`_NoRedirects`). urllib would re-send the request, Authorization
                     header included, to whatever the answer names -- another host, or https://
                     down to http://. A 3xx ends the call; neither its body nor its target is kept.
+
+"This machine" is loopback, plus exactly the hosts the DEPLOYMENT declares (`local_hosts`: the
+container deployment's `--host-gateway host.docker.internal`). Nothing here infers locality from a
+host name: a function or client given no declaration treats `host.docker.internal` like any other
+remote host. The declaration is carried explicitly from the process that knows it -- the web
+workspace, `local_setup` -- through `LLMSettings` and `load_active_runtime` to the client built for
+each call, so the last boundary before the network decides with it.
 """
 
 from __future__ import annotations
@@ -29,6 +36,7 @@ import json
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 from http.client import HTTPMessage
@@ -61,8 +69,8 @@ class ChatReply:
 
 
 #: The name Docker gives a container for the machine it runs on. It is this machine only for a
-#: containerised workspace, so it counts as LOCAL only where the deployment says so (see
-#: `is_this_machine_url`); it is always reached directly, never through a proxy.
+#: containerised workspace, so it counts as this machine only where the deployment declares it
+#: (`local_hosts`) -- never because of the name. Declared, it is reached directly (no proxy).
 DOCKER_HOST_GATEWAY = "host.docker.internal"
 
 
@@ -81,17 +89,14 @@ def is_this_machine_url(url: str, local_hosts: frozenset[str] = frozenset()) -> 
     return is_loopback_url(url) or (urlsplit(url).hostname or "").lower() in local_hosts
 
 
-def plaintext_refusal(
-    url: str, local_hosts: frozenset[str] = frozenset({DOCKER_HOST_GATEWAY})
-) -> str | None:
+def plaintext_refusal(url: str, local_hosts: frozenset[str]) -> str | None:
     """Why a model-provider call may not go to `url`, or None when it may.
 
     https:// may go anywhere. Plaintext http:// may go only where there is no network to cross:
-    this machine -- loopback, or a host the deployment declared to be this machine (`local_hosts`;
-    the transport's own default is the Docker host, which it already treats as this machine). So
-    a LOCAL model, which is this machine by definition, may be plain http://, and an EXTERNAL one
-    on any other host must be https:// -- wherever its credential came from. The reason names the
-    scheme and host only: never the rest of the URL."""
+    this machine -- loopback, or a host the deployment declared to be this machine (`local_hosts`,
+    which every caller must pass: there is no default to fall back on). So a LOCAL model may be
+    plain http://, and an EXTERNAL one on any other host must be https:// -- wherever its
+    credential came from. The reason names the scheme and host only: never the rest of the URL."""
     parts = urlsplit(url)
     scheme, host = parts.scheme.lower(), (parts.hostname or "")
     if host and scheme == "https":
@@ -103,6 +108,22 @@ def plaintext_refusal(
         "call carries the credential and the research prompt, so a service on another host must "
         "be reached over https://"
     )
+
+
+def endpoint_refusal(url: str, reach: str, local_hosts: frozenset[str]) -> str | None:
+    """Why a connection's endpoint may not be USED under this deployment's declaration, or None.
+
+    The two rules a stored row must still meet at the moment of use, whatever was true when it was
+    written: a LOCAL endpoint is this machine (LOCAL skips the egress gate, so a LOCAL row naming a
+    host this deployment did not declare would carry research off the machine unguarded), and
+    every endpoint passes `plaintext_refusal`."""
+    if reach == "LOCAL" and not is_this_machine_url(url, local_hosts):
+        host = urlsplit(url).hostname or "?"
+        return (
+            f"{host} is declared LOCAL but is not this machine in this deployment: loopback "
+            "is, and another host name only where the deployment declares it"
+        )
+    return plaintext_refusal(url, local_hosts)
 
 
 class _NoRedirects(urllib.request.HTTPRedirectHandler):
@@ -124,15 +145,26 @@ class _NoRedirects(urllib.request.HTTPRedirectHandler):
 
 
 class OpenAICompatibleClient:
-    def __init__(self, base_url: str, api_key: str | None, *, timeout: float = 120.0) -> None:
+    """`local_hosts`: the hosts the deployment declared to be this machine, besides loopback. A
+    client built without them -- by any caller -- treats every other host as remote."""
+
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str | None,
+        *,
+        timeout: float = 120.0,
+        local_hosts: Iterable[str] = (),
+    ) -> None:
         self._base = base_url.rstrip("/")
         self._key = api_key
         self._timeout = timeout
+        declared = frozenset(h.lower() for h in local_hosts)
         #: Not None: this endpoint is refused by the transport rule, and nothing is ever sent to it.
-        self._refused = plaintext_refusal(base_url)
+        self._refused = plaintext_refusal(base_url, declared)
         # This machine is reached directly, never through an environment proxy: a proxy would
         # carry a LOCAL call off the machine.
-        direct = is_this_machine_url(base_url, frozenset({DOCKER_HOST_GATEWAY}))
+        direct = is_this_machine_url(base_url, declared)
         handlers: list[urllib.request.BaseHandler] = (
             [urllib.request.ProxyHandler({})] if direct else []
         )
@@ -243,6 +275,7 @@ __all__ = [
     "OpenAICompatibleClient",
     "ProviderError",
     "ProviderFailure",
+    "endpoint_refusal",
     "is_loopback_url",
     "is_this_machine_url",
     "plaintext_refusal",

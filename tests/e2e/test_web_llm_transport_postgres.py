@@ -12,17 +12,23 @@ call honours them, driven as the workspace drives them:
     research is refused before the credential is read
     a provider that redirects reaches nothing through any path: discovery, health, capability
     probes, research inference -- and none of its answer is kept
+    the Docker host is this machine only in a deployment that DECLARES it: the same rows reason
+    research where `--host-gateway host.docker.internal` is declared, and fail closed -- before a
+    credential is read or a connection opened -- where it is not
 """
 
 from __future__ import annotations
 
+import socket
 import urllib.request
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 
 import psycopg
 import pytest
 
+from lab_brain.interfaces.config import Settings
+from lab_brain.interfaces.web import Workspace, allowed_hosts
 from lab_brain.llm_runtime.registry import SqlLLMRegistry
 from lab_brain.llm_runtime.runtime import (
     LLMSettings,
@@ -30,7 +36,13 @@ from lab_brain.llm_runtime.runtime import (
     SettingsRefused,
     load_active_runtime,
 )
-from lab_brain.llm_runtime.secrets import DirectoryCredentialStore, SecretStore, fingerprint
+from lab_brain.llm_runtime.secrets import (
+    DirectoryCredentialStore,
+    SecretRef,
+    SecretStore,
+    fingerprint,
+)
+from lab_brain.research.vertical import load_vertical_factory
 from tests.e2e.test_research_episode_postgres import ACTOR
 from tests.e2e.test_web_llm_credentials_postgres import (
     KEY,
@@ -51,13 +63,16 @@ from tests.e2e.test_web_llm_runtime_postgres import (
     _runtime,
 )
 from tests.fake_llm_provider import REDIRECT_BODY, FakeProvider
+from tests.postgres_fixtures import database_url
 from tests.transport_endpoints import Endpoint
+from tests.wsgi_client import Browser
 
 pytestmark = pytest.mark.postgres
 
 #: Another host over plaintext. Never contacted: every test shows no request was even opened.
 REMOTE = "http://models.example.org/v1"
 CONSTRAINT = "llm_connections_plaintext_only_on_this_machine"
+GATEWAY = "host.docker.internal"
 _MIGRATION = Path(__file__).resolve().parents[2] / "migrations" / "012i_llm_transport.sql"
 
 
@@ -101,6 +116,43 @@ def writes(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
     monkeypatch.setattr(DirectoryCredentialStore, "write", recording)
     return kept
+
+
+@pytest.fixture
+def docker_host_resolves_here(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`host.docker.internal` resolves to 127.0.0.1, as Docker makes it resolve to the machine a
+    container runs on. Name resolution only: whether the workspace may SEND there is decided by
+    the deployment's declaration, which is what these tests vary."""
+    real = socket.getaddrinfo
+
+    def resolve(host, *args, **kwargs):  # type: ignore[no-untyped-def]
+        return real("127.0.0.1" if host == GATEWAY else host, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", resolve)
+
+
+def _deployment(
+    tmp_path: Path, *, local_hosts: Sequence[str] = (), ollama_url: str = "http://127.0.0.1:9/v1"
+) -> Browser:
+    """The workspace as `lab-brain web` builds it -- with the container deployment's declaration
+    (`--host-gateway host.docker.internal` -> `local_hosts`) or without one."""
+    return Browser(
+        Workspace(
+            actor_id=ACTOR,
+            settings=Settings(dsn=database_url()),
+            connect=lambda s: psycopg.connect(s.dsn),
+            artifact_root=tmp_path / "artifacts",
+            vertical_factory=load_vertical_factory("silicon_photonics"),
+            allowed_hosts=allowed_hosts("127.0.0.1", 8765),
+            secrets=SecretStore(
+                environ={"FAKE_KEY": KEY},
+                credentials=DirectoryCredentialStore(tmp_path / "credentials"),
+            ),
+            default_locale="en",
+            ollama_url=ollama_url,
+            local_hosts=local_hosts,
+        )
+    )
 
 
 def _remote(urls: list[str]) -> list[str]:
@@ -160,10 +212,18 @@ def _rewrite_endpoint(db, connection_id: str, url: str) -> None:  # type: ignore
         db.execute("ALTER TABLE llm_connections ENABLE TRIGGER llm_connections_guard_trg")
 
 
-def _active_runtime(db, browser, fake: FakeProvider) -> tuple[str, str]:  # type: ignore[no-untyped-def]
-    """An active runtime on the stand-in (EXTERNAL, loopback), with the project's egress
-    declared: research reaches the provider. Returns (connection id, runtime id)."""
-    assert _add(browser, fake, "fake", secret_value=KEY).status == 303
+def _active_runtime(db, browser, fake: FakeProvider, *, url: str = "") -> tuple[str, str]:  # type: ignore[no-untyped-def]
+    """An active runtime on the stand-in (EXTERNAL; at `url`, else its loopback address), with the
+    project's egress declared: research reaches the provider. Returns (connection, runtime) ids."""
+    fields = {
+        "provider": "custom",
+        "name": "fake",
+        "base_url": url or fake.base_url,
+        "reach": "EXTERNAL",
+        "secret_value": KEY,
+    }
+    added = _post(browser, "/settings/llm/connections", fields)
+    assert added.status == 303, _text(added)[:400]
     connection_id = _connection(db, "fake")[0]
     assert _post(browser, f"/settings/llm/connections/{connection_id}/fetch", {}).status == 303
     ids = {}
@@ -330,13 +390,69 @@ def test_a_historical_plaintext_route_is_never_reasoned_through(db, tmp_path, fa
     secrets = SecretStore(credentials=DirectoryCredentialStore(tmp_path / "credentials"))
 
     with pytest.raises(RuntimeUnavailable, match="neither https://"):
-        load_active_runtime(db, secrets)
+        load_active_runtime(db, secrets, local_hosts=())
     refused = _research(browser, tmp_path)
     assert refused.status == 409 and "neither https://" in _text(refused)
     blockers = _settings(db, tmp_path).readiness(runtime_id).blockers
     assert any("neither https://" in b for b in blockers), blockers
     assert len(fake.calls) == calls and _remote(opened) == []
     assert KEY not in _dump(db)
+
+
+# -- the Docker host: this machine only where the deployment declares it ---------------------------
+
+
+def test_the_docker_host_is_used_only_where_the_deployment_declares_it(
+    db, tmp_path, fake, ollama, opened, docker_host_resolves_here, monkeypatch
+):
+    _setup(db)
+    gateway = f"http://{GATEWAY}:{fake.port}/v1"
+    local_model = f"http://{GATEWAY}:{ollama.port}/v1"
+    store = DirectoryCredentialStore(tmp_path / "credentials")
+
+    # Declared -- the container deployment: the Docker host is this machine. Its local model is
+    # added from the Ollama form and reached, and an EXTERNAL route through it reasons research.
+    declared = _deployment(tmp_path, local_hosts=(GATEWAY,), ollama_url=local_model)
+    assert _post(declared, "/settings/llm/ollama", {}).status == 303
+    local_id = db.execute(
+        "SELECT connection_id FROM llm_connections WHERE reach = 'LOCAL'"
+    ).fetchone()[0]
+    models = db.execute(
+        "SELECT count(*) FROM llm_models WHERE connection_id = %s", (local_id,)
+    ).fetchone()[0]
+    assert models == 3, "the local model behind the declared Docker host answered"
+    connection_id, runtime_id = _active_runtime(db, declared, fake, url=gateway)
+    sent = _research(declared, tmp_path)
+    assert sent.status == 303, _text(sent)[:400]
+    assert fake.research_calls(), "research reached the model through the declared Docker host"
+    assert any(GATEWAY in u for u in opened)
+
+    # The same rows in a deployment that never declared it (`lab-brain web` without
+    # `--host-gateway`): nothing is inferred from the name, and nothing is read or sent.
+    resolved: list[str] = []
+    original = SecretStore.resolve
+
+    def recording(self: SecretStore, ref: SecretRef) -> str:
+        resolved.append(str(ref))
+        return original(self, ref)
+
+    monkeypatch.setattr(SecretStore, "resolve", recording)
+    opened.clear()
+    calls = len(fake.calls)
+    refused = _research(_deployment(tmp_path), tmp_path)
+    assert refused.status == 409 and "neither https:// nor this machine" in _text(refused)
+    with pytest.raises(RuntimeUnavailable, match="neither https:// nor this machine"):
+        load_active_runtime(db, SecretStore(credentials=store), local_hosts=())
+    assert resolved == [], "refused before the credential was read"
+    undeclared = _settings(db, tmp_path)
+    assert _refused(lambda: undeclared.fetch_models(local_id)).code == "local_remote"
+    assert _refused(lambda: undeclared.fetch_models(connection_id)).code == "url.plaintext"
+    blockers = undeclared.readiness(runtime_id).blockers
+    assert any("neither https:// nor this machine" in b for b in blockers), blockers
+    assert opened == [] and len(fake.calls) == calls, "no connection was opened"
+
+    # Declared again: the very same rows are usable -- the declaration is the only difference.
+    assert load_active_runtime(db, SecretStore(credentials=store), local_hosts=(GATEWAY,))
 
 
 # -- redirects ------------------------------------------------------------------------------------
