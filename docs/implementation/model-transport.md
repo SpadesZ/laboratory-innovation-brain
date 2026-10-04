@@ -177,4 +177,35 @@ re-anchored on the refactored checks.
 
 ### Verification
 
-Recorded in the follow-up commit, once CI and the full mutation battery have run.
+Code: `eb52255`. CI run `37212855708`: commit hygiene, spec conformance, lint/types/full suite
+and the PostgreSQL backend profile, all green.
+
+**Counts, reproducibly.** Every run below collects the same **2474** tests (the status file's
+total). The profiles differ only in what they skip, and every skip is accounted for:
+
+| Run (command) | Passed | Skipped | The skips |
+|---|---|---|---|
+| local, Windows: `pytest -q` | 1669 | 805 | 803 PostgreSQL-gated, 1 Lumerical, 1 network -- exactly the 805 backend-gated tests the status file lists ("a bare `pytest` executes 1669 of the 2474") |
+| CI, Linux: `pytest -q` (job *Lint, types and full suite*) | 1666 | 808 | the same 805, plus 3 environment skips: the Windows Credential Manager test (Linux), and 2 commit-range tests a shallow checkout cannot walk (the *Commit hygiene* job enforces those on full history) |
+| local, fresh database (56 migrations): `LAB_BRAIN_TEST_POSTGRES=1 pytest -q` | 2472 | 2 | 1 Lumerical, 1 network |
+| CI: the same (job *Backend profile (postgres)*) | 2469 | 5 | 1 Lumerical, 1 network, and the 3 environment skips above |
+
+None failed. Both whole local runs were made after `update_status.py` had regenerated the status
+file, so its freshness tests ran green rather than failing on a stale file (the cause of the
+omission corrected in §5).
+
+| Check | Result |
+|---|---|
+| ruff check / ruff format / strict mypy | clean (237 source files) |
+| `update_status.py --check` (also `--requirements-only`), obligation inventory `--check`, requirement coverage | current |
+| evidence, debate and root-cause benchmark reports `--check` | current (offline reports; the Lumi Agent benchmark was not run) |
+| mutation battery, the six locality entries and the two re-anchored ones (fresh database) | 8/8 killed |
+| mutation battery, all entries (fresh database, PostgreSQL profile) | 340/340 killed, no anchor missing (43 min) |
+
+**Deployed** (`docker compose -p lab-brain-workspace up --build -d` from `eb52255`; `web` and
+`local-models` both started with `--host-gateway host.docker.internal`): `local-models` kept the
+`ollama` connection at `http://host.docker.internal:11434/v1` and recorded `REACHABLE`, 4 models;
+through the deployed form, 本機模型（Ollama） → 取得可用模型 answered 303 and recorded `REACHABLE`,
+4 models -- the declared Docker host reaches Ollama as before; an external service at
+`http://models.example.org/v1` was still refused (409) with no key repeated, no row and no
+credential file added.
