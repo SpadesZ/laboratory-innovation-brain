@@ -42,7 +42,9 @@ not run.
 - **Pasted-key checks**, before anything is written: not empty, at most 4096 characters, no
   whitespace, line break or control character inside. A refusal never repeats the paste.
 - **Rotation** (更換 API 金鑰): the new key is stored and referenced first; then the old key is
-  deleted -- unless another live connection references the same stored key.
+  deleted -- unless another live connection references the same stored key. Saving runs the
+  connection check (檢查連線) with the new key at once, so a card that said 金鑰被拒絕 shows the new
+  key's result instead of asking for a fix already made; the check changes no lifecycle.
 - **Removal** (移除, `RETIRED`): the connection's stored key is deleted unless another live
   connection references it. An `env:` variable is the operator's and is never touched.
 - **No orphan.** A key stored for a connection the database then refuses is deleted at once.

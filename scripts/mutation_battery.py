@@ -2759,6 +2759,14 @@ MUTATIONS: tuple[Mutation, ...] = (
         tests=("tests/e2e/test_web_llm_credentials_postgres.py",),
     ),
     Mutation(
+        name="rotation_leaves_the_old_refusal_standing",
+        guards="credentials -- a replaced key is checked at once, so the page stops asking for it",
+        path="src/lab_brain/interfaces/web/app.py",
+        old="                # the old one and asking for a fix already made. It changes no lifecycle.\n                llm.check_health(connection_id)",
+        new="                # the old one and asking for a fix already made. It changes no lifecycle.\n                pass",
+        tests=("tests/e2e/test_web_llm_credentials_postgres.py",),
+    ),
+    Mutation(
         name="refused_connection_orphans_its_key",
         guards="credentials -- a key stored for a connection the database refused is deleted",
         path="src/lab_brain/llm_runtime/runtime.py",

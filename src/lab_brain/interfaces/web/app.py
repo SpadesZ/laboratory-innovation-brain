@@ -1595,6 +1595,10 @@ class Workspace:
                     secret_value=form.value("secret_value"),
                     secret_ref=form.value("secret_ref"),
                 )
+                # The connection check the researcher would run next, run now: the record then
+                # says whether the NEW key is accepted, instead of still showing the refusal of
+                # the old one and asking for a fix already made. It changes no lifecycle.
+                llm.check_health(connection_id)
             else:
                 raise SettingsRefused(req.m("msg.no_page"))
         except SettingsRefused as refused:

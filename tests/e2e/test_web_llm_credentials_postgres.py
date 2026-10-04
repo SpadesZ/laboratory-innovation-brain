@@ -242,6 +242,9 @@ def test_rotation_uses_the_new_key_at_once_and_deletes_the_old_one(db, tmp_path,
     assert _add(browser, fake, "rotated", secret_value=KEY).status == 303
     connection_id, old_ref, old_print = _connection(db, "rotated")
     old_file = old_ref.rsplit("/", 1)[1] if old_ref else ""
+    fake.api_key = NEW_KEY  # the provider revoked the old key
+    assert _post(browser, f"/settings/llm/connections/{connection_id}/fetch", {}).status == 409
+    assert "fix the API key of “rotated”" in _text(browser.get("/settings/llm"))
 
     rotated = _post(
         browser, f"/settings/llm/connections/{connection_id}/secret", {"secret_value": NEW_KEY}
@@ -251,8 +254,15 @@ def test_rotation_uses_the_new_key_at_once_and_deletes_the_old_one(db, tmp_path,
     assert new_ref != old_ref and new_print != old_print
     stored = _files(tmp_path / "credentials")
     assert old_file not in stored and list(stored.values()) == [NEW_KEY.encode()]
+    # Saving the new key checks the connection with it: the page stops asking for a fix.
+    latest = db.execute(
+        "SELECT outcome FROM llm_connection_health WHERE connection_id = %s"
+        " ORDER BY checked_at DESC LIMIT 1",
+        (connection_id,),
+    ).fetchone()[0]
+    assert latest == "REACHABLE"
+    assert "fix the API key of “rotated”" not in _text(browser.get("/settings/llm"))
 
-    fake.api_key = NEW_KEY
     assert _post(browser, f"/settings/llm/connections/{connection_id}/fetch", {}).status == 303
     fake.api_key = KEY  # the provider takes only the OLD key now: the workspace does not have it
     refused = _post(browser, f"/settings/llm/connections/{connection_id}/fetch", {})
