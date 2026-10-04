@@ -116,4 +116,46 @@ without project egress and the same routing with it.
 
 ## 7. Verification
 
-Recorded in the commit that closes this slice and its follow-up.
+Code: `4159294` (the slice) and `c37647c` (a replaced key is checked at once -- found in the deployed
+walkthrough below). CI run `37193251908` (`4159294`) and `37193982471` (`c37647c`): commit hygiene,
+spec conformance, lint/types/full suite and the PostgreSQL backend profile, all green.
+
+| Check | Result |
+|---|---|
+| ruff check / ruff format / strict mypy | clean (237 source files) |
+| backend-free `pytest` | 1657 passed, 798 skipped (PostgreSQL / Lumerical / network) |
+| fresh PostgreSQL database (55 migrations), whole suite | 2451 passed, 2 skipped (Lumerical, network), 1 failed: an assertion that still required a 401 body to be kept redacted -- now that body is not read at all; corrected, and the two LLM e2e files re-run: 22 passed. `c37647c`'s whole suite ran in CI's PostgreSQL job |
+| `update_status.py --check`, obligation inventory `--check`, `verify_environment.py` | current |
+| evidence, debate and root-cause benchmark reports `--check` | current (offline reports; the Lumi Agent benchmark was not run) |
+| mutation battery, credential entries (fresh database) | 15/15 killed, then `rotation_leaves_the_old_refusal_standing` killed |
+| mutation battery, all entries (fresh database, PostgreSQL profile) | 325/325 killed, no anchor missing (`c37647c`, 35 min) |
+
+**Deployed** (`docker compose -p lab-brain-workspace up --build -d` from `4159294`, then `c37647c`;
+`init` applied `012h`). The `credentials` volume is mounted on `web` only (`db`, `init`,
+`local-models`, `secrets` do not have it); in the container the directory is 0700
+`labbrain:labbrain`, each key a 0600 file of exactly the key's bytes; the image's directory is empty
+and `/var/lib/lab-brain/credentials/`, `/credentials` and a `..` path answer 404. The external
+provider was this machine's OpenAI-compatible stand-in (the tests' `FakeProvider`, a throwaway
+random key, reached as `http://host.docker.internal:18555/v1`) -- no real provider key was used.
+
+- **External, by the normal form**: AI 模型設定 → 外部 API → 其他 OpenAI 相容服務 + 自訂服務網址 under
+  進階設定 → name, pasted key → ＋ 新增 → 取得可用模型 (連線正常, 3 個模型) → fake-reasoner →
+  執行模型能力測試 (every capability passed) → 確認此模型 (已確認; offered for 主要推理 in step 3; not
+  assigned -- the researcher's draft runtime was left as it was). No page contained the key; the
+  database row held `file:lab-brain/llm/<uuid>` and `****59d3`.
+- **A refused key**: a stale key gave 金鑰被拒絕 and the next step 修正「standin-deploy」的 API 金鑰; the
+  health record is `HTTP 401: the provider refused the credential` -- the stand-in's echo of the key
+  is not kept. 更換 API 金鑰 replaced the file (the old one deleted) -- and still showed the old
+  refusal until 檢查連線, which `c37647c` fixed: re-done on the rebuilt deployment, the record showed
+  連線正常 at the moment of saving.
+- **Ollama**: 本機模型（Ollama） hides the external form; the page shows 「✓ 已連上本機 Ollama（4 個模型）」,
+  取得可用模型 and 進階設定 (a custom Ollama URL) -- no key, variable or reference field.
+  取得可用模型 reused the existing `ollama` connection (no new row) and refreshed its 4 models.
+- **Persistence**: after `docker compose restart web`, and again after `docker compose down` +
+  `up -d` (volumes kept), the same two files were there and 取得可用模型 answered 連線正常 with the
+  stored key. **Removal**: a separate throwaway project (`-p lbsecretcheck`, port 8799) took a key
+  pasted through the same form (0600 file, `file:` reference, fingerprint `****2bc8` -- the salt is
+  per deployment); `docker compose down -v` removed its `credentials` volume, and after `up` the
+  directory was empty and the database new. The throwaway project and its volumes were then removed.
+- Afterwards the two stand-in connections were **disabled** (停用, reversible) so the stand-in's
+  model is not offered for assignment; step 3 again offers only the Ollama models.
