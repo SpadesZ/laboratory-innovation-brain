@@ -51,7 +51,11 @@ _DETAIL = 240
 
 class ProviderFailure(StrEnum):
     AUTH_FAILED = "AUTH_FAILED"
+    #: No connection could be made: refused, unresolvable, or not accepted in time.
     UNREACHABLE = "UNREACHABLE"
+    #: The endpoint accepted the call and did not answer within the client's timeout -- for a
+    #: model call, the deployment's inference deadline. Reachable, and too slow for it.
+    TIMEOUT = "TIMEOUT"
     PROTOCOL_ERROR = "PROTOCOL_ERROR"
 
 
@@ -255,7 +259,14 @@ class OpenAICompatibleClient:
             raise ProviderError(
                 ProviderFailure.PROTOCOL_ERROR, f"HTTP {exc.code}: {detail}"
             ) from None
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        except TimeoutError:
+            # Raised as itself only once the request was sent (urllib wraps a connect timeout in
+            # URLError): the endpoint was reached and its answer did not arrive in time.
+            raise ProviderError(
+                ProviderFailure.TIMEOUT,
+                f"the endpoint accepted the call and did not answer within {self._timeout:g} s",
+            ) from None
+        except (urllib.error.URLError, OSError) as exc:
             reason = getattr(exc, "reason", exc)
             raise ProviderError(ProviderFailure.UNREACHABLE, self._clean(str(reason))) from None
         try:

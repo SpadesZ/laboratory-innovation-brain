@@ -21,10 +21,20 @@ it refuses everything else, fail-closed and before any write:
                and no new framing: it resumes the episode's own inputs. New evidence to debate is a
                new episode.
 
-ONE REASONING HISTORY. The continuation reuses the hypothesis set the opening run debated -- loaded
+ONE REASONING HISTORY. The continuation reuses the hypothesis set the episode recorded -- loaded
 from the durable debate record, positions, critiques and bundles -- and never debates again; `012c`
-refuses a second hypothesis set in the episode. Verification resumes over that set's certificates
-and their governed belief states, and its jobs keep their meaning across runs:
+refuses a second hypothesis set in the episode.
+
+A DEBATE THAT NEVER HAPPENED IS RETRIED. When the opening run's debate failed before any hypothesis
+set existed -- a provider that timed out, a route that was unavailable, a reply no parser accepted
+-- the episode was SUSPENDED, not closed, and the continuation debates for the first time, over the
+statements the opening run admitted (`statements`, recorded by reference in `012k`): nothing is
+ingested or admitted again, and the set it produces is recorded once, by that run. An episode that
+holds an UNRECORDED set (a debate that failed after admitting it) is still refused: an incomplete
+reasoning history is neither continued nor replaced.
+
+Verification resumes over that set's certificates and their governed belief states, and its jobs
+keep their meaning across runs:
 
     executed   a check an earlier run executed (its Job SUCCEEDED) is EXCLUDED from planning --
                running it again would count one execution twice as independent support.
@@ -49,11 +59,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from lab_brain.cognition.debate import DebateOutcome
+from lab_brain.core.models.enums import TrustClass
 from lab_brain.core.models.job import Job, JobState
 from lab_brain.core.repositories.debate import SqlDebateStore
 from lab_brain.core.repositories.evidence_bundles import SqlEvidenceBundleRepository
 from lab_brain.core.repositories.hypotheses import SqlHypothesisStore
 from lab_brain.core.repositories.jobs import JobStore
+from lab_brain.research.evidence import AdmittedStatement
 from lab_brain.verification.least_cost import PlanningResult
 from lab_brain.verification.loop import Planner
 
@@ -216,6 +228,63 @@ class SqlResearchRunStore:
             (at, INTERRUPTED, episode_id, project_id),
         ).fetchall()
         return tuple(sorted(int(row[0]) for row in rows))
+
+    def recorded_set(self, *, project_id: str, episode_id: str) -> str | None:
+        """The hypothesis set a run of the episode recorded -- by the run that debated it, at most
+        one per episode (`012c`, `012k`) -- or None while no debate has succeeded."""
+        row = self._connection.execute(
+            "SELECT hypothesis_set_id FROM research_runs WHERE episode_id = %s AND project_id = %s"
+            " AND hypothesis_set_id IS NOT NULL ORDER BY ordinal LIMIT 1",
+            (episode_id, project_id),
+        ).fetchone()
+        return None if row is None else str(row[0])
+
+    def record_statements(
+        self, research_run_id: str, statements: Sequence[AdmittedStatement], *, at: dt.datetime
+    ) -> None:
+        """What the run admitted, by reference and in order, while it is live (`012k`)."""
+        for ordinal, statement in enumerate(statements, start=1):
+            self._connection.execute(
+                "INSERT INTO research_run_statements (research_run_id, ordinal, attestation_id,"
+                " trust_class, source_name, recorded_at) VALUES (%s, %s, %s, %s, %s, %s)",
+                (
+                    research_run_id,
+                    ordinal,
+                    statement.attestation_id,
+                    statement.trust_class.value,
+                    statement.source_name,
+                    at,
+                ),
+            )
+
+    def statements(self, research_run_id: str) -> tuple[AdmittedStatement, ...]:
+        """The statements a run admitted, rebuilt from the attestations and claims it admitted --
+        the same records, read again; nothing is admitted anew."""
+        rows = self._connection.execute(
+            "SELECT s.attestation_id, a.claim_id, a.project_id, a.source_artifact_id,"
+            " a.evidence_unit_id, a.locator, c.normalized_proposition, s.trust_class,"
+            " s.source_name, a.source_work_id"
+            " FROM research_run_statements s"
+            " JOIN attestations a ON a.attestation_id = s.attestation_id"
+            " JOIN claims c ON c.claim_id = a.claim_id"
+            " WHERE s.research_run_id = %s ORDER BY s.ordinal",
+            (research_run_id,),
+        ).fetchall()
+        return tuple(
+            AdmittedStatement(
+                attestation_id=str(r[0]),
+                claim_id=str(r[1]),
+                project_id=str(r[2]),
+                artifact_id=str(r[3]),
+                evidence_unit_id=str(r[4] or ""),
+                locator=str(r[5]),
+                text=str(r[6]),
+                trust_class=TrustClass(r[7]),
+                source_name=str(r[8]),
+                source_work_id=None if r[9] is None else str(r[9]),
+            )
+            for r in rows
+        )
 
     def other_hypothesis_sets(self, *, project_id: str, episode_id: str) -> tuple[str, ...]:
         rows = self._connection.execute(

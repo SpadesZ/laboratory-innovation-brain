@@ -16,6 +16,10 @@ with a real Bearer credential, exactly as it would reach a hosted model. Its mod
 A wrong or missing credential gets 401 with the key it was sent ECHOED in the error body, as some
 providers do -- so a test can show the workspace never repeats it.
 
+`delay` (off by default) makes it a SLOW model: given a chat call's (prompt, system), the seconds
+it waits before answering -- so a test can run one role into the caller's deadline and leave the
+rest fast.
+
 `redirect_to` (off by default) makes it answer EVERY request with a redirect there instead
 (`redirect_status`, the request's path appended): a provider that moved, or one that tries to
 send the call -- credential and prompt -- somewhere else. Its body carries `REDIRECT_BODY`, so a
@@ -26,6 +30,8 @@ from __future__ import annotations
 
 import json
 import threading
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -52,6 +58,7 @@ class FakeProvider:
     api_key: str | None = None
     calls: list[Call] = field(default_factory=list)
     port: int = 0
+    delay: Callable[[str, str | None], float] | None = None
     redirect_to: str | None = None
     redirect_status: int = 307
     redirected: int = 0
@@ -81,11 +88,14 @@ class FakeProvider:
 
             def _send(self, status: int, body: Any) -> None:
                 raw = json.dumps(body).encode()
-                self.send_response(status)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(raw)))
-                self.end_headers()
-                self.wfile.write(raw)
+                try:
+                    self.send_response(status)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(raw)))
+                    self.end_headers()
+                    self.wfile.write(raw)
+                except OSError:  # a caller that gave up waiting (its deadline) has gone
+                    return
 
             def _moved(self) -> bool:
                 if provider.redirect_to is None:
@@ -123,6 +133,8 @@ class FakeProvider:
                 image = isinstance(user, list)
                 prompt = user[0]["text"] if image else user
                 provider.calls.append(Call(model, system, prompt, image))
+                if provider.delay is not None and (wait := provider.delay(prompt, system)) > 0:
+                    time.sleep(wait)
                 text = _answer(model, prompt, image, reasoner, slot)
                 self._send(
                     200,

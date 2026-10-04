@@ -262,6 +262,13 @@ APPLY_ORDER: tuple[str, ...] = (
     # on this machine (NOT VALID: older rows are refused where they are used). After 012f (the
     # this-machine host list it repeats).
     "012i_llm_transport.sql",
+    # A provider reached but too slow for the call's deadline is TIMEOUT, not UNREACHABLE. After
+    # 012e (llm_connection_health).
+    "012j_llm_timeout_outcome.sql",
+    # A debate that failed before admitting a hypothesis set is retried in the same episode: the
+    # opening run's admitted statements by reference, and the set recorded once by whichever run
+    # debated it. After 012c (research_runs) and 001 (attestations).
+    "012k_research_debate_retry.sql",
 )
 
 _BOOTSTRAP = """

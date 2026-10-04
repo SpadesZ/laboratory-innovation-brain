@@ -95,10 +95,12 @@ from lab_brain.llm_runtime.provider import (
 )
 from lab_brain.llm_runtime.registry import ModelRow, ProbeRow, RuntimeRow
 from lab_brain.llm_runtime.runtime import (
+    DEFAULT_INFERENCE_DEADLINE_S,
     EXTERNAL_LABELS,
     LLMSettings,
     RuntimeUnavailable,
     SettingsRefused,
+    checked_deadline,
     load_active_runtime,
 )
 from lab_brain.llm_runtime.secrets import DirectoryCredentialStore, SecretStore
@@ -238,8 +240,14 @@ class Workspace:
         local_hosts: Iterable[str] = (),
         ollama_url: str | None = None,
         credential_dir: Path | None = None,
+        inference_deadline: float | None = None,
     ) -> None:
         self._actor = actor_id
+        #: The deployment's inference deadline (`--inference-deadline`): the capability probes
+        #: this workspace runs and the research calls its active runtime makes are held to it.
+        self._deadline = checked_deadline(
+            DEFAULT_INFERENCE_DEADLINE_S if inference_deadline is None else inference_deadline
+        )
         #: Host names besides loopback that are this machine (the container deployment's Docker
         #: host): a model there may be declared LOCAL.
         self._local_hosts = tuple(local_hosts)
@@ -1182,7 +1190,9 @@ class Workspace:
         machine (`--host-gateway`). Every page and the research path load it here, so none of them
         can load it without the declaration -- `load_active_runtime` requires it, and a host the
         deployment did not declare is refused there, before a credential is read."""
-        return load_active_runtime(c, self._secrets, local_hosts=self._local_hosts)
+        return load_active_runtime(
+            c, self._secrets, local_hosts=self._local_hosts, inference_deadline=self._deadline
+        )
 
     def _reasoning(self, c: Any, req: _Req) -> ReasoningRuntime | None:
         try:
@@ -1289,7 +1299,11 @@ class Workspace:
 
     def _llm(self, c: Any) -> LLMSettings:
         return LLMSettings(
-            c, secrets=self._secrets, actor_id=self._actor, local_hosts=self._local_hosts
+            c,
+            secrets=self._secrets,
+            actor_id=self._actor,
+            local_hosts=self._local_hosts,
+            inference_deadline=self._deadline,
         )
 
     def _require_llm_admin(self, c: Any, req: _Req) -> None:

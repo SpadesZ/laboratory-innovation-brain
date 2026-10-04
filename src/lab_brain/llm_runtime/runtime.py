@@ -43,7 +43,13 @@ from lab_brain.llm_runtime.provider import (
     is_this_machine_url,
     plaintext_refusal,
 )
-from lab_brain.llm_runtime.readiness import Readiness, critic_route, egress_route, evaluate
+from lab_brain.llm_runtime.readiness import (
+    Readiness,
+    critic_route,
+    deadline_problem,
+    egress_route,
+    evaluate,
+)
 from lab_brain.llm_runtime.registry import (
     ConnectionRow,
     HealthRow,
@@ -79,6 +85,24 @@ EXTERNAL_LABELS: tuple[str, ...] = (
 )
 
 
+#: The longest a model call waits for its answer, unless the deployment sets its own
+#: (`lab-brain web --inference-deadline`, `LAB_BRAIN_INFERENCE_DEADLINE`). ONE deadline per
+#: deployment: the capability probes that qualify a model and the research calls an active runtime
+#: makes both use it, so a model is never qualified under a longer wait than research grants it.
+DEFAULT_INFERENCE_DEADLINE_S = 180.0
+
+#: Listing a provider's models and checking its health: an operational question, answered fast,
+#: and not a judgement of inference -- so it does not use the inference deadline.
+DISCOVERY_TIMEOUT_S = 20.0
+
+
+def checked_deadline(seconds: float) -> float:
+    """A usable inference deadline, or ValueError."""
+    if not 1.0 <= seconds <= 86_400.0:
+        raise ValueError("the inference deadline is between 1 and 86400 seconds")
+    return float(seconds)
+
+
 class SettingsRefused(ValueError):
     """A settings step cannot be taken as asked. Nothing was written.
 
@@ -110,7 +134,7 @@ class LLMSettings:
         actor_id: str,
         clock: Callable[[], dt.datetime] = utc_now,
         client: ClientFactory | None = None,
-        timeout: float = 120.0,
+        inference_deadline: float = DEFAULT_INFERENCE_DEADLINE_S,
         local_hosts: Iterable[str] = (),
     ) -> None:
         self.registry = SqlLLMRegistry(connection)
@@ -118,7 +142,9 @@ class LLMSettings:
         self._secrets = secrets
         self._actor = actor_id
         self._clock = clock
-        self._timeout = timeout
+        #: The deployment's inference deadline: what a capability probe may take, and what
+        #: readiness holds every bound slot's recorded probes to.
+        self._deadline = checked_deadline(inference_deadline)
         #: Host names besides loopback that are this machine: the Docker host of a containerised
         #: workspace (`host.docker.internal`), and only when the deployment says it is one.
         self._local_hosts = frozenset(h.lower() for h in local_hosts)
@@ -130,6 +156,10 @@ class LLMSettings:
         """Every client this service builds carries the deployment's declaration, so the
         transport's own check decides with it -- not with a guess from the host name."""
         return OpenAICompatibleClient(base_url, key, timeout=timeout, local_hosts=self._local_hosts)
+
+    @property
+    def inference_deadline(self) -> float:
+        return self._deadline
 
     @property
     def is_administrator(self) -> bool:
@@ -313,7 +343,9 @@ class LLMSettings:
         connection = self._enabled(model.connection_id)
         self._require_transport(connection)
         key = self._key(connection)
-        client = self._client(connection.base_url, key, self._timeout)
+        # Under the deployment's inference deadline: a capability is proven at the wait research
+        # will grant it, never a longer one.
+        client = self._client(connection.base_url, key, self._deadline)
         wanted = [c for c in PROBE_ORDER if capabilities is None or c in capabilities]
         rows = []
         for capability in wanted:
@@ -403,6 +435,7 @@ class LLMSettings:
             runtime,
             secret_problem=self._secret_problem,
             transport_problem=self._transport_problem,
+            inference_deadline=self._deadline,
         )
 
     def activate(self, runtime_id: str) -> Readiness:
@@ -508,7 +541,7 @@ class LLMSettings:
             key = self._key(connection)
         except SettingsRefused as refused:
             return "SECRET_UNAVAILABLE", str(refused), None, []
-        client = self._client(connection.base_url, key, min(self._timeout, 20.0))
+        client = self._client(connection.base_url, key, DISCOVERY_TIMEOUT_S)
         started = self._clock()
         try:
             names = client.list_models()
@@ -576,13 +609,18 @@ def load_active_runtime(
     secrets: SecretStore,
     *,
     local_hosts: Iterable[str],
-    timeout: float = 180.0,
+    inference_deadline: float,
 ) -> ReasoningRuntime | None:
     """`local_hosts`: the hosts THIS deployment declared to be this machine, besides loopback --
     required, because this is the last boundary before research reaches a network: a route is
     checked against the running deployment's declaration, never against what a row or a host name
-    suggests, and its client is built with the same declaration."""
+    suggests, and its client is built with the same declaration.
+
+    `inference_deadline`: the deployment's, also required. Every route's client waits that long
+    for an answer, and a route whose model needed longer for a capability its slot requires is
+    refused here -- research would only time out on it."""
     declared = frozenset(h.lower() for h in local_hosts)
+    deadline = checked_deadline(inference_deadline)
     registry = SqlLLMRegistry(connection)
     active = registry.active_runtime()
     if active is None:
@@ -612,6 +650,10 @@ def load_active_runtime(
                 f"the active LLM runtime {active.name} cannot be used: "
                 f"{connection_row.name}: {refusal}"
             )
+        if (slow := deadline_problem(registry, model, slot, deadline)) is not None:
+            raise RuntimeUnavailable(
+                f"the active LLM runtime {active.name} cannot be used: {slot.value}: {slow}"
+            )
         key: str | None = None
         if connection_row.secret_ref is not None:
             try:
@@ -633,7 +675,7 @@ def load_active_runtime(
         )
         routes[slot] = _Route(
             OpenAICompatibleClient(
-                connection_row.base_url, key, timeout=timeout, local_hosts=declared
+                connection_row.base_url, key, timeout=deadline, local_hosts=declared
             ),
             model.model_name,
         )
@@ -654,6 +696,8 @@ def load_active_runtime(
         "the typed role parsers, and is recorded in InferenceProvenance with the route below; "
         "the local catalog reasoner was not used.",
         *lines,
+        f"Each model call waits at most {deadline:g} s for its answer: the deployment's inference "
+        "deadline, the same one its capability probes were held to.",
         f"EMBEDDING: the built-in local embedder ({BUILTIN_EMBEDDING}).",
         critic,
         egress_route(sorted(external.values()), active.external_labels),
@@ -684,10 +728,13 @@ def load_active_runtime(
 
 
 __all__ = [
+    "DEFAULT_INFERENCE_DEADLINE_S",
+    "DISCOVERY_TIMEOUT_S",
     "EXTERNAL_LABELS",
     "LLMSettings",
     "RouteCompletion",
     "RuntimeUnavailable",
     "SettingsRefused",
+    "checked_deadline",
     "load_active_runtime",
 ]

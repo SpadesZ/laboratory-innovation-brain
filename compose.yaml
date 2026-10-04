@@ -37,6 +37,9 @@
 #   LAB_BRAIN_TZ              the time zone pages show times in (default Asia/Taipei)
 #   LAB_BRAIN_OLLAMA_URL      the host's OpenAI-compatible local endpoint
 #                             (default http://host.docker.internal:11434/v1; empty skips it)
+#   LAB_BRAIN_INFERENCE_DEADLINE  seconds one model call may wait for its answer (default 180):
+#                             ONE value for `web` (research calls, probes from the page) and
+#                             `local-models` (its probes). A CPU-only local model needs more
 
 name: lab-brain-workspace
 
@@ -117,6 +120,7 @@ services:
         --host-gateway host.docker.internal
         --credential-dir /var/lib/lab-brain/credentials
         $${LAB_BRAIN_OLLAMA_URL:+--ollama-url "$$LAB_BRAIN_OLLAMA_URL"}
+        --inference-deadline ${LAB_BRAIN_INFERENCE_DEADLINE:-180}
         --locale ${LAB_BRAIN_LOCALE:-en}
     ports:
       # The HOST's loopback only. Never "8765:8765", which publishes on every interface.
@@ -160,6 +164,7 @@ services:
         if [ -z "$$LAB_BRAIN_OLLAMA_URL" ]; then echo "local models: not configured"; exit 0; fi;
         exec python -m lab_brain.llm_runtime.local_setup --actor "$$LAB_BRAIN_ACTOR"
         --base-url "$$LAB_BRAIN_OLLAMA_URL" --host-gateway host.docker.internal
+        --inference-deadline ${LAB_BRAIN_INFERENCE_DEADLINE:-180}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

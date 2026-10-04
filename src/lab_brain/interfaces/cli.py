@@ -226,6 +226,18 @@ def render_explanation(
     return 0
 
 
+def _seconds(value: str) -> float:
+    """An inference deadline in seconds, 1 to 86400 (the CLI reaches no model; it only passes the
+    deployment's choice on)."""
+    try:
+        seconds = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{value!r} is not a number of seconds") from None
+    if not 1.0 <= seconds <= 86_400.0:
+        raise argparse.ArgumentTypeError("the inference deadline is between 1 and 86400 seconds")
+    return seconds
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="lab-brain", description="Laboratory Innovation Brain")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -396,6 +408,18 @@ def build_parser() -> argparse.ArgumentParser:
             "deployment's credentials volume): one file per key, 0600, never in the database. "
             "Filesystem isolation, not encryption. Without it, a pasted key goes to the "
             "operating system's credential store where there is one, and is refused elsewhere"
+        ),
+    )
+    web.add_argument(
+        "--inference-deadline",
+        type=_seconds,
+        metavar="SECONDS",
+        help=(
+            "the longest one model call may wait for its answer (default 180). ONE deadline for "
+            "the deployment: capability probes run in AI model settings are held to it, research "
+            "calls of the active configuration time out at it, and a configuration whose model "
+            "already needed longer for a required capability is not ready. A slow local model "
+            "(CPU-only) needs a larger one"
         ),
     )
     web.add_argument(
@@ -821,6 +845,7 @@ def run_web(
         local_hosts=gateways,
         credential_dir=Path(credential_dir) if credential_dir else None,
         ollama_url=getattr(args, "ollama_url", None) or None,
+        inference_deadline=getattr(args, "inference_deadline", None),
     )
     print(
         f"Research workspace for {args.actor}: http://"

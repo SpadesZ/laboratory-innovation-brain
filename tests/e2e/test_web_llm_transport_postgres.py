@@ -390,7 +390,7 @@ def test_a_historical_plaintext_route_is_never_reasoned_through(db, tmp_path, fa
     secrets = SecretStore(credentials=DirectoryCredentialStore(tmp_path / "credentials"))
 
     with pytest.raises(RuntimeUnavailable, match="neither https://"):
-        load_active_runtime(db, secrets, local_hosts=())
+        load_active_runtime(db, secrets, local_hosts=(), inference_deadline=180)
     refused = _research(browser, tmp_path)
     assert refused.status == 409 and "neither https://" in _text(refused)
     blockers = _settings(db, tmp_path).readiness(runtime_id).blockers
@@ -442,7 +442,9 @@ def test_the_docker_host_is_used_only_where_the_deployment_declares_it(
     refused = _research(_deployment(tmp_path), tmp_path)
     assert refused.status == 409 and "neither https:// nor this machine" in _text(refused)
     with pytest.raises(RuntimeUnavailable, match="neither https:// nor this machine"):
-        load_active_runtime(db, SecretStore(credentials=store), local_hosts=())
+        load_active_runtime(
+            db, SecretStore(credentials=store), local_hosts=(), inference_deadline=180
+        )
     assert resolved == [], "refused before the credential was read"
     undeclared = _settings(db, tmp_path)
     assert _refused(lambda: undeclared.fetch_models(local_id)).code == "local_remote"
@@ -452,7 +454,9 @@ def test_the_docker_host_is_used_only_where_the_deployment_declares_it(
     assert opened == [] and len(fake.calls) == calls, "no connection was opened"
 
     # Declared again: the very same rows are usable -- the declaration is the only difference.
-    assert load_active_runtime(db, SecretStore(credentials=store), local_hosts=(GATEWAY,))
+    assert load_active_runtime(
+        db, SecretStore(credentials=store), local_hosts=(GATEWAY,), inference_deadline=180
+    )
 
 
 # -- redirects ------------------------------------------------------------------------------------

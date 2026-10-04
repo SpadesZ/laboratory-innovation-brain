@@ -62,7 +62,8 @@ background:#e3e7ee}
 .state-LOCKED,.state-PASSED,.state-REACHABLE,.state-ENABLED,.state-BUILTIN{background:#d7f2de;
 color:#11522a}
 .state-FAILED,.state-REFUSED,.state-ABANDONED,.state-MISSING,.state-ERROR,.state-AUTH_FAILED,
-.state-UNREACHABLE,.state-PROTOCOL_ERROR,.state-SECRET_UNAVAILABLE{background:#fbd9d9;color:#7a1a1a}
+.state-UNREACHABLE,.state-TIMEOUT,.state-PROTOCOL_ERROR,.state-SECRET_UNAVAILABLE{background:#fbd9d9;
+color:#7a1a1a}
 .state-CONTRADICTED,.state-RETIRED,.state-UNBOUND{background:#e8e8e8;color:#555}
 .muted{color:#5b6475;font-size:13px}.error{background:#fbd9d9;border-color:#e2a0a0}
 .notice{background:#fff8e1;border-color:#e8d38c}.warn{background:#fff1c2;border-color:#e8c46a}

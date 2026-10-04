@@ -70,7 +70,11 @@ docker compose logs local-models # 本機模型（Ollama）探測結果
   `lab-brain-workspace_artifacts`（上傳檔案原始位元組）、`lab-brain-workspace_secrets`（產生的密碼）。
   以 `docker volume inspect <名稱>` 查看。
 - 可在同目錄的 `.env`（git 忽略）覆寫：`LAB_BRAIN_PORT`、`LAB_BRAIN_ACTOR`、`LAB_BRAIN_PROJECT`、
-  `LAB_BRAIN_CLEARANCE`、`LAB_BRAIN_LOCALE`、`LAB_BRAIN_OLLAMA_URL`（見 `compose.yaml` 開頭）。
+  `LAB_BRAIN_CLEARANCE`、`LAB_BRAIN_LOCALE`、`LAB_BRAIN_OLLAMA_URL`、`LAB_BRAIN_INFERENCE_DEADLINE`
+  （見 `compose.yaml` 開頭）。
+- `LAB_BRAIN_INFERENCE_DEADLINE`（秒，預設 180）是這個部署每次模型呼叫可等待回應的上限：能力測試與
+  研究中的模型呼叫都以它為準；若某個已確認模型的必要測試紀錄比它慢，配置不會顯示為可套用。只用 CPU
+  的本機模型需要較大的值。逾時會記為「回應逾時」（TIMEOUT），不是「連不上」。
 - 主機上的 Ollama 經由 `host.docker.internal` 以 LOCAL 路由連線（Linux 需讓 Ollama 監聽
   docker bridge，例如 `OLLAMA_HOST=0.0.0.0`）。本機模型只經既有能力探測、只自動綁定輕量 slot，
   主要推理與獨立批判永遠由研究者自行選擇。
@@ -173,6 +177,9 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   容器部署宣告的 Docker 主機）。模型呼叫一律不跟隨轉址（redirect），金鑰與研究內容不會被帶到別處。
   舊資料中違反此規則的連線無法啟用、測試或用於研究。設計記錄：
   [`docs/implementation/model-transport.md`](docs/implementation/model-transport.md)。
+- 研究的辯論若在產生任何假說集之前就失敗（例如模型呼叫逾時），研究任務會「暫停」而不是結束；修正原因
+  後按「繼續」，同一個研究任務會以第一次已採納的證據重新辯論，不會重新匯入或重新採納。設計記錄：
+  [`docs/implementation/inference-deadline-and-debate-retry.md`](docs/implementation/inference-deadline-and-debate-retry.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。

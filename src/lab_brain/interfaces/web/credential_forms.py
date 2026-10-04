@@ -202,6 +202,13 @@ Messages.extend(
             "服務的回應不符合 OpenAI 相容介面，或把連線轉址到其他位址（模型連線一律不跟隨轉址，"
             "金鑰與研究內容不會被送到別處）。請確認服務網址（通常以 /v1 結尾）。",
         ),
+        "err.provider.timeout": (
+            "The service accepted the connection but did not answer in time. Make sure it is "
+            "running normally; a slow local model may need a larger inference deadline "
+            "(LAB_BRAIN_INFERENCE_DEADLINE).",
+            "服務接受了連線，但沒有在時限內回應。請確認服務運作正常；較慢的本機模型可能需要"
+            "較大的推理時限（LAB_BRAIN_INFERENCE_DEADLINE）。",
+        ),
         "err.url.plaintext": (
             "An external service must use https://. Plain http:// is only for a model on this "
             "machine (such as the local Ollama); anywhere else the API key and the research "

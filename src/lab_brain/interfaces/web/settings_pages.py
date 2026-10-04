@@ -205,6 +205,19 @@ Messages.extend(
             "In step 3 choose a confirmed model for {slot} and press “Assign”.",
             "在步驟 3 替「{slot}」選一個已確認的模型，按「指派」。",
         ),
+        "llm.todo.too_slow": (
+            "“{model}”, assigned to {slot}, needed {seconds} s for a test this use requires -- "
+            "longer than this deployment allows one model call ({deadline} s)",
+            "指派給「{slot}」的「{model}」完成這項用途必要的測試花了 {seconds} 秒，"
+            "超過這個部署每次模型呼叫的時限（{deadline} 秒）",
+        ),
+        "llm.how.too_slow": (
+            "Raise the deployment's inference deadline (LAB_BRAIN_INFERENCE_DEADLINE, or lab-brain "
+            "web --inference-deadline) and restart it, or assign a faster model. The recorded "
+            "test results stay as they are.",
+            "提高部署的推理時限（LAB_BRAIN_INFERENCE_DEADLINE，或 lab-brain web "
+            "--inference-deadline）後重新啟動，或改指派較快的模型。已記錄的測試結果不會改變。",
+        ),
         "llm.todo.not_locked": (
             "The model “{model}” assigned to {slot} is no longer confirmed",
             "「{slot}」指派的「{model}」目前不是已確認狀態",
@@ -390,6 +403,7 @@ Messages.extend(
         "llm.h.REACHABLE": ("answers", "連線正常"),
         "llm.h.AUTH_FAILED": ("key refused", "金鑰被拒絕"),
         "llm.h.UNREACHABLE": ("unreachable", "連不上"),
+        "llm.h.TIMEOUT": ("no answer in time", "回應逾時"),
         "llm.h.PROTOCOL_ERROR": ("unexpected answer", "回應格式不符"),
         "llm.h.SECRET_UNAVAILABLE": ("key unreadable", "讀不到金鑰"),
         "llm.h.none": ("not checked yet", "尚未檢查"),

@@ -24,7 +24,11 @@ Each stage calls the service that already owns it, unchanged, and records what i
 
 THE EPISODE ENDS HONESTLY. Confirmed -> the episode is closed with that outcome. Waiting on a
 simulator, a person or a seat -> the episode is SUSPENDED with the reason, so it can be resumed as
-the same episode when the blocker is gone. Nothing sufficient left -> closed INCONCLUSIVE.
+the same episode when the blocker is gone. Nothing sufficient left -> closed INCONCLUSIVE. A debate
+that FAILED before any hypothesis set existed (a model call that timed out, a route that was
+unavailable, a reply no parser accepted) concluded nothing: SUSPENDED, and a continuation retries
+the debate over the statements this run admitted -- recorded by reference before the debate
+(`012k`), never ingested or admitted again.
 
 A NEW RUN ALWAYS OPENS A NEW EPISODE, under an id this service mints; a caller never names the
 episode a first run writes into. `ResearchRequest.episode_id` means CONTINUE that episode, and only
@@ -367,6 +371,8 @@ class ResearchEpisodeService:
             if run.verification_artifact is not None:
                 ledger.record_verification_input(record.research_run_id, run.verification_artifact)
             self._literature(request, vertical, run)
+            # Before the debate: if it fails, a continuation retries it over exactly these.
+            ledger.record_statements(record.research_run_id, run.statements, at=self._clock())
             debated = self._debate(
                 request, vertical, episode.episode_id, episode.trace_id, budget, run
             )
@@ -435,14 +441,18 @@ class ResearchEpisodeService:
                     f"Episode {episode_id} runs on trace {episode.trace_id}; a continuation keeps "
                     "the episode's trace."
                 )
-            # The reasoning history, loaded and checked BEFORE anything is written.
+            # The reasoning history, loaded and checked BEFORE anything is written: the set a run
+            # of the episode recorded (the opener's, or a retry's), else -- no set at all -- the
+            # opening run's admitted statements, for retrying the debate that never produced one.
+            recorded = ledger.recorded_set(project_id=request.project_id, episode_id=episode_id)
             debate: DebateOutcome | None = None
-            if opener.hypothesis_set_id is not None:
+            retry: tuple[AdmittedStatement, ...] = ()
+            if recorded is not None:
                 debate = load_debate(
                     c,
                     project_id=request.project_id,
                     episode_id=episode_id,
-                    set_id=opener.hypothesis_set_id,
+                    set_id=recorded,
                 )
             elif sets := ledger.other_hypothesis_sets(
                 project_id=request.project_id, episode_id=episode_id
@@ -452,6 +462,8 @@ class ResearchEpisodeService:
                     f"{', '.join(sets)} and before the run recorded it; an incomplete reasoning "
                     "history is neither continued nor replaced. Open a new episode."
                 )
+            else:
+                retry = ledger.statements(opener.research_run_id)
             if (
                 opener.verification_artifact_id is not None
                 and self._read_bytes(opener.verification_artifact_id) is None
@@ -513,7 +525,7 @@ class ResearchEpisodeService:
                     project_id=request.project_id,
                     actor_id=request.actor_id,
                     ordinal=len(earlier) + 1,
-                    hypothesis_set_id=opener.hypothesis_set_id,
+                    hypothesis_set_id=recorded,
                     verification_artifact_id=opener.verification_artifact_id,
                     symptom=opener.symptom,
                     expected_behavior=opener.expected_behavior,
@@ -556,12 +568,28 @@ class ResearchEpisodeService:
                 "SKIPPED",
                 "a continuation takes no new documents; the episode's evidence stands as admitted",
             )
-            run.stage("evidence", "SKIPPED", "no statements added; the episode's own are unchanged")
+            if retry:
+                run.statements.extend(retry)
+                run.stage(
+                    "evidence",
+                    "RESUMED",
+                    f"{len(retry)} statement(s) admitted by run {opener.ordinal}, reasoned over as "
+                    "admitted: nothing ingested or admitted again",
+                )
+            else:
+                run.stage(
+                    "evidence", "SKIPPED", "no statements added; the episode's own are unchanged"
+                )
             self._resumed_input(vertical, opener, run)
             run.stage("external evidence", "SKIPPED", "a continuation contacts no external source")
             debated = self._debate(
                 effective, vertical, episode_id, episode.trace_id, budget, run, resumed=debate
             )
+            if debate is None and run.debate is not None:
+                # The retried debate produced the episode's first set: recorded once, by this run.
+                ledger.record_hypothesis_set(
+                    record.research_run_id, run.debate.hypothesis_set.set_id
+                )
             if debated is not None:
                 self._verify(
                     effective, vertical, episode_id, episode.trace_id, budget, *debated, run
@@ -958,12 +986,12 @@ class ResearchEpisodeService:
         opening run recorded, and never a second one."""
         c = self._connection
         regs = vertical.registry.registries
-        if run.continuation is not None and resumed is None:
+        if run.continuation is not None and resumed is None and not run.statements:
             run.stage(
                 "hypotheses",
                 "SKIPPED",
-                "the episode has no recorded hypothesis set -- its opening run ended before a "
-                "debate -- and a continuation never starts one",
+                "the episode has no recorded hypothesis set and its opening run recorded no "
+                "admitted statements to debate over",
             )
             run.stage("verification", "SKIPPED", "no hypotheses to verify")
             return None
@@ -1096,7 +1124,13 @@ class ResearchEpisodeService:
             "hypotheses",
             "DONE",
             f"{len(outcome.certificates)} competing hypotheses admitted after "
-            f"{outcome.record.rounds} debate round(s) and an independent critique",
+            f"{outcome.record.rounds} debate round(s) and an independent critique"
+            + (
+                " -- the episode's first debate, retried: an earlier run's failed before any "
+                "hypothesis set existed"
+                if run.continuation is not None
+                else ""
+            ),
         )
         return self._brain(vertical, debate, hypotheses, events, debates, attestations, gate)
 
@@ -1524,6 +1558,39 @@ class ResearchEpisodeService:
                 statement=(
                     "verification failed with an error before reaching a result (see Stages); "
                     "the episode is SUSPENDED so it can be continued, not closed"
+                ),
+            )
+        elif (
+            run.debate is None
+            and (
+                failed := next(
+                    (s for s in run.stages if s.stage == "hypotheses" and s.status == "FAILED"),
+                    None,
+                )
+            )
+            is not None
+            and not SqlResearchRunStore(c).other_hypothesis_sets(
+                project_id=request.project_id, episode_id=episode_id
+            )
+        ):
+            # Not a conclusion: the debate failed before any hypothesis set existed, so nothing
+            # was reasoned. Closed, the failure would be final; parked, the same episode retries
+            # the debate over the statements this episode already admitted.
+            episode_store.suspend(
+                episode_id,
+                reason=(
+                    "the debate failed before a hypothesis set existed "
+                    f"({failed.detail[:240]}); continue the episode to retry it"
+                ),
+                at=self._clock(),
+            )
+            episode_state = "SUSPENDED"
+            conclusion = Conclusion(
+                status="NOT_REACHED",
+                statement=(
+                    "the debate failed before producing a hypothesis set (see Stages); the episode "
+                    "is SUSPENDED so it can be continued and the debate retried over the evidence "
+                    "it already admitted"
                 ),
             )
         else:

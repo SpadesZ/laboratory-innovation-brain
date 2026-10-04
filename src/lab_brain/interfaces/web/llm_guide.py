@@ -171,6 +171,10 @@ _NOT_LOCKED = re.compile(rf"^({_SLOT}): model (.+) is (\w+), not LOCKED$")
 _CONN_STATE = re.compile(rf"^({_SLOT}): connection (\S+) is (DISABLED|RETIRED)$")
 _NEVER_CHECKED = re.compile(rf"^({_SLOT}): connection (\S+) has never been health-checked$")
 _UNHEALTHY = re.compile(rf"^({_SLOT}): connection (\S+)'s latest health check was (\w+)")
+_TOO_SLOW = re.compile(
+    rf"^({_SLOT}): model (.+)'s recorded (\w+) probe took (\d+) s, longer than this "
+    r"deployment's inference deadline \(([0-9.]+) s\)$"
+)
 _CREDENTIAL = re.compile(rf"^({_SLOT}): connection (\S+): (.+)$")
 _CRITIC = re.compile(r"^the Adversarial Critic falls back to REASONING_PRIMARY")
 
@@ -205,6 +209,18 @@ def blocker_todo(blocker: str) -> Todo:
             "llm.todo.unhealthy",
             "llm.how.unhealthy",
             {"slot": m.group(1), "connection": m.group(2), "outcome": m.group(3)},
+            blocker,
+        )
+    if m := _TOO_SLOW.match(blocker):
+        return Todo(
+            "llm.todo.too_slow",
+            "llm.how.too_slow",
+            {
+                "slot": m.group(1),
+                "model": m.group(2),
+                "seconds": m.group(4),
+                "deadline": m.group(5),
+            },
             blocker,
         )
     if m := _CREDENTIAL.match(blocker):

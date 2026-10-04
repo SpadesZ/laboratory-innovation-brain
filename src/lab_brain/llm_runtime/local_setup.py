@@ -43,7 +43,7 @@ from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.interfaces.config import ConfigurationError, open_connection, read_settings
 from lab_brain.llm_runtime.capabilities import SLOT_REQUIREMENTS
 from lab_brain.llm_runtime.registry import ModelRow
-from lab_brain.llm_runtime.runtime import LLMSettings, SettingsRefused
+from lab_brain.llm_runtime.runtime import DEFAULT_INFERENCE_DEADLINE_S, LLMSettings, SettingsRefused
 from lab_brain.llm_runtime.secrets import SecretStore
 
 CONNECTION_NAME = "ollama"
@@ -160,6 +160,14 @@ def main(
     parser.add_argument("--actor", required=True, help="an LLM administrator of this deployment")
     parser.add_argument("--base-url", required=True, help="the local OpenAI-compatible endpoint")
     parser.add_argument("--host-gateway", action="append", default=[], metavar="NAME")
+    parser.add_argument(
+        "--inference-deadline",
+        type=float,
+        default=DEFAULT_INFERENCE_DEADLINE_S,
+        metavar="SECONDS",
+        help="the deployment's inference deadline: what each capability probe may take (the web "
+        "workspace holds research calls to the same one)",
+    )
     args = parser.parse_args(argv)
     stream = out or sys.stdout
     try:
@@ -175,7 +183,7 @@ def main(
             secrets=SecretStore(credentials=None),
             actor_id=args.actor,
             local_hosts=args.host_gateway,
-            timeout=300.0,
+            inference_deadline=args.inference_deadline,
         )
         return configure(llm, args.base_url.rstrip("/"), out=stream)
     except SettingsRefused as refused:

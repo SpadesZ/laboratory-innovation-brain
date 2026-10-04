@@ -76,10 +76,13 @@ def evaluate(
     *,
     secret_problem: Callable[[ConnectionRow], str | None],
     transport_problem: Callable[[ConnectionRow], str | None],
+    inference_deadline: float,
 ) -> Readiness:
     """`secret_problem` answers, for a connection, why its credential cannot be read (or None);
     `transport_problem`, why this deployment may not use its endpoint (or None) -- the caller's,
-    because only the caller knows which hosts its deployment declared to be this machine."""
+    because only the caller knows which hosts its deployment declared to be this machine.
+    `inference_deadline`: the deployment's, which every bound slot's recorded probes are held to
+    (`deadline_problem`)."""
     bindings = registry.bindings(runtime.runtime_id)
     locked = [m for m in registry.models() if m.lifecycle == "LOCKED"]
     connections = {c.connection_id: c for c in registry.connections()}
@@ -115,6 +118,8 @@ def evaluate(
         transport = transport_problem(connection)
         if transport is not None:
             problems.append(f"connection {connection.name}: {transport}")
+        if (slow := deadline_problem(registry, model, slot, inference_deadline)) is not None:
+            problems.append(slow)
         if connection.secret_ref is not None:
             problem = secret_problem(connection)
             if problem is not None:
@@ -226,8 +231,44 @@ def egress_route(external: Sequence[str], labels: Sequence[str]) -> str:
     )
 
 
+def deadline_problem(
+    registry: SqlLLMRegistry, model: ModelRow, slot: LogicalSlot, deadline: float
+) -> str | None:
+    """Why the deployment's inference deadline is already known to be too short for `model` on
+    `slot`, or None.
+
+    The evidence is the model's own recorded capability probes: for each capability the slot
+    requires, the latest one -- for a locked model, the one its lock counted -- read against the
+    deadline in force NOW. Nothing is re-probed or rewritten: raising the deadline makes the same
+    evidence acceptable, lowering it makes it a blocker. This is the deployment's operability, not
+    a capability -- the lock and the slot's requirements are untouched."""
+    probes = registry.latest_probes(model.model_profile_id)
+    slow = [
+        (probe.latency_ms, capability.value)
+        for capability in SLOT_REQUIREMENTS[slot]
+        if (probe := probes.get(capability)) is not None
+        and probe.outcome == "PASSED"
+        and probe.latency_ms is not None
+        and probe.latency_ms > deadline * 1000
+    ]
+    if not slow:
+        return None
+    latency_ms, capability = max(slow)
+    return (
+        f"model {model.model_name}'s recorded {capability} probe took {latency_ms / 1000:.0f} s, "
+        f"longer than this deployment's inference deadline ({deadline:g} s)"
+    )
+
+
 def _proves(model: ModelRow, required: frozenset[Capability]) -> bool:
     return {c.value for c in required} <= set(model.locked_capabilities or ())
 
 
-__all__ = ["Readiness", "SlotReadiness", "critic_route", "egress_route", "evaluate"]
+__all__ = [
+    "Readiness",
+    "SlotReadiness",
+    "critic_route",
+    "deadline_problem",
+    "egress_route",
+    "evaluate",
+]
