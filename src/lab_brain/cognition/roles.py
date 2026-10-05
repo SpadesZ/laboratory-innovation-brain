@@ -82,16 +82,22 @@ class RoleContract:
 #: said "at least two" while the context -- and the parser -- demanded the caller's minimum (a
 #: domain's Stage A asks for one per catalogued mechanism; a later round may ask for one), so a
 #: model was told two different counts at once.
+#: 2.1.0: the binding rule is said, not only enforced. A model given several outcome spaces bound a
+#: prediction to one it named itself from a quantity in the evidence; the parser refused it
+#: (VER-004), as it still does -- the prompt now says where every space id and outcome comes from.
 HYPOTHESIS_ENGINE = RoleContract(
     role=CognitiveRole.HYPOTHESIS_ENGINE,
     prompt=PromptTemplate(
         "prm:hypothesis-engine",
-        "2.0.0",
+        "2.1.0",
         "You are the Hypothesis Engine. From ONLY the evidence given, propose at least "
         "CONTEXT.minimum_hypotheses competing mechanisms -- never fewer -- as complete hypothesis "
         "certificates -- statement, mechanism, assumptions, falsifier, confounders, minimal test "
-        "and typed predictions over the declared outcome spaces -- and your position. Reply with "
-        "JSON.",
+        "and typed predictions -- and your position. Bind every prediction to an outcome space in "
+        "CONTEXT.outcome_spaces: copy its outcome_space_id and outcome_space_version exactly, as "
+        "the pair given there, and its expected_outcome verbatim from that same space's outcomes. "
+        "Never invent or infer an outcome space from the evidence, even when the evidence names a "
+        "quantity that sounds like an observable. Reply with JSON.",
     ),
     requires=frozenset({"question", "evidence", "outcome_spaces", "minimum_hypotheses"}),
 )

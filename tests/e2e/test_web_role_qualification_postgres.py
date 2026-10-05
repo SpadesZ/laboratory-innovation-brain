@@ -4,7 +4,8 @@ The workspace's research asks for one competing hypothesis per mechanism its ver
 (5 for the silicon-photonics pack). Driven as an administrator would, with the stand-in model:
 
     the requirement     is read from the vertical; ROLE_HYPOTHESIS is probed at it and the evidence
-                        records it; research names the lock and the 2.0.0 Hypothesis Engine prompt
+                        records it; research names the lock and the Hypothesis Engine prompt in
+                        force
     stale               after the qualification semantics change, research is refused before any
                         model call, the page says the confirmation predates the current test rules,
                         and no lock or InferenceProvenance is rewritten
@@ -23,6 +24,7 @@ from unittest.mock import patch
 import pytest
 
 import lab_brain.llm_runtime.registry as registry_module
+from lab_brain.cognition.roles import HYPOTHESIS_ENGINE
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.domains.silicon_photonics.product import mechanism_catalog
 from lab_brain.llm_runtime.runtime import LLMSettings
@@ -63,11 +65,14 @@ def test_the_web_qualifies_at_the_verticals_minimum_and_refuses_stale_locks(db, 
     probes = [c for c in fake.calls if c.system and "CONTEXT.minimum_hypotheses" in c.system]
     assert probes and all(f'"minimum_hypotheses":{required}' in c.prompt for c in probes)
     reasoner = _model(db, "fake-reasoner", connection_id)
-    assert db.execute(
-        "SELECT parameters FROM llm_capability_probes WHERE model_profile_id = %s"
-        " AND capability = 'ROLE_HYPOTHESIS'",
-        (reasoner,),
-    ).fetchone()[0] == {"minimum_hypotheses": required}
+    assert (
+        db.execute(
+            "SELECT parameters FROM llm_capability_probes WHERE model_profile_id = %s"
+            " AND capability = 'ROLE_HYPOTHESIS'",
+            (reasoner,),
+        ).fetchone()[0]["minimum_hypotheses"]
+        == required
+    )
     # The model page says what was demonstrated -- in its latest results and its test history.
     shown = browser.get(f"/settings/llm/models/{reasoner}")
     assert "&lt;span" not in shown.text, "a label is markup, never escaped text"
@@ -79,7 +84,8 @@ def test_the_web_qualifies_at_the_verticals_minimum_and_refuses_stale_locks(db, 
     old_lock = db.execute(
         "SELECT lock_fingerprint FROM llm_models WHERE model_profile_id = %s", (reasoner,)
     ).fetchone()[0]
-    assert before and {(v, p) for _, v, p in before} == {(old_lock, "2.0.0")}
+    prompt = HYPOTHESIS_ENGINE.prompt.prompt_version
+    assert before and {(v, p) for _, v, p in before} == {(old_lock, prompt)}
 
     # The qualification semantics change: everything locked before is stale.
     with patch.object(registry_module, "QUALIFICATION_DIGEST", "f" * 64):

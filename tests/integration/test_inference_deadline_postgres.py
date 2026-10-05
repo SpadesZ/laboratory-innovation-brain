@@ -23,6 +23,7 @@ from collections.abc import Iterator
 import pytest
 
 from lab_brain.core.models.inference import LogicalSlot
+from lab_brain.llm_runtime.probes import PROBE_VERSION
 from lab_brain.llm_runtime.provider import OpenAICompatibleClient
 from lab_brain.llm_runtime.registry import SqlLLMRegistry
 from lab_brain.llm_runtime.runtime import (
@@ -100,8 +101,8 @@ def _smoke_configuration(db, base_url: str) -> str:  # type: ignore[no-untyped-d
         db.execute(
             "INSERT INTO llm_capability_probes (probe_id, model_profile_id, capability, outcome,"
             " probe_version, latency_ms, probed_at, parameters) VALUES (%s, 'llm:qwen', %s,"
-            " 'PASSED', 'probe-2.0.0', %s, %s, %s::jsonb)",
-            (f"lcp:qwen-{n}", capability, latency, T0, parameters),
+            " 'PASSED', %s, %s, %s, %s::jsonb)",
+            (f"lcp:qwen-{n}", capability, PROBE_VERSION, latency, T0, parameters),
         )
     db.execute("UPDATE llm_models SET lifecycle = 'TESTED' WHERE model_profile_id = 'llm:qwen'")
     # Locked through the registry, so the lock is current under the qualification semantics.

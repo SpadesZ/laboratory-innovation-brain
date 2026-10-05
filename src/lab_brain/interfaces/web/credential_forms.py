@@ -202,6 +202,12 @@ Messages.extend(
             "服務的回應不符合 OpenAI 相容介面，或把連線轉址到其他位址（模型連線一律不跟隨轉址，"
             "金鑰與研究內容不會被送到別處）。請確認服務網址（通常以 /v1 結尾）。",
         ),
+        "err.lock.outdated_tests": (
+            "This model's latest capability tests were run under earlier test rules, so they "
+            "cannot be confirmed. Run the capability test again, then confirm the model.",
+            "這個模型最近一次的能力測試是在舊版測試規則下完成的，不能據此確認。"
+            "請先重新執行能力測試，再確認此模型。",
+        ),
         "err.provider.timeout": (
             "The service accepted the connection but did not answer in time. Make sure it is "
             "running normally; a slow local model may need a larger inference deadline "

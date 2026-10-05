@@ -32,7 +32,9 @@ from lab_brain.cognition.roles import ADVERSARIAL_CRITIC, HYPOTHESIS_ENGINE, QUE
 from lab_brain.core.models.debate import ObjectionKind, ObjectionSeverity
 from lab_brain.core.models.prediction import PREDICTION_EFFECT_TYPES
 
-RESPONSE_CONTRACT_VERSION = "rc-1.0.0"
+#: rc-1.1.0: the Hypothesis Engine's contract says where a prediction's outcome space comes from
+#: (the pair as given in CONTEXT.outcome_spaces, never one named from the evidence).
+RESPONSE_CONTRACT_VERSION = "rc-1.1.0"
 
 #: Where a rendered context block begins (`cognition.llm._render`).
 CONTEXT_MARKER = "\n\nCONTEXT:\n"
@@ -68,7 +70,11 @@ HYPOTHESIS_CONTRACT = _BARE + (
     '"confounders": ["<text>", ...]}}. '
     "Give at least CONTEXT.minimum_hypotheses competing hypotheses with distinct keys and distinct "
     "mechanisms; every hypothesis needs at least one prediction over a space in "
-    "CONTEXT.outcome_spaces; lists may be empty but must be lists of non-empty strings."
+    "CONTEXT.outcome_spaces; lists may be empty but must be lists of non-empty strings. "
+    "Copy each prediction's outcome_space_id and outcome_space_version together, exactly as one "
+    "entry of CONTEXT.outcome_spaces gives them, and its expected_outcome from that entry's "
+    "outcomes. Never make up an outcome space or derive one from a quantity named in the "
+    "evidence; if no given space fits a prediction, make a different prediction that one does."
 )
 
 SPECIALIST_CONTRACT = _BARE + (

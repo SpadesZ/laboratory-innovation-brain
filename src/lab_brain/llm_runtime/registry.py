@@ -25,7 +25,12 @@ T = TypeVar("T")
 
 
 class RegistryRefused(ValueError):
-    """The database refused the write; the message is its rule."""
+    """The database -- or the registry, for a rule it keeps -- refused the write; the message is the
+    rule. `code` names a case a page explains in the researcher's words."""
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -357,10 +362,26 @@ class SqlLLMRegistry:
         return frozenset(Capability(c) for c in (row[0] or ()))
 
     def lock(self, model_profile_id: str, *, actor_id: str, at: dt.datetime) -> ModelRow:
+        """Lock exactly what the latest probes proved. Only probes run under the probes in force
+        (`PROBE_VERSION`) can be locked: a fingerprint is computed under the semantics in force, so
+        a lock made now from older evidence -- unlocking a stale model and locking it again without
+        testing it -- would pass as current on tests that no longer qualify anything."""
         model = self._require(self.model(model_profile_id))
         connection = self._require(self.connection(model.connection_id))
         verified = sorted(c.value for c in self.verified_capabilities(model_profile_id))
-        qualification = qualification_of(self.latest_probes(model_profile_id), verified)
+        probes = self.latest_probes(model_profile_id)
+        outdated = sorted(
+            c for c in verified if probes[Capability(c)].probe_version != PROBE_VERSION
+        )
+        if outdated:
+            ran = sorted({probes[Capability(c)].probe_version for c in outdated})
+            raise RegistryRefused(
+                f"model {model.model_name}'s latest tests of {', '.join(outdated)} ran under "
+                f"{', '.join(ran)}, not the tests in force ({PROBE_VERSION}); test it again before "
+                "confirming it",
+                code="lock.outdated_tests",
+            )
+        qualification = qualification_of(probes, verified)
         self._write(
             "UPDATE llm_models SET lifecycle = 'LOCKED', locked_capabilities = %s,"
             " lock_fingerprint = %s, locked_at = %s, locked_by = %s WHERE model_profile_id = %s",

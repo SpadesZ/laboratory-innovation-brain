@@ -185,6 +185,12 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   檢查會列出原因，研究會在呼叫模型前被拒絕。測試規則（測試內容、角色提示詞、回應格式）改變後，先前完成
   的模型確認即失效，必須重新測試並重新確認；舊的確認紀錄與推理來源紀錄保留不變。設計記錄：
   [`docs/implementation/role-qualification.md`](docs/implementation/role-qualification.md)。
+- 假說引擎的能力測試是一組固定、有版本的一致性測試（hypothesis-conformance@1.0.0）：除了原本的單一結果
+  空間案例，還有一個多結果空間案例，其證據會提到不屬於任何宣告結果空間的量。模型必須在每個案例中都提出
+  足夠數量的假說，且每個預測只能使用 CONTEXT 中宣告的結果空間（含版本）與該空間允許的結果；自行從證據
+  推論出結果空間的模型不會通過。測試規則改變後，舊的模型確認會失效，而且必須重新測試才能再確認（不能只
+  解除確認再確認）。設計記錄：
+  [`docs/implementation/hypothesis-conformance.md`](docs/implementation/hypothesis-conformance.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。

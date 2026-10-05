@@ -91,7 +91,7 @@ def test_evidence_for_two_does_not_qualify_for_research_that_asks_for_five(db, l
         " AND capability = 'ROLE_HYPOTHESIS'",
         (model_id,),
     ).fetchone()[0]
-    assert recorded == {"minimum_hypotheses": 2}, "the evidence says what was demonstrated"
+    assert recorded["minimum_hypotheses"] == 2, "the evidence says what was demonstrated"
 
     unfit = UNFIT.format(shown=2, required=5)
     blockers = _settings(db, 5).readiness(runtime_id).blockers

@@ -4,7 +4,8 @@ demonstrates and records, and what makes a lock stale.
     the prompt          asks for CONTEXT.minimum_hypotheses -- never a number of its own -- so it
                         agrees with the context, the response contract and the parser
     the probe           runs at the N it is asked for, judges by the real parser at that N, and
-                        records N with the result: the evidence says what was demonstrated
+                        records N with the result: the evidence says what was demonstrated (the
+                        suite's other cases: `tests/unit/test_hypothesis_conformance.py`)
     the semantics       probe payloads, role prompt ids/versions/texts and response contracts form
                         one digest; changing any of them changes every lock fingerprint
     the requirement     is the research's (one per catalogued mechanism of its vertical), not a
@@ -30,11 +31,13 @@ from lab_brain.llm_runtime.capabilities import Capability
 from lab_brain.llm_runtime.contracts import CONTRACT_DIGEST, HYPOTHESIS_CONTRACT
 from lab_brain.llm_runtime.probes import (
     GENERIC_HYPOTHESIS_MINIMUM,
+    HYPOTHESIS_SUITE,
     PROBE_VERSION,
     PROBES,
     QUALIFICATION_DIGEST,
     ProbeOutcome,
     hypothesis_probe,
+    hypothesis_suite,
     qualification_digest,
     run_probe,
 )
@@ -52,8 +55,9 @@ MECHANISMS = (
 )
 
 
-def _answer(count: int) -> str:
-    """A well-formed Hypothesis Engine answer with `count` distinct certificates."""
+def _answer(count: int, space: tuple[str, str, str] = ("os:probe.level", "1.0.0", "HIGH")) -> str:
+    """A well-formed Hypothesis Engine answer with `count` distinct certificates, each predicting
+    over `space` (id, version, outcome)."""
     return json.dumps(
         {
             "hypotheses": [
@@ -68,9 +72,9 @@ def _answer(count: int) -> str:
                     "predictions": [
                         {
                             "observable_ref": "probe.resistance",
-                            "outcome_space_id": "os:probe.level",
-                            "outcome_space_version": "1.0.0",
-                            "expected_outcome": "HIGH",
+                            "outcome_space_id": space[0],
+                            "outcome_space_version": space[1],
+                            "expected_outcome": space[2],
                             "relation_effect": "SUPPORTS",
                         }
                     ],
@@ -83,7 +87,8 @@ def _answer(count: int) -> str:
 
 
 class _Model:
-    """A model that answers the Hypothesis Engine with a fixed number of certificates."""
+    """A model that answers the Hypothesis Engine with a fixed number of certificates, over the
+    first outcome space it is given."""
 
     def __init__(self, count: int) -> None:
         self.count = count
@@ -91,14 +96,16 @@ class _Model:
 
     def chat(self, model: str, prompt: str, **_: object) -> ChatReply:
         self.prompts.append(prompt)
-        return ChatReply(text=_answer(self.count), latency_ms=7)
+        first = json.loads(prompt.split("\n\nCONTEXT:\n", 1)[1])["outcome_spaces"][0]
+        space = (first["outcome_space_id"], first["outcome_space_version"], first["outcomes"][0])
+        return ChatReply(text=_answer(self.count, space), latency_ms=7)
 
 
 def test_the_prompt_asks_for_the_contexts_minimum_and_never_a_count_of_its_own():
     template = HYPOTHESIS_ENGINE.prompt.template
     assert "at least CONTEXT.minimum_hypotheses competing mechanisms -- never fewer" in template
     assert "two" not in template.lower() and not any(ch.isdigit() for ch in template)
-    assert HYPOTHESIS_ENGINE.prompt.prompt_version == "2.0.0"
+    assert HYPOTHESIS_ENGINE.prompt.prompt_version == "2.1.0"
     # The response contract and the context agree with it; the parser stays the judge.
     assert "at least CONTEXT.minimum_hypotheses" in HYPOTHESIS_CONTRACT
     assert "minimum_hypotheses" in HYPOTHESIS_ENGINE.requires
@@ -112,21 +119,26 @@ def test_the_probe_runs_at_the_minimum_asked_for_and_records_it():
         assert "expected at least" in str(probe.judge(_answer(minimum - 1)))
     passed = run_probe(_Model(5), "m", Capability.ROLE_HYPOTHESIS, hypothesis_minimum=5)  # type: ignore[arg-type]
     assert passed.outcome is ProbeOutcome.PASSED
-    assert dict(passed.parameters) == {"minimum_hypotheses": 5}
+    assert passed.parameters["minimum_hypotheses"] == 5
     # Two certificates pass at the generic floor and fail at five -- and each says which it was.
     two = _Model(2)
     at_two = run_probe(two, "m", Capability.ROLE_HYPOTHESIS, hypothesis_minimum=2)  # type: ignore[arg-type]
     at_five = run_probe(two, "m", Capability.ROLE_HYPOTHESIS, hypothesis_minimum=5)  # type: ignore[arg-type]
-    assert at_two.outcome is ProbeOutcome.PASSED and at_two.parameters == {"minimum_hypotheses": 2}
-    assert at_five.outcome is ProbeOutcome.FAILED and at_five.parameters == {
-        "minimum_hypotheses": 5
-    }
+    assert at_two.outcome is ProbeOutcome.PASSED and at_two.parameters["minimum_hypotheses"] == 2
+    assert at_five.outcome is ProbeOutcome.FAILED
+    assert at_five.parameters["minimum_hypotheses"] == 5
     assert "expected at least 5 hypotheses, got 2" in at_five.detail
     # Only synthetic material: the probe's evidence is the module's own, never a project's.
     assert all("att:probe-" in p for p in two.prompts)
     # Other capabilities have nothing to record; the generic floor is §7.4's 2.
     assert GENERIC_HYPOTHESIS_MINIMUM == 2
-    assert PROBES[Capability.ROLE_HYPOTHESIS].prompt == hypothesis_probe(2).prompt
+    assert Capability.ROLE_HYPOTHESIS not in PROBES, "its probe is the suite"
+    name, first = hypothesis_suite(2)[0]
+    assert (name, first.prompt, first.system) == (
+        "contextual-minimum",
+        hypothesis_probe(2).prompt,
+        hypothesis_probe(2).system,
+    )
     for impossible in (1, 0, 51):
         with pytest.raises(ValueError):
             hypothesis_probe(impossible)
@@ -153,7 +165,13 @@ def test_the_qualification_semantics_are_one_digest_of_probes_prompts_and_contra
     in_force = qualification_digest(
         probe_version=PROBE_VERSION,
         contracts=CONTRACT_DIGEST,
-        probes={c.value: [p.prompt, p.system] for c, p in PROBES.items()},
+        probes={c.value: [p.prompt, p.system] for c, p in PROBES.items()}
+        | {
+            "ROLE_HYPOTHESIS": {
+                "suite": HYPOTHESIS_SUITE,
+                "cases": {n: [p.prompt, p.system] for n, p in hypothesis_suite(2)},
+            }
+        },
         prompts={
             r.prompt.prompt_id: [r.prompt.prompt_version, r.prompt.template]
             for r in (QUERY_REWRITER, HYPOTHESIS_ENGINE, ADVERSARIAL_CRITIC)

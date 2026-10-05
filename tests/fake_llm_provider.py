@@ -24,6 +24,10 @@ rest fast.
 (`redirect_status`, the request's path appended): a provider that moved, or one that tries to
 send the call -- credential and prompt -- somewhere else. Its body carries `REDIRECT_BODY`, so a
 test can show none of it is kept.
+
+`invent_space` (off by default) makes its Hypothesis Engine probe answers INVENTIVE: given several
+outcome spaces, it binds one prediction to a space it named itself from a quantity in the evidence
+(`INVENTED_SPACE`) -- the error a real model made -- and is otherwise as valid as ever.
 """
 
 from __future__ import annotations
@@ -42,6 +46,9 @@ from lab_brain.domains.silicon_photonics.product import mechanism_catalog
 
 MODELS = ("fake-reasoner", "fake-critic", "fake-chatty")
 REDIRECT_BODY = "moved: follow me to the new address"
+#: What an inventive model binds a prediction to: a quantity the probe's evidence names, made into
+#: an outcome space id it was never given.
+INVENTED_SPACE = ("os:probe.noise_per_hz", "1.0.0")
 _MARKER = "\n\nCONTEXT:\n"
 
 
@@ -62,6 +69,7 @@ class FakeProvider:
     redirect_to: str | None = None
     redirect_status: int = 307
     redirected: int = 0
+    invent_space: bool = False
     _server: ThreadingHTTPServer | None = None
 
     @property
@@ -135,7 +143,7 @@ class FakeProvider:
                 provider.calls.append(Call(model, system, prompt, image))
                 if provider.delay is not None and (wait := provider.delay(prompt, system)) > 0:
                     time.sleep(wait)
-                text = _answer(model, prompt, image, reasoner, slot)
+                text = _answer(model, prompt, image, reasoner, slot, provider.invent_space)
                 self._send(
                     200,
                     {"choices": [{"message": {"role": "assistant", "content": text}}]},
@@ -163,7 +171,14 @@ class FakeProvider:
         ]
 
 
-def _answer(model: str, prompt: str, image: bool, reasoner: CatalogReasoner, slot: Any) -> str:
+def _answer(
+    model: str,
+    prompt: str,
+    image: bool,
+    reasoner: CatalogReasoner,
+    slot: Any,
+    invent: bool = False,
+) -> str:
     if prompt.startswith("Reply with exactly one word: pong"):
         return "pong"
     if model == "fake-chatty":
@@ -178,7 +193,7 @@ def _answer(model: str, prompt: str, image: bool, reasoner: CatalogReasoner, slo
         return "I have nothing to add."
     context = json.loads(prompt.split(_MARKER, 1)[1])
     if isinstance(context, dict) and str(context.get("question", "")).startswith("PROBE:"):
-        return json.dumps(_probe_answer(prompt, context))
+        return json.dumps(_probe_answer(prompt, context, invent=invent))
     return str(reasoner(prompt, slot))
 
 
@@ -199,13 +214,14 @@ _PROBE_MECHANISMS = (
 )
 
 
-def _probe_answer(prompt: str, ctx: dict[str, Any]) -> dict[str, Any]:
-    """Valid answers to the capability probes' role prompts, built from what each context gives."""
+def _probe_answer(prompt: str, ctx: dict[str, Any], *, invent: bool = False) -> dict[str, Any]:
+    """Valid answers to the capability probes' role prompts, built from what each context gives --
+    but for `invent`, one prediction bound to `INVENTED_SPACE` wherever several spaces are given."""
     if "mode" in ctx:
         return {"terms": ["contact resistance", "oxidation"]}
     if "outcome_spaces" in ctx:
         space = ctx["outcome_spaces"][0]
-        return {
+        answer = {
             "hypotheses": [
                 {
                     "key": key,
@@ -231,6 +247,10 @@ def _probe_answer(prompt: str, ctx: dict[str, Any]) -> dict[str, Any]:
             ],
             "position": {"mechanism_view": "contact oxidation", "uncertainties": []},
         }
+        if invent and len(ctx["outcome_spaces"]) > 1:
+            prediction = answer["hypotheses"][-1]["predictions"][0]
+            prediction["outcome_space_id"], prediction["outcome_space_version"] = INVENTED_SPACE
+        return answer
     if "specialist" in ctx:
         return {
             "mechanism_view": "contact oxidation fits the pads",
@@ -254,4 +274,4 @@ def _probe_answer(prompt: str, ctx: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-__all__ = ["MODELS", "REDIRECT_BODY", "Call", "FakeProvider"]
+__all__ = ["INVENTED_SPACE", "MODELS", "REDIRECT_BODY", "Call", "FakeProvider"]

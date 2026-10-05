@@ -9,9 +9,11 @@ OS store -- or not at all. The interface language changes headings, never a stor
 from __future__ import annotations
 
 import html
+import json
 import re
 import sys
 import uuid
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -29,7 +31,7 @@ from lab_brain.llm_runtime.capabilities import (
     critic_fallback,
     role_routes,
 )
-from lab_brain.llm_runtime.probes import PROBES, ProbeOutcome, run_probe
+from lab_brain.llm_runtime.probes import PROBES, ProbeOutcome, hypothesis_suite, run_probe
 from lab_brain.llm_runtime.provider import (
     ChatReply,
     OpenAICompatibleClient,
@@ -54,19 +56,26 @@ KEY = "sk-test-unit-0123456789abcdefghijkl"
 
 
 class _Canned:
-    """A client that answers every probe with one fixed text."""
+    """A client that answers every probe with one fixed text -- or with `text(prompt)`."""
 
-    def __init__(self, text: str) -> None:
+    def __init__(self, text: str | Callable[[str], str]) -> None:
         self.text = text
 
     def chat(self, model: str, prompt: str, **_: Any) -> ChatReply:
-        return ChatReply(self.text, 1)
+        return ChatReply(self.text if isinstance(self.text, str) else self.text(prompt), 1)
 
 
-def _context(capability: Capability) -> dict[str, Any]:
-    import json
+def _valid(prompt: str) -> str:
+    """The stand-in's valid answer to whichever role probe this prompt is."""
+    context = dict(json.loads(prompt.split(contracts.CONTEXT_MARKER, 1)[1]))
+    return json.dumps(_probe_answer(prompt, context))
 
-    return dict(json.loads(PROBES[capability].prompt.split(contracts.CONTEXT_MARKER, 1)[1]))
+
+def _role_probes(capability: Capability) -> list[Any]:
+    """A role capability's probes: one, or every case of the ROLE_HYPOTHESIS suite."""
+    if capability is Capability.ROLE_HYPOTHESIS:
+        return [probe for _, probe in hypothesis_suite(2)]
+    return [PROBES[capability]]
 
 
 # -- probes ---------------------------------------------------------------------------------------
@@ -82,15 +91,12 @@ def _context(capability: Capability) -> dict[str, Any]:
     ],
 )
 def test_a_role_probe_is_passed_only_by_what_the_real_parser_accepts(capability):
-    import json
-
-    valid = json.dumps(_probe_answer(PROBES[capability].prompt, _context(capability)))
-    assert run_probe(_Canned(valid), "m", capability).outcome is ProbeOutcome.PASSED  # type: ignore[arg-type]
-    fenced = run_probe(_Canned(f"```json\n{valid}\n```"), "m", capability)  # type: ignore[arg-type]
+    assert run_probe(_Canned(_valid), "m", capability).outcome is ProbeOutcome.PASSED  # type: ignore[arg-type]
+    fenced = run_probe(_Canned(lambda p: f"```json\n{_valid(p)}\n```"), "m", capability)  # type: ignore[arg-type]
     assert fenced.outcome is ProbeOutcome.FAILED and "typed role parser refused" in fenced.detail
     prose = run_probe(_Canned("Sure! Here are some thoughts."), "m", capability)  # type: ignore[arg-type]
     assert prose.outcome is ProbeOutcome.FAILED
-    assert PROBES[capability].system in contracts.CONTRACTS.values()
+    assert all(p.system in contracts.CONTRACTS.values() for p in _role_probes(capability))
 
 
 def test_the_basic_probes_judge_by_code_and_never_run_it(tmp_path):
@@ -108,9 +114,10 @@ def test_the_basic_probes_judge_by_code_and_never_run_it(tmp_path):
 
 def test_probes_carry_no_project_data_and_use_the_real_role_templates():
     assert PROBES[Capability.ROLE_QUERY].prompt.startswith(QUERY_REWRITER.prompt.template)
-    assert PROBES[Capability.ROLE_HYPOTHESIS].prompt.startswith(HYPOTHESIS_ENGINE.prompt.template)
+    for case in _role_probes(Capability.ROLE_HYPOTHESIS):
+        assert case.prompt.startswith(HYPOTHESIS_ENGINE.prompt.template)
     assert PROBES[Capability.ROLE_CRITIQUE].prompt.startswith(ADVERSARIAL_CRITIC.prompt.template)
-    for probe in PROBES.values():
+    for probe in [*PROBES.values(), *_role_probes(Capability.ROLE_HYPOTHESIS)]:
         assert "prj:" not in probe.prompt and "epi:" not in probe.prompt
 
 

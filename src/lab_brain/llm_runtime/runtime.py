@@ -597,7 +597,7 @@ class LLMSettings:
         try:
             return work()
         except RegistryRefused as refused:
-            raise SettingsRefused(str(refused)) from None
+            raise SettingsRefused(str(refused), code=refused.code) from None
 
 
 # -- the active runtime, for the research service -------------------------------------------

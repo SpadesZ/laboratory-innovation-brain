@@ -14,7 +14,8 @@ THE POLICY. Deterministic, and it never guesses:
      connection has that name; an existing one is used as it is, never altered.
   2. Its model list is fetched (recorded as a health check). A model never tested is probed for
      every capability; a TESTED model that proved CHAT is locked with exactly what it proved (the
-     database's rule). A model that did not prove CHAT stays TESTED, visible, unbound.
+     database's rule). A model that did not prove CHAT stays TESTED, visible, unbound -- and so
+     does one whose tests predate the probes in force: it is said, never re-tested here.
   3. Lightweight slots only -- FAST_UTILITY (the Evidence Researcher's query rewriting) and
      PRIVATE_LOCAL -- in a DRAFT runtime named `local-first`, created if there is none and no
      runtime is ACTIVE. A slot already bound is left as it is.
@@ -104,7 +105,11 @@ def configure(llm: LLMSettings, base_url: str, *, out: TextIO) -> int:
             model = registry.model(model.model_profile_id) or model
         if model.lifecycle == "TESTED":
             if "CHAT" in {c.value for c in registry.verified_capabilities(model.model_profile_id)}:
-                locked = llm.lock(model.model_profile_id)
+                try:
+                    locked = llm.lock(model.model_profile_id)
+                except SettingsRefused as refused:
+                    print(f"not locked {model.model_name}: {refused}", file=out)
+                    continue
                 print(
                     f"locked {locked.model_name}: {', '.join(locked.locked_capabilities or ())}",
                     file=out,

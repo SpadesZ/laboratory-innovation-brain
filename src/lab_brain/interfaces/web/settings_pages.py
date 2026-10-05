@@ -415,6 +415,7 @@ Messages.extend(
             "重新測試並再次確認之前，這個模型無法使用。先前的確認紀錄會保留。",
         ),
         "llm.probe.minimum": (" (asked for at least {n} hypotheses)", "（要求至少 {n} 個假說）"),
+        "llm.probe.suite": (" -- conformance suite {suite}", "－一致性測試組 {suite}"),
         "llm.details": ("Details", "詳細"),
         "llm.cstep.done": (
             "Ready: {n} confirmed model(s) here can be assigned in step 3.",
@@ -1403,7 +1404,17 @@ def model_page(
         # 5 are different evidence.
         label = labels.capability(capability, m.locale)
         shown = parameters.get("minimum_hypotheses")
-        return h("{}{}", label, m("llm.probe.minimum", n=shown)) if shown else label
+        suite = parameters.get("suite")
+        return (
+            h(
+                "{}{}{}",
+                label,
+                m("llm.probe.minimum", n=shown),
+                m("llm.probe.suite", suite=suite) if suite else "",
+            )
+            if shown
+            else label
+        )
 
     needed = {c: [s.value for s in BINDABLE_SLOTS if c in SLOT_REQUIREMENTS[s]] for c in Capability}
     capabilities = _table(
