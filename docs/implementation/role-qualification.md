@@ -120,3 +120,80 @@ the fit comparison, the lock's qualification, the fingerprint's qualification an
 digest's prompts and contracts, the requirement's source, the workspace's two propagations, the
 model page's stale note and demonstrated N, the guide's active-configuration step, and not offering
 an unfit or stale model -- and three re-anchored.
+
+## 6. Verification
+
+Code: `3d38796`, and `f1cf598` -- found while re-qualifying the deployed model: the model page escaped
+the capability label it appended N to, and a use's choices still offered a model readiness would
+refuse (a stale lock, or too few hypotheses). CI runs `37275058700` and `37292461951`: commit
+hygiene, spec conformance, lint/types/full suite and the PostgreSQL backend profile, all green.
+
+**Counts.** Every run collects **2491** tests; every skip is accounted for, and none failed.
+
+| Run | Passed | Skipped | The skips |
+|---|---|---|---|
+| local, Windows: `pytest -q` | 1677 | 814 | 812 PostgreSQL-gated, 1 Lumerical, 1 network |
+| CI, Linux: `pytest -q` | 1674 | 817 | the same 814 + the Windows Credential Manager test + 2 commit-range tests a shallow checkout cannot walk |
+| local, fresh database (59 migrations): `LAB_BRAIN_TEST_POSTGRES=1 pytest -q` | 2489 | 2 | 1 Lumerical, 1 network |
+| CI: the same | 2486 | 5 | 1 Lumerical, 1 network + the 3 environment skips |
+
+The bare run before `update_status.py` regenerated the file for `012l` had the two status-freshness
+failures (1675 passed, 2 failed, 814 skipped); the counts above were taken after.
+
+| Check | Result |
+|---|---|
+| ruff check / ruff format / strict mypy | clean (237 source files) |
+| `update_status.py --check` (also `--requirements-only`), obligation inventory, requirement coverage | current |
+| evidence, debate and root-cause benchmark reports `--check` | current (the debate report regenerated for prompt 2.0.0: digests and token estimates only; the Lumi Agent benchmark was not run) |
+| mutation battery, the twenty new entries and the three re-anchored (fresh database) | 23/23 killed |
+| mutation battery, all entries at `3d38796` (fresh database) | 371/371 killed -- 297, then the remaining 74 after a Windows file lock (WinError 1224) stopped the battery while it restored `service.py`; the backup was byte-identical to HEAD and was put back, no test result was involved |
+| mutation battery, the three entries added by `f1cf598` | 3/3 killed |
+| mutation battery, all entries at `f1cf598` (fresh database) | 374/374 killed, no anchor missing (55 min) |
+
+## 7. Deployed
+
+`docker compose -p lab-brain-workspace up --build -d` from `3d38796`, then from `f1cf598`, with
+`LAB_BRAIN_INFERENCE_DEADLINE=1200` in the git-ignored `.env`; `init` applied `012l` (59
+migrations) and `llm_model_locks` received the three locks standing then.
+
+- *The old locks are stale.* Under the semantics in force, every lock made before is refused:
+  qwen2.5:7b `lk:0de60d9b48831245`, qwen2.5-coder:7b `lk:c6f35bd72fe86213`, and an earlier
+  transport stand-in's on a DISABLED connection. Readiness of the ACTIVE `local-first` listed
+  REASONING_PRIMARY, FAST_UTILITY and REASONING_ADVERSARIAL as "…was made under qualification
+  semantics no longer in force…"; `load_active_runtime` refused it before reading any credential;
+  the settings page named the step ("“qwen2.5:7b”, assigned to Fast processing, was confirmed under
+  earlier test rules"), and the model page said the confirmation predates the rules in force. No
+  research was started on it.
+- *Re-qualified by the operator's steps, through the pages.* `local-first` retired; qwen2.5:7b
+  unlocked and tested under `probe-2.0.0` with the 1200 s deadline: CHAT 22.8 s, STRUCTURED_JSON
+  4.6 s, ROLE_QUERY 14.0 s, **ROLE_HYPOTHESIS passed at `{"minimum_hypotheses": 5}` in 171.1 s**
+  (the real parser at 5), ROLE_SPECIALIST 30.5 s, ROLE_CRITIQUE 57.7 s; CODE failed (the reply is not
+  Python), VISION errored (the model takes no images) -- as before. It genuinely passed, so it was
+  locked again: **`lk:09d58ebac3b9b558`**, the same six capabilities. `llm_model_locks` holds both
+  (`lk:0de60d9b48831245` 2026-09-28, `lk:09d58ebac3b9b558` 2026-10-05). qwen2.5-coder:7b was not
+  needed and was not tested; its lock stays stale and unbound. The minimum stayed 5.
+- *A new configuration.* `local-qualified` (labels PUBLIC), the three reasoning uses on qwen2.5:7b
+  as approved for the first LOCAL smoke (PRIVATE_LOCAL and CODE unbound): ready, applied, loaded. The
+  second rebuild's `local-models` changed nothing (a runtime was ACTIVE).
+- *A new smoke episode* (`epi:a9cd60f1…`, `prj:smoke-local`, PRIVATE, LOCAL-only, the synthetic
+  `rs_anomaly_report.md` selected as existing research data -- not uploaded again; 19 statements
+  admitted): the Evidence Researcher answered, then the Hypothesis Engine (prompt **2.0.0**, route
+  `lk:09d58ebac3b9b558`) answered inside the deadline with **five** competing hypotheses -- the
+  count is met -- and the typed parser refused the answer on another rule: `hypothesis 'h4' predicts
+  over outcome space os:sp.cj_per_mm@1.0.0, which the engine was not shown; a prediction may only be
+  bound to a declared space` (VER-004). The vertical declares six outcome spaces and none is
+  `os:sp.cj_per_mm`: the model invented one. The episode is `SUSPENDED / NOT_REACHED` with that
+  reason (no hypothesis set), resumable; run 1 took 326 s. Both calls are in InferenceProvenance with
+  the new route (the refused output kept), all `ollama`, LOCAL; the project has no egress policy. The
+  report says the requirement ("asked for at least 5 … demonstrated at least that many, under the
+  qualification semantics in force") and that REASONING_ADVERSARIAL is NOT an independent model
+  route.
+- *History is untouched.* Against a snapshot taken before the rebuild: the 11 earlier
+  InferenceProvenance rows (route `lk:0de60d9b48831245`, prompt 1.0.0), the three earlier episodes
+  (`epi:226036fa…` COMPLETED, `epi:500ca3b7…` and `epi:4d4c9488…` SUSPENDED), their 4 runs and the 48
+  probe rows made under `probe-1.0.0` are byte-identical; ingestion items are unchanged (3).
+
+**What the deployment still lacks.** The smoke now passes the count and stops on binding discipline:
+qwen2.5:7b bound one prediction to an outcome space it was not given. Its probe declares one outcome
+space, the vertical six, so the probe did not exercise that discipline at the vertical's breadth.
+Nothing was relaxed: the parser stays the judge, the minimum stays 5.
