@@ -20,7 +20,7 @@ activation fails -- the one inconsistency no operator can debug.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from lab_brain.core.models.inference import LogicalSlot
@@ -68,6 +68,11 @@ class ConnectionLine:
     focus: ModelRow | None
 
 
+#: Why a confirmed model that proved what a use needs still cannot serve it in this deployment,
+#: or None (`Workspace._unfit`).
+Unfit = Callable[[ModelRow, LogicalSlot], str | None]
+
+
 @dataclass(frozen=True)
 class SlotLine:
     slot: LogicalSlot
@@ -101,10 +106,15 @@ class Guide:
 
 
 def eligible(
-    models: Sequence[ModelRow], connections: Mapping[str, ConnectionRow], slot: LogicalSlot
+    models: Sequence[ModelRow],
+    connections: Mapping[str, ConnectionRow],
+    slot: LogicalSlot,
+    unfit: Unfit | None = None,
 ) -> tuple[tuple[ModelRow, str], ...]:
     """Confirmed models that proved what `slot` needs, on an enabled connection -- PRIVATE_LOCAL
-    only on a LOCAL one. The database refuses any other binding; this only avoids offering it."""
+    only on a LOCAL one -- and that `unfit` (the deployment's own check: a lock made under earlier
+    test rules, fewer hypotheses demonstrated than its research asks for) does not rule out. The
+    database refuses some other bindings, readiness the rest; this only avoids offering them."""
     need = {c.value for c in SLOT_REQUIREMENTS[slot]}
     out = []
     for model in models:
@@ -115,6 +125,7 @@ def eligible(
             or conn.lifecycle != "ENABLED"
             or not need <= set(model.locked_capabilities or ())
             or (slot is LogicalSlot.PRIVATE_LOCAL and conn.reach != "LOCAL")
+            or (unfit is not None and unfit(model, slot) is not None)
         ):
             continue
         out.append((model, conn.name))
@@ -274,6 +285,7 @@ def build(
     readiness: Readiness | None,
     active_problem: str | None,
     roles: Mapping[LogicalSlot, tuple[str, ...]],
+    unfit: Unfit | None = None,
 ) -> Guide:
     """`readiness`: the evaluation of the newest DRAFT configuration (None without one)."""
     shown = [c for c in connections if c.lifecycle != "RETIRED"]
@@ -309,7 +321,7 @@ def build(
             slot in REQUIRED_SLOTS,
             roles.get(slot, ()),
             model_by_id.get(bound_ids[slot]) if slot in bound_ids else None,
-            eligible(models, by_id, slot),
+            eligible(models, by_id, slot, unfit),
         )
         for slot in BINDABLE_SLOTS
     )

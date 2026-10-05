@@ -93,7 +93,8 @@ from lab_brain.llm_runtime.provider import (
     OpenAICompatibleClient,
     ProviderError,
 )
-from lab_brain.llm_runtime.registry import ModelRow, ProbeRow, RuntimeRow
+from lab_brain.llm_runtime.readiness import hypothesis_fit_problem
+from lab_brain.llm_runtime.registry import ModelRow, ProbeRow, RuntimeRow, SqlLLMRegistry
 from lab_brain.llm_runtime.runtime import (
     DEFAULT_INFERENCE_DEADLINE_S,
     EXTERNAL_LABELS,
@@ -1313,6 +1314,26 @@ class Workspace:
             ).hypothesis_minimum()
         return self._hypotheses
 
+    def _unfit(self, c: Any, registry: SqlLLMRegistry) -> llm_guide.Unfit:
+        """Why a confirmed model that proved what a use needs still cannot serve it here -- its
+        lock was made under earlier test rules, or it demonstrated fewer competing hypotheses than
+        this deployment's research asks for -- so the pages do not offer it (readiness and the
+        runtime boundary refuse it regardless)."""
+        required = self._hypothesis_minimum(c)
+        stale = {
+            m.model_profile_id
+            for m in registry.models()
+            if m.lifecycle == "LOCKED" and registry.lock_problem(m) is not None
+        }
+
+        def unfit(model: ModelRow, slot: LogicalSlot) -> str | None:
+            if model.model_profile_id in stale:
+                return "confirmed under earlier test rules; test it again and confirm it again"
+            short = hypothesis_fit_problem(registry, model, slot, required)
+            return short.removeprefix(f"model {model.model_name} ") if short else None
+
+        return unfit
+
     def _llm(self, c: Any) -> LLMSettings:
         return LLMSettings(
             c,
@@ -1439,6 +1460,7 @@ class Workspace:
             readiness=llm.readiness(draft.runtime_id) if draft is not None else None,
             active_problem=active_problem,
             roles={slot: tuple(r.value for r in roles_on(slot)) for slot in BINDABLE_SLOTS},
+            unfit=self._unfit(c, registry),
         )
         names = {x.model_profile_id: x.model_name for x in models}
         data = settings_pages.Overview(
@@ -1843,6 +1865,7 @@ class Workspace:
         assert runtime is not None
         readiness = llm.readiness(runtime_id, live=live)
         connections = {x.connection_id: x for x in registry.connections()}
+        unfit = self._unfit(c, registry)
         eligible: dict[LogicalSlot, list[tuple[ModelRow, str]]] = {}
         ineligible: dict[LogicalSlot, list[tuple[ModelRow, str]]] = {}
         for model in registry.models():
@@ -1859,7 +1882,7 @@ class Workspace:
                     if conn.lifecycle != "ENABLED"
                     else "PRIVATE_LOCAL needs a LOCAL connection"
                     if slot is LogicalSlot.PRIVATE_LOCAL and conn.reach != "LOCAL"
-                    else ""
+                    else unfit(model, slot) or ""
                 )
                 bucket = ineligible if reason else eligible
                 bucket.setdefault(slot, []).append((model, reason or conn.name))

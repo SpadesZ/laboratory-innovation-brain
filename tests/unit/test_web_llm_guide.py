@@ -242,6 +242,17 @@ def test_a_use_is_offered_only_models_that_proved_what_it_needs():
             proves = model.lifecycle == "LOCKED" and need <= set(model.locked_capabilities or ())
             local_only = slot is LogicalSlot.PRIVATE_LOCAL and model.connection_id != "llc:home"
             assert (model.model_name in offered) == (proves and not local_only), (slot, model)
+
+    # The deployment's own check rules out what readiness would refuse (a stale lock, too few
+    # hypotheses), for the use it concerns only.
+    def unfit(model: ModelRow, slot: LogicalSlot) -> str | None:
+        stale = model.model_name == "full"
+        return "earlier rules" if stale and slot is LogicalSlot.REASONING_PRIMARY else None
+
+    primary = llm_guide.eligible(models, connections, LogicalSlot.REASONING_PRIMARY, unfit)
+    assert "full" not in {m.model_name for m, _ in primary}
+    fast = llm_guide.eligible(models, connections, LogicalSlot.FAST_UTILITY, unfit)
+    assert "full" in {m.model_name for m, _ in fast}
     disabled = {**connections, "llc:far": _conn("far", lifecycle="DISABLED")}
     assert "full" not in {
         m.model_name for m, _ in llm_guide.eligible(models, disabled, LogicalSlot.REASONING_PRIMARY)

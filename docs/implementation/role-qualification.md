@@ -62,10 +62,12 @@ Readiness reports it ("REASONING_PRIMARY: model qwen2.5:7b demonstrated ROLE_HYP
 it.
 
 **What the operator sees.** The model page lists ROLE_HYPOTHESIS as "(asked for at least 5
-hypotheses)" beside each probe; the checklist says, in both languages, which model on which use
-demonstrated how many and how many this deployment's research needs, and that testing it again
-asks for that many. The generic capability (it can propose competing hypotheses) and the domain's
-demand (this research needs 5) are two statements, never one number.
+hypotheses)" beside its latest result and every row of its test history; the checklist says, in
+both languages, which model on which use demonstrated how many and how many this deployment's
+research needs, and that testing it again asks for that many. A use is not offered a model that
+demonstrated too few for it (nor one whose lock is stale, §4): the configuration page lists it as
+not eligible, with the reason. The generic capability (it can propose competing hypotheses) and the
+domain's demand (this research needs 5) are two statements, never one number.
 
 ## 4. A lock made under other rules is stale (P1-C)
 
@@ -112,8 +114,9 @@ it says that reason as that step rather than as raw text.
 | 10 | qwen2.5:7b tested under the corrected contract at N=5 | deployed, §6 |
 | 11 | every budget, deadline, egress, locality, credential and redirect test | the whole suite |
 
-Mutation battery: twenty new entries -- the prompt's count, the probe's N and its record, the
-settings service's probe and readiness requirement, readiness and runtime fit and stale checks, the
-fit comparison, the lock's qualification, the fingerprint's qualification and semantics, the digest's
-prompts and contracts, the requirement's source, the workspace's two propagations, the model page's
-stale note, the guide's active-configuration step -- and three re-anchored.
+Mutation battery: twenty-three new entries -- the prompt's count, the probe's N and its record,
+the settings service's probe and readiness requirement, readiness and runtime fit and stale checks,
+the fit comparison, the lock's qualification, the fingerprint's qualification and semantics, the
+digest's prompts and contracts, the requirement's source, the workspace's two propagations, the
+model page's stale note and demonstrated N, the guide's active-configuration step, and not offering
+an unfit or stale model -- and three re-anchored.

@@ -1398,12 +1398,12 @@ def model_page(
     m = chrome.m
     base = f"/settings/llm/models/{model.model_profile_id}"
 
-    def capability_label(c: Capability) -> str:
+    def probe_label(capability: str, parameters: Mapping[str, object]) -> Html:
         # What a parameterised probe demanded, beside the capability's name: passing at 2 and at
         # 5 are different evidence.
-        label = labels.capability(c.value, m.locale)
-        shown = latest[c].parameters.get("minimum_hypotheses") if c in latest else None
-        return f"{label}{m('llm.probe.minimum', n=shown)}" if shown else label
+        label = labels.capability(capability, m.locale)
+        shown = parameters.get("minimum_hypotheses")
+        return h("{}{}", label, m("llm.probe.minimum", n=shown)) if shown else label
 
     needed = {c: [s.value for s in BINDABLE_SLOTS if c in SLOT_REQUIREMENTS[s]] for c in Capability}
     capabilities = _table(
@@ -1417,7 +1417,7 @@ def model_page(
         ),
         [
             (
-                capability_label(c),
+                probe_label(c.value, latest[c].parameters if c in latest else {}),
                 _named("llm.probe", latest[c].outcome, m) if c in latest else "-",
                 latest[c].detail if c in latest else "",
                 latest[c].latency_ms if c in latest and latest[c].latency_ms is not None else "-",
@@ -1516,7 +1516,7 @@ def model_page(
             (m("col.capability"), m("col.outcome"), m("col.detail"), m("col.when")),
             [
                 (
-                    labels.capability(x.capability, m.locale),
+                    probe_label(x.capability, x.parameters),
                     _named("llm.probe", x.outcome, m),
                     x.detail,
                     when(x.probed_at),

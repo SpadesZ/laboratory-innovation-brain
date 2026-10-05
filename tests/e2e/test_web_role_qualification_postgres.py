@@ -16,6 +16,7 @@ The workspace's research asks for one competing hypothesis per mechanism its ver
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from unittest.mock import patch
 
@@ -67,6 +68,10 @@ def test_the_web_qualifies_at_the_verticals_minimum_and_refuses_stale_locks(db, 
         " AND capability = 'ROLE_HYPOTHESIS'",
         (reasoner,),
     ).fetchone()[0] == {"minimum_hypotheses": required}
+    # The model page says what was demonstrated -- in its latest results and its test history.
+    shown = browser.get(f"/settings/llm/models/{reasoner}")
+    assert "&lt;span" not in shown.text, "a label is markup, never escaped text"
+    assert _text(shown).count(f"(asked for at least {required} hypotheses)") == 2
 
     sent = _research(browser, tmp_path)
     assert sent.status == 303, _text(sent)[:500]
@@ -96,6 +101,12 @@ def test_the_web_qualifies_at_the_verticals_minimum_and_refuses_stale_locks(db, 
             == old_lock
         ), "no lock is rewritten"
 
+        # A new configuration is not offered the stale model; it says why.
+        runtime_id = _runtime(browser, "requalified")
+        offered = browser.get(f"/settings/llm/runtimes/{runtime_id}")
+        assert f'<option value="{reasoner}"' not in offered.text
+        assert "fake-reasoner (confirmed under earlier test rules" in _text(offered)
+
         # Re-qualified through the pages: release, unlock, test, confirm, bind, apply.
         active = db.execute("SELECT runtime_id FROM llm_runtimes WHERE state = 'ACTIVE'").fetchone()
         assert _post(browser, f"/settings/llm/runtimes/{active[0]}/retire", {}).status == 303
@@ -105,7 +116,6 @@ def test_the_web_qualifies_at_the_verticals_minimum_and_refuses_stale_locks(db, 
             assert _post(browser, f"/settings/llm/models/{ids[name]}/unlock", {}).status == 303
             assert _post(browser, f"/settings/llm/models/{ids[name]}/test", {}).status == 303
             assert _post(browser, f"/settings/llm/models/{ids[name]}/lock", {}).status == 303
-        runtime_id = _runtime(browser, "requalified")
         for slot, model in (
             ("REASONING_PRIMARY", "fake-reasoner"),
             ("FAST_UTILITY", "fake-reasoner"),
@@ -164,3 +174,17 @@ def test_a_model_qualified_only_at_the_generic_floor_is_refused_for_this_researc
     assert refused.status == 409, _text(refused)[:500]
     assert "demonstrated ROLE_HYPOTHESIS for at least 2 competing hypotheses" in _text(refused)
     assert len(fake.calls) == calls
+    # A configuration page offers it for fast processing, and says why not for primary reasoning.
+    draft = _runtime(browser, "candidate")
+    offered = browser.get(f"/settings/llm/runtimes/{draft}")
+
+    def options(slot: str) -> str:
+        found = re.search(rf'value="{slot}"><select name="model">(.*?)</select>', offered.text)
+        return found.group(1) if found else ""
+
+    assert f'<option value="{model_id}"' in options("FAST_UTILITY")
+    assert f'<option value="{model_id}"' not in options("REASONING_PRIMARY")
+    assert (
+        "fake-reasoner (demonstrated ROLE_HYPOTHESIS for at least 2 competing hypotheses; this "
+        "deployment's research requires 5)"
+    ) in _text(offered)
