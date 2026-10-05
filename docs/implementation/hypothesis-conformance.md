@@ -97,3 +97,80 @@ first latency recorded, the case and the suite version left out of the semantics
 admitting an undeclared space or outcome, the prompt and the contract without the rule, a lock on
 outdated tests, the refusal without its code, `local_setup` stopping on it, the model page without
 the suite -- and three re-anchored (the probe's N, its record, the page's N).
+
+## 6. Verification
+
+Code: `5b642e5`. CI run `37352038662`: commit hygiene, spec conformance, lint/types/full suite and
+the PostgreSQL backend profile, all green.
+
+**Counts.** Every run collects **2504** tests; every skip is accounted for, and none failed.
+
+| Run | Passed | Skipped | The skips |
+|---|---|---|---|
+| local, Windows: `pytest -q` | 1685 | 819 | 817 PostgreSQL-gated, 1 Lumerical, 1 network |
+| CI, Linux: `pytest -q` | 1682 | 822 | the same 819 + the Windows Credential Manager test + 2 commit-range tests a shallow checkout cannot walk |
+| local, fresh database (59 migrations): `LAB_BRAIN_TEST_POSTGRES=1 pytest -q` | 2502 | 2 | 1 Lumerical, 1 network |
+| CI: the same | 2499 | 5 | 1 Lumerical, 1 network + the 3 environment skips |
+
+| Check | Result |
+|---|---|
+| ruff check / ruff format / strict mypy | clean (237 source files) |
+| `update_status.py --check` (also `--requirements-only`), obligation inventory, requirement coverage | current |
+| evidence, debate and root-cause benchmark reports `--check` | current (the debate report regenerated for prompt 2.1.0: digests and token estimates only -- the token-cost ratio moved from x4.16 to x3.81 -- every verdict identical; the Lumi Agent benchmark was not run) |
+| mutation battery, the seventeen new entries and the three re-anchored (fresh database) | 20/20 killed |
+| mutation battery, all entries (fresh database) | 391/391 killed, no anchor missing (54 min) |
+
+## 7. Deployed
+
+`docker compose -p lab-brain-workspace up --build -d` from `5b642e5`, with
+`LAB_BRAIN_INFERENCE_DEADLINE=1200` in the git-ignored `.env` (`web` runs with
+`--inference-deadline 1200`); `local-models` changed nothing (a runtime was ACTIVE).
+
+- *The single-space routes are stale.* qwen2.5:7b `lk:09d58ebac3b9b558` (locked under the
+  single-space probe), qwen2.5-coder:7b `lk:c6f35bd72fe86213` and an earlier stand-in's: readiness of
+  the ACTIVE `local-qualified` listed all three reasoning uses as "…made under qualification semantics
+  no longer in force…", and `load_active_runtime` refused it before any credential. No research was
+  started on it.
+- *No shortcut.* With `local-qualified` retired and qwen2.5:7b unlocked, confirming it without a
+  test was refused: 409, `lock.outdated_tests`, "…ran under probe-2.0.0, not the tests in force
+  (probe-3.0.0); test it again before confirming it". It stayed TESTED; no lock row was added.
+- *qwen2.5:7b, the suite at N=5 (463 s): FAILED.* CHAT 19.8 s, STRUCTURED_JSON 5.2 s, ROLE_QUERY
+  11.4 s, ROLE_SPECIALIST 30.4 s, ROLE_CRITIQUE 57.2 s passed; CODE failed and VISION errored, as
+  before. **ROLE_HYPOTHESIS FAILED** (205.9 s): `contextual-minimum` passed; in `multi-space` the reply
+  was not JSON -- `multi-space: the typed role parser refused it: HYPOTHESIS_ENGINE: the output is not
+  JSON (Expecting ',' delimiter: line 1 column 2397 (char 2396))`. The probe was not changed; the model
+  was not locked again and stays TESTED.
+- *qwen2.5-coder:7b, the same suite at N=5 (657 s): PASSED.* CHAT 24.3 s, STRUCTURED_JSON 4.9 s,
+  ROLE_QUERY 15.3 s, **ROLE_HYPOTHESIS 253.9 s, both cases** (`{"minimum_hypotheses": 5, "suite":
+  "hypothesis-conformance@1.0.0", "cases": ["contextual-minimum", "multi-space"]}`), ROLE_SPECIALIST
+  45.6 s, ROLE_CRITIQUE 71.1 s, CODE 3.4 s; VISION errored (the model takes no images). Locked:
+  **`lk:963d70828be54b8e`** (seven capabilities). `llm_model_locks` keeps `lk:c6f35bd72fe86213` beside
+  it, and both of qwen2.5:7b's.
+- *A new configuration.* `local-qualified` was retired; `local-conformance` (labels PUBLIC) binds
+  REASONING_PRIMARY, FAST_UTILITY and REASONING_ADVERSARIAL to qwen2.5-coder:7b -- the only current
+  eligible local model (PRIVATE_LOCAL and CODE unbound): ready, applied, loaded. The report says
+  REASONING_ADVERSARIAL is the same locked model, "NOT an independent model route".
+- *A new smoke episode* (`epi:2c4ef02a…`, `prj:smoke-local`, PRIVATE, LOCAL-only, the synthetic
+  `rs_anomaly_report.md` selected as existing research data -- not uploaded again; 19 statements
+  admitted; run 1 took 1315 s). Seven calls, all `ollama` on `lk:963d70828be54b8e`: Evidence
+  Researcher; **Hypothesis Engine (prompt 2.1.0) -- parser ACCEPTED: five certificates, every
+  prediction over a declared space with an outcome it admits** (`DEPLETION_EFFECT` and
+  `PROCESS_DEPENDENT_CONTACT_RESISTANCE` → `os:sp.rs_bias_response@1.0.0` RS_BIAS_INSENSITIVE,
+  `CONTACT_RESISTANCE` → `os:sp.probe_contact_resistance@1.0.0` ELEVATED, `MESH_ARTEFACT` →
+  `os:sp.mesh_stability@1.0.0` UNSTABLE, `NORMALIZATION_BASIS` → `os:sp.normalization_basis@1.0.0`
+  DISAGREES), and the set was admitted; the two domain specialists; the Critic's inverted retrieval;
+  the Adversarial Critic; and the Hypothesis Engine again, asked to certify the Critic's alternatives
+  (minimum 1) -- parser ACCEPTED: two certificates over declared spaces, both mechanisms already in the
+  set, so none was admitted and the debate stopped STABLE after one round. Stages: hypotheses DONE
+  ("5 competing hypotheses admitted after 1 debate round(s) and an independent critique");
+  verification SKIPPED (no verification input was given). The episode is `COMPLETED / NOT_REACHED`:
+  it reasoned past the hypothesis stage and stopped where this smoke gives it nothing to verify.
+- *History is untouched.* Against a snapshot taken before the rebuild: the 13 earlier
+  InferenceProvenance rows, the 4 earlier episodes and their 5 runs, the 56 probe rows made under
+  earlier probes and the 4 lock rows are byte-identical; ingestion items are unchanged (3). The
+  project has no egress policy; every call is LOCAL.
+
+**What the deployment still lacks.** One qualified local model serves every reasoning use, so the
+critique is not model-route independent; qwen2.5:7b does not qualify (it broke the JSON contract in
+the multi-space case). This smoke supplies no verification input and no simulator is connected, so
+nothing was verified. The scientific quality of the hypotheses was not assessed here.
