@@ -175,6 +175,14 @@ _TOO_SLOW = re.compile(
     rf"^({_SLOT}): model (.+)'s recorded (\w+) probe took (\d+) s, longer than this "
     r"deployment's inference deadline \(([0-9.]+) s\)$"
 )
+_STALE_LOCK = re.compile(
+    rf"^({_SLOT}): model (.+)'s lock (lk:[0-9a-f]+) was made under qualification semantics no "
+    r"longer in force"
+)
+_ROLE_FIT = re.compile(
+    rf"^({_SLOT}): model (.+) demonstrated ROLE_HYPOTHESIS for at least (\d+) competing "
+    r"hypotheses; this deployment's research requires (\d+)$"
+)
 _CREDENTIAL = re.compile(rf"^({_SLOT}): connection (\S+): (.+)$")
 _CRITIC = re.compile(r"^the Adversarial Critic falls back to REASONING_PRIMARY")
 
@@ -220,6 +228,25 @@ def blocker_todo(blocker: str) -> Todo:
                 "model": m.group(2),
                 "seconds": m.group(4),
                 "deadline": m.group(5),
+            },
+            blocker,
+        )
+    if m := _STALE_LOCK.match(blocker):
+        return Todo(
+            "llm.todo.stale_lock",
+            "llm.how.stale_lock",
+            {"slot": m.group(1), "model": m.group(2)},
+            blocker,
+        )
+    if m := _ROLE_FIT.match(blocker):
+        return Todo(
+            "llm.todo.role_fit",
+            "llm.how.role_fit",
+            {
+                "slot": m.group(1),
+                "model": m.group(2),
+                "shown": m.group(3),
+                "required": m.group(4),
             },
             blocker,
         )
@@ -339,9 +366,14 @@ def build(
                         Todo("llm.todo.slot_empty", "llm.how.slot_empty", {"slot": slot.value})
                     )
     if active is not None and active_problem:
+        # A slot-level reason the guide knows (a stale lock, too little demonstrated, too slow for
+        # the deadline) is said as that to-do; anything else as "cannot be used: <reason>".
+        specific = blocker_todo(active_problem.split("cannot be used: ", 1)[-1])
         todos.insert(
             0,
-            Todo(
+            Todo(specific.what, specific.how, specific.values, active_problem)
+            if specific.what != "llm.todo.raw"
+            else Todo(
                 "llm.todo.active_unusable",
                 "llm.how.active_unusable",
                 {"name": active.name, "reason": active_problem},

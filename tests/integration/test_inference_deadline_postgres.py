@@ -17,12 +17,14 @@ evidence against it:
 
 from __future__ import annotations
 
+import datetime as dt
 from collections.abc import Iterator
 
 import pytest
 
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.llm_runtime.provider import OpenAICompatibleClient
+from lab_brain.llm_runtime.registry import SqlLLMRegistry
 from lab_brain.llm_runtime.runtime import (
     DISCOVERY_TIMEOUT_S,
     LLMSettings,
@@ -68,6 +70,7 @@ def _administrator(db):  # type: ignore[no-untyped-def]
 
 
 def _settings(db, deadline: float, **kwargs: object) -> LLMSettings:  # type: ignore[no-untyped-def]
+    kwargs.setdefault("hypothesis_minimum", 5)
     return LLMSettings(
         db,
         secrets=SecretStore(environ={}, credentials=None),
@@ -92,19 +95,17 @@ def _smoke_configuration(db, base_url: str) -> str:  # type: ignore[no-untyped-d
         (T0,),
     )
     for n, (capability, latency) in enumerate(LATENCY_MS.items()):
+        # ROLE_HYPOTHESIS demonstrated at the research's minimum (`012l` records what was asked).
+        parameters = '{"minimum_hypotheses": 5}' if capability == "ROLE_HYPOTHESIS" else "{}"
         db.execute(
             "INSERT INTO llm_capability_probes (probe_id, model_profile_id, capability, outcome,"
-            " probe_version, latency_ms, probed_at) VALUES (%s, 'llm:qwen', %s, 'PASSED',"
-            " 'probe-1.0.0', %s, %s)",
-            (f"lcp:qwen-{n}", capability, latency, T0),
+            " probe_version, latency_ms, probed_at, parameters) VALUES (%s, 'llm:qwen', %s,"
+            " 'PASSED', 'probe-2.0.0', %s, %s, %s::jsonb)",
+            (f"lcp:qwen-{n}", capability, latency, T0, parameters),
         )
     db.execute("UPDATE llm_models SET lifecycle = 'TESTED' WHERE model_profile_id = 'llm:qwen'")
-    db.execute(
-        "UPDATE llm_models SET lifecycle = 'LOCKED', locked_capabilities ="
-        " llm_verified_capabilities(model_profile_id), lock_fingerprint = 'lk:0de60d9b48831245',"
-        " locked_at = %s, locked_by = 'act:test' WHERE model_profile_id = 'llm:qwen'",
-        (T0,),
-    )
+    # Locked through the registry, so the lock is current under the qualification semantics.
+    SqlLLMRegistry(db).lock("llm:qwen", actor_id="act:test", at=dt.datetime.now(dt.UTC))
     db.execute(
         "INSERT INTO llm_connection_health (check_id, connection_id, outcome, latency_ms, detail,"
         " checked_at) VALUES ('lch:ok', 'llc:ollama', 'REACHABLE', 5, '4 model(s) listed', now())"
@@ -149,8 +150,12 @@ def test_a_capability_proven_in_194_s_cannot_make_a_180_s_deployment_ready(db, l
     # The research boundary holds the same line, under whatever deadline it is given.
     secrets = SecretStore(environ={}, credentials=None)
     with pytest.raises(RuntimeUnavailable, match=r"probe took 194 s, longer than .*180 s"):
-        load_active_runtime(db, secrets, local_hosts=(), inference_deadline=180)
-    runtime = load_active_runtime(db, secrets, local_hosts=(), inference_deadline=300)
+        load_active_runtime(
+            db, secrets, local_hosts=(), inference_deadline=180, hypothesis_minimum=5
+        )
+    runtime = load_active_runtime(
+        db, secrets, local_hosts=(), inference_deadline=300, hypothesis_minimum=5
+    )
     assert runtime is not None
     assert "Each model call waits at most 300 s for its answer" in " ".join(runtime.description)
 
@@ -162,7 +167,7 @@ def test_probes_and_research_calls_wait_one_deadline_and_discovery_its_own(db, l
         waited.append(timeout)
         return OpenAICompatibleClient(base_url, key, timeout=timeout)
 
-    llm = _settings(db, 42, client=client)
+    llm = _settings(db, 42, client=client, hypothesis_minimum=2)
     made = llm.add_connection(
         name="local", base_url=local_model.base_url, reach="LOCAL", secret_mode="none"
     )
@@ -181,7 +186,11 @@ def test_probes_and_research_calls_wait_one_deadline_and_discovery_its_own(db, l
         llm.bind(runtime.runtime_id, slot, models["fake-reasoner"])
     llm.activate(runtime.runtime_id)
     active = load_active_runtime(
-        db, SecretStore(environ={}, credentials=None), local_hosts=(), inference_deadline=42
+        db,
+        SecretStore(environ={}, credentials=None),
+        local_hosts=(),
+        inference_deadline=42,
+        hypothesis_minimum=2,
     )
     assert active is not None
     routes = active.complete._routes  # type: ignore[attr-defined]

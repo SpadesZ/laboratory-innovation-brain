@@ -269,6 +269,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # opening run's admitted statements by reference, and the set recorded once by whichever run
     # debated it. After 012c (research_runs) and 001 (attestations).
     "012k_research_debate_retry.sql",
+    # What a capability probe demanded (ROLE_HYPOTHESIS: the minimum it asked for) and an
+    # append-only record of every lock a model has had. After 012e (llm_capability_probes,
+    # llm_models).
+    "012l_llm_qualification.sql",
 )
 
 _BOOTSTRAP = """

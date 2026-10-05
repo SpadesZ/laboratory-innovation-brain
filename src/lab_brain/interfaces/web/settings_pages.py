@@ -205,6 +205,29 @@ Messages.extend(
             "In step 3 choose a confirmed model for {slot} and press “Assign”.",
             "在步驟 3 替「{slot}」選一個已確認的模型，按「指派」。",
         ),
+        "llm.todo.stale_lock": (
+            "“{model}”, assigned to {slot}, was confirmed under earlier test rules",
+            "指派給「{slot}」的「{model}」是在舊版測試規則下確認的",
+        ),
+        "llm.how.stale_lock": (
+            "Unlock it in step 2, run the capability test again and confirm it again (a model the "
+            "applied configuration uses is released by retiring that configuration first). Its "
+            "earlier confirmation stays on record.",
+            "在步驟 2 解除確認、重新執行模型能力測試，通過後再確認（套用中的配置所使用的模型，"
+            "需先停用該配置才能解除）。先前的確認紀錄會保留。",
+        ),
+        "llm.todo.role_fit": (
+            "“{model}”, assigned to {slot}, demonstrated at least {shown} competing hypotheses; "
+            "this deployment's research needs {required}",
+            "指派給「{slot}」的「{model}」只證明能提出至少 {shown} 個競爭假說，"
+            "這個部署的研究需要 {required} 個",
+        ),
+        "llm.how.role_fit": (
+            "Test it again under the current requirement (unlock it first), or assign a model that "
+            "demonstrated enough. Passing the general test is not enough for this research.",
+            "解除確認後在目前的要求下重新測試，或改指派已證明足夠的模型。"
+            "只通過一般能力測試，不代表能勝任這個部署的研究。",
+        ),
         "llm.todo.too_slow": (
             "“{model}”, assigned to {slot}, needed {seconds} s for a test this use requires -- "
             "longer than this deployment allows one model call ({deadline} s)",
@@ -384,6 +407,14 @@ Messages.extend(
             "測試只送出固定的測試內容，不含任何研究資料。每個回答都由程式判定；研究角色的測試使用實際的研究解析器。",
         ),
         "llm.lock": ("Confirm this model", "確認此模型"),
+        "llm.lock.stale": (
+            "This confirmation was made under earlier test rules (a test, role prompt or answer "
+            "format has changed since): the model cannot be used until it is unlocked, tested "
+            "again and confirmed again. The earlier confirmation stays on record.",
+            "這個確認是在舊版測試規則下完成的（測試內容、角色提示或回答格式已變更）：解除確認、"
+            "重新測試並再次確認之前，這個模型無法使用。先前的確認紀錄會保留。",
+        ),
+        "llm.probe.minimum": (" (asked for at least {n} hypotheses)", "（要求至少 {n} 個假說）"),
         "llm.details": ("Details", "詳細"),
         "llm.cstep.done": (
             "Ready: {n} confirmed model(s) here can be assigned in step 3.",
@@ -1360,9 +1391,20 @@ def model_page(
     history: Sequence[ProbeRow],
     *,
     error: object = None,
+    stale: str | None = None,
 ) -> bytes:
+    """`stale`: why the model's lock is not current under the qualification semantics in force
+    (`SqlLLMRegistry.lock_problem`), or None."""
     m = chrome.m
     base = f"/settings/llm/models/{model.model_profile_id}"
+
+    def capability_label(c: Capability) -> str:
+        # What a parameterised probe demanded, beside the capability's name: passing at 2 and at
+        # 5 are different evidence.
+        label = labels.capability(c.value, m.locale)
+        shown = latest[c].parameters.get("minimum_hypotheses") if c in latest else None
+        return f"{label}{m('llm.probe.minimum', n=shown)}" if shown else label
+
     needed = {c: [s.value for s in BINDABLE_SLOTS if c in SLOT_REQUIREMENTS[s]] for c in Capability}
     capabilities = _table(
         (
@@ -1375,7 +1417,7 @@ def model_page(
         ),
         [
             (
-                labels.capability(c.value, m.locale),
+                capability_label(c),
                 _named("llm.probe", latest[c].outcome, m) if c in latest else "-",
                 latest[c].detail if c in latest else "",
                 latest[c].latency_ms if c in latest and latest[c].latency_ms is not None else "-",
@@ -1433,7 +1475,12 @@ def model_page(
         m("llm.back"),
         m("col.model"),
         model.model_name,
-        _error(chrome, error),
+        cat(
+            (
+                _error(chrome, error),
+                h('<div class="box warn">{}</div>', m("llm.lock.stale")) if stale else Html(""),
+            )
+        ),
         m("col.connection"),
         connection.connection_id,
         connection.name,

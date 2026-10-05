@@ -243,6 +243,11 @@ class Workspace:
         inference_deadline: float | None = None,
     ) -> None:
         self._actor = actor_id
+        #: How many competing hypotheses this deployment's research asks for: read once from its
+        #: vertical (`ResearchEpisodeService.hypothesis_minimum`), then given to the settings
+        #: service (what ROLE_HYPOTHESIS is probed at) and to the runtime loader (what a model on
+        #: REASONING_PRIMARY must have demonstrated).
+        self._hypotheses: int | None = None
         #: The deployment's inference deadline (`--inference-deadline`): the capability probes
         #: this workspace runs and the research calls its active runtime makes are held to it.
         self._deadline = checked_deadline(
@@ -1191,7 +1196,11 @@ class Workspace:
         can load it without the declaration -- `load_active_runtime` requires it, and a host the
         deployment did not declare is refused there, before a credential is read."""
         return load_active_runtime(
-            c, self._secrets, local_hosts=self._local_hosts, inference_deadline=self._deadline
+            c,
+            self._secrets,
+            local_hosts=self._local_hosts,
+            inference_deadline=self._deadline,
+            hypothesis_minimum=self._hypothesis_minimum(c),
         )
 
     def _reasoning(self, c: Any, req: _Req) -> ReasoningRuntime | None:
@@ -1297,6 +1306,13 @@ class Workspace:
 
     # -- LLM settings -----------------------------------------------------------------------------
 
+    def _hypothesis_minimum(self, c: Any) -> int:
+        if self._hypotheses is None:
+            self._hypotheses = ResearchEpisodeService(
+                connection=c, artifact_store=self._artifacts, vertical_factory=self._factory
+            ).hypothesis_minimum()
+        return self._hypotheses
+
     def _llm(self, c: Any) -> LLMSettings:
         return LLMSettings(
             c,
@@ -1304,6 +1320,7 @@ class Workspace:
             actor_id=self._actor,
             local_hosts=self._local_hosts,
             inference_deadline=self._deadline,
+            hypothesis_minimum=self._hypothesis_minimum(c),
         )
 
     def _require_llm_admin(self, c: Any, req: _Req) -> None:
@@ -1701,7 +1718,7 @@ class Workspace:
         assert connection is not None
         history = c.execute(
             "SELECT probe_id, model_profile_id, capability, outcome, probe_version,"
-            " response_digest, latency_ms, detail, probed_at FROM llm_capability_probes"
+            " response_digest, latency_ms, detail, probed_at, parameters FROM llm_capability_probes"
             " WHERE model_profile_id = %s ORDER BY probed_at DESC, probe_id DESC LIMIT 40",
             (model_id,),
         ).fetchall()
@@ -1714,6 +1731,7 @@ class Workspace:
                 registry.latest_probes(model_id),
                 [ProbeRow(*r) for r in history],
                 error=error,
+                stale=registry.lock_problem(model),
             ),
         )
 

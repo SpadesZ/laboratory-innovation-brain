@@ -8,12 +8,12 @@
 | Benchmark set | `bench:sp.rs_anomaly_debate` v1.0.0 |
 | Fixture | `fixtures/debate/sp_rs_anomaly_debate.json` |
 | Fixture digest | `5127022e20e583bdd66169fca660394b2ef21188476d18c0bf4366122fca2d68` |
-| Per-case table digest | `8fc3f5a4966f35da9399fbfce89ab64e2d9f05d14f431076a65604fd5a018003` |
+| Per-case table digest | `8600d0251822e4728439db687367b37ce012bf00eb01b89aff17b758fc141979` |
 | Model transport | deterministic mock (`tests/debate_fixtures.MockScientist`); no external model, search or licensed tool was called |
 
 ## Verdict
 
-- **DEBATE vs BASELINE: SUPPORTED.** True mechanism kept on 10/10 cases with the debate, 5/10 without it; wins 5, losses 0; the Critic changed 5 final sets; token cost x4.2.
+- **DEBATE vs BASELINE: SUPPORTED.** True mechanism kept on 10/10 cases with the debate, 5/10 without it; wins 5, losses 0; the Critic changed 5 final sets; token cost x4.16.
 - **DEBATE vs NO_INVERTED: SUPPORTED.** Without its own retrieval the Critic keeps the truth on 5/10 cases.
 - **Round count varies with difficulty: yes.** EASY: [1, 1, 1, 1, 1], HARD: [2, 2, 2, 3, 3]
 
@@ -36,19 +36,19 @@
 | easy-5 | EASY | DEBATE | 1 | NO_ESCALATION_TRIGGER | yes | 2→2 | 0.3333 | 0.4166 | 286 | — |
 | easy-5 | EASY | BASELINE | 1 | CRITIC_DISABLED | yes | 2→2 | — | — | 0 | — |
 | easy-5 | EASY | NO_INVERTED | 1 | NO_ESCALATION_TRIGGER | yes | 2→2 | — | 0.4166 | 200 | — |
-| hard-1 | HARD | DEBATE | 2 | NO_ESCALATION_TRIGGER | yes | 3→1 | 0.5 | 0.3825 | 770 | MAY_REJECT, BUNDLES_MATERIALLY_CONFLICT |
+| hard-1 | HARD | DEBATE | 2 | NO_ESCALATION_TRIGGER | yes | 3→1 | 0.5 | 0.3825 | 774 | MAY_REJECT, BUNDLES_MATERIALLY_CONFLICT |
 | hard-1 | HARD | BASELINE | 1 | CRITIC_DISABLED | no | 2→2 | — | — | 0 | — |
 | hard-1 | HARD | NO_INVERTED | 1 | NO_ESCALATION_TRIGGER | no | 2→2 | — | 0.3825 | 190 | — |
-| hard-2 | HARD | DEBATE | 2 | NO_ESCALATION_TRIGGER | yes | 3→1 | 0.5 | 0.3825 | 770 | MAY_REJECT, BUNDLES_MATERIALLY_CONFLICT |
+| hard-2 | HARD | DEBATE | 2 | NO_ESCALATION_TRIGGER | yes | 3→1 | 0.5 | 0.3825 | 774 | MAY_REJECT, BUNDLES_MATERIALLY_CONFLICT |
 | hard-2 | HARD | BASELINE | 1 | CRITIC_DISABLED | no | 2→2 | — | — | 0 | — |
 | hard-2 | HARD | NO_INVERTED | 1 | NO_ESCALATION_TRIGGER | no | 2→2 | — | 0.3825 | 190 | — |
-| hard-3 | HARD | DEBATE | 2 | NO_ESCALATION_TRIGGER | yes | 3→1 | 0.5 | 0.3825 | 770 | MAY_REJECT, BUNDLES_MATERIALLY_CONFLICT |
+| hard-3 | HARD | DEBATE | 2 | NO_ESCALATION_TRIGGER | yes | 3→1 | 0.5 | 0.3825 | 774 | MAY_REJECT, BUNDLES_MATERIALLY_CONFLICT |
 | hard-3 | HARD | BASELINE | 1 | CRITIC_DISABLED | no | 2→2 | — | — | 0 | — |
 | hard-3 | HARD | NO_INVERTED | 1 | NO_ESCALATION_TRIGGER | no | 2→2 | — | 0.3825 | 190 | — |
-| hard3-1 | HARD | DEBATE | 3 | NO_ESCALATION_TRIGGER | yes | 4→3 | 0.5 | 0.3825 | 1282 | MAY_REJECT, BUNDLES_MATERIALLY_CONFLICT |
+| hard3-1 | HARD | DEBATE | 3 | NO_ESCALATION_TRIGGER | yes | 4→3 | 0.5 | 0.3825 | 1290 | MAY_REJECT, BUNDLES_MATERIALLY_CONFLICT |
 | hard3-1 | HARD | BASELINE | 1 | CRITIC_DISABLED | no | 2→2 | — | — | 0 | — |
 | hard3-1 | HARD | NO_INVERTED | 1 | NO_ESCALATION_TRIGGER | no | 2→2 | — | 0.3825 | 190 | — |
-| hard3-2 | HARD | DEBATE | 3 | NO_ESCALATION_TRIGGER | yes | 4→3 | 0.5 | 0.3825 | 1282 | MAY_REJECT, BUNDLES_MATERIALLY_CONFLICT |
+| hard3-2 | HARD | DEBATE | 3 | NO_ESCALATION_TRIGGER | yes | 4→3 | 0.5 | 0.3825 | 1290 | MAY_REJECT, BUNDLES_MATERIALLY_CONFLICT |
 | hard3-2 | HARD | BASELINE | 1 | CRITIC_DISABLED | no | 2→2 | — | — | 0 | — |
 | hard3-2 | HARD | NO_INVERTED | 1 | NO_ESCALATION_TRIGGER | no | 2→2 | — | 0.3825 | 190 | — |
 
@@ -62,8 +62,8 @@
 | critic_changed_final_set | 10 / 0 / 0 / 0.5 / 1 | 10 / 0 / 0 / 0 / 0 | 10 / 0 / 0 / 0 / 0 |
 | surviving_hypothesis_diversity | 10 / 3 / 1 / 1 / 1 | 10 / 0 / 1 / 1 / 1 | 10 / 0 / 1 / 1 / 1 |
 | additional_evidence_items | 10 / 0 / 2 / 2.5 / 3 | 10 / 0 / 0 / 0 / 0 | 10 / 0 / 0 / 0 / 0 |
-| additional_token_count | 10 / 0 / 276 / 528 / 1282 | 10 / 0 / 0 / 0 / 0 | 10 / 0 / 190 / 190 / 200 |
-| total_token_count | 10 / 0 / 772 / 1039 / 1778 | 10 / 0 / 267 / 267 / 277 | 10 / 0 / 686 / 686 / 726 |
+| additional_token_count | 10 / 0 / 276 / 530 / 1290 | 10 / 0 / 0 / 0 / 0 | 10 / 0 / 190 / 190 / 200 |
+| total_token_count | 10 / 0 / 776 / 1045 / 1790 | 10 / 0 / 271 / 271 / 281 | 10 / 0 / 690 / 690 / 730 |
 
 ## Calibrated BenchmarkPolicy
 
@@ -76,7 +76,7 @@
 | sample size | 10 |
 | calibrated at | 2026-09-26T00:00:00+00:00 |
 | calibration artifact | `fixture:bench:sp.rs_anomaly_debate@1.0.0#sha256:5127022e20e583bdd66169fca660394b2ef21188476d18c0bf4366122fca2d68` |
-| calibration artifact | `benchmark-run:bench:sp.rs_anomaly_debate#sha256:8fc3f5a4966f35da9399fbfce89ab64e2d9f05d14f431076a65604fd5a018003` |
+| calibration artifact | `benchmark-run:bench:sp.rs_anomaly_debate#sha256:8600d0251822e4728439db687367b37ce012bf00eb01b89aff17b758fc141979` |
 
 Rule: the smallest debate-level Critic divergence among DEBATE cases that kept the true mechanism. The policy is produced **inactive**; a gate reads it only after it is activated, and before that every gate verdict is ADVISORY (no hard gate before calibration).
 

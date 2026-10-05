@@ -390,7 +390,9 @@ def test_a_historical_plaintext_route_is_never_reasoned_through(db, tmp_path, fa
     secrets = SecretStore(credentials=DirectoryCredentialStore(tmp_path / "credentials"))
 
     with pytest.raises(RuntimeUnavailable, match="neither https://"):
-        load_active_runtime(db, secrets, local_hosts=(), inference_deadline=180)
+        load_active_runtime(
+            db, secrets, local_hosts=(), inference_deadline=180, hypothesis_minimum=5
+        )
     refused = _research(browser, tmp_path)
     assert refused.status == 409 and "neither https://" in _text(refused)
     blockers = _settings(db, tmp_path).readiness(runtime_id).blockers
@@ -443,7 +445,11 @@ def test_the_docker_host_is_used_only_where_the_deployment_declares_it(
     assert refused.status == 409 and "neither https:// nor this machine" in _text(refused)
     with pytest.raises(RuntimeUnavailable, match="neither https:// nor this machine"):
         load_active_runtime(
-            db, SecretStore(credentials=store), local_hosts=(), inference_deadline=180
+            db,
+            SecretStore(credentials=store),
+            local_hosts=(),
+            inference_deadline=180,
+            hypothesis_minimum=5,
         )
     assert resolved == [], "refused before the credential was read"
     undeclared = _settings(db, tmp_path)
@@ -455,7 +461,11 @@ def test_the_docker_host_is_used_only_where_the_deployment_declares_it(
 
     # Declared again: the very same rows are usable -- the declaration is the only difference.
     assert load_active_runtime(
-        db, SecretStore(credentials=store), local_hosts=(GATEWAY,), inference_deadline=180
+        db,
+        SecretStore(credentials=store),
+        local_hosts=(GATEWAY,),
+        inference_deadline=180,
+        hypothesis_minimum=5,
     )
 
 

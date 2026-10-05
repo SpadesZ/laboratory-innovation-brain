@@ -35,7 +35,7 @@ from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.llm_runtime.authority import ProjectEgressPolicies, is_administrator
 from lab_brain.llm_runtime.capabilities import BUILTIN_EMBEDDING, Capability, roles_on
 from lab_brain.llm_runtime.contracts import contract_for
-from lab_brain.llm_runtime.probes import PROBE_ORDER, run_probe
+from lab_brain.llm_runtime.probes import GENERIC_HYPOTHESIS_MINIMUM, PROBE_ORDER, run_probe
 from lab_brain.llm_runtime.provider import (
     OpenAICompatibleClient,
     ProviderError,
@@ -49,6 +49,7 @@ from lab_brain.llm_runtime.readiness import (
     deadline_problem,
     egress_route,
     evaluate,
+    hypothesis_fit_problem,
 )
 from lab_brain.llm_runtime.registry import (
     ConnectionRow,
@@ -136,6 +137,7 @@ class LLMSettings:
         client: ClientFactory | None = None,
         inference_deadline: float = DEFAULT_INFERENCE_DEADLINE_S,
         local_hosts: Iterable[str] = (),
+        hypothesis_minimum: int = GENERIC_HYPOTHESIS_MINIMUM,
     ) -> None:
         self.registry = SqlLLMRegistry(connection)
         self._db = connection
@@ -145,6 +147,14 @@ class LLMSettings:
         #: The deployment's inference deadline: what a capability probe may take, and what
         #: readiness holds every bound slot's recorded probes to.
         self._deadline = checked_deadline(inference_deadline)
+        #: How many competing hypotheses the deployment's research asks for: what ROLE_HYPOTHESIS
+        #: is probed at, and what readiness holds a REASONING_PRIMARY model to. The research's own
+        #: number (the web workspace passes its vertical's); §7.4's floor where none is known.
+        if hypothesis_minimum < GENERIC_HYPOTHESIS_MINIMUM:
+            raise ValueError(
+                f"the Hypothesis Engine is never asked for fewer than {GENERIC_HYPOTHESIS_MINIMUM}"
+            )
+        self._hypothesis_minimum = hypothesis_minimum
         #: Host names besides loopback that are this machine: the Docker host of a containerised
         #: workspace (`host.docker.internal`), and only when the deployment says it is one.
         self._local_hosts = frozenset(h.lower() for h in local_hosts)
@@ -160,6 +170,10 @@ class LLMSettings:
     @property
     def inference_deadline(self) -> float:
         return self._deadline
+
+    @property
+    def hypothesis_minimum(self) -> int:
+        return self._hypothesis_minimum
 
     @property
     def is_administrator(self) -> bool:
@@ -349,13 +363,16 @@ class LLMSettings:
         wanted = [c for c in PROBE_ORDER if capabilities is None or c in capabilities]
         rows = []
         for capability in wanted:
-            result = run_probe(client, model.model_name, capability)
+            result = run_probe(
+                client, model.model_name, capability, hypothesis_minimum=self._hypothesis_minimum
+            )
             clean = type(result)(
                 result.capability,
                 result.outcome,
                 redact(result.detail, [key or ""]),
                 result.latency_ms,
                 result.response_digest,
+                result.parameters,
             )
             rows.append(self.registry.record_probe(model.model_profile_id, clean, self._clock()))
         return rows
@@ -436,6 +453,7 @@ class LLMSettings:
             secret_problem=self._secret_problem,
             transport_problem=self._transport_problem,
             inference_deadline=self._deadline,
+            hypothesis_minimum=self._hypothesis_minimum,
         )
 
     def activate(self, runtime_id: str) -> Readiness:
@@ -610,6 +628,7 @@ def load_active_runtime(
     *,
     local_hosts: Iterable[str],
     inference_deadline: float,
+    hypothesis_minimum: int,
 ) -> ReasoningRuntime | None:
     """`local_hosts`: the hosts THIS deployment declared to be this machine, besides loopback --
     required, because this is the last boundary before research reaches a network: a route is
@@ -618,7 +637,11 @@ def load_active_runtime(
 
     `inference_deadline`: the deployment's, also required. Every route's client waits that long
     for an answer, and a route whose model needed longer for a capability its slot requires is
-    refused here -- research would only time out on it."""
+    refused here -- research would only time out on it.
+
+    `hypothesis_minimum`: how many competing hypotheses this deployment's research asks for, also
+    required. A route whose lock is not current under today's qualification semantics, or whose
+    model demonstrated fewer, is refused here before its credential is read."""
     declared = frozenset(h.lower() for h in local_hosts)
     deadline = checked_deadline(inference_deadline)
     registry = SqlLLMRegistry(connection)
@@ -653,6 +676,14 @@ def load_active_runtime(
         if (slow := deadline_problem(registry, model, slot, deadline)) is not None:
             raise RuntimeUnavailable(
                 f"the active LLM runtime {active.name} cannot be used: {slot.value}: {slow}"
+            )
+        if (stale := registry.lock_problem(model)) is not None:
+            raise RuntimeUnavailable(
+                f"the active LLM runtime {active.name} cannot be used: {slot.value}: {stale}"
+            )
+        if (unfit := hypothesis_fit_problem(registry, model, slot, hypothesis_minimum)) is not None:
+            raise RuntimeUnavailable(
+                f"the active LLM runtime {active.name} cannot be used: {slot.value}: {unfit}"
             )
         key: str | None = None
         if connection_row.secret_ref is not None:
@@ -698,6 +729,9 @@ def load_active_runtime(
         *lines,
         f"Each model call waits at most {deadline:g} s for its answer: the deployment's inference "
         "deadline, the same one its capability probes were held to.",
+        f"The Hypothesis Engine is asked for at least {hypothesis_minimum} competing hypotheses "
+        "(this deployment's research); the model serving it demonstrated at least that many, "
+        "under the qualification semantics in force.",
         f"EMBEDDING: the built-in local embedder ({BUILTIN_EMBEDDING}).",
         critic,
         egress_route(sorted(external.values()), active.external_labels),

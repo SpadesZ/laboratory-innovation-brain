@@ -160,6 +160,16 @@ def test_each_stage_of_the_workflow_names_one_next_step_in_order():
     broken = _guide([conn], [_model("m", "LOCKED", ALL)], runtimes=[active], active_problem="gone")
     assert broken.next_step == "llm.next.fix_active"
     assert broken.todos[0].what == "llm.todo.active_unusable"
+    # A reason the guide knows is said as that step, with the runtime's own words kept as detail.
+    stale = (
+        "the active LLM runtime applied cannot be used: REASONING_PRIMARY: model m's lock "
+        "lk:0123abcd was made under qualification semantics no longer in force (a probe, role "
+        "prompt or response contract changed); test it again and confirm it again"
+    )
+    known = _guide([conn], [_model("m", "LOCKED", ALL)], runtimes=[active], active_problem=stale)
+    assert known.next_step == "llm.next.fix_active"
+    assert (known.todos[0].what, known.todos[0].raw) == ("llm.todo.stale_lock", stale)
+    assert known.todos[0].values == {"slot": "REASONING_PRIMARY", "model": "m"}
 
 
 def test_the_credential_comes_before_every_other_connection_step():
@@ -190,6 +200,11 @@ def test_every_readiness_blocker_becomes_a_line_and_none_is_dropped():
         ),
         "the Adversarial Critic falls back to REASONING_PRIMARY, whose model has not proven "
         "ROLE_CRITIQUE": "llm.todo.critic",
+        "REASONING_PRIMARY: model m's lock lk:0123abcd was made under qualification semantics no "
+        "longer in force (a probe, role prompt or response contract changed); test it again and "
+        "confirm it again": "llm.todo.stale_lock",
+        "REASONING_PRIMARY: model m demonstrated ROLE_HYPOTHESIS for at least 2 competing "
+        "hypotheses; this deployment's research requires 5": "llm.todo.role_fit",
     }
     for blocker, key in known.items():
         todo = llm_guide.blocker_todo(blocker)

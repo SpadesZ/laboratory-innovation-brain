@@ -286,6 +286,13 @@ class _Run:
         self.stages.append(StageStatus(name, status, detail))
 
 
+def debate_minimum(vertical: ProductVertical) -> int:
+    """How many competing hypotheses Stage A asks for in this vertical: one per mechanism its
+    DomainPack catalogues -- the domain's number, which the generic LLM runtime is GIVEN (a model on
+    REASONING_PRIMARY must have demonstrated it) and never assumes."""
+    return len(vertical.catalog.mechanisms)
+
+
 class ResearchEpisodeService:
     def __init__(
         self,
@@ -617,6 +624,19 @@ class ResearchEpisodeService:
                 outcome=f"FAILED:{type(failed).__name__}",
                 at=self._clock(),
             )
+
+    def hypothesis_minimum(self) -> int:
+        """How many competing hypotheses this deployment's research asks the Hypothesis Engine
+        for (`debate_minimum` of its vertical): the number a model serving REASONING_PRIMARY must
+        have demonstrated. A read: the vertical is built and nothing is registered or written."""
+        c = self._connection
+        vertical = self._factory(
+            outputs=SqlRunOutputSink(connection=c, store=self._store, now=self._clock),
+            jobs=SqlJobStore(c),
+            broker=PostgresResourceBroker(c),
+            now=self._clock,
+        )
+        return debate_minimum(vertical)
 
     def capabilities(self) -> tuple[str, Mapping[str, str], tuple[BlockedCapability, ...]]:
         """What this deployment can execute and what it cannot, as the report's deployment
@@ -1077,7 +1097,7 @@ class ResearchEpisodeService:
             embedding_space=EMBEDDING_SPACE,
             policy=DebatePolicy(
                 policy_id="debate:research-run",
-                minimum_hypotheses=len(vertical.catalog.mechanisms),
+                minimum_hypotheses=debate_minimum(vertical),
                 max_rounds=2,
             ),
             mint=self._mint,

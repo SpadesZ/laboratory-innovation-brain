@@ -77,12 +77,15 @@ def evaluate(
     secret_problem: Callable[[ConnectionRow], str | None],
     transport_problem: Callable[[ConnectionRow], str | None],
     inference_deadline: float,
+    hypothesis_minimum: int,
 ) -> Readiness:
     """`secret_problem` answers, for a connection, why its credential cannot be read (or None);
     `transport_problem`, why this deployment may not use its endpoint (or None) -- the caller's,
     because only the caller knows which hosts its deployment declared to be this machine.
     `inference_deadline`: the deployment's, which every bound slot's recorded probes are held to
-    (`deadline_problem`)."""
+    (`deadline_problem`). `hypothesis_minimum`: how many competing hypotheses this deployment's
+    research asks the Hypothesis Engine for -- the research's number, never one assumed here
+    (`hypothesis_fit_problem`)."""
     bindings = registry.bindings(runtime.runtime_id)
     locked = [m for m in registry.models() if m.lifecycle == "LOCKED"]
     connections = {c.connection_id: c for c in registry.connections()}
@@ -120,6 +123,14 @@ def evaluate(
             problems.append(f"connection {connection.name}: {transport}")
         if (slow := deadline_problem(registry, model, slot, inference_deadline)) is not None:
             problems.append(slow)
+        # A lock made under earlier semantics proves nothing about the current ones -- so it is
+        # checked first, and what it demonstrated is not weighed.
+        if (stale := registry.lock_problem(model)) is not None:
+            problems.append(stale)
+        elif (
+            unfit := hypothesis_fit_problem(registry, model, slot, hypothesis_minimum)
+        ) is not None:
+            problems.append(unfit)
         if connection.secret_ref is not None:
             problem = secret_problem(connection)
             if problem is not None:
@@ -260,6 +271,26 @@ def deadline_problem(
     )
 
 
+def hypothesis_fit_problem(
+    registry: SqlLLMRegistry, model: ModelRow, slot: LogicalSlot, required: int
+) -> str | None:
+    """Why `model` is not fit for `slot` in this deployment's research, or None.
+
+    ROLE_HYPOTHESIS is a capability AND an amount: the Hypothesis Engine is asked for at least N
+    competing certificates, N being the research's (a domain's Stage A asks for one per catalogued
+    mechanism). The lock records the N its probe demonstrated; it serves a requirement of that N or
+    less, never more. A slot that needs no ROLE_HYPOTHESIS has nothing to check."""
+    if Capability.ROLE_HYPOTHESIS not in SLOT_REQUIREMENTS[slot]:
+        return None
+    shown = registry.demonstrated(model, Capability.ROLE_HYPOTHESIS, "minimum_hypotheses")
+    if shown >= required:
+        return None
+    return (
+        f"model {model.model_name} demonstrated ROLE_HYPOTHESIS for at least {shown} competing "
+        f"hypotheses; this deployment's research requires {required}"
+    )
+
+
 def _proves(model: ModelRow, required: frozenset[Capability]) -> bool:
     return {c.value for c in required} <= set(model.locked_capabilities or ())
 
@@ -271,4 +302,5 @@ __all__ = [
     "deadline_problem",
     "egress_route",
     "evaluate",
+    "hypothesis_fit_problem",
 ]

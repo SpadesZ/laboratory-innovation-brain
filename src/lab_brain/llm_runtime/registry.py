@@ -12,14 +12,14 @@ import datetime as dt
 import hashlib
 import json
 import secrets as stdlib_secrets
-from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import Any, TypeVar
 
 from lab_brain.core.models.identifiers import new_id
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.llm_runtime.capabilities import Capability
-from lab_brain.llm_runtime.probes import PROBE_DIGEST, PROBE_VERSION, ProbeResult
+from lab_brain.llm_runtime.probes import PROBE_VERSION, QUALIFICATION_DIGEST, ProbeResult
 
 T = TypeVar("T")
 
@@ -78,6 +78,8 @@ class ProbeRow:
     latency_ms: int | None
     detail: str
     probed_at: dt.datetime
+    #: What the probe demanded where that varies (`012l`); {} for every earlier row.
+    parameters: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -112,7 +114,7 @@ _MODEL = (
 )
 _PROBE = (
     "probe_id, model_profile_id, capability, outcome, probe_version, response_digest, latency_ms, "
-    "detail, probed_at"
+    "detail, probed_at, parameters"
 )
 _RUNTIME = (
     "runtime_id, name, state, external_labels, created_by, created_at, activated_by, "
@@ -121,20 +123,39 @@ _RUNTIME = (
 
 
 def lock_fingerprint(
-    connection: ConnectionRow, model_name: str, capabilities: Iterable[str]
+    connection: ConnectionRow,
+    model_name: str,
+    capabilities: Iterable[str],
+    qualification: Mapping[str, Mapping[str, Any]],
 ) -> str:
-    """The locked ROUTE: endpoint, model, proven capabilities, probe payloads and response
-    contracts. Recorded as `model_version` in every inference the route produces."""
+    """The locked ROUTE: endpoint, model, proven capabilities, what was demonstrated for them
+    (`qualification`, e.g. ROLE_HYPOTHESIS at 5) and the semantics they were proven under
+    (`QUALIFICATION_DIGEST`: probes, role prompts, response contracts). Recorded as
+    `model_version` in every inference the route produces."""
     identity = {
         "provider_kind": connection.provider_kind,
         "base_url": connection.base_url,
         "reach": connection.reach,
         "model": model_name,
         "capabilities": sorted(capabilities),
-        "probes_and_contracts": PROBE_DIGEST,
+        "qualification": {k: dict(v) for k, v in sorted(qualification.items())},
+        "qualification_semantics": QUALIFICATION_DIGEST,
     }
     digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode("utf-8")).hexdigest()
     return f"lk:{digest[:16]}"
+
+
+def qualification_of(
+    probes: Mapping[Capability, ProbeRow], capabilities: Iterable[str]
+) -> dict[str, dict[str, Any]]:
+    """For each locked capability whose passing probe recorded parameters, those parameters: what
+    the lock demonstrated beyond the capability's name."""
+    out: dict[str, dict[str, Any]] = {}
+    for name in sorted(capabilities):
+        probe = probes.get(Capability(name))
+        if probe is not None and probe.outcome == "PASSED" and probe.parameters:
+            out[name] = dict(probe.parameters)
+    return out
 
 
 class SqlLLMRegistry:
@@ -287,7 +308,7 @@ class SqlLLMRegistry:
         def write() -> None:
             self._c.execute(
                 f"INSERT INTO llm_capability_probes ({_PROBE}) VALUES"
-                " (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                " (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)",
                 (
                     probe_id,
                     model_profile_id,
@@ -298,6 +319,7 @@ class SqlLLMRegistry:
                     result.latency_ms,
                     result.detail,
                     at,
+                    json.dumps(dict(result.parameters), sort_keys=True),
                 ),
             )
             self._c.execute(
@@ -317,6 +339,7 @@ class SqlLLMRegistry:
             result.latency_ms,
             result.detail,
             at,
+            dict(result.parameters),
         )
 
     def latest_probes(self, model_profile_id: str) -> dict[Capability, ProbeRow]:
@@ -337,18 +360,59 @@ class SqlLLMRegistry:
         model = self._require(self.model(model_profile_id))
         connection = self._require(self.connection(model.connection_id))
         verified = sorted(c.value for c in self.verified_capabilities(model_profile_id))
+        qualification = qualification_of(self.latest_probes(model_profile_id), verified)
         self._write(
             "UPDATE llm_models SET lifecycle = 'LOCKED', locked_capabilities = %s,"
             " lock_fingerprint = %s, locked_at = %s, locked_by = %s WHERE model_profile_id = %s",
             (
                 verified,
-                lock_fingerprint(connection, model.model_name, verified),
+                lock_fingerprint(connection, model.model_name, verified, qualification),
                 at,
                 actor_id,
                 model_profile_id,
             ),
         )
         return self._require(self.model(model_profile_id))
+
+    def qualification(self, model: ModelRow) -> dict[str, dict[str, Any]]:
+        """What the model's lock demonstrated beyond capability names (its latest probes'
+        parameters -- for a locked model, the probes its lock counted)."""
+        return qualification_of(
+            self.latest_probes(model.model_profile_id), model.locked_capabilities or ()
+        )
+
+    def lock_problem(self, model: ModelRow) -> str | None:
+        """Why a LOCKED model's lock is not current, or None. Recomputed at every use, never
+        stored: the fingerprint the lock would have NOW -- its endpoint, capabilities, what they
+        demonstrated, and the qualification semantics in force -- against the one it was given.
+        A lock made under an earlier probe, role prompt or response contract does not match and is
+        refused until the model is tested again and locked again; the lock itself is left as it
+        was (`llm_model_locks` keeps every one)."""
+        if model.lifecycle != "LOCKED" or model.lock_fingerprint is None:
+            return None
+        connection = self.connection(model.connection_id)
+        if connection is None:  # pragma: no cover - a foreign key
+            return f"model {model.model_name}'s connection is missing"
+        current = lock_fingerprint(
+            connection,
+            model.model_name,
+            model.locked_capabilities or (),
+            self.qualification(model),
+        )
+        if current == model.lock_fingerprint:
+            return None
+        return (
+            f"model {model.model_name}'s lock {model.lock_fingerprint} was made under "
+            "qualification semantics no longer in force (a probe, role prompt or response contract "
+            "changed); "
+            "test it again and confirm it again"
+        )
+
+    def demonstrated(self, model: ModelRow, capability: Capability, parameter: str) -> int:
+        """The value of `parameter` the model's lock demonstrated for `capability` -- 0 when it
+        demonstrated none (an earlier probe that recorded no parameters)."""
+        value = self.qualification(model).get(capability.value, {}).get(parameter, 0)
+        return int(value) if isinstance(value, int) else 0
 
     def unlock(self, model_profile_id: str) -> None:
         self._write(
@@ -501,4 +565,5 @@ __all__ = [
     "RuntimeRow",
     "SqlLLMRegistry",
     "lock_fingerprint",
+    "qualification_of",
 ]

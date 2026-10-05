@@ -180,6 +180,11 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
 - 研究的辯論若在產生任何假說集之前就失敗（例如模型呼叫逾時），研究任務會「暫停」而不是結束；修正原因
   後按「繼續」，同一個研究任務會以第一次已採納的證據重新辯論，不會重新匯入或重新採納。設計記錄：
   [`docs/implementation/inference-deadline-and-debate-retry.md`](docs/implementation/inference-deadline-and-debate-retry.md)。
+- 模型能力測試記錄「證明了多少」：假說引擎的測試以這個部署的研究所需的競爭假說數量進行（研究的垂直領域
+  每個已編目的機制一個；矽光子為 5 個），並記錄該數量。只證明較少數量的模型不能用於「主要推理」：配置
+  檢查會列出原因，研究會在呼叫模型前被拒絕。測試規則（測試內容、角色提示詞、回應格式）改變後，先前完成
+  的模型確認即失效，必須重新測試並重新確認；舊的確認紀錄與推理來源紀錄保留不變。設計記錄：
+  [`docs/implementation/role-qualification.md`](docs/implementation/role-qualification.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。

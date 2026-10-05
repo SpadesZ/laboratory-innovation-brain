@@ -78,15 +78,20 @@ class RoleContract:
     requires: frozenset[str]
 
 
+#: 2.0.0: the count is the CONTEXT's (`minimum_hypotheses`), never a number in the prompt. 1.0.0
+#: said "at least two" while the context -- and the parser -- demanded the caller's minimum (a
+#: domain's Stage A asks for one per catalogued mechanism; a later round may ask for one), so a
+#: model was told two different counts at once.
 HYPOTHESIS_ENGINE = RoleContract(
     role=CognitiveRole.HYPOTHESIS_ENGINE,
     prompt=PromptTemplate(
         "prm:hypothesis-engine",
-        "1.0.0",
-        "You are the Hypothesis Engine. From ONLY the evidence given, propose at least two "
-        "competing mechanisms as complete hypothesis certificates -- statement, mechanism, "
-        "assumptions, falsifier, confounders, minimal test and typed predictions over the declared "
-        "outcome spaces -- and your position. Reply with JSON.",
+        "2.0.0",
+        "You are the Hypothesis Engine. From ONLY the evidence given, propose at least "
+        "CONTEXT.minimum_hypotheses competing mechanisms -- never fewer -- as complete hypothesis "
+        "certificates -- statement, mechanism, assumptions, falsifier, confounders, minimal test "
+        "and typed predictions over the declared outcome spaces -- and your position. Reply with "
+        "JSON.",
     ),
     requires=frozenset({"question", "evidence", "outcome_spaces", "minimum_hypotheses"}),
 )

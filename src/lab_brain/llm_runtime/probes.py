@@ -15,6 +15,17 @@ project leaves. Each answer is judged by code, never by another model:
 
 The answer itself is not kept: its SHA-256 is, with the outcome, the latency and a redacted
 reason, so the probe log shows what was proven without storing what a provider wrote.
+
+ROLE_HYPOTHESIS IS PARAMETERISED. The Hypothesis Engine is asked for at least N competing
+certificates, and N is the caller's: §7.4's generic floor is 2 (`GENERIC_HYPOTHESIS_MINIMUM`), and a
+deployment's research asks for its own (a domain's Stage A wants one per catalogued mechanism). The
+probe is run at the N asked for and its result RECORDS that N (`ProbeResult.parameters`), so the
+evidence says what was demonstrated: a pass at 5 covers a requirement of 5 or less, a pass at 2 does
+not cover 5. The material stays synthetic either way.
+
+WHAT QUALIFIES A MODEL is fixed by `QUALIFICATION_DIGEST`: the probe version and payloads, the role
+prompts they carry (id, version, text) and the response contracts. It is part of every lock
+fingerprint, so a lock made before any of them changed no longer matches, and is refused as stale.
 """
 
 from __future__ import annotations
@@ -24,8 +35,8 @@ import hashlib
 import json
 import struct
 import zlib
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 from lab_brain.cognition.llm import _render
@@ -50,7 +61,13 @@ from lab_brain.llm_runtime.contracts import (
 )
 from lab_brain.llm_runtime.provider import OpenAICompatibleClient, ProviderError
 
-PROBE_VERSION = "probe-1.0.0"
+#: 2.0.0: ROLE_HYPOTHESIS is run at the requested minimum and records it; the Hypothesis Engine
+#: prompt it carries asks for CONTEXT.minimum_hypotheses (`cognition.roles`, prompt 2.0.0).
+PROBE_VERSION = "probe-2.0.0"
+
+#: §7.4 / EPI-001: Stage A returns at least two COMPETING certificates. What a deployment's research
+#: asks for may be more; it is never less.
+GENERIC_HYPOTHESIS_MINIMUM = 2
 
 #: The order probes run in, and the default set (every capability).
 PROBE_ORDER: tuple[Capability, ...] = tuple(Capability)
@@ -71,6 +88,8 @@ class ProbeResult:
     detail: str
     latency_ms: int | None = None
     response_digest: str | None = None
+    #: What the probe demanded, where that varies (ROLE_HYPOTHESIS: `minimum_hypotheses`).
+    parameters: Mapping[str, int] = field(default_factory=dict)
 
 
 # -- the fixed payloads ----------------------------------------------------------------------------
@@ -86,6 +105,27 @@ _EVIDENCE = [
         "attestation_id": "att:probe-2",
         "trust_class": "INTERNAL_MEASUREMENT",
         "text": "Its contact pads show visible oxidation; the substrate temperature was stable.",
+    },
+]
+#: The Hypothesis Engine's probe gets more synthetic observations than the other role probes, so
+#: that several distinct mechanisms are arguable when it is asked for several -- still nothing of
+#: any project.
+_HYPOTHESIS_EVIDENCE = [
+    *_EVIDENCE,
+    {
+        "attestation_id": "att:probe-3",
+        "trust_class": "INTERNAL_MEASUREMENT",
+        "text": "At constant current the reading drifts upward by 4 percent over ten minutes.",
+    },
+    {
+        "attestation_id": "att:probe-4",
+        "trust_class": "INTERNAL_MEASUREMENT",
+        "text": "Six of the eight resistors on the die read high; the six sit near the die edge.",
+    },
+    {
+        "attestation_id": "att:probe-5",
+        "trust_class": "INTERNAL_MEASUREMENT",
+        "text": "The die was annealed at 450 C after metallisation; the probe needles are new.",
     },
 ]
 _SPACE = OutcomeSpace(
@@ -192,6 +232,38 @@ def _role(parse: Callable[[str], object]) -> Callable[[str], str | None]:
     return judge
 
 
+def hypothesis_probe(minimum: int) -> _Probe:
+    """The Hypothesis Engine's probe at `minimum` competing certificates: the real role prompt and
+    contract over synthetic evidence, judged by the real parser at that same minimum."""
+    if not GENERIC_HYPOTHESIS_MINIMUM <= minimum <= 50:
+        raise ValueError(
+            f"a hypothesis minimum is between {GENERIC_HYPOTHESIS_MINIMUM} and 50, not {minimum}"
+        )
+    spaces = {(_SPACE.outcome_space_id, _SPACE.version): _SPACE}
+    return _Probe(
+        _material(
+            HYPOTHESIS_ENGINE.prompt.template,
+            {
+                "question": _QUESTION,
+                "evidence": _HYPOTHESIS_EVIDENCE,
+                "outcome_spaces": [
+                    {
+                        "outcome_space_id": _SPACE.outcome_space_id,
+                        "outcome_space_version": _SPACE.version,
+                        "outcomes": list(_SPACE.outcomes),
+                        "action_type": _SPACE.action_type,
+                    }
+                ],
+                "minimum_hypotheses": minimum,
+                "alternatives_to_certify": [],
+                "existing_mechanisms": [],
+            },
+        ),
+        HYPOTHESIS_CONTRACT,
+        _role(lambda text: parse_hypothesis_engine(text, spaces=spaces, minimum=minimum)),
+    )
+
+
 PROBES: dict[Capability, _Probe] = {
     Capability.CHAT: _Probe("Reply with exactly one word: pong", None, _chat),
     Capability.STRUCTURED_JSON: _Probe(
@@ -205,32 +277,7 @@ PROBES: dict[Capability, _Probe] = {
         QUERY_CONTRACT,
         _role(parse_query_terms),
     ),
-    Capability.ROLE_HYPOTHESIS: _Probe(
-        _material(
-            HYPOTHESIS_ENGINE.prompt.template,
-            {
-                "question": _QUESTION,
-                "evidence": _EVIDENCE,
-                "outcome_spaces": [
-                    {
-                        "outcome_space_id": _SPACE.outcome_space_id,
-                        "outcome_space_version": _SPACE.version,
-                        "outcomes": list(_SPACE.outcomes),
-                        "action_type": _SPACE.action_type,
-                    }
-                ],
-                "minimum_hypotheses": 2,
-                "alternatives_to_certify": [],
-                "existing_mechanisms": [],
-            },
-        ),
-        HYPOTHESIS_CONTRACT,
-        _role(
-            lambda text: parse_hypothesis_engine(
-                text, spaces={(_SPACE.outcome_space_id, _SPACE.version): _SPACE}, minimum=2
-            )
-        ),
-    ),
+    Capability.ROLE_HYPOTHESIS: hypothesis_probe(GENERIC_HYPOTHESIS_MINIMUM),
     Capability.ROLE_SPECIALIST: _Probe(
         _material(
             _SPECIALIST_TEMPLATE,
@@ -290,22 +337,59 @@ PROBES: dict[Capability, _Probe] = {
     ),
 }
 
-#: Identifies the probe payloads and the response contracts together: part of a lock fingerprint.
-PROBE_DIGEST = hashlib.sha256(
-    json.dumps(
-        {
-            "version": PROBE_VERSION,
-            "contracts": CONTRACT_DIGEST,
-            "probes": {c.value: [p.prompt, p.system] for c, p in PROBES.items()},
-        },
-        sort_keys=True,
-        ensure_ascii=False,
-    ).encode("utf-8")
-).hexdigest()
+
+def qualification_digest(
+    *,
+    probe_version: str,
+    contracts: str,
+    probes: Mapping[str, object],
+    prompts: Mapping[str, object],
+) -> str:
+    """The semantics a model is qualified under, as one digest: change any part and every lock
+    made before no longer matches it."""
+    return hashlib.sha256(
+        json.dumps(
+            {
+                "version": probe_version,
+                "contracts": contracts,
+                "probes": dict(probes),
+                "prompts": dict(prompts),
+            },
+            sort_keys=True,
+            ensure_ascii=False,
+        ).encode("utf-8")
+    ).hexdigest()
 
 
-def run_probe(client: OpenAICompatibleClient, model: str, capability: Capability) -> ProbeResult:
-    probe = PROBES[capability]
+#: Part of every lock fingerprint (`registry.lock_fingerprint`). The ROLE_HYPOTHESIS payload is
+#: taken at the generic floor: its minimum is the lock's own recorded parameter, not semantics.
+QUALIFICATION_DIGEST = qualification_digest(
+    probe_version=PROBE_VERSION,
+    contracts=CONTRACT_DIGEST,
+    probes={c.value: [p.prompt, p.system] for c, p in PROBES.items()},
+    prompts={
+        role.prompt.prompt_id: [role.prompt.prompt_version, role.prompt.template]
+        for role in (QUERY_REWRITER, HYPOTHESIS_ENGINE, ADVERSARIAL_CRITIC)
+    }
+    | {"probe:specialist": ["-", _SPECIALIST_TEMPLATE]},
+)
+
+
+def run_probe(
+    client: OpenAICompatibleClient,
+    model: str,
+    capability: Capability,
+    *,
+    hypothesis_minimum: int = GENERIC_HYPOTHESIS_MINIMUM,
+) -> ProbeResult:
+    """`hypothesis_minimum`: what ROLE_HYPOTHESIS is run at -- the requirement the caller wants
+    demonstrated, recorded with the result. Ignored by every other capability."""
+    parameters: dict[str, int] = {}
+    if capability is Capability.ROLE_HYPOTHESIS:
+        probe = hypothesis_probe(hypothesis_minimum)
+        parameters = {"minimum_hypotheses": hypothesis_minimum}
+    else:
+        probe = PROBES[capability]
     try:
         reply = client.chat(
             model,
@@ -315,22 +399,32 @@ def run_probe(client: OpenAICompatibleClient, model: str, capability: Capability
         )
     except ProviderError as failed:
         return ProbeResult(
-            capability, ProbeOutcome.ERROR, f"{failed.failure.value}: {failed.detail}"
+            capability,
+            ProbeOutcome.ERROR,
+            f"{failed.failure.value}: {failed.detail}",
+            parameters=parameters,
         )
     digest = "sha256:" + hashlib.sha256(reply.text.encode("utf-8")).hexdigest()
     reason = probe.judge(reply.text.strip())
     if reason is None:
-        return ProbeResult(capability, ProbeOutcome.PASSED, "", reply.latency_ms, digest)
-    return ProbeResult(capability, ProbeOutcome.FAILED, reason[:300], reply.latency_ms, digest)
+        return ProbeResult(
+            capability, ProbeOutcome.PASSED, "", reply.latency_ms, digest, parameters
+        )
+    return ProbeResult(
+        capability, ProbeOutcome.FAILED, reason[:300], reply.latency_ms, digest, parameters
+    )
 
 
 __all__ = [
+    "GENERIC_HYPOTHESIS_MINIMUM",
     "PROBES",
-    "PROBE_DIGEST",
     "PROBE_IMAGE_PNG",
     "PROBE_ORDER",
     "PROBE_VERSION",
+    "QUALIFICATION_DIGEST",
     "ProbeOutcome",
     "ProbeResult",
+    "hypothesis_probe",
+    "qualification_digest",
     "run_probe",
 ]

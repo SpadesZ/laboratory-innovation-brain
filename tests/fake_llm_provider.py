@@ -182,6 +182,23 @@ def _answer(model: str, prompt: str, image: bool, reasoner: CatalogReasoner, slo
     return str(reasoner(prompt, slot))
 
 
+#: Distinct mechanisms for the Hypothesis Engine's probe: as many as its context asks for (the
+#: probe is run at the deployment's minimum), so the stand-in qualifies wherever a real model would.
+_PROBE_MECHANISMS = (
+    ("h1", "Oxidised contacts add resistance.", "contact oxidation", "nominal 4PP"),
+    ("h2", "Self heating raises resistance.", "self heating", "no current effect"),
+    ("h3", "Edge dies carry a thinner film.", "edge film thinning", "edge and centre agree"),
+    ("h4", "The anneal grew a resistive silicide.", "anneal silicide", "unannealed die reads high"),
+    ("h5", "New needles press too lightly.", "needle contact force", "harder press reads nominal"),
+    (
+        "h6",
+        "Moisture raised the surface leakage.",
+        "surface moisture",
+        "dry nitrogen changes nothing",
+    ),
+)
+
+
 def _probe_answer(prompt: str, ctx: dict[str, Any]) -> dict[str, Any]:
     """Valid answers to the capability probes' role prompts, built from what each context gives."""
     if "mode" in ctx:
@@ -208,10 +225,9 @@ def _probe_answer(prompt: str, ctx: dict[str, Any]) -> dict[str, Any]:
                         }
                     ],
                 }
-                for key, statement, mechanism, falsifier in (
-                    ("h1", "Oxidised contacts add resistance.", "contact oxidation", "nominal 4PP"),
-                    ("h2", "Self heating raises resistance.", "self heating", "no current effect"),
-                )
+                for key, statement, mechanism, falsifier in _PROBE_MECHANISMS[
+                    : max(2, int(ctx.get("minimum_hypotheses", 2)))
+                ]
             ],
             "position": {"mechanism_view": "contact oxidation", "uncertainties": []},
         }
