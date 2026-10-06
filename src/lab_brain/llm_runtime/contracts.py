@@ -104,13 +104,17 @@ CONTRACTS: Mapping[str, str] = {
     "ROLE_CRITIQUE": CRITIQUE_CONTRACT,
 }
 
-CONTRACT_DIGEST = hashlib.sha256(
-    json.dumps(
-        {"version": RESPONSE_CONTRACT_VERSION, "contracts": dict(CONTRACTS)},
-        sort_keys=True,
-        ensure_ascii=False,
-    ).encode("utf-8")
-).hexdigest()
+
+def contract_digest(contracts: Mapping[str, str], version: str = RESPONSE_CONTRACT_VERSION) -> str:
+    """The digest of a set of contracts under a contract version: what a qualification names."""
+    return hashlib.sha256(
+        json.dumps(
+            {"version": version, "contracts": dict(contracts)}, sort_keys=True, ensure_ascii=False
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+CONTRACT_DIGEST = contract_digest(CONTRACTS)
 
 
 def contract_for(material: str) -> str | None:
@@ -145,5 +149,6 @@ __all__ = [
     "QUERY_CONTRACT",
     "RESPONSE_CONTRACT_VERSION",
     "SPECIALIST_CONTRACT",
+    "contract_digest",
     "contract_for",
 ]

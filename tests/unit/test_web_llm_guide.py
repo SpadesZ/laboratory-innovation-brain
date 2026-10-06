@@ -205,6 +205,9 @@ def test_every_readiness_blocker_becomes_a_line_and_none_is_dropped():
         "confirm it again": "llm.todo.stale_lock",
         "REASONING_PRIMARY: model m demonstrated ROLE_HYPOTHESIS for at least 2 competing "
         "hypotheses; this deployment's research requires 5": "llm.todo.role_fit",
+        "FAST_UTILITY: model m's lock lk:0123abcd counts tests (CHAT, ROLE_QUERY) whose "
+        "qualification semantics were not recorded or are no longer in force; test it again and "
+        "confirm it again": "llm.todo.stale_lock",
     }
     for blocker, key in known.items():
         todo = llm_guide.blocker_todo(blocker)

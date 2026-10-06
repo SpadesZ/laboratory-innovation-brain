@@ -85,6 +85,8 @@ class ProbeRow:
     probed_at: dt.datetime
     #: What the probe demanded where that varies (`012l`); {} for every earlier row.
     parameters: Mapping[str, Any] = field(default_factory=dict)
+    #: The qualification semantics it ran under (`012m`); None for earlier rows -- unproven.
+    qualification_digest: str | None = None
 
 
 @dataclass(frozen=True)
@@ -119,7 +121,7 @@ _MODEL = (
 )
 _PROBE = (
     "probe_id, model_profile_id, capability, outcome, probe_version, response_digest, latency_ms, "
-    "detail, probed_at, parameters"
+    "detail, probed_at, parameters, qualification_digest"
 )
 _RUNTIME = (
     "runtime_id, name, state, external_labels, created_by, created_at, activated_by, "
@@ -161,6 +163,17 @@ def qualification_of(
         if probe is not None and probe.outcome == "PASSED" and probe.parameters:
             out[name] = dict(probe.parameters)
     return out
+
+
+def _semantics(probe: ProbeRow) -> str:
+    """The semantics a probe ran under, as a refusal says it."""
+    if probe.qualification_digest is None:
+        return f"{probe.probe_version}, semantics not recorded"
+    return f"{probe.probe_version} {probe.qualification_digest[:12]}"
+
+
+def _semantics_in_force() -> str:
+    return f"{PROBE_VERSION} {QUALIFICATION_DIGEST[:12]}"
 
 
 class SqlLLMRegistry:
@@ -313,7 +326,7 @@ class SqlLLMRegistry:
         def write() -> None:
             self._c.execute(
                 f"INSERT INTO llm_capability_probes ({_PROBE}) VALUES"
-                " (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)",
+                " (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)",
                 (
                     probe_id,
                     model_profile_id,
@@ -325,6 +338,7 @@ class SqlLLMRegistry:
                     result.detail,
                     at,
                     json.dumps(dict(result.parameters), sort_keys=True),
+                    QUALIFICATION_DIGEST,
                 ),
             )
             self._c.execute(
@@ -345,6 +359,7 @@ class SqlLLMRegistry:
             result.detail,
             at,
             dict(result.parameters),
+            QUALIFICATION_DIGEST,
         )
 
     def latest_probes(self, model_profile_id: str) -> dict[Capability, ProbeRow]:
@@ -362,23 +377,27 @@ class SqlLLMRegistry:
         return frozenset(Capability(c) for c in (row[0] or ()))
 
     def lock(self, model_profile_id: str, *, actor_id: str, at: dt.datetime) -> ModelRow:
-        """Lock exactly what the latest probes proved. Only probes run under the probes in force
-        (`PROBE_VERSION`) can be locked: a fingerprint is computed under the semantics in force, so
-        a lock made now from older evidence -- unlocking a stale model and locking it again without
-        testing it -- would pass as current on tests that no longer qualify anything."""
+        """Lock exactly what the latest probes proved -- and only probes that recorded the
+        qualification semantics in force (`QUALIFICATION_DIGEST`, `012m`). A fingerprint is computed
+        under the semantics in force, so a lock made now from evidence of other semantics --
+        unlocking a stale model and locking it again without testing it, after a prompt, contract
+        or payload changed with or without a version bump -- would pass as current on tests that
+        qualify nothing. A probe that recorded no semantics (written before `012m`) is unproven."""
         model = self._require(self.model(model_profile_id))
         connection = self._require(self.connection(model.connection_id))
         verified = sorted(c.value for c in self.verified_capabilities(model_profile_id))
         probes = self.latest_probes(model_profile_id)
-        outdated = sorted(
-            c for c in verified if probes[Capability(c)].probe_version != PROBE_VERSION
+        unproven = sorted(
+            c
+            for c in verified
+            if probes[Capability(c)].qualification_digest != QUALIFICATION_DIGEST
         )
-        if outdated:
-            ran = sorted({probes[Capability(c)].probe_version for c in outdated})
+        if unproven:
+            theirs = sorted({_semantics(probes[Capability(c)]) for c in unproven})
             raise RegistryRefused(
-                f"model {model.model_name}'s latest tests of {', '.join(outdated)} ran under "
-                f"{', '.join(ran)}, not the tests in force ({PROBE_VERSION}); test it again before "
-                "confirming it",
+                f"model {model.model_name}'s latest tests of {', '.join(unproven)} were not run "
+                f"under the qualification semantics in force ({_semantics_in_force()}; theirs: "
+                f"{', '.join(theirs)}); test it again before confirming it",
                 code="lock.outdated_tests",
             )
         qualification = qualification_of(probes, verified)
@@ -408,26 +427,38 @@ class SqlLLMRegistry:
         demonstrated, and the qualification semantics in force -- against the one it was given.
         A lock made under an earlier probe, role prompt or response contract does not match and is
         refused until the model is tested again and locked again; the lock itself is left as it
-        was (`llm_model_locks` keeps every one)."""
+        was (`llm_model_locks` keeps every one). So is a lock whose counted probes did not record
+        the semantics in force (`012m`): one made before probes recorded them proves nothing about
+        what its evidence was run under."""
         if model.lifecycle != "LOCKED" or model.lock_fingerprint is None:
             return None
         connection = self.connection(model.connection_id)
         if connection is None:  # pragma: no cover - a foreign key
             return f"model {model.model_name}'s connection is missing"
+        locked = model.locked_capabilities or ()
+        probes = self.latest_probes(model.model_profile_id)
         current = lock_fingerprint(
-            connection,
-            model.model_name,
-            model.locked_capabilities or (),
-            self.qualification(model),
+            connection, model.model_name, locked, qualification_of(probes, locked)
         )
-        if current == model.lock_fingerprint:
-            return None
-        return (
-            f"model {model.model_name}'s lock {model.lock_fingerprint} was made under "
-            "qualification semantics no longer in force (a probe, role prompt or response contract "
-            "changed); "
-            "test it again and confirm it again"
+        if current != model.lock_fingerprint:
+            return (
+                f"model {model.model_name}'s lock {model.lock_fingerprint} was made under "
+                "qualification semantics no longer in force (a probe, role prompt or response "
+                "contract changed); test it again and confirm it again"
+            )
+        unverified = sorted(
+            c
+            for c in locked
+            if (probe := probes.get(Capability(c))) is None
+            or probe.qualification_digest != QUALIFICATION_DIGEST
         )
+        if unverified:
+            return (
+                f"model {model.model_name}'s lock {model.lock_fingerprint} counts tests "
+                f"({', '.join(unverified)}) whose qualification semantics were not recorded or "
+                "are no longer in force; test it again and confirm it again"
+            )
+        return None
 
     def demonstrated(self, model: ModelRow, capability: Capability, parameter: str) -> int:
         """The value of `parameter` the model's lock demonstrated for `capability` -- 0 when it

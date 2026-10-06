@@ -3274,8 +3274,8 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="semantics_ignore_the_suite_version",
         guards="stale lock -- the suite's version is part of the qualification semantics",
         path="src/lab_brain/llm_runtime/probes.py",
-        old='            "suite": HYPOTHESIS_SUITE,\n            "cases": {\n',
-        new='            "cases": {\n',
+        old='                "suite": HYPOTHESIS_SUITE,\n                "cases": {\n',
+        new='                "cases": {\n',
         tests=("tests/unit/test_llm_qualification.py",),
     ),
     Mutation(
@@ -3312,11 +3312,11 @@ MUTATIONS: tuple[Mutation, ...] = (
     ),
     Mutation(
         name="lock_counts_outdated_tests",
-        guards="stale lock -- a model is not locked again on tests run under earlier probes",
+        guards="stale lock -- a lock counts only probes run under the qualification semantics in force",
         path="src/lab_brain/llm_runtime/registry.py",
-        old="        if outdated:\n",
+        old="        if unproven:\n",
         new="        if False:\n",
-        tests=("tests/integration/test_hypothesis_conformance_postgres.py",),
+        tests=("tests/integration/test_probe_semantics_postgres.py",),
     ),
     Mutation(
         name="settings_drop_the_refusal_code",
@@ -3341,6 +3341,30 @@ MUTATIONS: tuple[Mutation, ...] = (
         old='                m("llm.probe.suite", suite=suite) if suite else "",',
         new='                "",',
         tests=("tests/e2e/test_web_hypothesis_conformance_postgres.py",),
+    ),
+    Mutation(
+        name="probe_records_no_semantics",
+        guards="stale lock -- every probe records the qualification semantics it ran under",
+        path="src/lab_brain/llm_runtime/registry.py",
+        old="                    json.dumps(dict(result.parameters), sort_keys=True),\n                    QUALIFICATION_DIGEST,\n",
+        new="                    json.dumps(dict(result.parameters), sort_keys=True),\n                    None,\n",
+        tests=("tests/integration/test_probe_semantics_postgres.py",),
+    ),
+    Mutation(
+        name="lock_problem_trusts_unrecorded_evidence",
+        guards="stale lock -- a lock counting probes of unproven semantics is refused at use",
+        path="src/lab_brain/llm_runtime/registry.py",
+        old="        if unverified:\n",
+        new="        if False:\n",
+        tests=("tests/integration/test_probe_semantics_postgres.py",),
+    ),
+    Mutation(
+        name="guide_says_unrecorded_evidence_raw",
+        guards="AI model settings -- a lock on unproven evidence is said as the stale-lock step",
+        path="src/lab_brain/interfaces/web/llm_guide.py",
+        old='    r"longer in force|counts tests \\(.+\\) whose qualification semantics were not recorded)"',
+        new='    r"longer in force)"',
+        tests=("tests/unit/test_web_llm_guide.py",),
     ),
 )
 

@@ -191,6 +191,9 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   推論出結果空間的模型不會通過。測試規則改變後，舊的模型確認會失效，而且必須重新測試才能再確認（不能只
   解除確認再確認）。設計記錄：
   [`docs/implementation/hypothesis-conformance.md`](docs/implementation/hypothesis-conformance.md)。
+- 每一筆模型能力測試結果都記錄它執行時的測試規則識別碼；確認模型時只採用在目前測試規則下完成的測試
+  結果。舊的、未記錄規則的測試結果不能用來確認模型，以它們確認的既有模型也會被拒絕使用，直到重新測試
+  並重新確認。設計記錄：[`docs/implementation/probe-semantics.md`](docs/implementation/probe-semantics.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。

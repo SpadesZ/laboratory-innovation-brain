@@ -6,10 +6,11 @@ Driven as an administrator would, with the stand-in model:
                       model page names the suite beside N
     inventive         a model that binds a prediction to a space it named from the evidence fails
                       the multi-space case: the page says so, and primary reasoning is not offered
-    next suite        when the qualification semantics move on, research is refused before any
-                      model call; confirming the model again without testing it is refused, in the
-                      researcher's words; testing and confirming it gives a new route -- and every
-                      earlier InferenceProvenance and lock row is byte-for-byte as it was
+    next suite        when the qualification semantics move on -- the probe version left as it
+                      is -- research is refused before any model call; confirming the model again
+                      without testing it is refused, in the researcher's words; testing and
+                      confirming it gives a new route -- and every earlier InferenceProvenance,
+                      lock and probe row is byte-for-byte as it was
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from unittest.mock import patch
 import pytest
 
 import lab_brain.llm_runtime.registry as registry_module
-from lab_brain.llm_runtime.probes import HYPOTHESIS_SUITE
+from lab_brain.llm_runtime.probes import HYPOTHESIS_SUITE, PROBE_VERSION
 from tests.e2e.test_web_debate_retry_postgres import _activated, _deployment
 from tests.e2e.test_web_llm_credentials_postgres import KEY, _connection, _post, _setup, _text
 from tests.e2e.test_web_llm_runtime_postgres import _bind, _model, _proven, _research, _runtime
@@ -42,6 +43,7 @@ def _rows(db, sql: str) -> list[str]:  # type: ignore[no-untyped-def]
 
 PROVENANCE = "SELECT t::text FROM inference_provenance t ORDER BY inference_id"
 LOCKS = "SELECT t::text FROM llm_model_locks t ORDER BY model_profile_id, locked_at"
+PROBES = "SELECT t::text FROM llm_capability_probes t ORDER BY probe_id"
 
 
 def test_a_route_from_an_earlier_suite_is_refused_and_history_stays_byte_for_byte(
@@ -64,14 +66,13 @@ def test_a_route_from_an_earlier_suite_is_refused_and_history_stays_byte_for_byt
         browser.get(f"/settings/llm/models/{reasoner}")
     )
     assert _research(browser, tmp_path).status == 303
-    provenance, locks = _rows(db, PROVENANCE), _rows(db, LOCKS)
-    assert provenance and locks
+    provenance, locks, probes = _rows(db, PROVENANCE), _rows(db, LOCKS), _rows(db, PROBES)
+    assert provenance and locks and probes
 
-    # The next suite: other payloads, another probe version.
-    with (
-        patch.object(registry_module, "QUALIFICATION_DIGEST", "e" * 64),
-        patch.object(registry_module, "PROBE_VERSION", "probe-9.9.9"),
-    ):
+    # The next semantics: a prompt, a contract or a payload changed -- and nobody bumped the probe
+    # version. The evidence recorded the semantics it ran under, so that is enough.
+    with patch.object(registry_module, "QUALIFICATION_DIGEST", "e" * 64):
+        assert registry_module.PROBE_VERSION == PROBE_VERSION
         calls = len(fake.calls)
         refused = _research(browser, tmp_path)
         assert refused.status == 409 and "no longer in force" in _text(refused)
@@ -110,6 +111,7 @@ def test_a_route_from_an_earlier_suite_is_refused_and_history_stays_byte_for_byt
     assert [r for r in after_provenance if r in provenance] == provenance, "byte for byte"
     assert len(after_provenance) > len(provenance)
     assert [r for r in after_locks if r in locks] == locks, "every lock row as it was"
+    assert [r for r in _rows(db, PROBES) if r in probes] == probes, "every probe row as it was"
     assert len(after_locks) == len(locks) + 2, "the two new locks beside them"
 
 

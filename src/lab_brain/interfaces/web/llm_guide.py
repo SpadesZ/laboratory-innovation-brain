@@ -187,8 +187,8 @@ _TOO_SLOW = re.compile(
     r"deployment's inference deadline \(([0-9.]+) s\)$"
 )
 _STALE_LOCK = re.compile(
-    rf"^({_SLOT}): model (.+)'s lock (lk:[0-9a-f]+) was made under qualification semantics no "
-    r"longer in force"
+    rf"^({_SLOT}): model (.+)'s lock (lk:[0-9a-f]+) (?:was made under qualification semantics no "
+    r"longer in force|counts tests \(.+\) whose qualification semantics were not recorded)"
 )
 _ROLE_FIT = re.compile(
     rf"^({_SLOT}): model (.+) demonstrated ROLE_HYPOTHESIS for at least (\d+) competing "

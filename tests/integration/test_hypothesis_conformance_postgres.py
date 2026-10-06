@@ -84,14 +84,15 @@ def _model(db, base_url: str, name: str = "fake-reasoner", connection: str = "lo
 
 def _tested_under_the_single_space_suite(db, model_id: str) -> None:  # type: ignore[no-untyped-def]
     """The probe rows a model has from before the suite: `probe-2.0.0`, ROLE_HYPOTHESIS at 5 over
-    one outcome space -- what the deployment's qwen2.5:7b was locked on."""
+    one outcome space -- what the deployment's qwen2.5:7b was locked on -- recorded under that
+    suite's semantics (`012m`)."""
     for n, capability in enumerate(LOCKED):
         parameters = {"minimum_hypotheses": 5} if capability == "ROLE_HYPOTHESIS" else {}
         db.execute(
             "INSERT INTO llm_capability_probes (probe_id, model_profile_id, capability, outcome,"
-            " probe_version, latency_ms, probed_at, parameters) VALUES (%s, %s, %s, 'PASSED',"
-            " 'probe-2.0.0', 900, now() - interval '1 day', %s::jsonb)",
-            (f"lcp:old-{n}", model_id, capability, json.dumps(parameters)),
+            " probe_version, latency_ms, probed_at, parameters, qualification_digest) VALUES"
+            " (%s, %s, %s, 'PASSED', 'probe-2.0.0', 900, now() - interval '1 day', %s::jsonb, %s)",
+            (f"lcp:old-{n}", model_id, capability, json.dumps(parameters), SINGLE_SPACE_DIGEST),
         )
     db.execute(
         "UPDATE llm_models SET lifecycle = 'TESTED' WHERE model_profile_id = %s", (model_id,)
@@ -143,10 +144,11 @@ def test_a_single_space_route_is_stale_and_only_testing_requalifies_it(
     # No shortcut: unlocked and locked again without a test, it is refused, and nothing is written.
     llm.retire_runtime(runtime.runtime_id)
     llm.unlock(model_id)
-    with pytest.raises(SettingsRefused, match=r"ran under probe-2\.0\.0") as refused:
+    with pytest.raises(SettingsRefused, match="not run under the qualification semantics") as no:
         llm.lock(model_id)
-    assert refused.value.code == "lock.outdated_tests"
-    assert PROBE_VERSION in str(refused.value)
+    assert no.value.code == "lock.outdated_tests"
+    assert f"theirs: probe-2.0.0 {SINGLE_SPACE_DIGEST[:12]}" in str(no.value)
+    assert PROBE_VERSION in str(no.value)
     unlocked = llm.registry.model(model_id)
     assert unlocked is not None and unlocked.lifecycle == "TESTED"
     assert _rows(db, locks, model_id) == history

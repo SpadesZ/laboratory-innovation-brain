@@ -474,28 +474,34 @@ def qualification_digest(
     ).hexdigest()
 
 
-#: Part of every lock fingerprint (`registry.lock_fingerprint`). The ROLE_HYPOTHESIS suite enters
-#: with its version and every case's payload, taken at the generic floor: the minimum is the lock's
-#: own recorded parameter, not semantics.
-QUALIFICATION_DIGEST = qualification_digest(
-    probe_version=PROBE_VERSION,
-    contracts=CONTRACT_DIGEST,
-    probes={c.value: [p.prompt, p.system] for c, p in PROBES.items()}
-    | {
-        Capability.ROLE_HYPOTHESIS.value: {
-            "suite": HYPOTHESIS_SUITE,
-            "cases": {
-                name: [p.prompt, p.system]
-                for name, p in hypothesis_suite(GENERIC_HYPOTHESIS_MINIMUM)
-            },
+def qualification_inputs() -> dict[str, object]:
+    """What the qualification semantics in force are made of, as `qualification_digest` takes it.
+    The ROLE_HYPOTHESIS suite enters with its version and every case's payload, taken at the
+    generic floor: the minimum is a lock's own recorded parameter, not semantics."""
+    return {
+        "probe_version": PROBE_VERSION,
+        "contracts": CONTRACT_DIGEST,
+        "probes": {c.value: [p.prompt, p.system] for c, p in PROBES.items()}
+        | {
+            Capability.ROLE_HYPOTHESIS.value: {
+                "suite": HYPOTHESIS_SUITE,
+                "cases": {
+                    name: [p.prompt, p.system]
+                    for name, p in hypothesis_suite(GENERIC_HYPOTHESIS_MINIMUM)
+                },
+            }
+        },
+        "prompts": {
+            role.prompt.prompt_id: [role.prompt.prompt_version, role.prompt.template]
+            for role in (QUERY_REWRITER, HYPOTHESIS_ENGINE, ADVERSARIAL_CRITIC)
         }
-    },
-    prompts={
-        role.prompt.prompt_id: [role.prompt.prompt_version, role.prompt.template]
-        for role in (QUERY_REWRITER, HYPOTHESIS_ENGINE, ADVERSARIAL_CRITIC)
+        | {"probe:specialist": ["-", _SPECIALIST_TEMPLATE]},
     }
-    | {"probe:specialist": ["-", _SPECIALIST_TEMPLATE]},
-)
+
+
+#: Part of every lock fingerprint (`registry.lock_fingerprint`), and recorded with every probe
+#: (`012m`): a lock counts only probes run under the digest in force.
+QUALIFICATION_DIGEST = qualification_digest(**qualification_inputs())  # type: ignore[arg-type]
 
 
 def run_probe(
@@ -586,5 +592,6 @@ __all__ = [
     "hypothesis_suite",
     "multi_space_probe",
     "qualification_digest",
+    "qualification_inputs",
     "run_probe",
 ]
