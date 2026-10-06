@@ -185,6 +185,18 @@ def space_for(observable_ref: str) -> tuple[str, str] | None:
     return None if found is None else (found[0], SPACE_VERSION)
 
 
+def prediction_bindings() -> tuple[tuple[str, str, str], ...]:
+    """This pack's prediction vocabulary: (observable_ref, space id, version) for every observable
+    a hypothesis may predict over -- the same map `space_for` reads, the impedance included. Every
+    one, whether or not this deployment can execute the check that observes it."""
+    observables = (OBSERVABLE_IMPEDANCE, *_SPACES)
+    return tuple(
+        (observable, *found)
+        for observable in sorted(observables)
+        if (found := space_for(observable)) is not None
+    )
+
+
 class CategoricalMismatch:
     """VER-008 for a two-valued diagnosis space: 0 when the outcomes agree, 1 when they do not.
 

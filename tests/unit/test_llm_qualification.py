@@ -55,9 +55,17 @@ MECHANISMS = (
 )
 
 
-def _answer(count: int, space: tuple[str, str, str] = ("os:probe.level", "1.0.0", "HIGH")) -> str:
+def _answer(
+    count: int,
+    binding: tuple[str, str, str, str] = (
+        "bench.resistor_reading",
+        "os:probe.level",
+        "1.0.0",
+        "HIGH",
+    ),
+) -> str:
     """A well-formed Hypothesis Engine answer with `count` distinct certificates, each predicting
-    over `space` (id, version, outcome)."""
+    over `binding` (observable, space id, version, outcome)."""
     return json.dumps(
         {
             "hypotheses": [
@@ -71,10 +79,10 @@ def _answer(count: int, space: tuple[str, str, str] = ("os:probe.level", "1.0.0"
                     "minimal_test_ref": "four point measurement",
                     "predictions": [
                         {
-                            "observable_ref": "probe.resistance",
-                            "outcome_space_id": space[0],
-                            "outcome_space_version": space[1],
-                            "expected_outcome": space[2],
+                            "observable_ref": binding[0],
+                            "outcome_space_id": binding[1],
+                            "outcome_space_version": binding[2],
+                            "expected_outcome": binding[3],
                             "relation_effect": "SUPPORTS",
                         }
                     ],
@@ -88,7 +96,7 @@ def _answer(count: int, space: tuple[str, str, str] = ("os:probe.level", "1.0.0"
 
 class _Model:
     """A model that answers the Hypothesis Engine with a fixed number of certificates, over the
-    first outcome space it is given."""
+    first prediction binding it is given."""
 
     def __init__(self, count: int) -> None:
         self.count = count
@@ -96,16 +104,21 @@ class _Model:
 
     def chat(self, model: str, prompt: str, **_: object) -> ChatReply:
         self.prompts.append(prompt)
-        first = json.loads(prompt.split("\n\nCONTEXT:\n", 1)[1])["outcome_spaces"][0]
-        space = (first["outcome_space_id"], first["outcome_space_version"], first["outcomes"][0])
-        return ChatReply(text=_answer(self.count, space), latency_ms=7)
+        first = json.loads(prompt.split("\n\nCONTEXT:\n", 1)[1])["prediction_bindings"][0]
+        binding = (
+            first["observable_ref"],
+            first["outcome_space_id"],
+            first["outcome_space_version"],
+            first["outcomes"][0],
+        )
+        return ChatReply(text=_answer(self.count, binding), latency_ms=7)
 
 
 def test_the_prompt_asks_for_the_contexts_minimum_and_never_a_count_of_its_own():
     template = HYPOTHESIS_ENGINE.prompt.template
     assert "at least CONTEXT.minimum_hypotheses competing mechanisms -- never fewer" in template
     assert "two" not in template.lower() and not any(ch.isdigit() for ch in template)
-    assert HYPOTHESIS_ENGINE.prompt.prompt_version == "2.1.0"
+    assert HYPOTHESIS_ENGINE.prompt.prompt_version == "3.0.0"
     # The response contract and the context agree with it; the parser stays the judge.
     assert "at least CONTEXT.minimum_hypotheses" in HYPOTHESIS_CONTRACT
     assert "minimum_hypotheses" in HYPOTHESIS_ENGINE.requires

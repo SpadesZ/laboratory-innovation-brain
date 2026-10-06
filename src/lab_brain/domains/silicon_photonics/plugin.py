@@ -275,6 +275,9 @@ class SiliconPhotonicsPack:
             registry.declare_space(space)
         for metric in vertical.disagreement_metrics():
             registry.register(metric)
+        # The prediction vocabulary: which observable is read in which declared space.
+        for observable, space_id, version in vertical.prediction_bindings():
+            registry.declare_observable(observable, space_id, version)
 
     # -- M4 registrations (§24.3) -------------------------------------------
 

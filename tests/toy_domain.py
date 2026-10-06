@@ -501,6 +501,7 @@ class ToyDomainPack:
             )
         )
         registry.register(ToyCategoricalMismatch())
+        registry.declare_observable(TOY_OBSERVABLE_METRIC, TOY_OUTCOME_SPACE, "1.0.0")
 
     def register_workflows(self, registry: WorkflowRegistry) -> None:
         registry.register(ToyWidgetWorkflow())

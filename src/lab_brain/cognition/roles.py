@@ -85,22 +85,43 @@ class RoleContract:
 #: 2.1.0: the binding rule is said, not only enforced. A model given several outcome spaces bound a
 #: prediction to one it named itself from a quantity in the evidence; the parser refused it
 #: (VER-004), as it still does -- the prompt now says where every space id and outcome comes from.
+#: 3.0.0: the context's `prediction_bindings` replace `outcome_spaces`. A prediction's observable is
+#: a canonical identifier the verification planner matches exactly, so the engine is shown the
+#: domain's declared observable -> space bindings and copies the observable with its space; a model
+#: shown only spaces wrote a space id where the observable belongs, and no check could match it.
 HYPOTHESIS_ENGINE = RoleContract(
     role=CognitiveRole.HYPOTHESIS_ENGINE,
     prompt=PromptTemplate(
         "prm:hypothesis-engine",
-        "2.1.0",
+        "3.0.0",
         "You are the Hypothesis Engine. From ONLY the evidence given, propose at least "
         "CONTEXT.minimum_hypotheses competing mechanisms -- never fewer -- as complete hypothesis "
         "certificates -- statement, mechanism, assumptions, falsifier, confounders, minimal test "
-        "and typed predictions -- and your position. Bind every prediction to an outcome space in "
-        "CONTEXT.outcome_spaces: copy its outcome_space_id and outcome_space_version exactly, as "
-        "the pair given there, and its expected_outcome verbatim from that same space's outcomes. "
-        "Never invent or infer an outcome space from the evidence, even when the evidence names a "
-        "quantity that sounds like an observable. Reply with JSON.",
+        "and typed predictions -- and your position. Bind every prediction to one entry of "
+        "CONTEXT.prediction_bindings: copy that entry's observable_ref, outcome_space_id and "
+        "outcome_space_version exactly, together, and its expected_outcome verbatim from that "
+        "entry's outcomes. An outcome_space_id is not an observable_ref. Never invent or infer an "
+        "observable or an outcome space from the evidence, even when the evidence names a quantity "
+        "that sounds like one. Reply with JSON.",
     ),
-    requires=frozenset({"question", "evidence", "outcome_spaces", "minimum_hypotheses"}),
+    requires=frozenset({"question", "evidence", "prediction_bindings", "minimum_hypotheses"}),
 )
+
+
+def binding_context(bindings: Mapping[str, OutcomeSpace]) -> list[dict[str, object]]:
+    """A domain's prediction vocabulary as the Hypothesis Engine is shown it: per declared
+    observable, the space it is read in and that space's outcomes."""
+    return [
+        {
+            "observable_ref": observable,
+            "outcome_space_id": space.outcome_space_id,
+            "outcome_space_version": space.version,
+            "outcomes": list(space.outcomes),
+            "action_type": space.action_type,
+        }
+        for observable, space in sorted(bindings.items())
+    ]
+
 
 ADVERSARIAL_CRITIC = RoleContract(
     role=CognitiveRole.ADVERSARIAL_CRITIC,
@@ -240,7 +261,7 @@ class PositionDraft:
 def parse_hypothesis_engine(
     text: str,
     *,
-    spaces: Mapping[tuple[str, str], OutcomeSpace],
+    bindings: Mapping[str, OutcomeSpace],
     minimum: int,
     inference_id: str | None = None,
 ) -> tuple[tuple[HypothesisProposal, ...], PositionDraft]:
@@ -249,6 +270,12 @@ def parse_hypothesis_engine(
     ``minimum`` is 2 for Stage A (EPI-001) and may be 1 when a later round asks the engine to
     certify an alternative the Critic named. It is never 0: a round that asked for hypotheses and
     received none would record a debate that did not happen.
+
+    ``bindings`` is the domain's prediction vocabulary (observable_ref -> the declared space it is
+    read in), exactly as the engine was shown it. A prediction is admitted only over a declared
+    (observable, space id, version) binding with an outcome that space admits: the planner matches
+    the observable to what a capability produces, exactly, so an observable that is not canonical
+    would be a prediction nothing could ever check.
     """
     role = HYPOTHESIS_ENGINE.role.value
     obj = _object(role, text, inference_id)
@@ -288,18 +315,36 @@ def parse_hypothesis_engine(
                 raise RoleOutputRefused(
                     role, "a prediction is not an object", inference_id=inference_id
                 )
+            observable = _text(role, p, "observable_ref", inference_id)
             space_key = (
                 _text(role, p, "outcome_space_id", inference_id),
                 _text(role, p, "outcome_space_version", inference_id),
             )
-            space = spaces.get(space_key)
-            if space is None:
+            if space_key not in {(s.outcome_space_id, s.version) for s in bindings.values()}:
                 raise RoleOutputRefused(
                     role,
                     f"hypothesis {key!r} predicts over outcome space "
                     f"{space_key[0]}@{space_key[1]}, "
                     "which the engine was not shown; a prediction may only be bound to a declared "
                     "space it was given (VER-004)",
+                    inference_id=inference_id,
+                )
+            space = bindings.get(observable)
+            if space is None:
+                raise RoleOutputRefused(
+                    role,
+                    f"hypothesis {key!r} predicts over observable {observable!r}, which is not in "
+                    f"the prediction vocabulary it was given ({', '.join(sorted(bindings))}); an "
+                    "observable_ref is copied from a declared binding, never made up or derived "
+                    "from an outcome space id (VER-004)",
+                    inference_id=inference_id,
+                )
+            if (space.outcome_space_id, space.version) != space_key:
+                raise RoleOutputRefused(
+                    role,
+                    f"hypothesis {key!r} reads observable {observable!r} in "
+                    f"{space_key[0]}@{space_key[1]}; it is declared in {space.ref} -- an "
+                    "observable and its space are copied together (VER-004)",
                     inference_id=inference_id,
                 )
             expected = _text(role, p, "expected_outcome", inference_id)
@@ -326,7 +371,7 @@ def parse_hypothesis_engine(
             direction = p.get("direction")
             predictions.append(
                 PredictionProposal(
-                    observable_ref=_text(role, p, "observable_ref", inference_id),
+                    observable_ref=observable,
                     outcome_space_id=space_key[0],
                     outcome_space_version=space_key[1],
                     expected_outcome=expected,
@@ -531,6 +576,7 @@ __all__ = [
     "PredictionProposal",
     "RoleContract",
     "RoleOutputRefused",
+    "binding_context",
     "core_prompts",
     "parse_critique",
     "parse_hypothesis_engine",

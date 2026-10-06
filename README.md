@@ -194,6 +194,10 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
 - 每一筆模型能力測試結果都記錄它執行時的測試規則識別碼；確認模型時只採用在目前測試規則下完成的測試
   結果。舊的、未記錄規則的測試結果不能用來確認模型，以它們確認的既有模型也會被拒絕使用，直到重新測試
   並重新確認。設計記錄：[`docs/implementation/probe-semantics.md`](docs/implementation/probe-semantics.md)。
+- 預測詞彙由領域套件宣告：每個可觀測量（observable_ref）對應一個已宣告的結果空間。假說引擎會看到這份
+  對應，預測必須原樣複製可觀測量與其結果空間（含版本）；結果空間 id 不能當作可觀測量使用，自行編造或
+  配錯的會被拒絕。驗證規劃因此能以同一個識別碼找到對應的檢查。設計記錄：
+  [`docs/implementation/prediction-vocabulary.md`](docs/implementation/prediction-vocabulary.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。

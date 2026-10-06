@@ -34,7 +34,9 @@ from lab_brain.core.models.prediction import PREDICTION_EFFECT_TYPES
 
 #: rc-1.1.0: the Hypothesis Engine's contract says where a prediction's outcome space comes from
 #: (the pair as given in CONTEXT.outcome_spaces, never one named from the evidence).
-RESPONSE_CONTRACT_VERSION = "rc-1.1.0"
+#: rc-2.0.0: a prediction's observable_ref, outcome_space_id and outcome_space_version are copied
+#: together from one entry of CONTEXT.prediction_bindings (prompt 3.0.0).
+RESPONSE_CONTRACT_VERSION = "rc-2.0.0"
 
 #: Where a rendered context block begins (`cognition.llm._render`).
 CONTEXT_MARKER = "\n\nCONTEXT:\n"
@@ -60,21 +62,22 @@ HYPOTHESIS_CONTRACT = _BARE + (
     '"mechanism": "<short mechanism name>", "assumptions": ["<text>", ...], '
     '"falsifier": "<observation that would refute it>", "confounders": ["<text>", ...], '
     '"minimal_test_ref": "<the cheapest test or capability id that could refute it>", '
-    '"predictions": [{"observable_ref": "<what is observed>", '
-    '"outcome_space_id": "<an outcome_space_id from CONTEXT.outcome_spaces>", '
-    '"outcome_space_version": "<that space\'s version>", '
-    '"expected_outcome": "<one of that space\'s outcomes, verbatim>", '
+    '"predictions": [{"observable_ref": "<an observable_ref from CONTEXT.prediction_bindings>", '
+    '"outcome_space_id": "<that entry\'s outcome_space_id>", '
+    '"outcome_space_version": "<that entry\'s outcome_space_version>", '
+    '"expected_outcome": "<one of that entry\'s outcomes, verbatim>", '
     f'"relation_effect": "<{_choices(PREDICTION_EFFECT_TYPES)}>", '
     '"direction": "<optional>"}]}], '
     '"position": {"mechanism_view": "<your view>", "uncertainties": ["<text>", ...], '
     '"confounders": ["<text>", ...]}}. '
     "Give at least CONTEXT.minimum_hypotheses competing hypotheses with distinct keys and distinct "
-    "mechanisms; every hypothesis needs at least one prediction over a space in "
-    "CONTEXT.outcome_spaces; lists may be empty but must be lists of non-empty strings. "
-    "Copy each prediction's outcome_space_id and outcome_space_version together, exactly as one "
-    "entry of CONTEXT.outcome_spaces gives them, and its expected_outcome from that entry's "
-    "outcomes. Never make up an outcome space or derive one from a quantity named in the "
-    "evidence; if no given space fits a prediction, make a different prediction that one does."
+    "mechanisms; every hypothesis needs at least one prediction over an entry of "
+    "CONTEXT.prediction_bindings; lists may be empty but must be lists of non-empty strings. "
+    "Copy each prediction's observable_ref, outcome_space_id and outcome_space_version together, "
+    "exactly as one entry of CONTEXT.prediction_bindings gives them, and its expected_outcome "
+    "from that entry's outcomes; an outcome_space_id is never an observable_ref. Never make up an "
+    "observable or an outcome space or derive one from a quantity named in the evidence; if no "
+    "given entry fits a prediction, make a different prediction that one does."
 )
 
 SPECIALIST_CONTRACT = _BARE + (

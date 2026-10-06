@@ -28,6 +28,10 @@ test can show none of it is kept.
 `invent_space` (off by default) makes its Hypothesis Engine probe answers INVENTIVE: given several
 outcome spaces, it binds one prediction to a space it named itself from a quantity in the evidence
 (`INVENTED_SPACE`) -- the error a real model made -- and is otherwise as valid as ever.
+
+`space_as_observable` (off by default) makes them write each prediction's outcome space id where its
+observable belongs -- the other error a real model made, against bindings that declare a different
+canonical observable -- and is otherwise as valid as ever.
 """
 
 from __future__ import annotations
@@ -70,6 +74,7 @@ class FakeProvider:
     redirect_status: int = 307
     redirected: int = 0
     invent_space: bool = False
+    space_as_observable: bool = False
     _server: ThreadingHTTPServer | None = None
 
     @property
@@ -143,7 +148,15 @@ class FakeProvider:
                 provider.calls.append(Call(model, system, prompt, image))
                 if provider.delay is not None and (wait := provider.delay(prompt, system)) > 0:
                     time.sleep(wait)
-                text = _answer(model, prompt, image, reasoner, slot, provider.invent_space)
+                text = _answer(
+                    model,
+                    prompt,
+                    image,
+                    reasoner,
+                    slot,
+                    provider.invent_space,
+                    provider.space_as_observable,
+                )
                 self._send(
                     200,
                     {"choices": [{"message": {"role": "assistant", "content": text}}]},
@@ -178,6 +191,7 @@ def _answer(
     reasoner: CatalogReasoner,
     slot: Any,
     invent: bool = False,
+    space_as_observable: bool = False,
 ) -> str:
     if prompt.startswith("Reply with exactly one word: pong"):
         return "pong"
@@ -193,7 +207,9 @@ def _answer(
         return "I have nothing to add."
     context = json.loads(prompt.split(_MARKER, 1)[1])
     if isinstance(context, dict) and str(context.get("question", "")).startswith("PROBE:"):
-        return json.dumps(_probe_answer(prompt, context, invent=invent))
+        return json.dumps(
+            _probe_answer(prompt, context, invent=invent, space_as_observable=space_as_observable)
+        )
     return str(reasoner(prompt, slot))
 
 
@@ -214,13 +230,15 @@ _PROBE_MECHANISMS = (
 )
 
 
-def _probe_answer(prompt: str, ctx: dict[str, Any], *, invent: bool = False) -> dict[str, Any]:
+def _probe_answer(
+    prompt: str, ctx: dict[str, Any], *, invent: bool = False, space_as_observable: bool = False
+) -> dict[str, Any]:
     """Valid answers to the capability probes' role prompts, built from what each context gives --
     but for `invent`, one prediction bound to `INVENTED_SPACE` wherever several spaces are given."""
     if "mode" in ctx:
         return {"terms": ["contact resistance", "oxidation"]}
-    if "outcome_spaces" in ctx:
-        space = ctx["outcome_spaces"][0]
+    if "prediction_bindings" in ctx:
+        binding = ctx["prediction_bindings"][0]
         answer = {
             "hypotheses": [
                 {
@@ -233,10 +251,12 @@ def _probe_answer(prompt: str, ctx: dict[str, Any], *, invent: bool = False) -> 
                     "minimal_test_ref": "four point measurement",
                     "predictions": [
                         {
-                            "observable_ref": "probe.resistance",
-                            "outcome_space_id": space["outcome_space_id"],
-                            "outcome_space_version": space["outcome_space_version"],
-                            "expected_outcome": space["outcomes"][0],
+                            "observable_ref": binding["outcome_space_id"]
+                            if space_as_observable
+                            else binding["observable_ref"],
+                            "outcome_space_id": binding["outcome_space_id"],
+                            "outcome_space_version": binding["outcome_space_version"],
+                            "expected_outcome": binding["outcomes"][0],
                             "relation_effect": "SUPPORTS",
                         }
                     ],
@@ -247,7 +267,7 @@ def _probe_answer(prompt: str, ctx: dict[str, Any], *, invent: bool = False) -> 
             ],
             "position": {"mechanism_view": "contact oxidation", "uncertainties": []},
         }
-        if invent and len(ctx["outcome_spaces"]) > 1:
+        if invent and len(ctx["prediction_bindings"]) > 1:
             prediction = answer["hypotheses"][-1]["predictions"][0]
             prediction["outcome_space_id"], prediction["outcome_space_version"] = INVENTED_SPACE
         return answer

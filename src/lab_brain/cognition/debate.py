@@ -76,6 +76,7 @@ from lab_brain.cognition.roles import (
     QUERY_REWRITER,
     SPECIALIST_REQUIRES,
     HypothesisProposal,
+    binding_context,
     parse_critique,
     parse_hypothesis_engine,
     parse_query_terms,
@@ -291,11 +292,13 @@ class StructuredDebate:
     def run(self, request: DebateRequest) -> DebateOutcome:
         state = _RunState(request=request, debate_id=self._mint("debate"))
         source_policy = self._source_policies.for_intent(request.intent)
-        spaces = {
-            (s.outcome_space_id, s.version): s
-            for s in self._metrics.declared_spaces()
-            if s.domain == request.domain
-        }
+        # The domain's prediction vocabulary: what the engine is shown and its parser admits.
+        bindings = self._metrics.observable_bindings(request.domain)
+        if not bindings:
+            raise ValueError(
+                f"domain {request.domain} declares no prediction vocabulary (observable -> "
+                "OutcomeSpace); the Hypothesis Engine would have nothing to bind a prediction to"
+            )
 
         # Evidence: the FAST_UTILITY query rewrite over a seed bundle, then the primary retrieval.
         seed = self._researcher.seed(
@@ -328,7 +331,7 @@ class StructuredDebate:
         engine = self._engine(
             state,
             primary,
-            spaces,
+            bindings,
             alternatives=(),
             existing=(),
             minimum=self._policy.minimum_hypotheses,
@@ -470,7 +473,7 @@ class StructuredDebate:
                     later = self._engine(
                         state,
                         primary if inverted is None else cross,
-                        spaces,
+                        bindings,
                         alternatives=tuple(new_alternatives),
                         existing=tuple(sorted(existing)),
                         minimum=1,
@@ -585,7 +588,7 @@ class StructuredDebate:
         self,
         state: _RunState,
         bundle: EvidenceBundle,
-        spaces: Mapping[tuple[str, str], OutcomeSpace],
+        bindings: Mapping[str, OutcomeSpace],
         *,
         alternatives: Sequence[str],
         existing: Sequence[str],
@@ -594,15 +597,7 @@ class StructuredDebate:
         context = {
             "question": state.request.question,
             "evidence": self._researcher.evidence_context(bundle),
-            "outcome_spaces": [
-                {
-                    "outcome_space_id": s.outcome_space_id,
-                    "outcome_space_version": s.version,
-                    "outcomes": list(s.outcomes),
-                    "action_type": s.action_type,
-                }
-                for _, s in sorted(spaces.items())
-            ],
+            "prediction_bindings": binding_context(bindings),
             "minimum_hypotheses": minimum,
             "alternatives_to_certify": list(alternatives),
             "existing_mechanisms": list(existing),
@@ -617,7 +612,7 @@ class StructuredDebate:
         )
         proposals, draft = parse_hypothesis_engine(
             call.inference.text,
-            spaces=spaces,
+            bindings=bindings,
             minimum=minimum,
             inference_id=call.inference.inference_id,
         )

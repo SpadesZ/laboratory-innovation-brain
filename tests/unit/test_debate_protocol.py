@@ -64,12 +64,8 @@ def _case(case_id: str):  # type: ignore[no-untyped-def]
     return next(c for c in load_fixture()["cases"] if c["case_id"] == case_id)
 
 
-def _space():  # type: ignore[no-untyped-def]
-    world = build_world()
-    return {
-        (s.outcome_space_id, s.version): s
-        for s in world.registries.disagreement_metrics.declared_spaces()
-    }
+def _bindings():  # type: ignore[no-untyped-def]
+    return build_world().registries.disagreement_metrics.observable_bindings()
 
 
 def _engine_reply(**changes: object) -> str:
@@ -91,7 +87,7 @@ def _engine_reply(**changes: object) -> str:
 
 
 def test_the_hypothesis_engine_contract_accepts_two_complete_certificates():
-    proposals, position = parse_hypothesis_engine(_engine_reply(), spaces=_space(), minimum=2)
+    proposals, position = parse_hypothesis_engine(_engine_reply(), bindings=_bindings(), minimum=2)
     assert len(proposals) == 2 and position.mechanism_view == "contact"
     assert all(p.predictions for p in proposals)
 
@@ -130,13 +126,13 @@ def test_the_hypothesis_engine_contract_refuses_what_exceeds_the_role(mutate, ma
     base = json.loads(_engine_reply())
     reply = json.dumps({**base, "hypotheses": mutate(base["hypotheses"])})
     with pytest.raises(RoleOutputRefused, match=match):
-        parse_hypothesis_engine(reply, spaces=_space(), minimum=2)
+        parse_hypothesis_engine(reply, bindings=_bindings(), minimum=2)
 
 
 def test_a_reply_that_is_not_a_json_object_is_refused():
     for text in ("not json", "[1, 2]"):
         with pytest.raises(RoleOutputRefused):
-            parse_hypothesis_engine(text, spaces=_space(), minimum=2)
+            parse_hypothesis_engine(text, bindings=_bindings(), minimum=2)
 
 
 def test_a_specialist_states_a_position_on_the_rivals_it_was_shown_and_adds_none():

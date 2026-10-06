@@ -19,6 +19,14 @@ registers one through §24.3's `register_disagreement_metrics`. `tests/unit/test
 metrics.py` parses `lab_brain.core` and `lab_brain.verification` and fails if either defines a
 metric implementation -- "Core does not hard-code one universal distance" (§9.1).
 
+THE PREDICTION VOCABULARY. A Prediction names an observable (`observable_ref`) and the declared
+OutcomeSpace its outcome is read in; the planner matches the observable EXACTLY against what a
+Capability produces. So which observable is read in which space is a DomainPack declaration too
+(`declare_observable`), made beside the spaces: one space per observable, the space declared first.
+It is what the Hypothesis Engine is shown and what its parser admits -- nothing derives an
+observable from a space id, and nothing restricts it to the backends installed here: a prediction
+over a simulation nobody can run yet is still a prediction.
+
 WHAT THE RANKING DOES AND DOES NOT DECIDE. `rank_by_disagreement` orders candidate actions by how
 far apart the surviving hypotheses' declared predictions over the action's observable are, under the
 metric the domain declared for that OutcomeSpace. It does not decide sufficiency (§9.1, VER-006's
@@ -86,6 +94,7 @@ class DisagreementMetricRegistry:
     def __init__(self) -> None:
         self._spaces: dict[tuple[str, str], OutcomeSpace] = {}
         self._metrics: dict[tuple[str, str], TabulatedMetric] = {}
+        self._observables: dict[str, tuple[str, str]] = {}
 
     # -- outcome spaces -------------------------------------------------------------------------
 
@@ -105,6 +114,36 @@ class DisagreementMetricRegistry:
 
     def declared_spaces(self) -> tuple[OutcomeSpace, ...]:
         return tuple(self._spaces[k] for k in sorted(self._spaces))
+
+    # -- the prediction vocabulary --------------------------------------------------------------
+
+    def declare_observable(
+        self, observable_ref: str, outcome_space_id: str, version: str
+    ) -> OutcomeSpace:
+        """Declare that predictions over `observable_ref` are read in this declared space."""
+        if not observable_ref.strip() or observable_ref != observable_ref.strip():
+            raise DisagreementMetricError(
+                f"observable {observable_ref!r} is not a canonical identifier"
+            )
+        space = self._spaces.get((outcome_space_id, version))
+        if space is None:
+            raise DisagreementMetricError(
+                f"observable {observable_ref} is bound to outcome space {outcome_space_id}@"
+                f"{version}, which has not been declared; declare the space first"
+            )
+        existing = self._observables.get(observable_ref)
+        if existing is not None and existing != (outcome_space_id, version):
+            raise DisagreementMetricError(
+                f"observable {observable_ref} is already read in {existing[0]}@{existing[1]}; one "
+                "observable is read in one space, or a prediction's binding would be two facts"
+            )
+        self._observables[observable_ref] = (outcome_space_id, version)
+        return space
+
+    def observable_bindings(self, domain: str | None = None) -> dict[str, OutcomeSpace]:
+        """observable_ref -> the declared space it is read in; a domain's alone if one is named."""
+        bound = {o: self._spaces[key] for o, key in sorted(self._observables.items())}
+        return {o: s for o, s in bound.items() if domain is None or s.domain == domain}
 
     # -- metrics --------------------------------------------------------------------------------
 

@@ -31,6 +31,11 @@ prediction to a space it was not given, or to an outcome its chosen space does n
 as research would refuse it (VER-004). Nothing requires every space to be used: the runtime
 contract does not. The result records the suite, its cases and N; there is no score.
 
+Every case states its prediction vocabulary as research does (`CONTEXT.prediction_bindings`:
+observable -> declared space), with canonical observable ids that are NOT their spaces' ids -- so a
+model that writes a space id where the observable belongs, pairs an observable with another
+binding's space, or names an observable of its own, fails the case as research would refuse it.
+
 WHAT QUALIFIES A MODEL is fixed by `QUALIFICATION_DIGEST`: the probe version and payloads, the role
 prompts they carry (id, version, text) and the response contracts. It is part of every lock
 fingerprint, so a lock made before any of them changed no longer matches, and is refused as stale.
@@ -53,6 +58,7 @@ from lab_brain.cognition.roles import (
     HYPOTHESIS_ENGINE,
     QUERY_REWRITER,
     RoleOutputRefused,
+    binding_context,
     parse_critique,
     parse_hypothesis_engine,
     parse_query_terms,
@@ -72,11 +78,13 @@ from lab_brain.llm_runtime.provider import OpenAICompatibleClient, ProviderError
 #: 2.0.0: ROLE_HYPOTHESIS is run at the requested minimum and records it; the Hypothesis Engine
 #: prompt it carries asks for CONTEXT.minimum_hypotheses (`cognition.roles`, prompt 2.0.0).
 #: 3.0.0: ROLE_HYPOTHESIS is the conformance suite `HYPOTHESIS_SUITE`.
-PROBE_VERSION = "probe-3.0.0"
+#: 4.0.0: the suite's cases declare observable -> space bindings (prompt 3.0.0, rc-2.0.0).
+PROBE_VERSION = "probe-4.0.0"
 
 #: The ROLE_HYPOTHESIS conformance suite and its version, recorded with every result. 1.0.0: the
-#: cases `contextual-minimum` and `multi-space`.
-HYPOTHESIS_SUITE = "hypothesis-conformance@1.0.0"
+#: cases `contextual-minimum` and `multi-space`. 2.0.0: the same cases, each over declared
+#: observable -> space bindings whose observable ids differ from their space ids.
+HYPOTHESIS_SUITE = "hypothesis-conformance@2.0.0"
 
 #: §7.4 / EPI-001: Stage A returns at least two COMPETING certificates. What a deployment's research
 #: asks for may be more; it is never less.
@@ -149,6 +157,8 @@ _SPACE = OutcomeSpace(
     action_type="MEASUREMENT",
     outcomes=("HIGH", "NOMINAL"),
 )
+#: The `contextual-minimum` case's vocabulary: one observable, read in that space.
+_BINDINGS: Mapping[str, OutcomeSpace] = {"bench.resistor_reading": _SPACE}
 
 #: The `multi-space` case: another synthetic bench, several declared spaces, and evidence that
 #: names quantities which are NOT among them -- the shape of a real research context, where the
@@ -221,6 +231,20 @@ _MULTI_SPACES = (
         action_type="MEASUREMENT",
         outcomes=("REPEATABLE", "SCATTERED"),
     ),
+)
+#: The `multi-space` case's vocabulary. The observable ids are not their spaces' ids, nor derived
+#: from them: copying `os:probe.bench_level` as an observable fails, as it would in research.
+_MULTI_BINDINGS: Mapping[str, OutcomeSpace] = dict(
+    zip(
+        (
+            "bench.channel_offset",
+            "bench.warmup_drift",
+            "fixture.edge_gradient",
+            "bench.repeat_spread",
+        ),
+        _MULTI_SPACES,
+        strict=True,
+    )
 )
 _HYPOTHESES = [
     {
@@ -322,51 +346,42 @@ def _role(parse: Callable[[str], object]) -> Callable[[str], str | None]:
 def _hypothesis_case(
     question: str,
     evidence: list[dict[str, str]],
-    declared: tuple[OutcomeSpace, ...],
+    bindings: Mapping[str, OutcomeSpace],
     minimum: int,
 ) -> _Probe:
-    """One case of the suite: the real role prompt and contract over synthetic evidence and
-    `declared` spaces -- rendered as the debate renders them -- judged by the real parser at
-    `minimum`, against exactly the spaces declared."""
+    """One case of the suite: the real role prompt and contract over synthetic evidence and a
+    declared prediction vocabulary -- rendered as the debate renders it -- judged by the real parser
+    at `minimum`, against exactly the bindings declared."""
     if not GENERIC_HYPOTHESIS_MINIMUM <= minimum <= 50:
         raise ValueError(
             f"a hypothesis minimum is between {GENERIC_HYPOTHESIS_MINIMUM} and 50, not {minimum}"
         )
-    spaces = {(s.outcome_space_id, s.version): s for s in declared}
     return _Probe(
         _material(
             HYPOTHESIS_ENGINE.prompt.template,
             {
                 "question": question,
                 "evidence": evidence,
-                "outcome_spaces": [
-                    {
-                        "outcome_space_id": s.outcome_space_id,
-                        "outcome_space_version": s.version,
-                        "outcomes": list(s.outcomes),
-                        "action_type": s.action_type,
-                    }
-                    for _, s in sorted(spaces.items())
-                ],
+                "prediction_bindings": binding_context(bindings),
                 "minimum_hypotheses": minimum,
                 "alternatives_to_certify": [],
                 "existing_mechanisms": [],
             },
         ),
         HYPOTHESIS_CONTRACT,
-        _role(lambda text: parse_hypothesis_engine(text, spaces=spaces, minimum=minimum)),
+        _role(lambda text: parse_hypothesis_engine(text, bindings=bindings, minimum=minimum)),
     )
 
 
 def hypothesis_probe(minimum: int) -> _Probe:
-    """The `contextual-minimum` case: `minimum` competing certificates over one declared space."""
-    return _hypothesis_case(_QUESTION, _HYPOTHESIS_EVIDENCE, (_SPACE,), minimum)
+    """The `contextual-minimum` case: `minimum` competing certificates over one declared binding."""
+    return _hypothesis_case(_QUESTION, _HYPOTHESIS_EVIDENCE, _BINDINGS, minimum)
 
 
 def multi_space_probe(minimum: int) -> _Probe:
-    """The `multi-space` case: `minimum` competing certificates, every prediction bound to one of
-    several declared spaces, over evidence naming quantities that none of them is."""
-    return _hypothesis_case(_MULTI_QUESTION, _MULTI_EVIDENCE, _MULTI_SPACES, minimum)
+    """The `multi-space` case: `minimum` competing certificates, every prediction over one of
+    several declared bindings, over evidence naming quantities that none of them is."""
+    return _hypothesis_case(_MULTI_QUESTION, _MULTI_EVIDENCE, _MULTI_BINDINGS, minimum)
 
 
 def hypothesis_suite(minimum: int) -> tuple[tuple[str, _Probe], ...]:

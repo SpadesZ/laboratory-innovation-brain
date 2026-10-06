@@ -55,11 +55,12 @@ from lab_brain.llm_runtime.registry import ConnectionRow, lock_fingerprint
 SINGLE_SPACE_DIGEST = "50c6da1f8af4006637fe72ed7498c41099002a8069acefb9f0ca4e44337e8c00"
 
 _MARKER = "\n\nCONTEXT:\n"
-Binding = tuple[str, str, str]  # outcome_space_id, outcome_space_version, expected_outcome
-LEVEL = ("os:probe.bench_level", "1.0.0", "ABOVE_REFERENCE")
-WARMUP = ("os:probe.warmup_trend", "2.0.0", "RISES_THEN_HOLDS")
-PLATE = ("os:probe.plate_position", "1.0.0", "EDGE_HIGHER")
-REPEAT = ("os:probe.repeatability", "1.0.0", "REPEATABLE")
+#: observable_ref, outcome_space_id, outcome_space_version, expected_outcome
+Binding = tuple[str, str, str, str]
+LEVEL = ("bench.channel_offset", "os:probe.bench_level", "1.0.0", "ABOVE_REFERENCE")
+WARMUP = ("bench.warmup_drift", "os:probe.warmup_trend", "2.0.0", "RISES_THEN_HOLDS")
+PLATE = ("fixture.edge_gradient", "os:probe.plate_position", "1.0.0", "EDGE_HIGHER")
+REPEAT = ("bench.repeat_spread", "os:probe.repeatability", "1.0.0", "REPEATABLE")
 
 
 def _context(prompt: str) -> dict[str, object]:
@@ -83,10 +84,10 @@ def _answer(count: int, bindings: Sequence[Binding]) -> str:
                     "minimal_test_ref": "repeat the measurement",
                     "predictions": [
                         {
-                            "observable_ref": "channel A reading",
-                            "outcome_space_id": bindings[n % len(bindings)][0],
-                            "outcome_space_version": bindings[n % len(bindings)][1],
-                            "expected_outcome": bindings[n % len(bindings)][2],
+                            "observable_ref": bindings[n % len(bindings)][0],
+                            "outcome_space_id": bindings[n % len(bindings)][1],
+                            "outcome_space_version": bindings[n % len(bindings)][2],
+                            "expected_outcome": bindings[n % len(bindings)][3],
                             "relation_effect": "SUPPORTS",
                         }
                     ],
@@ -99,12 +100,20 @@ def _answer(count: int, bindings: Sequence[Binding]) -> str:
 
 
 def _valid(prompt: str, count: int) -> str:
-    """A valid answer to either case: every prediction over a space the context declares."""
-    spaces = _context(prompt)["outcome_spaces"]
-    assert isinstance(spaces, list)
+    """A valid answer to either case: every prediction over a binding the context declares."""
+    entries = _context(prompt)["prediction_bindings"]
+    assert isinstance(entries, list)
     return _answer(
         count,
-        [(s["outcome_space_id"], s["outcome_space_version"], s["outcomes"][0]) for s in spaces],
+        [
+            (
+                e["observable_ref"],
+                e["outcome_space_id"],
+                e["outcome_space_version"],
+                e["outcomes"][0],
+            )
+            for e in entries
+        ],
     )
 
 
@@ -136,7 +145,7 @@ def _suite(model: _Model, minimum: int = 5):  # type: ignore[no-untyped-def]
 
 def test_the_single_space_qualification_is_no_longer_current(monkeypatch):
     assert QUALIFICATION_DIGEST != SINGLE_SPACE_DIGEST
-    assert PROBE_VERSION == "probe-3.0.0"
+    assert PROBE_VERSION == "probe-4.0.0"
     assert [name for name, _ in hypothesis_suite(5)] == ["contextual-minimum", "multi-space"]
     # The route the LOCAL deployment locked qwen2.5:7b under the single-space probe, recomputed
     # from its public parts: it is that route under the old semantics, and not under the current.
@@ -172,16 +181,20 @@ def test_the_multi_space_case_passes_only_declared_pairs_and_legal_outcomes():
     assert case.judge(_answer(5, [LEVEL, WARMUP, PLATE, REPEAT])) is None
     assert case.judge(_answer(5, [PLATE])) is None, "using every declared space is not required"
     # The pair is copied, not assumed: the warm-up space is declared at 2.0.0 only.
-    wrong_version = case.judge(_answer(5, [LEVEL, ("os:probe.warmup_trend", "1.0.0", "STEADY")]))
+    wrong_version = case.judge(
+        _answer(5, [LEVEL, ("bench.warmup_drift", "os:probe.warmup_trend", "1.0.0", "STEADY")])
+    )
     assert "os:probe.warmup_trend@1.0.0, which the engine was not shown" in str(wrong_version)
     # A space the contextual case declares is not declared here.
-    other_case = case.judge(_answer(5, [("os:probe.level", "1.0.0", "HIGH")]))
+    other_case = case.judge(
+        _answer(5, [("bench.resistor_reading", "os:probe.level", "1.0.0", "HIGH")])
+    )
     assert "was not shown" in str(other_case)
 
 
 def test_an_invented_outcome_space_is_failed():
     for quantity in TEMPTING_QUANTITIES:
-        invented = (f"os:probe.{quantity}", "1.0.0", "HIGH")
+        invented = (LEVEL[0], f"os:probe.{quantity}", "1.0.0", "HIGH")
         model = _Model(
             lambda case, prompt, invented=invented: (
                 _answer(5, [LEVEL, invented]) if case == "multi-space" else _valid(prompt, 5)
@@ -190,7 +203,7 @@ def test_an_invented_outcome_space_is_failed():
         result = _suite(model)
         assert result.outcome is ProbeOutcome.FAILED, quantity
         assert result.detail.startswith("multi-space: the typed role parser refused it")
-        assert f"{invented[0]}@1.0.0, which the engine was not shown" in result.detail
+        assert f"{invented[1]}@1.0.0, which the engine was not shown" in result.detail
         assert "VER-004" in result.detail
         assert model.cases == ["contextual-minimum", "multi-space"]
 
@@ -198,7 +211,7 @@ def test_an_invented_outcome_space_is_failed():
 def test_a_declared_space_with_an_undeclared_outcome_is_failed():
     model = _Model(
         lambda case, prompt: (
-            _answer(5, [PLATE, ("os:probe.bench_level", "1.0.0", "HIGH")])
+            _answer(5, [PLATE, ("bench.channel_offset", "os:probe.bench_level", "1.0.0", "HIGH")])
             if case == "multi-space"
             else _valid(prompt, 5)
         )
@@ -213,7 +226,7 @@ def test_the_multi_space_case_carries_nothing_of_a_domain_or_project():
     prompt = multi_space_probe(5).prompt
     context = _context(prompt)
     evidence = context["evidence"]
-    declared = context["outcome_spaces"]
+    declared = context["prediction_bindings"]
     assert isinstance(evidence, list) and isinstance(declared, list)
     assert all(str(e["attestation_id"]).startswith("att:probe-m") for e in evidence)
     assert str(context["question"]).startswith("PROBE:")
@@ -284,12 +297,12 @@ def test_the_suite_records_what_it_ran_and_its_slowest_call():
 
 def test_the_suite_the_prompt_and_the_contract_are_the_semantics_locks_are_made_under():
     template = HYPOTHESIS_ENGINE.prompt.template
-    assert HYPOTHESIS_ENGINE.prompt.prompt_version == "2.1.0"
-    assert "copy its outcome_space_id and outcome_space_version exactly" in template
-    assert "expected_outcome verbatim from that same space's outcomes" in template
-    assert "Never invent or infer an outcome space from the evidence" in template
-    assert RESPONSE_CONTRACT_VERSION == "rc-1.1.0"
-    assert "Never make up an outcome space or derive one from a quantity" in HYPOTHESIS_CONTRACT
+    assert HYPOTHESIS_ENGINE.prompt.prompt_version == "3.0.0"
+    assert "copy that entry's observable_ref, outcome_space_id and" in template
+    assert "expected_outcome verbatim from that entry's outcomes" in template
+    assert "Never invent or infer an observable or an outcome space from the evidence" in template
+    assert RESPONSE_CONTRACT_VERSION == "rc-2.0.0"
+    assert "Never make up an observable or an outcome space" in HYPOTHESIS_CONTRACT
     base = {
         "probe_version": PROBE_VERSION,
         "contracts": CONTRACT_DIGEST,
