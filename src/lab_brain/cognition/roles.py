@@ -16,7 +16,8 @@ text from a model; it becomes a typed object only after the parser here has chec
 role's contract. What each parser refuses is the shape a model would use to exceed its role:
 
     Hypothesis Engine   fewer than two proposals; a proposal missing a certificate field; a
-                        prediction over an OutcomeSpace it was not shown, or an outcome outside it
+                        prediction over an OutcomeSpace it was not shown, or an outcome outside it;
+                        a falsifier not designated as one of its own CONTRADICTS predictions
     Domain Specialist   favouring a hypothesis that is not under consideration (a specialist does
                         not add rivals -- that is the Hypothesis Engine's job)
     Adversarial Critic  an objection to something that is not a target; citing an attestation it
@@ -89,11 +90,15 @@ class RoleContract:
 #: a canonical identifier the verification planner matches exactly, so the engine is shown the
 #: domain's declared observable -> space bindings and copies the observable with its space; a model
 #: shown only spaces wrote a space id where the observable belongs, and no check could match it.
+#: 4.0.0: the falsifier is typed. Every prediction carries a key, and each certificate designates
+#: (`falsifier_prediction_keys`) at least one of its own CONTRADICTS predictions as its falsifier. A
+#: model that wrote a prose falsifier and only SUPPORTS predictions left an observed falsifying
+#: outcome with nothing to relate to: no relation is ever inferred from a mismatch.
 HYPOTHESIS_ENGINE = RoleContract(
     role=CognitiveRole.HYPOTHESIS_ENGINE,
     prompt=PromptTemplate(
         "prm:hypothesis-engine",
-        "3.0.0",
+        "4.0.0",
         "You are the Hypothesis Engine. From ONLY the evidence given, propose at least "
         "CONTEXT.minimum_hypotheses competing mechanisms -- never fewer -- as complete hypothesis "
         "certificates -- statement, mechanism, assumptions, falsifier, confounders, minimal test "
@@ -102,7 +107,11 @@ HYPOTHESIS_ENGINE = RoleContract(
         "outcome_space_version exactly, together, and its expected_outcome verbatim from that "
         "entry's outcomes. An outcome_space_id is not an observable_ref. Never invent or infer an "
         "observable or an outcome space from the evidence, even when the evidence names a quantity "
-        "that sounds like one. Reply with JSON.",
+        "that sounds like one. Make every falsifier checkable: each hypothesis has at least one "
+        "prediction with relation_effect CONTRADICTS whose expected_outcome is an outcome that "
+        "would refute it, and lists that prediction's key in falsifier_prediction_keys. A "
+        "prediction relates only the outcome it names; an outcome no prediction names relates to "
+        "nothing. Reply with JSON.",
     ),
     requires=frozenset({"question", "evidence", "prediction_bindings", "minimum_hypotheses"}),
 )
@@ -229,6 +238,8 @@ def parse_query_terms(text: str, *, inference_id: str | None = None) -> tuple[st
 
 @dataclass(frozen=True)
 class PredictionProposal:
+    #: Unique within its hypothesis: what `falsifier_prediction_keys` names.
+    key: str
     observable_ref: str
     outcome_space_id: str
     outcome_space_version: str
@@ -243,10 +254,13 @@ class HypothesisProposal:
     statement: str
     mechanism: str
     assumptions: tuple[str, ...]
+    #: Prose, for explanation and the Critic's inverted retrieval.
     falsifier: str
     confounders: tuple[str, ...]
     minimal_test_ref: str
     predictions: tuple[PredictionProposal, ...]
+    #: The typed falsifier: keys of this hypothesis's own CONTRADICTS predictions, at least one.
+    falsifier_prediction_keys: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -276,6 +290,13 @@ def parse_hypothesis_engine(
     (observable, space id, version) binding with an outcome that space admits: the planner matches
     the observable to what a capability produces, exactly, so an observable that is not canonical
     would be a prediction nothing could ever check.
+
+    Every certificate carries a TYPED falsifier: `falsifier_prediction_keys` names at least one of
+    its own predictions, each with relation_effect CONTRADICTS. A belief moves only by a relation a
+    prediction declared before the check ran -- never one inferred from an outcome that merely
+    differs from a SUPPORTS prediction -- so a falsifier that is only prose could never refute
+    anything. A CONTRADICTS prediction that is not designated does not count, and neither does a
+    designation of another hypothesis's prediction or of one that does not contradict.
     """
     role = HYPOTHESIS_ENGINE.role.value
     obj = _object(role, text, inference_id)
@@ -314,6 +335,20 @@ def parse_hypothesis_engine(
             if not isinstance(p, dict):
                 raise RoleOutputRefused(
                     role, "a prediction is not an object", inference_id=inference_id
+                )
+            prediction_key = p.get("key")
+            if not isinstance(prediction_key, str) or not prediction_key.strip():
+                raise RoleOutputRefused(
+                    role,
+                    f"hypothesis {key!r} has a prediction with no key; every prediction carries a "
+                    "key unique within its hypothesis, so that a falsifier can name it",
+                    inference_id=inference_id,
+                )
+            if any(q.key == prediction_key for q in predictions):
+                raise RoleOutputRefused(
+                    role,
+                    f"hypothesis {key!r} repeats prediction key {prediction_key!r}",
+                    inference_id=inference_id,
                 )
             observable = _text(role, p, "observable_ref", inference_id)
             space_key = (
@@ -371,6 +406,7 @@ def parse_hypothesis_engine(
             direction = p.get("direction")
             predictions.append(
                 PredictionProposal(
+                    key=prediction_key,
                     observable_ref=observable,
                     outcome_space_id=space_key[0],
                     outcome_space_version=space_key[1],
@@ -379,6 +415,7 @@ def parse_hypothesis_engine(
                     direction=direction if isinstance(direction, str) else None,
                 )
             )
+        falsifiers = _typed_falsifier(role, key, item, predictions, inference_id)
         proposals.append(
             HypothesisProposal(
                 key=key,
@@ -389,6 +426,7 @@ def parse_hypothesis_engine(
                 confounders=_strings(role, item.get("confounders"), "confounders", inference_id),
                 minimal_test_ref=_text(role, item, "minimal_test_ref", inference_id),
                 predictions=tuple(predictions),
+                falsifier_prediction_keys=falsifiers,
             )
         )
     position_raw = obj.get("position")
@@ -404,6 +442,48 @@ def parse_hypothesis_engine(
         ),
     )
     return tuple(proposals), position
+
+
+def _typed_falsifier(
+    role: str,
+    key: str,
+    item: Mapping[str, Any],
+    predictions: Sequence[PredictionProposal],
+    inference_id: str | None,
+) -> tuple[str, ...]:
+    """The certificate's designated falsifier predictions, each one of its own CONTRADICTS ones."""
+    raw = item.get("falsifier_prediction_keys")
+    if not isinstance(raw, list) or not raw:
+        raise RoleOutputRefused(
+            role,
+            f"hypothesis {key!r} designates no typed falsifier: falsifier_prediction_keys must "
+            "name at least one of its own predictions whose relation_effect is CONTRADICTS. The "
+            "prose falsifier explains; only a designated typed prediction can refute it",
+            inference_id=inference_id,
+        )
+    designated = tuple(
+        dict.fromkeys(_strings(role, raw, "falsifier_prediction_keys", inference_id))
+    )
+    by_key = {p.key: p for p in predictions}
+    for name in designated:
+        target = by_key.get(name)
+        if target is None:
+            raise RoleOutputRefused(
+                role,
+                f"hypothesis {key!r} designates falsifier prediction {name!r}, which is not one "
+                f"of its predictions ({', '.join(sorted(by_key))}); a falsifier is one of the "
+                "hypothesis's own typed predictions",
+                inference_id=inference_id,
+            )
+        if target.relation_effect is not RelationType.CONTRADICTS:
+            raise RoleOutputRefused(
+                role,
+                f"hypothesis {key!r} designates falsifier prediction {name!r}, whose "
+                f"relation_effect is {target.relation_effect.value}; a falsifier is a declared "
+                "outcome that would CONTRADICT the hypothesis",
+                inference_id=inference_id,
+            )
+    return designated
 
 
 # -- Domain Specialist ------------------------------------------------------------------------

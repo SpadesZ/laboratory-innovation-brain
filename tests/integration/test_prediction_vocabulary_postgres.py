@@ -21,7 +21,7 @@ import pytest
 import lab_brain.llm_runtime.registry as registry_module
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.llm_runtime.capabilities import Capability
-from lab_brain.llm_runtime.probes import HYPOTHESIS_SUITE, QUALIFICATION_DIGEST
+from lab_brain.llm_runtime.probes import HYPOTHESIS_SUITE, PROBE_VERSION, QUALIFICATION_DIGEST
 from lab_brain.llm_runtime.runtime import RuntimeUnavailable, SettingsRefused
 from tests.fake_llm_provider import FakeProvider
 from tests.integration.test_hypothesis_conformance_postgres import _load, _model, _rows, _settings
@@ -99,7 +99,7 @@ def test_a_route_qualified_without_the_vocabulary_is_stale_until_tested_again(
     llm.unlock(model_id)
     with pytest.raises(SettingsRefused, match="not run under the qualification semantics") as no:
         llm.lock(model_id)
-    assert f"theirs: probe-4.0.0 {OUTCOME_SPACE_ONLY_DIGEST[:12]}" in str(no.value)
+    assert f"theirs: {PROBE_VERSION} {OUTCOME_SPACE_ONLY_DIGEST[:12]}" in str(no.value)
 
     # Tested under the vocabulary: a new route; every earlier row as it was.
     llm.test_model(model_id)

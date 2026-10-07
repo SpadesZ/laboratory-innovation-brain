@@ -36,6 +36,11 @@ observable -> declared space), with canonical observable ids that are NOT their 
 model that writes a space id where the observable belongs, pairs an observable with another
 binding's space, or names an observable of its own, fails the case as research would refuse it.
 
+Every hypothesis a case accepts carries a TYPED falsifier: `falsifier_prediction_keys` names at
+least one of its own predictions with relation_effect CONTRADICTS. A prose-only falsifier, a
+designation of a SUPPORTS, PREDICTS or TESTS prediction, a key that names no prediction of the
+same hypothesis -- each fails the case, because research would refuse that certificate.
+
 WHAT QUALIFIES A MODEL is fixed by `QUALIFICATION_DIGEST`: the probe version and payloads, the role
 prompts they carry (id, version, text) and the response contracts. It is part of every lock
 fingerprint, so a lock made before any of them changed no longer matches, and is refused as stale.
@@ -79,12 +84,14 @@ from lab_brain.llm_runtime.provider import OpenAICompatibleClient, ProviderError
 #: prompt it carries asks for CONTEXT.minimum_hypotheses (`cognition.roles`, prompt 2.0.0).
 #: 3.0.0: ROLE_HYPOTHESIS is the conformance suite `HYPOTHESIS_SUITE`.
 #: 4.0.0: the suite's cases declare observable -> space bindings (prompt 3.0.0, rc-2.0.0).
-PROBE_VERSION = "probe-4.0.0"
+#: 5.0.0: every certificate designates a typed falsifier (prompt 4.0.0, rc-3.0.0).
+PROBE_VERSION = "probe-5.0.0"
 
 #: The ROLE_HYPOTHESIS conformance suite and its version, recorded with every result. 1.0.0: the
 #: cases `contextual-minimum` and `multi-space`. 2.0.0: the same cases, each over declared
-#: observable -> space bindings whose observable ids differ from their space ids.
-HYPOTHESIS_SUITE = "hypothesis-conformance@2.0.0"
+#: observable -> space bindings whose observable ids differ from their space ids. 3.0.0: the same
+#: cases, and a case passes only if every hypothesis it accepts designates a typed falsifier.
+HYPOTHESIS_SUITE = "hypothesis-conformance@3.0.0"
 
 #: §7.4 / EPI-001: Stage A returns at least two COMPETING certificates. What a deployment's research
 #: asks for may be more; it is never less.

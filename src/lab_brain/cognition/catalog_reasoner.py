@@ -54,6 +54,8 @@ PROVIDER = "local-rules"
 
 @dataclass(frozen=True)
 class CatalogPrediction:
+    #: Unique within its mechanism: what `falsifier_prediction_keys` names.
+    key: str
     observable_ref: str
     outcome_space_id: str
     outcome_space_version: str
@@ -73,6 +75,9 @@ class CatalogMechanism:
     falsifier: str
     minimal_test_ref: str
     predictions: tuple[CatalogPrediction, ...]
+    #: The typed falsifier: keys of this mechanism's own CONTRADICTS predictions, declared by the
+    #: pack -- never derived from which predictions happen to contradict.
+    falsifier_prediction_keys: tuple[str, ...]
     #: Lower-case phrases whose presence in a record points AT this mechanism.
     cues: tuple[str, ...]
     #: Lower-case phrases whose presence in a record points AGAINST it.
@@ -81,6 +86,17 @@ class CatalogMechanism:
     def __post_init__(self) -> None:
         if not self.predictions:
             raise ValueError(f"mechanism {self.key} declares no typed prediction")
+        by_key = {p.key: p for p in self.predictions}
+        if len(by_key) != len(self.predictions):
+            raise ValueError(f"mechanism {self.key} declares a prediction key twice")
+        if not self.falsifier_prediction_keys:
+            raise ValueError(f"mechanism {self.key} declares no typed falsifier")
+        for name in self.falsifier_prediction_keys:
+            if name not in by_key or by_key[name].relation_effect != "CONTRADICTS":
+                raise ValueError(
+                    f"mechanism {self.key}'s falsifier {name!r} is not one of its CONTRADICTS "
+                    "predictions"
+                )
         if not self.cues:
             raise ValueError(f"mechanism {self.key} declares no cue; nothing could point at it")
 
@@ -178,10 +194,12 @@ class CatalogReasoner:
             "mechanism": mechanism.mechanism,
             "assumptions": list(mechanism.assumptions),
             "falsifier": mechanism.falsifier,
+            "falsifier_prediction_keys": list(mechanism.falsifier_prediction_keys),
             "confounders": list(mechanism.confounders),
             "minimal_test_ref": mechanism.minimal_test_ref,
             "predictions": [
                 {
+                    "key": p.key,
                     "observable_ref": p.observable_ref,
                     "outcome_space_id": p.outcome_space_id,
                     "outcome_space_version": p.outcome_space_version,

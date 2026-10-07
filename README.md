@@ -198,6 +198,11 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   對應，預測必須原樣複製可觀測量與其結果空間（含版本）；結果空間 id 不能當作可觀測量使用，自行編造或
   配錯的會被拒絕。驗證規劃因此能以同一個識別碼找到對應的檢查。設計記錄：
   [`docs/implementation/prediction-vocabulary.md`](docs/implementation/prediction-vocabulary.md)。
+- 每個被接受的假說都必須有可由機器檢查的否證條件：假說要把自己的一個或多個 CONTRADICTS 預測標記為
+  否證預測（falsifier_prediction_keys）。只有文字描述的否證條件、標記到 SUPPORTS／PREDICTS／TESTS
+  預測、或標記到不存在或其他假說的預測，都會在接受前被拒絕。觀察結果只會觸發事先宣告、且結果完全相同
+  的預測；系統不會因為結果與 SUPPORTS 預測不同就推論為反證。設計記錄：
+  [`docs/implementation/typed-falsifier.md`](docs/implementation/typed-falsifier.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。

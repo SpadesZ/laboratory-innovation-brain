@@ -26,6 +26,7 @@ from typing import Any, Self
 from pydantic import Field, model_validator
 
 from lab_brain.core.models.base import CoreModel, utc_now
+from lab_brain.core.models.enums import RelationType
 from lab_brain.core.models.hypothesis import Hypothesis
 from lab_brain.core.models.prediction import Prediction
 
@@ -68,11 +69,20 @@ class HypothesisCertificate(CoreModel):
     hypothesis competes in, who authored it, and the typed Prediction objects its `prediction_ids`
     name -- lives beside it, and the wrapper refuses the one inconsistency it could otherwise hold:
     `prediction_ids` that are not exactly the predictions carried.
+
+    THE TYPED FALSIFIER. `Hypothesis.falsifier` is prose -- for explanation and the Critic's
+    inverted retrieval. What a check can adjudicate is `falsifier_prediction_ids`: the carried
+    predictions the author DESIGNATED as the falsifier, each declaring only CONTRADICTS on this
+    hypothesis. A designation is what makes the falsifier machine-checkable; a CONTRADICTS
+    prediction elsewhere in the certificate is not one. The model admits an empty designation so a
+    certificate stored before it existed still reads back; admission refuses one
+    (`certificate_completeness_problems`, `012n`).
     """
 
     hypothesis: Hypothesis
     hypothesis_set_id: str
     predictions: tuple[Prediction, ...] = ()
+    falsifier_prediction_ids: tuple[str, ...] = ()
     authored_by_actor_id: str | None = None
     created_at: dt.datetime = Field(default_factory=utc_now)
 
@@ -100,6 +110,9 @@ class HypothesisCertificate(CoreModel):
                     )
                 ),
             }
+        designated = data.get("falsifier_prediction_ids")
+        if designated:
+            data = {**data, "falsifier_prediction_ids": tuple(sorted(designated))}
         hypothesis = data.get("hypothesis")
         if isinstance(hypothesis, Hypothesis):
             data = {
@@ -131,6 +144,33 @@ class HypothesisCertificate(CoreModel):
                 f"predictions {stray} are carried by hypothesis "
                 f"{self.hypothesis.hypothesis_id} but bound to another hypothesis or project"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _the_falsifier_is_a_carried_contradiction(self) -> Self:
+        if len(set(self.falsifier_prediction_ids)) != len(self.falsifier_prediction_ids):
+            raise ValueError(
+                f"hypothesis {self.hypothesis.hypothesis_id} designates a falsifier prediction "
+                "twice"
+            )
+        carried = {p.prediction_id: p for p in self.predictions}
+        for prediction_id in self.falsifier_prediction_ids:
+            prediction = carried.get(prediction_id)
+            if prediction is None:
+                raise ValueError(
+                    f"hypothesis {self.hypothesis.hypothesis_id} designates falsifier prediction "
+                    f"{prediction_id}, which its certificate does not carry; a falsifier is one of "
+                    "the hypothesis's own typed predictions"
+                )
+            effects = sorted(
+                {e.relation_type.value for e in prediction.relation_effect_if_observed}
+            )
+            if effects != [RelationType.CONTRADICTS.value]:
+                raise ValueError(
+                    f"hypothesis {self.hypothesis.hypothesis_id} designates falsifier prediction "
+                    f"{prediction_id}, which declares {effects}; a falsifier declares only "
+                    "CONTRADICTS"
+                )
         return self
 
     @property

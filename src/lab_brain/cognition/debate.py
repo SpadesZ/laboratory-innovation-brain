@@ -868,9 +868,11 @@ class StructuredDebate:
         self, proposal: HypothesisProposal, hypothesis_set: HypothesisSet, inference_id: str
     ) -> HypothesisCertificate:
         hypothesis_id = self._mint("hypothesis")
+        # The engine's prediction keys -> minted ids, so its falsifier designation survives intact.
+        minted = {p.key: self._mint("prediction") for p in proposal.predictions}
         predictions = tuple(
             Prediction(
-                prediction_id=self._mint("prediction"),
+                prediction_id=minted[p.key],
                 hypothesis_id=hypothesis_id,
                 project_id=hypothesis_set.project_id,
                 observable_ref=p.observable_ref,
@@ -903,6 +905,7 @@ class StructuredDebate:
             ),
             hypothesis_set_id=hypothesis_set.set_id,
             predictions=predictions,
+            falsifier_prediction_ids=tuple(minted[k] for k in proposal.falsifier_prediction_keys),
             created_at=self._now(),
         )
 

@@ -112,6 +112,7 @@ from tests.debate_fixtures import (
     World,
     budget_policy,
     build_world,
+    fixture_falsifier,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -161,19 +162,31 @@ def evidence_items(fx: Mapping[str, Any]) -> tuple[EvidenceItem, ...]:
 
 @dataclass
 class VerticalScientist(MockScientist):
-    """M3's deterministic scientist, reading a catalog whose mechanisms declare their predictions."""
+    """M3's deterministic scientist, reading a catalog whose mechanisms declare their predictions.
+
+    Its typed falsifier is the declared prediction that is the pack's designated falsifier for the
+    same mechanism (`fixture_falsifier`) -- named, never inferred from which predictions contradict.
+    """
 
     def _certificate(self, key: str) -> dict[str, Any]:
         m = self.mechanisms[key]
+        predictions = [{"key": f"p{n}", **p} for n, p in enumerate(m["predictions"])]
+        falsifier = fixture_falsifier(key)
         return {
             "key": key,
             "statement": m["statement"],
             "mechanism": m["mechanism"],
             "assumptions": list(m["assumptions"]),
             "falsifier": m["falsifier"],
+            "falsifier_prediction_keys": [
+                p["key"]
+                for p in predictions
+                if p["relation_effect"] == "CONTRADICTS"
+                and all(p[k] == v for k, v in falsifier.items())
+            ],
             "confounders": list(m["confounders"]),
             "minimal_test_ref": m["minimal_test_ref"],
-            "predictions": [dict(p) for p in m["predictions"]],
+            "predictions": predictions,
         }
 
 

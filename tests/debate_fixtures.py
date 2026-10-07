@@ -90,6 +90,7 @@ from lab_brain.core.revision_gate import HypothesisRevisionGate
 from lab_brain.domains.registry import DomainPackRegistry
 from lab_brain.domains.silicon_photonics import SiliconPhotonicsPack
 from lab_brain.domains.silicon_photonics.plugin import DEBATE_BENCHMARK_ID
+from lab_brain.domains.silicon_photonics.product import mechanism_catalog
 from lab_brain.domains.silicon_photonics.tools import INPUT_DEVICE_PROJECT
 from lab_brain.evidence.dense_index import EmbeddingSpace, hashing_embedder
 from lab_brain.evidence.source_policy import SourcePolicyRegistry, default_source_policies
@@ -225,16 +226,19 @@ class MockScientist:
             "mechanism": m["mechanism"],
             "assumptions": list(m["assumptions"]),
             "falsifier": m["falsifier"],
+            "falsifier_prediction_keys": ["falsifier"],
             "confounders": list(m["confounders"]),
             "minimal_test_ref": m["minimal_test_ref"],
             "predictions": [
                 {
+                    "key": "supports",
                     "observable_ref": self.outcome_space["observable_ref"],
                     "outcome_space_id": self.outcome_space["outcome_space_id"],
                     "outcome_space_version": self.outcome_space["outcome_space_version"],
                     "expected_outcome": m["expected_outcome"],
                     "relation_effect": "SUPPORTS",
-                }
+                },
+                {"key": "falsifier", **fixture_falsifier(key), "relation_effect": "CONTRADICTS"},
             ],
         }
 
@@ -908,11 +912,15 @@ def make_certificate(
     expected_outcome: str | None = None,
     outcome_space_version: str | None = None,
     predictions: bool = True,
+    typed_falsifier: bool = True,
     author: str | None = ACTOR,
     inference_provenance_id: str | None = None,
     **hypothesis_overrides: Any,
 ) -> HypothesisCertificate:
-    """A certificate from the fixture's mechanism catalog, human-authored unless told otherwise."""
+    """A certificate from the fixture's mechanism catalog, human-authored unless told otherwise.
+
+    ``typed_falsifier=False`` leaves the falsifier in prose only: no CONTRADICTS prediction and no
+    designation."""
     fx = load_fixture()
     m = fx["mechanisms"][key]
     space = fx["outcome_space"]
@@ -931,13 +939,29 @@ def make_certificate(
             ),
         ),
     )
+    carried = (prediction,)
+    if typed_falsifier:
+        carried += (
+            Prediction(
+                prediction_id=f"{prediction.prediction_id}.falsifier",
+                hypothesis_id=hypothesis_id,
+                project_id=hypothesis_set.project_id,
+                **fixture_falsifier(key),
+                relation_effect_if_observed=(
+                    RelationJudgmentTemplate(
+                        relation_type=RelationType.CONTRADICTS, to_entity_id=hypothesis_id
+                    ),
+                ),
+            ),
+        )
+    carried = carried if predictions else ()
     fields: dict[str, Any] = {
         "hypothesis_id": hypothesis_id,
         "project_id": hypothesis_set.project_id,
         "statement": m["statement"],
         "mechanism": mechanism or m["mechanism"],
         "assumptions": tuple(m["assumptions"]),
-        "prediction_ids": (prediction.prediction_id,) if predictions else (),
+        "prediction_ids": tuple(c.prediction_id for c in carried),
         "falsifier": m["falsifier"],
         "confounders": tuple(m["confounders"]),
         "minimal_test_ref": m["minimal_test_ref"],
@@ -948,10 +972,34 @@ def make_certificate(
     return HypothesisCertificate(
         hypothesis=Hypothesis(**fields),
         hypothesis_set_id=hypothesis_set.set_id,
-        predictions=(prediction,) if predictions else (),
+        predictions=carried,
+        falsifier_prediction_ids=tuple(
+            c.prediction_id for c in carried if c.prediction_id.endswith(".falsifier")
+        ),
         authored_by_actor_id=author,
         created_at=T0,
     )
+
+
+def fixture_falsifier(key: str) -> dict[str, str]:
+    """Fixture mechanism `key`'s typed falsifier: the CONTRADICTS prediction the silicon-photonics
+    pack's catalog designates for the same mechanism.
+
+    The locked debate fixture states each falsifier in prose only ("normalization crosschecked
+    against drawn length"); the pack's catalog types the same check ("sp.normalization_basis =
+    AGREES contradicts"). Taken from that declaration, never derived from the fixture's SUPPORTS
+    outcome -- an outcome that merely differs from it is not a falsifier.
+    """
+    mechanism = next(m for m in mechanism_catalog().mechanisms if m.key == key)
+    (falsifier,) = (
+        p for p in mechanism.predictions if p.key in mechanism.falsifier_prediction_keys
+    )
+    return {
+        "observable_ref": falsifier.observable_ref,
+        "outcome_space_id": falsifier.outcome_space_id,
+        "outcome_space_version": falsifier.outcome_space_version,
+        "expected_outcome": falsifier.expected_outcome,
+    }
 
 
 # -- prior-art fixtures (SRC-003) ----------------------------------------------------------------

@@ -11,8 +11,9 @@ M0b BUILT THE CERTIFICATE AND THE GENESIS EVENT; THIS IS WHAT DECIDES WHETHER ON
 records a first state -- and its docstring says it "checks nothing about the certificate, which is
 why EPI-003 stays IN_PROGRESS". The checks it defers are here:
 
-    complete      >=1 assumption, >=1 confounder, a minimal test, an author, an episode, and
-                  at least one typed Prediction (§8: "補齊 ... prediction")
+    complete      >=1 assumption, >=1 confounder, a minimal test, an author, an episode, at
+                  least one typed Prediction (§8: "補齊 ... prediction"), and a typed falsifier:
+                  at least one of its own CONTRADICTS predictions, designated as such (`012n`)
     bound         every Prediction admitted against the exact OutcomeSpace version it names
                   (`prediction.bind`, VER-006's rule reused, not restated)
     provenanced   an LLM-authored certificate names an inference that is durably recorded in the

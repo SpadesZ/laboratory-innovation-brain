@@ -8,7 +8,8 @@ THE MECHANISM CATALOG IS DOMAIN KNOWLEDGE, DECLARED HERE. Five rival mechanisms 
 high and weakly bias-dependent" -- §25.1's three, with the model issue split into its two
 checkable forms, plus the two a lab raises in practice (counter-doping, probe contact). Each names
 its falsifier, the cheapest check that tests it, and one SUPPORTS and one CONTRADICTS prediction
-over the observable that check produces, in this pack's declared OutcomeSpaces. The words that
+over the observable that check produces, in this pack's declared OutcomeSpaces; the CONTRADICTS
+one is designated as the typed falsifier. The words that
 point at a mechanism in a record (`cues`) and against it (`counter_cues`) are what the local
 rule-based reasoner reads; with a language model configured they are simply unused.
 
@@ -70,12 +71,18 @@ SIMULATOR_REQUIRES = (
 )
 
 
+#: Each mechanism's typed falsifier: the CONTRADICTS half of its `_pair`.
+_FALSIFIER = "falsifier"
+
+
 def _pair(
     observable: str, space: str, supports: str, contradicts: str
 ) -> tuple[CatalogPrediction, CatalogPrediction]:
     return (
-        CatalogPrediction(observable, space, sp.SPACE_VERSION, supports, "SUPPORTS"),
-        CatalogPrediction(observable, space, sp.SPACE_VERSION, contradicts, "CONTRADICTS"),
+        CatalogPrediction("supports", observable, space, sp.SPACE_VERSION, supports, "SUPPORTS"),
+        CatalogPrediction(
+            _FALSIFIER, observable, space, sp.SPACE_VERSION, contradicts, "CONTRADICTS"
+        ),
     )
 
 
@@ -105,6 +112,7 @@ def mechanism_catalog() -> MechanismCatalog:
                     diagnosis.DISCONTINUOUS,
                     diagnosis.CONTINUOUS,
                 ),
+                falsifier_prediction_keys=(_FALSIFIER,),
                 cues=("contact via", "access region", "contact resistance", "contact-resistance"),
                 counter_cues=("contact continuity verified",),
             ),
@@ -124,6 +132,7 @@ def mechanism_catalog() -> MechanismCatalog:
                     diagnosis.DISAGREES,
                     diagnosis.AGREES,
                 ),
+                falsifier_prediction_keys=(_FALSIFIER,),
                 cues=("normalization", "normalisation", "per length", "per-length"),
                 counter_cues=("normalization crosschecked",),
             ),
@@ -139,6 +148,7 @@ def mechanism_catalog() -> MechanismCatalog:
                 falsifier="refining the access mesh leaves the extracted Rs unchanged",
                 minimal_test_ref=sp.CAP_MESH_SENSITIVITY,
                 predictions=_pair(sp.OBS_MESH, sp.SPACE_MESH, diagnosis.UNSTABLE, diagnosis.STABLE),
+                falsifier_prediction_keys=(_FALSIFIER,),
                 cues=("mesh", "convergence"),
                 counter_cues=("refinement left rs unchanged",),
             ),
@@ -156,6 +166,7 @@ def mechanism_catalog() -> MechanismCatalog:
                 predictions=_pair(
                     sp.OBS_CARRIER, sp.SPACE_CARRIER, diagnosis.COMPENSATED, diagnosis.NOMINAL
                 ),
+                falsifier_prediction_keys=(_FALSIFIER,),
                 cues=("counterdoping", "compensation", "doping", "implant"),
                 counter_cues=("implant dose measured nominal",),
             ),
@@ -173,6 +184,7 @@ def mechanism_catalog() -> MechanismCatalog:
                 predictions=_pair(
                     sp.OBS_PROBE, sp.SPACE_PROBE, diagnosis.ELEVATED, diagnosis.NOMINAL
                 ),
+                falsifier_prediction_keys=(_FALSIFIER,),
                 cues=("probe contact", "two point", "two-point", "instrumentation"),
                 counter_cues=("four point probing confirms",),
             ),

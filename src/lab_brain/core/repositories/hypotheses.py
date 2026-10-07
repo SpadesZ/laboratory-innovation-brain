@@ -4,8 +4,9 @@ WHAT THIS STORE IS NOT: an admission gate. `lab_brain.core.hypothesis_admission`
 certificate is admissible and `lab_brain.core.belief.admit_hypothesis` records the genesis event;
 this module stores what was decided. The invariants a writer could violate by going around both --
 an incomplete certificate, a prediction outside its OutcomeSpace, a prediction back-filled after
-admission -- are refused again by `005e` and `011i`, because a store that trusted its callers would
-hold only for the callers who came through Python.
+admission, a certificate admitted without a typed falsifier -- are refused again by `005e`, `011i`
+and `012n`, because a store that trusted its callers would hold only for the callers who came
+through Python.
 
 A CERTIFICATE IS IDENTIFIED BY (project_id, hypothesis_id). That is M0b's identity for a belief
 history -- two projects may use the same hypothesis id -- and since `011j` every belief event must
@@ -79,6 +80,7 @@ _HYPOTHESIS_COLUMNS = (
     "inference_provenance_id",
     "authored_by_actor_id",
     "created_at",
+    "falsifier_prediction_ids",
 )
 
 _PREDICTION_COLUMNS = (
@@ -119,6 +121,10 @@ def certificate_completeness_problems(certificate: HypothesisCertificate) -> lis
         problems.append("no author (neither an inference nor an actor)")
     if not certificate.predictions:
         problems.append("no typed Prediction")
+    # `012n`'s genesis check is the database's statement of this rule; the model already refuses a
+    # designation that is not one of the carried CONTRADICTS predictions.
+    if not certificate.falsifier_prediction_ids:
+        problems.append("no typed falsifier")
     return problems
 
 
@@ -262,6 +268,7 @@ class SqlHypothesisStore:
                     h.inference_provenance_id,
                     certificate.authored_by_actor_id,
                     certificate.created_at,
+                    list(certificate.falsifier_prediction_ids),
                 ),
             )
             for p in certificate.predictions:
@@ -324,6 +331,7 @@ class SqlHypothesisStore:
             hypothesis=hypothesis,
             hypothesis_set_id=str(values["hypothesis_set_id"]),
             predictions=predictions,
+            falsifier_prediction_ids=tuple(values["falsifier_prediction_ids"]),  # type: ignore[arg-type]
             authored_by_actor_id=values["authored_by_actor_id"],  # type: ignore[arg-type]
             created_at=created_at,
         )

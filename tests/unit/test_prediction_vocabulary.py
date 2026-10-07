@@ -59,7 +59,8 @@ def _sp_bindings() -> dict[str, OutcomeSpace]:
 
 
 def _reply(*predictions: tuple[str, str, str, str]) -> str:
-    """Two certificates, the first carrying `predictions` (observable, space, version, outcome)."""
+    """Two certificates, the first carrying `predictions` (observable, space, version, outcome),
+    each SUPPORTS; both designate a typed falsifier over the connectivity binding."""
 
     def certificate(key: str, preds: tuple[tuple[str, str, str, str], ...]) -> dict[str, Any]:
         return {
@@ -68,17 +69,29 @@ def _reply(*predictions: tuple[str, str, str, str]) -> str:
             "mechanism": f"mechanism {key}",
             "assumptions": ["the reading is representative"],
             "falsifier": f"a check that rules out {key}",
+            "falsifier_prediction_keys": ["f"],
             "confounders": ["placement"],
             "minimal_test_ref": "inspect the layout",
             "predictions": [
+                *(
+                    {
+                        "key": f"p{n}",
+                        "observable_ref": o,
+                        "outcome_space_id": s,
+                        "outcome_space_version": v,
+                        "expected_outcome": e,
+                        "relation_effect": "SUPPORTS",
+                    }
+                    for n, (o, s, v, e) in enumerate(preds)
+                ),
                 {
-                    "observable_ref": o,
-                    "outcome_space_id": s,
-                    "outcome_space_version": v,
-                    "expected_outcome": e,
-                    "relation_effect": "SUPPORTS",
-                }
-                for o, s, v, e in preds
+                    "key": "f",
+                    "observable_ref": "sp.contact_connectivity",
+                    "outcome_space_id": "os:sp.contact_connectivity",
+                    "outcome_space_version": "1.0.0",
+                    "expected_outcome": "CONTINUOUS",
+                    "relation_effect": "CONTRADICTS",
+                },
             ],
         }
 
@@ -213,12 +226,14 @@ def test_another_domain_pack_supplies_its_own_vocabulary():
     for certificate in reply["hypotheses"]:
         certificate["predictions"] = [
             {
+                "key": key,
                 "observable_ref": TOY_OBSERVABLE_METRIC,
                 "outcome_space_id": TOY_OUTCOME_SPACE,
                 "outcome_space_version": "1.0.0",
-                "expected_outcome": "STIFF",
-                "relation_effect": "SUPPORTS",
+                "expected_outcome": outcome,
+                "relation_effect": effect,
             }
+            for key, outcome, effect in (("p", "STIFF", "SUPPORTS"), ("f", "BROKEN", "CONTRADICTS"))
         ]
     proposals, _ = parse_hypothesis_engine(json.dumps(reply), bindings=toy, minimum=2)
     assert proposals[0].predictions[0].observable_ref == TOY_OBSERVABLE_METRIC
@@ -286,8 +301,8 @@ def test_the_route_qualified_without_the_vocabulary_is_no_longer_current(monkeyp
     assert lock_fingerprint(ollama, "qwen2.5-coder:7b", caps, shown) != "lk:963d70828be54b8e"
     monkeypatch.setattr(registry_module, "QUALIFICATION_DIGEST", OUTCOME_SPACE_ONLY_DIGEST)
     assert lock_fingerprint(ollama, "qwen2.5-coder:7b", caps, shown) == "lk:963d70828be54b8e"
-    assert (HYPOTHESIS_ENGINE.prompt.prompt_version, PROBE_VERSION) == ("3.0.0", "probe-4.0.0")
-    assert HYPOTHESIS_SUITE == "hypothesis-conformance@2.0.0"
+    assert (HYPOTHESIS_ENGINE.prompt.prompt_version, PROBE_VERSION) == ("4.0.0", "probe-5.0.0")
+    assert HYPOTHESIS_SUITE == "hypothesis-conformance@3.0.0"
 
 
 def test_the_qualification_suite_declares_observables_that_are_not_their_spaces():
@@ -309,8 +324,10 @@ def test_the_qualification_suite_declares_observables_that_are_not_their_spaces(
                         "falsifier": "f",
                         "confounders": ["c"],
                         "minimal_test_ref": "t",
+                        "falsifier_prediction_keys": ["p"],
                         "predictions": [
                             {
+                                "key": "p",
                                 "observable_ref": entries[0]["outcome_space_id"],
                                 "outcome_space_id": entries[0]["outcome_space_id"],
                                 "outcome_space_version": entries[0]["outcome_space_version"],

@@ -63,9 +63,11 @@ def _answer(
         "1.0.0",
         "HIGH",
     ),
+    falsifying: str = "NOMINAL",
 ) -> str:
     """A well-formed Hypothesis Engine answer with `count` distinct certificates, each predicting
-    over `binding` (observable, space id, version, outcome)."""
+    over `binding` (observable, space id, version, outcome) and designating as its typed falsifier
+    a CONTRADICTS prediction of `falsifying` over the same binding."""
     return json.dumps(
         {
             "hypotheses": [
@@ -75,16 +77,26 @@ def _answer(
                     "mechanism": mechanism,
                     "assumptions": ["the reading is representative"],
                     "falsifier": f"a check that rules out {mechanism}",
+                    "falsifier_prediction_keys": ["f1"],
                     "confounders": ["probe placement"],
                     "minimal_test_ref": "four point measurement",
                     "predictions": [
                         {
+                            "key": "p1",
                             "observable_ref": binding[0],
                             "outcome_space_id": binding[1],
                             "outcome_space_version": binding[2],
                             "expected_outcome": binding[3],
                             "relation_effect": "SUPPORTS",
-                        }
+                        },
+                        {
+                            "key": "f1",
+                            "observable_ref": binding[0],
+                            "outcome_space_id": binding[1],
+                            "outcome_space_version": binding[2],
+                            "expected_outcome": falsifying,
+                            "relation_effect": "CONTRADICTS",
+                        },
                     ],
                 }
                 for n, mechanism in enumerate(MECHANISMS[:count], start=1)
@@ -111,14 +123,14 @@ class _Model:
             first["outcome_space_version"],
             first["outcomes"][0],
         )
-        return ChatReply(text=_answer(self.count, binding), latency_ms=7)
+        return ChatReply(text=_answer(self.count, binding, first["outcomes"][-1]), latency_ms=7)
 
 
 def test_the_prompt_asks_for_the_contexts_minimum_and_never_a_count_of_its_own():
     template = HYPOTHESIS_ENGINE.prompt.template
     assert "at least CONTEXT.minimum_hypotheses competing mechanisms -- never fewer" in template
     assert "two" not in template.lower() and not any(ch.isdigit() for ch in template)
-    assert HYPOTHESIS_ENGINE.prompt.prompt_version == "3.0.0"
+    assert HYPOTHESIS_ENGINE.prompt.prompt_version == "4.0.0"
     # The response contract and the context agree with it; the parser stays the judge.
     assert "at least CONTEXT.minimum_hypotheses" in HYPOTHESIS_CONTRACT
     assert "minimum_hypotheses" in HYPOTHESIS_ENGINE.requires

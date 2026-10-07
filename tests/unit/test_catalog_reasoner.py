@@ -45,6 +45,8 @@ def test_the_engine_ranks_the_catalog_by_what_the_evidence_mentions_and_proposes
     for h in reply["hypotheses"]:
         effects = {p["relation_effect"] for p in h["predictions"]}
         assert effects == {"SUPPORTS", "CONTRADICTS"}, "each check can support and contradict"
+        designated = [p for p in h["predictions"] if p["key"] in h["falsifier_prediction_keys"]]
+        assert [p["relation_effect"] for p in designated] == ["CONTRADICTS"], "a typed falsifier"
     assert "mesh convergence artifact" in reply["position"]["mechanism_view"]
 
 

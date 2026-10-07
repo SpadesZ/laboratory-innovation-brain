@@ -32,6 +32,10 @@ outcome spaces, it binds one prediction to a space it named itself from a quanti
 `space_as_observable` (off by default) makes them write each prediction's outcome space id where its
 observable belongs -- the other error a real model made, against bindings that declare a different
 canonical observable -- and is otherwise as valid as ever.
+
+`prose_falsifier` (off by default) makes them state each falsifier in prose only -- every
+prediction SUPPORTS, none designated as the falsifier: the shape a real model's certificates had
+before the typed falsifier -- and is otherwise as valid as ever.
 """
 
 from __future__ import annotations
@@ -75,6 +79,7 @@ class FakeProvider:
     redirected: int = 0
     invent_space: bool = False
     space_as_observable: bool = False
+    prose_falsifier: bool = False
     _server: ThreadingHTTPServer | None = None
 
     @property
@@ -156,6 +161,7 @@ class FakeProvider:
                     slot,
                     provider.invent_space,
                     provider.space_as_observable,
+                    provider.prose_falsifier,
                 )
                 self._send(
                     200,
@@ -192,6 +198,7 @@ def _answer(
     slot: Any,
     invent: bool = False,
     space_as_observable: bool = False,
+    prose_falsifier: bool = False,
 ) -> str:
     if prompt.startswith("Reply with exactly one word: pong"):
         return "pong"
@@ -208,7 +215,13 @@ def _answer(
     context = json.loads(prompt.split(_MARKER, 1)[1])
     if isinstance(context, dict) and str(context.get("question", "")).startswith("PROBE:"):
         return json.dumps(
-            _probe_answer(prompt, context, invent=invent, space_as_observable=space_as_observable)
+            _probe_answer(
+                prompt,
+                context,
+                invent=invent,
+                space_as_observable=space_as_observable,
+                prose_falsifier=prose_falsifier,
+            )
         )
     return str(reasoner(prompt, slot))
 
@@ -231,14 +244,33 @@ _PROBE_MECHANISMS = (
 
 
 def _probe_answer(
-    prompt: str, ctx: dict[str, Any], *, invent: bool = False, space_as_observable: bool = False
+    prompt: str,
+    ctx: dict[str, Any],
+    *,
+    invent: bool = False,
+    space_as_observable: bool = False,
+    prose_falsifier: bool = False,
 ) -> dict[str, Any]:
     """Valid answers to the capability probes' role prompts, built from what each context gives --
-    but for `invent`, one prediction bound to `INVENTED_SPACE` wherever several spaces are given."""
+    but for `invent`, one prediction bound to `INVENTED_SPACE` wherever several spaces are given.
+
+    Each certificate SUPPORTS the binding's first outcome and designates, as its typed falsifier,
+    a CONTRADICTS prediction it declares over the binding's last."""
     if "mode" in ctx:
         return {"terms": ["contact resistance", "oxidation"]}
     if "prediction_bindings" in ctx:
         binding = ctx["prediction_bindings"][0]
+        observable = (
+            binding["outcome_space_id"] if space_as_observable else binding["observable_ref"]
+        )
+        falsifier = {
+            "key": "f1",
+            "observable_ref": observable,
+            "outcome_space_id": binding["outcome_space_id"],
+            "outcome_space_version": binding["outcome_space_version"],
+            "expected_outcome": binding["outcomes"][-1],
+            "relation_effect": "CONTRADICTS",
+        }
         answer = {
             "hypotheses": [
                 {
@@ -246,22 +278,23 @@ def _probe_answer(
                     "statement": statement,
                     "mechanism": mechanism,
                     "assumptions": ["the reading is representative"],
-                    "falsifier": falsifier,
+                    "falsifier": prose,
+                    **({} if prose_falsifier else {"falsifier_prediction_keys": ["f1"]}),
                     "confounders": ["probe placement"],
                     "minimal_test_ref": "four point measurement",
                     "predictions": [
                         {
-                            "observable_ref": binding["outcome_space_id"]
-                            if space_as_observable
-                            else binding["observable_ref"],
+                            "key": "p1",
+                            "observable_ref": observable,
                             "outcome_space_id": binding["outcome_space_id"],
                             "outcome_space_version": binding["outcome_space_version"],
                             "expected_outcome": binding["outcomes"][0],
                             "relation_effect": "SUPPORTS",
-                        }
+                        },
+                        *([] if prose_falsifier else [dict(falsifier)]),
                     ],
                 }
-                for key, statement, mechanism, falsifier in _PROBE_MECHANISMS[
+                for key, statement, mechanism, prose in _PROBE_MECHANISMS[
                     : max(2, int(ctx.get("minimum_hypotheses", 2)))
                 ]
             ],

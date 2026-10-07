@@ -36,7 +36,9 @@ from lab_brain.core.models.prediction import PREDICTION_EFFECT_TYPES
 #: (the pair as given in CONTEXT.outcome_spaces, never one named from the evidence).
 #: rc-2.0.0: a prediction's observable_ref, outcome_space_id and outcome_space_version are copied
 #: together from one entry of CONTEXT.prediction_bindings (prompt 3.0.0).
-RESPONSE_CONTRACT_VERSION = "rc-2.0.0"
+#: rc-3.0.0: every prediction has a key, and every hypothesis designates its typed falsifier --
+#: `falsifier_prediction_keys`, keys of its own CONTRADICTS predictions (prompt 4.0.0).
+RESPONSE_CONTRACT_VERSION = "rc-3.0.0"
 
 #: Where a rendered context block begins (`cognition.llm._render`).
 CONTEXT_MARKER = "\n\nCONTEXT:\n"
@@ -60,9 +62,12 @@ QUERY_CONTRACT = _BARE + (
 HYPOTHESIS_CONTRACT = _BARE + (
     'Shape: {"hypotheses": [{"key": "<short unique id>", "statement": "<text>", '
     '"mechanism": "<short mechanism name>", "assumptions": ["<text>", ...], '
-    '"falsifier": "<observation that would refute it>", "confounders": ["<text>", ...], '
+    '"falsifier": "<observation that would refute it>", '
+    '"falsifier_prediction_keys": ["<key of one of this hypothesis\'s CONTRADICTS predictions>", '
+    '...], "confounders": ["<text>", ...], '
     '"minimal_test_ref": "<the cheapest test or capability id that could refute it>", '
-    '"predictions": [{"observable_ref": "<an observable_ref from CONTEXT.prediction_bindings>", '
+    '"predictions": [{"key": "<short id, unique within this hypothesis>", '
+    '"observable_ref": "<an observable_ref from CONTEXT.prediction_bindings>", '
     '"outcome_space_id": "<that entry\'s outcome_space_id>", '
     '"outcome_space_version": "<that entry\'s outcome_space_version>", '
     '"expected_outcome": "<one of that entry\'s outcomes, verbatim>", '
@@ -77,7 +82,12 @@ HYPOTHESIS_CONTRACT = _BARE + (
     "exactly as one entry of CONTEXT.prediction_bindings gives them, and its expected_outcome "
     "from that entry's outcomes; an outcome_space_id is never an observable_ref. Never make up an "
     "observable or an outcome space or derive one from a quantity named in the evidence; if no "
-    "given entry fits a prediction, make a different prediction that one does."
+    "given entry fits a prediction, make a different prediction that one does. Every hypothesis "
+    "needs at least one prediction with relation_effect CONTRADICTS whose expected_outcome would "
+    "refute it if observed, and falsifier_prediction_keys must list at least one such key of its "
+    "own -- never a SUPPORTS, PREDICTS or TESTS prediction, and never another hypothesis's. A "
+    "prediction relates only the outcome it names: an outcome no prediction names relates to "
+    "nothing."
 )
 
 SPECIALIST_CONTRACT = _BARE + (

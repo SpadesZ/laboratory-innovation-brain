@@ -276,6 +276,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # The qualification-semantics digest each capability probe ran under; a lock counts only probes
     # run under the digest in force. After 012l (llm_capability_probes.parameters).
     "012m_llm_probe_semantics.sql",
+    # Every admitted hypothesis designates a typed falsifier: its own CONTRADICTS predictions,
+    # checked at its genesis event. After 011j (the genesis function it restates) and 011i
+    # (predictions).
+    "012n_typed_falsifier.sql",
 )
 
 _BOOTSTRAP = """

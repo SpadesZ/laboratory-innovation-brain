@@ -172,8 +172,9 @@ def admit_hypothesis_identity(
     Since `011j` a belief event must name a hypothesis admitted through §8's gate in its own
     project. The M0b–M2 suites predate that gate and wrote events for hypothesis ids nothing had
     admitted; this establishes the identity they always meant, rather than loosening the key: a
-    human-authored §8 certificate -- mechanism, falsifier, assumptions, confounders, minimal test and
-    one typed Prediction -- in a ROUTINE set (not root-cause, below its policy's inverted-retrieval
+    human-authored §8 certificate -- mechanism, falsifier, assumptions, confounders, minimal test,
+    one SUPPORTS Prediction and the CONTRADICTS one designated as its typed falsifier (`012n`) --
+    in a ROUTINE set (not root-cause, below its policy's inverted-retrieval
     threshold). Routine because those suites test M0b–M2 semantics, which M3's debate rules leave
     unchanged for a routine set (`011j`'s header). Called before the fixture's genesis event;
     idempotent, and a no-op once the hypothesis exists.
@@ -208,10 +209,10 @@ def admit_hypothesis_identity(
     connection.execute(
         "INSERT INTO hypotheses (hypothesis_id, project_id, hypothesis_set_id, statement,"
         " mechanism, assumptions, falsifier, confounders, minimal_test_ref, created_in_episode,"
-        " authored_by_actor_id, created_at)"
+        " authored_by_actor_id, created_at, falsifier_prediction_ids)"
         " VALUES (%s, %s, %s, %s, %s, ARRAY['the fixture conditions hold'],"
         " 'the predicted observation is absent', ARRAY['measurement drift'], 'test:fixture',"
-        " %s, %s, '2026-09-01T00:00:00Z')",
+        " %s, %s, '2026-09-01T00:00:00Z', ARRAY[%s])",
         (
             hypothesis_id,
             project_id,
@@ -220,6 +221,7 @@ def admit_hypothesis_identity(
             f"the mechanism {hypothesis_id} names",
             episode,
             actor_id,
+            f"prd:identity:{project_id}:{hypothesis_id}:falsifier",
         ),
     )
     connection.execute(
@@ -233,6 +235,19 @@ def admit_hypothesis_identity(
             project_id,
             hypothesis_id,
             f'[{{"relation_type": "SUPPORTS", "to_entity_id": "{hypothesis_id}"}}]',
+        ),
+    )
+    connection.execute(
+        "INSERT INTO predictions (prediction_id, project_id, hypothesis_id, observable_ref,"
+        " outcome_space_id, outcome_space_version, expected_outcome,"
+        " relation_effect_if_observed, created_at)"
+        " VALUES (%s, %s, %s, 'test.observable', 'os:test.identity', '1.0.0', 'NOT_OBSERVED',"
+        " %s::jsonb, '2026-09-01T00:00:00Z')",
+        (
+            f"prd:identity:{project_id}:{hypothesis_id}:falsifier",
+            project_id,
+            hypothesis_id,
+            f'[{{"relation_type": "CONTRADICTS", "to_entity_id": "{hypothesis_id}"}}]',
         ),
     )
 
