@@ -175,6 +175,15 @@ def _tokens(text: str) -> list[str]:
     return [t for t in "".join(c if c.isalnum() else " " for c in text.lower()).split() if t]
 
 
+def _typed_prefix(key: str) -> str:
+    """How `typed_falsifier_text` begins for mechanism `key`'s designated falsifier; a string no
+    rendering starts with when the pack's catalog does not declare the mechanism."""
+    if key not in {m.key for m in mechanism_catalog().mechanisms}:
+        return "\0"
+    f = fixture_falsifier(key)
+    return f"{f['observable_ref']} = {f['expected_outcome']} in "
+
+
 @dataclass
 class MockScientist:
     """The transport `ScientificLLM` calls. Deterministic, evidence-driven, answer-blind."""
@@ -289,11 +298,22 @@ class MockScientist:
         }
 
     def _rewrite(self, ctx: Mapping[str, Any]) -> dict[str, Any]:
+        """Inverted search terms for the typed falsifiers shown, phrased as a model would phrase
+        them: in the words of the mechanism the falsifier belongs to, which the stand-in knows from
+        its own catalog -- an unknown falsifier is searched for in its own words."""
         if ctx["mode"] == "PRIMARY":
             return {"terms": list(self.primary_terms)}
         terms: list[str] = []
         for falsifier in ctx.get("falsifiers", []):
-            for token in _tokens(falsifier):
+            known = next(
+                (
+                    m["falsifier"]
+                    for k, m in self.mechanisms.items()
+                    if falsifier.startswith(_typed_prefix(k))
+                ),
+                falsifier,
+            )
+            for token in _tokens(known):
                 if token not in terms:
                     terms.append(token)
         return {"terms": terms or ["counterevidence"]}

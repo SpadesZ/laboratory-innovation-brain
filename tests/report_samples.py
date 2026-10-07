@@ -103,6 +103,7 @@ def full_report(inject: str = "") -> EpisodeReport:
                 (t("sp.contact = OPEN SUPPORTS"),),
                 t("CONTRADICTED"),
                 (t("CONFOUNDER (MAJOR): probe contact"),),
+                (t("sp.contact = CLOSED in os:sp.contact@1.0.0 -> CONTRADICTS hyp:1 (prd:1)"),),
             ),
         ),
         debate=DebateSection(

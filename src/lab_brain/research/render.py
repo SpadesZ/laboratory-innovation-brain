@@ -139,7 +139,9 @@ def render_markdown(report: EpisodeReport) -> str:
         add(f"### {h.mechanism} -- **{h.final_state}**")
         add("")
         add(f"`{h.hypothesis_id}` | {h.statement}")
-        add(f"- Falsifier: {h.falsifier}")
+        for machine in h.machine_falsifiers:
+            add(f"- Machine falsifier (what verification adjudicates): `{machine}`")
+        add(f"- Model's explanation (prose falsifier, not adjudicated): {h.falsifier}")
         add(f"- Cheapest test: `{h.minimal_test}`")
         add("- Predictions: " + "; ".join(h.predictions))
         for objection in h.objections:

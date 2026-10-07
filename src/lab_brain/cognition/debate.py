@@ -97,7 +97,11 @@ from lab_brain.core.models.debate import (
 from lab_brain.core.models.enums import SensitivityLabel
 from lab_brain.core.models.evidence_bundle import EvidenceBundle
 from lab_brain.core.models.hypothesis import Hypothesis
-from lab_brain.core.models.hypothesis_set import HypothesisCertificate, HypothesisSet
+from lab_brain.core.models.hypothesis_set import (
+    HypothesisCertificate,
+    HypothesisSet,
+    typed_falsifier_text,
+)
 from lab_brain.core.models.inference import InferenceProvenance
 from lab_brain.core.models.prediction import OutcomeSpace, Prediction, RelationJudgmentTemplate
 from lab_brain.core.models.transition import TransitionPolicy
@@ -690,7 +694,11 @@ class StructuredDebate:
         in_contention: Sequence[HypothesisCertificate],
     ) -> EvidenceBundle:
         request = state.request
-        falsifiers = [c.hypothesis.falsifier for c in in_contention]
+        # The designated typed falsifiers, never the prose: what is searched against is what
+        # verification would adjudicate.
+        falsifiers = [
+            typed_falsifier_text(p) for c in in_contention for p in c.falsifier_predictions
+        ]
         rewrite = self._call(
             state,
             role=CognitiveRole.EVIDENCE_RESEARCHER,
@@ -731,7 +739,10 @@ class StructuredDebate:
                     "hypothesis_id": c.hypothesis_id,
                     "statement": c.hypothesis.statement,
                     "mechanism": c.hypothesis.mechanism,
-                    "falsifier": c.hypothesis.falsifier,
+                    # The designation, rendered -- the prose is the author's explanation only.
+                    "falsifier": "; ".join(
+                        typed_falsifier_text(p) for p in c.falsifier_predictions
+                    ),
                     "assumptions": list(c.hypothesis.assumptions),
                 }
                 for c in in_contention

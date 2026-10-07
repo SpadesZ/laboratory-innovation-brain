@@ -3594,6 +3594,46 @@ MUTATIONS: tuple[Mutation, ...] = (
         new="    return Decimal(0)\n",
         tests=("tests/unit/test_forecast_disagreement.py",),
     ),
+    Mutation(
+        name="inverted_retrieval_reads_the_prose_falsifier",
+        guards="falsifier authority -- inverted retrieval searches the designated typed falsifier",
+        path="src/lab_brain/cognition/debate.py",
+        old="        falsifiers = [\n            typed_falsifier_text(p) for c in in_contention for p in c.falsifier_predictions\n        ]\n",
+        new="        falsifiers = [c.hypothesis.falsifier for c in in_contention]\n",
+        tests=("tests/unit/test_falsifier_authority.py",),
+    ),
+    Mutation(
+        name="inverted_retrieval_omits_the_typed_falsifier",
+        guards="falsifier authority -- inverted retrieval is shown the designated typed falsifier",
+        path="src/lab_brain/cognition/debate.py",
+        old="        falsifiers = [\n            typed_falsifier_text(p) for c in in_contention for p in c.falsifier_predictions\n        ]\n",
+        new="        falsifiers: list[str] = []\n",
+        tests=("tests/unit/test_falsifier_authority.py",),
+    ),
+    Mutation(
+        name="critic_reads_the_prose_falsifier",
+        guards="falsifier authority -- the Critic is shown the designated typed falsifier",
+        path="src/lab_brain/cognition/debate.py",
+        old='                    "falsifier": "; ".join(\n                        typed_falsifier_text(p) for p in c.falsifier_predictions\n                    ),\n',
+        new='                    "falsifier": c.hypothesis.falsifier,\n',
+        tests=("tests/unit/test_falsifier_authority.py",),
+    ),
+    Mutation(
+        name="critic_omits_the_typed_falsifier",
+        guards="falsifier authority -- the Critic is shown a falsifier at all",
+        path="src/lab_brain/cognition/debate.py",
+        old='                    "falsifier": "; ".join(\n                        typed_falsifier_text(p) for p in c.falsifier_predictions\n                    ),\n',
+        new='                    "falsifier": "",\n',
+        tests=("tests/unit/test_falsifier_authority.py",),
+    ),
+    Mutation(
+        name="a_prose_named_outcome_relates_a_hypothesis",
+        guards="falsifier authority -- an outcome no prediction declares relates nothing",
+        path="src/lab_brain/verification/evidence.py",
+        old="        if prediction.project_id != run.project_id or not comparable(prediction, outcome):\n",
+        new="        if prediction.project_id != run.project_id or prediction.observable_ref != outcome.observable_ref:\n",
+        tests=("tests/unit/test_falsifier_authority.py",),
+    ),
 )
 
 

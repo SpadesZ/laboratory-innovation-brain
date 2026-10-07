@@ -70,6 +70,7 @@ from lab_brain.core.models.belief_event import BeliefRevisionEvent, BeliefState
 from lab_brain.core.models.cost import BudgetCaps, CostVector
 from lab_brain.core.models.enums import SensitivityLabel, TrustClass
 from lab_brain.core.models.episode import EpisodeState
+from lab_brain.core.models.hypothesis_set import typed_falsifier_text
 from lab_brain.core.models.identifiers import new_id
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.core.models.job import JobState
@@ -1465,6 +1466,9 @@ class ResearchEpisodeService:
                         predictions=tuple(_prediction(p) for p in certificate.predictions),
                         final_state=state_name,
                         objections=tuple(objections.get(h.hypothesis_id, ())),
+                        machine_falsifiers=tuple(
+                            typed_falsifier_text(p) for p in certificate.falsifier_predictions
+                        ),
                     )
                 )
                 moves = tuple(

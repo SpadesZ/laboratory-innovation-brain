@@ -207,6 +207,10 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   不是假說預期的結果，不參與分歧計算（但仍參與「能否改變決策」的判斷）。各假說肯定預測完全相同時分歧為 0；
   多個結果且彼此不同時，因領域未宣告集合距離，分歧標示為未知，不另行發明。設計記錄：
   [`docs/implementation/forecast-disagreement.md`](docs/implementation/forecast-disagreement.md)。
+- 機器只採用假說「指定的型別化否證預測」作為否證條件：反方審查的反向檢索、反方審查本身與驗證、信念變更都
+  使用同一份型別化否證；模型寫的文字否證條件只保留為說明，不參與判定。報告會同時列出兩者並標示，
+  兩者不一致時直接呈現，不由系統自行判斷。設計記錄：
+  [`docs/implementation/falsifier-authority.md`](docs/implementation/falsifier-authority.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。

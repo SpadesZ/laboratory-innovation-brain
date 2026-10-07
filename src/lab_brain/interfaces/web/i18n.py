@@ -201,7 +201,14 @@ _M: dict[str, tuple[str, str]] = {
     "r.literature.discovered": ("Passages found:", "找到的段落："),
     "r.refused": ("refused:", "被拒絕："),
     "r.hypotheses": ("Competing hypotheses", "互相競爭的假說"),
-    "r.falsifier": ("Would be ruled out if:", "排除條件："),
+    "r.falsifier": (
+        "Model's explanation (prose falsifier, not adjudicated):",
+        "模型的說明（文字否證條件，不作判定）：",
+    ),
+    "r.falsifier_typed": (
+        "Machine falsifier -- what verification adjudicates:",
+        "機器否證條件（驗證據此判定）：",
+    ),
     "r.cheapest": ("Cheapest check:", "最省成本的檢查："),
     "r.predictions": ("Predictions:", "預測："),
     "r.critique": ("Critique:", "反方意見："),

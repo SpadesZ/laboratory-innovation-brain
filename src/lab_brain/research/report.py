@@ -77,11 +77,15 @@ class HypothesisLine:
     hypothesis_id: str
     mechanism: str
     statement: str
+    #: The author's prose falsifier: its explanation, not adjudicated.
     falsifier: str
     minimal_test: str
     predictions: tuple[str, ...]
     final_state: str
     objections: tuple[str, ...] = ()
+    #: The designated typed falsifier(s), rendered: what verification adjudicates. Empty in a report
+    #: stored before it was recorded.
+    machine_falsifiers: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

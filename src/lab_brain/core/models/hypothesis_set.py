@@ -70,13 +70,19 @@ class HypothesisCertificate(CoreModel):
     name -- lives beside it, and the wrapper refuses the one inconsistency it could otherwise hold:
     `prediction_ids` that are not exactly the predictions carried.
 
-    THE TYPED FALSIFIER. `Hypothesis.falsifier` is prose -- for explanation and the Critic's
-    inverted retrieval. What a check can adjudicate is `falsifier_prediction_ids`: the carried
-    predictions the author DESIGNATED as the falsifier, each declaring only CONTRADICTS on this
-    hypothesis. A designation is what makes the falsifier machine-checkable; a CONTRADICTS
-    prediction elsewhere in the certificate is not one. The model admits an empty designation so a
-    certificate stored before it existed still reads back; admission refuses one
-    (`certificate_completeness_problems`, `012n`).
+    THE TYPED FALSIFIER. `Hypothesis.falsifier` is the author's prose -- kept, shown as its
+    explanation, and never consumed by a machine path. What a check can adjudicate is
+    `falsifier_prediction_ids`: the carried predictions the author DESIGNATED as the falsifier, each
+    declaring only CONTRADICTS on this hypothesis. A designation is what makes the falsifier
+    machine-checkable; a CONTRADICTS prediction elsewhere in the certificate is not one. The model
+    admits an empty designation so a certificate stored before it existed still reads back;
+    admission refuses one (`certificate_completeness_problems`, `012n`).
+
+    ONE FALSIFIER AUTHORITY. The prose and the designation can disagree -- a model wrote "agrees"
+    and designated DISAGREES -- and nothing judges which is meant. Every machine consumer therefore
+    reads the designation (`falsifier_predictions`, rendered by `typed_falsifier_text`): the
+    Critic's inverted retrieval, the Critic, verification and belief. The prose is never compared
+    with it, rewritten or used in its place.
     """
 
     hypothesis: Hypothesis
@@ -177,5 +183,29 @@ class HypothesisCertificate(CoreModel):
     def hypothesis_id(self) -> str:
         return self.hypothesis.hypothesis_id
 
+    @property
+    def falsifier_predictions(self) -> tuple[Prediction, ...]:
+        """The designated typed falsifier, in prediction-id order: what verification adjudicates.
+        Empty only for a certificate stored before the designation existed."""
+        carried = {p.prediction_id: p for p in self.predictions}
+        return tuple(carried[i] for i in self.falsifier_prediction_ids)
 
-__all__ = ["HypothesisCertificate", "HypothesisSet"]
+
+def typed_falsifier_text(prediction: Prediction) -> str:
+    """One designated falsifier prediction as text, for search and for reading: its admitted
+    facts and nothing else -- no inference, no paraphrase, no domain vocabulary.
+
+        sp.normalization_basis = DISAGREES in os:sp.normalization_basis@1.0.0
+            -> CONTRADICTS hyp:... (prd:...)
+    """
+    effects = "/".join(
+        sorted({e.relation_type.value for e in prediction.relation_effect_if_observed})
+    )
+    return (
+        f"{prediction.observable_ref} = {prediction.expected_outcome} in "
+        f"{prediction.outcome_space_ref} -> {effects} {prediction.hypothesis_id} "
+        f"({prediction.prediction_id})"
+    )
+
+
+__all__ = ["HypothesisCertificate", "HypothesisSet", "typed_falsifier_text"]

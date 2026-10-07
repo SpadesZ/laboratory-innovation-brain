@@ -701,6 +701,10 @@ def report_html(r: EpisodeReport, *, locale: str = "en") -> Html:
             x.statement,
             _list(
                 [
+                    *(
+                        h("{} <code>{}</code>", m("r.falsifier_typed"), f)
+                        for f in x.machine_falsifiers
+                    ),
                     h("{} {}", m("r.falsifier"), x.falsifier),
                     h("{} <code>{}</code>", m("r.cheapest"), x.minimal_test),
                     h("{} {}", m("r.predictions"), "; ".join(x.predictions)),
