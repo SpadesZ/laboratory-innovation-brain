@@ -82,3 +82,97 @@ rendering is the prediction's own fields in another domain. The sample report ca
 falsifier, so the web report's exhaustive field check and its escaping test cover it. Five mutation
 entries: inverted retrieval reading the prose again or omitting the typed falsifier, the Critic
 reading the prose again or omitting it, an outcome no prediction declares relating a hypothesis.
+
+## 4. Verification
+
+Code: `598ee46`. CI run `37655646657`: commit hygiene, spec conformance, lint/types/full suite and
+the PostgreSQL backend profile, all green. `src` changed only in the certificate helper, the
+debate's two falsifier consumers and the report; `verification`, `llm_runtime`, `roles`,
+TransitionPolicy, the migrations and security are untouched.
+
+| Run | Passed | Skipped |
+|---|---|---|
+| local, Windows: `pytest -q` | 1746 | 844: 842 PostgreSQL-gated, 1 Lumerical, 1 network |
+| local, fresh database (61 migrations): `LAB_BRAIN_TEST_POSTGRES=1 pytest -q` | 2588 | 2: 1 Lumerical, 1 network |
+
+ruff, ruff format and strict mypy (237 source files) clean; status, obligation inventory and
+requirement coverage current; the evidence and root-cause (`--disposable`) benchmark reports current
+and unchanged; the debate benchmark report regenerated with every verdict, round count and metric
+identical (digests and token estimates only). Mutation battery, all entries on a fresh database:
+**426/426 killed**, no anchor missing.
+
+## 5. Deployed
+
+`docker compose -p lab-brain-workspace up --build -d` from `598ee46`, `LAB_BRAIN_INFERENCE_DEADLINE`
+still 1200; no migration was pending and `local-models` changed nothing. The qualification digest
+is unchanged (`43ce474f374e...`), so the two locks made under it stayed current -- qwen2.5-coder:7b
+`lk:06d7d886bcb85a5a`, qwen2.5:7b `lk:271a4fad2094aab1` -- and the applied `local-typed-falsifier`
+was ready and loaded without a re-test (REASONING_PRIMARY and FAST_UTILITY -> qwen2.5-coder:7b,
+REASONING_ADVERSARIAL -> qwen2.5:7b, every route LOCAL).
+
+## 6. The same blind smoke, after the switch
+
+Episode **`epi:08cf92c8-a2f7-4a42-b100-8290ddeb8aea`** (`prj:smoke-local`, PRIVATE, LOCAL-only), one
+run of **1389 s**, the same inputs as before (the synthetic report already in the project, the same
+`PS-501.device.json`, no evaluator field, no literature, no simulator).
+
+**Seven model calls**, each with an `LLM_CALL` span, ESTIMATED and ACTUAL BudgetGate entries and
+InferenceProvenance on its locked LOCAL route: Evidence Researcher (30 s) -> Hypothesis Engine
+(prompt 4.0.0, 407 s) -> two specialists (131 s, 122 s) -> the inverted rewrite (40 s) -> the
+Critic (qwen2.5:7b, 396 s) -> the engine certifying the Critic's alternative (258 s; nothing new
+admitted). One round, stopped STABLE.
+
+**What the Critic's paths were shown, from stored rows.** Each call records the canonical hash of
+its context. Rebuilding the first round's two contexts from the stored certificates, positions,
+bundles and admitted statements:
+
+| call | episode | context with typed falsifiers | context with prose |
+|---|---|---|---|
+| inverted rewrite | `epi:04d7d46b` (`492856d`) | no match | **matches** `5a7df72d...` |
+| Critic | `epi:04d7d46b` (`492856d`) | no match | **matches** `a807538d...` |
+| inverted rewrite | `epi:08cf92c8` (`598ee46`) | **matches** `a58ff356...` | no match |
+| Critic | `epi:08cf92c8` (`598ee46`) | **matches** `e633d5c9...` | no match |
+
+The stored inverted query (`bdl:01bcd318...`) contains every designated rendering and none of the
+prose.
+
+**Machine falsifier and prose, per hypothesis** -- as stored, and as the report and the web page now
+show them (each certificate one prediction, designated, CONTRADICTS only; none forecasts):
+
+| Hypothesis | machine falsifier (adjudicated) | model's prose (explanation) |
+|---|---|---|
+| PROCESS_DEPENDENT_CONTACT_RESISTANCE | `sp.probe_contact_resistance = ELEVATED` (`os:sp.probe_contact_resistance@1.0.0`) | "The series resistance follows a normal trend across the same sweep." |
+| MESH_ARTEFACT | `sp.carrier_profile = NOMINAL` (`os:sp.carrier_profile@1.0.0`) | "The capacitance curves are distinguishable within measurement uncertainty." |
+| DEPLETION_EFFECT | `sp.small_signal_impedance = RS_BIAS_INSENSITIVE` (`os:sp.rs_bias_response@1.0.0`) | "The series resistance follows a normal trend across the same sweep." |
+| NORMALIZATION_BASIS_ISSUE | `sp.normalization_basis = DISAGREES` (`os:sp.normalization_basis@1.0.0`) | "The capacitance curves are distinguishable within measurement uncertainty." |
+| TRANSMISSION_LINE_MEASUREMENT | `sp.small_signal_impedance = RS_BIAS_INSENSITIVE` (`os:sp.rs_bias_response@1.0.0`) | "The capacitance curves are distinguishable within measurement uncertainty." |
+
+**Verification consumed the same falsifiers.** Plan `vpl:73063f97...`: `cap:sp.extraction_consistency`
+(SUFFICIENT: NORMALIZATION_BASIS_ISSUE -> CHALLENGED / CONTRADICTED if DISAGREES), the four-point
+probe (CONTACT_RESISTANCE if ELEVATED) and the split lot (MESH_ARTEFACT if NOMINAL); disagreement
+UNKNOWN for all (no forecasts); the extraction check is the Pareto front and was chosen. It ran: Job /
+Run `run:eadba7be...`, backend `sp.local.normalization_basis_reader`, output `art:sha256:049ad77f...`;
+Observation `obs:adb35cb2...` `sp.normalization_basis = AGREES`; attestation `att:057c5df4...`
+(OBSERVED). AGREES matches no declared prediction, so no RelationJudgment, no decision and no
+event followed. Plan `vpl:b79c3cbe...`: the extraction check excluded as run; the four-point probe, a
+person's act (HUMAN_ACTION_REQUIRED). Pending, not emulated: `cap:sp.charge_ac_sweep` (best next:
+DEPLETION_EFFECT and TRANSMISSION_LINE_MEASUREMENT -> CONTRADICTED if RS_BIAS_INSENSITIVE) and
+`cap:sp.charge_dc_sweep` (MESH_ARTEFACT -> CONTRADICTED if NOMINAL). The episode is `SUSPENDED`
+("awaiting simulator for cap:sp.charge_ac_sweep"); through `verified_history` -> `replay` all five
+rivals are ACTIVE, each history one genesis event, verified 1/1.
+
+**Blind comparison, after the run.** The evaluator truth for `contact-open-via` is
+`contact_discontinuity` (expected stop CONFIRMED). The set holds no contact-discontinuity hypothesis
+and no prediction over `sp.contact_connectivity`, so the local connectivity check was never a
+candidate. Beside that: one admitted "hypothesis" names a measurement, not a mechanism
+(TRANSMISSION_LINE_MEASUREMENT); MESH_ARTEFACT's falsifier reads the carrier profile; the prose
+falsifiers repeat across hypotheses; the falsifiers for contact resistance and normalization are the
+outcomes those mechanisms would produce; no hypothesis forecasts anything. These are **LOCAL MODEL
+SCIENTIFIC-QUALITY failures**, recorded and not tuned around: the core consumed one falsifier per
+hypothesis on every path and exposed the prose beside it.
+
+**History is untouched.** Against a snapshot taken before the rebuild (cutoff
+2026-10-07 18:09:27 UTC): 41 InferenceProvenance rows, 8 episodes, 9 research runs, 120 probe rows,
+11 lock rows, 25 hypotheses, 30 predictions, 2 relations, 27 belief events, 2 decisions,
+4 observations, 146 attestations, 8 plans, 7 jobs, 7 runs and 91 cost entries, identical; ingestion
+items unchanged (3); no external snapshot; no egress policy.
