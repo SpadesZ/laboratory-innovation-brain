@@ -62,3 +62,26 @@ discriminating and choosing the cheaper sufficient check; a falsifier alone stil
 sufficient; a genuine disagreement still leading the order; Stage C and the planner reading the same
 forecasts. Five mutation entries: falsifiers counted as forecasts, TESTS-only counted, a Cartesian
 comparison of forecast sets, a number for unequal sets, a lost genuine disagreement.
+
+## 4. Verification
+
+Code: `492856d`. CI run `37590729777`: commit hygiene, spec conformance, lint/types/full suite and
+the PostgreSQL backend profile, all green. `src` changed only in `verification/disagreement.py` and
+a docstring of `least_cost.py`; evidence admission, typed falsifiers, TransitionPolicy, cost vectors,
+SelectionPolicy, BudgetGate, transport, credentials, locality and egress are untouched.
+
+| Run | Passed | Skipped |
+|---|---|---|
+| local, Windows: `pytest -q` | 1739 | 844: 842 PostgreSQL-gated, 1 Lumerical, 1 network |
+| local, fresh database (61 migrations): `LAB_BRAIN_TEST_POSTGRES=1 pytest -q` | 2581 | 2: 1 Lumerical, 1 network |
+
+ruff, ruff format and strict mypy (237 source files) clean; status, obligation inventory and
+requirement coverage current; the evidence, debate and root-cause (`--disposable`) benchmark reports
+current and unchanged. Mutation battery, all entries on a fresh database: **421/421 killed**, no
+anchor missing.
+
+**Deployed.** In the blind LOCAL smoke `epi:04d7d46b...` ([`typed-falsifier.md`](typed-falsifier.md)
+section 8) the model declared falsifiers only. For `cap:sp.fourpoint_probe` two rivals' falsifiers
+read ELEVATED and NOMINAL: stored and recomputed disagreement UNKNOWN, where the pre-fix pooled rule
+gives 1 and would have marked the probe discriminating. Sufficiency still read those falsifiers --
+the probe and the extraction check were both SUFFICIENT on them.
