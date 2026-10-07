@@ -28,22 +28,40 @@ observable from a space id, and nothing restricts it to the backends installed h
 over a simulation nobody can run yet is still a prediction.
 
 WHAT THE RANKING DOES AND DOES NOT DECIDE. `rank_by_disagreement` orders candidate actions by how
-far apart the surviving hypotheses' declared predictions over the action's observable are, under the
-metric the domain declared for that OutcomeSpace. It does not decide sufficiency (§9.1, VER-006's
-`evaluate_sufficiency` does), Pareto dominance or the SelectionPolicy (VER-005, M4). It is §9.2's
-second criterion, and an action whose observable has no declared metric is ranked AFTER every action
-that has one, with its disagreement reported as unknown rather than zero.
+far apart the surviving hypotheses' AFFIRMATIVE forecasts over the action's observable are, under
+the metric the domain declared for that OutcomeSpace. It does not decide sufficiency (§9.1,
+VER-006's `evaluate_sufficiency` does, over EVERY typed prediction, falsifiers included), Pareto
+dominance or the SelectionPolicy (VER-005, M4). It is §9.2's second criterion, and an action whose
+observable has no declared metric is ranked AFTER every action that has one, with its disagreement
+reported as unknown rather than zero.
+
+AFFIRMATIVE FORECASTS ONLY. A hypothesis forecasts an outcome with a SUPPORTS or PREDICTS
+prediction. A CONTRADICTS prediction is its predeclared FALSIFYING outcome -- what would refute it,
+not what it expects -- and every admitted certificate carries one; TESTS alone says only that an
+outcome bears on it. So a prediction is a forecast only when it declares SUPPORTS or PREDICTS and no
+CONTRADICTS (`is_affirmative_forecast`); one CONTRADICTS among several effects makes it a
+falsifier. Nothing is inferred from what a hypothesis does not declare. Per observable and
+OutcomeSpace version, each rival's forecasts are the SET of outcomes it affirms (duplicates
+collapse), and:
+
+    fewer than two rivals forecast        unknown (None)
+    every rival's set is the same         0 -- identical forecasts do not disagree, however many
+    every rival forecasts one outcome     the declared metric, pairwise, the maximum over rivals
+    otherwise (several outcomes, unequal) unknown: the domain declares a distance between outcomes,
+                                          not between sets of them, and core invents none -- no
+                                          Cartesian maximum, average or set metric
 """
 
 from __future__ import annotations
 
 import itertools
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
 from lab_brain.core.models.benchmark import DisagreementMetric
+from lab_brain.core.models.enums import RelationType
 from lab_brain.core.models.prediction import OutcomeSpace, Prediction
 
 
@@ -250,19 +268,48 @@ class DisagreementMetricRegistry:
         return tuple(sorted(rows))
 
 
+#: The effects that state an affirmative forecast: the outcome the hypothesis says will be observed.
+AFFIRMATIVE_EFFECTS = frozenset({RelationType.SUPPORTS, RelationType.PREDICTS})
+
+
+def is_affirmative_forecast(prediction: Prediction) -> bool:
+    """SUPPORTS or PREDICTS, and no CONTRADICTS: a falsifier is never a forecast, whatever else it
+    declares, and TESTS alone forecasts nothing."""
+    effects = {effect.relation_type for effect in prediction.relation_effect_if_observed}
+    return RelationType.CONTRADICTS not in effects and bool(effects & AFFIRMATIVE_EFFECTS)
+
+
 @dataclass(frozen=True)
 class RankedAction:
-    """One candidate action, and how far apart the rivals' predictions over it are."""
+    """One candidate action, and how far apart the rivals' affirmative forecasts over it are."""
 
     capability_id: str
     observable_ref: str
-    #: `None` when no metric is declared for the predictions' OutcomeSpace, or fewer than two
-    #: hypotheses predict over this observable. Unknown, not zero.
+    #: `None` -- unknown, not zero -- when no metric is declared for the OutcomeSpace, fewer than
+    #: two hypotheses forecast an outcome over this observable, or rivals forecast unequal SETS of
+    #: outcomes (no set distance is declared).
     disagreement: Decimal | None
     metric_ref: str | None
     outcome_space_ref: str | None
-    #: (hypothesis_id, expected_outcome) pairs the disagreement was computed from.
+    #: (hypothesis_id, forecast outcome) pairs the disagreement was computed from -- affirmative
+    #: forecasts only.
     predictions: tuple[tuple[str, str], ...]
+
+
+def forecast_disagreement(
+    forecasts: Mapping[str, frozenset[str]], metric: TabulatedMetric
+) -> Decimal | None:
+    """The disagreement between rivals' affirmative forecast sets (hypothesis -> outcomes), under
+    `metric`. See the module docstring for the four cases; `None` is unknown, never zero."""
+    if len(forecasts) < 2:
+        return None
+    sets = [forecasts[h] for h in sorted(forecasts)]
+    if all(s == sets[0] for s in sets):
+        return Decimal(0)
+    if any(len(s) != 1 for s in sets):
+        return None
+    single = [next(iter(s)) for s in sets]
+    return max(metric.distance(a, b) for a, b in itertools.combinations(single, 2))
 
 
 def rank_by_disagreement(
@@ -272,10 +319,11 @@ def rank_by_disagreement(
 ) -> tuple[RankedAction, ...]:
     """§9.2's second criterion over ``candidates`` -- (capability_id, produces) pairs.
 
-    Deterministic: the disagreement is the MAX pairwise table value over the rivals' expected
-    outcomes (an action discriminates if it separates any two rivals), and the order is
-    (disagreement descending, unknowns last, capability id, observable). No clock, no randomness,
-    no call into the domain implementation.
+    Deterministic: the disagreement is `forecast_disagreement` over each rival's affirmative
+    forecasts (an action discriminates if it separates any two rivals' forecasts), and the order is
+    (disagreement descending, unknowns last, capability id, observable). An observable with
+    predictions but no forecast -- falsifiers only -- is still listed, with its disagreement
+    unknown. No clock, no randomness, no call into the domain implementation.
     """
     ranked: list[RankedAction] = []
     for capability_id, produces in candidates:
@@ -287,34 +335,25 @@ def rank_by_disagreement(
             for p in over:
                 by_space.setdefault((p.outcome_space_id, p.outcome_space_version), []).append(p)
             for (space_id, space_version), group in sorted(by_space.items()):
-                pairs = tuple(sorted((p.hypothesis_id, p.expected_outcome) for p in group))
+                forecasts: dict[str, set[str]] = {}
+                for p in group:
+                    if is_affirmative_forecast(p):
+                        forecasts.setdefault(p.hypothesis_id, set()).add(p.expected_outcome)
                 metric = metrics.for_space(space_id, space_version)
-                rivals = {h for h, _ in pairs}
-                if metric is None or len(rivals) < 2:
-                    ranked.append(
-                        RankedAction(
-                            capability_id=capability_id,
-                            observable_ref=observable,
-                            disagreement=None,
-                            metric_ref=None if metric is None else metric.ref,
-                            outcome_space_ref=f"{space_id}@{space_version}",
-                            predictions=pairs,
-                        )
-                    )
-                    continue
-                value = max(
-                    metric.distance(a_out, b_out)
-                    for (a_h, a_out), (b_h, b_out) in itertools.combinations(pairs, 2)
-                    if a_h != b_h
-                )
                 ranked.append(
                     RankedAction(
                         capability_id=capability_id,
                         observable_ref=observable,
-                        disagreement=value,
-                        metric_ref=metric.ref,
+                        disagreement=None
+                        if metric is None
+                        else forecast_disagreement(
+                            {h: frozenset(o) for h, o in forecasts.items()}, metric
+                        ),
+                        metric_ref=None if metric is None else metric.ref,
                         outcome_space_ref=f"{space_id}@{space_version}",
-                        predictions=pairs,
+                        predictions=tuple(
+                            sorted((h, o) for h, outcomes in forecasts.items() for o in outcomes)
+                        ),
                     )
                 )
     return tuple(
@@ -332,10 +371,13 @@ def rank_by_disagreement(
 
 
 __all__ = [
+    "AFFIRMATIVE_EFFECTS",
     "DisagreementMetricError",
     "DisagreementMetricImplementation",
     "DisagreementMetricRegistry",
     "RankedAction",
     "TabulatedMetric",
+    "forecast_disagreement",
+    "is_affirmative_forecast",
     "rank_by_disagreement",
 ]

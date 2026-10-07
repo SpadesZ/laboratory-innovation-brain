@@ -123,17 +123,10 @@ real parser. The digest change stales every lock made before, automatically.
 - Fifteen mutation entries (missing designation, broken link, wrong effect, inference from a
   mismatch, the observed CONTRADICTS path); two vocabulary entries re-anchored.
 
-## 5. Known, not fixed here
+## 5. Disagreement ranking (fixed separately)
 
-`verification.disagreement.rank_by_disagreement` takes every prediction's `expected_outcome` as the
-rival's expectation, whatever its relation effect. Two rivals with IDENTICAL outcome -> effect
-signatures (`HIGH -> SUPPORTS`, `LOW -> CONTRADICTS`) score a positive disagreement (1 under a
-categorical metric; 0 with the SUPPORTS predictions alone). `LeastCostPlanner` reads
-`disagreement > 0` as `SelectionCandidate.discriminating`, which `selection.rank` orders before the
-Pareto and cost comparison -- so in the silicon-photonics planner a simulation whose two rivals
-declare identical signatures (`cap:sp.charge_ac_sweep`, disagreement 0.5) is ranked and chosen
-ahead of a cheaper sufficient analytical check (`cap:sp.extraction_consistency`), and the order
-flips back when the identical CONTRADICTS predictions are removed. The typed falsifier makes a
-CONTRADICTS prediction mandatory on every hypothesis, so the defect now applies to every certificate.
-The ranking is left unchanged in this slice: the fix belongs with the selection semantics, and
-nothing in it infers CONTRADICTS from an unequal outcome.
+The typed falsifier made a CONTRADICTS prediction mandatory on every hypothesis, which exposed a P1
+in `rank_by_disagreement`: it compared falsifying outcomes as if they were rival forecasts, so rivals
+with identical signatures scored a positive disagreement and the planner could prefer a simulation
+over a cheaper sufficient check. Fixed in its own change; see
+[`forecast-disagreement.md`](forecast-disagreement.md).

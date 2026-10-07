@@ -3554,6 +3554,46 @@ MUTATIONS: tuple[Mutation, ...] = (
             "tests/e2e/test_web_typed_falsifier_postgres.py",
         ),
     ),
+    Mutation(
+        name="forecast_ranking_counts_falsifiers",
+        guards="disagreement -- a CONTRADICTS falsifier is not a rival's forecast",
+        path="src/lab_brain/verification/disagreement.py",
+        old="    return RelationType.CONTRADICTS not in effects and bool(effects & AFFIRMATIVE_EFFECTS)\n",
+        new="    return bool(effects & (AFFIRMATIVE_EFFECTS | {RelationType.CONTRADICTS}))\n",
+        tests=("tests/unit/test_forecast_disagreement.py",),
+    ),
+    Mutation(
+        name="forecast_ranking_counts_tests_alone",
+        guards="disagreement -- a TESTS-only prediction forecasts nothing",
+        path="src/lab_brain/verification/disagreement.py",
+        old="AFFIRMATIVE_EFFECTS = frozenset({RelationType.SUPPORTS, RelationType.PREDICTS})\n",
+        new="AFFIRMATIVE_EFFECTS = frozenset(\n    {RelationType.SUPPORTS, RelationType.PREDICTS, RelationType.TESTS}\n)\n",
+        tests=("tests/unit/test_forecast_disagreement.py",),
+    ),
+    Mutation(
+        name="forecast_sets_compared_as_a_cartesian_product",
+        guards="disagreement -- identical forecast signatures disagree by zero, not a cross maximum",
+        path="src/lab_brain/verification/disagreement.py",
+        old="    if all(s == sets[0] for s in sets):\n        return Decimal(0)\n    if any(len(s) != 1 for s in sets):\n        return None\n    single = [next(iter(s)) for s in sets]\n    return max(metric.distance(a, b) for a, b in itertools.combinations(single, 2))\n",
+        new="    return max(\n        metric.distance(a, b)\n        for x, y in itertools.combinations(sets, 2)\n        for a in x\n        for b in y\n    )\n",
+        tests=("tests/unit/test_forecast_disagreement.py",),
+    ),
+    Mutation(
+        name="unequal_forecast_sets_get_a_number",
+        guards="disagreement -- unequal multi-outcome forecast sets are unknown; no set distance",
+        path="src/lab_brain/verification/disagreement.py",
+        old="    if any(len(s) != 1 for s in sets):\n        return None\n",
+        new="    if any(len(s) != 1 for s in sets):\n        return max(metric.distance(a, b) for a in sets[0] for b in sets[1])\n",
+        tests=("tests/unit/test_forecast_disagreement.py",),
+    ),
+    Mutation(
+        name="genuine_forecast_disagreement_is_lost",
+        guards="disagreement -- opposing forecasts disagree by the declared metric",
+        path="src/lab_brain/verification/disagreement.py",
+        old="    return max(metric.distance(a, b) for a, b in itertools.combinations(single, 2))\n",
+        new="    return Decimal(0)\n",
+        tests=("tests/unit/test_forecast_disagreement.py",),
+    ),
 )
 
 

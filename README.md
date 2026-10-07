@@ -203,6 +203,10 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   預測、或標記到不存在或其他假說的預測，都會在接受前被拒絕。觀察結果只會觸發事先宣告、且結果完全相同
   的預測；系統不會因為結果與 SUPPORTS 預測不同就推論為反證。設計記錄：
   [`docs/implementation/typed-falsifier.md`](docs/implementation/typed-falsifier.md)。
+- 驗證行動排序中的「預測分歧程度」只比較各假說的肯定預測（SUPPORTS／PREDICTS）；CONTRADICTS 否證預測
+  不是假說預期的結果，不參與分歧計算（但仍參與「能否改變決策」的判斷）。各假說肯定預測完全相同時分歧為 0；
+  多個結果且彼此不同時，因領域未宣告集合距離，分歧標示為未知，不另行發明。設計記錄：
+  [`docs/implementation/forecast-disagreement.md`](docs/implementation/forecast-disagreement.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。

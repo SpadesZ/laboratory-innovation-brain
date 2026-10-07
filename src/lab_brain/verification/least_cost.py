@@ -21,7 +21,9 @@ THE PLANNER, IN THE ORDER IT WORKS:
                        observable some rival predicts over and whose inputs are available.
     2.  sufficiency    `verification.sufficiency.assess_action` -- §9.1 with all four plausibility
                        clauses and the producing capability's implied authority.
-    3.  disagreement   M3's `rank_by_disagreement` over the rivals' plausible predictions.
+    3.  disagreement   M3's `rank_by_disagreement` over the rivals' plausible predictions -- their
+                       affirmative forecasts only; a falsifier is no forecast (sufficiency, step 2,
+                       still reads every prediction).
     4.  selection      `verification.selection.rank` under the declared SelectionPolicy.
     5.  the choice     the first SUFFICIENT action in that ranking -- which, by the ranking's
                        construction, is the cheapest sufficient one under the policy.
