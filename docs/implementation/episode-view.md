@@ -130,3 +130,69 @@ passes through `h`/`e`), and both locales (every new message exists in English a
   genesis filter (`from_state IS NOT NULL`) has no entry: no stored genesis event carries a
   relation, so removing it changes nothing observable (an equivalent mutant). It stays as a
   fail-closed guard.
+
+## 4. Verification
+
+Code: `9f877a2` (the view) and `c38d5ff` (a prediction observed otherwise is no longer shown as
+pending -- found on the deployed blind episode's L2). CI runs `37718648412` and `37721090716`:
+commit hygiene, spec conformance, lint/types/full suite and the PostgreSQL backend profile, all
+green. `src` changed only in `interfaces/web` (`pages`, `i18n`, `app`) and the new read-only
+`research/episode_view.py`; no migration, and `verification`, `cognition`, `llm_runtime`, the
+models, TransitionPolicy, planning, the report and its store are untouched.
+
+| Run (at `c38d5ff`) | Passed | Skipped |
+|---|---|---|
+| local, Windows: `pytest -q` | 1757 | 848 backend-gated |
+| local, fresh database (61 migrations): `LAB_BRAIN_TEST_POSTGRES=1 pytest -q` | 2603 | 2: 1 Lumerical, 1 network |
+
+ruff, ruff format and strict mypy (238 source files) clean; status, obligation inventory and
+requirement coverage current; the evidence, debate and root-cause (`--disposable`) benchmark
+reports current and unchanged. Mutation battery, every entry on a fresh database: **436/436
+killed**, no anchor missing.
+
+## 5. Deployed, and the real episodes
+
+`docker compose -p lab-brain-workspace up --build -d` from `c38d5ff`; `local-models` changed
+nothing ("an LLM runtime is ACTIVE"), `local-typed-falsifier` stayed applied, and the qualification
+digest is unchanged, so nothing was re-tested. Each page below was read from
+`http://127.0.0.1:8765/episodes/<id>`: no identifier in L1, and both layers closed.
+
+- **`epi:08cf92c8...`** (latest blind episode, SUSPENDED):
+  - Result: PROVISIONAL, no root cause confirmed, ACTIVE 5.
+  - Each card shows its designated falsifier and the prose, labelled.
+  - Tested: extraction consistency, executed, observed normalization basis = AGREES.
+  - Learned: "matched no declared prediction, so it neither supports nor contradicts any
+    hypothesis, and no belief could move", with NORMALIZATION_BASIS_ISSUE: DISAGREES -> CONTRADICTS,
+    its machine falsifier. Then "No governed belief change happened in this run."
+  - Next: charge ac sweep, simulation, cannot run here (no Lumerical seat), and what it would
+    decide; charge dc sweep also blocked; "A person can act now: fourpoint probe (measurement)".
+  - L2 shows the falsifier as "not what was observed: the check observed AGREES" and the other
+    four as not observed yet.
+- **`epi:4d4c9488...`** (`prj:lab`, SUSPENDED, from before typed falsifiers):
+  - Learned:
+    - extraction consistency AGREES matched length normalization error's declared prediction:
+      ACTIVE -> CONTRADICTED (decision: ALLOW);
+    - inspect contact connectivity CONTINUOUS matched access contact discontinuity's prediction:
+      ACTIVE -> CONTRADICTED (decision: ALLOW);
+    - "2 governed belief change(s)".
+  - Cards: "No machine falsifier is recorded", nothing substituted.
+  - Next: mesh sensitivity, blocked.
+- **`epi:226036fa...`** (COMPLETED / NOT_REACHED): "Not reached -- the research stopped before
+  verification", "It stopped at the hypotheses step (FAILED)", no hypothesis admitted, nothing
+  executed, nothing could move, read-only.
+- **`epi:500ca3b7...` run 2** (a continuation): "Run 2 continued this research from where it
+  stopped; it did not start over", with a link to run 1. Nothing was executed in run 2.
+
+The audit layer of `08cf92c8` and `4d4c9488` contains every run, observation, attestation,
+relation and event id the database holds for their checks (3/3 and 10/10).
+
+Viewing, rebuilding and `local-models` wrote no scientific row. Since the previous commit
+(`32a4373`, 2026-10-07 18:39 UTC), the newest research episode, run, hypothesis, belief event,
+observation, plan, job, Run and report all date from the blind run that ended at 18:34 UTC. The
+counts:
+
+| episodes | runs | hypotheses | relations | belief events | decisions | observations | attestations | plans | jobs | Runs | provenance |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 9 | 10 | 30 | 2 | 32 | 2 | 5 | 166 | 10 | 8 | 8 | 48 |
+
+Not a HARD-LOCK: independent review is required. READY_FOR_REAL_RESEARCH stays false.
