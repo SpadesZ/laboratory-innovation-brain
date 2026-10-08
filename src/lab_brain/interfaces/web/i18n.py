@@ -459,7 +459,14 @@ _M: dict[str, tuple[str, str]] = {
         "{observable} = {expected} -> {effect}{designated}——{status}",
     ),
     "v.l2.observed_now": ("observed", "已觀察到"),
-    "v.l2.pending": ("not observed yet", "尚未觀察到"),
+    "v.l2.pending": (
+        "not observed yet: no check observed this",
+        "尚未觀察到：沒有檢查觀察過這一項",
+    ),
+    "v.l2.observed_other": (
+        "not what was observed: the check observed {outcome}",
+        "與觀察結果不同：檢查觀察到的是 {outcome}",
+    ),
     "v.l2.interpretations": ("Model interpretations", "模型的詮釋"),
     "v.l2.objection": ("{mechanism}: {objection}", "{mechanism}：{objection}"),
     "v.l2.critique_stage": (

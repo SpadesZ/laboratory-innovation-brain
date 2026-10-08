@@ -3706,6 +3706,14 @@ MUTATIONS: tuple[Mutation, ...] = (
         new='    if c.status == "NOT_REACHED":\n        parts.append(h("<p>{}</p>", m("v.no_root_cause")))\n',
         tests=("tests/unit/test_episode_view_page.py",),
     ),
+    Mutation(
+        name="page_reports_an_observed_mismatch_as_pending",
+        guards="episode page -- a prediction a check observed otherwise is not shown as pending",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old="        if p.prediction_id in instead:\n",
+        new="        if p.prediction_id in matched:\n",
+        tests=("tests/unit/test_episode_view_page.py",),
+    ),
 )
 
 

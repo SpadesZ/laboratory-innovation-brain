@@ -29,7 +29,7 @@ connect.
 | | before | after |
 |---|---|---|
 | top | goal, live state, continue form, runs table, technical details | **L1, open**: 1 Question -- 2 Result -- 3 Competing hypotheses -- 4 What was tested -- 5 What was learned -- 6 Next action (continue form here) |
-| middle | the full report, every section open | **L2, collapsed**: Evidence and reasoning -- the recorded conclusion, observed facts, declared predictions (observed / not observed yet), model interpretations (positions, critic, alternatives, objections, marked as critique-stage), verification candidates, evidence excerpts, what was not performed with the stage table, next steps as recorded |
+| middle | the full report, every section open | **L2, collapsed**: Evidence and reasoning -- the recorded conclusion, observed facts, declared predictions (observed / not what was observed, naming the observed outcome / not observed yet), model interpretations (positions, critic, alternatives, objections, marked as critique-stage), verification candidates, evidence excerpts, what was not performed with the stage table, next steps as recorded |
 | bottom | -- | **L3, collapsed**: Audit and provenance -- the runs table with report and Markdown links, the technical table, every record behind each executed check, and the full report exactly as before (`report_html`, unchanged) |
 
 L1 shows no record identifier: capabilities and observables are given by name (`cap:sp.fourpoint_probe`
@@ -122,10 +122,11 @@ passes through `h`/`e`), and both locales (every new message exists in English a
 
   "Research task" above the question and the "Research report -- run n" heading of the full
   report are kept, so those assertions are unchanged.
-- Nine mutation entries: matching by observable only; document ingestion counted as a check; every
+- Ten mutation entries: matching by observable only; document ingestion counted as a check; every
   prediction treated as designated, in the read model and on the card; a later run's checks listed
   as earlier; an executed check offered to a person; a relation counted as a belief change; a
-  refused decision shown as none; "no root cause confirmed" dropped for an open question. The
+  refused decision shown as none; "no root cause confirmed" dropped for an open question; a
+  prediction a check observed otherwise shown as not observed yet. The
   genesis filter (`from_state IS NOT NULL`) has no entry: no stored genesis event carries a
   relation, so removing it changes nothing observable (an equivalent mutant). It stays as a
   fail-closed guard.

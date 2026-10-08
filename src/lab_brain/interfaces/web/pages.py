@@ -910,6 +910,20 @@ def _reasoning_html(
         )
     )
     matched = {p.prediction_id for rs in view.results.values() for r in rs for p in r.matched}
+    # A prediction over an observable a check DID observe, with another outcome, is not pending.
+    instead: dict[str, list[str]] = {}
+    for rs in view.results.values():
+        for r in rs:
+            for p in r.unmatched:
+                instead.setdefault(p.prediction_id, []).append(r.outcome)
+
+    def status(p: DeclaredPrediction) -> str:
+        if p.prediction_id in matched:
+            return m("v.l2.observed_now")
+        if p.prediction_id in instead:
+            return m("v.l2.observed_other", outcome=", ".join(instead[p.prediction_id]))
+        return m("v.l2.pending")
+
     declared = [
         h(
             "<li>{}<ul>{}</ul></li>",
@@ -923,9 +937,7 @@ def _reasoning_html(
                         expected=p.expected_outcome,
                         effect=_effect(p),
                         designated=m("v.designated") if p.designated_falsifier else "",
-                        status=m("v.l2.observed_now")
-                        if p.prediction_id in matched
-                        else m("v.l2.pending"),
+                        status=status(p),
                     ),
                 )
                 for p in view.predictions.get(x.hypothesis_id, ())

@@ -457,3 +457,41 @@ def test_nothing_a_model_a_report_or_a_record_supplies_becomes_markup():
     markup = _page(report, view)
     assert "<script" not in markup and "<img" not in markup
     assert "&lt;script&gt;" in markup
+
+
+def _reasoning(markup: str) -> str:
+    return _text(
+        markup[markup.index('<details id="v-reasoning"') : markup.index('<details id="v-audit"')]
+    )
+
+
+def test_l2_separates_observed_facts_interpretations_and_each_predictions_status():
+    pending = dataclasses.replace(
+        FALSIFIER,
+        prediction_id="prd:norm.3",
+        observable="sp.carrier_profile",
+        outcome_space="os:sp.carrier_profile@1.0.0",
+        expected_outcome="NOMINAL",
+    )
+    view = dataclasses.replace(
+        _view(_result(unmatched=(FALSIFIER, SUPPORTING))),
+        predictions={"hyp:norm": (FALSIFIER, SUPPORTING, pending)},
+    )
+    l2 = _reasoning(_page(_report(), view))
+    assert "Observed facts extraction consistency: normalization basis = AGREES (OBSERVED)" in l2
+    assert (
+        "normalization basis = DISAGREES -> CONTRADICTS, its machine falsifier -- not what was"
+        " observed: the check observed AGREES" in l2
+    ), "observed, with another outcome: not pending"
+    assert "normalization basis = SPLIT_DEPENDENT -> SUPPORTS -- not what was observed" in l2
+    assert (
+        "carrier profile = NOMINAL -> CONTRADICTS, its machine falsifier -- not observed yet" in l2
+    )
+    assert "Model interpretations" in l2
+    assert "These are critique-stage judgments, not governed belief changes." in l2
+    result = _matched()
+    view = dataclasses.replace(_view(result), predictions={"hyp:norm": result.matched})
+    matched = _reasoning(_page(_report(), view))
+    assert (
+        "normalization basis = AGREES -> CONTRADICTS, its machine falsifier -- observed" in matched
+    )
