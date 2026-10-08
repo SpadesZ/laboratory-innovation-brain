@@ -3638,9 +3638,12 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="episode_view_matches_a_prediction_by_observable_only",
         guards="episode view -- an outcome matches a declared prediction only by `comparable`, never by its observable alone",
         path="src/lab_brain/research/episode_view.py",
-        old="                if observed is not None and comparable(typed[p.prediction_id], observed)\n",
-        new="                if observed is not None\n",
-        tests=("tests/e2e/test_web_episode_view_postgres.py",),
+        old="    matched = tuple(p for p in over if comparable(typed[p.prediction_id], observed))\n",
+        new="    matched = tuple(p for p in over if p.observable == observed.observable_ref)\n",
+        tests=(
+            "tests/unit/test_episode_view_page.py",
+            "tests/e2e/test_web_episode_view_postgres.py",
+        ),
     ),
     Mutation(
         name="episode_view_counts_document_ingestion_as_a_check",
@@ -3713,6 +3716,50 @@ MUTATIONS: tuple[Mutation, ...] = (
         old="        if p.prediction_id in instead:\n",
         new="        if p.prediction_id in matched:\n",
         tests=("tests/unit/test_episode_view_page.py",),
+    ),
+    Mutation(
+        name="episode_view_reads_another_outcome_space_as_another_outcome",
+        guards="episode view -- a prediction in another OutcomeSpace id or version is not comparable, never another outcome",
+        path="src/lab_brain/research/episode_view.py",
+        old="        and comparable(typed[p.prediction_id], replace(observed, outcome=p.expected_outcome))\n",
+        new="        and p.observable == observed.observable_ref\n",
+        tests=(
+            "tests/unit/test_episode_view_page.py",
+            "tests/e2e/test_web_episode_view_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="page_shows_an_incomparable_prediction_as_an_ordinary_declaration",
+        guards="episode page -- L1 says a prediction in another OutcomeSpace is not comparable",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old='                apart if p in result.incomparable else "",\n',
+        new='                "",\n',
+        tests=(
+            "tests/unit/test_episode_view_page.py",
+            "tests/e2e/test_web_episode_view_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="page_reads_an_incomparable_prediction_as_pending",
+        guards="episode page -- L2 says a prediction in another OutcomeSpace is not comparable, not pending",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old="        if p.prediction_id in apart:\n",
+        new="        if p.prediction_id in matched:\n",
+        tests=(
+            "tests/unit/test_episode_view_page.py",
+            "tests/e2e/test_web_episode_view_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="page_omits_a_decision_without_a_transition_from_the_audit",
+        guards="episode page -- L3 shows every decision on a relation, not only those that moved a belief",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old="                                    for d in rel.decisions\n",
+        new="                                    for d in rel.decisions\n                                    if any(t.decision_id == d.decision_id for t in rel.transitions)\n",
+        tests=(
+            "tests/unit/test_episode_view_page.py",
+            "tests/e2e/test_web_episode_view_postgres.py",
+        ),
     ),
 )
 

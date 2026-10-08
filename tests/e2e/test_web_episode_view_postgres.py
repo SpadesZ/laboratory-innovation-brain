@@ -24,6 +24,7 @@ read model's own rule, so the two are compared rather than copied.
 
 from __future__ import annotations
 
+import datetime as dt
 import html
 import re
 from collections.abc import Iterator
@@ -31,9 +32,22 @@ from collections.abc import Iterator
 import pytest
 
 from lab_brain.composition import INGEST_CAPABILITY
+from lab_brain.core.episode import BeliefEpisode
+from lab_brain.core.models import BeliefState
+from lab_brain.core.repositories import (
+    SqlAttestationStore,
+    SqlBeliefEventStore,
+    SqlRelationStore,
+    SqlTransitionPolicyStore,
+)
+from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
+from lab_brain.core.repositories.conflicts import SqlConflictStore
+from lab_brain.core.repositories.reviews import SqlReviewItemStore
+from lab_brain.domains.silicon_photonics.product import product_vertical
 from lab_brain.interfaces.web.pages import label
 from lab_brain.research.episode_view import load_episode_view
 from lab_brain.research.report_store import SqlResearchReportStore
+from tests.debate_fixtures import CountingIds
 from tests.e2e.test_research_episode_postgres import PROJECT
 from tests.e2e.test_web_debate_retry_postgres import _activated, _deployment
 from tests.e2e.test_web_llm_credentials_postgres import KEY, _post, _setup, _text
@@ -204,6 +218,61 @@ def test_each_executed_check_and_each_governed_move_is_explained_from_the_stored
     }
     assert read == {(m[4], m[5]) for m in moves}
 
+    # A recorded decision with no event: the registered rejection policy is asked, through the
+    # real governed path, about the hypothesis this run SUPPORTED -- a transition it does not
+    # govern -- and records its refusal over the run's relation; nothing moves. The audit layer
+    # shows the decision in full; L1's count of belief changes is unchanged.
+    ((hypothesis,),) = _all(
+        db,
+        "SELECT target_id FROM belief_revision_events WHERE event_id = %s",
+        next(m[4] for m in moves if m[2] == "SUPPORTED"),
+    )
+    # The pack's authority comparators, as the research service and its loop supply them.
+    vertical = product_vertical(
+        outputs=None, jobs=None, broker=None, now=lambda: dt.datetime.now(dt.UTC)
+    )
+    refused = BeliefEpisode(
+        policies=SqlTransitionPolicyStore(db),
+        decisions=SqlBeliefTransitionDecisionStore(db),
+        events=SqlBeliefEventStore(db),
+        relations=SqlRelationStore(db),
+        authority_classes=SqlAttestationStore(db),
+        conflicts=SqlConflictStore(db),
+        reviews=SqlReviewItemStore(db),
+        ids=CountingIds(),
+        authority_policies=vertical.authority_policies,
+    ).attempt_transition(
+        project_id=PROJECT,
+        hypothesis_id=hypothesis,
+        policy_id="policy:sp-fidelity-reject",
+        policy_version="1.0.0",
+        candidate_to_state=BeliefState.CONTRADICTED,
+        stakes="HIGH",
+        occurred_at=dt.datetime.now(dt.UTC),
+        trace_id="trc:episode-view-refusal",
+        episode_id=episode,
+        authority_policy_ref=(
+            vertical.authority_policy.policy_id,
+            vertical.authority_policy.policy_version,
+        ),
+    )
+    assert not refused.transitioned
+    ((decision, result, policy, subject, from_state, to_state),) = _all(
+        db,
+        "SELECT decision_id, result, policy_id || '@' || policy_version, subject_id, from_state,"
+        " to_state FROM belief_transition_decisions WHERE decision_id = %s",
+        refused.authorization.decision_id,
+    )
+    assert result != "ALLOW" and not _all(
+        db, "SELECT 1 FROM belief_revision_events WHERE authorization_decision_id = %s", decision
+    )
+    again = browser.get(f"/episodes/{episode}").text
+    assert f"decision {decision} {result} {policy} {subject} {from_state} -> {to_state}" in _text(
+        _audit(again)
+    )
+    assert decision not in _l1(again)
+    assert f"{len(moves)} governed belief change(s) happened in this run." in _l1(again)
+
 
 def test_an_outcome_no_hypothesis_declared_moves_nothing_and_the_page_says_so(db, tmp_path, fake):
     fake.inverted_falsifier = True
@@ -268,6 +337,22 @@ def test_an_outcome_no_hypothesis_declared_moves_nothing_and_the_page_says_so(db
     assert "No root cause has been confirmed." in l1
     assert not IDENTIFIER.findall(l1), IDENTIFIER.findall(l1)
     assert observation in _audit(page)
+
+    # The blind episode's genuine mismatch: one OutcomeSpace, another outcome -- not a space
+    # mismatch, and not pending. The read model and the reasoning layer both say so.
+    view = load_episode_view(db, project_id=PROJECT, episode_id=episode)
+    (result,) = [r for rs in view.results.values() for r in rs if r.observation_id == observation]
+    assert not result.matched and not result.incomparable and result.unmatched
+    assert {p.outcome_space for p in result.unmatched} == {result.outcome_space}
+    reasoning = _text(
+        page[page.index('<details id="v-reasoning"') : page.index('<details id="v-audit"')]
+    )
+    for mechanism, expected, effect, _ in declared:
+        assert (
+            f"normalization basis = {expected} -> {effect}, its machine falsifier -- not what was"
+            " observed: the check observed AGREES" in reasoning
+        ), mechanism
+    assert "not comparable" not in reasoning
 
 
 def test_a_run_that_was_not_reached_says_where_it_stopped_and_that_nothing_moved(

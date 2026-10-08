@@ -379,6 +379,14 @@ _M: dict[str, tuple[str, str]] = {
         "（{expected} -> {effect}）{designated}。",
     ),
     "v.designated": (", its machine falsifier", "，即它的機器否證條件"),
+    "v.not_comparable": (
+        " -- declared in another outcome space or version, so not comparable",
+        "——宣告於不同的結果空間或版本，無法比較",
+    ),
+    "v.space_unrecorded": (
+        " -- the observation does not record its outcome space, so not comparable",
+        "——此觀察沒有記錄其結果空間，無法比較",
+    ),
     "v.moved": (
         "{mechanism}: {from_state} -> {to_state}, a governed transition (decision: {decision}).",
         "{mechanism}：{from_state} -> {to_state}，經過治理程序的狀態轉移（決定：{decision}）。",
@@ -466,6 +474,14 @@ _M: dict[str, tuple[str, str]] = {
     "v.l2.observed_other": (
         "not what was observed: the check observed {outcome}",
         "與觀察結果不同：檢查觀察到的是 {outcome}",
+    ),
+    "v.l2.not_comparable": (
+        "not comparable: declared in {declared}, observed in {observed}; nothing is inferred",
+        "無法比較：宣告於 {declared}，觀察於 {observed}；不作任何推論",
+    ),
+    "v.l2.space_unrecorded": (
+        "an outcome space the record does not name",
+        "紀錄未載明的結果空間",
     ),
     "v.l2.interpretations": ("Model interpretations", "模型的詮釋"),
     "v.l2.objection": ("{mechanism}: {objection}", "{mechanism}：{objection}"),

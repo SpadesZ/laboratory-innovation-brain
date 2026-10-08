@@ -26,6 +26,9 @@ import datetime as dt
 import html
 import re
 
+from lab_brain.core.models import RelationJudgmentTemplate, RelationType
+from lab_brain.core.models.enums import EpistemicType
+from lab_brain.core.models.prediction import Prediction
 from lab_brain.interfaces.web import i18n, pages
 from lab_brain.research.episode_view import (
     CheckResult,
@@ -35,6 +38,7 @@ from lab_brain.research.episode_view import (
     ExecutedCheck,
     Relation,
     Transition,
+    _split,
 )
 from lab_brain.research.report import (
     ActionLine,
@@ -45,6 +49,7 @@ from lab_brain.research.report import (
     PendingAction,
     PlanLine,
 )
+from lab_brain.verification.workflows import ObservedOutcome
 from tests.report_samples import full_report
 
 HOSTILE = '<script>alert("x")</script><img src=x onerror=alert(1)>'
@@ -495,3 +500,97 @@ def test_l2_separates_observed_facts_interpretations_and_each_predictions_status
     assert (
         "normalization basis = AGREES -> CONTRADICTS, its machine falsifier -- observed" in matched
     )
+
+
+def test_l3_shows_every_decision_on_a_relation_even_without_a_transition():
+    """A relation the policy considered and did not move on is as auditable as one it moved on."""
+    refused = Decision(
+        "dec:review",
+        "hyp:norm",
+        "NEED_HUMAN_REVIEW",
+        "policy:reject@1.0.0",
+        "ACTIVE",
+        "CONTRADICTED",
+    )
+    denied = Decision("dec:deny", "hyp:norm", "DENY", "policy:promote@1.0.0", "ACTIVE", "SUPPORTED")
+    markup = _page(_report(), _view(_matched(refused, denied)))
+    audit = _text(markup[markup.index('<details id="v-audit"') :])
+    for line in (
+        "decision dec:review NEED_HUMAN_REVIEW policy:reject@1.0.0 hyp:norm ACTIVE -> CONTRADICTED",
+        "decision dec:deny DENY policy:promote@1.0.0 hyp:norm ACTIVE -> SUPPORTED",
+    ):
+        assert line in audit, line
+    assert "dec:review" not in _l1(markup), "L1 names the decision, not its record"
+
+
+def _typed(prediction: DeclaredPrediction) -> Prediction:
+    space, _, version = prediction.outcome_space.rpartition("@")
+    return Prediction(
+        prediction_id=prediction.prediction_id,
+        hypothesis_id=prediction.hypothesis_id,
+        project_id="prj:lab",
+        observable_ref=prediction.observable,
+        outcome_space_id=space,
+        outcome_space_version=version,
+        expected_outcome=prediction.expected_outcome,
+        relation_effect_if_observed=(
+            RelationJudgmentTemplate(
+                relation_type=RelationType.CONTRADICTS, to_entity_id=prediction.hypothesis_id
+            ),
+        ),
+    )
+
+
+def test_the_read_model_splits_by_comparable_including_outcome_space_identity():
+    observed = ObservedOutcome(
+        observable_ref="sp.normalization_basis",
+        outcome_space_id="os:sp.normalization_basis",
+        outcome_space_version="1.0.0",
+        outcome="AGREES",
+        epistemic_type=EpistemicType.OBSERVED,
+        authority_class="DESIGN_INSPECTION",
+        method_ref="sp.rule.normalization_basis@1.0.0",
+    )
+    # The latest blind episode's records: DISAGREES -> CONTRADICTS declared, AGREES observed, one
+    # space -- a genuine other outcome.
+    blind = FALSIFIER
+    same = dataclasses.replace(FALSIFIER, prediction_id="prd:same", expected_outcome="AGREES")
+    # The same outcome string in another version, or another space: not comparable at all.
+    version = dataclasses.replace(
+        same, prediction_id="prd:v2", outcome_space="os:sp.normalization_basis@2.0.0"
+    )
+    space = dataclasses.replace(same, prediction_id="prd:space", outcome_space="os:sp.other@1.0.0")
+    over = (blind, same, version, space)
+    typed = {p.prediction_id: _typed(p) for p in over}
+    assert _split(over, typed, observed) == ((same,), (blind,), (version, space))
+    assert _split(over, typed, None) == ((), (), over), "no recorded space: nothing comparable"
+
+
+def test_a_prediction_in_another_outcome_space_is_not_comparable_on_the_page():
+    v2 = dataclasses.replace(
+        FALSIFIER, expected_outcome="AGREES", outcome_space="os:sp.normalization_basis@2.0.0"
+    )
+    view = dataclasses.replace(
+        _view(_result(unmatched=(), incomparable=(v2,))), predictions={"hyp:norm": (v2,)}
+    )
+    markup = _page(_report(), view)
+    l1, l2 = _l1(markup), _reasoning(markup)
+    assert "normalization basis = AGREES matched no declared prediction" in l1
+    assert (
+        "NORMALIZATION_BASIS_ISSUE: AGREES -> CONTRADICTS, its machine falsifier -- declared in"
+        " another outcome space or version, so not comparable" in l1
+    )
+    assert "No governed belief change happened in this run." in l1
+    assert (
+        "normalization basis = AGREES -> CONTRADICTS, its machine falsifier -- not comparable:"
+        " declared in os:sp.normalization_basis@2.0.0, observed in"
+        " os:sp.normalization_basis@1.0.0; nothing is inferred" in l2
+    )
+    assert "not what was observed" not in l2 and "not observed yet" not in l2
+    unknown = dataclasses.replace(
+        _view(_result(unmatched=(), incomparable=(v2,), outcome_space=None)),
+        predictions={"hyp:norm": (v2,)},
+    )
+    markup = _page(_report(), unknown)
+    assert "the observation does not record its outcome space, so not comparable" in _l1(markup)
+    assert "observed in an outcome space the record does not name" in _reasoning(markup)

@@ -29,8 +29,8 @@ connect.
 | | before | after |
 |---|---|---|
 | top | goal, live state, continue form, runs table, technical details | **L1, open**: 1 Question -- 2 Result -- 3 Competing hypotheses -- 4 What was tested -- 5 What was learned -- 6 Next action (continue form here) |
-| middle | the full report, every section open | **L2, collapsed**: Evidence and reasoning -- the recorded conclusion, observed facts, declared predictions (observed / not what was observed, naming the observed outcome / not observed yet), model interpretations (positions, critic, alternatives, objections, marked as critique-stage), verification candidates, evidence excerpts, what was not performed with the stage table, next steps as recorded |
-| bottom | -- | **L3, collapsed**: Audit and provenance -- the runs table with report and Markdown links, the technical table, every record behind each executed check, and the full report exactly as before (`report_html`, unchanged) |
+| middle | the full report, every section open | **L2, collapsed**: Evidence and reasoning -- the recorded conclusion, observed facts, declared predictions (observed / not what was observed, naming the observed outcome, in the same OutcomeSpace / not comparable, naming both spaces / not observed yet), model interpretations (positions, critic, alternatives, objections, marked as critique-stage), verification candidates, evidence excerpts, what was not performed with the stage table, next steps as recorded |
+| bottom | -- | **L3, collapsed**: Audit and provenance -- the runs table with report and Markdown links, the technical table, every record behind each executed check (with every decision that considered each relation, whether or not an event followed), and the full report exactly as before (`report_html`, unchanged) |
 
 L1 shows no record identifier: capabilities and observables are given by name (`cap:sp.fourpoint_probe`
 becomes "fourpoint probe (measurement)"), and each name keeps its id as a hover title. Mechanisms,
@@ -57,7 +57,7 @@ From these the page says one of the following for each observed outcome:
 | a relation, a decision that refused | "M: its transition policy decided NEED_HUMAN_REVIEW; its state did not change." |
 | a relation, no decision | "M: no governed transition is recorded for this relation." |
 | a comparable prediction, no relation | "... is comparable to M's declared prediction, but no relation is recorded for it." |
-| predictions over X, none comparable | "X = O matched no declared prediction, so it neither supports nor contradicts any hypothesis, and no belief could move." then each declared prediction, with its designation |
+| predictions over X, none comparable | "X = O matched no declared prediction, so it neither supports nor contradicts any hypothesis, and no belief could move." then each declared prediction, with its designation; one in another OutcomeSpace id or version, or against an observation that does not record its space, is marked "so not comparable" |
 | no prediction over X | "No hypothesis declared a prediction about X; the result is on record and moves nothing." |
 | no observation | "The stored records do not say what this result meant for the hypotheses." |
 
@@ -196,3 +196,49 @@ counts:
 | 9 | 10 | 30 | 2 | 32 | 2 | 5 | 166 | 10 | 8 | 8 | 48 |
 
 Not a HARD-LOCK: independent review is required. READY_FOR_REAL_RESEARCH stays false.
+
+## 6. Independent review follow-up
+
+The review confirmed the commits, CI, the read-only architecture and the layers, and blocked on
+two presentation-correctness findings. Both are fixed inside this slice. Nothing in the scientific
+core, schema or persistence changed.
+
+- **Every recorded decision is auditable.** L3 used to list a decision only through the event it
+  authorised. A RelationJudgment the policy considered and refused (NEED_HUMAN_REVIEW, DENY, ...)
+  therefore showed no decision. The records table now lists every decision that considered each
+  relation -- id, result, policy, subject and states -- whether or not an event followed.
+- **OutcomeSpace identity is respected.** L2 read every unmatched prediction as "another outcome
+  was observed", but `comparable` also rejects another OutcomeSpace id or version. The read model
+  now splits by `comparable` itself:
+  - matched;
+  - same space, another outcome: comparable were the observed outcome the predicted one;
+  - not comparable: another space or version, or an observation that does not record its space.
+
+  L2 names both spaces for a prediction that is not comparable and infers nothing; L1 marks it
+  "not comparable"; "not observed yet" is kept for what no check observed. The latest blind
+  episode's DISAGREES against an observed AGREES, in `os:sp.normalization_basis@1.0.0` on both
+  sides, is the same-space case.
+
+Tests:
+
+- Unit:
+  - a decision without a transition shown in full in L3;
+  - the split over real typed predictions: the same outcome string in another version, another
+    space, an unrecorded space, and the blind episode's AGREES against DISAGREES;
+  - the L1 and L2 wording for a different and an unknown space.
+- PostgreSQL, over a real web research run:
+  - a refusal recorded through the governed path (`BeliefEpisode.attempt_transition` with the
+    pack's comparators, the registered rejection policy asked about the hypothesis the run
+    SUPPORTED) is a DENY with no event, and appears in full in L3; L1's count of belief changes is
+    unchanged;
+  - on the deployed model's certificate shape, the read model and L2 classify AGREES against
+    DISAGREES as the same space, another outcome.
+- Four mutation entries (another space read as another outcome; the L1 and L2 not-comparable
+  readings dropped; a decision without a transition omitted from L3), all killed. The PostgreSQL
+  regressions alone also kill the omission and the observable-only match. The observable-only entry
+  moved with its code.
+
+At this point: `pytest -q` 1760 passed and 848 skipped; on a fresh database 2606 passed and 2
+skipped; ruff, ruff format and strict mypy clean. The three real episodes were rendered from the
+deployed database with this code. Their L1 is unchanged; `08cf92c8`'s L2 still reads "not what was
+observed: the check observed AGREES"; `4d4c9488`'s L3 lists both of its ALLOW decisions in full.

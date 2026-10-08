@@ -695,7 +695,9 @@ def _explain(result: CheckResult, m: Messages) -> Html:
     obs, out = label(result.observable), result.outcome
     lines: list[Html] = []
     if result.relations:
-        declared = {p.prediction_id: p for p in (*result.matched, *result.unmatched)}
+        declared = {
+            p.prediction_id: p for p in (*result.matched, *result.unmatched, *result.incomparable)
+        }
         for relation in result.relations:
             p = declared.get(relation.prediction_id or "")
             lines.append(
@@ -744,10 +746,12 @@ def _explain(result: CheckResult, m: Messages) -> Html:
             )
             for p in result.matched
         )
-    if result.unmatched:
+    if result.unmatched or result.incomparable:
+        # Same outcome string or not, a prediction in another OutcomeSpace says nothing here.
+        apart = m("v.space_unrecorded") if result.outcome_space is None else m("v.not_comparable")
         declared_items = cat(
             h(
-                "<li>{}</li>",
+                "<li>{}{}</li>",
                 m(
                     "v.declared_item",
                     mechanism=p.mechanism,
@@ -755,8 +759,9 @@ def _explain(result: CheckResult, m: Messages) -> Html:
                     effect=_effect(p),
                     designated=m("v.designated") if p.designated_falsifier else "",
                 ),
+                apart if p in result.incomparable else "",
             )
-            for p in result.unmatched
+            for p in (*result.unmatched, *result.incomparable)
         )
         return h(
             '<li class="no-match">{}<div>{}</div><ul>{}</ul></li>',
@@ -910,18 +915,31 @@ def _reasoning_html(
         )
     )
     matched = {p.prediction_id for rs in view.results.values() for r in rs for p in r.matched}
-    # A prediction over an observable a check DID observe, with another outcome, is not pending.
+    # A prediction over an observable a check DID observe is not pending: either its OutcomeSpace
+    # held another outcome, or the observation was in another (or an unrecorded) space and is not
+    # comparable to it at all -- never read as agreeing or disagreeing.
     instead: dict[str, list[str]] = {}
+    apart: dict[str, list[str]] = {}
     for rs in view.results.values():
         for r in rs:
             for p in r.unmatched:
                 instead.setdefault(p.prediction_id, []).append(r.outcome)
+            for p in r.incomparable:
+                apart.setdefault(p.prediction_id, []).append(
+                    r.outcome_space or m("v.l2.space_unrecorded")
+                )
 
     def status(p: DeclaredPrediction) -> str:
         if p.prediction_id in matched:
             return m("v.l2.observed_now")
         if p.prediction_id in instead:
             return m("v.l2.observed_other", outcome=", ".join(instead[p.prediction_id]))
+        if p.prediction_id in apart:
+            return m(
+                "v.l2.not_comparable",
+                declared=p.outcome_space,
+                observed=", ".join(apart[p.prediction_id]),
+            )
         return m("v.l2.pending")
 
     declared = [
@@ -1045,7 +1063,7 @@ def _records_html(view: EpisodeView) -> Html:
                     _list(
                         [
                             h(
-                                "<code>{}</code> {} <code>{}</code> (<code>{}</code>){}",
+                                "<code>{}</code> {} <code>{}</code> (<code>{}</code>){}{}",
                                 rel.relation_id,
                                 rel.relation_type,
                                 rel.hypothesis_id,
@@ -1061,6 +1079,21 @@ def _records_html(view: EpisodeView) -> Html:
                                         t.decision or "-",
                                     )
                                     for t in rel.transitions
+                                ),
+                                # Every decision that considered the relation, with or without
+                                # an event: a refusal is as auditable as a move.
+                                cat(
+                                    h(
+                                        "; decision <code>{}</code> {} <code>{}</code>"
+                                        " <code>{}</code> {} -&gt; {}",
+                                        d.decision_id,
+                                        d.result,
+                                        d.policy,
+                                        d.hypothesis_id,
+                                        d.from_state,
+                                        d.to_state,
+                                    )
+                                    for d in rel.decisions
                                 ),
                             )
                             for rel in r.relations

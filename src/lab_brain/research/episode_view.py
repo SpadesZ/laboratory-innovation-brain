@@ -8,7 +8,8 @@ a reader, per executed check of one research run:
     the Observation the check's Run produced, and its admitted Attestation;
     every typed Prediction the episode's hypotheses declared over that observable -- with whether
         it is comparable to the observed outcome (`verification.evidence.comparable`, the rule
-        `evidence_from_run` applied) and whether its certificate designates it as the falsifier;
+        `evidence_from_run` applied), and if not, whether only the outcome differs or the
+        OutcomeSpace identity does -- and whether its certificate designates it as the falsifier;
     the RelationJudgments the Observation instantiated, and for each the governed belief events it
         triggered and the transition decisions that considered it.
 
@@ -24,7 +25,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from lab_brain.core.models.enums import EpistemicType
@@ -99,10 +100,12 @@ class CheckResult:
     observable: str
     outcome: str
     outcome_space: str | None
-    #: Every prediction declared over this observable, split by `comparable` to the outcome.
+    #: Every prediction declared over this observable, split by `comparable` (see `_split`):
+    #: comparable to the outcome; in the same OutcomeSpace with another outcome; not comparable.
     matched: tuple[DeclaredPrediction, ...]
     unmatched: tuple[DeclaredPrediction, ...]
     relations: tuple[Relation, ...]
+    incomparable: tuple[DeclaredPrediction, ...] = ()
 
     @property
     def transitions(self) -> tuple[Transition, ...]:
@@ -175,6 +178,31 @@ def _observed(
     )
 
 
+def _split(
+    over: Sequence[DeclaredPrediction],
+    typed: Mapping[str, Prediction],
+    observed: ObservedOutcome | None,
+) -> tuple[
+    tuple[DeclaredPrediction, ...], tuple[DeclaredPrediction, ...], tuple[DeclaredPrediction, ...]
+]:
+    """The predictions over an observed observable as (matched, another outcome, not comparable).
+
+    `comparable` decides every part. Matched: comparable to the outcome. Another outcome: not
+    comparable, but it would be were the observed outcome the predicted one -- same observable,
+    OutcomeSpace id and version. Not comparable: another OutcomeSpace id or version, or an
+    observation that does not record its space; the same outcome string there means nothing."""
+    if observed is None:
+        return (), (), tuple(over)
+    matched = tuple(p for p in over if comparable(typed[p.prediction_id], observed))
+    other = tuple(
+        p
+        for p in over
+        if p not in matched
+        and comparable(typed[p.prediction_id], replace(observed, outcome=p.expected_outcome))
+    )
+    return matched, other, tuple(p for p in over if p not in matched and p not in other)
+
+
 def load_episode_view(connection: Any, *, project_id: str, episode_id: str) -> EpisodeView:
     """The read model of one episode: every verification Run it has, and what each meant."""
     set_row = connection.execute(
@@ -241,11 +269,7 @@ def load_episode_view(connection: Any, *, project_id: str, episode_id: str) -> E
                 method,
             )
             over = [p for p in declared.values() if p.observable == observable]
-            matched = tuple(
-                p
-                for p in over
-                if observed is not None and comparable(typed[p.prediction_id], observed)
-            )
+            matched, unmatched, incomparable = _split(over, typed, observed)
             relations = tuple(
                 _relation(connection, project_id, episode_id, row, mechanisms)
                 for row in connection.execute(
@@ -265,8 +289,9 @@ def load_episode_view(connection: Any, *, project_id: str, episode_id: str) -> E
                     outcome=str(value),
                     outcome_space=str(space) if space else None,
                     matched=matched,
-                    unmatched=tuple(p for p in over if p not in matched),
+                    unmatched=unmatched,
                     relations=relations,
+                    incomparable=incomparable,
                 )
             )
         results[run_id] = tuple(found)
