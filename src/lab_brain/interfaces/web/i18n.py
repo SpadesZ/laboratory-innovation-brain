@@ -305,6 +305,188 @@ _M: dict[str, tuple[str, str]] = {
         "AI 模型配置目前無法使用",
     ),
     "msg.settings_refused": ("Not done", "沒有完成"),
+    # -- the episode page: what was asked, found, tested and learned (three disclosure layers) ---
+    "v.result": ("Result", "結果"),
+    "v.hypotheses": ("Competing hypotheses", "互相競爭的假說"),
+    "v.tested": ("What was tested", "做了哪些檢查"),
+    "v.learned": ("What was learned", "學到了什麼"),
+    "v.next": ("Next action", "下一步"),
+    "v.reasoning": ("Evidence and reasoning", "證據與推理"),
+    "v.audit": ("Audit and provenance", "稽核與來源紀錄"),
+    "v.run_shown": ("Showing run {n} of {total}.", "顯示第 {n} 次執行（共 {total} 次）。"),
+    "v.other_runs": ("Other runs:", "其他執行："),
+    "v.continued": (
+        "Run {n} continued this research from where it stopped; it did not start over.",
+        "第 {n} 次執行是從上次停下的地方繼續，不是重新開始。",
+    ),
+    "v.conclusion.CONFIRMED": ("Confirmed: {mechanism}", "已確認：{mechanism}"),
+    "v.conclusion.PROVISIONAL": (
+        "Not confirmed -- the question is still open.",
+        "尚未確認——問題仍待解答。",
+    ),
+    "v.conclusion.INCONCLUSIVE": (
+        "Inconclusive -- no available check can decide between the hypotheses.",
+        "無法定論——目前沒有可用的檢查能分辨這些假說。",
+    ),
+    "v.conclusion.NOT_REACHED": (
+        "Not reached -- the research stopped before verification.",
+        "未完成——研究在驗證之前就停止了。",
+    ),
+    "v.no_root_cause": ("No root cause has been confirmed.", "尚未確認任何根本原因。"),
+    "v.states": ("Hypotheses after this run:", "這次執行後各假說的狀態："),
+    "v.no_hypothesis": ("No hypothesis was admitted.", "沒有任何假說被接受。"),
+    "v.stopped_at": (
+        "It stopped at the {stage} step ({status}).",
+        "停在「{stage}」步驟（{status}）。",
+    ),
+    "v.falsifier_machine": (
+        "Would be refuted if {observable} = {outcome} -- the machine falsifier verification "
+        "adjudicates.",
+        "若 {observable} = {outcome} 則此假說被否證——這是驗證據以判定的機器否證條件。",
+    ),
+    "v.falsifier_recorded": (
+        "Machine falsifier, as the run recorded it:",
+        "這次執行記錄的機器否證條件：",
+    ),
+    "v.falsifier_none": (
+        "No machine falsifier is recorded for this hypothesis.",
+        "此假說沒有記錄機器否證條件。",
+    ),
+    "v.falsifier_prose": (
+        "The author's own explanation, in prose (not adjudicated):",
+        "提出者自己的文字說明（不作判定）：",
+    ),
+    "v.still_competing": ("Still competing:", "仍在競爭："),
+    "v.ruled_out": ("Ruled out:", "已排除："),
+    "v.executed": ("Executed in this run", "這次執行的檢查"),
+    "v.observed": ("observed {observable} = {outcome}", "觀察到 {observable} = {outcome}"),
+    "v.no_observation": ("no observed outcome is recorded for it", "沒有記錄任何觀察結果"),
+    "v.nothing_executed": ("No check was executed in this run.", "這次沒有執行任何檢查。"),
+    "v.run_unrecorded": (
+        "No report of this run is recorded, so what it tested and learned is not known here.",
+        "這次執行沒有記錄報告，因此這裡無從得知它檢查了什麼、學到了什麼。",
+    ),
+    "v.earlier": (
+        "Executed in earlier runs, not repeated",
+        "先前已執行、這次不再重複的檢查",
+    ),
+    "v.needs_person": ("Planned, needs a person", "已規劃、需要人員執行"),
+    "v.unavailable": ("Cannot run here", "這個環境無法執行"),
+    "v.matched": (
+        "{observable} = {outcome} matched {mechanism}'s declared prediction ({expected} -> "
+        "{effect}){designated}.",
+        "{observable} = {outcome} 符合 {mechanism} 事先宣告的預測"
+        "（{expected} -> {effect}）{designated}。",
+    ),
+    "v.designated": (", its machine falsifier", "，即它的機器否證條件"),
+    "v.moved": (
+        "{mechanism}: {from_state} -> {to_state}, a governed transition (decision: {decision}).",
+        "{mechanism}：{from_state} -> {to_state}，經過治理程序的狀態轉移（決定：{decision}）。",
+    ),
+    "v.decided": (
+        "{mechanism}: its transition policy decided {result}; its state did not change.",
+        "{mechanism}：轉移政策的決定是 {result}；狀態沒有改變。",
+    ),
+    "v.no_decision": (
+        "{mechanism}: no governed transition is recorded for this relation.",
+        "{mechanism}：這個關係沒有任何經治理程序的狀態轉移紀錄。",
+    ),
+    "v.matched_unrecorded": (
+        "{observable} = {outcome} is comparable to {mechanism}'s declared prediction, but no "
+        "relation is recorded for it.",
+        "{observable} = {outcome} 與 {mechanism} 宣告的預測相符，但沒有記錄任何關係。",
+    ),
+    "v.no_match": (
+        "{observable} = {outcome} matched no declared prediction, so it neither supports nor "
+        "contradicts any hypothesis, and no belief could move.",
+        "{observable} = {outcome} 不符合任何事先宣告的預測，所以既不支持也不反駁任何假說，"
+        "任何信念都不會改變。",
+    ),
+    "v.declared_over": ("Declared about {observable}:", "對 {observable} 事先宣告的預測："),
+    "v.declared_item": (
+        "{mechanism}: {expected} -> {effect}{designated}",
+        "{mechanism}：{expected} -> {effect}{designated}",
+    ),
+    "v.no_prediction": (
+        "No hypothesis declared a prediction about {observable}; the result is on record and "
+        "moves nothing.",
+        "沒有任何假說對 {observable} 做過預測；結果已記錄，但不會改變任何信念。",
+    ),
+    "v.not_recorded": (
+        "The stored records do not say what this result meant for the hypotheses.",
+        "儲存的紀錄沒有說明這個結果對各假說代表什麼。",
+    ),
+    "v.summary_none": (
+        "No governed belief change happened in this run.",
+        "這次執行沒有發生任何經治理程序的信念改變。",
+    ),
+    "v.summary_moves": (
+        "{n} governed belief change(s) happened in this run.",
+        "這次執行發生了 {n} 項經治理程序的信念改變。",
+    ),
+    "v.no_checks_learned": (
+        "Nothing was tested in this run, so no belief could move.",
+        "這次沒有做任何檢查，所以任何信念都不會改變。",
+    ),
+    "v.critique_note": (
+        "The critic raised {n} objection(s). Objections are critique, not belief changes; they "
+        "are under Evidence and reasoning.",
+        "反方審查提出了 {n} 項質疑。質疑屬於審查意見，不是信念改變；詳見「證據與推理」。",
+    ),
+    "v.best_next": (
+        "Best next check: {check} ({kind}). It cannot run here: {reason}",
+        "最佳的下一項檢查：{check}（{kind}）。這裡無法執行：{reason}",
+    ),
+    "v.also_blocked": (
+        "Also cannot run here: {check} ({kind}).",
+        "同樣無法在這裡執行：{check}（{kind}）。",
+    ),
+    "v.would_decide": ("It would decide:", "它可以判定："),
+    "v.person": (
+        "A person can act now: {check} ({kind}).",
+        "現在可由人員執行：{check}（{kind}）。",
+    ),
+    "v.nothing_next": ("No further check is planned.", "沒有規劃其他檢查。"),
+    "v.l2.conclusion": ("The research service's conclusion, as recorded", "研究服務記錄的結論"),
+    "v.l2.observed": ("Observed facts", "觀察到的事實"),
+    "v.l2.observed_item": (
+        "{check}: {observable} = {outcome} ({epistemic})",
+        "{check}：{observable} = {outcome}（{epistemic}）",
+    ),
+    "v.l2.declared": ("Declared predictions", "事先宣告的預測"),
+    "v.l2.declared_item": (
+        "{observable} = {expected} -> {effect}{designated} -- {status}",
+        "{observable} = {expected} -> {effect}{designated}——{status}",
+    ),
+    "v.l2.observed_now": ("observed", "已觀察到"),
+    "v.l2.pending": ("not observed yet", "尚未觀察到"),
+    "v.l2.interpretations": ("Model interpretations", "模型的詮釋"),
+    "v.l2.objection": ("{mechanism}: {objection}", "{mechanism}：{objection}"),
+    "v.l2.critique_stage": (
+        "These are critique-stage judgments, not governed belief changes.",
+        "以上是審查階段的判斷，不是經治理程序的信念改變。",
+    ),
+    "v.l2.candidates": ("Verification candidates", "驗證候選方案"),
+    "v.l2.evidence": ("Evidence excerpts", "證據摘錄"),
+    "v.l2.unavailable": ("Not performed or unavailable", "未執行或無法取得"),
+    "v.l2.recorded_next": ("Next steps, as the run recorded them", "這次執行記錄的下一步"),
+    "v.l3.records": (
+        "Records behind each executed check",
+        "每項已執行檢查背後的紀錄",
+    ),
+    "act.EXISTING_EVIDENCE_LOOKUP": ("existing-evidence lookup", "查詢既有證據"),
+    "act.ANALYTICAL_RULE_CHECK": ("analytical check", "分析檢查"),
+    "act.HISTORICAL_CASE_COMPARISON": ("historical case comparison", "歷史案例比對"),
+    "act.NUMERICAL_SURROGATE": ("numerical surrogate", "數值代理模型"),
+    "act.SIMULATION": ("simulation", "模擬"),
+    "act.MEASUREMENT": ("measurement", "量測"),
+    "act.FABRICATION": ("fabrication", "製作"),
+    "act.HUMAN_EXPERT_REVIEW": ("expert review", "專家審查"),
+    "act.unknown": ("kind not recorded", "未記錄類型"),
+    "ep.waiting.debate": (
+        "the debate did not produce admitted hypotheses; continuing retries it",
+        "辯論沒有產生被接受的假說；繼續研究會重試",
+    ),
 }
 
 

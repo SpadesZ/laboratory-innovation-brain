@@ -160,7 +160,7 @@ def test_a_researcher_runs_the_vertical_in_the_workspace_and_continues_it_later(
     assert pages.report_html(report) in page.text, "the page shows the report the run returned"
     assert (
         "Status now: Waiting -- can be continued waiting for a simulation that cannot run here "
-        "(cap:sp.mesh_sensitivity)" in shown
+        "(mesh sensitivity)" in shown
     )
     assert "awaiting simulator for cap:sp.mesh_sensitivity" in shown, "stored, in the details"
     assert f"{REPORT.name} document INTERNAL_MEASUREMENT READY" in shown
@@ -337,7 +337,9 @@ def test_an_excerpt_is_withheld_once_the_actor_may_no_longer_read_it(db, tmp_pat
     page = browser.get(sent.location)
     assert page.status == 200
     assert html.escape(excerpt) not in page.text
-    assert page.text.count(html.escape(WITHHELD)) == len(report.evidence)
+    # Every excerpt is withheld wherever the page shows it: under Evidence and reasoning, and in
+    # the full report the audit layer holds.
+    assert page.text.count(html.escape(WITHHELD)) == 2 * len(report.evidence)
     markdown = browser.get(f"/episodes/{episode_id}/runs/1/report.md").text
     assert excerpt[:60] not in markdown and WITHHELD in markdown
 

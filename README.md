@@ -211,6 +211,11 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   使用同一份型別化否證；模型寫的文字否證條件只保留為說明，不參與判定。報告會同時列出兩者並標示，
   兩者不一致時直接呈現，不由系統自行判斷。設計記錄：
   [`docs/implementation/falsifier-authority.md`](docs/implementation/falsifier-authority.md)。
+- 研究頁面分三層：第一層（預設展開）依序說明研究問題、結果、互相競爭的假說、做了哪些檢查、學到了什麼、
+  下一步，不顯示內部識別碼；每個觀察結果代表什麼，只從儲存的觀察、宣告的預測、關聯判斷與受治理的
+  信念變更紀錄讀出，沒有對應的預測時就直接說明「不支持也不反駁任何假說」，不從結果名稱或報告文字推論。
+  第二層（收合）是證據與推理，第三層（收合）是完整稽核紀錄與原本的完整報告。設計記錄：
+  [`docs/implementation/episode-view.md`](docs/implementation/episode-view.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。

@@ -36,6 +36,11 @@ canonical observable -- and is otherwise as valid as ever.
 `prose_falsifier` (off by default) makes them state each falsifier in prose only -- every
 prediction SUPPORTS, none designated as the falsifier: the shape a real model's certificates had
 before the typed falsifier -- and is otherwise as valid as ever.
+
+`inverted_falsifier` (off by default) makes its RESEARCH certificates the shape the deployed local
+model's had: each hypothesis declares only its designated falsifiers, each bound to a different
+outcome of its space than the catalog's -- so a check can observe an outcome no hypothesis declared
+-- and is otherwise as valid as ever.
 """
 
 from __future__ import annotations
@@ -80,6 +85,7 @@ class FakeProvider:
     invent_space: bool = False
     space_as_observable: bool = False
     prose_falsifier: bool = False
+    inverted_falsifier: bool = False
     _server: ThreadingHTTPServer | None = None
 
     @property
@@ -162,6 +168,7 @@ class FakeProvider:
                     provider.invent_space,
                     provider.space_as_observable,
                     provider.prose_falsifier,
+                    provider.inverted_falsifier,
                 )
                 self._send(
                     200,
@@ -199,6 +206,7 @@ def _answer(
     invent: bool = False,
     space_as_observable: bool = False,
     prose_falsifier: bool = False,
+    inverted_falsifier: bool = False,
 ) -> str:
     if prompt.startswith("Reply with exactly one word: pong"):
         return "pong"
@@ -223,7 +231,25 @@ def _answer(
                 prose_falsifier=prose_falsifier,
             )
         )
-    return str(reasoner(prompt, slot))
+    answer = str(reasoner(prompt, slot))
+    if inverted_falsifier and isinstance(context, dict) and "prediction_bindings" in context:
+        return json.dumps(_inverted(json.loads(answer), context["prediction_bindings"]))
+    return answer
+
+
+def _inverted(answer: dict[str, Any], bindings: list[dict[str, Any]]) -> dict[str, Any]:
+    """Each certificate reduced to its designated falsifiers, each moved to another outcome."""
+    spaces = {(b["outcome_space_id"], b["outcome_space_version"]): b["outcomes"] for b in bindings}
+    for certificate in answer.get("hypotheses", []):
+        keys = set(certificate["falsifier_prediction_keys"])
+        kept = [p for p in certificate["predictions"] if p["key"] in keys]
+        for prediction in kept:
+            outcomes = spaces[(prediction["outcome_space_id"], prediction["outcome_space_version"])]
+            prediction["expected_outcome"] = next(
+                o for o in outcomes if o != prediction["expected_outcome"]
+            )
+        certificate["predictions"] = kept
+    return answer
 
 
 #: Distinct mechanisms for the Hypothesis Engine's probe: as many as its context asks for (the

@@ -135,11 +135,13 @@ def _text(page: Reply | str) -> str:
 
 
 def _strip_details(markup: str) -> str:
-    """Every Technical details / Advanced block removed, nested ones included."""
+    """Every Technical details / Advanced block, and every collapsed layer of the episode page,
+    removed, nested ones included."""
     out, depth, skipping, i = [], 0, 0, 0
     for tag in re.finditer(r"<details\b[^>]*>|</details>", markup):
         opening = tag.group(0).startswith("<details")
-        if not skipping and opening and re.search(r'class="[^"]*\b(tech|advanced)\b', tag.group(0)):
+        hidden = re.search(r'class="[^"]*\b(tech|advanced|layer)\b', tag.group(0))
+        if not skipping and opening and hidden:
             out.append(markup[i : tag.start()])
             skipping, depth = 1, 1
             continue
@@ -554,7 +556,7 @@ def test_new_research_uses_existing_data_adds_files_confirms_and_runs_without_a_
     shown = _text(page)
     assert f"Research task {GOAL}" in shown
     assert "Status now: Waiting -- can be continued" in shown
-    assert "waiting for a simulation that cannot run here (cap:sp.mesh_sensitivity)" in shown
+    assert "waiting for a simulation that cannot run here (mesh sensitivity)" in shown
     assert "Run 1" in shown and "Paused, waiting (provisional conclusion)" in shown
     assert episode_id in _details(page), "the canonical id stays in the technical details"
 

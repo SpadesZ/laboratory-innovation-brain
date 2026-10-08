@@ -117,6 +117,7 @@ from lab_brain.research.data import (
     ResearchData,
     UsableData,
 )
+from lab_brain.research.episode_view import load_episode_view
 from lab_brain.research.literature import LiteratureRequest
 from lab_brain.research.reasoning import ReasoningRuntime
 from lab_brain.research.render import render_markdown
@@ -1099,6 +1100,9 @@ class Workspace:
         elif recorded:
             chosen = recorded[max(recorded)]
         report = self._authorized(c, chosen.report) if chosen is not None else None
+        # What the stored records say each executed check meant -- read, in the episode's own
+        # project, which `_opened` has just authorised this actor for.
+        view = load_episode_view(c, project_id=opened.project_id, episode_id=episode_id)
         return Response(
             "200 OK",
             pages.episode_page(
@@ -1106,6 +1110,7 @@ class Workspace:
                 episode=opened.row,
                 runs=runs,
                 report=report,
+                view=view,
                 report_ordinal=chosen.ordinal if chosen is not None else None,
                 csrf=self._csrf,
                 # The episode's own state, as stored. Whether it may really continue is the
