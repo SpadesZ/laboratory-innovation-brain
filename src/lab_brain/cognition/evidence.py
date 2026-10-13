@@ -16,7 +16,14 @@ THE ORDER IS §7.5's, AND EACH STEP REMOVES SOMETHING BEFORE THE NEXT CAN RANK I
     source-work dedup      one item per SourceWork, so a preprint and its journal version cannot
                            appear as two pieces of evidence in one bundle (EVI-004)
     relevance              lexical overlap with the query, M1's tokenizer, ties broken by the
-                           policy's class preference and then by id
+                           policy's class preference, then by the statement's text, and only then
+                           by id
+
+TIES ARE BROKEN BY CONTENT, NOT BY A MINTED ID. Attestation ids are minted fresh at every admission
+(each run, each project), so ordering equal-scoring statements by id gave the same evidence a
+different order -- and, at the `max_items` cut, a different selection -- every time it was
+admitted. The text is the same wherever the statement is admitted, so the same inputs now give the
+same bundle order; the id only separates statements whose text is identical.
 
 Condition compatibility is not a filter here: evidence reaches this catalog already admitted with a
 registered condition schema (EVI-005), and interpreting conditions is TransitionPolicy's, on
@@ -134,7 +141,7 @@ class EvidenceResearcher:
         classes = policy.inverted_source_classes if inverted else policy.source_classes
         excluded = frozenset(exclude)
         query_tokens = frozenset(tokenize(query_text))
-        scored: list[tuple[int, int, str, EvidenceItem]] = []
+        scored: list[tuple[int, int, str, str, EvidenceItem]] = []
         for item in self._catalog.items(project_id):
             if item.project_id != project_id or item.attestation_id in excluded:
                 continue
@@ -146,10 +153,12 @@ class EvidenceResearcher:
             if overlap == 0:
                 continue
             preference = classes.index(item.trust_class)
-            scored.append((-overlap, preference, item.attestation_id, item))
+            # The text before the id: a tie is ordered by content, which every admission of the
+            # same statement shares, never by the id this admission happened to mint.
+            scored.append((-overlap, preference, item.text, item.attestation_id, item))
         chosen: list[str] = []
         works: set[str] = set()
-        for _, _, _, item in sorted(scored):
+        for *_, item in sorted(scored):
             if item.source_work_id is not None:
                 if item.source_work_id in works:
                     continue

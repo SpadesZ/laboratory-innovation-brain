@@ -85,13 +85,18 @@ from lab_brain.llm_runtime.provider import OpenAICompatibleClient, ProviderError
 #: 3.0.0: ROLE_HYPOTHESIS is the conformance suite `HYPOTHESIS_SUITE`.
 #: 4.0.0: the suite's cases declare observable -> space bindings (prompt 3.0.0, rc-2.0.0).
 #: 5.0.0: every certificate designates a typed falsifier (prompt 4.0.0, rc-3.0.0).
-PROBE_VERSION = "probe-5.0.0"
+#: 6.0.0: the relation effects are defined and one outcome takes one effect (prompt 5.0.0,
+#: rc-4.0.0).
+PROBE_VERSION = "probe-6.0.0"
 
 #: The ROLE_HYPOTHESIS conformance suite and its version, recorded with every result. 1.0.0: the
 #: cases `contextual-minimum` and `multi-space`. 2.0.0: the same cases, each over declared
 #: observable -> space bindings whose observable ids differ from their space ids. 3.0.0: the same
 #: cases, and a case passes only if every hypothesis it accepts designates a typed falsifier.
-HYPOTHESIS_SUITE = "hypothesis-conformance@3.0.0"
+#: 4.0.0: the same cases, under prompt 5.0.0's defined effects; a case also fails if a hypothesis
+#: gives one outcome of an observable two different effects. Support is never required: a
+#: falsification-only certificate passes, as research admits it.
+HYPOTHESIS_SUITE = "hypothesis-conformance@4.0.0"
 
 #: §7.4 / EPI-001: Stage A returns at least two COMPETING certificates. What a deployment's research
 #: asks for may be more; it is never less.

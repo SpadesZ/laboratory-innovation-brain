@@ -165,7 +165,7 @@ def _suite(model: _Model, minimum: int = 5):  # type: ignore[no-untyped-def]
 
 def test_the_single_space_qualification_is_no_longer_current(monkeypatch):
     assert QUALIFICATION_DIGEST != SINGLE_SPACE_DIGEST
-    assert PROBE_VERSION == "probe-5.0.0"
+    assert PROBE_VERSION == "probe-6.0.0"
     assert [name for name, _ in hypothesis_suite(5)] == ["contextual-minimum", "multi-space"]
     # The route the LOCAL deployment locked qwen2.5:7b under the single-space probe, recomputed
     # from its public parts: it is that route under the old semantics, and not under the current.
@@ -317,11 +317,11 @@ def test_the_suite_records_what_it_ran_and_its_slowest_call():
 
 def test_the_suite_the_prompt_and_the_contract_are_the_semantics_locks_are_made_under():
     template = HYPOTHESIS_ENGINE.prompt.template
-    assert HYPOTHESIS_ENGINE.prompt.prompt_version == "4.0.0"
+    assert HYPOTHESIS_ENGINE.prompt.prompt_version == "5.0.0"
     assert "copy that entry's observable_ref, outcome_space_id and" in template
     assert "expected_outcome verbatim from that entry's outcomes" in template
     assert "Never invent or infer an observable or an outcome space from the evidence" in template
-    assert RESPONSE_CONTRACT_VERSION == "rc-3.0.0"
+    assert RESPONSE_CONTRACT_VERSION == "rc-4.0.0"
     assert "Never make up an observable or an outcome space" in HYPOTHESIS_CONTRACT
     base = {
         "probe_version": PROBE_VERSION,

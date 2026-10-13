@@ -555,10 +555,10 @@ def test_the_suite_passes_only_hypotheses_that_designate_a_typed_falsifier():
 
 def test_the_routes_locked_under_the_vocabulary_semantics_are_no_longer_current(monkeypatch):
     assert (HYPOTHESIS_ENGINE.prompt.prompt_version, RESPONSE_CONTRACT_VERSION) == (
-        "4.0.0",
-        "rc-3.0.0",
+        "5.0.0",
+        "rc-4.0.0",
     )
-    assert (PROBE_VERSION, HYPOTHESIS_SUITE) == ("probe-5.0.0", "hypothesis-conformance@3.0.0")
+    assert (PROBE_VERSION, HYPOTHESIS_SUITE) == ("probe-6.0.0", "hypothesis-conformance@4.0.0")
     assert QUALIFICATION_DIGEST != VOCABULARY_DIGEST
     # The two locks the LOCAL deployment holds, recomputed from their public parts.
     ollama = ConnectionRow(

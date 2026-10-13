@@ -130,7 +130,7 @@ def test_the_prompt_asks_for_the_contexts_minimum_and_never_a_count_of_its_own()
     template = HYPOTHESIS_ENGINE.prompt.template
     assert "at least CONTEXT.minimum_hypotheses competing mechanisms -- never fewer" in template
     assert "two" not in template.lower() and not any(ch.isdigit() for ch in template)
-    assert HYPOTHESIS_ENGINE.prompt.prompt_version == "4.0.0"
+    assert HYPOTHESIS_ENGINE.prompt.prompt_version == "5.0.0"
     # The response contract and the context agree with it; the parser stays the judge.
     assert "at least CONTEXT.minimum_hypotheses" in HYPOTHESIS_CONTRACT
     assert "minimum_hypotheses" in HYPOTHESIS_ENGINE.requires

@@ -51,7 +51,11 @@ from lab_brain.core.models.debate import (
     ProposedPrediction,
 )
 from lab_brain.core.models.enums import RelationType
-from lab_brain.core.models.prediction import PREDICTION_EFFECT_TYPES, OutcomeSpace
+from lab_brain.core.models.prediction import (
+    PREDICTION_EFFECT_MEANINGS,
+    PREDICTION_EFFECT_TYPES,
+    OutcomeSpace,
+)
 from lab_brain.core.models.prior_art import (
     NoveltyScope,
     NoveltyStatus,
@@ -79,6 +83,14 @@ class RoleContract:
     requires: frozenset[str]
 
 
+def effect_meanings() -> str:
+    """The prediction effects and what each means, as the Hypothesis Engine is told them."""
+    return " ".join(
+        f"{effect.value} means: {meaning}."
+        for effect, meaning in PREDICTION_EFFECT_MEANINGS.items()
+    )
+
+
 #: 2.0.0: the count is the CONTEXT's (`minimum_hypotheses`), never a number in the prompt. 1.0.0
 #: said "at least two" while the context -- and the parser -- demanded the caller's minimum (a
 #: domain's Stage A asks for one per catalogued mechanism; a later round may ask for one), so a
@@ -94,11 +106,16 @@ class RoleContract:
 #: (`falsifier_prediction_keys`) at least one of its own CONTRADICTS predictions as its falsifier. A
 #: model that wrote a prose falsifier and only SUPPORTS predictions left an observed falsifying
 #: outcome with nothing to relate to: no relation is ever inferred from a mismatch.
+#: 5.0.0: the relation effects are defined (`PREDICTION_EFFECT_MEANINGS`). A model that was only
+#: given their names declared a discriminating forecast as PREDICTS; the check observed it, the
+#: PREDICTS relation was recorded, and no policy could count it as support -- correctly, and the
+#: model was never told. The prompt now says what each effect means, that SUPPORTS is earned by
+#: discrimination and may be absent, and that one outcome carries one effect per hypothesis.
 HYPOTHESIS_ENGINE = RoleContract(
     role=CognitiveRole.HYPOTHESIS_ENGINE,
     prompt=PromptTemplate(
         "prm:hypothesis-engine",
-        "4.0.0",
+        "5.0.0",
         "You are the Hypothesis Engine. From ONLY the evidence given, propose at least "
         "CONTEXT.minimum_hypotheses competing mechanisms -- never fewer -- as complete hypothesis "
         "certificates -- statement, mechanism, assumptions, falsifier, confounders, minimal test "
@@ -111,7 +128,12 @@ HYPOTHESIS_ENGINE = RoleContract(
         "prediction with relation_effect CONTRADICTS whose expected_outcome is an outcome that "
         "would refute it, and lists that prediction's key in falsifier_prediction_keys. A "
         "prediction relates only the outcome it names; an outcome no prediction names relates to "
-        "nothing. Reply with JSON.",
+        "nothing. Choose each prediction's relation_effect by what observing its expected_outcome "
+        f"would mean for THIS hypothesis. {effect_meanings()} Declare SUPPORTS only for an "
+        "outcome that would discriminate the hypothesis from its rivals; when no declared outcome "
+        "would, give it falsifiers only -- never a SUPPORTS it has not earned. An outcome has one "
+        "meaning for a hypothesis: never declare the same outcome of an observable with different "
+        "relation effects. Reply with JSON.",
     ),
     requires=frozenset({"question", "evidence", "prediction_bindings", "minimum_hypotheses"}),
 )
@@ -297,6 +319,10 @@ def parse_hypothesis_engine(
     differs from a SUPPORTS prediction -- so a falsifier that is only prose could never refute
     anything. A CONTRADICTS prediction that is not designated does not count, and neither does a
     designation of another hypothesis's prediction or of one that does not contradict.
+
+    A hypothesis gives each outcome of an observable at most one relation effect. No SUPPORTS
+    prediction is required: a certificate whose only typed content is its falsifiers is admitted,
+    because support is earned by an outcome that discriminates, and none may be declared.
     """
     role = HYPOTHESIS_ENGINE.role.value
     obj = _object(role, text, inference_id)
@@ -403,6 +429,24 @@ def parse_hypothesis_engine(
                     f"relation effect {effect.value} cannot move belief (§17.5.1)",
                     inference_id=inference_id,
                 )
+            # One observed outcome means one thing for a hypothesis. Observing an outcome declared
+            # both SUPPORTS and CONTRADICTS (or forecast and refuting) would relate it both ways at
+            # once, and no transition could be adjudicated from it.
+            for q in predictions:
+                same_outcome = (
+                    q.observable_ref,
+                    q.outcome_space_id,
+                    q.outcome_space_version,
+                    q.expected_outcome,
+                ) == (observable, *space_key, expected)
+                if same_outcome and q.relation_effect is not effect:
+                    raise RoleOutputRefused(
+                        role,
+                        f"hypothesis {key!r} declares {observable} = {expected} both "
+                        f"{q.relation_effect.value} and {effect.value}; an outcome has one meaning "
+                        "for a hypothesis, so it carries one relation effect",
+                        inference_id=inference_id,
+                    )
             direction = p.get("direction")
             predictions.append(
                 PredictionProposal(

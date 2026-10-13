@@ -216,6 +216,11 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   信念變更紀錄讀出，沒有對應的預測時就直接說明「不支持也不反駁任何假說」，不從結果名稱或報告文字推論。
   第二層（收合）是證據與推理，第三層（收合）是完整稽核紀錄與原本的完整報告。設計記錄：
   [`docs/implementation/episode-view.md`](docs/implementation/episode-view.md)。
+- 假說引擎會被告知每種預測效果的意義：只有 SUPPORTS 會被轉移規則算作支持（必須是能把這個假說和其他
+  假說區分開的結果，且不是必填），只有 CONTRADICTS 算作反駁，PREDICTS 與 TESTS 兩者都不是；系統不會把
+  PREDICTS 自動升級成支持。同一個假說不能對同一個結果宣告兩種效果。證據同分時依內容排序，不再依每次
+  納入時新產生的識別碼排序。設計記錄：
+  [`docs/implementation/prediction-effect-semantics.md`](docs/implementation/prediction-effect-semantics.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。

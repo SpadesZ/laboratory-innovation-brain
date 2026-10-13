@@ -38,7 +38,10 @@ from lab_brain.core.models.prediction import PREDICTION_EFFECT_TYPES
 #: together from one entry of CONTEXT.prediction_bindings (prompt 3.0.0).
 #: rc-3.0.0: every prediction has a key, and every hypothesis designates its typed falsifier --
 #: `falsifier_prediction_keys`, keys of its own CONTRADICTS predictions (prompt 4.0.0).
-RESPONSE_CONTRACT_VERSION = "rc-3.0.0"
+#: rc-4.0.0: the relation effects are no longer bare names. SUPPORTS is the only support and
+#: CONTRADICTS the only refutation; PREDICTS and TESTS are neither; SUPPORTS may be absent; an
+#: outcome takes one effect per hypothesis, as the parser now enforces (prompt 5.0.0).
+RESPONSE_CONTRACT_VERSION = "rc-4.0.0"
 
 #: Where a rendered context block begins (`cognition.llm._render`).
 CONTEXT_MARKER = "\n\nCONTEXT:\n"
@@ -87,7 +90,11 @@ HYPOTHESIS_CONTRACT = _BARE + (
     "refute it if observed, and falsifier_prediction_keys must list at least one such key of its "
     "own -- never a SUPPORTS, PREDICTS or TESTS prediction, and never another hypothesis's. A "
     "prediction relates only the outcome it names: an outcome no prediction names relates to "
-    "nothing."
+    "nothing. A relation_effect is chosen by what observing the outcome would mean for that "
+    "hypothesis, as the prompt defines each: SUPPORTS is the only effect counted as support and "
+    "CONTRADICTS the only one counted as refutation; PREDICTS and TESTS are recorded and are "
+    "neither. A hypothesis need not have a SUPPORTS prediction, and within one hypothesis the same "
+    "outcome of the same observable takes one relation_effect."
 )
 
 SPECIALIST_CONTRACT = _BARE + (

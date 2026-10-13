@@ -41,6 +41,14 @@ before the typed falsifier -- and is otherwise as valid as ever.
 model's had: each hypothesis declares only its designated falsifiers, each bound to a different
 outcome of its space than the catalog's -- so a check can observe an outcome no hypothesis declared
 -- and is otherwise as valid as ever.
+
+`forecast_effect` (off by default) makes its RESEARCH certificates declare every affirmative forecast
+with that effect instead of SUPPORTS -- `"PREDICTS"` is the shape an external route's certificates
+had when it proposed the right mechanism and the check observed its forecast -- and is otherwise
+as valid as ever.
+
+`falsifiers_only` (off by default) makes its RESEARCH certificates carry only their designated
+falsifiers, unchanged: honest falsification-only certificates, which research admits.
 """
 
 from __future__ import annotations
@@ -86,6 +94,8 @@ class FakeProvider:
     space_as_observable: bool = False
     prose_falsifier: bool = False
     inverted_falsifier: bool = False
+    forecast_effect: str | None = None
+    falsifiers_only: bool = False
     _server: ThreadingHTTPServer | None = None
 
     @property
@@ -169,6 +179,8 @@ class FakeProvider:
                     provider.space_as_observable,
                     provider.prose_falsifier,
                     provider.inverted_falsifier,
+                    provider.forecast_effect,
+                    provider.falsifiers_only,
                 )
                 self._send(
                     200,
@@ -207,6 +219,8 @@ def _answer(
     space_as_observable: bool = False,
     prose_falsifier: bool = False,
     inverted_falsifier: bool = False,
+    forecast_effect: str | None = None,
+    falsifiers_only: bool = False,
 ) -> str:
     if prompt.startswith("Reply with exactly one word: pong"):
         return "pong"
@@ -234,6 +248,25 @@ def _answer(
     answer = str(reasoner(prompt, slot))
     if inverted_falsifier and isinstance(context, dict) and "prediction_bindings" in context:
         return json.dumps(_inverted(json.loads(answer), context["prediction_bindings"]))
+    if (forecast_effect or falsifiers_only) and "prediction_bindings" in context:
+        return json.dumps(_reshaped(json.loads(answer), forecast_effect, falsifiers_only))
+    return answer
+
+
+def _reshaped(
+    answer: dict[str, Any], forecast_effect: str | None, falsifiers_only: bool
+) -> dict[str, Any]:
+    """Each certificate's SUPPORTS forecasts declared with `forecast_effect`, or dropped."""
+    for certificate in answer.get("hypotheses", []):
+        kept = []
+        for prediction in certificate["predictions"]:
+            if prediction["relation_effect"] == "SUPPORTS":
+                if falsifiers_only:
+                    continue
+                if forecast_effect:
+                    prediction["relation_effect"] = forecast_effect
+            kept.append(prediction)
+        certificate["predictions"] = kept
     return answer
 
 
