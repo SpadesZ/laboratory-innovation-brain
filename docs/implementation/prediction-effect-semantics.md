@@ -183,3 +183,106 @@ ordinary connection: Anthropic's OpenAI-compatible endpoint registered in the LL
 API key (its model fetched or declared), qualified by the same probes, locked, bound and
 egress-authorized per project like any other -- an independent model identity with its own lock.
 No such key is registered here, so it was not created.
+
+## 6. Verification
+
+Code: `8ca7411`. CI run `38387811612`: commit hygiene, spec conformance, lint/types/full suite and
+the PostgreSQL backend profile, all green. `src` changed only in `core/models/prediction.py` (the
+meanings), `cognition/roles.py` (prompt 5.0.0, the coherence rule), `llm_runtime/contracts.py`
+(rc-4.0.0), `llm_runtime/probes.py` (versions) and `cognition/evidence.py` (the tie-break); no
+migration; TransitionPolicy, RelationJudgment creation, BeliefRevisionEvent, admission, the planner,
+the loop, BudgetGate, egress and transport are untouched.
+
+| Run | Passed | Skipped |
+|---|---|---|
+| local, Windows: `pytest -q` | 1776 | 851 backend-gated |
+| local, fresh database (61 migrations): `LAB_BRAIN_TEST_POSTGRES=1 pytest -q` | 2625 | 2: 1 Lumerical, 1 network |
+
+ruff, ruff format and strict mypy (238 source files) clean; status, obligation inventory and
+requirement coverage current; the evidence and root-cause (`--disposable`) benchmark reports current
+and unchanged; the debate benchmark report regenerated as in section 4. Mutation battery, every
+entry, on a fresh database and in a separate worktree of `8ca7411`: **448/448 killed**, no anchor missing (the 440 earlier entries, two of them re-anchored, and the eight above).
+
+## 7. Deployed: re-qualification and the governed runs after the change
+
+`docker compose -p lab-brain-workspace up --build -d` from `8ca7411`; `local-models` changed nothing.
+The applied runtime was refused at once ("lock ... was made under qualification semantics no longer
+in force"), as designed. It was retired, the three models unlocked and given the full default
+capability test under `probe-6.0.0` (digest `e8b2be879673...`), and locked with exactly what each
+proved:
+
+| model | ROLE_HYPOTHESIS (suite @4.0.0, N=5) | new lock |
+|---|---|---|
+| `models/gemini-3.1-pro-preview` (connection `a`) | PASSED (104.9 s); ROLE_CRITIQUE still FAILED | `lk:2b48e377a4355cff` |
+| `qwen2.5-coder:7b` | **FAILED**, `multi-space`: designated a SUPPORTS prediction as its falsifier (an existing rule; it passed under probe-5.0.0) | `lk:f14109bc296cdf49` (no ROLE_HYPOTHESIS) |
+| `qwen2.5:7b` | FAILED, as before (no designated falsifier) | `lk:f80baa75bc60a828` (no ROLE_HYPOTHESIS) |
+
+One qualification attempt each; the failing models were not re-tested until they passed. **No local
+model now qualifies for REASONING_PRIMARY**, so the earlier local runtime cannot be rebuilt without
+the operator's decision (section 9).
+
+**Governed runs**, runtime `exp-gemini31-effects` (`lrt:e8604a60...`: PRIMARY Gemini
+`lk:2b48e377...`, FAST `qwen2.5-coder:7b`, ADVERSARIAL `qwen2.5:7b`, external labels PUBLIC),
+project `prj:bench-gemini` (RESEARCH; egress `lep:f245c028...`: connection `a`, PUBLIC only), the same
+report (`8b30ebc9...`) and question, one run each, the case's device as verification input (device
+fields only). Truth was read only after all three were recorded.
+
+| case (truth) | episode | hypotheses (S/P/C) | executed -> observed -> relation | result |
+|---|---|---|---|---|
+| `contact-open-via` (contact discontinuity) | `epi:6174b0fe...` | 6, none over `sp.contact_connectivity` (4/1/5 in the first set) | extraction -> AGREES -> CONTRADICTS "missing correction" (ALLOW) | SUSPENDED: no contact hypothesis, so the connectivity check was never a candidate |
+| `normalization-taper` (normalization error) | `epi:7b56877f...` | 6 (4/1/5) | extraction -> DISAGREES -> **SUPPORTS "missing correction artefact"** -> ALLOW `policy:sp-vs001-promote` | **CONFIRMED -- the wrong mechanism** (section 8) |
+| `mesh-coarse-access` (mesh artefact) | `epi:12265cfd...` | 5 (4/1/5) | extraction -> AGREES -> CONTRADICTS "missing extraction correction" (ALLOW) | SUSPENDED awaiting a simulator; nothing confirmed |
+
+Every relation is the declared effect for the exact outcome observed, every belief move has its ALLOW
+decision, and no PREDICTS relation was promoted. The effect labels changed as intended: the first
+certificate sets carry 4 SUPPORTS, 1 PREDICTS and 5 CONTRADICTS each (the recorded run: 0, 5 and 5),
+with no SUPPORTS on an outcome a rival also affirms.
+
+Run time 1353 s, 1575 s and 510 s; Gemini 4 calls per run (151-747 s in all, slower than on
+2026-10-08), the local Critic 284-704 s. BudgetGate ACTUAL 5548, 5861 and 4672 tokens (visible text
+only; Gemini's hidden reasoning tokens are not counted). The runtime was retired afterwards: no
+runtime is applied, and new research uses the local catalog reasoner, the explicit fallback.
+
+**History is untouched.** Against a snapshot taken before the rebuild (2026-10-13 11:06:30 UTC):
+11 episodes, 40 hypotheses, 50 predictions, 4 relations, 43 belief events, 3 decisions,
+8 observations, 62 InferenceProvenance rows, 152 probe rows and 12 lock rows created before it,
+identical; the only new episodes are the three above.
+
+## 8. For independent review: a model-declared SUPPORTS confirmed a mis-attributed mechanism
+
+`epi:7b56877f...` is preserved as the reproduction. Gemini's "missing correction artefact" (the
+contact-resistance correction term absent from the extraction) declared `sp.normalization_basis =
+DISAGREES -> SUPPORTS`. The normalization check compares the extraction's normalization length with
+the drawn length; a missing contact-resistance term does not change it. The check observed
+DISAGREES -- because of the true cause, a normalization length error (taper-inclusive 1000 um
+against the drawn 500 um) -- and every governed step then did what it is specified to do: SUPPORTS
+from the declared prediction, an EXACT/COMPATIBLE condition match and one independent Run, ALLOW,
+SUPPORTED, CONFIRMED. The conclusion names the wrong mechanism.
+
+What failed is the warrant of a model-authored SUPPORTS: nothing in the architecture checks that a
+mechanism the model wrote is one the observable it bound to can diagnose. The DomainPack declares
+observables and their spaces, not which mechanisms an observable discriminates; the catalog's
+curated pairs are correct by construction, a model's are not. Before this change the same model
+labelled the forecast PREDICTS and the case would not have been confirmed -- by accident, not by a
+check -- and any model that wrote SUPPORTS (the local model did, in `epi:ac49adeb...`) was exposed
+to the same path. The new contract makes a model's labels mean what the policies read; it also makes
+this gap reachable more often.
+
+Not repaired here: closing it changes scientific semantics (TransitionPolicy or DomainPack) and needs
+an approved design. Candidate directions, none implemented: a domain-declared diagnosticity -- which
+observable outcomes may support which declared mechanism classes -- that a model's hypothesis must
+be mapped to before its SUPPORTS can promote; or a promotion policy for model-authored hypotheses
+that requires more than one independent line of support or a person's review. Until then a
+CONFIRMED conclusion reached from one model-declared SUPPORTS is not evidence of the mechanism.
+READY_FOR_REAL_RESEARCH stays false.
+
+## 9. Remaining limitations
+
+- Each governed case was run once and each shadow condition sampled once; mechanism coverage varied
+  between runs (contact connectivity proposed on 2026-10-08, not in the three runs above).
+- Local inference is not reproducible across prompt-cache states (section 1, cause 4).
+- The baseline local model no longer qualifies for primary reasoning; whether to re-test it, keep the
+  catalog fallback, or use an external route for egress-authorized projects is the operator's
+  decision.
+- The shadow subagents' isolation was by instruction, and they are not an independent model family
+  from the agent that designed the prompt.

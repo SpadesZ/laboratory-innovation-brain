@@ -255,8 +255,12 @@ that discriminates the hypothesis from its rivals, and never required -- CONTRAD
 refutation, PREDICTS and TESTS neither. A test holds every TransitionPolicy the product constructs to
 that. The parser refuses one outcome given two effects; PREDICTS is never promoted. Equal-scoring
 evidence is ordered by its text, not by the attestation id each admission mints. ROLE_HYPOTHESIS is
-`probe-6.0.0`, `hypothesis-conformance@4.0.0`; every earlier lock is stale. See
-[`prediction-effect-semantics.md`](docs/implementation/prediction-effect-semantics.md).
+`probe-6.0.0`, `hypothesis-conformance@4.0.0`; every earlier lock is stale. Deployed and
+re-qualified: Gemini passes; `qwen2.5-coder:7b` no longer passes ROLE_HYPOTHESIS, so no local model
+qualifies for primary reasoning and no runtime is applied. **Open for independent review:** in a
+governed run a model-declared SUPPORTS on a proxy observable confirmed a mis-attributed mechanism
+(`epi:7b56877f...`); nothing checks that a model's mechanism is one its observable can diagnose. See
+[`prediction-effect-semantics.md`](docs/implementation/prediction-effect-semantics.md) §7-§8.
 
 Slice M1-P1: **HARD-LOCKED** 2026-09-21 at `f8e5e9c02ee98ed2a7faa6f604347b84b88c773b` on
 independent M2 review. That lock is on the *slice*, predates the milestone locks above, and remains
