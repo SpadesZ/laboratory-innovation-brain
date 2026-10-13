@@ -59,6 +59,11 @@ class FailureAnalysis(CoreModel):
     prevention_rule: str | None = None
     resolution_status: ResolutionStatus
     created_at: dt.datetime = Field(default_factory=utc_now)
+    #: The diagnostic warrants behind a CONFIRMED cause (`012o`): declaration references or grant
+    #: ids. Required of a confirmation made since the Causal Warrant Gate -- `confirm_root_cause`
+    #: and the database both refuse one without -- and empty on earlier rows, which the miner and
+    #: case memory therefore no longer read. Not required by this model, so those rows still load.
+    warrant_refs: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def _a_confirmed_cause_names_its_evidence(self) -> Self:

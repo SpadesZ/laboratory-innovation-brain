@@ -65,6 +65,9 @@ class RootCauseRefusal(StrEnum):
     NO_SUPPORTING_RELATION = "NO_SUPPORTING_RELATION"
     ONLY_MODEL_STATEMENTS = "ONLY_MODEL_STATEMENTS"
     NO_EXECUTION_TRACE = "NO_EXECUTION_TRACE"
+    #: Causal Warrant Gate: no accountable source warranted that the support diagnoses the
+    #: mechanism, so the trace proves an observation, not a cause.
+    UNWARRANTED = "UNWARRANTED"
 
 
 class RootCauseRefused(RuntimeError):
@@ -234,11 +237,23 @@ def confirm_root_cause(
     expected_behavior: str,
     observed_behavior: str,
     failure_class: str,
+    warrant_refs: Sequence[str],
     fix: str | None = None,
     prevention_rule: str | None = None,
     created_at: dt.datetime,
 ) -> FailureAnalysis:
-    """A CONFIRMED FailureAnalysis for a traced cause of a root-cause set -- or a refusal."""
+    """A CONFIRMED FailureAnalysis for a traced cause of a root-cause set -- or a refusal.
+
+    `warrant_refs` are the diagnostic warrants behind the trace's relations. A trace proves that
+    an execution observed what a prediction said; only a warrant says the observation bears on
+    the mechanism, so a confirmation without one is refused (`012o` refuses the row as well).
+    """
+    if not warrant_refs:
+        raise RootCauseRefused(
+            RootCauseRefusal.UNWARRANTED,
+            f"{hypothesis_id}'s support traces to a Run but no accountable source warranted that "
+            "the observed outcome diagnoses its mechanism",
+        )
     if not hypothesis_set.root_cause:
         raise RootCauseRefused(
             RootCauseRefusal.NOT_A_ROOT_CAUSE_CANDIDATE,
@@ -262,6 +277,7 @@ def confirm_root_cause(
         failure_class=failure_class,
         fix=fix,
         prevention_rule=prevention_rule,
+        warrant_refs=tuple(sorted(set(warrant_refs))),
         resolution_status=ResolutionStatus.CONFIRMED,
         created_at=created_at,
     )
@@ -288,7 +304,9 @@ def mine_candidate_heuristics(
     """One PENDING_REVIEW candidate per recurring (failure class, symptom), deterministically."""
     groups: dict[tuple[str, str, str], list[FailureAnalysis]] = {}
     for failure in failures:
-        if failure.resolution_status is not ResolutionStatus.CONFIRMED:
+        # A confirmation that names no warrant -- every one recorded before the Causal Warrant
+        # Gate -- stays on record and generalises nothing.
+        if failure.resolution_status is not ResolutionStatus.CONFIRMED or not failure.warrant_refs:
             continue
         key = (failure.project_id, failure.failure_class, " ".join(failure.symptom.lower().split()))
         groups.setdefault(key, []).append(failure)

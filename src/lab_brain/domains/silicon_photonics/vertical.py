@@ -71,7 +71,7 @@ from lab_brain.domains.silicon_photonics.authority_policy import (
     SIM_COARSE,
     SIM_STANDARD,
     SIM_VALIDATION,
-    transition_policies,
+    warranted_transition_policies,
 )
 from lab_brain.domains.silicon_photonics.condition_schema import DOMAIN
 from lab_brain.domains.silicon_photonics.tools import (
@@ -418,10 +418,36 @@ class VerticalAuthorityPolicy:
 PROMOTE_POLICY_ID: Final = "policy:sp-vs001-promote"
 PROMOTE_MEASURED_POLICY_ID: Final = "policy:sp-vs001-promote-measured"
 VERTICAL_POLICY_VERSION: Final = "1.0.0"
+#: Causal Warrant Gate versions of the promote pair; see `vertical_transition_policies`.
+WARRANTED_VERTICAL_POLICY_VERSION: Final = "2.0.0"
 
 
 def vertical_transition_policies() -> tuple[TransitionPolicy, ...]:
-    """The ACTIVE->SUPPORTED pair a confirmed finding needs. Offered, not registered (§24.3)."""
+    """The ACTIVE->SUPPORTED pair a confirmed finding needs, in both versions. Offered, not
+    registered (§24.3).
+
+    1.0.0 stays offered so every decision recorded under it still re-derives; 2.0.0 is what the
+    loop attempts (`diagnosis_targets`): the same thresholds, counted only over SUPPORTS relations
+    whose diagnostic link the pack's declarations or a person warrant.
+    """
+    first = _promote_policies_v1()
+    return (
+        *first,
+        *(
+            TransitionPolicy.model_validate(
+                {
+                    **policy.model_dump(),
+                    "version": WARRANTED_VERTICAL_POLICY_VERSION,
+                    "diagnostic_warrant_required": True,
+                    "supersedes": f"{policy.policy_id}@{policy.version}",
+                }
+            )
+            for policy in first
+        ),
+    )
+
+
+def _promote_policies_v1() -> tuple[TransitionPolicy, ...]:
     return (
         TransitionPolicy(
             policy_id=PROMOTE_POLICY_ID,
@@ -457,8 +483,12 @@ def diagnosis_targets() -> tuple[tuple[TransitionPolicy, BeliefState], ...]:
     the weaker move; the promote pair after both, so a hypothesis with a contradiction on record is
     never promoted past it by the order of evaluation.
     """
-    m2 = {p.policy_id: p for p in transition_policies()}
-    vertical = {p.policy_id: p for p in vertical_transition_policies()}
+    m2 = {p.policy_id: p for p in warranted_transition_policies()}
+    vertical = {
+        p.policy_id: p
+        for p in vertical_transition_policies()
+        if p.version == WARRANTED_VERTICAL_POLICY_VERSION
+    }
     return (
         (m2[REJECT_POLICY_ID], BeliefState.CONTRADICTED),
         (vertical[PROMOTE_POLICY_ID], BeliefState.SUPPORTED),
@@ -467,7 +497,7 @@ def diagnosis_targets() -> tuple[tuple[TransitionPolicy, BeliefState], ...]:
     )
 
 
-assert POLICY_VERSION == "1.0.0"  # the M2 pair this vertical reuses, unchanged
+assert POLICY_VERSION == "1.0.0"  # the M2 pair this vertical reuses, unchanged (and its 2.0.0)
 
 
 # -- selection policy --------------------------------------------------------------------------

@@ -34,14 +34,17 @@ from lab_brain.cognition.catalog_reasoner import (
     CatalogMechanism,
     CatalogPrediction,
     MechanismCatalog,
+    diagnostic_declarations,
 )
 from lab_brain.core.models.capability import ActionType, Availability
+from lab_brain.core.models.warrant import DiagnosticDeclarationSet
 from lab_brain.domains.registry import DomainPackRegistry
 from lab_brain.domains.silicon_photonics import diagnosis
 from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.domains.silicon_photonics.authority_policy import (
     SiliconPhotonicsAuthorityPolicy,
     transition_policies,
+    warranted_transition_policies,
 )
 from lab_brain.domains.silicon_photonics.condition_schema import DOMAIN
 from lab_brain.domains.silicon_photonics.plugin import DEBATE_BENCHMARK_ID, SiliconPhotonicsPack
@@ -84,6 +87,17 @@ def _pair(
             _FALSIFIER, observable, space, sp.SPACE_VERSION, contradicts, "CONTRADICTS"
         ),
     )
+
+
+def diagnostic_declaration_set() -> DiagnosticDeclarationSet:
+    """The catalog's diagnostic links: what a DOMAIN warrant in this pack may cite.
+
+    Each mechanism's cheapest check produces one observable; its SUPPORTS outcome there is its
+    signature and, within this catalog, nobody else's -- the five mechanisms are checked on five
+    different observables -- and its CONTRADICTS outcome refutes it. Pinned by digest in the pack's
+    tests: changing a link means a new catalog version.
+    """
+    return diagnostic_declarations(mechanism_catalog(), DOMAIN)
 
 
 def mechanism_catalog() -> MechanismCatalog:
@@ -257,6 +271,7 @@ def product_vertical(
     )
     authority = sp.VerticalAuthorityPolicy()
     v1 = SiliconPhotonicsAuthorityPolicy()
+    declarations = diagnostic_declaration_set()
     return ProductVertical(
         domain=DOMAIN,
         registry=registry,
@@ -270,7 +285,11 @@ def product_vertical(
             TransitionTarget(policy=policy, to_state=to_state)
             for policy, to_state in sp.diagnosis_targets()
         ),
-        transition_policies=(*transition_policies(), *sp.vertical_transition_policies()),
+        transition_policies=(
+            *transition_policies(),
+            *warranted_transition_policies(),
+            *sp.vertical_transition_policies(),
+        ),
         authority_policy=authority,
         authority_policies={
             (v1.policy_id, v1.policy_version): v1,
@@ -284,6 +303,8 @@ def product_vertical(
             capability_id: f"{type(backend).__name__} (local, solver-free design reader)"
             for capability_id, backend in backends.items()
         },
+        declaration_sets=(declarations,),
+        active_declarations=declarations.ref,
     )
 
 

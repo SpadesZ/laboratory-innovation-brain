@@ -46,6 +46,7 @@ from lab_brain.cognition.roles import (
     QUERY_REWRITER,
 )
 from lab_brain.core.models.inference import LogicalSlot
+from lab_brain.core.models.warrant import DiagnosticDeclaration, DiagnosticDeclarationSet
 from lab_brain.security.external import ExternalReach
 
 _CONTEXT_MARKER = "\n\nCONTEXT:\n"
@@ -119,6 +120,60 @@ class MechanismCatalog:
     @property
     def ref(self) -> str:
         return f"{self.catalog_id}@{self.version}"
+
+
+def diagnostic_declarations(catalog: MechanismCatalog, domain: str) -> DiagnosticDeclarationSet:
+    """The catalog's mechanism-to-observable links, as the declaration set a warrant may cite.
+
+    Nothing is added: each mechanism's one SUPPORTS prediction becomes its signature and its
+    CONTRADICTS predictions its refuting outcomes, on the one observable its cheapest check
+    produces. Deriving the set states what the catalog already implied -- that within it, a
+    mechanism's supporting outcome is produced by that mechanism alone -- and the set refuses a
+    catalog in which two mechanisms claim the same one. Same id and version as the catalog, so a
+    catalog revision is a declaration revision.
+    """
+    declarations = []
+    for mechanism in catalog.mechanisms:
+        supports = [p for p in mechanism.predictions if p.relation_effect == "SUPPORTS"]
+        refutes = [p for p in mechanism.predictions if p.relation_effect == "CONTRADICTS"]
+        if len(supports) != 1 or not refutes:
+            raise ValueError(
+                f"mechanism {mechanism.key} declares {len(supports)} SUPPORTS and {len(refutes)} "
+                "CONTRADICTS predictions; a declaration needs exactly one signature and a "
+                "refutation"
+            )
+        signature = supports[0]
+        where = (
+            signature.observable_ref,
+            signature.outcome_space_id,
+            signature.outcome_space_version,
+        )
+        if any(
+            (p.observable_ref, p.outcome_space_id, p.outcome_space_version) != where
+            for p in refutes
+        ):
+            raise ValueError(
+                f"mechanism {mechanism.key} refutes on an observable other than its signature's; "
+                "a declaration names one diagnostic observable"
+            )
+        declarations.append(
+            DiagnosticDeclaration(
+                class_id=mechanism.key,
+                mechanism=mechanism.mechanism,
+                statement=mechanism.statement,
+                observable_ref=signature.observable_ref,
+                outcome_space_id=signature.outcome_space_id,
+                outcome_space_version=signature.outcome_space_version,
+                supports_outcome=signature.expected_outcome,
+                refutes_outcomes=tuple(sorted({p.expected_outcome for p in refutes})),
+            )
+        )
+    return DiagnosticDeclarationSet(
+        set_id=catalog.catalog_id,
+        version=catalog.version,
+        domain=domain,
+        declarations=tuple(declarations),
+    )
 
 
 def reasoner_slots(

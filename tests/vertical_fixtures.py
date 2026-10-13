@@ -60,12 +60,14 @@ from lab_brain.core.repositories.verification_plans import (
     InMemoryVerificationPlanStore,
     SqlVerificationPlanStore,
 )
+from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore
 from lab_brain.domains.registry import DomainPackRegistry
 from lab_brain.domains.silicon_photonics import SiliconPhotonicsPack
 from lab_brain.domains.silicon_photonics import vertical as sp_vertical
 from lab_brain.domains.silicon_photonics.authority_policy import (
     SiliconPhotonicsAuthorityPolicy,
     transition_policies,
+    warranted_transition_policies,
 )
 from lab_brain.domains.silicon_photonics.diagnosis import (
     DEVICE_PROJECT_MEDIA_TYPE,
@@ -73,12 +75,14 @@ from lab_brain.domains.silicon_photonics.diagnosis import (
     DeviceProject,
     NormalizationBasisReader,
 )
+from lab_brain.domains.silicon_photonics.product import diagnostic_declaration_set
 from lab_brain.domains.silicon_photonics.tools import INPUT_DEVICE_PROJECT, SIMULATOR_RESOURCE_ID
 from lab_brain.ingestion.admission_gate import EvidenceAdmissionGate
 from lab_brain.storage.artifacts.local import InMemoryArtifactStore
 from lab_brain.storage.postgres.capabilities import PostgresResourceBroker
 from lab_brain.storage.postgres.run_outputs import SqlRunOutputSink
 from lab_brain.storage.postgres.verification_evidence import SqlEvidenceSink
+from lab_brain.storage.postgres.warrants import sql_warrant_resolver
 from lab_brain.tool_providers.lumerical.mock_vertical import (
     MockChargeDcBackend,
     MockMeshSensitivityBackend,
@@ -283,6 +287,10 @@ class VerticalRun:
     registry: DomainPackRegistry
     brain: HypothesisBrain
     certificates_by_mechanism: dict[str, str] = field(default_factory=dict)
+    #: The loop and the request it ran, so a test can resume the same episode -- e.g. after a
+    #: person answers a diagnostic warrant review.
+    loop: VerificationLoop | None = None
+    request: LoopRequest | None = None
 
     def mechanism_of(self, hypothesis_id: str | None) -> str | None:
         if hypothesis_id is None:
@@ -330,6 +338,7 @@ def run_case(
         policy=DebatePolicy(minimum_hypotheses=len(fx["mechanisms"]), max_rounds=2),
         transition_policies=(
             *transition_policies(),
+            *warranted_transition_policies(),
             *sp_vertical.vertical_transition_policies(),
         ),
     )
@@ -420,6 +429,9 @@ def run_case(
     )
 
     # -- 3. the governed belief path, both comparator versions registered ------------------------
+    # The pack's own diagnostic declarations, as the product resolves them -- never the fixture's
+    # mechanisms, so a test cannot warrant itself.
+    declarations = diagnostic_declaration_set()
     authority = sp_vertical.VerticalAuthorityPolicy()
     v1 = SiliconPhotonicsAuthorityPolicy()
     episode = BeliefEpisode(
@@ -435,6 +447,10 @@ def run_case(
             (v1.policy_id, v1.policy_version): v1,
             (authority.policy_id, authority.policy_version): authority,
         },
+        warrants=sql_warrant_resolver(
+            connection, declaration_sets=(declarations,), active=declarations.ref
+        ),
+        warrant_reviews=SqlDiagnosticWarrantStore(connection),
     )
     brain = HypothesisBrain(
         debate=world.debate,
@@ -490,6 +506,8 @@ def run_case(
         failures=failures,
         mint=world.mint,
         now=world.now,
+        warrant_reviews=SqlDiagnosticWarrantStore(connection),
+        declarations=declarations,
     )
     request = LoopRequest(
         project_id=PROJECT,
@@ -519,7 +537,8 @@ def run_case(
             caps=BudgetCaps(wall_clock_s=10**8, license_seat_s=10**7, human_minutes=10**4),
         ),
     )
-    result = VerificationLoop(deps).run(request)
+    loop = VerificationLoop(deps)
+    result = loop.run(request)
     return VerticalRun(
         case_id=str(case["case_id"]),
         strategy=strategy,
@@ -532,6 +551,8 @@ def run_case(
         certificates_by_mechanism={
             _mechanism_key(fx, c.hypothesis.mechanism): c.hypothesis_id for c in debate.certificates
         },
+        loop=loop,
+        request=request,
     )
 
 

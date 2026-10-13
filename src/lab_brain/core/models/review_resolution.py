@@ -79,6 +79,10 @@ class ReviewResolution(CoreModel):
     #: exceptional path the easy one.
     resolution_event_kind: ResolutionEventKind = ResolutionEventKind.BELIEF_REVISION
 
+    #: `012o`: the grant a DIAGNOSTIC_WARRANT review closes against. Set exactly when
+    #: `resolution_event_kind` is WARRANT_GRANT.
+    warrant_grant_id: str | None = None
+
     @property
     def resolution_event_id(self) -> str:
         """The canonical closure reference, whichever kind it is.
@@ -87,7 +91,9 @@ class ReviewResolution(CoreModel):
         stored copy could disagree with the typed column it summarises, and the pair
         `(kind, id)` is what §17.19.3 requires the Conflict to match.
         """
-        reference = self.belief_revision_event_id or self.governance_event_id
+        reference = (
+            self.belief_revision_event_id or self.governance_event_id or (self.warrant_grant_id)
+        )
         assert reference is not None  # the validator below makes this unreachable
         return reference
 
@@ -99,6 +105,27 @@ class ReviewResolution(CoreModel):
         callers who go through the model, and a migration or a support script writes SQL. This one
         catches it earlier and explains it; the CHECK is the one that actually holds.
         """
+        if self.resolution_event_kind is ResolutionEventKind.WARRANT_GRANT:
+            if (
+                self.warrant_grant_id is None
+                or self.belief_revision_event_id is not None
+                or self.governance_event_id is not None
+            ):
+                raise ValueError(
+                    f"resolution {self.resolution_id} is a WARRANT_GRANT closure and must carry "
+                    "exactly a warrant_grant_id"
+                )
+            if self.outcome not in (ReviewOutcome.APPROVED, ReviewOutcome.REJECTED):
+                raise ValueError(
+                    f"resolution {self.resolution_id} records a grant as {self.outcome.value}; a "
+                    "person grants a warrant (APPROVED) or refuses it (REJECTED)"
+                )
+            return self
+        if self.warrant_grant_id is not None:
+            raise ValueError(
+                f"resolution {self.resolution_id} carries a warrant grant but is a "
+                f"{self.resolution_event_kind.value} closure"
+            )
         if self.resolution_event_kind is ResolutionEventKind.BELIEF_REVISION:
             if self.belief_revision_event_id is None or self.governance_event_id is not None:
                 raise ValueError(

@@ -278,8 +278,8 @@ class SqlTransitionPolicyStore:
             " policy_id, version, domain, from_state, candidate_to_state,"
             " required_relation_types, required_authority_rule, required_condition_match,"
             " min_independent_attestations, independence_basis, blocking_conflict_policy,"
-            " human_gate, is_admission, effective_from, supersedes"
-            ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            " human_gate, is_admission, effective_from, supersedes, diagnostic_warrant_required"
+            ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
             (
                 policy.policy_id,
                 policy.version,
@@ -296,6 +296,7 @@ class SqlTransitionPolicyStore:
                 policy.is_admission,
                 policy.effective_from,
                 policy.supersedes,
+                policy.diagnostic_warrant_required,
             ),
         )
         return policy
@@ -305,7 +306,7 @@ class SqlTransitionPolicyStore:
             "SELECT policy_id, version, domain, from_state, candidate_to_state,"
             " required_relation_types, required_authority_rule, required_condition_match,"
             " min_independent_attestations, independence_basis, blocking_conflict_policy,"
-            " human_gate, is_admission, effective_from, supersedes"
+            " human_gate, is_admission, effective_from, supersedes, diagnostic_warrant_required"
             " FROM transition_policies WHERE policy_id = %s AND version = %s",
             (policy_id, version),
         ).fetchone()
@@ -333,6 +334,7 @@ class SqlTransitionPolicyStore:
                 "is_admission": row[12],
                 "effective_from": row[13],
                 "supersedes": row[14],
+                "diagnostic_warrant_required": row[15],
             }
         )
 

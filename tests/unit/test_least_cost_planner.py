@@ -19,7 +19,11 @@ from lab_brain.core.models.belief_event import BeliefState
 from lab_brain.core.models.capability import ActionType, Availability
 from lab_brain.core.models.enums import RelationType
 from lab_brain.core.models.relation import RelationJudgment
-from lab_brain.core.models.transition import IndependenceSummary
+from lab_brain.core.models.transition import (
+    IndependenceSummary,
+    RelationEvidence,
+    WarrantBasis,
+)
 from lab_brain.core.models.verification import PlanDecision
 from lab_brain.domains.silicon_photonics import vertical as sp
 from tests.vertical_units import T0, exact_match, plan, registries, rival, rivals
@@ -27,19 +31,37 @@ from tests.vertical_units import T0, exact_match, plan, registries, rival, rival
 
 def _supported_by_inspection(mechanism: str):  # type: ignore[no-untyped-def]
     state = rival(mechanism)
+    supports = next(p for p in state.predictions if p.prediction_id.endswith(".supports"))
     relation = RelationJudgment(
         relation_id=f"rel:{mechanism}",
         from_entity_id=f"obs:{mechanism}",
         to_entity_id=f"hyp:{mechanism}",
         relation_type=RelationType.SUPPORTS,
+        attributes={"prediction_id": supports.prediction_id, "outcome": supports.expected_outcome},
         supporting_attestation_ids=(f"att:{mechanism}",),
         condition_match_ref="cmt:unit",
         project_id=state.view.project_id,
         valid_from=T0,
         created_at=T0,
     )
+    # What the resolver gives a catalog mechanism observed on its own check: a DOMAIN warrant.
+    # The loop's targets are the warrant-gated 2.0.0 policies, so without it nothing "decides".
+    evidence = RelationEvidence(
+        relation_id=relation.relation_id,
+        relation_type=RelationType.SUPPORTS,
+        prediction_id=supports.prediction_id,
+        authority_classes=(sp.DESIGN_INSPECTION,),
+        evidence_line=f"line:{mechanism}",
+        warrant=WarrantBasis.DOMAIN,
+        warrant_ref=f"dds:sp.rs_anomaly_mechanisms@1.0.0#{mechanism}",
+    )
     return type(state)(
-        view=state.view.model_copy(update={"admitted_authority_classes": (sp.DESIGN_INSPECTION,)}),
+        view=state.view.model_copy(
+            update={
+                "admitted_authority_classes": (sp.DESIGN_INSPECTION,),
+                "relation_evidence": (evidence,),
+            }
+        ),
         admitted_relations=(relation,),
         predictions=state.predictions,
         condition_matches=(exact_match(),),

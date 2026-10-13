@@ -1,0 +1,819 @@
+"""The Causal Warrant Gate, domain-general: the policy, the declarations, the resolver, the rule.
+
+Nothing here is silicon photonics. Two toy domains written for these tests -- an optical fibre
+link losing power and a web service timing out -- exercise every part of the gate, so a pass does
+not depend on the SP catalog's wording or on the benchmark cases it was written around. The SP
+pack's own declarations are checked only for their pinned digest.
+
+What is asserted, in the order the gate applies it:
+
+    declarations   a class is bound by its exact mechanism AND agreeing predictions; no outcome is
+                   two classes' signature; the set's identity is pinned by digest
+    resolver       warrants come from declarations or grants, never from authorship; a recorded
+                   record that does not re-check against its sources is refused
+    policy         a gated SUPPORTS/CONTRADICTS counts only when warranted; authority, conditions
+                   and independence are read from warranted relations only; a person is asked only
+                   when a warrant would change the verdict; ungated policies decide as before
+    snapshot       an empty `relation_evidence` leaves the canonical form -- and every stored hash --
+                   exactly as it was
+    confirmation   one class, warranted support, no rival affirming the same observation unless a
+                   warranted refutation excludes it, no answer pending that could overturn it
+"""
+
+from __future__ import annotations
+
+import ast
+import datetime as dt
+from pathlib import Path
+from typing import Any, cast
+
+import pytest
+
+from lab_brain.core.models.belief_event import BeliefState
+from lab_brain.core.models.decision import DecisionInputSnapshot
+from lab_brain.core.models.enums import RelationType
+from lab_brain.core.models.hypothesis import Hypothesis
+from lab_brain.core.models.hypothesis_set import HypothesisCertificate, HypothesisSet
+from lab_brain.core.models.prediction import Prediction, RelationJudgmentTemplate
+from lab_brain.core.models.relation import RelationJudgment
+from lab_brain.core.models.transition import (
+    HypothesisView,
+    IndependenceSummary,
+    RelationEvidence,
+    TransitionOutcome,
+    TransitionPolicy,
+    TransitionReason,
+    WarrantBasis,
+)
+from lab_brain.core.models.warrant import (
+    DiagnosticDeclaration,
+    DiagnosticDeclarationSet,
+    DiagnosticWarrantGrant,
+    GrantVerdict,
+)
+from lab_brain.core.warrant import WarrantResolver, WarrantUnverified, domain_warrant
+from lab_brain.verification.loop import LoopDependencies, LoopRequest, VerificationLoop
+
+T0 = dt.datetime(2026, 10, 14, 9, 0, tzinfo=dt.UTC)
+PROJECT = "prj:toy"
+SRC = Path(__file__).resolve().parents[2] / "src" / "lab_brain"
+
+# -- two toy domains ---------------------------------------------------------------------------
+
+FIBRE = DiagnosticDeclarationSet(
+    set_id="fl.loss_mechanisms",
+    version="1.0.0",
+    domain="fibre_link",
+    declarations=(
+        DiagnosticDeclaration(
+            class_id="contamination",
+            mechanism="connector end-face contamination",
+            statement="Debris on a connector end-face scatters light at the mating point.",
+            observable_ref="fl.endface",
+            outcome_space_id="os:fl.endface",
+            outcome_space_version="1.0.0",
+            supports_outcome="DIRTY",
+            refutes_outcomes=("CLEAN",),
+        ),
+        DiagnosticDeclaration(
+            class_id="macrobend",
+            mechanism="macrobend in the patch run",
+            statement="A tight bend leaks the guided mode into the cladding.",
+            observable_ref="fl.otdr_bend",
+            outcome_space_id="os:fl.otdr_bend",
+            outcome_space_version="1.0.0",
+            supports_outcome="WAVELENGTH_DEPENDENT_STEP",
+            refutes_outcomes=("NO_STEP", "FLAT_STEP"),
+        ),
+    ),
+)
+
+INCIDENT = DiagnosticDeclarationSet(
+    set_id="web.timeout_causes",
+    version="1.0.0",
+    domain="web_service",
+    declarations=(
+        DiagnosticDeclaration(
+            class_id="pool_exhaustion",
+            mechanism="database connection pool exhaustion",
+            statement="Requests wait for a connection the pool cannot hand out.",
+            observable_ref="web.pool_wait",
+            outcome_space_id="os:web.pool_wait",
+            outcome_space_version="1.0.0",
+            supports_outcome="SATURATED_WAITING",
+            refutes_outcomes=("IDLE_CAPACITY",),
+        ),
+        DiagnosticDeclaration(
+            class_id="slow_query",
+            mechanism="slow query regression",
+            statement="A changed query plan makes one statement orders of magnitude slower.",
+            observable_ref="web.query_latency",
+            outcome_space_id="os:web.query_latency",
+            outcome_space_version="1.0.0",
+            supports_outcome="REGRESSED",
+            refutes_outcomes=("BASELINE",),
+        ),
+    ),
+)
+
+
+def prediction(
+    hypothesis: str,
+    observable: str,
+    outcome: str,
+    effect: RelationType,
+    *,
+    key: str = "",
+) -> Prediction:
+    return Prediction(
+        prediction_id=f"prd:{hypothesis}.{key or outcome.lower()}",
+        hypothesis_id=f"hyp:{hypothesis}",
+        project_id=PROJECT,
+        observable_ref=observable,
+        outcome_space_id=f"os:{observable}",
+        outcome_space_version="1.0.0",
+        expected_outcome=outcome,
+        relation_effect_if_observed=(
+            RelationJudgmentTemplate(relation_type=effect, to_entity_id=f"hyp:{hypothesis}"),
+        ),
+    )
+
+
+def certificate(
+    hypothesis: str, mechanism: str, predictions: tuple[Prediction, ...], **hypothesis_fields: Any
+) -> HypothesisCertificate:
+    return HypothesisCertificate(
+        hypothesis=Hypothesis(
+            hypothesis_id=f"hyp:{hypothesis}",
+            project_id=PROJECT,
+            statement=f"{mechanism} explains the symptom.",
+            mechanism=mechanism,
+            prediction_ids=tuple(p.prediction_id for p in predictions),
+            falsifier="its refuting outcome",
+            **hypothesis_fields,
+        ),
+        hypothesis_set_id="hst:toy",
+        predictions=predictions,
+        created_at=T0,
+    )
+
+
+def observed(
+    p: Prediction, *, observation: str = "obs:1", relation_id: str = ""
+) -> RelationJudgment:
+    return RelationJudgment(
+        relation_id=relation_id or f"rel:{p.prediction_id}",
+        from_entity_id=observation,
+        to_entity_id=p.hypothesis_id,
+        relation_type=p.relation_effect_if_observed[0].relation_type,
+        attributes={
+            "prediction_id": p.prediction_id,
+            "outcome": p.expected_outcome,
+            "outcome_space": p.outcome_space_ref,
+        },
+        supporting_attestation_ids=(f"att:{observation}",),
+        condition_match_ref="cmt:toy",
+        project_id=PROJECT,
+        valid_from=T0,
+        created_at=T0,
+    )
+
+
+# -- declarations ------------------------------------------------------------------------------
+
+
+def test_one_outcome_cannot_be_the_signature_of_two_classes():
+    first = FIBRE.declarations[0]
+    clone = first.model_copy(update={"class_id": "other", "mechanism": "something else"})
+    with pytest.raises(ValueError, match="discriminates neither"):
+        DiagnosticDeclarationSet(
+            set_id="fl", version="1", domain="fibre_link", declarations=(first, clone)
+        )
+    with pytest.raises(ValueError, match="both its signature and its refutation"):
+        first.model_copy(update={"refutes_outcomes": ("DIRTY",)}).model_validate(
+            {**first.model_dump(), "refutes_outcomes": ("DIRTY",)}
+        )
+
+
+def test_a_class_binds_by_exact_mechanism_and_agreeing_predictions_only():
+    sig = prediction("a", "fl.endface", "DIRTY", RelationType.SUPPORTS)
+    contra = prediction("a", "fl.endface", "CLEAN", RelationType.CONTRADICTS)
+    exact = FIBRE.bound_class("connector end-face contamination", (sig, contra))
+    assert exact is not None and exact.class_id == "contamination"
+    # A paraphrase is unbound: it goes to a person, never to a guess.
+    assert FIBRE.bound_class("dirty connector", (sig, contra)) is None
+    # The class's name over predictions that contradict the declaration is not the class.
+    backwards = prediction("a", "fl.endface", "CLEAN", RelationType.SUPPORTS)
+    assert FIBRE.bound_class("connector end-face contamination", (backwards,)) is None
+    affirms_refuter = prediction("a", "fl.endface", "CLEAN", RelationType.PREDICTS)
+    assert FIBRE.bound_class("connector end-face contamination", (sig, affirms_refuter)) is None
+    # Silence on the class's observable is not disagreement.
+    elsewhere = prediction("a", "fl.otdr_bend", "NO_STEP", RelationType.PREDICTS)
+    assert FIBRE.bound_class("connector end-face contamination", (elsewhere,)) is not None
+
+
+def test_the_sp_declaration_set_is_pinned_by_digest():
+    """Editing a diagnostic link in place would silently change what re-derivation means."""
+    from lab_brain.domains.silicon_photonics.product import diagnostic_declaration_set
+
+    sp = diagnostic_declaration_set()
+    assert sp.ref == "sp.rs_anomaly_mechanisms@1.0.0"
+    assert sp.digest == (
+        "sha256:e1d637af972bb9fc902772e926f3ed796ab5ad183b21edfe132fd993d24aa0e6"
+    ), "a declaration changed without a catalog version bump"
+
+
+# -- resolver ----------------------------------------------------------------------------------
+
+
+class _Grants:
+    def __init__(self, *grants: DiagnosticWarrantGrant) -> None:
+        self._grants = grants
+
+    def grants_for_relations(self, project_id: str, relation_ids: Any) -> tuple[Any, ...]:
+        wanted = set(relation_ids)
+        return tuple(g for g in self._grants if g.relation_id in wanted)
+
+    def grant(self, project_id: str, grant_id: str) -> Any:
+        return next((g for g in self._grants if g.grant_id == grant_id), None)
+
+
+def _resolver(
+    *certificates: HypothesisCertificate, grants: _Grants | None = None
+) -> WarrantResolver:
+    by_id = {c.hypothesis_id: c for c in certificates}
+    return WarrantResolver(
+        certificates=lambda _p, h: by_id.get(h),
+        attestations=lambda _p, _a: None,
+        observations=lambda _p, _o: None,
+        runs=lambda _r: None,
+        grants=grants,
+        declaration_sets=(FIBRE,),
+        active=FIBRE.ref,
+    )
+
+
+def test_a_proxy_observable_earns_no_domain_warrant_in_another_domain():
+    """The `epi:7b56877f` shape, in a fibre link: a contamination story bound to the bend trace."""
+    sig = prediction("proxy", "fl.otdr_bend", "WAVELENGTH_DEPENDENT_STEP", RelationType.SUPPORTS)
+    cert = certificate("proxy", "dust inside the adapter sleeve", (sig,))
+    (record,) = _resolver(cert).resolve(PROJECT, "hyp:proxy", (observed(sig),)).records
+    assert record.warrant is None and not record.refused
+
+
+def test_authorship_never_decides_a_warrant():
+    """Identical claims are warranted identically, whatever produced them."""
+    sig = prediction("h", "fl.endface", "DIRTY", RelationType.SUPPORTS)
+    relation = observed(sig)
+    catalog = certificate("h", "connector end-face contamination", (sig,))
+    model = certificate(
+        "h", "connector end-face contamination", (sig,), inference_provenance_id="inf:any-model"
+    )
+    a = _resolver(catalog).resolve(PROJECT, "hyp:h", (relation,)).records
+    b = _resolver(model).resolve(PROJECT, "hyp:h", (relation,)).records
+    assert a == b and a[0].warrant is WarrantBasis.DOMAIN
+    assert a[0].warrant_ref == "dds:fl.loss_mechanisms@1.0.0#contamination"
+
+
+@pytest.mark.parametrize("path", ["core/warrant.py", "core/models/warrant.py"])
+def test_the_warrant_code_reads_no_authorship_field(path: str):
+    tree = ast.parse((SRC / path).read_text(encoding="utf-8"))
+    names = {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
+    forbidden = {"provider", "model_id", "model_version", "inference_provenance_id"}
+    assert not (names & forbidden), f"{path} reads {sorted(names & forbidden)}"
+    assert "authored_by_actor_id" not in names
+
+
+def test_a_review_grant_warrants_one_relation_and_a_refusal_is_terminal():
+    sig = prediction("n", "fl.otdr_bend", "WAVELENGTH_DEPENDENT_STEP", RelationType.SUPPORTS)
+    cert = certificate("n", "fibre crushed under a cable tie", (sig,))
+    relation = observed(sig)
+
+    def grant(verdict: GrantVerdict) -> DiagnosticWarrantGrant:
+        return DiagnosticWarrantGrant(
+            grant_id="dwg:1",
+            project_id=PROJECT,
+            review_id="rvw:1",
+            relation_id=relation.relation_id,
+            relation_type=RelationType.SUPPORTS,
+            hypothesis_id="hyp:n",
+            prediction_id=sig.prediction_id,
+            verdict=verdict,
+            granted_by_actor_id="act:reviewer",
+            granted_at=T0,
+            rationale="a crush produces a bend-like, wavelength-dependent step",
+        )
+
+    (yes,) = (
+        _resolver(cert, grants=_Grants(grant(GrantVerdict.WARRANTED)))
+        .resolve(PROJECT, "hyp:n", (relation,))
+        .records
+    )
+    assert (yes.warrant, yes.warrant_ref) == (WarrantBasis.REVIEW, "dwg:1")
+    (no,) = (
+        _resolver(cert, grants=_Grants(grant(GrantVerdict.NOT_WARRANTED)))
+        .resolve(PROJECT, "hyp:n", (relation,))
+        .records
+    )
+    assert no.warrant is None and no.refused
+
+
+def test_a_recorded_warrant_that_does_not_recheck_is_refused():
+    sig = prediction("p", "fl.otdr_bend", "WAVELENGTH_DEPENDENT_STEP", RelationType.SUPPORTS)
+    cert = certificate("p", "dust inside the adapter sleeve", (sig,))
+    relation = observed(sig)
+    resolver = _resolver(cert)
+    forged = RelationEvidence(
+        relation_id=relation.relation_id,
+        relation_type=RelationType.SUPPORTS,
+        prediction_id=sig.prediction_id,
+        warrant=WarrantBasis.DOMAIN,
+        warrant_ref="dds:fl.loss_mechanisms@1.0.0#macrobend",
+    )
+    with pytest.raises(WarrantUnverified, match="does not declare"):
+        resolver.verify(PROJECT, "hyp:p", forged, (relation,))
+    review = forged.model_copy(update={"warrant": WarrantBasis.REVIEW, "warrant_ref": "dwg:none"})
+    with pytest.raises(WarrantUnverified, match="not a WARRANTED grant"):
+        resolver.verify(PROJECT, "hyp:p", review, (relation,))
+    refusal = forged.model_copy(update={"warrant": None, "warrant_ref": None, "refused": True})
+    with pytest.raises(WarrantUnverified, match="refusal nobody made"):
+        resolver.verify(PROJECT, "hyp:p", refusal, (relation,))
+    lent = RelationEvidence(
+        relation_id=relation.relation_id,
+        relation_type=RelationType.SUPPORTS,
+        prediction_id=sig.prediction_id,
+        authority_classes=("CALIBRATED",),
+    )
+    with pytest.raises(WarrantUnverified, match="states authority"):
+        resolver.verify(PROJECT, "hyp:p", lent, (relation,))
+
+
+def test_a_refuting_outcome_is_warranted_only_for_the_bound_class():
+    contra = prediction("c", "fl.endface", "CLEAN", RelationType.CONTRADICTS)
+    bound = certificate("c", "connector end-face contamination", (contra,))
+    unbound = certificate("c", "contaminated splice", (contra,))
+    assert domain_warrant(observed(contra), bound, FIBRE) is not None
+    assert domain_warrant(observed(contra), unbound, FIBRE) is None
+
+
+# -- policy ------------------------------------------------------------------------------------
+
+
+def _promote(**overrides: Any) -> TransitionPolicy:
+    fields: dict[str, Any] = {
+        "policy_id": "pol:toy-promote",
+        "version": "2.0.0",
+        "from_state": BeliefState.ACTIVE,
+        "candidate_to_state": BeliefState.SUPPORTED,
+        "required_relation_types": (RelationType.SUPPORTS,),
+        "min_independent_attestations": 1,
+        "diagnostic_warrant_required": True,
+    }
+    fields.update(overrides)
+    return TransitionPolicy(**fields)
+
+
+class _Rank:
+    """CALIBRATED > FIELD_NOTE; the rule asks for CALIBRATED."""
+
+    policy_id = "auth:toy"
+    policy_version = "1.0.0"
+
+    def compare(self, candidate: str, required: str) -> Any:
+        from lab_brain.core.models.enums import AuthorityComparison
+
+        order = {"FIELD_NOTE": 0, "CALIBRATED": 1}
+        if order[candidate] == order[required]:
+            return AuthorityComparison.EQUIVALENT
+        return (
+            AuthorityComparison.STRONGER
+            if order[candidate] > order[required]
+            else AuthorityComparison.WEAKER
+        )
+
+    def meets(self, required: str, candidate: str) -> bool:
+        return {"FIELD_NOTE": 0, "CALIBRATED": 1}[candidate] >= {"FIELD_NOTE": 0, "CALIBRATED": 1}[
+            required
+        ]
+
+
+def _view(*records: RelationEvidence, classes: tuple[str, ...] = ()) -> HypothesisView:
+    return HypothesisView(
+        hypothesis_id="hyp:h",
+        project_id=PROJECT,
+        current_state=BeliefState.ACTIVE,
+        admitted_authority_classes=classes,
+        relation_evidence=records,
+    )
+
+
+def _record(
+    relation: RelationJudgment,
+    *,
+    warranted: bool,
+    authority: str = "CALIBRATED",
+    line: str = "line:1",
+    refused: bool = False,
+) -> RelationEvidence:
+    return RelationEvidence(
+        relation_id=relation.relation_id,
+        relation_type=relation.relation_type,
+        prediction_id=str(relation.attributes["prediction_id"]),
+        authority_classes=(authority,),
+        evidence_line=line,
+        warrant=WarrantBasis.DOMAIN if warranted else None,
+        warrant_ref="dds:x@1#c" if warranted else None,
+        refused=refused,
+    )
+
+
+SIG = prediction("h", "web.pool_wait", "SATURATED_WAITING", RelationType.SUPPORTS)
+REL = observed(SIG)
+
+
+def _evaluate(policy: TransitionPolicy, view: HypothesisView, *relations: RelationJudgment) -> Any:
+    return policy.evaluate(
+        view,
+        relations or (REL,),
+        cast(Any, _Rank()),
+        (),
+        IndependenceSummary(independent_count=5),
+        policy.candidate_to_state,
+    )
+
+
+def test_an_ungated_policy_decides_exactly_as_before():
+    """Version 1.0.0 semantics: the author's SUPPORTS counts. Stored decisions must re-derive."""
+    decision = _evaluate(_promote(diagnostic_warrant_required=False), _view())
+    assert decision.outcome is TransitionOutcome.ALLOW
+
+
+def test_an_unwarranted_support_asks_a_person_and_never_promotes():
+    decision = _evaluate(_promote(), _view(_record(REL, warranted=False)))
+    assert decision.outcome is TransitionOutcome.NEED_HUMAN_REVIEW
+    assert decision.reason_code is TransitionReason.DIAGNOSTIC_WARRANT_MISSING
+    assert decision.review_item_spec is not None
+    assert decision.review_item_spec.subject_type == "DIAGNOSTIC_WARRANT"
+
+
+def test_a_warranted_support_promotes_and_counts_its_lines():
+    decision = _evaluate(_promote(), _view(_record(REL, warranted=True)))
+    assert decision.outcome is TransitionOutcome.ALLOW
+    assert decision.independent_attestation_count == 1
+
+
+def test_a_refused_warrant_is_an_answer_not_a_new_question():
+    decision = _evaluate(_promote(), _view(_record(REL, warranted=False, refused=True)))
+    assert decision.outcome is TransitionOutcome.NEED_MORE_EVIDENCE
+    assert decision.reason_code is TransitionReason.DIAGNOSTIC_WARRANT_REFUSED
+
+
+def test_nobody_is_asked_a_question_whose_answer_cannot_matter():
+    """An unwarranted relation that would fail on authority anyway is answered as that failure."""
+    policy = _promote(required_authority_rule="CALIBRATED")
+    decision = _evaluate(policy, _view(_record(REL, warranted=False, authority="FIELD_NOTE")))
+    assert decision.outcome is TransitionOutcome.DENY
+    assert decision.reason_code is TransitionReason.AUTHORITY_INSUFFICIENT
+
+
+def test_a_warranted_relation_cannot_borrow_authority_from_an_unwarranted_one():
+    """The flat view says CALIBRATED is present; it belongs to the unwarranted proxy."""
+    strong = observed(SIG, observation="obs:proxy", relation_id="rel:proxy")
+    policy = _promote(required_authority_rule="CALIBRATED")
+    view = _view(
+        _record(REL, warranted=True, authority="FIELD_NOTE"),
+        _record(strong, warranted=False, authority="CALIBRATED", line="line:2"),
+        classes=("CALIBRATED", "FIELD_NOTE"),
+    )
+    decision = _evaluate(policy, view, REL, strong)
+    assert decision.outcome is not TransitionOutcome.ALLOW
+    # Warranting the strong relation WOULD decide it, so a person is asked about that one.
+    assert decision.reason_code is TransitionReason.DIAGNOSTIC_WARRANT_MISSING
+
+
+def test_replicates_of_one_computation_are_one_line():
+    again = observed(SIG, observation="obs:2", relation_id="rel:again")
+    policy = _promote(min_independent_attestations=2)
+    same_line = _view(_record(REL, warranted=True), _record(again, warranted=True))
+    decision = _evaluate(policy, same_line, REL, again)
+    assert decision.outcome is TransitionOutcome.NEED_MORE_EVIDENCE
+    assert decision.reason_code is TransitionReason.INSUFFICIENT_INDEPENDENT_ATTESTATIONS
+    two_lines = _view(_record(REL, warranted=True), _record(again, warranted=True, line="line:2"))
+    assert _evaluate(policy, two_lines, REL, again).outcome is TransitionOutcome.ALLOW
+
+
+def test_a_record_cannot_lend_its_warrant_to_a_relation_it_does_not_describe():
+    other = _record(REL, warranted=True).model_copy(update={"prediction_id": "prd:someone-else"})
+    decision = _evaluate(_promote(), _view(other))
+    assert decision.outcome is not TransitionOutcome.ALLOW
+
+
+def test_refutation_is_gated_the_same_way():
+    contra = prediction("h", "web.pool_wait", "IDLE_CAPACITY", RelationType.CONTRADICTS)
+    relation = observed(contra)
+    reject = _promote(
+        policy_id="pol:toy-reject",
+        candidate_to_state=BeliefState.CONTRADICTED,
+        required_relation_types=(RelationType.CONTRADICTS,),
+    )
+    unwarranted = _evaluate(reject, _view(_record(relation, warranted=False)), relation)
+    assert unwarranted.reason_code is TransitionReason.DIAGNOSTIC_WARRANT_MISSING
+    warranted = _evaluate(reject, _view(_record(relation, warranted=True)), relation)
+    assert warranted.outcome is TransitionOutcome.ALLOW
+
+
+# -- snapshot compatibility ------------------------------------------------------------------
+
+
+def test_an_empty_relation_evidence_leaves_every_stored_hash_as_it_was():
+    snapshot = DecisionInputSnapshot(
+        hypothesis=_view(),
+        admitted_relations=(REL,),
+        independence_summary=IndependenceSummary(independent_count=1),
+        candidate_to_state=BeliefState.SUPPORTED,
+    )
+    assert "relation_evidence" not in snapshot.canonical_bytes_text()
+    # Defaulted fields that historical snapshots DID serialise are kept.
+    assert '"stakes"' in snapshot.canonical_bytes_text()
+    with_record = snapshot.model_copy(update={"hypothesis": _view(_record(REL, warranted=True))})
+    assert "relation_evidence" in with_record.canonical_bytes_text()
+    assert with_record.input_hash() != snapshot.input_hash()
+
+
+# -- the confirmation rule ----------------------------------------------------------------------
+
+
+class _World:
+    """Just enough of the loop's dependencies for `VerificationLoop.standing`."""
+
+    def __init__(
+        self,
+        states: dict[str, BeliefState],
+        relations: dict[str, tuple[Any, ...]],
+        records: dict[str, tuple[RelationEvidence, ...]],
+        outstanding: frozenset[str] = frozenset(),
+    ):
+        self.states, self.relations, self.records, self.pending = (
+            states,
+            relations,
+            records,
+            outstanding,
+        )
+
+    def project(self, *, project_id: str, hypothesis_id: str, projected_at: Any = None) -> Any:
+        return type("P", (), {"current_state": self.states[hypothesis_id]})()
+
+    def hypothesis_view(self, *, hypothesis_id: str, **_: Any) -> HypothesisView:
+        return HypothesisView(
+            hypothesis_id=hypothesis_id,
+            project_id=PROJECT,
+            current_state=self.states[hypothesis_id],
+            relation_evidence=self.records.get(hypothesis_id, ()),
+        )
+
+    def admitted_for_subject(self, project_id: str, subject_id: str) -> tuple[Any, ...]:
+        return self.relations.get(subject_id, ())
+
+    def outstanding_relations(self, project_id: str, relation_ids: Any) -> frozenset[str]:
+        return frozenset(r for r in relation_ids if r in self.pending)
+
+
+def _standing(world: _World) -> Any:
+    deps = LoopDependencies(
+        **{
+            name: cast(Any, None)
+            for name in LoopDependencies.__dataclass_fields__
+            if name not in {"belief", "evidence", "warrant_reviews", "now", "declarations"}
+        },
+        belief=cast(Any, world),
+        evidence=cast(Any, world),
+        warrant_reviews=world,
+        now=lambda: T0,
+    )
+    certificates = tuple(certificate(h.split(":", 1)[1], h, ()) for h in sorted(world.states))
+    request = LoopRequest(
+        **{
+            name: cast(Any, None)
+            for name in LoopRequest.__dataclass_fields__
+            if name not in {"project_id", "certificates", "hypothesis_set", "max_steps"}
+        },
+        project_id=PROJECT,
+        certificates=certificates,
+        hypothesis_set=HypothesisSet(
+            set_id="hst:toy",
+            project_id=PROJECT,
+            episode_id="epi:toy",
+            question="why do requests time out?",
+            research_intent="DIAGNOSIS",
+            stakes="HIGH",
+            source_policy_id="srcpol:toy",
+            source_policy_version="1.0.0",
+            inverted_retrieval_required=False,
+        ),
+    )
+    return VerificationLoop(deps).standing(request)
+
+
+POOL = prediction("pool", "web.pool_wait", "SATURATED_WAITING", RelationType.SUPPORTS)
+POOL_REL = observed(POOL, observation="obs:pool-check")
+POOL_WARRANTED = _record(POOL_REL, warranted=True)
+
+
+def _rival_affirming(effect: RelationType) -> RelationJudgment:
+    """The slow-query rival says a saturated pool is what IT would produce too."""
+    p = prediction("query", "web.pool_wait", "SATURATED_WAITING", effect)
+    return observed(p, observation="obs:pool-check", relation_id="rel:query-on-pool")
+
+
+def test_a_rival_that_predicts_the_same_observation_blocks_confirmation():
+    """Downstream saturation from a slow query looks exactly like exhaustion on the pool check."""
+    world = _World(
+        states={"hyp:pool": BeliefState.SUPPORTED, "hyp:query": BeliefState.ACTIVE},
+        relations={
+            "hyp:pool": (POOL_REL,),
+            "hyp:query": (_rival_affirming(RelationType.PREDICTS),),
+        },
+        records={"hyp:pool": (POOL_WARRANTED,)},
+    )
+    standing = _standing(world)
+    assert standing.confirmable is None
+    assert standing.undischarged == ("hyp:query",)
+
+
+def test_only_a_warranted_refutation_excludes_the_rival():
+    contra = prediction("query", "web.query_latency", "BASELINE", RelationType.CONTRADICTS)
+    refutation = observed(contra, observation="obs:latency-check", relation_id="rel:query-baseline")
+    affirming = _rival_affirming(RelationType.SUPPORTS)
+
+    def world(warranted: bool) -> _World:
+        return _World(
+            states={"hyp:pool": BeliefState.SUPPORTED, "hyp:query": BeliefState.CONTRADICTED},
+            relations={"hyp:pool": (POOL_REL,), "hyp:query": (affirming, refutation)},
+            records={
+                "hyp:pool": (POOL_WARRANTED,),
+                "hyp:query": (
+                    _record(affirming, warranted=False),
+                    _record(refutation, warranted=warranted, line="line:latency"),
+                ),
+            },
+        )
+
+    # An unwarranted refutation (the recorded `epi:6174b0fe` shape) leaves the rival standing.
+    assert _standing(world(False)).confirmable is None
+    assert _standing(world(True)).confirmable == "hyp:pool"
+
+
+def test_two_classes_supported_is_competition_not_a_choice():
+    query = prediction("query", "web.query_latency", "REGRESSED", RelationType.SUPPORTS)
+    query_rel = observed(query, observation="obs:latency-check")
+    query_record = _record(query_rel, warranted=True).model_copy(
+        update={"warrant_ref": "dds:web.timeout_causes@1.0.0#slow_query"}
+    )
+    pool_record = POOL_WARRANTED.model_copy(
+        update={"warrant_ref": "dds:web.timeout_causes@1.0.0#pool_exhaustion"}
+    )
+    world = _World(
+        states={"hyp:pool": BeliefState.SUPPORTED, "hyp:query": BeliefState.SUPPORTED},
+        relations={"hyp:pool": (POOL_REL,), "hyp:query": (query_rel,)},
+        records={"hyp:pool": (pool_record,), "hyp:query": (query_record,)},
+    )
+    standing = _standing(world)
+    assert standing.confirmable is None
+    assert standing.competing == ("hyp:pool", "hyp:query")
+
+
+def test_a_pending_answer_that_could_overturn_the_conclusion_holds_it():
+    rival_support = _rival_affirming(RelationType.SUPPORTS).model_copy(
+        update={"from_entity_id": "obs:elsewhere", "relation_id": "rel:query-elsewhere"}
+    )
+    base = {
+        "states": {"hyp:pool": BeliefState.SUPPORTED, "hyp:query": BeliefState.ACTIVE},
+        "relations": {"hyp:pool": (POOL_REL,), "hyp:query": (rival_support,)},
+        "records": {
+            "hyp:pool": (POOL_WARRANTED,),
+            "hyp:query": (_record(rival_support, warranted=False),),
+        },
+    }
+    held = _standing(_World(**base, outstanding=frozenset({"rel:query-elsewhere"})))
+    assert held.confirmable is None and held.awaiting == ("rel:query-elsewhere",)
+    assert _standing(_World(**base)).confirmable == "hyp:pool"
+
+
+def test_support_nobody_warranted_never_confirms():
+    """A belief moved by an ungated policy is SUPPORTED, not a confirmed cause."""
+    world = _World(
+        states={"hyp:pool": BeliefState.SUPPORTED, "hyp:query": BeliefState.ACTIVE},
+        relations={"hyp:pool": (POOL_REL,)},
+        records={"hyp:pool": (_record(POOL_REL, warranted=False),)},
+    )
+    assert _standing(world).confirmable is None
+
+
+def test_a_novel_mechanism_is_neither_rejected_nor_confirmed_without_a_person():
+    """An uncatalogued mechanism's support asks; it does not refuse and does not decide."""
+    novel = prediction("novel", "web.pool_wait", "SATURATED_WAITING", RelationType.SUPPORTS)
+    relation = observed(novel)
+    decision = _evaluate(_promote(), _view(_record(relation, warranted=False)), relation)
+    assert decision.outcome is TransitionOutcome.NEED_HUMAN_REVIEW
+    assert decision.outcome is not TransitionOutcome.DENY
+
+
+# -- the read path, the product targets, the event --------------------------------------------
+
+
+def _stored_allow(record: RelationEvidence) -> tuple[Any, Any, Any]:
+    from lab_brain.core.belief import authorize_transition
+    from lab_brain.core.models.belief_event import BeliefRevisionEvent, BeliefTargetType
+
+    policy = _promote()
+    view = _view(record)
+    authorization = authorize_transition(
+        decision_id="dec:toy",
+        policy=policy,
+        hypothesis=view,
+        admitted_relations=(REL,),
+        authority_policy=None,
+        independence_summary=IndependenceSummary(independent_count=1),
+        candidate_to_state=BeliefState.SUPPORTED,
+        created_at=T0,
+    )
+    assert authorization.evaluated.outcome is TransitionOutcome.ALLOW
+    event = BeliefRevisionEvent(
+        event_id="bre:toy",
+        project_id=PROJECT,
+        target_type=BeliefTargetType.HYPOTHESIS,
+        target_id="hyp:h",
+        from_state=BeliefState.ACTIVE,
+        to_state=BeliefState.SUPPORTED,
+        triggering_relation_ids=(REL.relation_id,),
+        policy_id=policy.policy_id,
+        policy_version=policy.version,
+        authorization_decision_id="dec:toy",
+        occurred_at=T0,
+        trace_id="trc:toy",
+    )
+    decisions = type("D", (), {"get": staticmethod(lambda _id: authorization)})()
+    policies = type("P", (), {"get": staticmethod(lambda _i, _v: policy)})()
+    return event, decisions, policies
+
+
+def test_a_stored_allow_whose_warrant_does_not_recheck_moves_no_belief():
+    from lab_brain.core.belief import (
+        UnverifiedBeliefRevision,
+        VerificationFailure,
+        verify_stored_revision,
+    )
+
+    event, decisions, policies = _stored_allow(_record(REL, warranted=True))
+    with pytest.raises(UnverifiedBeliefRevision) as unchecked:
+        verify_stored_revision(event=event, decisions=decisions, policies=policies)
+    assert unchecked.value.reason is VerificationFailure.WARRANT_UNVERIFIED
+
+    def forged(*_: Any) -> None:
+        raise WarrantUnverified("no such declaration")
+
+    with pytest.raises(UnverifiedBeliefRevision) as refused:
+        verify_stored_revision(
+            event=event, decisions=decisions, policies=policies, warrant_verifier=forged
+        )
+    assert refused.value.reason is VerificationFailure.WARRANT_UNVERIFIED
+    verified = verify_stored_revision(
+        event=event, decisions=decisions, policies=policies, warrant_verifier=lambda *_: None
+    )
+    assert verified.event is event
+
+
+def test_every_product_diagnosis_target_that_moves_a_belief_is_warrant_gated():
+    """A new target, or an old version slipped back in, would let a declared effect decide."""
+    from lab_brain.domains.silicon_photonics import vertical as sp
+
+    targets = sp.diagnosis_targets()
+    assert targets
+    for policy, _ in targets:
+        assert set(policy.required_relation_types) & {
+            RelationType.SUPPORTS,
+            RelationType.CONTRADICTS,
+        }
+        assert policy.diagnostic_warrant_required, f"{policy.policy_id}@{policy.version}"
+    offered = {(p.policy_id, p.version) for p in sp.vertical_transition_policies()}
+    assert ("policy:sp-vs001-promote", "1.0.0") in offered, "1.0.0 must stay re-derivable"
+
+
+def test_an_allowed_event_cites_only_the_warranted_relations():
+    """What the trace and the miner read as a cause's evidence is what was counted."""
+    from lab_brain.core.episode import counted_triggers
+    from lab_brain.core.models.attestation import Attestation
+
+    proxy = observed(SIG, observation="obs:proxy", relation_id="rel:proxy")
+    view = _view(_record(REL, warranted=True), _record(proxy, warranted=False, line="line:2"))
+    attestations = tuple(
+        cast(Attestation, type("A", (), {"attestation_id": f"att:{o}"})())
+        for o in ("obs:1", "obs:proxy")
+    )
+    relations, cited = counted_triggers(_promote(), view, (REL, proxy), attestations)
+    assert [r.relation_id for r in relations] == [REL.relation_id]
+    assert [a.attestation_id for a in cited] == ["att:obs:1"]
+    ungated, _ = counted_triggers(
+        _promote(diagnostic_warrant_required=False), view, (REL, proxy), attestations
+    )
+    assert len(ungated) == 2

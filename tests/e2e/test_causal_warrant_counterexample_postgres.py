@@ -1,133 +1,355 @@
-"""Two false-confirmation counterexamples, preserved (Causal Warrant Gate V1, design stage).
+"""The Causal Warrant Gate, end to end on PostgreSQL: the counterexamples and the controls.
 
-1. PROXY SUPPORT. Recorded reproduction: `epi:7b56877f` (2026-10-13, `prj:bench-gemini`). Two
-features together:
+1. PROXY SUPPORT. Recorded reproduction: `epi:7b56877f` (2026-10-13, `prj:bench-gemini`). The true
+mechanism (a length normalization error) was not among the rivals, and a hypothesis whose mechanism
+cannot change the normalization basis declared `sp.normalization_basis = DISAGREES -> SUPPORTS`.
+The check observed DISAGREES because of the true cause, and the loop CONFIRMED the wrong
+mechanism. Reproduced here without a model: `run_case` takes the fixture as data, so the
+counterexample is the fixture with the normalization rival's mechanism and statement replaced and
+its predictions kept -- the certificate shape the recorded run produced.
 
-    the true mechanism is absent    no rival proposed a length normalization error
-    a proxy SUPPORTS                a hypothesis whose mechanism (a missing contact-resistance
-                                    correction) cannot change the normalization basis declared
-                                    `sp.normalization_basis = DISAGREES -> SUPPORTS`
+2. SHARED SUPPORT. Found while designing the gate: when another rival also affirms the outcome --
+as SUPPORTS or as PREDICTS -- one observation does not tell the two apart. Before the gate it
+promoted both and the loop confirmed whichever hypothesis id sorted first.
 
-The check observed DISAGREES because of the true cause, every governed step did what it is
-specified to do, and the loop CONFIRMED the wrong mechanism. Nothing in the architecture asks
-whether the observable a hypothesis bound to can diagnose its mechanism; see
-`docs/implementation/causal-warrant-gate-v1.md`.
+THE CONTROLS ARE THE POINT AS MUCH AS THE COUNTEREXAMPLES. A gate that refused everything would pass
+every negative test here. So the catalog mechanism must still confirm on its own check; a mechanism
+nobody catalogued must be confirmable once a person warrants its link; and a shared observation
+must stop blocking once the rival is excluded by its own warranted refutation.
 
-2. SHARED SUPPORT. Found while designing the gate, not in a recorded run: when two rivals declare
-SUPPORTS on the same outcome, the one observation promotes both, and the loop confirms whichever
-hypothesis id sorts first -- in production a minted UUID, so the choice is arbitrary. Here the true
-cause is SUPPORTED too and the other one is confirmed, with no note.
-
-HOW IT IS REPRODUCED WITHOUT A MODEL. `run_case` takes the fixture as data, so the counterexample is
-the fixture with the normalization rival's mechanism and statement replaced and its predictions kept
--- the certificate shape the recorded run produced. The deterministic scientist proposes it, the
-real readers execute, and the real policies decide.
-
-STRICT XFAIL, AND WHAT FLIPS IT. The negative test states the property the gate must establish and
-is expected to fail with an AssertionError until the gate exists; `strict=True` turns an unexpected
-pass into a failure, so the marker has to be removed by the change that fixes it. The positive
-control is the same case with the catalog's own mechanism, and it must keep confirming.
+`docs/implementation/causal-warrant-gate-v1.md` is the design these tests hold.
 """
 
 from __future__ import annotations
 
 import copy
+import dataclasses
+import datetime as dt
+import io
 from typing import Any
 
+import psycopg
 import pytest
 
 from lab_brain.core.models.failure import ResolutionStatus
+from lab_brain.core.models.review import ReviewStatus
+from lab_brain.core.models.review_resolution import ReviewOutcome
+from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore, WarrantStoreError
+from lab_brain.domains.silicon_photonics import vertical as sp
+from lab_brain.interfaces import cli
 from lab_brain.verification.loop import StopReason
+from tests.debate_fixtures import PROJECT
+from tests.postgres_fixtures import database_url
 from tests.vertical_fixtures import case_by_id, load_fixture, run_case
 
 pytestmark = pytest.mark.postgres
 
 CASE = "normalization-taper"
 PROXY_MECHANISM = "missing contact-resistance correction"
+NOVEL_MECHANISM = "taper sections counted into the normalization length"
+DOMAIN_REF = "dds:sp.rs_anomaly_mechanisms@1.0.0#normalization_error"
+REVIEWER = "act:pi"
+T0 = dt.datetime(2026, 10, 14, 9, 0, tzinfo=dt.UTC)
 
 
-def _proxy_fixture() -> dict[str, Any]:
-    """The fixture with the true mechanism replaced by one its own check cannot diagnose."""
-    fx = copy.deepcopy(load_fixture())
-    proxy = fx["mechanisms"]["normalization_error"]
-    proxy["mechanism"] = PROXY_MECHANISM
-    proxy["statement"] = (
-        "The extraction omits the contact-resistance correction term, leaving the reported series "
-        "resistance uncorrected."
+def _queue(db: Any) -> None:
+    """A review queue and an accountable reviewer, so a warrant can be asked for and answered."""
+    db.execute(
+        "INSERT INTO projects (project_id, name) VALUES (%s, 'M3') ON CONFLICT DO NOTHING",
+        (PROJECT,),
     )
-    proxy["falsifier"] = "the normalization basis agrees, so the correction was not missing"
-    return fx
+    db.execute(
+        "INSERT INTO actors (actor_id, actor_type, display_name) VALUES (%s, 'HUMAN', %s)"
+        " ON CONFLICT DO NOTHING",
+        (REVIEWER, REVIEWER),
+    )
+    db.execute(
+        "INSERT INTO project_memberships (actor_id, project_id, role, sensitivity_clearance,"
+        " approval_scopes, active) VALUES (%s, %s, 'PI', ARRAY['PUBLIC', 'INTERNAL'],"
+        " ARRAY[]::text[], TRUE) ON CONFLICT DO NOTHING",
+        (REVIEWER, PROJECT),
+    )
+    db.execute(
+        "INSERT INTO review_queue_policies (policy_id, version, project_id, capacity,"
+        " default_sla_minutes, default_expiry_minutes, declared_by_actor_id, effective_from,"
+        " active) VALUES ('rqp:test', '1.0.0', %s, 10, 60, 600, %s, %s, TRUE)",
+        (PROJECT, REVIEWER, T0),
+    )
 
 
-def _shared_outcome_fixture() -> dict[str, Any]:
-    """The contact rival also claims the normalization check's outcomes, as its own pair does.
-
-    An outcome two rivals both declare as SUPPORTS discriminates neither of them.
-    """
+def _renamed(mechanism: str, statement: str) -> dict[str, Any]:
+    """The fixture with the normalization rival's mechanism and statement replaced."""
     fx = copy.deepcopy(load_fixture())
-    shared = copy.deepcopy(fx["mechanisms"]["normalization_error"]["predictions"])
-    contact = fx["mechanisms"]["contact_discontinuity"]
-    contact["predictions"] = [*contact["predictions"], *shared]
+    rival = fx["mechanisms"]["normalization_error"]
+    rival["mechanism"] = mechanism
+    rival["statement"] = statement
     return fx
 
 
-def test_the_catalog_mechanism_still_confirms_on_its_own_check(db):
-    """Positive control: the declared mechanism and its declared check confirm the true cause."""
+def _proxy() -> dict[str, Any]:
+    return _renamed(
+        PROXY_MECHANISM,
+        "The extraction omits the contact-resistance correction term, leaving the reported series "
+        "resistance uncorrected.",
+    )
+
+
+def _shared(effect: str) -> dict[str, Any]:
+    """The contact rival also affirms the normalization check's DISAGREES, as `effect`."""
+    fx = copy.deepcopy(load_fixture())
+    contact = fx["mechanisms"]["contact_discontinuity"]
+    affirm = next(
+        p
+        for p in fx["mechanisms"]["normalization_error"]["predictions"]
+        if p["relation_effect"] == "SUPPORTS"
+    )
+    contact["predictions"] = [*contact["predictions"], {**affirm, "relation_effect": effect}]
+    return fx
+
+
+def _promoted(run: Any) -> set[str]:
+    return {
+        str(run.mechanism_of(t.hypothesis_id))
+        for s in run.result.steps
+        for t in s.transitions
+        if t.to_state == "SUPPORTED" and t.event_id
+    }
+
+
+# -- controls -----------------------------------------------------------------------------------
+
+
+def test_the_catalog_mechanism_confirms_on_its_own_check_with_a_domain_warrant(db):
     fx = load_fixture()
     run = run_case(db, fx, case_by_id(fx, CASE))
+    analysis = run.result.failure_analysis
     assert run.result.stop_reason is StopReason.CONFIRMED
     assert run.mechanism_of(run.result.confirmed_root_cause) == "normalization_error"
-    assert run.result.failure_analysis.failure_class == "length normalization error"
+    assert analysis.failure_class == "length normalization error"
+    assert analysis.warrant_refs == (DOMAIN_REF,)
 
 
-def test_the_counterexample_reproduces_the_recorded_mechanism(db):
-    """Characterises today's path, so the xfail below cannot pass for an unrelated reason."""
-    fx = _proxy_fixture()
+def test_a_person_can_warrant_an_uncatalogued_mechanism_and_only_then_it_confirms(db):
+    """A genuinely new account of the true cause is not refused -- and not confirmed unasked."""
+    _queue(db)
+    fx = _renamed(
+        NOVEL_MECHANISM,
+        "The extraction divides by a length that includes the tapers, so Rs per length is high.",
+    )
     run = run_case(db, fx, case_by_id(fx, CASE))
-    mechanisms = {c.hypothesis.mechanism for c in run.debate.certificates}
-    assert PROXY_MECHANISM in mechanisms
-    assert "length normalization error" not in mechanisms
+    assert run.result.failure_analysis.resolution_status is not ResolutionStatus.CONFIRMED
+    assert "normalization_error" not in _promoted(run)
+    store = SqlDiagnosticWarrantStore(db)
+    (review,) = store.outstanding(PROJECT)
+    assert review.subject_type.value == "DIAGNOSTIC_WARRANT"
+
+    grant = store.resolve(
+        resolution_id="res:warrant-1",
+        grant_id="dwg:1",
+        review_id=review.review_id,
+        project_id=PROJECT,
+        outcome=ReviewOutcome.APPROVED,
+        actor_id=REVIEWER,
+        rationale="a taper-inclusive length is exactly what makes the bases disagree",
+        considered_rival_ids=tuple(sorted(run.certificates_by_mechanism.values())),
+        resolved_at=T0,
+    )
+    assert run.loop is not None and run.request is not None
+    resumed = run.loop.run(run.request)
+    assert resumed.stop_reason is StopReason.CONFIRMED
+    assert resumed.failure_analysis.failure_class == NOVEL_MECHANISM
+    assert resumed.failure_analysis.warrant_refs == (grant.grant_id,)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "Causal Warrant Gate V1 is not implemented: a SUPPORTS whose diagnostic link nobody "
-        "accountable has warranted still confirms a root cause"
-    ),
-)
-def test_a_support_on_a_non_diagnostic_observable_does_not_confirm(db):
-    fx = _proxy_fixture()
+# -- proxy support --------------------------------------------------------------------------------
+
+
+def test_a_proxy_support_is_never_promoted_and_a_person_is_asked(db):
+    _queue(db)
+    fx = _proxy()
     run = run_case(db, fx, case_by_id(fx, CASE))
     analysis = run.result.failure_analysis
-    assert analysis.resolution_status is not ResolutionStatus.CONFIRMED, (
-        f"{analysis.confirmed_root_cause} confirmed as {analysis.failure_class!r} on "
-        "sp.normalization_basis, an observable its mechanism cannot change"
-    )
+    assert analysis.resolution_status is not ResolutionStatus.CONFIRMED
+    assert analysis.resolution_status is ResolutionStatus.OPEN
+    assert "normalization_error" not in _promoted(run)
+    proxy = run.certificates_by_mechanism["normalization_error"]
+    (review,) = SqlDiagnosticWarrantStore(db).outstanding(PROJECT)
+    asked = db.execute(
+        "SELECT to_entity_id, relation_type, attributes ->> 'outcome' FROM relation_judgments"
+        " WHERE relation_id = %s",
+        (review.subject_id,),
+    ).fetchone()
+    assert tuple(asked) == (proxy, "SUPPORTS", "DISAGREES")
+    # The relation names who claimed what the outcome means -- the prediction's author -- not
+    # only the person who ran the episode.
+    authored = db.execute(
+        "SELECT r.inference_provenance_id, p.inference_provenance_id FROM relation_judgments r"
+        " JOIN predictions p ON p.prediction_id = r.attributes ->> 'prediction_id'"
+        " WHERE r.relation_id = %s",
+        (review.subject_id,),
+    ).fetchone()
+    assert authored[0] is not None and authored[0] == authored[1]
+    refusals = [
+        t.refusal for s in run.result.steps for t in s.transitions if t.hypothesis_id == proxy
+    ]
+    assert refusals and all(r and r.startswith("DIAGNOSTIC_WARRANT_MISSING") for r in refusals)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "Causal Warrant Gate V1 is not implemented: two rivals SUPPORTED on one shared outcome "
-        "and the loop confirms the one whose id sorts first"
-    ),
-)
-def test_a_confirmed_cause_has_no_rival_supported_beside_it(db):
-    fx = _shared_outcome_fixture()
+def test_without_a_review_queue_the_question_is_recorded_and_the_belief_stays(db):
+    """Fail closed: nobody can be asked, so nothing moves, and the record says why."""
+    fx = _proxy()
     run = run_case(db, fx, case_by_id(fx, CASE))
-    supported = sorted(
-        {
-            str(run.mechanism_of(t.hypothesis_id))
-            for s in run.result.steps
-            for t in s.transitions
-            if t.to_state == "SUPPORTED" and t.event_id
-        }
+    assert run.result.failure_analysis.resolution_status is not ResolutionStatus.CONFIRMED
+    proxy = run.certificates_by_mechanism["normalization_error"]
+    refusals = [
+        t.refusal or "" for s in run.result.steps for t in s.transitions if t.hypothesis_id == proxy
+    ]
+    assert any("no active review queue policy" in r for r in refusals)
+
+
+def test_a_refused_warrant_never_counts_and_is_not_asked_again(db):
+    _queue(db)
+    fx = _proxy()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    store = SqlDiagnosticWarrantStore(db)
+    (review,) = store.outstanding(PROJECT)
+    store.resolve(
+        resolution_id="res:warrant-2",
+        grant_id="dwg:2",
+        review_id=review.review_id,
+        project_id=PROJECT,
+        outcome=ReviewOutcome.REJECTED,
+        actor_id=REVIEWER,
+        rationale="a missing contact-resistance term cannot change the normalization length",
+        considered_rival_ids=(),
+        resolved_at=T0,
     )
-    confirmed = run.result.failure_analysis.resolution_status is ResolutionStatus.CONFIRMED
-    assert not (confirmed and len(supported) > 1), (
-        f"confirmed {run.mechanism_of(run.result.confirmed_root_cause)} while {supported} were "
-        "all SUPPORTED by the same normalization-basis outcome"
+    with pytest.raises(WarrantStoreError, match="already"):
+        store.resolve(
+            resolution_id="res:warrant-3",
+            grant_id="dwg:3",
+            review_id=review.review_id,
+            project_id=PROJECT,
+            outcome=ReviewOutcome.APPROVED,
+            actor_id=REVIEWER,
+            rationale="second thoughts",
+            considered_rival_ids=(),
+            resolved_at=T0,
+        )
+    assert run.loop is not None and run.request is not None
+    # Resumed with nothing runnable, so the loop re-evaluates every belief and executes nothing.
+    resumed = run.loop.run(dataclasses.replace(run.request, available_inputs=frozenset()))
+    assert resumed.failure_analysis.resolution_status is not ResolutionStatus.CONFIRMED
+    assert "normalization_error" not in _promoted(run)
+    assert store.outstanding(PROJECT) == ()
+    asked = db.execute(
+        "SELECT count(*) FROM review_items WHERE subject_type = 'DIAGNOSTIC_WARRANT'"
+    ).fetchone()
+    assert asked[0] == 1, "a refused warrant is an answer, not a question to ask again"
+    status = db.execute(
+        "SELECT status FROM review_items WHERE review_id = %s", (review.review_id,)
+    ).fetchone()
+    assert status[0] == ReviewStatus.REJECTED.value
+
+
+def test_only_a_human_member_of_the_project_can_answer(db):
+    _queue(db)
+    fx = _proxy()
+    run_case(db, fx, case_by_id(fx, CASE))
+    store = SqlDiagnosticWarrantStore(db)
+    (review,) = store.outstanding(PROJECT)
+    with pytest.raises(WarrantStoreError, match="not an active human member"):
+        store.resolve(
+            resolution_id="res:warrant-4",
+            grant_id="dwg:4",
+            review_id=review.review_id,
+            project_id=PROJECT,
+            outcome=ReviewOutcome.APPROVED,
+            actor_id="act:nobody",
+            rationale="r",
+            considered_rival_ids=(),
+            resolved_at=T0,
+        )
+
+
+# -- shared support -------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("effect", ["SUPPORTS", "PREDICTS"])
+def test_a_shared_observation_confirms_only_after_the_rival_is_excluded_by_its_own_check(
+    db, effect
+):
+    """The rival's own declared check refutes it; then, and only then, the true cause stands."""
+    fx = _shared(effect)
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    steps = run.result.steps
+    assert steps[0].chosen == sp.CAP_EXTRACTION_CONSISTENCY
+    assert sp.CAP_INSPECT_CONNECTIVITY in [s.chosen for s in steps[1:]], (
+        "the loop must test the rival that shares the observation before confirming"
     )
+    assert run.result.stop_reason is StopReason.CONFIRMED
+    assert run.mechanism_of(run.result.confirmed_root_cause) == "normalization_error"
+    assert "contact_discontinuity" not in _promoted(run)
+
+
+@pytest.mark.parametrize("effect", ["SUPPORTS", "PREDICTS"])
+def test_a_shared_observation_whose_rival_cannot_be_tested_confirms_nothing(db, effect):
+    fx = _shared(effect)
+    case = {**case_by_id(fx, CASE), "unavailable": [sp.CAP_INSPECT_CONNECTIVITY]}
+    run = run_case(db, fx, case)
+    analysis = run.result.failure_analysis
+    assert analysis.resolution_status is not ResolutionStatus.CONFIRMED
+    assert "normalization_error" in _promoted(run), "its support is warranted; it is SUPPORTED"
+    assert any("does not tell them apart" in note for note in run.result.notes), run.result.notes
+
+
+def test_the_report_names_the_unproposed_class_whose_signature_was_observed(db):
+    """The recorded failure's missing rival, named without adding a hypothesis or moving a belief."""
+    _queue(db)
+    fx = _proxy()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    assert any(
+        "declared signature of 'length normalization error'" in note
+        and "no hypothesis in this set states" in note
+        for note in run.result.notes
+    ), run.result.notes
+
+
+def test_a_person_answers_through_the_command_line(db):
+    _queue(db)
+    fx = _proxy()
+    run_case(db, fx, case_by_id(fx, CASE))
+    (review,) = SqlDiagnosticWarrantStore(db).outstanding(PROJECT)
+
+    def cli_run(*argv: str) -> tuple[int, str]:
+        out = io.StringIO()
+        code = cli.main(
+            list(argv),
+            out=out,
+            env={"LAB_BRAIN_DATABASE_URL": database_url()},
+            connect=lambda s: psycopg.connect(s.dsn, autocommit=True),
+        )
+        return code, out.getvalue()
+
+    who = ("--project", PROJECT, "--actor", REVIEWER)
+    code, listed = cli_run("review", "list", *who)
+    assert code == 0 and review.review_id in listed
+    code, packet = cli_run("review", "show", review.review_id, *who)
+    assert code == 0 and PROXY_MECHANISM in packet and "DISAGREES SUPPORTS" in packet
+    code, refused = cli_run("review", "list", "--project", PROJECT, "--actor", "act:nobody")
+    assert code == 1 and review.review_id not in refused
+    code, answered = cli_run(
+        "review",
+        "resolve",
+        review.review_id,
+        *who,
+        "--outcome",
+        "REJECTED",
+        "--rationale",
+        "a missing contact-resistance term cannot change the normalization length",
+    )
+    assert code == 0 and "NOT_WARRANTED" in answered
+    code, again = cli_run(
+        "review", "resolve", review.review_id, *who, "--outcome", "APPROVED", "--rationale", "x"
+    )
+    assert code == 1

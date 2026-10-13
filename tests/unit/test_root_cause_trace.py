@@ -39,6 +39,8 @@ from tests.job_fixtures import make_run
 PROJECT = "prj:m3"
 HYP = "hyp:contact"
 T0 = dt.datetime(2026, 9, 27, 9, 0, tzinfo=dt.UTC)
+#: The DOMAIN warrant a confirmation of the contact mechanism on its own check rests on.
+WARRANT = "dds:sp.rs_anomaly_mechanisms@1.0.0#contact_discontinuity"
 
 
 class Chain:
@@ -181,10 +183,12 @@ def test_a_confirmed_analysis_names_its_traced_evidence_and_only_a_root_cause_se
         expected_behavior="design Rs",
         observed_behavior="several times design",
         failure_class="access contact discontinuity",
+        warrant_refs=(WARRANT,),
         created_at=T0,
     )
     assert analysis.resolution_status is ResolutionStatus.CONFIRMED
     assert analysis.root_cause_evidence_ids == ("att:inspection",)
+    assert analysis.warrant_refs == (WARRANT,)
     with pytest.raises(RootCauseRefused) as refused:
         confirm_root_cause(
             hypothesis_set=make_set("hst:routine", project_id=PROJECT, root_cause=False),
@@ -196,9 +200,27 @@ def test_a_confirmed_analysis_names_its_traced_evidence_and_only_a_root_cause_se
             expected_behavior="e",
             observed_behavior="o",
             failure_class="c",
+            warrant_refs=(WARRANT,),
             created_at=T0,
         )
     assert refused.value.reason is RootCauseRefusal.NOT_A_ROOT_CAUSE_CANDIDATE
+    # Causal Warrant Gate: a trace proves an observation, not a cause. Without a warrant for the
+    # traced relation, the same trace confirms nothing.
+    with pytest.raises(RootCauseRefused) as unwarranted:
+        confirm_root_cause(
+            hypothesis_set=hypothesis_set,
+            hypothesis_id=HYP,
+            candidate_causes=(HYP, "hyp:mesh"),
+            trace=trace,
+            failure_analysis_id="fan:3",
+            symptom="Rs high and flat",
+            expected_behavior="design Rs",
+            observed_behavior="several times design",
+            failure_class="access contact discontinuity",
+            warrant_refs=(),
+            created_at=T0,
+        )
+    assert unwarranted.value.reason is RootCauseRefusal.UNWARRANTED
 
 
 def _analysis(**overrides: Any) -> dict[str, Any]:
@@ -215,6 +237,7 @@ def _analysis(**overrides: Any) -> dict[str, Any]:
         "failure_class": "access contact discontinuity",
         "resolution_status": ResolutionStatus.CONFIRMED,
         "created_at": T0,
+        "warrant_refs": (WARRANT,),
     }
     fields.update(overrides)
     return fields
@@ -281,6 +304,26 @@ def test_recurring_confirmed_failures_become_one_pending_review_candidate():
         )
         == ()
     )
+    # Two recurring confirmations that name no warrant -- recorded before the Causal Warrant Gate
+    # -- stay on record and generalise nothing.
+    unwarranted = [
+        FailureAnalysis(
+            **_analysis(
+                failure_analysis_id=f"fan:pre{n}", episode_id=f"epi:pre{n}", warrant_refs=()
+            )
+        )
+        for n in (1, 2)
+    ]
+    assert (
+        mine_candidate_heuristics(
+            unwarranted,
+            evidence_for={f.failure_analysis_id: evidence["fan:1"] for f in unwarranted},
+            existing=(),
+            mint=_mint(),
+            now=lambda: T0,
+        )
+        == ()
+    )
     with pytest.raises(ValidationError):
         CandidateHeuristic.model_validate({**candidate.model_dump(), "status": "ACTIVE"})
     with pytest.raises(ValidationError):
@@ -302,6 +345,9 @@ def test_the_in_memory_failure_store_is_append_only_and_candidates_rest_on_confi
             )
         )
     )
+    # A confirmation recorded before the Causal Warrant Gate names no warrant: it stays on record
+    # and is not a precedent (the shape of the deployed `fan:30d9407f`).
+    store.add_analysis(FailureAnalysis(**_analysis(failure_analysis_id="fan:pre", warrant_refs=())))
     assert store.similar_failures(PROJECT, "  rs HIGH and flat ") == ("fan:1",)
     assert store.similar_failures("prj:other", "Rs high and flat") == ()
     candidate = CandidateHeuristic(

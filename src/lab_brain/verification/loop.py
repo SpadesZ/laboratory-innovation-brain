@@ -79,8 +79,10 @@ from lab_brain.core.models.transition import (
     HypothesisView,
     IndependenceSummary,
     TransitionOutcome,
+    TransitionReason,
 )
 from lab_brain.core.models.verification import SelectionPolicy, VerificationPlan
+from lab_brain.core.models.warrant import DiagnosticDeclarationSet
 from lab_brain.core.repositories.failures import FailureStore
 from lab_brain.core.repositories.jobs import JobStore
 from lab_brain.core.repositories.verification_plans import VerificationPlanStore
@@ -93,6 +95,7 @@ from lab_brain.core.root_cause import (
     mine_candidate_heuristics,
     trace_root_cause,
 )
+from lab_brain.core.warrant import evidence_line, observed_link
 from lab_brain.evidence.condition_schema_registry import ConditionSchemaRegistry
 from lab_brain.ingestion.admission_gate import AdmissionRequest
 from lab_brain.tools.contracts import ToolRequest
@@ -125,12 +128,37 @@ class StopReason(StrEnum):
     BUDGET_BLOCKED = "BUDGET_BLOCKED"
     EXECUTION_FAILED = "EXECUTION_FAILED"
     MAX_STEPS = "MAX_STEPS"
+    #: Causal Warrant Gate. A person owes an answer on whether an observed outcome diagnoses a
+    #: hypothesis's mechanism, and nothing else the loop could do would settle the question.
+    AWAITING_REVIEW = "AWAITING_REVIEW"
+    #: A member is SUPPORTED, but its support does not discriminate it: a rival affirms the same
+    #: observation and nothing warranted excludes that rival, or the support itself is unwarranted.
+    SUPPORTED_UNDISCRIMINATED = "SUPPORTED_UNDISCRIMINATED"
+    #: Two members of different classes are SUPPORTED. The loop names both and confirms neither --
+    #: never the one whose id happens to sort first.
+    COMPETING_SUPPORT = "COMPETING_SUPPORT"
 
 
 #: Stops that wait on something outside the loop; the analysis stays OPEN.
 _WAITING = frozenset(
-    {StopReason.HUMAN_ACTION_REQUIRED, StopReason.AWAITING_RESOURCE, StopReason.BUDGET_BLOCKED}
+    {
+        StopReason.HUMAN_ACTION_REQUIRED,
+        StopReason.AWAITING_RESOURCE,
+        StopReason.BUDGET_BLOCKED,
+        StopReason.AWAITING_REVIEW,
+        StopReason.SUPPORTED_UNDISCRIMINATED,
+    }
 )
+
+#: Planner stops that mean "nothing more to do here" -- where an unconfirmed SUPPORTED member or
+#: an unanswered warrant review is the more precise account of why the loop ended.
+_EXHAUSTED = frozenset(
+    {StopReason.NO_SUFFICIENT_ACTION, StopReason.REVISION_REFUSED, StopReason.MAX_STEPS}
+)
+
+#: Relation types that affirm an outcome: a rival holding one from the observation that supports
+#: a candidate means that observation does not tell the two apart.
+_AFFIRMING = frozenset({RelationType.SUPPORTS, RelationType.PREDICTS})
 
 
 class Planner(Protocol):
@@ -215,6 +243,14 @@ class AdmissionGate(Protocol):
     def admit(self, request: AdmissionRequest) -> Attestation: ...
 
 
+class WarrantReviews(Protocol):
+    """Which gated relations still wait on a person's warrant answer (`012o`)."""
+
+    def outstanding_relations(
+        self, project_id: str, relation_ids: Sequence[str]
+    ) -> frozenset[str]: ...
+
+
 @dataclass(frozen=True)
 class LoopDependencies:
     planner: Planner
@@ -233,6 +269,30 @@ class LoopDependencies:
     failures: FailureStore
     mint: Callable[[str], str]
     now: Callable[[], dt.datetime]
+    #: Outstanding DIAGNOSTIC_WARRANT reviews. None means none can exist, so none are waited on.
+    warrant_reviews: WarrantReviews | None = None
+    #: The active diagnostic declaration set, so the planner can project which results a DOMAIN
+    #: warrant would cover. The same set the belief path's resolver uses.
+    declarations: DiagnosticDeclarationSet | None = None
+
+
+@dataclass(frozen=True)
+class Standing:
+    """Where the root-cause set stands after a revision, for the confirmation rule.
+
+    A cause is confirmed only when exactly one class is SUPPORTED by warranted support, no other
+    member affirms the observation that support rests on unless a warranted refutation excludes
+    it, the candidate carries no warranted refutation of its own, and no person still owes an
+    answer that could overturn the conclusion. Confirmation is relative to the members proposed
+    and the domain's declarations -- a mechanism nobody named is not excluded by any of this.
+    """
+
+    supported: tuple[str, ...] = ()
+    confirmable: str | None = None
+    competing: tuple[str, ...] = ()
+    undischarged: tuple[str, ...] = ()
+    awaiting: tuple[str, ...] = ()
+    notes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -322,11 +382,17 @@ class VerificationLoop:
         steps: list[LoopStep] = []
         notes: list[str] = []
         stop = StopReason.MAX_STEPS
+        asked: set[tuple[str, str]] = set()
         for index in range(request.max_steps):
-            transitions = self._revise(request, notes)
-            if self._supported(request):
+            transitions = self._revise(request, notes, asked)
+            standing = self.standing(request)
+            if standing.confirmable is not None:
                 steps.append(LoopStep(index=index, transitions=transitions))
                 stop = StopReason.CONFIRMED
+                break
+            if standing.competing:
+                steps.append(LoopStep(index=index, transitions=transitions))
+                stop = StopReason.COMPETING_SUPPORT
                 break
             result = d.planner.plan(
                 project_id=request.project_id,
@@ -403,6 +469,12 @@ class VerificationLoop:
                     }
                 )
             )
+        if stop in _EXHAUSTED:
+            standing = self.standing(request)
+            if standing.awaiting:
+                stop = StopReason.AWAITING_REVIEW
+            elif standing.supported:
+                stop = StopReason.SUPPORTED_UNDISCRIMINATED
         return self._conclude(request, stop, tuple(steps), tuple(notes))
 
     # -- reads for callers ----------
@@ -421,7 +493,9 @@ class VerificationLoop:
 
     # -- 1. revise ----------
 
-    def _revise(self, request: LoopRequest, notes: list[str]) -> tuple[Transition, ...]:
+    def _revise(
+        self, request: LoopRequest, notes: list[str], asked: set[tuple[str, str]]
+    ) -> tuple[Transition, ...]:
         d = self._d
         done: list[Transition] = []
         for certificate in sorted(request.certificates, key=lambda c: c.hypothesis_id):
@@ -457,6 +531,29 @@ class VerificationLoop:
                     verdict = policy.evaluate(
                         view, admitted, d.authority_policy, matches, independence, target.to_state
                     )
+                    if (
+                        verdict.outcome is TransitionOutcome.NEED_HUMAN_REVIEW
+                        and verdict.reason_code is TransitionReason.DIAGNOSTIC_WARRANT_MISSING
+                        and (hypothesis_id, policy.policy_id) not in asked
+                    ):
+                        # A warrant would decide this move, so a person is asked -- once per run:
+                        # the attempt records the decision and queues one review per relation.
+                        asked.add((hypothesis_id, policy.policy_id))
+                        for note in self._unclaimed_signatures(request, certificate, admitted):
+                            if note not in notes:
+                                notes.append(note)
+                        done.append(
+                            self._attempt(
+                                request,
+                                hypothesis_id,
+                                target,
+                                state,
+                                admitted,
+                                matches,
+                                independence,
+                            )
+                        )
+                        continue
                     if verdict.outcome is not TransitionOutcome.ALLOW:
                         continue
                     transition = self._attempt(
@@ -506,13 +603,16 @@ class VerificationLoop:
                 hypothesis_id, ref, state.value, target.to_state.value, None, str(refused)
             )
         event = result.event
+        refusal = None if event is not None else result.decision.reason_code.value
+        if refusal is not None and result.warrant_review_refusal is not None:
+            refusal = f"{refusal}: {result.warrant_review_refusal}"
         return Transition(
             hypothesis_id,
             ref,
             state.value,
             target.to_state.value,
             None if event is None else event.event_id,
-            None if event is not None else result.decision.reason_code.value,
+            refusal,
         )
 
     # -- 3/4. plan inputs and execution ----------
@@ -527,6 +627,13 @@ class VerificationLoop:
             admitted = d.evidence.admitted_for_subject(
                 request.project_id, certificate.hypothesis_id
             )
+            bound = (
+                None
+                if d.declarations is None
+                else d.declarations.bound_class(
+                    certificate.hypothesis.mechanism, certificate.predictions
+                )
+            )
             states.append(
                 HypothesisState(
                     view=d.belief.hypothesis_view(
@@ -540,6 +647,12 @@ class VerificationLoop:
                     predictions=certificate.predictions,
                     condition_matches=self._matches(admitted),
                     independence=self._independence(request.project_id, admitted),
+                    declaration=bound,
+                    declaration_ref=(
+                        None
+                        if bound is None or d.declarations is None
+                        else d.declarations.domain_ref(bound)
+                    ),
                 )
             )
         return tuple(states)
@@ -669,11 +782,156 @@ class VerificationLoop:
         )
         return projection.current_state
 
-    def _supported(self, request: LoopRequest) -> str | None:
-        for certificate in sorted(request.certificates, key=lambda c: c.hypothesis_id):
-            if self._state(request, certificate.hypothesis_id) is BeliefState.SUPPORTED:
-                return certificate.hypothesis_id
-        return None
+    def standing(self, request: LoopRequest) -> Standing:
+        """The confirmation rule over the set as it stands now (see `Standing`). Read-only."""
+        d = self._d
+        ids = sorted(c.hypothesis_id for c in request.certificates)
+        states = {h: self._state(request, h) for h in ids}
+        admitted = {h: d.evidence.admitted_for_subject(request.project_id, h) for h in ids}
+        records = {
+            h: d.belief.hypothesis_view(
+                project_id=request.project_id,
+                hypothesis_id=h,
+                current_state=states[h] or BeliefState.ACTIVE,
+                stakes=request.hypothesis_set.stakes,
+                admitted_relations=admitted[h],
+            ).relation_evidence
+            for h in ids
+        }
+        supported = tuple(h for h in ids if states[h] is BeliefState.SUPPORTED)
+        gated = {
+            r.relation_id: (h, r.relation_type) for h in ids for r in records[h] if not r.warranted
+        }
+        outstanding = (
+            frozenset()
+            if d.warrant_reviews is None or not gated
+            else d.warrant_reviews.outstanding_relations(request.project_id, sorted(gated))
+        )
+        if not supported:
+            return Standing(awaiting=tuple(sorted(outstanding)))
+
+        def classes(h: str) -> frozenset[str]:
+            return frozenset(
+                r.warrant_ref.split("#", 1)[1]
+                for r in records[h]
+                if r.relation_type is RelationType.SUPPORTS
+                and r.warrant_ref is not None
+                and r.warrant_ref.startswith("dds:")
+            )
+
+        # Members bound to one declared class are one candidate, whatever they are called.
+        keys = {h: (sorted(classes(h))[0] if len(classes(h)) == 1 else h) for h in supported}
+        if len(set(keys.values())) > 1:
+            return Standing(
+                supported=supported,
+                competing=supported,
+                awaiting=tuple(sorted(outstanding)),
+                notes=(
+                    f"{', '.join(supported)} are SUPPORTED as different mechanisms; the loop "
+                    "confirms neither",
+                ),
+            )
+        candidate = supported[0]
+        same = set(supported)
+        notes: list[str] = []
+        if len(same) > 1:
+            notes.append(
+                f"{', '.join(sorted(same))} state one declared class; {candidate} stands for it"
+            )
+        warranted = {
+            r.relation_id
+            for r in records[candidate]
+            if r.relation_type is RelationType.SUPPORTS and r.warranted
+        }
+        observations = {r.from_entity_id for r in admitted[candidate] if r.relation_id in warranted}
+        undischarged: list[str] = []
+        if not warranted:
+            undischarged.append(candidate)
+            notes.append(
+                f"{candidate} is SUPPORTED on support nobody accountable has warranted -- a "
+                "policy that did not require a warrant moved it; it is not confirmed"
+            )
+        if any(
+            r.relation_type is RelationType.CONTRADICTS and r.warranted for r in records[candidate]
+        ):
+            undischarged.append(candidate)
+            notes.append(f"{candidate} also holds a warranted refutation; it is not confirmed")
+        for rival in ids:
+            if rival in same:
+                continue
+            affirming = sorted(
+                r.relation_id
+                for r in admitted[rival]
+                if r.from_entity_id in observations and r.relation_type in _AFFIRMING
+            )
+            excluded = any(
+                r.relation_type is RelationType.CONTRADICTS and r.warranted for r in records[rival]
+            )
+            if affirming and not excluded:
+                undischarged.append(rival)
+                notes.append(
+                    f"{rival} affirms the observation supporting {candidate} "
+                    f"({', '.join(affirming)}) and nothing warranted excludes it, so that "
+                    "observation does not tell them apart"
+                )
+        # A pending answer that could overturn the conclusion: a rival's support, or a refutation
+        # of the candidate. A rival's pending refutation or the candidate's own pending support
+        # could only strengthen it.
+        threatening = tuple(
+            sorted(
+                relation_id
+                for relation_id in outstanding
+                if (gated[relation_id][0] != candidate)
+                == (gated[relation_id][1] is RelationType.SUPPORTS)
+            )
+        )
+        if threatening:
+            notes.append(
+                f"a person still owes an answer on {', '.join(threatening)}, which could change "
+                f"whether {candidate} is the cause"
+            )
+        return Standing(
+            supported=supported,
+            confirmable=None if undischarged or threatening else candidate,
+            undischarged=tuple(dict.fromkeys(undischarged)),
+            awaiting=tuple(sorted(outstanding)),
+            notes=tuple(notes),
+        )
+
+    def _unclaimed_signatures(
+        self,
+        request: LoopRequest,
+        certificate: HypothesisCertificate,
+        admitted: Sequence[RelationJudgment],
+    ) -> tuple[str, ...]:
+        """Say so when an outcome a person is asked about is a declared class's signature that no
+        rival states.
+
+        In `epi:7b56877f` the observed DISAGREES was the declared signature of a length
+        normalization error -- the true cause, which nobody had proposed. The note names it for the
+        reviewer and the report; it moves no belief and adds no hypothesis.
+        """
+        declarations = self._d.declarations
+        if declarations is None:
+            return ()
+        stated = {c.hypothesis.mechanism for c in request.certificates}
+        predictions = {p.prediction_id: p for p in certificate.predictions}
+        notes: list[str] = []
+        for relation in sorted(admitted, key=lambda r: r.relation_id):
+            prediction = predictions.get(str(relation.attributes.get("prediction_id")))
+            if relation.relation_type is not RelationType.SUPPORTS or prediction is None:
+                continue
+            link = observed_link(relation, prediction)
+            owner = None if link is None else declarations.signature_of(link)
+            if owner is None or owner.mechanism in stated:
+                continue
+            notes.append(
+                f"{relation.relation_id}: the observed {link[3] if link else ''} is the declared "
+                f"signature of '{owner.mechanism}' ({declarations.domain_ref(owner)}), which no "
+                f"hypothesis in this set states -- {certificate.hypothesis_id} claims it for "
+                f"'{certificate.hypothesis.mechanism}'"
+            )
+        return tuple(notes)
 
     def _matches(self, admitted: Sequence[RelationJudgment]) -> tuple[ConditionMatch, ...]:
         refs = sorted({r.condition_match_ref for r in admitted if r.condition_match_ref})
@@ -690,19 +948,28 @@ class VerificationLoop:
     def _independence(
         self, project_id: str, admitted: Sequence[RelationJudgment]
     ) -> IndependenceSummary:
-        runs: set[str] = set()
+        """WORK independence over evidence LINES: replicates of one computation count once.
+
+        A line is the execution's capability, backend, input artefacts (content-addressed) and
+        parameters -- `core.warrant.evidence_line`. Re-running a deterministic check on the same
+        file is not a second piece of evidence, and counting it as one is how a repeated proxy
+        observation could stand in for independent support.
+        """
+        lines: set[str] = set()
         unknown = 0
         for attestation in self._supporting_attestations(project_id, admitted):
             run_id = attestation.run_id
             if run_id is None and attestation.observation_id is not None:
                 observation = self._d.evidence.observation(project_id, attestation.observation_id)
                 run_id = None if observation is None else observation.run_id
-            if run_id is None:
+            run = None if run_id is None else self._d.jobs.get_run(run_id)
+            line = None if run is None else evidence_line((run,))
+            if line is None:
                 unknown += 1
             else:
-                runs.add(run_id)
+                lines.add(line)
         return IndependenceSummary(
-            basis=IndependenceBasis.WORK, independent_count=len(runs), unknown_count=unknown
+            basis=IndependenceBasis.WORK, independent_count=len(lines), unknown_count=unknown
         )
 
     # -- conclusion ----------
@@ -729,9 +996,11 @@ class VerificationLoop:
     ) -> LoopResult:
         d = self._d
         causes = tuple(sorted(c.hypothesis_id for c in request.certificates))
-        supported = self._supported(request)
+        standing = self.standing(request)
+        supported = standing.confirmable
         trace: RootCauseTrace | None = None
         extra: list[str] = list(notes)
+        extra.extend(n for n in standing.notes if n not in extra)
         analysis: FailureAnalysis | None = None
         if stop is StopReason.CONFIRMED and supported is not None:
             certificate = next(c for c in request.certificates if c.hypothesis_id == supported)
@@ -747,6 +1016,7 @@ class VerificationLoop:
                     expected_behavior=request.expected_behavior,
                     observed_behavior=request.observed_behavior,
                     failure_class=certificate.hypothesis.mechanism,
+                    warrant_refs=self._warrant_refs(request, supported, trace),
                     created_at=d.now(),
                 )
             except RootCauseRefused as refused:
@@ -780,12 +1050,40 @@ class VerificationLoop:
             notes=tuple(extra),
         )
 
+    def _warrant_refs(
+        self, request: LoopRequest, hypothesis_id: str, trace: RootCauseTrace
+    ) -> tuple[str, ...]:
+        """The warrants behind the trace's relations: what the confirmation rests on."""
+        d = self._d
+        state = self._state(request, hypothesis_id) or BeliefState.ACTIVE
+        admitted = d.evidence.admitted_for_subject(request.project_id, hypothesis_id)
+        view = d.belief.hypothesis_view(
+            project_id=request.project_id,
+            hypothesis_id=hypothesis_id,
+            current_state=state,
+            stakes=request.hypothesis_set.stakes,
+            admitted_relations=admitted,
+        )
+        traced = {link.relation_id for link in trace.links}
+        return tuple(
+            sorted(
+                {
+                    r.warrant_ref
+                    for r in view.relation_evidence
+                    if r.relation_id in traced and r.warrant_ref is not None
+                }
+            )
+        )
+
     def _mine(self, project_id: str) -> tuple[CandidateHeuristic, ...]:
         d = self._d
+        # Only conclusions that name their warrants generalise. A confirmation recorded before the
+        # Causal Warrant Gate stays on record and is not mined: nothing says its support diagnosed
+        # its mechanism.
         confirmed = [
             f
             for f in d.failures.analyses(project_id)
-            if f.resolution_status is ResolutionStatus.CONFIRMED
+            if f.resolution_status is ResolutionStatus.CONFIRMED and f.warrant_refs
         ]
         evidence: dict[str, MinedEvidence] = {}
         usable: list[FailureAnalysis] = []
@@ -823,6 +1121,7 @@ __all__ = [
     "LoopStep",
     "Planner",
     "Reviser",
+    "Standing",
     "StopReason",
     "Transition",
     "VerificationLoop",

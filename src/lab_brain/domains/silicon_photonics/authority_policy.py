@@ -187,6 +187,33 @@ def transition_policies() -> tuple[TransitionPolicy, ...]:
     )
 
 
+#: The Causal Warrant Gate versions. Same thresholds; a CONTRADICTS counts only when warranted.
+WARRANTED_POLICY_VERSION: Final = "2.0.0"
+
+
+def warranted_transition_policies() -> tuple[TransitionPolicy, ...]:
+    """SIM-002's pair again, with `diagnostic_warrant_required`.
+
+    A new version rather than an edit, because version 1.0.0 must stay exactly what it was for
+    every decision recorded under it to re-derive. Same thresholds: what changes is that a
+    falsifier counts only when an accountable source -- the pack's diagnostic declarations or a
+    person -- agrees that the outcome refutes the mechanism. Every rejection recorded in the
+    governed benchmark runs rested on a model's falsifier on an observable its mechanism could not
+    change.
+    """
+    return tuple(
+        TransitionPolicy.model_validate(
+            {
+                **policy.model_dump(),
+                "version": WARRANTED_POLICY_VERSION,
+                "diagnostic_warrant_required": True,
+                "supersedes": f"{policy.policy_id}@{policy.version}",
+            }
+        )
+        for policy in transition_policies()
+    )
+
+
 __all__ = [
     "AUTHORITY_CLASSES",
     "CHALLENGE_POLICY_ID",
@@ -198,6 +225,8 @@ __all__ = [
     "SIM_COARSE",
     "SIM_STANDARD",
     "SIM_VALIDATION",
+    "WARRANTED_POLICY_VERSION",
     "SiliconPhotonicsAuthorityPolicy",
     "transition_policies",
+    "warranted_transition_policies",
 ]

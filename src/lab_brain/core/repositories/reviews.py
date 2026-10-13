@@ -266,7 +266,7 @@ class SqlReviewItemStore:
         row = self._connection.execute(
             "SELECT resolution_id, review_id, project_id, outcome, resolved_by_actor_id,"
             " resolved_at, rationale, belief_revision_event_id, governance_event_id,"
-            " resolution_event_kind FROM review_resolutions"
+            " resolution_event_kind, warrant_grant_id FROM review_resolutions"
             " WHERE project_id = %s AND review_id = %s",
             (project_id, review_id),
         ).fetchone()
@@ -284,6 +284,7 @@ class SqlReviewItemStore:
                 "belief_revision_event_id": row[7],
                 "governance_event_id": row[8],
                 "resolution_event_kind": row[9],
+                "warrant_grant_id": row[10],
             }
         )
 

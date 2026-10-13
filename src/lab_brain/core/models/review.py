@@ -41,6 +41,11 @@ class ReviewSubjectType(StrEnum):
     #: would consume the same reviewers while being invisible to the planner that is supposed to
     #: account for them.
     EXTRACTION_UNCERTAINTY = "EXTRACTION_UNCERTAINTY"
+    #: Causal Warrant Gate (`012o`). One SUPPORTS or CONTRADICTS relation whose declared effect no
+    #: accountable source has warranted: does the observed outcome bear on the hypothesis's
+    #: mechanism as its author claims? The subject is the relation -- one observed link -- and the
+    #: answer is a `DiagnosticWarrantGrant`. In this queue, not beside it, for UX-005's reason.
+    DIAGNOSTIC_WARRANT = "DIAGNOSTIC_WARRANT"
 
 
 class ReviewStatus(StrEnum):

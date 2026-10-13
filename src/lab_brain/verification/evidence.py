@@ -156,6 +156,10 @@ def evidence_from_run(
                     },
                     supporting_attestation_ids=(attestation.attestation_id,),
                     condition_match_ref=condition_match.condition_match_id,
+                    # The relation's TYPE is the prediction author's declared effect, so the
+                    # relation names that author's inference: the person who ran the episode
+                    # observed the outcome; they did not claim what it means.
+                    inference_provenance_id=prediction.inference_provenance_id,
                     actor_id=actor_id,
                     project_id=run.project_id,
                     valid_from=at,

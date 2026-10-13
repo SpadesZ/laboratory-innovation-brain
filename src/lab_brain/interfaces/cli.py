@@ -74,6 +74,7 @@ from lab_brain.interfaces.config import (
     open_connection,
     read_settings,
 )
+from lab_brain.interfaces.review_cli import add_review_parser, run_review
 from lab_brain.research.continuation import ContinuationRefused
 from lab_brain.research.literature import LiteratureRequest
 from lab_brain.research.reasoning import active_runtime_name
@@ -246,6 +247,8 @@ def build_parser() -> argparse.ArgumentParser:
     inbox.add_argument("--project", required=True)
     # Required, not defaulted. §14.4: 沒有「誰」就沒有真 governance.
     inbox.add_argument("--actor", required=True)
+
+    add_review_parser(sub)
 
     explain = sub.add_parser("explain", help="explain an error reference")
     explain.add_argument("error_id")
@@ -722,6 +725,11 @@ def main(
         if args.command == "admin":
             connection.autocommit = True
             return run_admin(args, connection, out=stream)
+        if args.command == "review":
+            # The resolve function writes three rows in one statement; autocommit, as the other
+            # durable stores require.
+            connection.autocommit = True
+            return run_review(args, connection, out=stream)
         if args.command == "research":
             try:
                 factory = load_vertical_factory(args.domain or _only_vertical())

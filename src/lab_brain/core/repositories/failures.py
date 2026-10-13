@@ -76,6 +76,7 @@ class InMemoryFailureStore:
             a.failure_analysis_id
             for a in reversed(self.analyses(project_id))
             if a.resolution_status is ResolutionStatus.CONFIRMED
+            and a.warrant_refs
             and normalise_symptom(a.symptom) == wanted
         )
 
@@ -116,6 +117,7 @@ _ANALYSIS_COLUMNS = (
     "prevention_rule",
     "resolution_status",
     "created_at",
+    "warrant_refs",
 )
 
 _CANDIDATE_COLUMNS = (
@@ -137,6 +139,7 @@ _CANDIDATE_COLUMNS = (
 
 _ARRAYS = {
     "candidate_causes",
+    "warrant_refs",
     "root_cause_evidence_ids",
     "suggested_checks",
     "source_artifact_ids",
@@ -212,6 +215,7 @@ class SqlFailureStore:
             a.failure_analysis_id
             for a in reversed(self.analyses(project_id))
             if a.resolution_status is ResolutionStatus.CONFIRMED
+            and a.warrant_refs
             and normalise_symptom(a.symptom) == wanted
         )
 

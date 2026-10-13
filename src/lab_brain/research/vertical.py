@@ -27,6 +27,7 @@ from lab_brain.cognition.catalog_reasoner import MechanismCatalog
 from lab_brain.core.models.condition import ConditionSchemaRegistration
 from lab_brain.core.models.transition import TransitionPolicy
 from lab_brain.core.models.verification import SelectionPolicy
+from lab_brain.core.models.warrant import DiagnosticDeclarationSet
 from lab_brain.domains.registry import DomainPackRegistry
 from lab_brain.verification.capability_registry import CapabilityRegistry
 from lab_brain.verification.sufficiency import TransitionTarget
@@ -94,6 +95,11 @@ class ProductVertical:
     read_input: Callable[[bytes], VerificationInput]
     #: Human-readable identity of the executing backends, for the report.
     backends: Mapping[str, str]
+    #: Every diagnostic declaration set version a stored warrant may cite, and the one new
+    #: resolutions use (Causal Warrant Gate). Empty means no DOMAIN warrant: every belief-moving
+    #: relation then goes to a person.
+    declaration_sets: tuple[DiagnosticDeclarationSet, ...] = ()
+    active_declarations: str | None = None
 
 
 class VerticalFactory(Protocol):

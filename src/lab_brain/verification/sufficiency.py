@@ -39,14 +39,18 @@ from typing import TYPE_CHECKING, Any
 from lab_brain.core.models.belief_event import BeliefState
 from lab_brain.core.models.capability import Capability
 from lab_brain.core.models.condition import ConditionMatch
+from lab_brain.core.models.enums import RelationType
 from lab_brain.core.models.prediction import OutcomeSpace, Prediction
 from lab_brain.core.models.relation import RelationJudgment
 from lab_brain.core.models.transition import (
     HypothesisView,
     IndependenceSummary,
+    RelationEvidence,
     TransitionDecision,
     TransitionPolicy,
+    WarrantBasis,
 )
+from lab_brain.core.models.warrant import DiagnosticDeclaration
 from lab_brain.core.sufficiency import InsufficientReason
 from lab_brain.verification.plausibility import PlausibilityVerdict, assess_outcome
 
@@ -72,6 +76,11 @@ class HypothesisState:
     predictions: tuple[Prediction, ...]
     condition_matches: tuple[ConditionMatch, ...] = ()
     independence: IndependenceSummary = field(default_factory=IndependenceSummary)
+    #: The declared class this rival is bound to under the active declaration set, and the
+    #: reference a DOMAIN warrant on it would carry (Causal Warrant Gate). None: unbound, so a
+    #: projected relation would need a person's warrant.
+    declaration: DiagnosticDeclaration | None = None
+    declaration_ref: str | None = None
 
 
 @dataclass(frozen=True)
@@ -187,17 +196,20 @@ def assess_action(
                         if e.implied_authority_class is not None
                     }
                 )
+                hypothetical = _observed(stamped, state.view.project_id, projected_condition_match)
                 hypothetical_view = state.view.model_copy(
                     update={
                         "admitted_authority_classes": tuple(
                             sorted({*state.view.admitted_authority_classes, *implied})
-                        )
+                        ),
+                        "relation_evidence": state.view.relation_evidence
+                        + _planned_evidence(state, prediction, hypothetical, implied, capability),
                     }
                 )
                 projected = target.policy.evaluate_hypothetical(
                     hypothetical_view,
                     state.admitted_relations,
-                    stamped.hypothetical_relations(project_id=state.view.project_id),
+                    hypothetical,
                     authority_policy,
                     projected_matches,
                     projected_independence,
@@ -232,6 +244,68 @@ def assess_action(
         implausible=tuple(implausible[k] for k in sorted(implausible)),
         reason=reason,
     )
+
+
+def _observed(
+    prediction: Prediction, project_id: str, match: ConditionMatch | None
+) -> tuple[RelationJudgment, ...]:
+    """The prediction's hypothetical relations, as an observation of it would record them.
+
+    Naming the prediction and the outcome, and the ConditionMatch the planned execution would
+    have, is what lets a warrant-gated policy count a projected relation the way it would count
+    the real one -- not more generously, and not as an unknown it could never count at all.
+    """
+    return tuple(
+        relation.model_copy(
+            update={
+                "attributes": {
+                    "prediction_id": prediction.prediction_id,
+                    "outcome": prediction.expected_outcome,
+                    "outcome_space": prediction.outcome_space_ref,
+                },
+                "condition_match_ref": None if match is None else match.condition_match_id,
+            }
+        )
+        for relation in prediction.hypothetical_relations(project_id=project_id)
+    )
+
+
+def _planned_evidence(
+    state: HypothesisState,
+    prediction: Prediction,
+    relations: Sequence[RelationJudgment],
+    implied: Sequence[str],
+    capability: Capability,
+) -> tuple[RelationEvidence, ...]:
+    """What a warrant-gated policy would know about each projected relation once observed.
+
+    A DOMAIN warrant only where the rival's bound class declares exactly this outcome with this
+    effect -- the same rule the resolver applies to a real relation -- and otherwise none, so a
+    check whose result would go to a person is projected as going to a person.
+    """
+    records = []
+    for relation in relations:
+        if relation.relation_type not in (RelationType.SUPPORTS, RelationType.CONTRADICTS):
+            continue
+        declaration = state.declaration
+        declared = (
+            declaration is not None
+            and state.declaration_ref is not None
+            and declaration.same_observable(prediction)
+            and declaration.effect_for(prediction.expected_outcome) is relation.relation_type
+        )
+        records.append(
+            RelationEvidence(
+                relation_id=relation.relation_id,
+                relation_type=relation.relation_type,
+                prediction_id=prediction.prediction_id,
+                authority_classes=tuple(sorted(set(implied))),
+                evidence_line=f"planned:{capability.capability_id}",
+                warrant=WarrantBasis.DOMAIN if declared else None,
+                warrant_ref=state.declaration_ref if declared else None,
+            )
+        )
+    return tuple(records)
 
 
 def _any_plausible(

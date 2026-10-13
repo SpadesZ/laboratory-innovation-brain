@@ -280,6 +280,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # checked at its genesis event. After 011j (the genesis function it restates) and 011i
     # (predictions).
     "012n_typed_falsifier.sql",
+    # Causal Warrant Gate: the policy flag, DIAGNOSTIC_WARRANT reviews and their grants, the
+    # WARRANT_GRANT closure kind, and the warrants a confirmation names. After 011f (closure
+    # kinds), 011h (review subjects), 011l (failure_analyses) and 005b (transition_policies).
+    "012o_causal_warrant_gate.sql",
 )
 
 _BOOTSTRAP = """

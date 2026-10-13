@@ -97,6 +97,7 @@ from lab_brain.core.repositories.observability import SqlSpanRepository
 from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from lab_brain.core.repositories.source_works import SqlClaimStore, SqlSourceWorkStore
 from lab_brain.core.repositories.verification_plans import SqlVerificationPlanStore
+from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore
 from lab_brain.core.revision_gate import HypothesisRevisionGate
 from lab_brain.core.scientific_read import ScientificReadRefused
 from lab_brain.evidence.dense_index import EmbeddingSpace, hashing_embedder
@@ -152,6 +153,7 @@ from lab_brain.storage.postgres.capabilities import PostgresResourceBroker
 from lab_brain.storage.postgres.external_artifacts import SqlExternalArtifactSink
 from lab_brain.storage.postgres.run_outputs import SqlRunOutputSink
 from lab_brain.storage.postgres.verification_evidence import SqlEvidenceSink
+from lab_brain.storage.postgres.warrants import sql_warrant_resolver
 from lab_brain.surface.ingestion_item import derive_state
 from lab_brain.tools.dispatch import BudgetedToolDispatcher
 from lab_brain.verification.least_cost import LeastCostPlanner
@@ -184,7 +186,41 @@ REASONING_SLOTS = (LogicalSlot.REASONING_PRIMARY, LogicalSlot.FAST_UTILITY)
 BUDGET_POLICY_ID = "bp:research-run"
 
 #: Stops that wait on something outside the episode: it is parked, not closed.
-_WAITING = frozenset({"HUMAN_ACTION_REQUIRED", "AWAITING_RESOURCE", "BUDGET_BLOCKED"})
+_WAITING = frozenset(
+    {
+        "HUMAN_ACTION_REQUIRED",
+        "AWAITING_RESOURCE",
+        "BUDGET_BLOCKED",
+        # Causal Warrant Gate: a person owes a warrant answer, or a SUPPORTED member is not yet
+        # discriminated from a rival. Both can still be settled, so the episode is resumable.
+        "AWAITING_REVIEW",
+        "SUPPORTED_UNDISCRIMINATED",
+    }
+)
+
+
+#: How a suspended episode says what it waits for, where the stop's own name would read badly.
+_WAITING_REASONS = {
+    "AWAITING_REVIEW": "awaiting a person's diagnostic warrant answer",
+    "SUPPORTED_UNDISCRIMINATED": (
+        "awaiting evidence that tells the SUPPORTED mechanism from a rival"
+    ),
+}
+
+#: What the Causal Warrant Gate's stops add to an unconfirmed conclusion.
+_WARRANT_STATEMENTS = {
+    "AWAITING_REVIEW": (
+        "Support was observed for a mechanism, but nobody accountable has yet said the observed "
+        "outcome diagnoses that mechanism; a person's answer is pending. "
+    ),
+    "SUPPORTED_UNDISCRIMINATED": (
+        "A mechanism is SUPPORTED, but the observation behind it does not tell it apart from a "
+        "rival that also predicts it (or its support is unwarranted); it is not confirmed. "
+    ),
+    "COMPETING_SUPPORT": (
+        "More than one mechanism is SUPPORTED; neither is confirmed, and they may co-occur. "
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -1197,6 +1233,12 @@ class ResearchEpisodeService:
             reviews=SqlReviewItemStore(c),
             ids=UuidEpisodeIds(),
             authority_policies=vertical.authority_policies,
+            warrants=sql_warrant_resolver(
+                c,
+                declaration_sets=vertical.declaration_sets,
+                active=vertical.active_declarations,
+            ),
+            warrant_reviews=SqlDiagnosticWarrantStore(c),
         )
         brain = HypothesisBrain(
             debate=debate,
@@ -1289,6 +1331,11 @@ class ResearchEpisodeService:
                 failures=failures,
                 mint=self._mint,
                 now=self._clock,
+                warrant_reviews=SqlDiagnosticWarrantStore(c),
+                declarations=next(
+                    (s for s in vertical.declaration_sets if s.ref == vertical.active_declarations),
+                    None,
+                ),
             )
         )
         loop_request = LoopRequest(
@@ -1444,6 +1491,11 @@ class ResearchEpisodeService:
                 reviews=SqlReviewItemStore(c),
                 ids=UuidEpisodeIds(),
                 authority_policies=vertical.authority_policies,
+                warrants=sql_warrant_resolver(
+                    c,
+                    declaration_sets=vertical.declaration_sets,
+                    active=vertical.active_declarations,
+                ),
             )
             for certificate in sorted(
                 outcome.certificates, key=lambda x: (x.hypothesis.mechanism, x.hypothesis_id)
@@ -1762,12 +1814,22 @@ class ResearchEpisodeService:
                 ),
                 "COMPLETED",
             )
+        # Not confirmed, so a SUPPORTED member is still a contender: its support was not shown to
+        # discriminate it, or a rival is SUPPORTED too (Causal Warrant Gate).
+        competing = (
+            tuple(
+                f"{h.mechanism} ({h.final_state})"
+                for h in hypotheses
+                if h.final_state == BeliefState.SUPPORTED.value
+            )
+            + competing
+        )
         best = next((p for p in run.pending if p.best_next), None)
         if stop in _WAITING or best is not None:
             reason = (
                 f"awaiting simulator for {best.capability_id}"
                 if best is not None
-                else f"awaiting {stop.lower().replace('_', ' ')}"
+                else _WAITING_REASONS.get(stop, f"awaiting {stop.lower().replace('_', ' ')}")
             )
             store.suspend(episode_id, reason=reason, at=at)
             state = "SUSPENDED"
@@ -1778,6 +1840,7 @@ class ResearchEpisodeService:
         statement = (
             f"not confirmed. The executed checks ruled out {len(ruled_out)} of "
             f"{len(hypotheses)} competing mechanisms; {len(competing)} remain ({leading}). "
+            + _WARRANT_STATEMENTS.get(stop, "")
             + (
                 f"The check that would discriminate next is `{best.capability_id}`, a "
                 f"simulation this deployment cannot run; it is pending, not assumed."
@@ -1822,6 +1885,14 @@ class ResearchEpisodeService:
             steps.append(f"A person can act now: {action}")
         if conclusion.status == "CONFIRMED":
             steps.append("Review the confirmed root cause and its trace before acting on it.")
+        loop = run.loop
+        if loop is not None and loop.stop_reason.value == "AWAITING_REVIEW":
+            steps.append(
+                "Answer the diagnostic warrant reviews -- does each observed outcome bear on its "
+                "hypothesis's mechanism as the hypothesis claims? -- with `lab-brain review list "
+                f"--project {request.project_id}` and `lab-brain review resolve`; then resume this "
+                "episode."
+            )
         if any(i.state not in ("READY", "STORED") for i in run.inputs):
             steps.append(
                 "Some inputs did not become ready; `lab-brain inbox` and `lab-brain explain` "
