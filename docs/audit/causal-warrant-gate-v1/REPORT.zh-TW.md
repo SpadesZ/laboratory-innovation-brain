@@ -107,7 +107,53 @@
 
 ## 6. 測試、突變與 CI
 
-⟨待填：本機 `pytest -q`、新資料庫上的 PostgreSQL 全套測試、突變電池全部項目、三份基準報告、CI run 連結⟩
+### Commit 序列（分支 `causal-warrant-gate-v1`）
+
+| commit | 內容 |
+|---|---|
+| `a047ae9` | 反例以 strict xfail 形式加入（修改前的失敗重現） |
+| `bc55458` | 閘門實作 |
+| `7e3cc43` | 第二輪審查修正 |
+| `ed0670b` | 第三輪審查修正 |
+| `134c07b` | 最終回合修正（程式碼的最後一個 commit） |
+| `a8a8b1d` 之後 | 只有文件與稽核資料 |
+
+完整差異：`git diff 41b3cec669accde05b0d4f2460f140d8bd422d49..causal-warrant-gate-v1`。
+
+### 測試【事實】
+
+| 項目 | 對象 | 結果 |
+|---|---|---|
+| 不需後端的全套 `pytest`（AGT-007） | `134c07b` | 1835 passed、879 skipped、0 failed |
+| `tests/spec`、`update_status.py --check`、義務清冊 `--check` | `134c07b` | 206 passed；狀態表與清冊同步 |
+| PostgreSQL 全套（新建並遷移的資料庫，62 個遷移） | `134c07b` | 2705 passed、2 skipped（需 Lumerical／網路）、0 failed |
+| 閘門單元測試（兩個非矽光子玩具領域） | `134c07b` | 46 passed |
+| 閘門端對端（反例＋根因出處＋網頁 episode 檢視） | `134c07b` | 36 passed |
+| 歷史決策（部署中 6 筆已存決策） | `134c07b` | 逐位元相同、可重新推導、判決相同 |
+| ruff、ruff format、mypy `src` | `134c07b` | 全部通過 |
+
+### 基準【事實】
+
+- 十個根因基準案例（least_cost）判決不變：10/10。
+- simulate_first 只有 outage-contact 不同（AWAITING_RESOURCE），這是基準本來就設計的升級行為，自 `bc55458` 起未變。
+- 以上由實作攻擊者在自己的資料庫上獨立重跑（審查 4、6、8）。
+- vs-sp-001 與根因基準的端對端測試包含在上面的 PostgreSQL 全套中。
+
+### 突變電池【事實】
+
+`scripts/mutation_battery.py` 共 497 項，每項都指明能殺死它的測試。
+
+| 範圍 | 對象 | 結果 |
+|---|---|---|
+| 全部 494 項，在新建資料庫上執行 | `ed0670b` | 494/494 killed，0 存活 |
+| `ed0670b` 之後有改動的檔案的 30 項，重跑 | `134c07b` | 30/30 killed |
+| 最終回合新增的 3 項 | `134c07b` | 3/3 killed |
+
+### CI【事實】
+
+| run | commit | 結果 |
+|---|---|---|
+| [38506928357](https://github.com/SpadesZ/laboratory-innovation-brain/actions/runs/38506928357) | `a8a8b1d` | 全部成功：commit 衛生（無 AI 署名）、規格一致性、PostgreSQL 後端設定、lint／型別／全套 |
 
 ## 7. 相容性、遷移與歷史紀錄
 
