@@ -37,6 +37,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 from lab_brain.core.models.reviewer import (
+    WARRANT_REVIEW_SCOPE,
     ReviewerEnrolment,
     ReviewerKeyRevocation,
     enrolment_statement,
@@ -228,6 +229,14 @@ class ReviewerTrust:
             raise IdentityUnverified(
                 f"{what} is by {grant.granted_by_actor_id} in {grant.project_id}, but enrolment "
                 f"{enrolment.enrolment_id} is {enrolment.actor_id}'s in {enrolment.project_id}"
+            )
+        # The authorization scope. The model and 012p's CHECK admit only this one today; checked
+        # here as well so that a key enrolled for another kind of review, once one exists, never
+        # answers a warrant review.
+        if enrolment.scope != WARRANT_REVIEW_SCOPE:
+            raise IdentityUnverified(
+                f"{what} is signed under enrolment {enrolment.enrolment_id}, which authorizes "
+                f"{enrolment.scope} reviews, not {WARRANT_REVIEW_SCOPE}"
             )
         self.verify_enrolment(enrolment)
         if grant.granted_at < enrolment.enrolled_at:

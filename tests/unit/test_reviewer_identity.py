@@ -11,15 +11,22 @@ from __future__ import annotations
 
 import base64
 import datetime as dt
+import json
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from lab_brain.core.canonical_json import canonical_bytes
 from lab_brain.core.models.enums import RelationType
 from lab_brain.core.models.relation import RelationJudgment
 from lab_brain.core.models.review_resolution import ReviewOutcome
-from lab_brain.core.models.reviewer import ReviewerEnrolment, key_id
+from lab_brain.core.models.reviewer import (
+    GRANT_STATEMENT,
+    ReviewerEnrolment,
+    enrolment_statement,
+    key_id,
+)
 from lab_brain.core.models.warrant import DiagnosticWarrantGrant, GrantVerdict
 from lab_brain.core.repositories.warrants import InMemoryDiagnosticWarrantStore, WarrantStoreError
 from lab_brain.core.warrant import WarrantResolver
@@ -200,6 +207,84 @@ def test_an_answer_verifies_under_its_enrolled_key_and_any_edit_breaks_it() -> N
         authenticate(grant.model_copy(update={"considered_rival_ids": ("hyp:r1", "hyp:r2")}))
         is None
     )
+
+
+def test_a_genuine_signature_verifies_in_no_other_project_review_grant_or_relation_type() -> None:
+    """Replay. The PI holds the same key in a second project; a genuine answer carried there, or
+    onto another review, another grant id or the opposite relation type, does not verify --
+    because each of them is inside what the PI signed, not because a lookup happens to fail."""
+    store = _store()
+    signer = enrol(store, project_id=PROJECT, actor_id=REVIEWER)
+    elsewhere = enrol(store, project_id="prj:other", actor_id=REVIEWER, key=signer.key)
+    grant = _answer(store, signer)
+    authenticate = grant_authenticator(store, TRUST)
+    assert authenticate(grant) is None
+    for update in (
+        {"project_id": "prj:other", "enrolment_id": elsewhere.enrolment_id},
+        {"review_id": "rvw:another-question"},
+        {"grant_id": "dwg:another-answer"},
+        {"relation_type": RelationType.CONTRADICTS},
+    ):
+        replayed = grant.model_copy(update=update)
+        assert "reviewer's signature does not verify" in (authenticate(replayed) or ""), update
+
+    # The project is bound by the signature itself, not only by enrolment ids being global: a
+    # store whose enrolment ids are per project holds the same id, same key, in both projects.
+    here = store.enrolment(PROJECT, signer.enrolment_id)
+    assert here is not None
+    there = sign_enrolment(
+        AUTHORITY,
+        authority_actor_id=AUTHORITY_ACTOR,
+        enrolment_id=signer.enrolment_id,
+        project_id="prj:other",
+        actor_id=REVIEWER,
+        public_key=signer.key.public_key,
+        enrolled_at=ENROLLED_AT,
+    )
+
+    class PerProjectIds:
+        def enrolment(self, project_id: str, enrolment_id: str) -> ReviewerEnrolment | None:
+            return {(e.project_id, e.enrolment_id): e for e in (here, there)}.get(
+                (project_id, enrolment_id)
+            )
+
+        def revocations(self, _project_id: str, _enrolment_id: str) -> tuple[Any, ...]:
+            return ()
+
+    per_project = grant_authenticator(PerProjectIds(), TRUST)
+    assert per_project(grant) is None
+    moved = grant.model_copy(update={"project_id": "prj:other"})
+    assert "reviewer's signature does not verify" in (per_project(moved) or "")
+
+
+def test_a_signature_from_another_kind_of_statement_or_scope_is_no_warrant_answer() -> None:
+    """Authorization scope. The same content signed under another statement tag (a future kind
+    of review), or an answer under an enrolment for another scope, is not a warrant answer."""
+    store = _store()
+    signer = enrol(store, project_id=PROJECT, actor_id=REVIEWER)
+    grant = _answer(store, signer)
+    authenticate = grant_authenticator(store, TRUST)
+    fields = json.loads(grant.statement())
+    assert fields["statement"] == GRANT_STATEMENT
+    foreign = canonical_bytes({**fields, "statement": "lab-brain/discrimination-grant/v1"})
+    retagged = grant.model_copy(update={"signature": signer.key.sign(foreign)})
+    assert "reviewer's signature does not verify" in (authenticate(retagged) or "")
+
+    # An enrolment for another scope, properly signed by the authority. The model refuses to
+    # build one; a row read past the model must still not authorize a warrant answer.
+    enrolment = store.enrolment(PROJECT, signer.enrolment_id)
+    assert enrolment is not None
+    other_scope = ReviewerEnrolment.model_construct(
+        **{**enrolment.__dict__, "scope": "DISCRIMINATION"}
+    )
+    other_scope = ReviewerEnrolment.model_construct(
+        **{
+            **other_scope.__dict__,
+            "authority_signature": AUTHORITY.sign(enrolment_statement(other_scope)),
+        }
+    )
+    with pytest.raises(IdentityUnverified, match="authorizes DISCRIMINATION reviews"):
+        TRUST.verify_grant(grant, other_scope)
 
 
 def test_naming_the_pi_does_not_make_an_answer_the_pis() -> None:

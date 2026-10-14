@@ -330,6 +330,34 @@ def test_recurring_confirmed_failures_become_one_pending_review_candidate():
         CandidateHeuristic.model_validate({**candidate.model_dump(), "source_locators": ()})
 
 
+def test_case_memory_judges_trust_only_for_conclusions_of_the_same_symptom():
+    """The planner asks case memory at every step, and judging trust re-derives a conclusion over
+    its whole record. Only a conclusion of the same symptom is judged; the answer is the same set
+    as before -- trusted and matching -- and the miner's read still judges every confirmation."""
+    judged: list[str] = []
+
+    def verify(analysis: FailureAnalysis) -> str | None:
+        judged.append(analysis.failure_analysis_id)
+        return "withheld" if analysis.failure_analysis_id == "fan:withheld" else None
+
+    store = InMemoryFailureStore(verify=verify)
+    store.add_analysis(FailureAnalysis(**_analysis()))
+    store.add_analysis(
+        FailureAnalysis(**_analysis(failure_analysis_id="fan:withheld", episode_id="epi:2"))
+    )
+    store.add_analysis(
+        FailureAnalysis(
+            **_analysis(failure_analysis_id="fan:other", episode_id="epi:3", symptom="Cj low")
+        )
+    )
+    assert store.similar_failures(PROJECT, "  rs HIGH and flat ") == ("fan:1",)
+    assert sorted(judged) == ["fan:1", "fan:withheld"]
+    assert [a.failure_analysis_id for a in store.trusted_confirmations(PROJECT)] == [
+        "fan:1",
+        "fan:other",
+    ]
+
+
 def test_the_in_memory_failure_store_is_append_only_and_candidates_rest_on_confirmed_failures():
     store = InMemoryFailureStore()
     store.add_analysis(FailureAnalysis(**_analysis()))

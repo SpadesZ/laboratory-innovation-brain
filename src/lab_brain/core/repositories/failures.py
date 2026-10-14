@@ -73,6 +73,27 @@ def trust_refusal(
     return None
 
 
+def _precedents(
+    analyses: tuple[FailureAnalysis, ...],
+    symptom: str,
+    refusal: Callable[[FailureAnalysis], str | None],
+) -> tuple[str, ...]:
+    """Case memory: trusted confirmations of the same symptom, most recent first.
+
+    The symptom is matched before trust is judged. The result is the same set either way -- a
+    precedent must be both -- but judging trust re-derives a conclusion over its whole verified
+    record (`research.confirmation`), and only a matching conclusion can be a precedent. The
+    planner asks at every step, so judging every confirmation in the project would grow with the
+    project's history rather than with the symptom's.
+    """
+    wanted = normalise_symptom(symptom)
+    return tuple(
+        a.failure_analysis_id
+        for a in reversed(analyses)
+        if normalise_symptom(a.symptom) == wanted and refusal(a) is None
+    )
+
+
 @runtime_checkable
 class FailureStore(Protocol):
     def add_analysis(self, analysis: FailureAnalysis) -> FailureAnalysis: ...
@@ -135,11 +156,10 @@ class InMemoryFailureStore:
         )
 
     def similar_failures(self, project_id: str, symptom: str) -> tuple[str, ...]:
-        wanted = normalise_symptom(symptom)
-        return tuple(
-            a.failure_analysis_id
-            for a in reversed(self.trusted_confirmations(project_id))
-            if normalise_symptom(a.symptom) == wanted
+        return _precedents(
+            self.analyses(project_id),
+            symptom,
+            lambda a: trust_refusal(a, self.flags(project_id, a.failure_analysis_id), self._verify),
         )
 
     def add_candidate(self, candidate: CandidateHeuristic) -> CandidateHeuristic:
@@ -357,11 +377,10 @@ class SqlFailureStore:
         )
 
     def similar_failures(self, project_id: str, symptom: str) -> tuple[str, ...]:
-        wanted = normalise_symptom(symptom)
-        return tuple(
-            a.failure_analysis_id
-            for a in reversed(self.trusted_confirmations(project_id))
-            if normalise_symptom(a.symptom) == wanted
+        return _precedents(
+            self.analyses(project_id),
+            symptom,
+            lambda a: trust_refusal(a, self.flags(project_id, a.failure_analysis_id), self._verify),
         )
 
     def add_candidate(self, candidate: CandidateHeuristic) -> CandidateHeuristic:
