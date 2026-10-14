@@ -276,6 +276,9 @@ that requires more than one independent line of support or a person's review. Un
 CONFIRMED conclusion reached from one model-declared SUPPORTS is not evidence of the mechanism.
 READY_FOR_REAL_RESEARCH stays false.
 
+Taken up by the Causal Warrant Gate (2026-10-14, branch `causal-warrant-gate-v1`):
+[`causal-warrant-gate-v1.md`](causal-warrant-gate-v1.md).
+
 ## 9. Remaining limitations
 
 - Each governed case was run once and each shadow condition sampled once; mechanism coverage varied

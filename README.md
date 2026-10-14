@@ -222,6 +222,16 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   納入時新產生的識別碼排序。注意：模型宣告的 SUPPORTS 是否真的能區分它的機制，系統目前無法檢查；
   已有一次受治理的研究因此確認了錯誤的機制（待獨立審查，見設計記錄第 8 節）。設計記錄：
   [`docs/implementation/prediction-effect-semantics.md`](docs/implementation/prediction-effect-semantics.md)。
+- 因果依據閘門（Causal Warrant Gate，`causal-warrant-gate-v1` 分支，未合併）：模型宣告的 SUPPORTS／
+  CONTRADICTS 不再自動推動信念。只有當領域套件版本化的診斷宣告（機制名稱完全一致、且該假說的預測與宣告
+  相符）或專案成員的審查明確認可「這個觀測結果能診斷這個機制」時，轉移規則才計入；條件、權威與獨立性只看
+  被認可的關聯，重複執行同一計算只算一條證據線。無法判定時改送人工審查（`lab-brain review
+  list|show|resolve|expire`），不會自動否決、也不會自動確認；改寫說法的假說須由審查者以 `--is-class`
+  明確指出它就是某個宣告類別。確認根因還需要：沒有其他假說同樣預測這個觀測（除非已被有依據的反證排除）、
+  沒有可能推翻結論的審查尚未完成，且整個 episode 沒有觀測到其他宣告類別的特徵結果或候選類別不可能產生的結果。
+  舊版政策與所有已存決策可逐位元重新推導；先前未經認可的確認保留在紀錄中，但不再作為前例或歸納啟發式的來源。
+  設計與稽核記錄：
+  [`docs/implementation/causal-warrant-gate-v1.md`](docs/implementation/causal-warrant-gate-v1.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。
