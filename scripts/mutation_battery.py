@@ -4474,8 +4474,8 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="sql_enrolments_are_editable",
         guards="Causal Warrant Gate V1.1 (012p) -- enrolments and revocations are append-only",
         path="migrations/012p_causal_warrant_gate_v1_1.sql",
-        old="DROP TRIGGER IF EXISTS warrant_reviewer_enrolments_no_update ON warrant_reviewer_enrolments;\nCREATE TRIGGER warrant_reviewer_enrolments_no_update\n    BEFORE UPDATE OR DELETE ON warrant_reviewer_enrolments\n",
-        new="DROP TRIGGER IF EXISTS warrant_reviewer_enrolments_no_update ON warrant_reviewer_enrolments;\nCREATE TRIGGER warrant_reviewer_enrolments_no_update\n    BEFORE TRUNCATE ON warrant_reviewer_enrolments\n",
+        old="CREATE TRIGGER warrant_reviewer_enrolments_no_update\n    BEFORE UPDATE OR DELETE ON warrant_reviewer_enrolments\n    FOR EACH ROW EXECUTE",
+        new="CREATE TRIGGER warrant_reviewer_enrolments_no_update\n    BEFORE UPDATE OR DELETE ON warrant_reviewer_enrolments\n    FOR EACH ROW WHEN (FALSE) EXECUTE",
         tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
     ),
     Mutation(
@@ -4600,8 +4600,8 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="sql_flags_are_editable",
         guards="Causal Warrant Gate V1.1 (012p) -- flags are append-only",
         path="migrations/012p_causal_warrant_gate_v1_1.sql",
-        old="    BEFORE UPDATE OR DELETE ON failure_analysis_flags\n",
-        new="    BEFORE TRUNCATE ON failure_analysis_flags\n",
+        old="    BEFORE UPDATE OR DELETE ON failure_analysis_flags\n    FOR EACH ROW EXECUTE",
+        new="    BEFORE UPDATE OR DELETE ON failure_analysis_flags\n    FOR EACH ROW WHEN (FALSE) EXECUTE",
         tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
     ),
 )
