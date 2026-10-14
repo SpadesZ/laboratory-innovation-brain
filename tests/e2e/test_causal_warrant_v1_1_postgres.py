@@ -1186,6 +1186,37 @@ def test_reuse_rederives_what_the_database_triggers_could_not_stop(db):
     assert reuse.trusted_confirmations(PROJECT) == ()
 
 
+def test_reuse_refuses_a_conclusion_whose_belief_history_was_edited_past_the_triggers(db):
+    """No answer to check and every warrant declared, so only re-deriving the stored history can
+    tell: the decision that made the cause SUPPORTED is edited past the triggers -- its evidence
+    removed, its hash recomputed so the database's own CHECK still holds. The conclusion stays on
+    record and nothing relies on it."""
+    fx = load_fixture()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    analysis = run.result.failure_analysis
+    assert analysis.resolution_status is ResolutionStatus.CONFIRMED
+    assert _reuse_check(db)(analysis) is None
+    (decision_id,) = db.execute(
+        "SELECT authorization_decision_id FROM belief_revision_events"
+        " WHERE project_id = %s AND target_id = %s AND to_state = 'SUPPORTED'"
+        " ORDER BY occurred_at DESC LIMIT 1",
+        (PROJECT, analysis.confirmed_root_cause),
+    ).fetchone()
+    edited = "(decision_input_snapshot::jsonb || '{\"admitted_relations\": []}')::text"
+    _bypassing_triggers(
+        db,
+        f"UPDATE belief_transition_decisions SET decision_input_snapshot = {edited},"
+        f" input_hash = 'sha256:' || encode(sha256(convert_to({edited}, 'UTF8')), 'hex')"
+        " WHERE decision_id = %s",
+        (decision_id,),
+    )
+    first_layer = confirmation_verifier(db, TRUST, declaration_sets=(diagnostic_declaration_set(),))
+    assert first_layer(analysis) is None, "answers and declarations alone would rely on it"
+    why = _reuse_check(db)(analysis) or ""
+    assert "does not re-verify" in why and decision_id in why, why
+    assert SqlFailureStore(db, verify=_reuse_check(db)).trusted_confirmations(PROJECT) == ()
+
+
 def test_reuse_refuses_a_warrant_the_verified_record_does_not_give(db):
     fx = load_fixture()
     run = run_case(db, fx, case_by_id(fx, CASE))
