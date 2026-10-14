@@ -38,7 +38,7 @@ from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore, Warr
 from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.interfaces import cli
 from lab_brain.verification.loop import StopReason
-from tests.debate_fixtures import PROJECT
+from tests.debate_fixtures import ACTOR, PROJECT
 from tests.postgres_fixtures import database_url
 from tests.vertical_fixtures import case_by_id, load_fixture, run_case
 
@@ -49,6 +49,8 @@ PROXY_MECHANISM = "missing contact-resistance correction"
 NOVEL_MECHANISM = "taper sections counted into the normalization length"
 DOMAIN_REF = "dds:sp.rs_anomaly_mechanisms@1.0.0#normalization_error"
 REVIEWER = "act:pi"
+#: Long enough that a review created on the fixture's clock is still open at T0.
+EXPIRY_MINUTES = 10_000_000
 T0 = dt.datetime(2026, 10, 14, 9, 0, tzinfo=dt.UTC)
 
 
@@ -72,8 +74,8 @@ def _queue(db: Any) -> None:
     db.execute(
         "INSERT INTO review_queue_policies (policy_id, version, project_id, capacity,"
         " default_sla_minutes, default_expiry_minutes, declared_by_actor_id, effective_from,"
-        " active) VALUES ('rqp:test', '1.0.0', %s, 10, 60, 600, %s, %s, TRUE)",
-        (PROJECT, REVIEWER, T0),
+        " active) VALUES ('rqp:test', '1.0.0', %s, 10, 60, %s, %s, %s, TRUE)",
+        (PROJECT, EXPIRY_MINUTES, REVIEWER, T0),
     )
 
 
@@ -275,11 +277,18 @@ def test_only_a_human_member_of_the_project_can_answer(db):
 # -- shared support -------------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize("queue", [False, True], ids=["no-queue", "queue"])
 @pytest.mark.parametrize("effect", ["SUPPORTS", "PREDICTS"])
 def test_a_shared_observation_confirms_only_after_the_rival_is_excluded_by_its_own_check(
-    db, effect
+    db, effect, queue
 ):
-    """The rival's own declared check refutes it; then, and only then, the true cause stands."""
+    """The rival's own declared check refutes it; then, and only then, the true cause stands.
+
+    With a review queue the rival's unwarranted support has a question waiting -- and once a
+    warranted refutation excludes the rival, that question can no longer change the answer.
+    """
+    if queue:
+        _queue(db)
     fx = _shared(effect)
     run = run_case(db, fx, case_by_id(fx, CASE))
     steps = run.result.steps
@@ -352,4 +361,188 @@ def test_a_person_answers_through_the_command_line(db):
     code, again = cli_run(
         "review", "resolve", review.review_id, *who, "--outcome", "APPROVED", "--rationale", "x"
     )
-    assert code == 1
+    assert code == 1 and "No outstanding review" in again
+
+
+def test_the_person_who_ran_the_episode_cannot_warrant_its_relations(db):
+    _queue(db)
+    fx = _proxy()
+    run_case(db, fx, case_by_id(fx, CASE))
+    # The researcher who ran the episode is a member too -- membership is not what refuses them.
+    db.execute(
+        "INSERT INTO project_memberships (actor_id, project_id, role, sensitivity_clearance,"
+        " approval_scopes, active) VALUES (%s, %s, 'RESEARCHER', ARRAY['PUBLIC', 'INTERNAL'],"
+        " ARRAY[]::text[], TRUE) ON CONFLICT DO NOTHING",
+        (ACTOR, PROJECT),
+    )
+    store = SqlDiagnosticWarrantStore(db)
+    (review,) = store.outstanding(PROJECT)
+    with pytest.raises(WarrantStoreError, match="ran the episode"):
+        store.resolve(
+            resolution_id="res:self",
+            grant_id="dwg:self",
+            review_id=review.review_id,
+            project_id=PROJECT,
+            outcome=ReviewOutcome.APPROVED,
+            actor_id=ACTOR,
+            rationale="my own run looks right to me",
+            considered_rival_ids=(),
+            resolved_at=T0,
+        )
+
+
+def test_an_expired_review_is_not_answered_late(db):
+    _queue(db)
+    fx = _proxy()
+    run_case(db, fx, case_by_id(fx, CASE))
+    store = SqlDiagnosticWarrantStore(db)
+    (review,) = store.outstanding(PROJECT)
+    assert review.expires_at is not None
+    with pytest.raises(WarrantStoreError, match="expired"):
+        store.resolve(
+            resolution_id="res:late",
+            grant_id="dwg:late",
+            review_id=review.review_id,
+            project_id=PROJECT,
+            outcome=ReviewOutcome.APPROVED,
+            actor_id=REVIEWER,
+            rationale="late",
+            considered_rival_ids=(),
+            resolved_at=review.expires_at + dt.timedelta(minutes=1),
+        )
+
+
+def _contact_with_a_proxy_falsifier() -> dict[str, Any]:
+    """The true contact cause, as the catalog states it, plus the recorded `epi:6174b0fe` shape:
+    a falsifier on the normalization basis, which a contact defect cannot change."""
+    fx = copy.deepcopy(load_fixture())
+    contact = fx["mechanisms"]["contact_discontinuity"]
+    proxy = next(
+        p
+        for p in fx["mechanisms"]["normalization_error"]["predictions"]
+        if p["relation_effect"] == "CONTRADICTS"
+    )
+    contact["predictions"] = [*contact["predictions"], copy.deepcopy(proxy)]
+    return fx
+
+
+def test_an_unwarranted_falsifier_neither_vetoes_nor_is_ignored(db):
+    """Before the gate, the proxy falsifier rejected the hypothesis; with SUPPORTS also present it
+    silently froze it. Now the warranted support counts, the falsifier goes to a person, and the
+    cause is confirmed once that person says the normalization basis cannot speak to it."""
+    _queue(db)
+    fx = _contact_with_a_proxy_falsifier()
+    case = case_by_id(fx, "contact-open-via")
+    run = run_case(db, fx, case)
+    contact = run.certificates_by_mechanism["contact_discontinuity"]
+    assert "contact_discontinuity" in _promoted(run), "the warranted support was vetoed"
+    assert run.result.failure_analysis.resolution_status is not ResolutionStatus.CONFIRMED
+    # Parked, not concluded: waiting on a person -- for the warrant answer, or for a check only a
+    # person can run.
+    assert run.result.failure_analysis.resolution_status is ResolutionStatus.OPEN
+    store = SqlDiagnosticWarrantStore(db)
+    (review,) = store.outstanding(PROJECT)
+    asked = db.execute(
+        "SELECT to_entity_id, relation_type FROM relation_judgments WHERE relation_id = %s",
+        (review.subject_id,),
+    ).fetchone()
+    assert tuple(asked) == (contact, "CONTRADICTS")
+    store.resolve(
+        resolution_id="res:proxy-falsifier",
+        grant_id="dwg:proxy-falsifier",
+        review_id=review.review_id,
+        project_id=PROJECT,
+        outcome=ReviewOutcome.REJECTED,
+        actor_id=REVIEWER,
+        rationale="an open contact via does not change the extraction's normalization length",
+        considered_rival_ids=(),
+        resolved_at=T0,
+    )
+    assert run.loop is not None and run.request is not None
+    resumed = run.loop.run(dataclasses.replace(run.request, available_inputs=frozenset()))
+    assert resumed.stop_reason is StopReason.CONFIRMED
+    assert resumed.confirmed_root_cause == contact
+
+
+# -- the database holds the rules for every writer ------------------------------------------------
+
+
+def test_a_grant_written_directly_is_refused_whoever_writes_it(db):
+    """A grant exists only as its review's closure: a raw INSERT -- by a member or not -- with the
+    review left QUEUED and no resolution is refused, and the proxy stays unconfirmed."""
+    _queue(db)
+    fx = _proxy()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    (review,) = SqlDiagnosticWarrantStore(db).outstanding(PROJECT)
+    relation = db.execute(
+        "SELECT to_entity_id, attributes ->> 'prediction_id' FROM relation_judgments"
+        " WHERE relation_id = %s",
+        (review.subject_id,),
+    ).fetchone()
+    for granter in ("act:llm-agent", REVIEWER):
+        db.execute(
+            "INSERT INTO actors (actor_id, actor_type, display_name) VALUES (%s, 'HUMAN', %s)"
+            " ON CONFLICT DO NOTHING",
+            (granter, granter),
+        )
+        with pytest.raises(psycopg.Error, match=r"not an active human member|not the closure"):
+            db.execute(
+                "INSERT INTO diagnostic_warrant_grants (grant_id, project_id, review_id,"
+                " relation_id, relation_type, hypothesis_id, prediction_id, verdict,"
+                " granted_by_actor_id, granted_at, rationale) VALUES (%s, %s, %s, %s, 'SUPPORTS',"
+                " %s, %s, 'WARRANTED', %s, %s, 'forged')",
+                (
+                    f"dwg:forged-{granter}",
+                    PROJECT,
+                    review.review_id,
+                    review.subject_id,
+                    relation[0],
+                    relation[1],
+                    granter,
+                    T0,
+                ),
+            )
+    assert db.execute("SELECT count(*) FROM diagnostic_warrant_grants").fetchone()[0] == 0
+    assert run.loop is not None and run.request is not None
+    resumed = run.loop.run(dataclasses.replace(run.request, available_inputs=frozenset()))
+    assert resumed.failure_analysis.resolution_status is not ResolutionStatus.CONFIRMED
+
+
+def test_a_relation_cannot_be_rewritten_under_its_warrant(db):
+    fx = load_fixture()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    (relation_id,) = next(s.relation_ids for s in run.result.steps if s.relation_ids)
+    with pytest.raises(psycopg.Error, match="immutable"):
+        db.execute(
+            'UPDATE relation_judgments SET attributes = attributes || \'{"outcome": "AGREES"}\''
+            " WHERE relation_id = %s",
+            (relation_id,),
+        )
+    # An invalidation is still a recordable fact.
+    db.execute(
+        "UPDATE relation_judgments SET valid_to = %s, invalidation_reason = 'superseded'"
+        " WHERE relation_id = %s",
+        (T0, relation_id),
+    )
+
+
+def test_a_confirmation_citing_a_warrant_that_does_not_exist_is_refused(db):
+    fx = load_fixture()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    analysis = run.result.failure_analysis
+    with pytest.raises(psycopg.Error, match="neither a declaration reference"):
+        db.execute(
+            "INSERT INTO failure_analyses (failure_analysis_id, project_id, episode_id, symptom,"
+            " expected_behavior, observed_behavior, candidate_causes, confirmed_root_cause,"
+            " root_cause_evidence_ids, failure_class, resolution_status, created_at,"
+            " warrant_refs) VALUES ('fan:fake-warrant', %s, %s, 's', 'e', 'o', %s, %s, %s, 'c',"
+            " 'CONFIRMED', %s, ARRAY['dwg:nobody-granted-this'])",
+            (
+                PROJECT,
+                analysis.episode_id,
+                list(analysis.candidate_causes),
+                analysis.confirmed_root_cause,
+                list(analysis.root_cause_evidence_ids),
+                T0,
+            ),
+        )

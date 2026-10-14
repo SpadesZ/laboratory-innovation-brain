@@ -184,12 +184,15 @@ COMMENT ON TABLE diagnostic_warrant_grants IS
     'produced by it and not its rivals; CONTRADICTS: impossible under it). Scoped to exactly one '
     'relation, never reusable, append-only. NOT_WARRANTED is terminal for that relation.';
 
--- A grant answers the question its review asked, about the relation the review names.
+-- A grant answers the question its review asked, about the relation the review names, from an
+-- accountable person -- for EVERY writer, not only through `diagnostic_warrant_resolve`. A rule
+-- held only inside the function is a rule a direct INSERT walks past.
 CREATE OR REPLACE FUNCTION diagnostic_warrant_grants_match_their_review()
 RETURNS TRIGGER AS $$
 DECLARE
     v_review   review_items%ROWTYPE;
     v_relation relation_judgments%ROWTYPE;
+    v_author   TEXT;
 BEGIN
     SELECT * INTO v_review FROM review_items
      WHERE review_id = NEW.review_id AND project_id = NEW.project_id;
@@ -211,9 +214,91 @@ BEGIN
             '% relation of %', NEW.grant_id, NEW.relation_id, NEW.hypothesis_id,
             NEW.prediction_id, NEW.relation_type, NEW.project_id;
     END IF;
+    IF v_review.status NOT IN ('QUEUED', 'ASSIGNED') THEN
+        RAISE EXCEPTION 'review % is already %; a warrant is answered once',
+            NEW.review_id, v_review.status;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM actors a
+          JOIN project_memberships m ON m.actor_id = a.actor_id
+         WHERE a.actor_id = NEW.granted_by_actor_id AND a.actor_type = 'HUMAN' AND a.active
+           AND m.project_id = NEW.project_id AND m.active
+    ) THEN
+        RAISE EXCEPTION
+            '% is not an active human member of %, so cannot answer a diagnostic warrant there',
+            NEW.granted_by_actor_id, NEW.project_id;
+    END IF;
+    -- Not the person who ran the episode behind the relation, and not the hypothesis's author:
+    -- the warrant exists because the claim's author is not an accountable source for it, and
+    -- the actor whose run is being judged is not an independent one.
+    IF v_relation.actor_id IS NOT NULL AND v_relation.actor_id = NEW.granted_by_actor_id THEN
+        RAISE EXCEPTION
+            '% ran the episode that recorded % and cannot also warrant what it means; another '
+            'member of % answers', NEW.granted_by_actor_id, NEW.relation_id, NEW.project_id;
+    END IF;
+    SELECT authored_by_actor_id INTO v_author FROM hypotheses
+     WHERE hypothesis_id = NEW.hypothesis_id;
+    IF v_author IS NOT NULL AND v_author = NEW.granted_by_actor_id THEN
+        RAISE EXCEPTION '% authored % and cannot warrant its own claim',
+            NEW.granted_by_actor_id, NEW.hypothesis_id;
+    END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- A grant exists only as the closure of its review. Checked at commit, because the resolve
+-- function writes the grant before the resolution that cites it; a grant inserted on its own --
+-- with its review left QUEUED and no resolution -- is refused when its transaction commits.
+CREATE OR REPLACE FUNCTION diagnostic_warrant_grants_are_closures()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM review_resolutions r
+          JOIN review_items i ON i.review_id = r.review_id AND i.project_id = r.project_id
+         WHERE r.warrant_grant_id = NEW.grant_id AND r.project_id = NEW.project_id
+           AND r.review_id = NEW.review_id AND r.resolution_event_kind = 'WARRANT_GRANT'
+           AND i.status = r.outcome AND i.decision_ref = r.resolution_id
+    ) THEN
+        RAISE EXCEPTION
+            'grant % is not the closure of review %: a warrant is written only by answering the '
+            'review, with its resolution, in one statement (diagnostic_warrant_resolve)',
+            NEW.grant_id, NEW.review_id;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS diagnostic_warrant_grants_are_closures ON diagnostic_warrant_grants;
+CREATE CONSTRAINT TRIGGER diagnostic_warrant_grants_are_closures
+    AFTER INSERT ON diagnostic_warrant_grants
+    DEFERRABLE INITIALLY DEFERRED
+    FOR EACH ROW EXECUTE FUNCTION diagnostic_warrant_grants_are_closures();
+
+-- A relation is what a warrant, a grant and a stored decision all point at, so its content cannot
+-- change underneath them. Only an invalidation (`valid_to`, `invalidation_reason`, and the actor
+-- who made it) may be written later; anything else is a different relation, and gets a new id.
+CREATE OR REPLACE FUNCTION relation_judgments_content_is_immutable()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (NEW.relation_id, NEW.project_id, NEW.from_entity_id, NEW.to_entity_id, NEW.relation_type,
+        NEW.attributes, NEW.supporting_attestation_ids, NEW.condition_match_ref,
+        NEW.inference_provenance_id, NEW.valid_from, NEW.created_at)
+       IS DISTINCT FROM
+       (OLD.relation_id, OLD.project_id, OLD.from_entity_id, OLD.to_entity_id, OLD.relation_type,
+        OLD.attributes, OLD.supporting_attestation_ids, OLD.condition_match_ref,
+        OLD.inference_provenance_id, OLD.valid_from, OLD.created_at) THEN
+        RAISE EXCEPTION
+            'relation %''s content is immutable; only an invalidation may be recorded on it',
+            OLD.relation_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS relation_judgments_content_is_immutable ON relation_judgments;
+CREATE TRIGGER relation_judgments_content_is_immutable
+    BEFORE UPDATE ON relation_judgments
+    FOR EACH ROW EXECUTE FUNCTION relation_judgments_content_is_immutable();
 
 DROP TRIGGER IF EXISTS diagnostic_warrant_grants_match_their_review ON diagnostic_warrant_grants;
 CREATE TRIGGER diagnostic_warrant_grants_match_their_review
@@ -345,6 +430,10 @@ BEGIN
         RAISE EXCEPTION 'review % is already %; a warrant is answered once',
             p_review_id, v_review.status;
     END IF;
+    IF v_review.expires_at IS NOT NULL AND v_review.expires_at <= p_resolved_at THEN
+        RAISE EXCEPTION 'review % expired at %; an expired question is closed by expiry, not '
+            'answered late', p_review_id, v_review.expires_at;
+    END IF;
 
     -- The person answering is a person in this project. Which role may answer is the lab's call;
     -- that it is an accountable member is not.
@@ -361,6 +450,15 @@ BEGIN
 
     SELECT * INTO v_relation FROM relation_judgments
      WHERE relation_id = v_review.subject_id AND project_id = p_project_id;
+
+    -- Not the person who ran the episode that produced the relation. The warrant exists because
+    -- the claim's author is not an accountable source for it; the actor whose run is being judged
+    -- is not an independent one either.
+    IF v_relation.actor_id IS NOT NULL AND v_relation.actor_id = p_actor_id THEN
+        RAISE EXCEPTION
+            '% ran the episode that recorded % and cannot also warrant what it means; another '
+            'member of % answers', p_actor_id, v_relation.relation_id, p_project_id;
+    END IF;
 
     INSERT INTO diagnostic_warrant_grants (
         grant_id, project_id, review_id, relation_id, relation_type, hypothesis_id,
@@ -406,13 +504,36 @@ COMMENT ON COLUMN failure_analyses.warrant_refs IS
 -- again, so they are untouched; what they may still feed is decided by reading this column.
 CREATE OR REPLACE FUNCTION failure_analyses_confirmation_is_warranted()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_ref TEXT;
 BEGIN
-    IF NEW.resolution_status = 'CONFIRMED' AND cardinality(NEW.warrant_refs) = 0 THEN
+    IF NEW.resolution_status <> 'CONFIRMED' THEN
+        RETURN NEW;
+    END IF;
+    IF cardinality(NEW.warrant_refs) = 0 THEN
         RAISE EXCEPTION
             'failure analysis % confirms % with no diagnostic warrant. A confirmed cause rests on '
             'support an accountable source warranted, not on a declared effect alone (012o)',
             NEW.failure_analysis_id, NEW.confirmed_root_cause;
     END IF;
+    -- Each reference is a declaration reference (whose content the DomainPack re-checks; SQL
+    -- cannot) or a WARRANTED grant on a SUPPORTS relation of the cause itself.
+    FOREACH v_ref IN ARRAY NEW.warrant_refs LOOP
+        IF v_ref ~ '^dds:[^@#[:space:]]+@[^@#[:space:]]+#[^@#[:space:]]+$' THEN
+            CONTINUE;
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1 FROM diagnostic_warrant_grants g
+             WHERE g.grant_id = v_ref AND g.project_id = NEW.project_id
+               AND g.verdict = 'WARRANTED' AND g.relation_type = 'SUPPORTS'
+               AND g.hypothesis_id = NEW.confirmed_root_cause
+        ) THEN
+            RAISE EXCEPTION
+                'failure analysis % cites warrant %, which is neither a declaration reference nor '
+                'a WARRANTED grant on a SUPPORTS relation of %', NEW.failure_analysis_id, v_ref,
+                NEW.confirmed_root_cause;
+        END IF;
+    END LOOP;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

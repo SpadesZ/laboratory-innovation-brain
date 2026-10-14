@@ -260,8 +260,15 @@ class InMemoryDiagnosticWarrantStore:
             raise WarrantStoreError(f"a warrant is APPROVED or REJECTED, not {outcome.value}")
         if not self._members(actor_id, project_id):
             raise WarrantStoreError(f"{actor_id} is not an active human member of {project_id}")
+        if review.expires_at is not None and review.expires_at <= resolved_at:
+            raise WarrantStoreError(f"{review_id} expired at {review.expires_at.isoformat()}")
         relation = self._relation(project_id, review.subject_id)
         assert relation is not None
+        if relation.actor_id is not None and relation.actor_id == actor_id:
+            raise WarrantStoreError(
+                f"{actor_id} ran the episode that recorded {relation.relation_id} and cannot also "
+                "warrant what it means"
+            )
         grant = DiagnosticWarrantGrant(
             grant_id=grant_id,
             project_id=project_id,

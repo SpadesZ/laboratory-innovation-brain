@@ -89,6 +89,17 @@ def _pair(
     )
 
 
+#: Each declaration set version this pack has ever registered, by digest. Checked when the set is
+#: built, so a link edited in place -- which would silently change what re-deriving a stored
+#: warrant means -- stops the pack from loading instead. A changed link is a new catalog version,
+#: and the old version stays registered for every warrant that cites it.
+DECLARATION_DIGESTS: dict[str, str] = {
+    "sp.rs_anomaly_mechanisms@1.0.0": (
+        "sha256:e1d637af972bb9fc902772e926f3ed796ab5ad183b21edfe132fd993d24aa0e6"
+    ),
+}
+
+
 def diagnostic_declaration_set() -> DiagnosticDeclarationSet:
     """The catalog's diagnostic links: what a DOMAIN warrant in this pack may cite.
 
@@ -97,7 +108,13 @@ def diagnostic_declaration_set() -> DiagnosticDeclarationSet:
     different observables -- and its CONTRADICTS outcome refutes it. Pinned by digest in the pack's
     tests: changing a link means a new catalog version.
     """
-    return diagnostic_declarations(mechanism_catalog(), DOMAIN)
+    declarations = diagnostic_declarations(mechanism_catalog(), DOMAIN)
+    if DECLARATION_DIGESTS.get(declarations.ref) != declarations.digest:
+        raise RuntimeError(
+            f"diagnostic declaration set {declarations.ref} hashes to {declarations.digest}, not "
+            "its registered digest: a declared link changed without a catalog version bump"
+        )
+    return declarations
 
 
 def mechanism_catalog() -> MechanismCatalog:

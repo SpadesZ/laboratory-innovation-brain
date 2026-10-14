@@ -72,13 +72,15 @@ def _model_statement(db: Any, run: VerticalRun, mechanism: str) -> str:
     return attestation.attestation_id
 
 
-def _insert_analysis(db: Any, run: VerticalRun, cause: str, evidence: list[str]) -> None:
+def _insert_analysis(
+    db: Any, run: VerticalRun, cause: str, evidence: list[str], warrants: tuple[str, ...] = ()
+) -> None:
     db.execute(
         "INSERT INTO failure_analyses (failure_analysis_id, project_id, episode_id, symptom,"
         " expected_behavior, observed_behavior, candidate_causes, confirmed_root_cause,"
-        " root_cause_evidence_ids, failure_class, resolution_status, created_at)"
+        " root_cause_evidence_ids, failure_class, resolution_status, created_at, warrant_refs)"
         " VALUES (%s, %s, %s, 'Rs flat', 'design Rs', 'several times design', %s, %s, %s,"
-        " 'forged', 'CONFIRMED', %s)",
+        " 'forged', 'CONFIRMED', %s, %s)",
         (
             "fan:forged",
             PROJECT,
@@ -87,6 +89,7 @@ def _insert_analysis(db: Any, run: VerticalRun, cause: str, evidence: list[str])
             cause,
             evidence,
             T,
+            list(warrants),
         ),
     )
 
@@ -194,9 +197,12 @@ def test_sql_refuses_a_confirmation_resting_on_anything_but_executed_evidence(db
             " ARRAY['hyp:imagined'], 'c', 'INCONCLUSIVE', %s)",
             (PROJECT, run.debate.hypothesis_set.episode_id, T),
         )
-    # The genuine evidence still confirms: the trigger refuses forgeries, not the record.
+    # The genuine evidence still confirms: the trigger refuses forgeries, not the record -- and
+    # since the Causal Warrant Gate (`012o`) only when it names the warrants it rests on.
     genuine = list(run.result.failure_analysis.root_cause_evidence_ids)
-    _insert_analysis(db, run, contact, genuine)
+    with pytest.raises(Exception, match="no diagnostic warrant"):
+        _insert_analysis(db, run, contact, genuine)
+    _insert_analysis(db, run, contact, genuine, run.result.failure_analysis.warrant_refs)
 
 
 def test_candidate_heuristics_rest_on_confirmed_failures_and_the_memory_is_append_only(db):

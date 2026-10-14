@@ -18,11 +18,12 @@ of it discriminating rather than merely consistent, and why a set refuses two cl
 same outcome. Declaring the exclusivity is the domain's responsibility, reviewed as code.
 
 BINDING IS BY CONTENT, NOT BY AUTHOR. A hypothesis is of a declared class when it states the class's
-canonical mechanism exactly AND its own predictions on the class's observable agree with the
-declaration: nothing affirms an outcome the class cannot produce, and nothing refutes the one it
-does. A paraphrase is unbound and goes to a person, which is the safe way to be wrong; a hypothesis
-borrowing a class name over predictions that disagree with the class is unbound too. Nothing here
-searches text, scores similarity or reads who wrote a hypothesis.
+canonical mechanism exactly AND its own predictions on the class's observable state the whole
+declaration -- the signature as SUPPORTS, every refuting outcome as CONTRADICTS, nothing that
+disagrees -- so the domain can refute what it would support. A paraphrase is unbound and goes to a
+person, which is the safe way to be wrong; a hypothesis borrowing a class name over a partial or
+disagreeing declaration is unbound too. Nothing here searches text, scores similarity or reads who
+wrote a hypothesis.
 """
 
 from __future__ import annotations
@@ -91,24 +92,31 @@ class DiagnosticDeclaration(CoreModel):
             return RelationType.CONTRADICTS
         return None
 
-    def agrees_with(self, predictions: Iterable[Prediction]) -> bool:
-        """Whether a hypothesis's predictions on this observable say what the class says.
+    def binds(self, predictions: Iterable[Prediction]) -> bool:
+        """Whether a hypothesis's predictions on this observable make it this class.
 
-        Affirming (SUPPORTS or PREDICTS) only the supporting outcome and contradicting only a
-        refuting one. Silence is agreement; a contradiction of the declaration is not.
+        It must state the whole declaration: the signature as SUPPORTS and every refuting outcome
+        as CONTRADICTS -- and nothing that disagrees (affirming an outcome the class cannot
+        produce, or refuting its signature). Silence is NOT enough: a copy that omits the refuting
+        outcome could be supported by the domain and never refuted by it, because a refutation
+        acts only through a relation, and a relation exists only for an outcome predicted.
         """
+        declared: set[tuple[str, RelationType]] = set()
         for prediction in predictions:
             if not self.same_observable(prediction):
                 continue
-            declared = self.effect_for(prediction.expected_outcome)
+            meaning = self.effect_for(prediction.expected_outcome)
             for effect in prediction.relation_effect_if_observed:
                 kind = effect.relation_type
                 if kind in (RelationType.SUPPORTS, RelationType.PREDICTS):
-                    if declared is not RelationType.SUPPORTS:
+                    if meaning is not RelationType.SUPPORTS:
                         return False
-                elif kind is RelationType.CONTRADICTS and declared is not RelationType.CONTRADICTS:
+                elif kind is RelationType.CONTRADICTS and meaning is not RelationType.CONTRADICTS:
                     return False
-        return True
+                declared.add((prediction.expected_outcome, kind))
+        return (self.supports_outcome, RelationType.SUPPORTS) in declared and all(
+            (outcome, RelationType.CONTRADICTS) in declared for outcome in self.refutes_outcomes
+        )
 
 
 #: `dds:<set id>@<version>#<class id>`, the reference a DOMAIN warrant carries.
@@ -172,9 +180,9 @@ class DiagnosticDeclarationSet(CoreModel):
     def bound_class(
         self, mechanism: str, predictions: Iterable[Prediction]
     ) -> DiagnosticDeclaration | None:
-        """The class a hypothesis is of, by its exact mechanism and agreeing predictions."""
+        """The class a hypothesis is of, by its exact mechanism and its whole declaration."""
         declaration = next((d for d in self.declarations if d.mechanism == mechanism), None)
-        if declaration is None or not declaration.agrees_with(predictions):
+        if declaration is None or not declaration.binds(predictions):
             return None
         return declaration
 

@@ -37,7 +37,7 @@ from lab_brain.cognition.brain import HypothesisBrain
 from lab_brain.cognition.debate import DebateOutcome, DebatePolicy, DebateRequest
 from lab_brain.cognition.evidence import EvidenceItem
 from lab_brain.core.budget import BudgetPolicy
-from lab_brain.core.episode import BeliefEpisode
+from lab_brain.core.episode import BeliefEpisode, superseded_versions
 from lab_brain.core.models.capability import ActionType, Availability
 from lab_brain.core.models.cost import BudgetCaps, CostVector
 from lab_brain.core.models.enums import SensitivityLabel, TrustClass
@@ -451,6 +451,13 @@ def run_case(
             connection, declaration_sets=(declarations,), active=declarations.ref
         ),
         warrant_reviews=SqlDiagnosticWarrantStore(connection),
+        superseded=superseded_versions(
+            (
+                *transition_policies(),
+                *warranted_transition_policies(),
+                *sp_vertical.vertical_transition_policies(),
+            )
+        ),
     )
     brain = HypothesisBrain(
         debate=world.debate,

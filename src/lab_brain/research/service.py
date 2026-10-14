@@ -63,7 +63,7 @@ from lab_brain.cognition.roles import core_prompts
 from lab_brain.cognition.routing import ModelRouter
 from lab_brain.composition import IngestionService
 from lab_brain.core.budget import BudgetPolicy
-from lab_brain.core.episode import BeliefEpisode
+from lab_brain.core.episode import BeliefEpisode, superseded_versions
 from lab_brain.core.hypothesis_admission import HypothesisAdmissionService
 from lab_brain.core.models.base import utc_now
 from lab_brain.core.models.belief_event import BeliefRevisionEvent, BeliefState
@@ -1239,6 +1239,7 @@ class ResearchEpisodeService:
                 active=vertical.active_declarations,
             ),
             warrant_reviews=SqlDiagnosticWarrantStore(c),
+            superseded=superseded_versions(vertical.transition_policies),
         )
         brain = HypothesisBrain(
             debate=debate,

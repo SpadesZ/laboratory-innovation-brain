@@ -245,6 +245,16 @@ class EpisodeResult:
         return self.review is not None or bool(self.warrant_reviews)
 
 
+def superseded_versions(policies: Sequence[TransitionPolicy]) -> frozenset[tuple[str, str]]:
+    """The (policy id, version) pairs some registered policy declares it `supersedes`."""
+    found: set[tuple[str, str]] = set()
+    for policy in policies:
+        if policy.supersedes and "@" in policy.supersedes:
+            policy_id, version = policy.supersedes.rsplit("@", 1)
+            found.add((policy_id, version))
+    return frozenset(found)
+
+
 def counted_triggers(
     policy: TransitionPolicy,
     view: HypothesisView,
@@ -297,6 +307,7 @@ class BeliefEpisode:
         authority_policies: Mapping[tuple[str, str], AuthorityPolicy] = MappingProxyType({}),
         warrants: WarrantResolver | None = None,
         warrant_reviews: WarrantReviewSink | None = None,
+        superseded: frozenset[tuple[str, str]] = frozenset(),
     ) -> None:
         self._policies = policies
         self._decisions = decisions
@@ -311,6 +322,9 @@ class BeliefEpisode:
         #: goes to a person, and a stored warrant cannot be re-checked, so it fails closed.
         self._warrants = warrants
         self._warrant_reviews = warrant_reviews
+        #: Policy versions a later version supersedes: kept registered so every decision recorded
+        #: under them re-derives, refused for any new attempt.
+        self._superseded = superseded
 
     # -- reads -------------------------------------------------------------------------------
 
@@ -440,6 +454,12 @@ class BeliefEpisode:
                 f"{policy_id}@{policy_version} is not registered. §8.2.1 keys a policy on "
                 "(policy_id, version) and an unregistered one cannot be re-derived later, so the "
                 "transition it would authorise could never be audited"
+            )
+        if (policy_id, policy_version) in self._superseded:
+            raise EpisodeRefused(
+                f"{policy_id}@{policy_version} is superseded. It stays registered so the decisions "
+                "recorded under it re-derive; a new transition is attempted under the version "
+                "that replaced it"
             )
         if policy.is_admission:
             raise EpisodeRefused(

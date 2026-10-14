@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from lab_brain.core.models.warrant import DiagnosticDeclarationSet
-from lab_brain.core.repositories.evidence import SqlAttestationStore
+from lab_brain.core.repositories.evidence import SqlAttestationStore, SqlRelationStore
 from lab_brain.core.repositories.hypotheses import SqlHypothesisStore
 from lab_brain.core.repositories.jobs import SqlJobStore
 from lab_brain.core.repositories.observations import SqlObservationStore
@@ -32,6 +32,7 @@ def sql_warrant_resolver(
         observations=SqlObservationStore(connection).get,
         runs=SqlJobStore(connection).get_run,
         grants=SqlDiagnosticWarrantStore(connection),
+        relations=SqlRelationStore(connection).get,
         declaration_sets=declaration_sets,
         active=active,
     )

@@ -207,9 +207,12 @@ def test_a_class_binds_by_exact_mechanism_and_agreeing_predictions_only():
     assert FIBRE.bound_class("connector end-face contamination", (backwards,)) is None
     affirms_refuter = prediction("a", "fl.endface", "CLEAN", RelationType.PREDICTS)
     assert FIBRE.bound_class("connector end-face contamination", (sig, affirms_refuter)) is None
-    # Silence on the class's observable is not disagreement.
+    # A partial declaration is not the class: a copy stating only the signature could be
+    # supported by the domain and never refuted by it, because nothing predicts the refutation.
+    assert FIBRE.bound_class("connector end-face contamination", (sig,)) is None
     elsewhere = prediction("a", "fl.otdr_bend", "NO_STEP", RelationType.PREDICTS)
-    assert FIBRE.bound_class("connector end-face contamination", (elsewhere,)) is not None
+    assert FIBRE.bound_class("connector end-face contamination", (elsewhere,)) is None
+    assert FIBRE.bound_class("connector end-face contamination", (sig, contra, elsewhere))
 
 
 def test_the_sp_declaration_set_is_pinned_by_digest():
@@ -239,15 +242,19 @@ class _Grants:
 
 
 def _resolver(
-    *certificates: HypothesisCertificate, grants: _Grants | None = None
+    *certificates: HypothesisCertificate,
+    grants: _Grants | None = None,
+    attestations: Any = None,
+    relations: Any = None,
 ) -> WarrantResolver:
     by_id = {c.hypothesis_id: c for c in certificates}
     return WarrantResolver(
         certificates=lambda _p, h: by_id.get(h),
-        attestations=lambda _p, _a: None,
+        attestations=attestations or (lambda _p, _a: None),
         observations=lambda _p, _o: None,
         runs=lambda _r: None,
         grants=grants,
+        relations=relations,
         declaration_sets=(FIBRE,),
         active=FIBRE.ref,
     )
@@ -264,10 +271,14 @@ def test_a_proxy_observable_earns_no_domain_warrant_in_another_domain():
 def test_authorship_never_decides_a_warrant():
     """Identical claims are warranted identically, whatever produced them."""
     sig = prediction("h", "fl.endface", "DIRTY", RelationType.SUPPORTS)
+    contra = prediction("h", "fl.endface", "CLEAN", RelationType.CONTRADICTS)
     relation = observed(sig)
-    catalog = certificate("h", "connector end-face contamination", (sig,))
+    catalog = certificate("h", "connector end-face contamination", (sig, contra))
     model = certificate(
-        "h", "connector end-face contamination", (sig,), inference_provenance_id="inf:any-model"
+        "h",
+        "connector end-face contamination",
+        (sig, contra),
+        inference_provenance_id="inf:any-model",
     )
     a = _resolver(catalog).resolve(PROJECT, "hyp:h", (relation,)).records
     b = _resolver(model).resolve(PROJECT, "hyp:h", (relation,)).records
@@ -350,8 +361,9 @@ def test_a_recorded_warrant_that_does_not_recheck_is_refused():
 
 def test_a_refuting_outcome_is_warranted_only_for_the_bound_class():
     contra = prediction("c", "fl.endface", "CLEAN", RelationType.CONTRADICTS)
-    bound = certificate("c", "connector end-face contamination", (contra,))
-    unbound = certificate("c", "contaminated splice", (contra,))
+    sig = prediction("c", "fl.endface", "DIRTY", RelationType.SUPPORTS)
+    bound = certificate("c", "connector end-face contamination", (sig, contra))
+    unbound = certificate("c", "contaminated splice", (sig, contra))
     assert domain_warrant(observed(contra), bound, FIBRE) is not None
     assert domain_warrant(observed(contra), unbound, FIBRE) is None
 
@@ -574,11 +586,19 @@ class _World:
     def admitted_for_subject(self, project_id: str, subject_id: str) -> tuple[Any, ...]:
         return self.relations.get(subject_id, ())
 
+    def enqueue_warrant_review(self, **fields: Any) -> str:
+        self.asked = (*getattr(self, "asked", ()), fields["relation_id"])
+        return f"rvw:{fields['relation_id']}"
+
     def outstanding_relations(self, project_id: str, relation_ids: Any) -> frozenset[str]:
         return frozenset(r for r in relation_ids if r in self.pending)
 
 
-def _standing(world: _World) -> Any:
+def _standing(
+    world: _World,
+    certificates: tuple[HypothesisCertificate, ...] | None = None,
+    declarations: DiagnosticDeclarationSet | None = None,
+) -> Any:
     deps = LoopDependencies(
         **{
             name: cast(Any, None)
@@ -589,8 +609,11 @@ def _standing(world: _World) -> Any:
         evidence=cast(Any, world),
         warrant_reviews=world,
         now=lambda: T0,
+        declarations=declarations,
     )
-    certificates = tuple(certificate(h.split(":", 1)[1], h, ()) for h in sorted(world.states))
+    certificates = certificates or tuple(
+        certificate(h.split(":", 1)[1], h, ()) for h in sorted(world.states)
+    )
     request = LoopRequest(
         **{
             name: cast(Any, None)
@@ -682,21 +705,100 @@ def test_two_classes_supported_is_competition_not_a_choice():
     assert standing.competing == ("hyp:pool", "hyp:query")
 
 
-def test_a_pending_answer_that_could_overturn_the_conclusion_holds_it():
+def test_an_unsettled_answer_that_could_overturn_the_conclusion_holds_it_queued_or_not():
+    """Read off the records: a project with no review queue does not make the threat vanish."""
     rival_support = _rival_affirming(RelationType.SUPPORTS).model_copy(
         update={"from_entity_id": "obs:elsewhere", "relation_id": "rel:query-elsewhere"}
     )
-    base = {
-        "states": {"hyp:pool": BeliefState.SUPPORTED, "hyp:query": BeliefState.ACTIVE},
-        "relations": {"hyp:pool": (POOL_REL,), "hyp:query": (rival_support,)},
-        "records": {
-            "hyp:pool": (POOL_WARRANTED,),
-            "hyp:query": (_record(rival_support, warranted=False),),
-        },
-    }
-    held = _standing(_World(**base, outstanding=frozenset({"rel:query-elsewhere"})))
+
+    def world(refused: bool) -> _World:
+        return _World(
+            states={"hyp:pool": BeliefState.SUPPORTED, "hyp:query": BeliefState.ACTIVE},
+            relations={"hyp:pool": (POOL_REL,), "hyp:query": (rival_support,)},
+            records={
+                "hyp:pool": (POOL_WARRANTED,),
+                "hyp:query": (_record(rival_support, warranted=False, refused=refused),),
+            },
+        )
+
+    held = _standing(world(refused=False))
     assert held.confirmable is None and held.awaiting == ("rel:query-elsewhere",)
-    assert _standing(_World(**base)).confirmable == "hyp:pool"
+    assert _standing(world(refused=True)).confirmable == "hyp:pool"
+
+
+def test_a_refutation_arriving_after_the_promotion_still_holds_the_conclusion():
+    """No policy starts from SUPPORTED, so only the confirmation rule can notice it."""
+    late = prediction("pool", "web.pool_wait", "IDLE_CAPACITY", RelationType.CONTRADICTS)
+    late_rel = observed(late, observation="obs:second-pool-check")
+    world = _World(
+        states={"hyp:pool": BeliefState.SUPPORTED, "hyp:query": BeliefState.ACTIVE},
+        relations={"hyp:pool": (POOL_REL, late_rel)},
+        records={"hyp:pool": (POOL_WARRANTED, _record(late_rel, warranted=False, line="l2"))},
+    )
+    standing = _standing(world)
+    assert standing.confirmable is None
+    assert standing.awaiting == (late_rel.relation_id,)
+
+
+def test_an_excluded_rivals_unanswered_support_is_not_a_threat():
+    """Once a warranted refutation excludes a rival, its pending support question cannot matter."""
+    affirming = _rival_affirming(RelationType.SUPPORTS)
+    contra = prediction("query", "web.query_latency", "BASELINE", RelationType.CONTRADICTS)
+    refutation = observed(contra, observation="obs:latency", relation_id="rel:query-baseline")
+    world = _World(
+        states={"hyp:pool": BeliefState.SUPPORTED, "hyp:query": BeliefState.CONTRADICTED},
+        relations={"hyp:pool": (POOL_REL,), "hyp:query": (affirming, refutation)},
+        records={
+            "hyp:pool": (POOL_WARRANTED,),
+            "hyp:query": (
+                _record(affirming, warranted=False),
+                _record(refutation, warranted=True, line="line:latency"),
+            ),
+        },
+    )
+    assert _standing(world).confirmable == "hyp:pool"
+
+
+def test_a_refuted_copy_of_the_candidates_own_class_blocks_it():
+    """Two members of one declared class are one candidate: a refutation of either refutes it.
+
+    Serial readings disagree -- saturated, then idle. The copy that holds both is not a rival the
+    refutation could "exclude"; it is the same class, refuted.
+    """
+    pair = {
+        h: (
+            prediction(h, "web.pool_wait", "SATURATED_WAITING", RelationType.SUPPORTS),
+            prediction(h, "web.pool_wait", "IDLE_CAPACITY", RelationType.CONTRADICTS),
+        )
+        for h in ("pool", "twin")
+    }
+    mechanism = "database connection pool exhaustion"
+    certificates = (
+        certificate("pool", mechanism, pair["pool"]),
+        certificate("twin", mechanism, pair["twin"]),
+    )
+    supported = observed(pair["pool"][0], observation="obs:first-reading")
+    twin_refuted = observed(pair["twin"][1], observation="obs:second-reading")
+    world = _World(
+        states={"hyp:pool": BeliefState.SUPPORTED, "hyp:twin": BeliefState.ACTIVE},
+        relations={"hyp:pool": (supported,), "hyp:twin": (twin_refuted,)},
+        records={
+            "hyp:pool": (_record(supported, warranted=True),),
+            "hyp:twin": (_record(twin_refuted, warranted=True, line="line:2"),),
+        },
+    )
+    standing = _standing(world, certificates=certificates, declarations=INCIDENT)
+    assert standing.confirmable is None
+    assert any("own class" in note for note in standing.notes)
+    # Without the twin's refutation the class stands, and the twin is not a rival to discharge.
+    clean = _World(
+        states=world.states,
+        relations={"hyp:pool": (supported,)},
+        records={"hyp:pool": (_record(supported, warranted=True),)},
+    )
+    assert _standing(clean, certificates=certificates, declarations=INCIDENT).confirmable == (
+        "hyp:pool"
+    )
 
 
 def test_support_nobody_warranted_never_confirms():
@@ -817,3 +919,224 @@ def test_an_allowed_event_cites_only_the_warranted_relations():
         _promote(diagnostic_warrant_required=False), view, (REL, proxy), attestations
     )
     assert len(ungated) == 2
+
+
+def test_a_superseded_policy_version_is_re_derivable_but_never_attempted():
+    from lab_brain.core.episode import BeliefEpisode, EpisodeRefused, superseded_versions
+    from lab_brain.domains.silicon_photonics import vertical as sp
+
+    offered = sp.vertical_transition_policies()
+    superseded = superseded_versions(offered)
+    assert (sp.PROMOTE_POLICY_ID, sp.VERTICAL_POLICY_VERSION) in superseded
+    first = next(p for p in offered if p.version == sp.VERTICAL_POLICY_VERSION)
+    episode = BeliefEpisode(
+        **{
+            name: cast(Any, None)
+            for name in (
+                "decisions",
+                "events",
+                "relations",
+                "authority_classes",
+                "conflicts",
+                "reviews",
+                "ids",
+            )
+        },
+        policies=cast(Any, type("P", (), {"get": staticmethod(lambda _i, _v: first)})()),
+        superseded=superseded,
+    )
+    with pytest.raises(EpisodeRefused, match="superseded"):
+        episode.attempt_transition(
+            project_id=PROJECT,
+            hypothesis_id="hyp:h",
+            policy_id=first.policy_id,
+            policy_version=first.version,
+            candidate_to_state=BeliefState.SUPPORTED,
+            stakes="HIGH",
+            occurred_at=T0,
+            trace_id="trc:toy",
+        )
+
+
+def test_a_persons_refusal_outranks_a_domain_declaration():
+    """A refusal is about this observation; a declaration is about the class in general."""
+    sig = prediction("h", "fl.endface", "DIRTY", RelationType.SUPPORTS)
+    contra = prediction("h", "fl.endface", "CLEAN", RelationType.CONTRADICTS)
+    cert = certificate("h", "connector end-face contamination", (sig, contra))
+    relation = observed(sig)
+    refusal = DiagnosticWarrantGrant(
+        grant_id="dwg:no",
+        project_id=PROJECT,
+        review_id="rvw:no",
+        relation_id=relation.relation_id,
+        relation_type=RelationType.SUPPORTS,
+        hypothesis_id="hyp:h",
+        prediction_id=sig.prediction_id,
+        verdict=GrantVerdict.NOT_WARRANTED,
+        granted_by_actor_id="act:reviewer",
+        granted_at=T0,
+        rationale="the end-face image was of the wrong connector",
+    )
+    (record,) = (
+        _resolver(cert, grants=_Grants(refusal)).resolve(PROJECT, "hyp:h", (relation,)).records
+    )
+    assert record.refused and record.warrant is None
+
+
+def test_a_declaration_edited_in_place_stops_the_pack_loading(monkeypatch: pytest.MonkeyPatch):
+    from lab_brain.domains.silicon_photonics import product
+
+    original = product.mechanism_catalog()
+    edited = original.__class__(
+        catalog_id=original.catalog_id,
+        version=original.version,
+        primary_terms=original.primary_terms,
+        mechanisms=tuple(
+            m.__class__(**{**m.__dict__, "statement": m.statement + " (edited)"})
+            for m in original.mechanisms
+        ),
+    )
+    monkeypatch.setattr(product, "mechanism_catalog", lambda: edited)
+    with pytest.raises(RuntimeError, match="without a catalog version bump"):
+        product.diagnostic_declaration_set()
+
+
+# -- the attacker's findings, held -------------------------------------------------------------
+
+
+def test_a_coarse_challenge_does_not_exclude_a_rival_that_shares_the_observation():
+    """SIM-002: a coarse refutation challenges; it does not reject, so it discharges nothing."""
+    affirming = _rival_affirming(RelationType.PREDICTS)
+    contra = prediction("query", "web.query_latency", "BASELINE", RelationType.CONTRADICTS)
+    coarse = observed(contra, observation="obs:coarse", relation_id="rel:query-coarse")
+    world = _World(
+        states={"hyp:pool": BeliefState.SUPPORTED, "hyp:query": BeliefState.CHALLENGED},
+        relations={"hyp:pool": (POOL_REL,), "hyp:query": (affirming, coarse)},
+        records={
+            "hyp:pool": (POOL_WARRANTED,),
+            "hyp:query": (_record(coarse, warranted=True, line="line:coarse"),),
+        },
+    )
+    standing = _standing(world)
+    assert standing.confirmable is None and standing.undischarged == ("hyp:query",)
+
+
+def test_another_classes_observed_signature_blocks_a_unique_confirmation():
+    """The slow-query signature was observed, claimed by a hypothesis nobody believes. It is
+    still the domain's evidence of a second mechanism -- or of the right one."""
+    pool_pair = (
+        prediction("pool", "web.pool_wait", "SATURATED_WAITING", RelationType.SUPPORTS),
+        prediction("pool", "web.pool_wait", "IDLE_CAPACITY", RelationType.CONTRADICTS),
+    )
+    claim = prediction("noise", "web.query_latency", "REGRESSED", RelationType.SUPPORTS)
+    certificates = (
+        certificate("pool", "database connection pool exhaustion", pool_pair),
+        certificate("noise", "a noisy neighbour on the host", (claim,)),
+    )
+    supported = observed(pool_pair[0], observation="obs:pool-check")
+    signature = observed(claim, observation="obs:latency-check")
+    world = _World(
+        states={"hyp:pool": BeliefState.SUPPORTED, "hyp:noise": BeliefState.ACTIVE},
+        relations={"hyp:pool": (supported,), "hyp:noise": (signature,)},
+        records={
+            "hyp:pool": (_record(supported, warranted=True),),
+            "hyp:noise": (_record(signature, warranted=False, refused=True, line="l2"),),
+        },
+    )
+    standing = _standing(world, certificates=certificates, declarations=INCIDENT)
+    assert standing.confirmable is None
+    assert any("declared signature of 'slow query regression'" in n for n in standing.notes)
+
+
+def test_each_gated_type_a_policy_requires_needs_its_own_warrant():
+    contra = prediction("h", "web.pool_wait", "IDLE_CAPACITY", RelationType.CONTRADICTS)
+    contra_rel = observed(contra, observation="obs:2")
+    both = _promote(
+        required_relation_types=(RelationType.SUPPORTS, RelationType.CONTRADICTS),
+    )
+    view = _view(_record(REL, warranted=True), _record(contra_rel, warranted=False, line="l2"))
+    decision = _evaluate(both, view, REL, contra_rel)
+    assert decision.outcome is not TransitionOutcome.ALLOW
+
+
+def test_a_warrant_is_rechecked_against_the_stored_relation_not_the_snapshots_copy():
+    sig = prediction("h", "fl.endface", "DIRTY", RelationType.SUPPORTS)
+    contra = prediction("h", "fl.endface", "CLEAN", RelationType.CONTRADICTS)
+    cert = certificate("h", "connector end-face contamination", (sig, contra))
+    stored = observed(contra)
+    forged = stored.model_copy(
+        update={
+            "relation_type": RelationType.SUPPORTS,
+            "attributes": {
+                "prediction_id": sig.prediction_id,
+                "outcome": "DIRTY",
+                "outcome_space": sig.outcome_space_ref,
+            },
+        }
+    )
+    resolver = _resolver(cert, relations=lambda _p, _r: stored)
+    record = RelationEvidence(
+        relation_id=forged.relation_id,
+        relation_type=RelationType.SUPPORTS,
+        prediction_id=sig.prediction_id,
+        warrant=WarrantBasis.DOMAIN,
+        warrant_ref="dds:fl.loss_mechanisms@1.0.0#contamination",
+    )
+    with pytest.raises(WarrantUnverified, match="not the relation stored"):
+        resolver.verify(PROJECT, "hyp:h", record, (forged,))
+
+
+def test_a_grant_for_another_prediction_and_an_unrecorded_outcome_warrant_nothing():
+    sig = prediction("n", "fl.otdr_bend", "WAVELENGTH_DEPENDENT_STEP", RelationType.SUPPORTS)
+    cert = certificate("n", "fibre crushed under a cable tie", (sig,))
+    relation = observed(sig)
+    elsewhere = DiagnosticWarrantGrant(
+        grant_id="dwg:x",
+        project_id=PROJECT,
+        review_id="rvw:x",
+        relation_id=relation.relation_id,
+        relation_type=RelationType.SUPPORTS,
+        hypothesis_id="hyp:n",
+        prediction_id="prd:someone-else",
+        verdict=GrantVerdict.WARRANTED,
+        granted_by_actor_id="act:reviewer",
+        granted_at=T0,
+        rationale="r",
+    )
+    (record,) = (
+        _resolver(cert, grants=_Grants(elsewhere)).resolve(PROJECT, "hyp:n", (relation,)).records
+    )
+    assert record.warrant is None
+
+    # The relation says the step was observed; its own attestation recorded NO_STEP.
+    from lab_brain.core.models.attestation import Attestation
+
+    def attestation(_p: str, _a: str) -> Any:
+        return cast(
+            Attestation,
+            type(
+                "A",
+                (),
+                {
+                    "method": {"outcome": "NO_STEP"},
+                    "authority_class": None,
+                    "run_id": None,
+                    "observation_id": None,
+                },
+            )(),
+        )
+
+    bound = certificate(
+        "b",
+        "macrobend in the patch run",
+        (
+            prediction("b", "fl.otdr_bend", "WAVELENGTH_DEPENDENT_STEP", RelationType.SUPPORTS),
+            prediction("b", "fl.otdr_bend", "NO_STEP", RelationType.CONTRADICTS, key="ns"),
+            prediction("b", "fl.otdr_bend", "FLAT_STEP", RelationType.CONTRADICTS, key="fs"),
+        ),
+    )
+    claimed = observed(bound.predictions[0])
+    (unrecorded,) = (
+        _resolver(bound, attestations=attestation).resolve(PROJECT, "hyp:b", (claimed,)).records
+    )
+    assert unrecorded.warrant is None

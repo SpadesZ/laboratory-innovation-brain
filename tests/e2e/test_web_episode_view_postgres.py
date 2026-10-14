@@ -47,6 +47,7 @@ from lab_brain.domains.silicon_photonics.product import product_vertical
 from lab_brain.interfaces.web.pages import label
 from lab_brain.research.episode_view import load_episode_view
 from lab_brain.research.report_store import SqlResearchReportStore
+from lab_brain.storage.postgres.warrants import sql_warrant_resolver
 from tests.debate_fixtures import CountingIds
 from tests.e2e.test_research_episode_postgres import PROJECT
 from tests.e2e.test_web_debate_retry_postgres import _activated, _deployment
@@ -241,6 +242,13 @@ def test_each_executed_check_and_each_governed_move_is_explained_from_the_stored
         reviews=SqlReviewItemStore(db),
         ids=CountingIds(),
         authority_policies=vertical.authority_policies,
+        # The history it reads holds warrant-gated decisions, each re-checked against its sources
+        # before it may count -- as the research service's own reader does.
+        warrants=sql_warrant_resolver(
+            db,
+            declaration_sets=vertical.declaration_sets,
+            active=vertical.active_declarations,
+        ),
     ).attempt_transition(
         project_id=PROJECT,
         hypothesis_id=hypothesis,

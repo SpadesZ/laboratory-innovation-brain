@@ -601,9 +601,22 @@ class TransitionPolicy(CoreModel):
         #     accountable source warrants its link, and steps 5-7 then read only those relations.
         gated = tuple(t for t in self.required_relation_types if t in _GATED_TYPES)
         if self.diagnostic_warrant_required and gated:
-            return self._decide_warranted(
-                decide, hypothesis, admitted_relations, authority_policy, condition_matches, gated
-            )
+            # Each gated type the policy requires must stand on its own warranted relations; a
+            # warranted SUPPORTS does not stand in for an unwarranted CONTRADICTS, or the reverse.
+            verdict = None
+            for kind in sorted(set(gated), key=lambda t: t.value):
+                verdict = self._decide_warranted(
+                    decide,
+                    hypothesis,
+                    admitted_relations,
+                    authority_policy,
+                    condition_matches,
+                    (kind,),
+                )
+                if verdict.outcome is not TransitionOutcome.ALLOW:
+                    return verdict
+            assert verdict is not None
+            return verdict
 
         verdict = self._thresholds(
             decide,
