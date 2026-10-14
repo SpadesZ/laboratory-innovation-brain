@@ -60,9 +60,9 @@ from tests.e2e.test_causal_warrant_counterexample_postgres import (
     _renamed,
     _shared,
 )
-from tests.postgres_fixtures import database_url
+from tests.postgres_fixtures import database_url, reset_database
 from tests.reviewer_keys import AUTHORITY, AUTHORITY_ACTOR, TRUST, key_for
-from tests.vertical_fixtures import case_by_id, load_fixture, run_case
+from tests.vertical_fixtures import assert_rules_agree, case_by_id, load_fixture, run_case
 
 pytestmark = pytest.mark.postgres
 
@@ -883,8 +883,8 @@ def test_a_class_binds_in_sql_only_over_its_whole_declaration(db):
 
     def binds(supports: str, refutes: list[str]) -> bool:
         row = db.execute(
-            "SELECT cwg_binds('hyp:declared', 'test.observable', 'os:test.identity', '1.0.0',"
-            " %s, %s)",
+            "SELECT cwg_binds('prj:test', 'hyp:declared', 'test.observable', 'os:test.identity',"
+            " '1.0.0', %s, %s)",
             (supports, refutes),
         ).fetchone()
         return bool(row[0])
@@ -1261,3 +1261,92 @@ def test_reuse_refuses_a_history_that_no_longer_reverifies(db):
     )
     why = _reuse_check(db)(confirmed.failure_analysis) or ""
     assert "does not" in why, why
+
+
+# -- hypothesis ids are unique per project, not globally (information-architecture audit F-04) ----
+
+#: Sorts before PROJECT, so a lookup that ignores the project meets this project's rows first.
+ELSEWHERE = "prj:a-elsewhere"
+
+
+def _elsewhere(db: Any, hypothesis_id: str, *, mechanism: str, author: str | None) -> None:
+    """A hypothesis with the same id in another project, written past every trigger."""
+    _bypassing_triggers(
+        db,
+        "INSERT INTO hypotheses (hypothesis_id, project_id, hypothesis_set_id, statement,"
+        " mechanism, assumptions, falsifier, confounders, minimal_test_ref, created_in_episode,"
+        " authored_by_actor_id, created_at, falsifier_prediction_ids)"
+        " VALUES (%s, %s, 'hst:elsewhere', 's', %s, ARRAY['a'], 'f', ARRAY['c'], 't',"
+        " 'epi:elsewhere', %s, %s, ARRAY[%s])",
+        (hypothesis_id, ELSEWHERE, mechanism, author, T0, f"prd:elsewhere:{hypothesis_id}"),
+    )
+
+
+def test_another_projects_hypothesis_of_the_same_id_does_not_change_its_class_in_sql(db):
+    """SQL binds a hypothesis to a declared class from its own project's predictions. A row in
+    another project with the same id -- the declared mechanism, and a prediction that reads the
+    class's signature as a refutation -- would unbind it if the lookup ignored the project, and
+    SQL would stop agreeing with the loop."""
+    fx = load_fixture()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    assert run.result.stop_reason is StopReason.CONFIRMED
+    cause = run.result.confirmed_root_cause
+    assert cause is not None
+    declared = diagnostic_declaration_set().by_class("normalization_error")
+    assert declared is not None
+    _elsewhere(db, cause, mechanism=declared.mechanism, author=REVIEWER)
+    _bypassing_triggers(
+        db,
+        "INSERT INTO predictions (prediction_id, project_id, hypothesis_id, observable_ref,"
+        " outcome_space_id, outcome_space_version, expected_outcome, conditions,"
+        " relation_effect_if_observed, created_at)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, '{}'::jsonb, %s::jsonb, %s)",
+        (
+            f"prd:elsewhere:{cause}",
+            ELSEWHERE,
+            cause,
+            declared.observable_ref,
+            declared.outcome_space_id,
+            declared.outcome_space_version,
+            declared.supports_outcome,
+            json.dumps([{"relation_type": "CONTRADICTS", "to_entity_id": cause}]),
+            T0,
+        ),
+    )
+    assert run.loop is not None and run.request is not None
+    assert_rules_agree(db, run.loop, run.request)
+    (breaches,) = db.execute(
+        "SELECT confirmation_rule_breaches(%s, %s, %s)",
+        (PROJECT, run.request.episode_id, cause),
+    ).fetchone()
+    assert not breaches, breaches
+
+
+def test_the_author_check_reads_the_hypothesis_of_the_answers_own_project(db):
+    """The person who authored a hypothesis cannot warrant it (V1). The check must read the
+    hypothesis of the grant's project: here another project holds the same ids, authored by the
+    reviewer, and a lookup that ignored the project would refuse an answer nobody's own claim
+    is behind -- or, the other way round, admit an author's answer on their own claim."""
+    _queue(db)
+    fx, case = _novel_case()
+    ids = sorted(run_case(db, fx, case).certificates_by_mechanism.values())
+    reset_database(db)
+    for hypothesis_id in ids:
+        _elsewhere(db, hypothesis_id, mechanism="something else", author=REVIEWER)
+    _queue(db)
+    run_case(db, fx, case)
+    store = SqlDiagnosticWarrantStore(db)
+    (review,) = store.outstanding(PROJECT)
+    grant = store.resolve(
+        resolution_id="res:elsewhere",
+        grant_id="dwg:elsewhere",
+        review_id=review.review_id,
+        project_id=PROJECT,
+        outcome=ReviewOutcome.APPROVED,
+        signer=SIGNER,
+        rationale="a taper-inclusive length is exactly what makes the bases disagree",
+        considered_rival_ids=(),
+        resolved_at=T0,
+        identifies_class_ref=DOMAIN_REF,
+    )
+    assert grant.granted_by_actor_id == REVIEWER

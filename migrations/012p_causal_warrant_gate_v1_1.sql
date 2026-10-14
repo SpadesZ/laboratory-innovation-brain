@@ -221,7 +221,7 @@ BEGIN
             'member of % answers', NEW.granted_by_actor_id, NEW.relation_id, NEW.project_id;
     END IF;
     SELECT authored_by_actor_id INTO v_author FROM hypotheses
-     WHERE hypothesis_id = NEW.hypothesis_id;
+     WHERE project_id = NEW.project_id AND hypothesis_id = NEW.hypothesis_id;
     IF v_author IS NOT NULL AND v_author = NEW.granted_by_actor_id THEN
         RAISE EXCEPTION '% authored % and cannot warrant its own claim',
             NEW.granted_by_actor_id, NEW.hypothesis_id;
@@ -348,6 +348,67 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- 012o's check that a SUPPORTS/CONTRADICTS relation describes its own observation, restated with
+-- every lookup in the relation's project. Hypothesis ids are unique per project, not globally
+-- (`hypotheses` is keyed on (project_id, hypothesis_id)): read by id alone, another project's row
+-- of the same id decided which episode's runs this relation may cite.
+CREATE OR REPLACE FUNCTION relation_judgments_describe_their_observation()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_prediction  predictions%ROWTYPE;
+    v_episode     TEXT;
+    v_attestation TEXT;
+    v_found       BOOLEAN;
+BEGIN
+    IF NEW.relation_type NOT IN ('SUPPORTS', 'CONTRADICTS')
+       OR NOT (NEW.attributes ? 'prediction_id') THEN
+        RETURN NEW;
+    END IF;
+    SELECT * INTO v_prediction FROM predictions
+     WHERE prediction_id = NEW.attributes ->> 'prediction_id' AND project_id = NEW.project_id;
+    IF NOT FOUND OR v_prediction.hypothesis_id <> NEW.to_entity_id THEN
+        RAISE EXCEPTION 'relation % names prediction %, which is not a prediction of % in %',
+            NEW.relation_id, NEW.attributes ->> 'prediction_id', NEW.to_entity_id, NEW.project_id;
+    END IF;
+    IF NEW.attributes ->> 'outcome' IS DISTINCT FROM v_prediction.expected_outcome THEN
+        RAISE EXCEPTION 'relation % records outcome %, but its prediction expected %',
+            NEW.relation_id, NEW.attributes ->> 'outcome', v_prediction.expected_outcome;
+    END IF;
+    IF cardinality(NEW.supporting_attestation_ids) = 0 THEN
+        RAISE EXCEPTION 'relation % claims % of % with no attestation recording it',
+            NEW.relation_id, v_prediction.expected_outcome, v_prediction.observable_ref;
+    END IF;
+    SELECT created_in_episode INTO v_episode FROM hypotheses
+     WHERE project_id = NEW.project_id AND hypothesis_id = NEW.to_entity_id;
+    FOREACH v_attestation IN ARRAY NEW.supporting_attestation_ids LOOP
+        SELECT EXISTS (
+            SELECT 1
+              FROM attestations a
+              JOIN observations o ON o.observation_id = a.observation_id
+              JOIN runs r ON r.run_id = o.run_id
+              JOIN jobs j ON j.job_id = r.job_id
+             WHERE a.attestation_id = v_attestation
+               AND a.project_id = NEW.project_id
+               AND o.project_id = NEW.project_id
+               AND a.observation_id = NEW.from_entity_id
+               AND o.metric_or_event = v_prediction.observable_ref
+               AND a.method ->> 'outcome_space'
+                   = v_prediction.outcome_space_id || '@' || v_prediction.outcome_space_version
+               AND a.method ->> 'outcome' = v_prediction.expected_outcome
+               AND (v_episode IS NULL OR j.episode_id = v_episode)
+        ) INTO v_found;
+        IF NOT v_found THEN
+            RAISE EXCEPTION
+                'relation % cites %, which does not record % of % for observation % in the '
+                'episode of %', NEW.relation_id, v_attestation, v_prediction.expected_outcome,
+                v_prediction.observable_ref, NEW.from_entity_id, NEW.to_entity_id;
+        END IF;
+    END LOOP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ---------------------------------------------------------------------------------------------
 -- ---------------------------------------------------------------------------------------------
 -- 3. The domain's declarations, as registered
 -- ---------------------------------------------------------------------------------------------
@@ -474,6 +535,7 @@ $$ LANGUAGE sql STABLE;
 -- whole declaration -- signature as SUPPORTS, every refuting outcome as CONTRADICTS -- and nothing
 -- that disagrees.
 CREATE OR REPLACE FUNCTION cwg_binds(
+    p_project    TEXT,
     p_hypothesis TEXT,
     p_observable TEXT,
     p_space      TEXT,
@@ -489,7 +551,8 @@ DECLARE
 BEGIN
     FOR v_prediction IN
         SELECT expected_outcome, relation_effect_if_observed FROM predictions
-         WHERE hypothesis_id = p_hypothesis AND observable_ref = p_observable
+         WHERE project_id = p_project AND hypothesis_id = p_hypothesis
+           AND observable_ref = p_observable
            AND outcome_space_id = p_space AND outcome_space_version = p_version
     LOOP
         v_meaning := CASE
@@ -520,13 +583,13 @@ END;
 $$ LANGUAGE plpgsql STABLE;
 
 -- `DiagnosticDeclarationSet.bound_class` over the active sets: exact mechanism, whole declaration.
-CREATE OR REPLACE FUNCTION cwg_bound_class(p_hypothesis TEXT)
+CREATE OR REPLACE FUNCTION cwg_bound_class(p_project TEXT, p_hypothesis TEXT)
 RETURNS TABLE (set_ref TEXT, class_id TEXT) AS $$
     SELECT d.set_ref, d.class_id
       FROM hypotheses h
       JOIN diagnostic_declarations d ON d.active AND d.mechanism = h.mechanism
-     WHERE h.hypothesis_id = p_hypothesis
-       AND cwg_binds(p_hypothesis, d.observable_ref, d.outcome_space_id,
+     WHERE h.project_id = p_project AND h.hypothesis_id = p_hypothesis
+       AND cwg_binds(p_project, p_hypothesis, d.observable_ref, d.outcome_space_id,
                      d.outcome_space_version, d.supports_outcome, d.refutes_outcomes)
      ORDER BY d.set_ref, d.class_id
      LIMIT 1
@@ -547,7 +610,7 @@ BEGIN
     END IF;
     SELECT * INTO v_prediction FROM predictions
      WHERE prediction_id = p_relation.attributes ->> 'prediction_id'
-       AND hypothesis_id = p_relation.to_entity_id;
+       AND project_id = p_relation.project_id AND hypothesis_id = p_relation.to_entity_id;
     v_predicted := FOUND;
     FOR v_attestation IN
         SELECT a.observation_id, a.method FROM attestations a
@@ -591,7 +654,7 @@ DECLARE
 BEGIN
     SELECT * INTO v_prediction FROM predictions
      WHERE prediction_id = p_relation.attributes ->> 'prediction_id'
-       AND hypothesis_id = p_relation.to_entity_id;
+       AND project_id = p_relation.project_id AND hypothesis_id = p_relation.to_entity_id;
     IF NOT FOUND
        OR p_relation.attributes ->> 'outcome' IS DISTINCT FROM v_prediction.expected_outcome
        OR (p_relation.attributes ->> 'outcome_space' IS NOT NULL
@@ -648,7 +711,7 @@ BEGIN
         RETURN;
     END IF;
     SELECT * INTO v_link FROM cwg_observed_link(p_relation);
-    SELECT * INTO v_bound FROM cwg_bound_class(p_relation.to_entity_id);
+    SELECT * INTO v_bound FROM cwg_bound_class(p_relation.project_id, p_relation.to_entity_id);
     IF FOUND AND v_link.outcome IS NOT NULL THEN
         SELECT * INTO v_decl FROM diagnostic_declarations
          WHERE set_ref = v_bound.set_ref AND class_id = v_bound.class_id;
@@ -709,7 +772,7 @@ DECLARE
     v_class TEXT;
     v_said  TEXT[];
 BEGIN
-    SELECT class_id INTO v_class FROM cwg_bound_class(p_hypothesis);
+    SELECT class_id INTO v_class FROM cwg_bound_class(p_project, p_hypothesis);
     IF FOUND THEN
         RETURN 'class:' || v_class;
     END IF;
