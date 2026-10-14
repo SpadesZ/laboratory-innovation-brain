@@ -242,6 +242,8 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   - 審查佇列以 `lab-brain admin review-queue` 宣告。每次 research run 會先關閉逾期的審查，必要時重新詢問。
   - 已知的錯誤確認 `fan:30d9407f` 以 `012p` 附上 FALSE_CONFIRMATION 標註：紀錄本身不修改，episode 頁面
     會在結論旁顯示標註，也不再作為先例或歸納來源。
+  - `lab-brain admin db-roles`（以遷移者執行）讓服務使用只有資料列權限的資料庫角色，資料庫規則因此對服務有效；
+    角色與密碼由操作者在版本控制之外建立，服務改用該角色連線是部署的決定。
   - 設計記錄：
     [`docs/implementation/causal-warrant-gate-v1.1.md`](docs/implementation/causal-warrant-gate-v1.1.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與

@@ -4,7 +4,9 @@ Status: **implemented on branch `causal-warrant-gate-v1`, not merged, not deploy
 `134c07b` (code) / `dc4fc12` (docs). The protected baseline is `41b3cec`.
 `READY_FOR_REAL_RESEARCH` stays false. No database outside the development container was written;
 the deployment's database was not read for this work. The audit package is
-`docs/audit/causal-warrant-gate-v1.1/`.
+`docs/audit/causal-warrant-gate-v1.1/`; its report names the final commit and every result.
+Sections 13-16 were added in the completion pass (2026-10-15): performance, least-privilege
+database access, runner identity, and the disputed declaration links.
 
 V1 is described in [`causal-warrant-gate-v1.md`](causal-warrant-gate-v1.md). This record covers
 what V1.1 changes and why; where it does not mention something, V1 holds.
@@ -56,6 +58,20 @@ neither row verifies.
   a signature over one kind of statement never verifies as another.
 - An answer cannot be moved onto another link, edited into another answer, or replayed onto
   another review: all of those are inside what was signed.
+- Replay, field by field (`tests/unit/test_reviewer_identity.py`):
+  - project: inside the statement, and bound again through the enrolment, whose id is inside
+    it. A test holds the same person's same key in two projects, also under a store whose
+    enrolment ids are per project; the moved answer does not verify;
+  - review, grant id, relation, relation type, hypothesis, prediction, verdict, rationale,
+    rivals, identity statement, time: inside the statement;
+  - kind of statement: the domain-separation tag. The same content signed under another tag
+    (a future kind of review) does not verify;
+  - authorization scope: the enrolment's scope is authority-signed, the model and `012p` admit
+    only `DIAGNOSTIC_WARRANT`, and `verify_grant` refuses any other scope explicitly, so a key
+    enrolled for another kind of review, once one exists, never answers a warrant review.
+  - decisions: an answer is about one relation. Every stored decision that rests on it
+    re-checks it on read (`WarrantResolver.verify`); there is no decision-level signature to
+    replay.
 
 ### 2.3 Where it is checked
 
@@ -128,6 +144,12 @@ or its enrolment does not verify. An encrypted key's passphrase comes from
   answer would still be signed by them, so this is attributable misconduct, not impersonation.
 - **Backdating with a stolen key, before its revocation is recorded**, is possible within the
   window the authority's `effective_at` leaves.
+- **`until=` is for routine rotation, not for a compromised authority key.** `enrolled_at` is
+  signed by the same key, so whoever holds a retired key can date an enrolment before
+  `until`. A compromised authority's line is removed, which withdraws every enrolment it signed.
+- **The trust anchor is read per command and per research run** (the CLI before it connects;
+  the workspace for each run and each page). A changed authorities file takes effect at the
+  next one; no verdict about an answer is cached between reads.
 
 ---
 
@@ -168,6 +190,14 @@ The trigger also refuses a CONFIRMED row that:
 - omits a member of its set from `candidate_causes`;
 - cites a warrant that is not a current warrant of the cause's support;
 - records a member of a declared class under anything but the class's canonical name.
+
+Every lookup is in the record's project (fixed in the completion pass). `hypotheses` is keyed on
+(project_id, hypothesis_id), so another project may hold the same id. The grant trigger's author
+check, `cwg_binds`, `cwg_bound_class` and the prediction reads used to look up by id alone;
+`012p` now scopes them and restates `012o`'s `relation_judgments_describe_their_observation` the
+same way. Two tests failed before the change: a colliding hypothesis elsewhere unbound this
+project's hypothesis in SQL (SQL and the loop disagreed), and another blocked this project's run
+outright.
 
 ### 3.2 The declarations, as the code has them
 
@@ -214,6 +244,10 @@ planner's precedents) and for the miner. A CONFIRMED analysis is trusted when:
 
 Without a verifier, a conclusion resting on any reviewer answer is not trusted. The episode page
 shows each confirmation with its flags and, when nothing relies on it, why not.
+
+Case memory (`similar_failures`) matches the symptom before it re-derives a conclusion: the same
+precedents, without re-deriving every confirmation of the project at every planning step (§13).
+Every call still re-derives; nothing is cached.
 
 ---
 
@@ -306,6 +340,12 @@ A flagged analysis is never trusted (§3.5). The episode page shows the flag bes
 
   A V1 unsigned grant and the CONFIRMED analysis that rested on it stayed as written. The grant now
   counts as no answer, and the analysis is not trusted for reuse.
+- Repeated at the final code (`evidence/migration_upgrade_*.txt`): on copies of the two
+  databases, every pre-existing table's rows fingerprint the same before and after, except the
+  migrations ledger; a second run applies nothing; the V1 conclusion that rested on the unsigned
+  grant is not trusted.
+- `012p` changed after review (project scoping, §3.1). It is not deployed; a development
+  database that applied an earlier text is recreated, not repaired (its checksum differs).
 - The six decisions stored in the deployment still re-derive byte-exact
   (`tests/unit/test_pre_gate_history.py`).
 - Prompts, contracts, probes, qualification, BudgetGate and egress are untouched.
@@ -331,6 +371,14 @@ Numbers and logs are in the audit package.
   SQL against the loop after every run.
 - The mutation battery now mutates SQL too. A migration entry is applied to a clone of a template
   database, never to the file.
+- Completion pass:
+  - replay across projects, scopes and statement kinds (§2.2);
+  - reuse of a conclusion whose stored history was edited past the triggers (the battery's one
+    survivor, now killed);
+  - colliding hypothesis ids across projects (§3.1);
+  - least-privilege roles (§14), `tests/integration/test_least_privilege_postgres.py`;
+  - a randomized differential check of the two rules over 80 multi-fault devices
+    (`evidence/rule_agreement_fuzz_*.txt`; implementer-run).
 
 ---
 
@@ -350,8 +398,13 @@ Numbers and logs are in the audit package.
   revocation's window.
 - SQL counts a signed-shaped answer it cannot verify (§3.4). The loop does not count it, and readers
   re-check.
-- **A superuser can still disable triggers.** That is the database's root of trust and is out of
-  scope. Signatures still do not verify for such a writer.
+- **A superuser, or a table's owner, can still disable triggers.** `lab-brain admin db-roles`
+  (§14) gives the services a role that cannot; until the deployment connects its services as
+  that role, every process still holds the superuser credential. Signatures still do not
+  verify for such a writer.
+- Case memory re-derives every same-symptom conclusion at every planning step: about 144 ms each
+  on the development machine (§13).
+- The disputed declaration links stand as declared (§16).
 - The Python and SQL rules are held together by the differential check over the scenarios the suite
   runs. A divergence outside those scenarios fails safe in one direction: SQL refuses and the loop
   records OPEN. In the other direction SQL accepts what Python refused, and only `trusted_confirmations`
@@ -362,9 +415,13 @@ Numbers and logs are in the audit package.
 
 ## 11. Independent reviews
 
-See the audit package (`docs/audit/causal-warrant-gate-v1.1/reviews/`).
+See the audit package (`docs/audit/causal-warrant-gate-v1.1/reviews/`). Three delegated
+executable attacks were stopped by an automated safety check before running anything (reviews
+01, 02 and 05); the executable adversarial tests are the implementer's own.
 
 ## 12. Decisions for the owner
+
+The audit report (§10 there) keeps the current list. As of this record:
 
 1. Which people hold authority keys, and where the authorities file lives in each deployment.
 2. Whether to accept the residual risks in §10.
@@ -375,3 +432,103 @@ See the audit package (`docs/audit/causal-warrant-gate-v1.1/reviews/`).
    - multi-cause conclusion;
    - showing declared class names to models;
    - re-running the governed Gemini cases.
+
+---
+
+## 13. Performance
+
+The completion pass was handed a report that the V1.1 PostgreSQL suites had become about 15x
+slower. Measured under matched conditions, they have not (`evidence/performance.txt`):
+
+| measurement | V1 | V1.1 |
+|---|---|---|
+| CI, whole PostgreSQL profile | 2709 tests, 296.7 s | 2760 tests, 312.5 s (+3.4 % per test) |
+| local, benchmark + counterexample + provenance (36 tests) | 182.6 s | 189.5 s |
+| local, research-service files (36 tests) | 280.5 s | 298.9 s |
+| local, whole suite, both at once | 2712 tests, 1527.8 s | 2770 tests, 1571.6 s |
+
+The 2.6 h run behind the report was not reproduced, and its cause was not established.
+
+What does scale with history is case memory. `similar_failures` runs at every planning step, and
+re-deriving one stored conclusion (`research.confirmation`) costs about 144 ms on the development
+machine. Before the completion pass it re-derived every confirmation of the project at every
+step. It now matches the symptom first (`507770f`), which returns the same precedents. Conclusions
+of the SAME symptom are still re-derived each time.
+
+A cache would remove that cost, and none was added, because its key must change whenever any input
+of the verdict does:
+- the cause's set's belief events and decisions;
+- relations of its members, with their attestations, observations and runs;
+- grants on those relations, with their enrolments and revocations;
+- conflicts and review items of its members;
+- flags of the analysis;
+- the registered declaration sets;
+- the trust anchor and the clock.
+
+A key that misses one of these trusts a revoked answer until the process ends. That is a weakening,
+so it waits for a design that can be tested input by input.
+
+## 14. Least-privilege database access
+
+The owner does not approve a production superuser. `lab-brain admin db-roles --app-role
+lab_brain_app --reader-role lab_brain_reader`, run as the migrator:
+- grants the services' role SELECT, INSERT, UPDATE and DELETE on rows;
+- keeps `schema_migrations` read-only for it;
+- sets default privileges for tables later migrations create;
+- grants the auditors' role SELECT;
+- grants no TRUNCATE (it fires no row trigger), no ownership, and no CREATE on `public`.
+
+It refuses a role that could undo this:
+- a superuser;
+- one that can create roles or databases, replicate, bypass row security, or set
+  `session_replication_role`;
+- one that owns, or is a member of a role that owns, an object in the database.
+
+`tests/integration/test_least_privilege_postgres.py` creates throwaway login roles and shows:
+- a whole diagnosis episode runs as the services' role, with SQL and the loop agreeing;
+- every escape is refused: `session_replication_role`, `DISABLE TRIGGER`, `DROP TRIGGER`,
+  `TRUNCATE`, new objects, replacing a gate function, the migrations ledger, `SET ROLE`, granting
+  itself more;
+- the append-only triggers still fire;
+- the auditor writes nothing.
+
+Not done, and the deployment's decision:
+- creating the roles and their passwords (outside version control);
+- connecting `web` and `local-models` as the services' role, with migrations and `admin` kept on
+  the migrator credential;
+- the compose wiring. It was not changed: testing it would rebuild the shared image tag the running
+  deployment uses.
+
+## 15. Who ran an episode (design; not implemented)
+
+The runner is still self-asserted: the workspace's single `--actor`. The separation "the runner
+does not warrant" therefore compares labels. The approved signing infrastructure would extend to
+it:
+- a runner key, enrolled by an authority like a reviewer key;
+- a run's statement (episode, ordinal, question digest, inputs, actor, time) signed at start, and
+  checked where the separation is checked (`relation.actor_id`).
+
+It needs authentication in the workspace, which has no login today. Until then the separation
+holds against honest labels only.
+
+## 16. Disputed declaration links (measured; not applied)
+
+Review 04 disputed several SP declarations. Three of the disputes are about category, not
+threshold: the check cannot observe what the link claims.
+- `contact_discontinuity` CONTRADICTS: a drawn-layout reading cannot see a fabricated defect.
+- `dopant_compensation` CONTRADICTS: a design-file solve cannot see process compensation.
+- `mesh_artifact` SUPPORTS: a solver mesh is not the cause of a measured anomaly. The benchmark's
+  anomaly is an `INTERNAL_MEASUREMENT`.
+
+`evidence/disputed_links_experiment.txt` withdraws the automatic DOMAIN authority of exactly these
+three links, leaving them to a person, and runs the benchmark. Python only; the SQL mirror was not
+patched.
+- All six legitimate automatic confirmations under `least_cost` stand.
+- `mesh-coarse-access` no longer confirms the mesh artefact. It waits for the four-point probe.
+- `probe-lab-closed` asks for a fabricated split lot instead of reporting no sufficient action.
+
+Applying it is a declaration version and a benchmark version, with these two expected outcomes
+changed. Both need scientific justification, which is the owner's and the domain expert's (the
+owner's rule). The other disputes are thresholds or statements: normalization's direction and
+size, and "dominates" from a rule-level overlap flag. They need domain knowledge this work does not
+invent.

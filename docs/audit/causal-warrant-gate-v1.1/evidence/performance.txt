@@ -1,0 +1,44 @@
+PostgreSQL performance, V1 against V1.1, 2026-10-15. Same machine (Windows 11, 16 cores, Docker
+Desktop PostgreSQL 17 on localhost:5433), each version on its own fresh database, same window.
+
+The report handed over for this work said the V1.1 PostgreSQL suites had become about 15x slower
+(a run of 85 gate tests on 2026-10-14 took 9462 s). Nothing below reproduces that. Its cause was
+not established: it was not reproduced under matched conditions, and the measurements below show
+no code-driven regression of that order.
+
+1. CI (GitHub Actions, Linux, PostgreSQL service container; "Tests (postgres profile)" step)
+   dc4fc12 (V1)    2709 passed, 5 skipped in 296.68 s   (0.1095 s/test)
+   16a1560 (V1.1)  2760 passed, 5 skipped in 312.49 s   (0.1132 s/test, +3.4 %)
+
+2. Local, the same workload on both versions, run one after the other
+   gate workload: tests/e2e/test_root_cause_benchmark_postgres.py,
+   test_causal_warrant_counterexample_postgres.py, test_root_cause_provenance_postgres.py
+     dc4fc12   36 passed in 182.57 s
+     16a1560   36 passed in 189.47 s   (+3.8 %; benchmark fixture 75.69 s vs 75.06 s)
+   research-service workload: tests/e2e/test_web_episode_view_postgres.py,
+   test_research_continuation_postgres.py, test_research_episode_postgres.py,
+   test_web_workspace_postgres.py, test_web_prediction_effects_postgres.py,
+   test_vs_sp_001_vertical_postgres.py, test_stage_retry_resume_postgres.py
+     dc4fc12   36 passed in 280.50 s
+     16a1560   36 passed in 298.94 s   (+6.6 %)
+   V1.1-only files (they do not exist in V1): tests/e2e/test_causal_warrant_v1_1_postgres.py
+   (+ test_causal_warrant_v1_1_adversarial_postgres.py at 16a1560)
+     661d8a0 (before the re-deriving reuse check)   21 passed in 49.85 s  (2.37 s/test)
+     16a1560                                        33 passed in 86.20 s  (2.61 s/test)
+
+3. Local, the whole PostgreSQL suite, both versions concurrently (and the mutation battery
+   running too, so absolute times are inflated; the two are comparable with each other)
+     dc4fc12   2711 passed, 1 failed (WinError 10053, see pg_full_e4de0a3.txt), 2 skipped, 1527.84 s
+     e4de0a3   2770 passed, 2 skipped, 1571.57 s   (+2.9 % for 59 more tests)
+
+4. What the re-deriving reuse check costs (scripts/verify_cost.py, 4669af1 code, local)
+   15 CONFIRMED analyses of one symptom in one project (5 benchmark cases x 3 rounds):
+     trusted_confirmations                 2.16 s   (144 ms per conclusion re-derived)
+     similar_failures, the same symptom    2.22 s   -> 15 precedents
+     similar_failures, another symptom     0.002 s  -> 0 (507770f: symptom matched first)
+   Before 507770f, case memory re-derived every confirmation of the project at every planning
+   step, whatever its symptom. Now it re-derives only the conclusions of the same symptom: the
+   same set of precedents. A project with N confirmations of the SAME symptom still pays about
+   N x 144 ms (local) per planning step; see the design record section 13 for the cache that
+   would remove it and what its invalidation must cover. No cache was added: every read still
+   re-derives.

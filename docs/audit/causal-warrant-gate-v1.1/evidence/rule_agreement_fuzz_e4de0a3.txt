@@ -1,0 +1,96 @@
+Differential check of the SQL and Python confirmation rules on random multi-fault devices,
+e4de0a3 code, fresh database lab_brain_fuzz, 2026-10-15. Implementer-run: NOT independent.
+Each run is a whole episode through tests.vertical_fixtures.run_case, whose CheckedLoop
+asserts after the run that, for every member, SQL finds no breach exactly when the loop
+would confirm that member. A divergence would be an AssertionError, counted below.
+$ python scripts/rule_agreement_fuzz.py 80 20261015
+
+fz-20261015-0 simulate_first HUMAN_ACTION_REQUIRED/None
+fz-20261015-1 least_cost     COMPETING_SUPPORT/None
+fz-20261015-2 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-3 least_cost     COMPETING_SUPPORT/None
+fz-20261015-4 simulate_first CONFIRMED/dopant_compensation
+fz-20261015-5 least_cost     HUMAN_ACTION_REQUIRED/None
+fz-20261015-6 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-7 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-8 least_cost     COMPETING_SUPPORT/None
+fz-20261015-9 least_cost     COMPETING_SUPPORT/None
+fz-20261015-10 least_cost     COMPETING_SUPPORT/None
+fz-20261015-11 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-12 least_cost     COMPETING_SUPPORT/None
+fz-20261015-13 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-14 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-15 simulate_first NO_SUFFICIENT_ACTION/None
+fz-20261015-16 simulate_first CONFIRMED/contact_discontinuity
+fz-20261015-17 least_cost     COMPETING_SUPPORT/None
+fz-20261015-18 simulate_first CONFIRMED/dopant_compensation
+fz-20261015-19 simulate_first COMPETING_SUPPORT/None
+fz-20261015-20 simulate_first CONFIRMED/normalization_error
+fz-20261015-21 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-22 least_cost     COMPETING_SUPPORT/None
+fz-20261015-23 least_cost     COMPETING_SUPPORT/None
+fz-20261015-24 simulate_first CONFIRMED/dopant_compensation
+fz-20261015-25 least_cost     CONFIRMED/normalization_error
+fz-20261015-26 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-27 simulate_first COMPETING_SUPPORT/None
+fz-20261015-28 simulate_first COMPETING_SUPPORT/None
+fz-20261015-29 simulate_first COMPETING_SUPPORT/None
+fz-20261015-30 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-31 simulate_first CONFIRMED/contact_discontinuity
+fz-20261015-32 least_cost     COMPETING_SUPPORT/None
+fz-20261015-33 simulate_first COMPETING_SUPPORT/None
+fz-20261015-34 least_cost     COMPETING_SUPPORT/None
+fz-20261015-35 simulate_first COMPETING_SUPPORT/None
+fz-20261015-36 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-37 simulate_first CONFIRMED/contact_discontinuity
+fz-20261015-38 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-39 least_cost     COMPETING_SUPPORT/None
+fz-20261015-40 least_cost     COMPETING_SUPPORT/None
+fz-20261015-41 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-42 least_cost     HUMAN_ACTION_REQUIRED/None
+fz-20261015-43 least_cost     CONFIRMED/dopant_compensation
+fz-20261015-44 least_cost     COMPETING_SUPPORT/None
+fz-20261015-45 simulate_first COMPETING_SUPPORT/None
+fz-20261015-46 least_cost     COMPETING_SUPPORT/None
+fz-20261015-47 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-48 least_cost     COMPETING_SUPPORT/None
+fz-20261015-49 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-50 least_cost     COMPETING_SUPPORT/None
+fz-20261015-51 least_cost     COMPETING_SUPPORT/None
+fz-20261015-52 simulate_first CONFIRMED/contact_discontinuity
+fz-20261015-53 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-54 least_cost     COMPETING_SUPPORT/None
+fz-20261015-55 simulate_first CONFIRMED/contact_discontinuity
+fz-20261015-56 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-57 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-58 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-59 simulate_first AWAITING_RESOURCE/None
+fz-20261015-60 least_cost     COMPETING_SUPPORT/None
+fz-20261015-61 least_cost     COMPETING_SUPPORT/None
+fz-20261015-62 least_cost     CONFIRMED/dopant_compensation
+fz-20261015-63 least_cost     COMPETING_SUPPORT/None
+fz-20261015-64 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-65 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-66 least_cost     COMPETING_SUPPORT/None
+fz-20261015-67 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-68 simulate_first CONFIRMED/normalization_error
+fz-20261015-69 simulate_first COMPETING_SUPPORT/None
+fz-20261015-70 least_cost     COMPETING_SUPPORT/None
+fz-20261015-71 least_cost     COMPETING_SUPPORT/None
+fz-20261015-72 simulate_first COMPETING_SUPPORT/None
+fz-20261015-73 simulate_first CONFIRMED/dopant_compensation
+fz-20261015-74 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-75 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-76 least_cost     CONFIRMED/contact_discontinuity
+fz-20261015-77 least_cost     COMPETING_SUPPORT/None
+fz-20261015-78 least_cost     COMPETING_SUPPORT/None
+fz-20261015-79 least_cost     CONFIRMED/contact_discontinuity
+
+seed 20261015: 80 runs, 0 divergences, 0 errors
+    1  AWAITING_RESOURCE/None
+   36  COMPETING_SUPPORT/None
+   30  CONFIRMED/contact_discontinuity
+    6  CONFIRMED/dopant_compensation
+    3  CONFIRMED/normalization_error
+    3  HUMAN_ACTION_REQUIRED/None
+    1  NO_SUFFICIENT_ACTION/None
