@@ -4426,8 +4426,8 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="sql_a_non_member_is_enrolled",
         guards="Causal Warrant Gate V1.1 (012p) -- only an active member of the project is enrolled",
         path="migrations/012p_causal_warrant_gate_v1_1.sql",
-        old="            '% is not an active human member of %, so no reviewer key can be enrolled for them '\n",
-        new="            '% is not an active human member of %, so no reviewer key can be enrolled for them ' || CASE WHEN TRUE THEN '' END\n",
+        old="           AND m.project_id = NEW.project_id AND m.active\n    ) THEN\n        RAISE EXCEPTION\n            '% is not an active human member of %, so no reviewer key",
+        new="           AND m.project_id = NEW.project_id AND m.active\n    ) AND FALSE THEN\n        RAISE EXCEPTION\n            '% is not an active human member of %, so no reviewer key",
         tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
     ),
     Mutation(
@@ -4666,7 +4666,13 @@ def run_sql(mutation: Mutation) -> tuple[bool, str]:
         admin.execute(f'CREATE DATABASE "{scratch}" TEMPLATE "{template}"')
     try:
         with psycopg.connect(_with_database(base, scratch), autocommit=True) as db:
-            db.execute(source.replace(mutation.old, mutation.new, 1))
+            try:
+                db.execute(source.replace(mutation.old, mutation.new, 1))
+            except psycopg.Error as exc:
+                # A mutant the database will not even accept tests nothing: it is reported as
+                # the entry's defect, never as a kill, and the battery goes on.
+                first = str(exc).splitlines()[0]
+                return False, f"MUTANT DID NOT APPLY — {first[:100]}"
             for filename in APPLY_ORDER[APPLY_ORDER.index(Path(mutation.path).name) + 1 :]:
                 db.execute((ROOT / "migrations" / filename).read_text(encoding="utf-8"))
         result = subprocess.run(
