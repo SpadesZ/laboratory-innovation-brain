@@ -626,6 +626,7 @@ RETURNS diagnostic_warrant_grants AS $$
            SELECT 1 FROM warrant_reviewer_revocations v
             WHERE v.enrolment_id = g.enrolment_id AND v.effective_at <= g.granted_at
        )
+     ORDER BY (g.verdict = 'NOT_WARRANTED') DESC, g.grant_id COLLATE "C"
      LIMIT 1
 $$ LANGUAGE sql STABLE;
 
@@ -757,14 +758,14 @@ BEGIN
         RETURN ARRAY[format('%s is not a member of a hypothesis set of %s', p_candidate,
                             p_episode)];
     END IF;
-    SELECT array_agg(h.hypothesis_id ORDER BY h.hypothesis_id) INTO v_members
+    SELECT array_agg(h.hypothesis_id ORDER BY h.hypothesis_id COLLATE "C") INTO v_members
       FROM hypotheses h WHERE h.hypothesis_set_id = v_set AND h.project_id = p_project;
     FOREACH v_h IN ARRAY v_members LOOP
         v_states := v_states || jsonb_build_object(v_h, cwg_state(p_project, v_h));
         v_keys := v_keys || jsonb_build_object(v_h, cwg_member_key(p_project, v_h));
     END LOOP;
 
-    SELECT coalesce(array_agg(m ORDER BY m), '{}') INTO v_supported
+    SELECT coalesce(array_agg(m ORDER BY m COLLATE "C"), '{}') INTO v_supported
       FROM unnest(v_members) m WHERE v_states ->> m = 'SUPPORTED';
     IF cardinality(v_supported) = 0 THEN
         RETURN ARRAY[format('no member of %s is SUPPORTED', v_set)];
@@ -1016,7 +1017,7 @@ CREATE TRIGGER failure_analyses_with_the_confirmation_rule_trg
 CREATE OR REPLACE FUNCTION failure_analysis_digest(p_analysis failure_analyses)
 RETURNS TEXT AS $$
     SELECT 'sha256:' || encode(sha256(convert_to(to_jsonb(p_analysis)::text, 'UTF8')), 'hex')
-$$ LANGUAGE sql STABLE;
+$$ LANGUAGE sql STABLE SET timezone TO 'UTC';
 
 CREATE TABLE IF NOT EXISTS failure_analysis_flags (
     flag_id              TEXT PRIMARY KEY CHECK (btrim(flag_id) <> ''),
@@ -1061,10 +1062,13 @@ BEGIN
             NEW.flag_id, NEW.analysis_digest, NEW.failure_analysis_id;
     END IF;
     IF NEW.recorded_by LIKE 'act:%' AND NOT EXISTS (
-        SELECT 1 FROM actors WHERE actor_id = NEW.recorded_by AND actor_type = 'HUMAN' AND active
+        SELECT 1 FROM actors a
+          JOIN project_memberships m ON m.actor_id = a.actor_id
+         WHERE a.actor_id = NEW.recorded_by AND a.actor_type = 'HUMAN' AND a.active
+           AND m.project_id = NEW.project_id AND m.active
     ) THEN
-        RAISE EXCEPTION 'flag % is recorded by %, who is not an active person', NEW.flag_id,
-            NEW.recorded_by;
+        RAISE EXCEPTION 'flag % is recorded by %, who is not an active member of %', NEW.flag_id,
+            NEW.recorded_by, NEW.project_id;
     END IF;
     RETURN NEW;
 END;

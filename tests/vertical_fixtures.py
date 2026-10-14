@@ -36,6 +36,7 @@ from typing import Any
 from lab_brain.cognition.brain import HypothesisBrain
 from lab_brain.cognition.debate import DebateOutcome, DebatePolicy, DebateRequest
 from lab_brain.cognition.evidence import EvidenceItem
+from lab_brain.core.belief import UnverifiedBeliefRevision
 from lab_brain.core.budget import BudgetPolicy
 from lab_brain.core.episode import BeliefEpisode, superseded_versions
 from lab_brain.core.models.capability import ActionType, Availability
@@ -78,18 +79,18 @@ from lab_brain.domains.silicon_photonics.diagnosis import (
     DeviceProject,
     NormalizationBasisReader,
 )
-from lab_brain.domains.silicon_photonics.product import diagnostic_declaration_set
+from lab_brain.domains.silicon_photonics.product import (
+    diagnostic_declaration_set,
+    product_vertical,
+)
 from lab_brain.domains.silicon_photonics.tools import INPUT_DEVICE_PROJECT, SIMULATOR_RESOURCE_ID
 from lab_brain.ingestion.admission_gate import EvidenceAdmissionGate
+from lab_brain.research.confirmation import confirmation_verifier
 from lab_brain.storage.artifacts.local import InMemoryArtifactStore
 from lab_brain.storage.postgres.capabilities import PostgresResourceBroker
 from lab_brain.storage.postgres.run_outputs import SqlRunOutputSink
 from lab_brain.storage.postgres.verification_evidence import SqlEvidenceSink
-from lab_brain.storage.postgres.warrants import (
-    confirmation_verifier,
-    episode_outcomes,
-    sql_warrant_resolver,
-)
+from lab_brain.storage.postgres.warrants import episode_outcomes, sql_warrant_resolver
 from lab_brain.tool_providers.lumerical.mock_vertical import (
     MockChargeDcBackend,
     MockMeshSensitivityBackend,
@@ -328,7 +329,12 @@ class CheckedLoop(VerificationLoop):
 
 
 def assert_rules_agree(connection: Any, loop: VerificationLoop, request: LoopRequest) -> None:
-    confirmable = loop.standing(request).confirmable
+    try:
+        confirmable = loop.standing(request).confirmable
+    except UnverifiedBeliefRevision:
+        # The read path refuses a stored move outright: Python confirms nothing, and SQL -- which
+        # sees the same revocations and the same records -- must not find a member confirmable.
+        confirmable = None
     for hypothesis_id in sorted(c.hypothesis_id for c in request.certificates):
         row = connection.execute(
             "SELECT confirmation_rule_breaches(%s, %s, %s)",
@@ -509,9 +515,17 @@ def run_case(
         attestations=world.find_attestation,
     )
     evidence = SqlEvidenceSink(connection=connection, outputs=outputs)
+    reading = product_vertical(outputs=None, jobs=None, broker=None, now=world.now)
     failures = SqlFailureStore(
         connection,
-        verify=confirmation_verifier(connection, TRUST, declaration_sets=(declarations,)),
+        verify=confirmation_verifier(
+            connection,
+            trust=TRUST,
+            declaration_sets=reading.declaration_sets,
+            active=reading.active_declarations,
+            authority_policies=reading.authority_policies,
+            now=world.now,
+        ),
     )
     inner = LeastCostPlanner(
         capabilities=regs.capabilities,

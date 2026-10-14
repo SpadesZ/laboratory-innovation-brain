@@ -105,6 +105,7 @@ from lab_brain.llm_runtime.runtime import (
     load_active_runtime,
 )
 from lab_brain.llm_runtime.secrets import DirectoryCredentialStore, SecretStore
+from lab_brain.research.confirmation import confirmation_verifier
 from lab_brain.research.continuation import (
     ContinuationRefused,
     EpisodeNotContinuable,
@@ -129,10 +130,9 @@ from lab_brain.research.service import (
     ResearchEpisodeService,
     ResearchRequest,
 )
-from lab_brain.research.vertical import VerticalFactory, installed_declaration_sets
+from lab_brain.research.vertical import VerticalFactory
 from lab_brain.security.reviewer_identity import ReviewerTrust
 from lab_brain.storage.artifacts.local import LocalArtifactStore
-from lab_brain.storage.postgres.warrants import confirmation_verifier
 from lab_brain.surface.disclosure import ErrorNotFound
 
 #: The largest request body the workspace reads (all uploads of one run together).
@@ -1083,6 +1083,17 @@ class Workspace:
         self._record(c, run_id, report)
         return _redirect(f"/episodes/{_path(report.episode_id)}")
 
+    def _confirmation_verifier(self, c: Any) -> Any:
+        """The reuse check the research service applies, for showing what relies on what."""
+        vertical = self._factory(outputs=None, jobs=None, broker=None, now=utc_now)
+        return confirmation_verifier(
+            c,
+            trust=ReviewerTrust.configured_at(self._settings.review_authorities),
+            declaration_sets=vertical.declaration_sets,
+            active=vertical.active_declarations,
+            authority_policies=vertical.authority_policies,
+        )
+
     def _episode(self, c: Any, req: _Req, episode_id: str) -> Response:
         opened = self._opened(c, episode_id)
         if opened is None:
@@ -1108,11 +1119,7 @@ class Workspace:
             c,
             project_id=opened.project_id,
             episode_id=episode_id,
-            verify=confirmation_verifier(
-                c,
-                ReviewerTrust.configured_at(self._settings.review_authorities),
-                declaration_sets=installed_declaration_sets(),
-            ),
+            verify=self._confirmation_verifier(c),
         )
         return Response(
             "200 OK",

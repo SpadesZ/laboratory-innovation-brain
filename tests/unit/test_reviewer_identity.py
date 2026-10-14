@@ -375,3 +375,44 @@ def test_a_validly_signed_answer_under_another_persons_enrolment_is_not_theirs()
     borrowed = _resigned(grant, colleague.key, enrolment_id=colleague.enrolment_id)
     why = grant_authenticator(store, TRUST)(borrowed) or ""
     assert "is by act:pi" in why and "act:colleague's" in why
+
+
+def test_a_retired_authority_still_vouches_for_what_it_signed_before_and_nothing_after() -> None:
+    """Rotation: the old authority stays pinned `until` the switch, so answers given under it keep
+    counting, and nothing it signs afterwards does."""
+    retired = parse_authorities(
+        f"{AUTHORITY_ACTOR} ed25519:{AUTHORITY.public_key} until=2026-06-01T00:00:00+00:00\n"
+    )
+    trust = ReviewerTrust(retired)
+    trust.verify_enrolment(_enrolment(enrolled_at=dt.datetime(2026, 5, 1, tzinfo=dt.UTC)))
+    with pytest.raises(IdentityUnverified, match="authority was retired"):
+        trust.verify_enrolment(_enrolment(enrolled_at=dt.datetime(2026, 7, 1, tzinfo=dt.UTC)))
+    with pytest.raises(IdentityUnverified, match="needs a time zone"):
+        parse_authorities(f"{AUTHORITY_ACTOR} ed25519:{AUTHORITY.public_key} until=2026-06-01\n")
+
+
+def test_a_named_but_unusable_authorities_file_stops_the_command_before_it_connects(
+    tmp_path: Path,
+) -> None:
+    import io
+
+    from lab_brain.interfaces import cli
+
+    bad = tmp_path / "authorities"
+    bad.write_text("act:pi not-a-key\n", encoding="utf-8")
+
+    def refuse(_settings: Any) -> Any:
+        raise AssertionError("connected before the trust anchor was checked")
+
+    for path in (str(bad), str(tmp_path / "missing")):
+        out = io.StringIO()
+        code = cli.main(
+            ["review", "list", "--project", "prj:x", "--actor", "act:pi"],
+            out=out,
+            env={
+                "LAB_BRAIN_DATABASE_URL": "postgresql://unused",
+                "LAB_BRAIN_REVIEW_AUTHORITIES": path,
+            },
+            connect=refuse,
+        )
+        assert code == 2 and "review authorities file" in out.getvalue(), out.getvalue()

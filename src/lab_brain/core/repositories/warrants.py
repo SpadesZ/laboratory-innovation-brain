@@ -649,33 +649,36 @@ class SqlDeclarationSetStore:
                     ),
                 )
             previous[declarations.set_id] = declarations.ref
-        set_ids = sorted({s.set_id for s in declaration_sets})
-        if not set_ids:
-            return
-        # Any registered version this code does not declare that could speak to this code's
-        # domain: a version of one of its sets, or any set declaring a class on an observable its
-        # declarations use. The SQL rule reads every active set, so a set nobody reviewed as code
-        # would otherwise bind hypotheses, warrant links and own signatures here.
-        observables = sorted(
-            {
-                "\x1f".join((d.observable_ref, d.outcome_space_id, d.outcome_space_version))
-                for s in declaration_sets
-                for d in s.declarations
-            }
-        )
-        stranger = self._connection.execute(
-            "SELECT DISTINCT set_ref FROM diagnostic_declarations"
-            " WHERE set_id = ANY (%s)"
-            " OR concat_ws(chr(31), observable_ref, outcome_space_id, outcome_space_version)"
-            " = ANY (%s) ORDER BY 1",
-            (set_ids, observables),
-        ).fetchall()
-        unknown = sorted(str(r[0]) for r in stranger if str(r[0]) not in known)
+        # Closed, not merely consistent: every version the table holds is one this code
+        # declares, and the version SQL reasons under is the code's active one. The SQL rule reads
+        # every active set, so a set nobody reviewed as code -- under any id -- would otherwise
+        # bind hypotheses, warrant links and own signatures; and a code rollback must not leave
+        # SQL reasoning under a newer version than the loop.
+        held = {
+            str(r[0])
+            for r in self._connection.execute(
+                "SELECT DISTINCT set_ref FROM diagnostic_declarations"
+            ).fetchall()
+        }
+        unknown = sorted(held - set(known))
         if unknown:
             raise WarrantStoreError(
                 f"the database registers declaration set version(s) {', '.join(unknown)}, which "
                 "this code does not declare; the confirmation rule would read declarations "
                 "nobody reviewed as code"
+            )
+        active_in_sql = {
+            str(r[0])
+            for r in self._connection.execute(
+                "SELECT DISTINCT set_ref FROM diagnostic_declarations WHERE active"
+            ).fetchall()
+        }
+        wanted = set() if active is None else {active}
+        if active_in_sql != wanted:
+            raise WarrantStoreError(
+                f"the database reasons under declaration set(s) {sorted(active_in_sql) or 'none'} "
+                f"but this code under {sorted(wanted) or 'none'}; the two statements of the "
+                "confirmation rule would read different declarations"
             )
 
 

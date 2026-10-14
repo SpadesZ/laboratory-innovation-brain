@@ -44,6 +44,8 @@
 #                             reviewers may answer diagnostic warrant reviews (Causal Warrant Gate
 #                             V1.1), mounted read-only. The default, the committed example, pins
 #                             none: no answer verifies and anything needing a person waits
+#   LAB_BRAIN_REVIEW_QUEUE_DECLARED_BY  the member who declares the project's review queue (its
+#                             expiry is their standing decision); unset, no queue is declared
 
 name: lab-brain-workspace
 
@@ -60,6 +62,7 @@ x-app: &app
     LAB_BRAIN_PROJECT_NAME: ${LAB_BRAIN_PROJECT_NAME:-Laboratory}
     LAB_BRAIN_CLEARANCE: ${LAB_BRAIN_CLEARANCE:-PUBLIC,INTERNAL}
     LAB_BRAIN_REVIEW_AUTHORITIES: /run/lab-brain-review/authorities
+    LAB_BRAIN_REVIEW_QUEUE_DECLARED_BY: ${LAB_BRAIN_REVIEW_QUEUE_DECLARED_BY:-}
   volumes:
     - secrets:/run/lab-brain-secrets:ro
     - ${LAB_BRAIN_REVIEW_AUTHORITIES_FILE:-./deployment/docker/review-authorities.example}:/run/lab-brain-review/authorities:ro

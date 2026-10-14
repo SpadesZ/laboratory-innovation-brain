@@ -81,7 +81,7 @@ from lab_brain.research.reasoning import active_runtime_name
 from lab_brain.research.render import render_markdown
 from lab_brain.research.service import InputDocument, ResearchEpisodeService, ResearchRequest
 from lab_brain.research.vertical import ENTRY_POINT_GROUP, VerticalNotFound, load_vertical_factory
-from lab_brain.security.reviewer_identity import ReviewerTrust
+from lab_brain.security.reviewer_identity import IdentityUnverified, ReviewerTrust
 from lab_brain.storage.artifacts.local import LocalArtifactStore
 from lab_brain.surface.catalog import MessageCatalog, Severity, default_catalog
 from lab_brain.surface.disclosure import DiagnosticsService, ErrorNotFound
@@ -743,6 +743,18 @@ def main(
         print(f"lab-brain: {exc}", file=stream)
         return 2
 
+    # The review authorities are read once, before anything connects: a deployment that meant to
+    # pin an authority and could not would otherwise fail closed without saying why.
+    try:
+        trust = ReviewerTrust.configured_at(settings.review_authorities)
+    except (IdentityUnverified, OSError) as exc:
+        print(
+            f"lab-brain: the review authorities file {settings.review_authorities!r} cannot be "
+            f"used: {exc}",
+            file=stream,
+        )
+        return 2
+
     try:
         connection = opener(settings)
     except ConfigurationError as exc:
@@ -766,7 +778,7 @@ def main(
                 args,
                 connection,
                 out=stream,
-                trust=ReviewerTrust.configured_at(settings.review_authorities),
+                trust=trust,
                 env=os.environ if env is None else env,
             )
         if args.command == "research":
@@ -798,7 +810,7 @@ def main(
                     connection=connection,
                     artifact_store=LocalArtifactStore(Path(args.artifact_root).resolve()),
                     vertical_factory=factory,
-                    reviewer_trust=ReviewerTrust.configured_at(settings.review_authorities),
+                    reviewer_trust=trust,
                 ),
                 request,
                 out=stream,

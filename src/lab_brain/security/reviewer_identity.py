@@ -1,8 +1,11 @@
 """Reviewer identity: Ed25519 keys, authority-signed enrolments, and the checks that use them.
 
 THE TRUST ANCHOR IS OUTSIDE THE DATABASE. `ReviewerTrust` is built from the deployment's review
-authorities -- one line per authority, `<actor id> ed25519:<base64 public key>`, in the file
-`LAB_BRAIN_REVIEW_AUTHORITIES` names -- never from a table. Whoever can write the database can
+authorities -- one line per authority, `<actor id> ed25519:<base64 public key> [until=<ISO time>]`,
+in the file `LAB_BRAIN_REVIEW_AUTHORITIES` names -- never from a table. `until` retires an
+authority without erasing it: enrolments it signed before that time still verify, none after.
+That is how authorities rotate -- pin the new one, mark the old one `until` the switch -- so the
+answers already given under the old one keep counting. Whoever can write the database can
 write an enrolment row; only an authority's private key makes one verify. With no authority
 configured, no answer verifies: warrant reviews can be asked but not answered, and the gate stays
 closed.
@@ -56,10 +59,12 @@ class IdentityUnverified(ValueError):
 
 @dataclass(frozen=True)
 class ReviewAuthority:
-    """One pinned authority: the person it acts as, and its public key."""
+    """One pinned authority: the person it acts as, its public key, and when it was retired."""
 
     actor_id: str
     public_key: str
+    #: Enrolments this authority signed at or after this time do not verify (rotation).
+    valid_until: dt.datetime | None = None
 
     @property
     def key_id(self) -> str:
@@ -91,17 +96,29 @@ def parse_authorities(text: str) -> tuple[ReviewAuthority, ...]:
             continue
         parts = body.split()
         if (
-            len(parts) != 2
+            len(parts) not in (2, 3)
             or not parts[0].startswith("act:")
             or not parts[1].startswith("ed25519:")
+            or (len(parts) == 3 and not parts[2].startswith("until="))
         ):
             raise IdentityUnverified(
-                f"review authorities line {number} is not `<act:id> ed25519:<base64 key>`"
+                f"review authorities line {number} is not "
+                "`<act:id> ed25519:<base64 key> [until=<ISO time>]`"
             )
         public_key = parts[1].removeprefix("ed25519:")
         if not is_public_key(public_key):
             raise IdentityUnverified(f"review authorities line {number} has no Ed25519 key")
-        found.append(ReviewAuthority(actor_id=parts[0], public_key=public_key))
+        until: dt.datetime | None = None
+        if len(parts) == 3:
+            try:
+                until = dt.datetime.fromisoformat(parts[2].removeprefix("until="))
+            except ValueError as exc:
+                raise IdentityUnverified(f"review authorities line {number}: {exc}") from exc
+            if until.tzinfo is None:
+                raise IdentityUnverified(
+                    f"review authorities line {number}: `until` needs a time zone"
+                )
+        found.append(ReviewAuthority(actor_id=parts[0], public_key=public_key, valid_until=until))
     ids = [a.key_id for a in found]
     if len(set(ids)) != len(ids):
         raise IdentityUnverified("a review authority key is listed twice")
@@ -170,6 +187,11 @@ class ReviewerTrust:
             raise IdentityUnverified(f"{what}: an authority does not enrol itself")
         if enrolment.key_id in self._by_key:
             raise IdentityUnverified(f"{what}: an authority key is not a reviewer key")
+        if authority.valid_until is not None and enrolment.enrolled_at >= authority.valid_until:
+            raise IdentityUnverified(
+                f"{what} is dated after {authority.actor_id}'s authority was retired "
+                f"({authority.valid_until.isoformat()})"
+            )
         if not _verify(
             authority.public_key, enrolment.authority_signature, enrolment_statement(enrolment)
         ):

@@ -62,11 +62,12 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Protocol
 
-from lab_brain.core.belief import EpistemicStateProjection
+from lab_brain.core.belief import EpistemicStateProjection, UnverifiedBeliefRevision
 from lab_brain.core.budget import BudgetPolicy
 from lab_brain.core.episode import EpisodeRefused, EpisodeResult
 from lab_brain.core.models.attestation import Attestation
 from lab_brain.core.models.belief_event import BeliefRevisionEvent, BeliefState
+from lab_brain.core.models.capability import ActionType
 from lab_brain.core.models.condition import ConditionMatch
 from lab_brain.core.models.cost import CostVector
 from lab_brain.core.models.enums import IndependenceBasis, RelationType
@@ -111,6 +112,7 @@ from lab_brain.tools.resources import ResourceDemand
 from lab_brain.verification.capability_registry import CapabilityRegistry
 from lab_brain.verification.evidence import RunEvidence, evidence_from_run
 from lab_brain.verification.least_cost import PlanningResult
+from lab_brain.verification.planner import VerificationPlanner
 from lab_brain.verification.sufficiency import HypothesisState, TransitionTarget
 from lab_brain.verification.workflows import (
     ObservedOutcome,
@@ -323,6 +325,13 @@ class Standing:
     notes: tuple[str, ...] = ()
     #: The declared class the candidate stands for -- bound, or identified by a person -- if any.
     declared_class: str | None = None
+    #: The candidate's own class (itself and any bound copy), the rivals a warranted refutation
+    #: excluded, the declared classes the set's members stand for, and every observable the
+    #: episode observed -- what the loop needs to ask whether a cheap check is still unrun.
+    family: tuple[str, ...] = ()
+    excluded: tuple[str, ...] = ()
+    classes: tuple[str, ...] = ()
+    observed: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -399,6 +408,339 @@ class LoopResult:
         return self.failure_analysis.confirmed_root_cause
 
 
+class RuleReads(Protocol):
+    """What the confirmation rule reads: `LoopDependencies` has it, and so does a reader that
+    re-derives a stored conclusion (`research.confirmation`)."""
+
+    @property
+    def belief(self) -> BeliefReader: ...
+
+    @property
+    def evidence(self) -> AdmittedRelations: ...
+
+    @property
+    def declarations(self) -> DiagnosticDeclarationSet | None: ...
+
+    @property
+    def episode_outcomes(self) -> EpisodeOutcomes | None: ...
+
+    @property
+    def relations_from(self) -> Callable[[str, str], Sequence[RelationJudgment]] | None: ...
+
+    @property
+    def now(self) -> Callable[[], dt.datetime]: ...
+
+
+class AdmittedRelations(Protocol):
+    def admitted_for_subject(
+        self, project_id: str, subject_id: str
+    ) -> tuple[RelationJudgment, ...]: ...
+
+
+class RuleQuery(Protocol):
+    """The part of a `LoopRequest` the rule reads: which set, in which episode."""
+
+    @property
+    def project_id(self) -> str: ...
+
+    @property
+    def episode_id(self) -> str: ...
+
+    @property
+    def hypothesis_set(self) -> HypothesisSet: ...
+
+    @property
+    def certificates(self) -> tuple[HypothesisCertificate, ...]: ...
+
+
+class ConfirmationRule:
+    """V1 §2 I6, read off the records: whether a member of the set is confirmable, and why not.
+
+    One statement of the rule in Python. The loop applies it before concluding; the reuse check
+    (`research.confirmation`) applies it again to a stored conclusion over the verified history;
+    `012p`'s `confirmation_rule_breaches` restates it in SQL for every writer, and the PostgreSQL
+    suite holds the two to the same verdicts.
+    """
+
+    def __init__(self, reads: RuleReads) -> None:
+        self._d = reads
+
+    def _state(self, request: RuleQuery, hypothesis_id: str) -> BeliefState | None:
+        projection = self._d.belief.project(
+            project_id=request.project_id, hypothesis_id=hypothesis_id, projected_at=self._d.now()
+        )
+        return projection.current_state
+
+    def standing(self, request: RuleQuery) -> Standing:
+        """The confirmation rule over the set as it stands now (see `Standing`). Read-only.
+
+        Everything is read off the per-relation records, never off which reviews happened to be
+        queued: a project with no review queue, or a refutation that arrived after a promotion,
+        must not make a threat invisible. A member's CLASS is its binding to a declared class, so
+        a copy of a class is not a rival that can be "excluded" by a refutation of that class.
+        """
+        d = self._d
+        certificates = {c.hypothesis_id: c for c in request.certificates}
+        ids = sorted(certificates)
+        states = {h: self._state(request, h) for h in ids}
+        admitted = {h: d.evidence.admitted_for_subject(request.project_id, h) for h in ids}
+        views = {
+            h: d.belief.hypothesis_view(
+                project_id=request.project_id,
+                hypothesis_id=h,
+                current_state=states[h] or BeliefState.ACTIVE,
+                stakes=request.hypothesis_set.stakes,
+                admitted_relations=admitted[h],
+            )
+            for h in ids
+        }
+
+        def with_warrant(h: str, kind: RelationType) -> set[str]:
+            return {
+                r.relation_id
+                for r in views[h].relation_evidence
+                if r.relation_type is kind and r.warranted
+            }
+
+        def unsettled(h: str, kind: RelationType) -> set[str]:
+            return {
+                r.relation_id
+                for r in views[h].relation_evidence
+                if r.relation_type is kind and not r.warranted and not r.refused
+            }
+
+        def bound(h: str) -> str:
+            declaration = (
+                None
+                if d.declarations is None
+                else d.declarations.bound_class(
+                    certificates[h].hypothesis.mechanism, certificates[h].predictions
+                )
+            )
+            if declaration is not None:
+                return f"class:{declaration.class_id}"
+            # A person's explicit statement that this hypothesis IS a declared class -- the only
+            # way a paraphrase joins that class. Approving a link alone never does.
+            said = {
+                r.identifies.split("#", 1)[1]
+                for r in views[h].relation_evidence
+                if r.warranted and r.identifies is not None
+            }
+            return f"class:{next(iter(said))}" if len(said) == 1 else h
+
+        # Excluded: rejected through the governed policy -- fidelity, conditions, independence and
+        # all -- on a refutation an accountable source warranted. A coarse result that only
+        # challenged a rival has not excluded it (SIM-002), and neither has a rejection resting on
+        # an author's own falsifier.
+        excluded = {
+            h
+            for h in ids
+            if states[h] is BeliefState.CONTRADICTED and with_warrant(h, RelationType.CONTRADICTS)
+        }
+        refuted = {h for h in ids if with_warrant(h, RelationType.CONTRADICTS)}
+        supported = tuple(h for h in ids if states[h] is BeliefState.SUPPORTED)
+        if not supported:
+            # Nothing to confirm; what a person could still change is every unsettled relation of
+            # a member nothing warranted has refuted.
+            open_ = sorted(
+                r
+                for h in ids
+                if h not in excluded
+                for kind in (RelationType.SUPPORTS, RelationType.CONTRADICTS)
+                for r in unsettled(h, kind)
+            )
+            return Standing(awaiting=tuple(open_))
+
+        keys = {h: bound(h) for h in ids}
+        if len({keys[h] for h in supported}) > 1:
+            return Standing(
+                supported=supported,
+                competing=supported,
+                notes=(
+                    f"{', '.join(supported)} are SUPPORTED as different mechanisms; the loop "
+                    "confirms neither -- they may co-occur",
+                ),
+            )
+        family = {h for h in ids if keys[h] == keys[supported[0]]}
+        candidate = supported[0]
+        notes: list[str] = []
+        if len(family) > 1:
+            notes.append(
+                f"{', '.join(sorted(family))} state one declared class; {candidate} stands for it"
+            )
+        undischarged: list[str] = []
+        contested = sorted(family & refuted)
+        if contested:
+            undischarged.append(candidate)
+            notes.append(
+                f"{', '.join(contested)} -- the candidate's own class -- hold a warranted "
+                "refutation; it is not confirmed"
+            )
+        support = {
+            relation_id
+            for h in family
+            if states[h] is BeliefState.SUPPORTED
+            for relation_id in with_warrant(h, RelationType.SUPPORTS)
+        }
+        observations = {
+            r.from_entity_id for h in family for r in admitted[h] if r.relation_id in support
+        }
+        if not support:
+            undischarged.append(candidate)
+            notes.append(
+                f"{candidate} is SUPPORTED on support nobody accountable has warranted -- a "
+                "policy that did not require a warrant moved it; it is not confirmed"
+            )
+        rivals = [h for h in ids if h not in family]
+        # An observed outcome the domain declares to be ANOTHER class's signature is evidence of
+        # that mechanism, whoever claimed it and whatever a person said about their claim: the
+        # failure may have two causes, or the candidate may be the wrong one. Not confirmed.
+        # Only the candidate's own class -- bound, or identified by a person's explicit statement
+        # -- accounts for that class's signature; a person approving a link without saying the
+        # hypothesis IS the declared class does not. Every outcome the episode observed is read,
+        # predicted or not.
+        observed = self._observed(request, certificates, admitted)
+        for where, owner in self._observed_signatures(observed):
+            if f"class:{owner.class_id}" == keys[candidate]:
+                continue
+            undischarged.append(candidate)
+            note = (
+                f"{where}: the observed outcome is the declared signature of '{owner.mechanism}', "
+                f"another mechanism than {candidate}'s -- evidence of a second or a different "
+                "cause; if a hypothesis IS that mechanism, a reviewer can say so"
+            )
+            if note not in notes:
+                notes.append(note)
+        # The candidate's own class refuted by the domain: an outcome its declaration says the
+        # class cannot produce, observed anywhere in the episode. A member that joined the class by
+        # a person's identity statement never had to predict that outcome, so no relation of the
+        # family need record it -- read it off the observations.
+        own = (
+            None
+            if d.declarations is None or not keys[candidate].startswith("class:")
+            else d.declarations.by_class(keys[candidate].split(":", 1)[1])
+        )
+        if own is not None:
+            for where, link in observed:
+                if not own.refuted_by(link):
+                    continue
+                undischarged.append(candidate)
+                note = (
+                    f"{where}: the observed {link[3]} is an outcome the declared class "
+                    f"'{own.mechanism}' cannot produce -- it refutes {candidate}'s class"
+                )
+                if note not in notes:
+                    notes.append(note)
+        produced = (
+            [r for x in sorted(observations) for r in d.relations_from(request.project_id, x)]
+            if d.relations_from is not None
+            else []
+        )
+        for rival in rivals:
+            if rival in excluded:
+                continue
+            affirming = sorted(
+                {
+                    r.relation_id
+                    for r in (*admitted[rival], *produced)
+                    if r.to_entity_id == rival
+                    and r.from_entity_id in observations
+                    and r.relation_type in _AFFIRMING
+                }
+            )
+            if affirming:
+                undischarged.append(rival)
+                notes.append(
+                    f"{rival} affirms the observation supporting {candidate} "
+                    f"({', '.join(affirming)}) and nothing warranted excludes it, so that "
+                    "observation does not tell them apart"
+                )
+        # What a person's answer could still overturn: support for a rival nothing warranted has
+        # excluded, or a refutation of the candidate's class. Read off the records -- queued or
+        # not -- so a missing queue or a late refutation cannot hide it.
+        threats = sorted(
+            {r for h in rivals if h not in excluded for r in unsettled(h, RelationType.SUPPORTS)}
+            | {r for h in family for r in unsettled(h, RelationType.CONTRADICTS)}
+        )
+        if threats:
+            notes.append(
+                f"a person's answer on {', '.join(threats)} could change whether {candidate} is "
+                "the cause"
+            )
+        # A rival whose warranted support is held only by a blocking conflict's review.
+        held = sorted(
+            h
+            for h in rivals
+            if h not in excluded
+            and states[h] is not BeliefState.SUPPORTED
+            and with_warrant(h, RelationType.SUPPORTS)
+            and any(c.blocks_transitions for c in views[h].conflicts)
+        )
+        if held:
+            notes.append(
+                f"{', '.join(held)} hold warranted support blocked only by an open conflict review"
+            )
+        confirmable = None if undischarged or threats or held else candidate
+        if confirmable is not None:
+            untested = sorted(h for h in rivals if not admitted[h])
+            if untested:
+                notes.append(
+                    "confirmed relative to the rivals proposed; never tested here: "
+                    + "; ".join(f"'{certificates[h].hypothesis.mechanism}' ({h})" for h in untested)
+                    + " -- nothing excluded them: no check this episode ran observed anything "
+                    "they predict"
+                )
+        return Standing(
+            supported=supported,
+            confirmable=confirmable,
+            undischarged=tuple(dict.fromkeys(undischarged)),
+            awaiting=tuple(threats),
+            notes=tuple(notes),
+            declared_class=None if own is None else own.class_id,
+            family=tuple(sorted(family)),
+            excluded=tuple(sorted(excluded)),
+            classes=tuple(
+                sorted({k.split(":", 1)[1] for k in keys.values() if k.startswith("class:")})
+            ),
+            observed=tuple(sorted({link[0] for _, link in observed})),
+        )
+
+    def _observed(
+        self,
+        request: RuleQuery,
+        certificates: Mapping[str, HypothesisCertificate],
+        admitted: Mapping[str, Sequence[RelationJudgment]],
+    ) -> list[tuple[str, Link]]:
+        """Every outcome the episode observed, by observation: its own attestations, predicted or
+        not, and what each admitted relation records."""
+        found: set[tuple[str, Link]] = set()
+        if self._d.episode_outcomes is not None:
+            found.update(self._d.episode_outcomes(request.project_id, request.episode_id))
+        for h, relations in admitted.items():
+            predictions = {p.prediction_id: p for p in certificates[h].predictions}
+            for relation in relations:
+                prediction = predictions.get(str(relation.attributes.get("prediction_id")))
+                link = None if prediction is None else observed_link(relation, prediction)
+                if link is not None:
+                    found.add((relation.from_entity_id, link))
+        return sorted(found)
+
+    def _observed_signatures(
+        self, observed: Sequence[tuple[str, Link]]
+    ) -> list[tuple[str, DiagnosticDeclaration]]:
+        """Every declared signature the episode observed, by observation -- each one, never only
+        the first an observation records (`confirmation_rule_breaches` reads them all too)."""
+        declarations = self._d.declarations
+        if declarations is None:
+            return []
+        found: dict[tuple[str, str], DiagnosticDeclaration] = {}
+        for observation_id, link in observed:
+            owner = declarations.signature_of(link)
+            if owner is not None:
+                found.setdefault((observation_id, owner.class_id), owner)
+        return [(where, owner) for (where, _), owner in sorted(found.items())]
+
+
 class VerificationLoop:
     def __init__(self, dependencies: LoopDependencies) -> None:
         self._d = dependencies
@@ -406,20 +748,74 @@ class VerificationLoop:
     # -- the loop ----------
 
     def run(self, request: LoopRequest) -> LoopResult:
+        steps: list[LoopStep] = []
+        notes: list[str] = []
+        try:
+            return self._run(request, steps, notes)
+        except UnverifiedBeliefRevision as refused:
+            # A stored belief move that no longer re-verifies -- a forged event, or an answer
+            # whose key was revoked from before it was given, or an authority no longer pinned.
+            # The read path refuses it rather than repairing it; the loop then concludes nothing
+            # and says so, instead of failing the run (V1.1).
+            return self._unverifiable(request, tuple(steps), tuple(notes), refused)
+
+    def _unverifiable(
+        self,
+        request: LoopRequest,
+        steps: tuple[LoopStep, ...],
+        notes: tuple[str, ...],
+        refused: UnverifiedBeliefRevision,
+    ) -> LoopResult:
+        d = self._d
+        analysis = d.failures.add_analysis(
+            FailureAnalysis(
+                failure_analysis_id=d.mint("failure_analysis"),
+                project_id=request.project_id,
+                episode_id=request.episode_id,
+                symptom=request.symptom,
+                expected_behavior=request.expected_behavior,
+                observed_behavior=request.observed_behavior,
+                candidate_causes=tuple(sorted(c.hypothesis_id for c in request.certificates)),
+                failure_class="UNRESOLVED",
+                resolution_status=ResolutionStatus.OPEN,
+                created_at=d.now(),
+            )
+        )
+        return LoopResult(
+            stop_reason=StopReason.HUMAN_ACTION_REQUIRED,
+            steps=steps,
+            failure_analysis=analysis,
+            notes=(
+                *notes,
+                f"a recorded belief move in this set does not re-verify, so nothing is concluded: "
+                f"{refused}",
+            ),
+        )
+
+    def _run(self, request: LoopRequest, steps: list[LoopStep], notes: list[str]) -> LoopResult:
         d = self._d
         d.plans.add_policy(request.selection_policy)
         executed: list[str] = []
-        steps: list[LoopStep] = []
-        notes: list[str] = []
         stop = StopReason.MAX_STEPS
         asked: set[tuple[str, str, tuple[str, ...]]] = set()
         for index in range(request.max_steps):
             transitions = self._revise(request, notes, asked)
             standing = self.standing(request)
             self._ask(request, standing.awaiting, notes)
-            if standing.confirmable is not None:
+            # Before a unique confirmation rests on a rival's silence, the cheap checks that could
+            # still break it run: one that could move a rival nothing has tested, at the cheapest
+            # tiers, with no seat and no person (V1.1, from the science review). Never an
+            # escalation -- a simulation or a measurement is not run just to discriminate.
+            discriminating = (
+                self._unchecked_rivals(request, standing, executed)
+                if standing.confirmable is not None
+                else ()
+            )
+            if standing.confirmable is not None and not discriminating:
                 steps.append(LoopStep(index=index, transitions=transitions))
-                stop = StopReason.CONFIRMED
+                blind = self._unchecked_classes(request, standing, executed)
+                notes.extend(n for n in blind if n not in notes)
+                stop = StopReason.SUPPORTED_UNDISCRIMINATED if blind else StopReason.CONFIRMED
                 break
             if standing.competing:
                 steps.append(LoopStep(index=index, transitions=transitions))
@@ -438,6 +834,14 @@ class VerificationLoop:
                 exclude=frozenset(executed),
                 projected_condition_match=self._projected_match(request),
             )
+            if discriminating and result.plan.chosen_action_id not in discriminating:
+                # The planner would act on something other than the cheap discriminating check:
+                # nothing cheap is left to try, so the candidate stands on what was observed.
+                steps.append(LoopStep(index=index, transitions=transitions))
+                blind = self._unchecked_classes(request, standing, executed)
+                notes.extend(n for n in blind if n not in notes)
+                stop = StopReason.SUPPORTED_UNDISCRIMINATED if blind else StopReason.CONFIRMED
+                break
             plan = d.plans.add_plan(result.plan)
             decision = plan.rationale.decision.value
             if decision == "EXISTING_EVIDENCE_DECIDES":
@@ -508,6 +912,84 @@ class VerificationLoop:
             elif standing.supported:
                 stop = StopReason.SUPPORTED_UNDISCRIMINATED
         return self._conclude(request, stop, tuple(steps), tuple(notes))
+
+    # -- discrimination before confirmation ----------
+
+    #: The cheapest action tiers: checks that read what is already there.
+    _CHEAP = frozenset(
+        {
+            ActionType.EXISTING_EVIDENCE_LOOKUP,
+            ActionType.ANALYTICAL_RULE_CHECK,
+            ActionType.HISTORICAL_CASE_COMPARISON,
+        }
+    )
+
+    def _cheap_checks(
+        self, request: LoopRequest, observables: Sequence[str], executed: Sequence[str]
+    ) -> tuple[str, ...]:
+        """Capabilities that would observe one of `observables` and that this deployment runs
+        itself at the cheapest tiers: available, a workflow, no licence seat, inputs at hand, and
+        not yet executed in this run."""
+        if not observables:
+            return ()
+        d = self._d
+        matching = VerificationPlanner(d.capabilities).plan(
+            goal=sorted(set(observables)), available=request.available_inputs
+        )
+        return tuple(
+            sorted(
+                a.capability_id
+                for a in matching
+                if a.capability_id not in executed
+                and a.capability.action_type in self._CHEAP
+                and not a.capability.license_constraints
+                and d.workflows.resolve(a.capability_id) is not None
+            )
+        )
+
+    def _unchecked_rivals(
+        self, request: LoopRequest, standing: Standing, executed: Sequence[str]
+    ) -> tuple[str, ...]:
+        """Cheap checks of a rival nothing has excluded, on an observable it predicts that the
+        episode has not observed. Two faults in one device, each with a two-second check, must
+        not be decided by which check id sorts first."""
+        seen = set(standing.observed)
+        wanted = sorted(
+            {
+                p.observable_ref
+                for c in request.certificates
+                if c.hypothesis_id not in standing.family
+                and c.hypothesis_id not in standing.excluded
+                for p in c.predictions
+                if p.observable_ref not in seen
+            }
+        )
+        return self._cheap_checks(request, wanted, executed)
+
+    def _unchecked_classes(
+        self, request: LoopRequest, standing: Standing, executed: Sequence[str]
+    ) -> list[str]:
+        """Declared classes nobody proposed, whose signature a cheap check here could have
+        observed and has not: the recorded failure's shape, a true cause outside the set. The
+        conclusion then waits, and says which class and which check."""
+        declarations = self._d.declarations
+        if declarations is None:
+            return []
+        seen = set(standing.observed)
+        notes = []
+        for declaration in declarations.declarations:
+            if declaration.class_id in standing.classes or declaration.observable_ref in seen:
+                continue
+            checks = self._cheap_checks(request, [declaration.observable_ref], executed)
+            if checks:
+                notes.append(
+                    f"the declared mechanism '{declaration.mechanism}' was proposed by no "
+                    f"hypothesis, and {', '.join(checks)} -- a check this deployment runs itself "
+                    f"-- never observed {declaration.observable_ref}, so its signature could not "
+                    "have been seen; nothing is confirmed while a cause the domain declares stays "
+                    "unlooked-at"
+                )
+        return notes
 
     # -- reads for callers ----------
 
@@ -829,266 +1311,8 @@ class VerificationLoop:
         return projection.current_state
 
     def standing(self, request: LoopRequest) -> Standing:
-        """The confirmation rule over the set as it stands now (see `Standing`). Read-only.
-
-        Everything is read off the per-relation records, never off which reviews happened to be
-        queued: a project with no review queue, or a refutation that arrived after a promotion,
-        must not make a threat invisible. A member's CLASS is its binding to a declared class, so
-        a copy of a class is not a rival that can be "excluded" by a refutation of that class.
-        """
-        d = self._d
-        certificates = {c.hypothesis_id: c for c in request.certificates}
-        ids = sorted(certificates)
-        states = {h: self._state(request, h) for h in ids}
-        admitted = {h: d.evidence.admitted_for_subject(request.project_id, h) for h in ids}
-        views = {
-            h: d.belief.hypothesis_view(
-                project_id=request.project_id,
-                hypothesis_id=h,
-                current_state=states[h] or BeliefState.ACTIVE,
-                stakes=request.hypothesis_set.stakes,
-                admitted_relations=admitted[h],
-            )
-            for h in ids
-        }
-
-        def with_warrant(h: str, kind: RelationType) -> set[str]:
-            return {
-                r.relation_id
-                for r in views[h].relation_evidence
-                if r.relation_type is kind and r.warranted
-            }
-
-        def unsettled(h: str, kind: RelationType) -> set[str]:
-            return {
-                r.relation_id
-                for r in views[h].relation_evidence
-                if r.relation_type is kind and not r.warranted and not r.refused
-            }
-
-        def bound(h: str) -> str:
-            declaration = (
-                None
-                if d.declarations is None
-                else d.declarations.bound_class(
-                    certificates[h].hypothesis.mechanism, certificates[h].predictions
-                )
-            )
-            if declaration is not None:
-                return f"class:{declaration.class_id}"
-            # A person's explicit statement that this hypothesis IS a declared class -- the only
-            # way a paraphrase joins that class. Approving a link alone never does.
-            said = {
-                r.identifies.split("#", 1)[1]
-                for r in views[h].relation_evidence
-                if r.warranted and r.identifies is not None
-            }
-            return f"class:{next(iter(said))}" if len(said) == 1 else h
-
-        # Excluded: rejected through the governed policy -- fidelity, conditions, independence and
-        # all -- on a refutation an accountable source warranted. A coarse result that only
-        # challenged a rival has not excluded it (SIM-002), and neither has a rejection resting on
-        # an author's own falsifier.
-        excluded = {
-            h
-            for h in ids
-            if states[h] is BeliefState.CONTRADICTED and with_warrant(h, RelationType.CONTRADICTS)
-        }
-        refuted = {h for h in ids if with_warrant(h, RelationType.CONTRADICTS)}
-        supported = tuple(h for h in ids if states[h] is BeliefState.SUPPORTED)
-        if not supported:
-            # Nothing to confirm; what a person could still change is every unsettled relation of
-            # a member nothing warranted has refuted.
-            open_ = sorted(
-                r
-                for h in ids
-                if h not in excluded
-                for kind in (RelationType.SUPPORTS, RelationType.CONTRADICTS)
-                for r in unsettled(h, kind)
-            )
-            return Standing(awaiting=tuple(open_))
-
-        keys = {h: bound(h) for h in ids}
-        if len({keys[h] for h in supported}) > 1:
-            return Standing(
-                supported=supported,
-                competing=supported,
-                notes=(
-                    f"{', '.join(supported)} are SUPPORTED as different mechanisms; the loop "
-                    "confirms neither -- they may co-occur",
-                ),
-            )
-        family = {h for h in ids if keys[h] == keys[supported[0]]}
-        candidate = supported[0]
-        notes: list[str] = []
-        if len(family) > 1:
-            notes.append(
-                f"{', '.join(sorted(family))} state one declared class; {candidate} stands for it"
-            )
-        undischarged: list[str] = []
-        contested = sorted(family & refuted)
-        if contested:
-            undischarged.append(candidate)
-            notes.append(
-                f"{', '.join(contested)} -- the candidate's own class -- hold a warranted "
-                "refutation; it is not confirmed"
-            )
-        support = {
-            relation_id
-            for h in family
-            if states[h] is BeliefState.SUPPORTED
-            for relation_id in with_warrant(h, RelationType.SUPPORTS)
-        }
-        observations = {
-            r.from_entity_id for h in family for r in admitted[h] if r.relation_id in support
-        }
-        if not support:
-            undischarged.append(candidate)
-            notes.append(
-                f"{candidate} is SUPPORTED on support nobody accountable has warranted -- a "
-                "policy that did not require a warrant moved it; it is not confirmed"
-            )
-        rivals = [h for h in ids if h not in family]
-        # An observed outcome the domain declares to be ANOTHER class's signature is evidence of
-        # that mechanism, whoever claimed it and whatever a person said about their claim: the
-        # failure may have two causes, or the candidate may be the wrong one. Not confirmed.
-        # Only the candidate's own class -- bound, or identified by a person's explicit statement
-        # -- accounts for that class's signature; a person approving a link without saying the
-        # hypothesis IS the declared class does not. Every outcome the episode observed is read,
-        # predicted or not.
-        observed = self._observed(request, certificates, admitted)
-        for where, owner in self._observed_signatures(observed):
-            if f"class:{owner.class_id}" == keys[candidate]:
-                continue
-            undischarged.append(candidate)
-            note = (
-                f"{where}: the observed outcome is the declared signature of '{owner.mechanism}', "
-                f"another mechanism than {candidate}'s -- evidence of a second or a different "
-                "cause; if a hypothesis IS that mechanism, a reviewer can say so"
-            )
-            if note not in notes:
-                notes.append(note)
-        # The candidate's own class refuted by the domain: an outcome its declaration says the
-        # class cannot produce, observed anywhere in the episode. A member that joined the class by
-        # a person's identity statement never had to predict that outcome, so no relation of the
-        # family need record it -- read it off the observations.
-        own = (
-            None
-            if d.declarations is None or not keys[candidate].startswith("class:")
-            else d.declarations.by_class(keys[candidate].split(":", 1)[1])
-        )
-        if own is not None:
-            for where, link in observed:
-                if not own.refuted_by(link):
-                    continue
-                undischarged.append(candidate)
-                note = (
-                    f"{where}: the observed {link[3]} is an outcome the declared class "
-                    f"'{own.mechanism}' cannot produce -- it refutes {candidate}'s class"
-                )
-                if note not in notes:
-                    notes.append(note)
-        produced = (
-            [r for x in sorted(observations) for r in d.relations_from(request.project_id, x)]
-            if d.relations_from is not None
-            else []
-        )
-        for rival in rivals:
-            if rival in excluded:
-                continue
-            affirming = sorted(
-                {
-                    r.relation_id
-                    for r in (*admitted[rival], *produced)
-                    if r.to_entity_id == rival
-                    and r.from_entity_id in observations
-                    and r.relation_type in _AFFIRMING
-                }
-            )
-            if affirming:
-                undischarged.append(rival)
-                notes.append(
-                    f"{rival} affirms the observation supporting {candidate} "
-                    f"({', '.join(affirming)}) and nothing warranted excludes it, so that "
-                    "observation does not tell them apart"
-                )
-        # What a person's answer could still overturn: support for a rival nothing warranted has
-        # excluded, or a refutation of the candidate's class. Read off the records -- queued or
-        # not -- so a missing queue or a late refutation cannot hide it.
-        threats = sorted(
-            {r for h in rivals if h not in excluded for r in unsettled(h, RelationType.SUPPORTS)}
-            | {r for h in family for r in unsettled(h, RelationType.CONTRADICTS)}
-        )
-        if threats:
-            notes.append(
-                f"a person's answer on {', '.join(threats)} could change whether {candidate} is "
-                "the cause"
-            )
-        # A rival whose warranted support is held only by a blocking conflict's review.
-        held = sorted(
-            h
-            for h in rivals
-            if h not in excluded
-            and states[h] is not BeliefState.SUPPORTED
-            and with_warrant(h, RelationType.SUPPORTS)
-            and any(c.blocks_transitions for c in views[h].conflicts)
-        )
-        if held:
-            notes.append(
-                f"{', '.join(held)} hold warranted support blocked only by an open conflict review"
-            )
-        confirmable = None if undischarged or threats or held else candidate
-        if confirmable is not None:
-            untested = sorted(h for h in rivals if not admitted[h])
-            if untested:
-                notes.append(
-                    "confirmed relative to the rivals proposed; never tested: "
-                    f"{', '.join(untested)} -- they are excluded only by not predicting the "
-                    "observation"
-                )
-        return Standing(
-            supported=supported,
-            confirmable=confirmable,
-            undischarged=tuple(dict.fromkeys(undischarged)),
-            awaiting=tuple(threats),
-            notes=tuple(notes),
-            declared_class=None if own is None else own.class_id,
-        )
-
-    def _observed(
-        self,
-        request: LoopRequest,
-        certificates: Mapping[str, HypothesisCertificate],
-        admitted: Mapping[str, Sequence[RelationJudgment]],
-    ) -> list[tuple[str, Link]]:
-        """Every outcome the episode observed, by observation: its own attestations, predicted or
-        not, and what each admitted relation records."""
-        found: set[tuple[str, Link]] = set()
-        if self._d.episode_outcomes is not None:
-            found.update(self._d.episode_outcomes(request.project_id, request.episode_id))
-        for h, relations in admitted.items():
-            predictions = {p.prediction_id: p for p in certificates[h].predictions}
-            for relation in relations:
-                prediction = predictions.get(str(relation.attributes.get("prediction_id")))
-                link = None if prediction is None else observed_link(relation, prediction)
-                if link is not None:
-                    found.add((relation.from_entity_id, link))
-        return sorted(found)
-
-    def _observed_signatures(
-        self, observed: Sequence[tuple[str, Link]]
-    ) -> list[tuple[str, DiagnosticDeclaration]]:
-        """Every declared signature the episode observed, by observation -- each one, never only
-        the first an observation records (`confirmation_rule_breaches` reads them all too)."""
-        declarations = self._d.declarations
-        if declarations is None:
-            return []
-        found: dict[tuple[str, str], DiagnosticDeclaration] = {}
-        for observation_id, link in observed:
-            owner = declarations.signature_of(link)
-            if owner is not None:
-                found.setdefault((observation_id, owner.class_id), owner)
-        return [(where, owner) for (where, _), owner in sorted(found.items())]
+        """The confirmation rule over the set as it stands now (`ConfirmationRule`). Read-only."""
+        return ConfirmationRule(self._d).standing(request)
 
     def _ask(self, request: LoopRequest, relation_ids: Sequence[str], notes: list[str]) -> None:
         """Queue the warrant reviews the confirmation rule is waiting on, idempotently.
@@ -1331,14 +1555,20 @@ class VerificationLoop:
             if declaration is not None:
                 named.add(declaration.class_id)
                 notes.append(
-                    f"confirmed as the declared class '{declaration.mechanism}' ({ref}): "
-                    f"{declaration.statement} -- {certificate.hypothesis_id}'s own statement is "
-                    "its author's account"
+                    f"confirmed as the declared class '{declaration.mechanism}' ({ref}): the "
+                    f"observed outcome is its declared signature among the "
+                    f"{len(declarations.declarations)} declared classes, which shows the class's "
+                    "condition is present -- not that it accounts for the anomaly's size or bias "
+                    f"dependence. The class's statement: {declaration.statement} "
+                    f"{certificate.hypothesis_id}'s own statement is its author's account"
                 )
         if declared is not None and declared.class_id not in named:
             notes.append(
                 f"confirmed as the declared class '{declared.mechanism}' "
-                f"({declarations.domain_ref(declared)}): {declared.statement} -- "
+                f"({declarations.domain_ref(declared)}): the observed outcome is its declared "
+                f"signature among the {len(declarations.declarations)} declared classes, which "
+                "shows the class's condition is present -- not that it accounts for the anomaly's "
+                f"size or bias dependence. The class's statement: {declared.statement} "
                 f"{certificate.hypothesis_id}'s own statement is its author's account"
             )
         return notes
@@ -1421,7 +1651,9 @@ class VerificationLoop:
 
 __all__ = [
     "AdmissionGate",
+    "AdmittedRelations",
     "BeliefReader",
+    "ConfirmationRule",
     "EvidenceSink",
     "LoopDependencies",
     "LoopRequest",
@@ -1429,6 +1661,8 @@ __all__ = [
     "LoopStep",
     "Planner",
     "Reviser",
+    "RuleQuery",
+    "RuleReads",
     "Standing",
     "StopReason",
     "Transition",

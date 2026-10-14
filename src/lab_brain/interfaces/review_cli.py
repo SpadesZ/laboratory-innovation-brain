@@ -86,6 +86,14 @@ def add_review_parser(sub: Any) -> None:
     revoked = actions.add_parser("revoke", help="(authority) revoke a reviewer key enrolment")
     revoked.add_argument("enrolment_id")
     revoked.add_argument("--reason", required=True)
+    revoked.add_argument(
+        "--effective-at",
+        default=None,
+        help=(
+            "ISO time from which the key answers nothing (default now); set it at or before "
+            "the suspected compromise -- answers signed from then on stop counting"
+        ),
+    )
     revoked.add_argument("--authority-key", required=True, help="the authority's private key")
     resolved = actions.add_parser("resolve", help="answer one review")
     resolved.add_argument("review_id")
@@ -140,12 +148,22 @@ def _attribution(link: tuple[str, str, str, str], mechanism: str) -> list[str]:
         ref = declarations.domain_ref(owner)
         lines.append(
             f"  domain says  {link[3]} on {link[0]} is the declared signature of "
-            f"'{owner.mechanism}' ({ref})"
+            f"'{owner.mechanism}' ({ref}) -- among the {len(declarations.declarations)} classes "
+            f"{declarations.ref} declares; it shows that class's condition is present, not that "
+            "it accounts for the anomaly's size or bias dependence"
+        )
+        lines.append(
+            f"               that class is refuted by {', '.join(owner.refutes_outcomes)} on "
+            f"{owner.observable_ref}"
         )
         if owner.mechanism != mechanism:
             lines.append(
                 "               approving the link does not make this hypothesis that mechanism; "
                 f"if it IS, say so with --is-class {ref}"
+            )
+            lines.append(
+                f"               --is-class records the cause as '{owner.mechanism}': "
+                f"{owner.statement}"
             )
     return lines
 
@@ -324,18 +342,37 @@ def run_review(
             target = store.enrolment(args.project, args.enrolment_id)
             if target is None:
                 raise IdentityUnverified(f"no enrolment {args.enrolment_id} in {args.project}")
+            at = now()
+            effective = (
+                at if args.effective_at is None else dt.datetime.fromisoformat(args.effective_at)
+            )
+            if effective.tzinfo is None:
+                raise IdentityUnverified("--effective-at needs a time zone")
+            if effective > at:
+                raise IdentityUnverified(
+                    "--effective-at cannot be in the future: a revocation withdraws what a key "
+                    "did, it does not schedule"
+                )
             revocation = sign_revocation(
                 authority,
                 authority_actor_id=args.actor,
                 revocation_id=mint("rvk"),
                 enrolment_id=target.enrolment_id,
                 project_id=args.project,
-                effective_at=now(),
+                effective_at=effective,
                 reason=args.reason,
             )
             trust.verify_revocation(revocation)
             store.revoke(revocation)
             print(f"revoked {target.enrolment_id} ({target.actor_id}, {target.key_id})", file=out)
+            withdrawn = connection.execute(
+                "SELECT grant_id, relation_id FROM diagnostic_warrant_grants"
+                " WHERE project_id = %s AND enrolment_id = %s AND granted_at >= %s"
+                " ORDER BY granted_at, grant_id",
+                (args.project, target.enrolment_id, effective),
+            ).fetchall()
+            for grant_id, relation_id in withdrawn:
+                print(f"  withdraws {grant_id} (relation {relation_id})", file=out)
             return 0
         except (IdentityUnverified, WarrantStoreError, ValueError) as refused:
             print(f"lab-brain: {refused}", file=out)

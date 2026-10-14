@@ -8,9 +8,10 @@
 #   - their membership: exactly the clearance in LAB_BRAIN_CLEARANCE, and the LLM_EGRESS approval
 #     scope, i.e. the authority to DECLARE (not an actual approval of) their project's egress;
 #   - administration of this deployment's language-model routes;
-#   - a review queue for their project, unless one is declared already (the researcher declares it,
-#     so its expiry is their standing decision): without one, a diagnostic warrant question
-#     cannot be asked and the episode only records that nobody could be.
+#   - a review queue for their project, ONLY when LAB_BRAIN_REVIEW_QUEUE_DECLARED_BY names the
+#     member whose standing decision authorises its expiry (v3.3-a15: never inferred), and only if
+#     none is declared already. Without one, a diagnostic warrant question cannot be asked and the
+#     episode records that nobody could be (fail closed).
 # Their membership of the bootstrap project is what the configuration says, each start.
 set -eu
 python /app/scripts/migrate.py
@@ -19,4 +20,7 @@ lab-brain admin project "$LAB_BRAIN_PROJECT" --name "$LAB_BRAIN_PROJECT_NAME"
 lab-brain admin member "$LAB_BRAIN_PROJECT" "$LAB_BRAIN_ACTOR" \
     --clearance "$LAB_BRAIN_CLEARANCE" --scope LLM_EGRESS
 lab-brain admin llm-admin "$LAB_BRAIN_ACTOR"
-lab-brain admin review-queue "$LAB_BRAIN_PROJECT" --declared-by "$LAB_BRAIN_ACTOR" --if-absent
+if [ -n "${LAB_BRAIN_REVIEW_QUEUE_DECLARED_BY:-}" ]; then
+    lab-brain admin review-queue "$LAB_BRAIN_PROJECT" \
+        --declared-by "$LAB_BRAIN_REVIEW_QUEUE_DECLARED_BY" --if-absent
+fi

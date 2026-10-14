@@ -516,12 +516,27 @@ def test_a_research_run_expires_overdue_reviews_before_it_verifies(db, tmp_path:
         " 'DIAGNOSTIC_WARRANT_MISSING', 'trc:x', %s, %s, 15)",
         (LAB, relation[0], episode_id, long_ago),
     )
+    # An overdue review of another subject: expiring it is a governance act on that subject (an
+    # authority conflict's expiry would stop it blocking), so the research run leaves it alone.
+    item = db.execute(
+        "SELECT item_id FROM ingestion_items WHERE project_id = %s ORDER BY item_id LIMIT 1",
+        (LAB,),
+    ).fetchone()
+    db.execute(
+        "SELECT extraction_review_enqueue('rvw:other-subject', %s, %s, 'NORMAL', 'x', 'trc:x',"
+        " %s, 15)",
+        (LAB, item[0], long_ago),
+    )
     code, printed = _continue(tmp_path, episode_id)
     assert code == 0, printed
     status = db.execute(
         "SELECT status FROM review_items WHERE review_id = 'rvw:overdue'"
     ).fetchone()
     assert status[0] == "EXPIRED"
+    other = db.execute(
+        "SELECT status FROM review_items WHERE review_id = 'rvw:other-subject'"
+    ).fetchone()
+    assert other[0] == "QUEUED", "a research run expires warrant questions only"
     closed = db.execute(
         "SELECT actor_id FROM governance_events WHERE subject_id = 'rvw:overdue'"
     ).fetchone()
@@ -676,6 +691,27 @@ def test_a_person_flags_a_conclusion_and_case_memory_stops_relying_on_it(db):
         "INSERT INTO actors (actor_id, actor_type, display_name) VALUES (%s, 'HUMAN', %s)"
         " ON CONFLICT DO NOTHING",
         (REVIEWER, REVIEWER),
+    )
+    flag_args = (
+        "admin",
+        "flag-analysis",
+        analysis.failure_analysis_id,
+        "--kind",
+        "UNWARRANTED_CONFIRMATION",
+        "--statement",
+        "re-examined",
+        "--evidence",
+        "notebook",
+        "--actor",
+        REVIEWER,
+    )
+    code, printed = _main(*flag_args)
+    assert code == 2 and "not an active member" in printed, "only a member flags a conclusion"
+    db.execute(
+        "INSERT INTO project_memberships (actor_id, project_id, role, sensitivity_clearance,"
+        " approval_scopes, active) VALUES (%s, %s, 'PI', ARRAY['PUBLIC'], ARRAY[]::text[], TRUE)"
+        " ON CONFLICT DO NOTHING",
+        (REVIEWER, PROJECT),
     )
     code, printed = _main(
         "admin",
@@ -918,3 +954,279 @@ def test_a_flag_names_the_exact_confirmation_it_flags(db):
         (analysis.failure_analysis_id,),
     ).fetchone()[0]
     flag(analysis.failure_analysis_id, digest)
+
+
+# -- discrimination before confirmation (the science review's V1 and V9) ---------------------------
+
+
+def test_two_faults_each_with_a_cheap_check_are_both_looked_at(db):
+    """V1: an open cathode via AND a 2 % normalization mismatch. Both checks take two seconds.
+    Before V1.1 the loop confirmed whichever check id sorted first and never inspected the via.
+    Now every cheap check of an untested rival runs before a confirmation rests on its silence."""
+    fx = load_fixture()
+    case = copy.deepcopy(case_by_id(fx, "contact-open-via"))
+    case["device"] = {**case["device"], "extraction_normalization_length_um": "510"}
+    run = run_case(db, fx, case)
+    executed = [s.chosen for s in run.result.steps if s.chosen is not None]
+    assert sp.CAP_EXTRACTION_CONSISTENCY in executed and sp.CAP_INSPECT_CONNECTIVITY in executed
+    assert run.result.failure_analysis.resolution_status is not ResolutionStatus.CONFIRMED
+    assert run.result.stop_reason is StopReason.COMPETING_SUPPORT
+
+
+def test_a_cause_the_domain_declares_but_nobody_proposed_holds_the_conclusion(db):
+    """V9, the recorded failure's shape: the true cause is not in the set. The contact defect is
+    supported on its own check; the normalization check -- two seconds, declared, never run
+    because nobody proposed the mechanism -- could have shown the other declared signature. So
+    nothing is confirmed, and the note names the class and the check."""
+    fx = copy.deepcopy(load_fixture())
+    del fx["mechanisms"]["normalization_error"]
+    case = copy.deepcopy(case_by_id(fx, "contact-thin-overlap"))
+    case["device"] = {**case["device"], "extraction_normalization_length_um": "1000"}
+    run = run_case(db, fx, case)
+    assert run.result.stop_reason is StopReason.SUPPORTED_UNDISCRIMINATED
+    assert run.result.failure_analysis.resolution_status is ResolutionStatus.OPEN
+    assert any(
+        "'length normalization error' was proposed by no hypothesis" in n
+        and sp.CAP_EXTRACTION_CONSISTENCY in n
+        for n in run.result.notes
+    ), run.result.notes
+
+
+def test_revoking_a_key_after_its_answer_moved_a_belief_withdraws_the_conclusion(db):
+    """The answer confirmed the cause; then the authority learns the key was copied before the
+    answer was given. The stored promotion no longer re-verifies: the conclusion stops being relied
+    on, the database's rule no longer finds it confirmable, and continuing the episode records an
+    open question instead of failing."""
+    _queue(db)
+    fx = _renamed(
+        NOVEL_MECHANISM,
+        "The extraction divides by a length that includes the tapers, so Rs per length is high.",
+    )
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    store = SqlDiagnosticWarrantStore(db)
+    (review,) = store.outstanding(PROJECT)
+    store.resolve(
+        resolution_id="res:before-revocation",
+        grant_id="dwg:before-revocation",
+        review_id=review.review_id,
+        project_id=PROJECT,
+        outcome=ReviewOutcome.APPROVED,
+        signer=SIGNER,
+        rationale="a taper-inclusive length is exactly what makes the bases disagree",
+        considered_rival_ids=(),
+        resolved_at=T0,
+        identifies_class_ref=DOMAIN_REF,
+    )
+    assert run.loop is not None and run.request is not None
+    confirmed = run.loop.run(run.request)
+    assert confirmed.stop_reason is StopReason.CONFIRMED
+    cause = confirmed.confirmed_root_cause
+    store.revoke(
+        sign_revocation(
+            AUTHORITY,
+            authority_actor_id=AUTHORITY_ACTOR,
+            revocation_id="rvk:after",
+            enrolment_id=SIGNER.enrolment_id,
+            project_id=PROJECT,
+            effective_at=T0 - dt.timedelta(hours=1),
+            reason="the key was copied before this answer",
+        )
+    )
+    breaches = db.execute(
+        "SELECT confirmation_rule_breaches(%s, %s, %s)", (PROJECT, run.request.episode_id, cause)
+    ).fetchone()[0]
+    assert breaches, "the database no longer counts the revoked answer"
+    trusted = SqlFailureStore(
+        db,
+        verify=confirmation_verifier(db, TRUST, declaration_sets=(diagnostic_declaration_set(),)),
+    )
+    assert confirmed.failure_analysis.failure_analysis_id not in {
+        a.failure_analysis_id for a in trusted.trusted_confirmations(PROJECT)
+    }
+    resumed = run.loop.run(dataclasses.replace(run.request, available_inputs=frozenset()))
+    assert resumed.failure_analysis.resolution_status is ResolutionStatus.OPEN
+    assert any("does not re-verify" in n for n in resumed.notes), resumed.notes
+
+
+def test_an_authority_revokes_from_the_command_line_from_a_stated_time(db, tmp_path: Path):
+    _queue(db)
+    run = run_case(db, *_novel_case())
+    store = SqlDiagnosticWarrantStore(db)
+    (review,) = store.outstanding(PROJECT)
+    store.resolve(
+        resolution_id="res:to-withdraw",
+        grant_id="dwg:to-withdraw",
+        review_id=review.review_id,
+        project_id=PROJECT,
+        outcome=ReviewOutcome.APPROVED,
+        signer=SIGNER,
+        rationale="a taper-inclusive length is exactly what makes the bases disagree",
+        considered_rival_ids=(),
+        resolved_at=T0,
+    )
+    authorities = tmp_path / "authorities"
+    authorities.write_text(f"{AUTHORITY_ACTOR} ed25519:{AUTHORITY.public_key}\n", encoding="utf-8")
+    authority_key = tmp_path / "authority.key"
+    AUTHORITY.save(authority_key)
+    env = {
+        "LAB_BRAIN_DATABASE_URL": database_url(),
+        "LAB_BRAIN_REVIEW_AUTHORITIES": str(authorities),
+    }
+
+    def revoke(at: str) -> tuple[int, str]:
+        out = io.StringIO()
+        code = cli.main(
+            [
+                "review",
+                "revoke",
+                SIGNER.enrolment_id,
+                "--project",
+                PROJECT,
+                "--actor",
+                AUTHORITY_ACTOR,
+                "--authority-key",
+                str(authority_key),
+                "--reason",
+                "the key was copied",
+                "--effective-at",
+                at,
+            ],
+            out=out,
+            env=env,
+            connect=lambda s: psycopg.connect(s.dsn, autocommit=True),
+        )
+        return code, out.getvalue()
+
+    code, printed = revoke("2999-01-01T00:00:00+00:00")
+    assert code == 1 and "cannot be in the future" in printed, printed
+    code, printed = revoke("2026-01-02T00:00:00+00:00")
+    assert code == 0 and "withdraws dwg:to-withdraw" in printed, printed
+    assert run.loop is not None
+
+
+def _novel_case() -> tuple[Any, Any]:
+    fx = _renamed(
+        NOVEL_MECHANISM,
+        "The extraction divides by a length that includes the tapers, so Rs per length is high.",
+    )
+    return fx, case_by_id(fx, CASE)
+
+
+def test_sql_reasons_under_the_codes_active_declaration_version_or_nothing_runs(db):
+    current = diagnostic_declaration_set()
+    later = current.model_copy(update={"version": "1.0.1"})
+    store = SqlDeclarationSetStore(db)
+    store.ensure((current, later), later.ref)
+    with pytest.raises(WarrantStoreError, match="reasons under declaration set"):
+        store.ensure((current, later), current.ref)
+
+
+# -- reuse re-derives the conclusion (design review HIGH-1) ----------------------------------------
+
+
+def _reuse_check(db: Any) -> Any:
+    """The deployment's reuse check: answers and declarations, then the rule re-derived."""
+    from lab_brain.domains.silicon_photonics.product import product_vertical
+    from lab_brain.research.confirmation import confirmation_verifier as rederiving
+
+    reading = product_vertical(outputs=None, jobs=None, broker=None, now=lambda: T0)
+    return rederiving(
+        db,
+        trust=TRUST,
+        declaration_sets=reading.declaration_sets,
+        active=reading.active_declarations,
+        authority_policies=reading.authority_policies,
+        now=lambda: T0 + dt.timedelta(days=1),
+    )
+
+
+def _bypassing_triggers(db: Any, sql: str, params: Any) -> None:
+    """A superuser writing past every trigger -- the root of trust, simulated."""
+    db.execute("SET session_replication_role = replica")
+    try:
+        db.execute(sql, params)
+    finally:
+        db.execute("SET session_replication_role = origin")
+
+
+def test_reuse_rederives_what_the_database_triggers_could_not_stop(db):
+    """A CONFIRMED row written past the triggers, citing the cause's real DOMAIN warrant and its
+    real evidence, in an episode where the rule does not confirm it (two faults). The signature
+    and declaration checks alone would rely on it; re-deriving the rule does not."""
+    fx = copy.deepcopy(load_fixture())
+    case = copy.deepcopy(case_by_id(fx, "contact-open-via"))
+    case["device"] = {**case["device"], "extraction_normalization_length_um": "1000"}
+    run = run_case(db, fx, case)
+    assert run.result.failure_analysis.resolution_status is not ResolutionStatus.CONFIRMED
+    forged = _supported_but_unconfirmed(db, run, "contact_discontinuity")
+    _bypassing_triggers(
+        db,
+        "INSERT INTO failure_analyses (failure_analysis_id, project_id, episode_id, symptom,"
+        " expected_behavior, observed_behavior, candidate_causes, confirmed_root_cause,"
+        " root_cause_evidence_ids, failure_class, resolution_status, created_at, warrant_refs)"
+        " VALUES ('fan:bypassed', %s, %s, 's', 'e', 'o', %s, %s, %s, %s, 'CONFIRMED', %s, %s)",
+        (
+            PROJECT,
+            forged.episode_id,
+            list(forged.candidate_causes),
+            forged.confirmed_root_cause,
+            list(forged.root_cause_evidence_ids),
+            forged.failure_class,
+            T0,
+            list(forged.warrant_refs),
+        ),
+    )
+    analysis = SqlFailureStore(db).analysis(PROJECT, "fan:bypassed")
+    assert analysis is not None
+    first_layer = confirmation_verifier(db, TRUST, declaration_sets=(diagnostic_declaration_set(),))
+    assert first_layer(analysis) is None, "signatures and declarations alone would rely on it"
+    why = _reuse_check(db)(analysis) or ""
+    assert "does not confirm" in why, why
+    reuse = SqlFailureStore(db, verify=_reuse_check(db))
+    assert reuse.trusted_confirmations(PROJECT) == ()
+
+
+def test_reuse_refuses_a_warrant_the_verified_record_does_not_give(db):
+    fx = load_fixture()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    analysis = run.result.failure_analysis
+    check = _reuse_check(db)
+    assert check(analysis) is None, "the loop's own confirmation re-derives"
+    invented = analysis.model_copy(update={"warrant_refs": (*analysis.warrant_refs, "dwg:nobody")})
+    assert "which the verified record does not give" in (check(invented) or "")
+
+
+def test_reuse_refuses_a_history_that_no_longer_reverifies(db):
+    _queue(db)
+    run = run_case(db, *_novel_case())
+    store = SqlDiagnosticWarrantStore(db)
+    (review,) = store.outstanding(PROJECT)
+    store.resolve(
+        resolution_id="res:reuse-revoked",
+        grant_id="dwg:reuse-revoked",
+        review_id=review.review_id,
+        project_id=PROJECT,
+        outcome=ReviewOutcome.APPROVED,
+        signer=SIGNER,
+        rationale="a taper-inclusive length is exactly what makes the bases disagree",
+        considered_rival_ids=(),
+        resolved_at=T0,
+        identifies_class_ref=DOMAIN_REF,
+    )
+    assert run.loop is not None and run.request is not None
+    confirmed = run.loop.run(run.request)
+    assert confirmed.stop_reason is StopReason.CONFIRMED
+    assert _reuse_check(db)(confirmed.failure_analysis) is None
+    store.revoke(
+        sign_revocation(
+            AUTHORITY,
+            authority_actor_id=AUTHORITY_ACTOR,
+            revocation_id="rvk:reuse",
+            enrolment_id=SIGNER.enrolment_id,
+            project_id=PROJECT,
+            effective_at=T0 - dt.timedelta(hours=1),
+            reason="the key was copied",
+        )
+    )
+    why = _reuse_check(db)(confirmed.failure_analysis) or ""
+    assert "does not" in why, why

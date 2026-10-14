@@ -70,10 +70,12 @@ from lab_brain.core.models.belief_event import BeliefRevisionEvent, BeliefState
 from lab_brain.core.models.cost import BudgetCaps, CostVector
 from lab_brain.core.models.enums import SensitivityLabel, TrustClass
 from lab_brain.core.models.episode import EpisodeState
+from lab_brain.core.models.governance_event import GovernanceEvent
 from lab_brain.core.models.hypothesis_set import typed_falsifier_text
 from lab_brain.core.models.identifiers import new_id
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.core.models.job import JobState
+from lab_brain.core.models.review import ReviewItem
 from lab_brain.core.models.transition import TransitionPolicy
 from lab_brain.core.repositories.belief_events import (
     SqlBeliefEventStore,
@@ -104,6 +106,7 @@ from lab_brain.core.scientific_read import ScientificReadRefused
 from lab_brain.evidence.dense_index import EmbeddingSpace, hashing_embedder
 from lab_brain.evidence.source_policy import SourcePolicyRegistry, default_source_policies
 from lab_brain.ingestion.admission_gate import EvidenceAdmissionGate
+from lab_brain.research.confirmation import confirmation_verifier
 from lab_brain.research.continuation import (
     INTERRUPTED,
     ContinuationJobs,
@@ -155,11 +158,7 @@ from lab_brain.storage.postgres.capabilities import PostgresResourceBroker
 from lab_brain.storage.postgres.external_artifacts import SqlExternalArtifactSink
 from lab_brain.storage.postgres.run_outputs import SqlRunOutputSink
 from lab_brain.storage.postgres.verification_evidence import SqlEvidenceSink
-from lab_brain.storage.postgres.warrants import (
-    confirmation_verifier,
-    episode_outcomes,
-    sql_warrant_resolver,
-)
+from lab_brain.storage.postgres.warrants import episode_outcomes, sql_warrant_resolver
 from lab_brain.surface.ingestion_item import derive_state
 from lab_brain.tools.dispatch import BudgetedToolDispatcher
 from lab_brain.verification.least_cost import LeastCostPlanner
@@ -329,6 +328,23 @@ class _Run:
 
     def stage(self, name: str, status: str, detail: str) -> None:
         self.stages.append(StageStatus(name, status, detail))
+
+
+class _WarrantReviewsOnly:
+    """The review store, as the run-start sweep sees it: overdue DIAGNOSTIC_WARRANT items only."""
+
+    def __init__(self, reviews: SqlReviewItemStore) -> None:
+        self._reviews = reviews
+
+    def overdue(self, project_id: str, now: dt.datetime) -> tuple[ReviewItem, ...]:
+        return tuple(
+            r
+            for r in self._reviews.overdue(project_id, now)
+            if r.subject_type.value == "DIAGNOSTIC_WARRANT"
+        )
+
+    def expire(self, **kwargs: Any) -> GovernanceEvent:
+        return self._reviews.expire(**kwargs)
 
 
 def debate_minimum(vertical: ProductVertical) -> int:
@@ -1276,14 +1292,22 @@ class ResearchEpisodeService:
     # -- 6. verification: M4's loop, and 7. the pending question --------------------------------
 
     def _expire_overdue_reviews(self, request: ResearchRequest, trace_id: str, run: _Run) -> None:
-        """Close the project's overdue reviews through OPS-002's declared path before verifying.
+        """Close the project's overdue DIAGNOSTIC_WARRANT reviews through OPS-002's declared path
+        before verifying.
 
-        An overdue DIAGNOSTIC_WARRANT review is not answerable (a late answer is refused) and,
-        left QUEUED, would hold its relation's question forever. Expired, it is closed against a
+        An overdue warrant review is not answerable (a late answer is refused) and, left QUEUED,
+        would hold its relation's question forever. Expired, it is closed against a
         GovernanceEvent -- nobody decided -- and the loop asks again in this run. The queue
         policy that priced each item is what authorises its expiry; this run only carries it out.
+
+        ONLY WARRANT REVIEWS. Expiring an authority-conflict review closes its conflict as an
+        open question, which stops it blocking transitions: that is a governance act on a
+        different subject, and a research run is not where it happens (`lab-brain review expire`
+        still sweeps everything, deliberately).
         """
-        swept = ReviewExpiryProcessor(reviews=SqlReviewItemStore(self._connection)).sweep(
+        swept = ReviewExpiryProcessor(
+            reviews=_WarrantReviewsOnly(SqlReviewItemStore(self._connection))
+        ).sweep(
             project_id=request.project_id,
             now=self._clock(),
             actor_id=request.actor_id,
@@ -1328,10 +1352,16 @@ class ResearchEpisodeService:
         jobs = SqlJobStore(c)
         outputs = SqlRunOutputSink(connection=c, store=self._store, now=self._clock)
         evidence = SqlEvidenceSink(connection=c, outputs=outputs)
+        # Case memory relies only on conclusions it can re-derive (`research.confirmation`).
         failures = SqlFailureStore(
             c,
             verify=confirmation_verifier(
-                c, self._trust, declaration_sets=vertical.declaration_sets
+                c,
+                trust=self._trust,
+                declaration_sets=vertical.declaration_sets,
+                active=vertical.active_declarations,
+                authority_policies=vertical.authority_policies,
+                now=self._clock,
             ),
         )
         events = SqlBeliefEventStore(c)
