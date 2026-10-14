@@ -121,7 +121,7 @@ from lab_brain.research.data import (
 from lab_brain.research.episode_view import load_episode_view
 from lab_brain.research.literature import LiteratureRequest
 from lab_brain.research.reasoning import ReasoningRuntime
-from lab_brain.research.render import render_markdown
+from lab_brain.research.render import render_markdown, render_recorded_since
 from lab_brain.research.report import EpisodeReport, EvidenceLine
 from lab_brain.research.report_store import RecordedReport, SqlResearchReportStore
 from lab_brain.research.service import (
@@ -705,6 +705,8 @@ class Workspace:
                 raise FormError(m("msg.needs_goal"))
             if draft.sensitivity not in {s.value for s in SensitivityLabel}:
                 raise FormError(m("new.need.goal_sensitivity"))
+            if draft.sensitivity not in self._cleared(c, project_id):
+                raise FormError(m("new.goal.not_cleared", label=m(f"sens.{draft.sensitivity}")))
             usable = {
                 u.artifact_id: u for u in data.usable(project_id=project_id, actor_id=self._actor)
             }
@@ -1061,6 +1063,12 @@ class Workspace:
             }
         try:
             request = self._research_request(form, req.m, usable)
+            # The same rule as the confirmation step: the question's level is one this actor
+            # holds in the project, or it could not read its own question back.
+            if request.sensitivity.value not in self._cleared(c, request.project_id):
+                raise FormError(
+                    req.m("new.goal.not_cleared", label=req.m(f"sens.{request.sensitivity.value}"))
+                )
         except FormError as refused:
             return self._new_run(
                 c,
@@ -1181,8 +1189,23 @@ class Workspace:
         ):
             if recorded.ordinal == ordinal:
                 text = render_markdown(self._authorized(c, recorded.report))
+                # The report as its run wrote it, then what the record says about its
+                # conclusions now: a flag recorded since must travel with the export.
+                view = load_episode_view(
+                    c,
+                    project_id=opened.project_id,
+                    episode_id=episode_id,
+                    verify=self._confirmation_verifier(c),
+                )
+                text += render_recorded_since(view.conclusions)
+                name = re.sub(r"[^A-Za-z0-9._-]+", "-", episode_id).strip("-")
                 return Response(
-                    "200 OK", text.encode("utf-8"), content_type="text/markdown; charset=utf-8"
+                    "200 OK",
+                    text.encode("utf-8"),
+                    content_type="text/markdown; charset=utf-8",
+                    headers=(
+                        ("Content-Disposition", f'inline; filename="{name}-run-{ordinal}.md"'),
+                    ),
                 )
         return self._message(
             req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_recorded_run")

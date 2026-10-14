@@ -167,7 +167,7 @@ def test_each_executed_check_and_each_governed_move_is_explained_from_the_stored
     tested = _section(l1, "Executed in this run", "What was learned")
     for _, capability, observable, value, _ in checks:
         assert label(capability) in tested, capability
-        assert f"observed {label(observable)} = {value}" in tested, (observable, value)
+        assert f"result: {label(observable)} = {value}" in tested, (observable, value)
     moves = _moves(db, [c[4] for c in checks])
     assert moves, "the contact-open case moves belief through the stored relations"
     learned = _section(l1, "What was learned", "Next action")
@@ -419,7 +419,7 @@ def test_a_continuation_shows_earlier_checks_as_earlier_and_counts_none_of_their
     for _, capability, observable, value, _ in checks:
         assert label(capability) in earlier, capability
         if observable is not None:
-            assert f"observed {label(observable)} = {value}" in earlier
+            assert f"result: {label(observable)} = {value}" in earlier
     assert "Nothing was tested in this run, so no belief could move." in second
     assert "governed belief change(s) happened in this run" not in second
     assert "Best next check:" in second and "It cannot run here:" in second

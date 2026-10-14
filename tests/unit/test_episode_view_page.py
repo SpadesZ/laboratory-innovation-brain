@@ -45,9 +45,11 @@ from lab_brain.research.report import (
     Conclusion,
     ContinuationSection,
     EpisodeReport,
+    EvidenceLine,
     HypothesisLine,
     PendingAction,
     PlanLine,
+    StageStatus,
 )
 from lab_brain.verification.workflows import ObservedOutcome
 from tests.report_samples import full_report
@@ -281,8 +283,8 @@ def test_a_result_no_declared_prediction_matched_moves_nothing_and_is_said_so():
     assert "Would be refuted if normalization basis = SPLIT_DEPENDENT" not in l1, "not designated"
     assert "No root cause has been confirmed." in l1
     assert (
-        "The author's own explanation, in prose (not adjudicated): The normalization basis agrees"
-        in l1
+        "The proposer's own wording of the falsifier (not used to decide): The normalization basis"
+        " agrees" in l1
     )
 
 
@@ -346,7 +348,7 @@ def test_the_tested_and_next_sections_separate_executed_human_and_unavailable_ch
     l1 = _l1(_page(_report(), _view(_result())))
     executed = l1[l1.index("Executed in this run") : l1.index("Planned, needs a person")]
     assert (
-        "extraction consistency (analytical check) EXECUTED -- observed normalization basis = AGREES"
+        "extraction consistency (analytical check) EXECUTED -- result: normalization basis = AGREES"
         in executed
     )
     person = l1[l1.index("Planned, needs a person") : l1.index("Cannot run here")]
@@ -381,7 +383,8 @@ def test_a_historical_report_and_no_report_render_without_anything_invented():
     assert "No report of this research was recorded in the workspace." in empty
     assert "what it tested and learned is not known here" in empty
     assert "No check was executed" not in empty, "an unrecorded run is not an empty one"
-    assert "No hypothesis was admitted." in empty
+    assert "No hypothesis was admitted." not in empty, "a run elsewhere is not a run without any"
+    assert "No further check is planned" not in empty
 
 
 def test_a_continuation_shows_earlier_checks_as_earlier_and_counts_nothing_twice():
@@ -423,7 +426,7 @@ def test_a_continuation_shows_earlier_checks_as_earlier_and_counts_nothing_twice
     assert "Run 2 continued this research from where it stopped; it did not start over." in l1
     assert "No check was executed in this run." in l1
     shown = l1[l1.index("Executed in earlier runs, not repeated") : l1.index("What was learned")]
-    assert "extraction consistency" in shown and "observed normalization basis = AGREES" in shown
+    assert "extraction consistency" in shown and "result: normalization basis = AGREES" in shown
     assert "Nothing was tested in this run, so no belief could move." in l1
     assert "governed belief change(s) happened in this run" not in l1
     # Run 1, viewed itself, does not see itself as "earlier".
@@ -483,7 +486,10 @@ def test_l2_separates_observed_facts_interpretations_and_each_predictions_status
         predictions={"hyp:norm": (FALSIFIER, SUPPORTING, pending)},
     )
     l2 = _reasoning(_page(_report(), view))
-    assert "Observed facts extraction consistency: normalization basis = AGREES (OBSERVED)" in l2
+    assert (
+        "Results of executed checks extraction consistency: normalization basis = AGREES"
+        " (OBSERVED)" in l2
+    )
     assert (
         "normalization basis = DISAGREES -> CONTRADICTS, its machine falsifier -- not what was"
         " observed: the check observed AGREES" in l2
@@ -492,7 +498,7 @@ def test_l2_separates_observed_facts_interpretations_and_each_predictions_status
     assert (
         "carrier profile = NOMINAL -> CONTRADICTS, its machine falsifier -- not observed yet" in l2
     )
-    assert "Model interpretations" in l2
+    assert "Reasoning and critique (positions, not evidence)" in l2
     assert "These are critique-stage judgments, not governed belief changes." in l2
     result = _matched()
     view = dataclasses.replace(_view(result), predictions={"hyp:norm": result.matched})
@@ -594,3 +600,83 @@ def test_a_prediction_in_another_outcome_space_is_not_comparable_on_the_page():
     markup = _page(_report(), unknown)
     assert "the observation does not record its outcome space, so not comparable" in _l1(markup)
     assert "observed in an outcome space the record does not name" in _reasoning(markup)
+
+
+# -- product audit 2026-10-15 (episode page) -------------------------------------------------------
+
+
+def test_a_supported_member_is_listed_as_supported_not_as_still_competing():
+    supported = dataclasses.replace(_report().hypotheses[0], final_state="SUPPORTED")
+    rival = dataclasses.replace(
+        supported, hypothesis_id="hyp:mesh", mechanism="MESH_ARTIFACT", final_state="ACTIVE"
+    )
+    gone = dataclasses.replace(
+        supported, hypothesis_id="hyp:dop", mechanism="DOPANT", final_state="CONTRADICTED"
+    )
+    l1 = _l1(_page(_report(hypotheses=(supported, rival, gone)), EpisodeView()))
+    assert "Supported: NORMALIZATION_BASIS_ISSUE" in l1
+    assert "Still open (neither supported nor ruled out): MESH_ARTIFACT" in l1
+    assert "Ruled out: DOPANT" in l1
+
+
+def test_research_without_a_verification_input_says_why_nothing_is_planned():
+    skipped = dataclasses.replace(
+        _report(),
+        pending=(),
+        plans=(),
+        completed=(),
+        stages=(
+            StageStatus(
+                "verification",
+                "SKIPPED",
+                "no verification input: the pack's verification actions all require one",
+            ),
+        ),
+    )
+    l1 = _l1(_page(skipped, EpisodeView()))
+    assert "No verification input was given, so no check could be planned." in l1
+    assert "No further check is planned" not in l1
+    zh = _l1(_page(skipped, EpisodeView(), locale="zh-TW"))
+    assert "這次沒有提供驗證輸入" in zh
+
+
+def test_a_retracted_source_is_marked_beside_its_excerpt():
+    literature = EvidenceLine(
+        "att:lit",
+        "Contact resistance in rib modulators",
+        "p. 3",
+        "PEER_REVIEWED",
+        "contact resistance dominates at low doping",
+        "external literature",
+    )
+    report = _report(evidence=(*full_report().evidence, literature))
+    l2 = _reasoning(_page(report, EpisodeView()))
+    excerpt = l2[l2.index("Contact resistance in rib modulators [p. 3]") :]
+    assert excerpt.startswith(
+        "Contact resistance in rib modulators [p. 3] (external literature, PEER_REVIEWED)"
+        " source status: RETRACTED"
+    ), excerpt[:200]
+    internal = l2[l2.index("report.md [unit 3]") :]
+    assert "source status" not in internal.split("Contact resistance")[0]
+
+
+def test_the_history_shows_each_episodes_result_in_words_and_no_identifier():
+    """Product audit F15: "Finished" alone does not say whether anything was confirmed. The
+    stored outcome carries the cause's id (`CONFIRMED:hyp:...`); only the status is shown."""
+    from lab_brain.interfaces.web import workspace_pages
+
+    rows = [
+        pages.EpisodeRow(
+            "epi:a", "prj:lab", "trc:1", "Why A?", "COMPLETED", "CONFIRMED:hyp:x1", None, T0, T0, 1
+        ),
+        pages.EpisodeRow(
+            "epi:b", "prj:lab", "trc:2", "Why B?", "COMPLETED", "NOT_REACHED", None, T0, T0, 1
+        ),
+    ]
+    markup = workspace_pages.episodes_page(
+        pages.Chrome("act:1", "en"), episodes=rows, projects={"prj:lab": "lab"}
+    ).decode()
+    visible = _text(markup[: markup.index("<details")])
+    assert "Root cause confirmed" in visible
+    assert "Not tested (stopped before checks)" in visible
+    assert "hyp:x1" not in visible

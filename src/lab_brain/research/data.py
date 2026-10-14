@@ -334,7 +334,11 @@ class ResearchData:
 
 
 def _upload_name(display_name: str) -> str:
-    """The file name inside a workspace upload URI, for display."""
+    """The file name inside a workspace upload URI, for display. A `file:` URI (a file the
+    command line ingested) shows its base name only: the full local path names the
+    operator's account and folders, and overflows the page (product audit F28)."""
+    if display_name.startswith("file:"):
+        return unquote(display_name.rstrip("/").rsplit("/", 1)[-1]) or display_name
     return unquote(display_name.removeprefix("workspace-upload:")) or display_name
 
 

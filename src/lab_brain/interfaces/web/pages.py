@@ -425,6 +425,10 @@ def _layer(key: str, title: str, body: Html) -> Html:
 
 _RULED_OUT = frozenset({"CONTRADICTED"})
 
+#: Publication statuses an excerpt needs no warning for (anything else -- RETRACTED, WITHDRAWN,
+#: ERRATUM_ISSUED, SUPERSEDED, SOURCE_UNAVAILABLE -- is shown beside it).
+_ORDINARY_STATUS = frozenset({"ACTIVE", "UNKNOWN", ""})
+
 
 def _waiting(reason: str | None, m: Messages) -> str:
     """Why an episode waits, without identifiers: the shapes the service writes, in words."""
@@ -526,7 +530,10 @@ def _result_html(
 
 
 def _hypotheses_html(report: EpisodeReport | None, view: EpisodeView, m: Messages) -> Html:
-    if report is None or not report.hypotheses:
+    if report is None:
+        # Run elsewhere (the command line): the workspace holds no report to read from.
+        return h("<p>{}</p>", m("ep.no_report"))
+    if not report.hypotheses:
         return h("<p>{}</p>", m("v.no_hypothesis"))
     cards: list[Html] = []
     for x in report.hypotheses:
@@ -560,13 +567,20 @@ def _hypotheses_html(report: EpisodeReport | None, view: EpisodeView, m: Message
                 h('<li class="prose">{} {}</li>', m("v.falsifier_prose"), x.falsifier),
             )
         )
-    competing = [x.mechanism for x in report.hypotheses if x.final_state not in _RULED_OUT]
+    supported = [x.mechanism for x in report.hypotheses if x.final_state == "SUPPORTED"]
     ruled_out = [x.mechanism for x in report.hypotheses if x.final_state in _RULED_OUT]
+    still_open = [
+        x.mechanism
+        for x in report.hypotheses
+        if x.final_state != "SUPPORTED" and x.final_state not in _RULED_OUT
+    ]
     cards.append(
         h(
-            "<p>{} {}</p><p>{} {}</p>",
+            "<p>{} {}</p><p>{} {}</p><p>{} {}</p>",
+            m("v.supported"),
+            ", ".join(supported) or m("none"),
             m("v.still_competing"),
-            ", ".join(competing) or m("none"),
+            ", ".join(still_open) or m("none"),
             m("v.ruled_out"),
             ", ".join(ruled_out) or m("none"),
         )
@@ -849,7 +863,13 @@ def _next_html(
                 )
             )
     if not parts:
-        parts.append(h("<p>{}</p>", m("v.nothing_next")))
+        if report is None:
+            parts.append(h("<p>{}</p>", m("ep.no_report")))
+        elif any(s.stage == "verification" and s.status == "SKIPPED" for s in report.stages):
+            # Nothing was planned because nothing could be: no verification input was given.
+            parts.append(h('<p class="box warn">{}</p>', m("v.no_verification_input")))
+        else:
+            parts.append(h("<p>{}</p>", m("v.nothing_next")))
     try:
         state_text = m(f"ep.{episode.state}")
     except KeyError:
@@ -1011,17 +1031,30 @@ def _reasoning_html(
             )
         )
     if report.evidence:
+        # A literature passage keeps its source's publication status beside it: a RETRACTED
+        # paper is admitted and recorded (EVI-008), and must not read as an ordinary one.
+        status_of = {
+            line.admitted_attestation_id: line.status
+            for line in (report.literature.consulted if report.literature else ())
+            if line.admitted_attestation_id
+        }
         parts.append(
             h(
                 "<h3>{}</h3><ul>{}</ul>",
                 m("v.l2.evidence"),
                 cat(
                     h(
-                        "<li>{} [{}] ({}, {})<blockquote>{}</blockquote></li>",
+                        "<li>{} [{}] ({}, {}){}<blockquote>{}</blockquote></li>",
                         x.source,
                         x.locator,
                         x.origin,
                         x.trust_class,
+                        h(
+                            ' <strong class="warn">{}</strong>',
+                            m("v.source_status", status=status_of[x.attestation_id]),
+                        )
+                        if status_of.get(x.attestation_id, "ACTIVE") not in _ORDINARY_STATUS
+                        else Html(""),
                         x.excerpt,
                     )
                     for x in report.evidence

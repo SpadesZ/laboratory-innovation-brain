@@ -196,6 +196,9 @@ def test_a_researcher_runs_the_vertical_in_the_workspace_and_continues_it_later(
     markdown = browser.get(f"/episodes/{episode_id}/runs/1/report.md")
     assert markdown.status == 200 and markdown.headers["Content-Type"].startswith("text/markdown")
     assert markdown.text == render_markdown(report), "the CLI's renderer, the same report"
+    assert markdown.headers["Content-Disposition"] == (
+        f'inline; filename="{re.sub(r"[^A-Za-z0-9._-]+", "-", episode_id).strip("-")}-run-1.md"'
+    )
 
     # -- later: the workspace was restarted; the episode is still there ------------------------
     stale = _token(page)

@@ -76,6 +76,10 @@ Messages.extend(
             "your access in this project does not include this level",
             "你在這個研究專案的閱讀權限不含此分級",
         ),
+        "item.no_passages": (
+            "Stored, but no passage in it could be cited, so New research does not offer it.",
+            "已儲存，但其中沒有可引用的段落，所以「新增研究」不會列出它。",
+        ),
         "item.READY": ("Ready for research", "可用於研究"),
         "item.READY.next": (
             "Nothing to do: pick it in New research.",
@@ -316,8 +320,8 @@ Messages.extend(
         ),
         "data.submit": ("Import", "匯入"),
         "data.added": (
-            "{n} file(s) imported. How each was processed:",
-            "已匯入 {n} 個檔案，處理結果如下：",
+            "{n} file(s) received. How each was processed:",
+            "已收到 {n} 個檔案，處理結果如下：",
         ),
         "data.list": ("Data in this project", "這個研究專案的研究資料"),
         "data.none": (
@@ -343,6 +347,13 @@ Messages.extend(
             "Choose how sensitive the files are.",
             "請選擇資料分級。",
         ),
+        "new.goal.not_cleared": (
+            "Your access in this project does not include “{label}”, so you could not read "
+            "this question back. Choose a level you hold, or ask the deployment's operator to "
+            "extend your access. Nothing was stored.",
+            "你在這個研究專案的閱讀權限不含「{label}」，你自己也無法讀回這個研究問題。"
+            "請選擇你有權限的分級，或請部署管理者調整權限。系統沒有儲存任何內容。",
+        ),
         "data.not_cleared": (
             "Not imported: your access in this project does not include “{label}”, so you "
             "could not read the file back or use it. Choose a level you hold, or ask the "
@@ -364,6 +375,12 @@ Messages.extend(
         "eps.col.project": ("Research project", "研究專案"),
         "eps.col.state": ("Status", "狀態"),
         "eps.col.runs": ("Runs", "執行次數"),
+        "eps.col.outcome": ("Result", "結果"),
+        "eps.outcome.CONFIRMED": ("Root cause confirmed", "已確認根本原因"),
+        "eps.outcome.PROVISIONAL": ("Not confirmed yet", "尚未確認"),
+        "eps.outcome.INCONCLUSIVE": ("Inconclusive", "無法定論"),
+        "eps.outcome.NOT_REACHED": ("Not tested (stopped before checks)", "未檢驗（在檢查前停止）"),
+        "eps.outcome.none": ("-", "-"),
         "eps.col.started": ("Started", "開始時間"),
         # -- new research -----------------------------------------------------------------------
         "new.title": ("New research", "新增研究"),
@@ -947,6 +964,10 @@ def _next_for(item: DataItem, names: Mapping[str, str], m: Messages) -> Html:
         return text
     if state_ in ("READY", "PARTIAL") and item.artifact_id and not item.readable:
         return h("{}", m("item.unreadable"))
+    if state_ in ("READY", "PARTIAL") and item.evidence_units == 0:
+        # Stored, but nothing in it can be cited: New research does not offer it, so it must
+        # not say "pick it in New research" (product audit F10).
+        return h("{}", m("item.no_passages"))
     return h("{}", m(f"item.{state_}.next"))
 
 
@@ -1108,6 +1129,20 @@ def data_page(
 # -- research history ---------------------------------------------------------------------------
 
 
+def _outcome(status: str | None, m: Messages) -> str:
+    """An episode's conclusion in a word: "Finished" alone does not say whether anything was
+    confirmed (product audit F15). The stored value can carry the cause's id after the status
+    (`CONFIRMED:hyp:...`); only the status is shown here -- identifiers stay in the technical
+    details. A status the catalog does not know is shown as stored."""
+    if not status:
+        return m("eps.outcome.none")
+    head = status.split(":", 1)[0]
+    try:
+        return m(f"eps.outcome.{head}")
+    except KeyError:
+        return head
+
+
 def episodes_page(
     chrome: Chrome, *, episodes: Sequence[EpisodeRow], projects: Mapping[str, str]
 ) -> bytes:
@@ -1115,20 +1150,22 @@ def episodes_page(
     if episodes:
         listing = h(
             '<div class="scroll"><table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th>'
-            "<th>{}</th></tr></thead><tbody>{}</tbody></table></div>{}",
+            "<th>{}</th><th>{}</th></tr></thead><tbody>{}</tbody></table></div>{}",
             m("eps.col.question"),
             m("eps.col.project"),
             m("eps.col.state"),
+            m("eps.col.outcome"),
             m("eps.col.runs"),
             m("eps.col.started"),
             cat(
                 h(
                     '<tr><td><a href="/episodes/{}">{}</a></td><td>{}</td><td>{}</td><td>{}</td>'
-                    "<td>{}</td></tr>",
+                    "<td>{}</td><td>{}</td></tr>",
                     ep.episode_id,
                     ep.goal,
                     projects.get(ep.project_id, ep.project_id),
                     episode_state(ep.state, m),
+                    _outcome(ep.outcome_status, m),
                     ep.runs,
                     when(ep.start_time),
                 )
@@ -1326,7 +1363,9 @@ def new_research_page(
         draft.goal,
         m("new.goal.sensitivity"),
         m("new.goal.sensitivity.hint"),
-        sensitivity_choices(m, sensitivities, "sensitivity", chosen=draft.sensitivity),
+        sensitivity_choices(
+            m, sensitivities, "sensitivity", chosen=draft.sensitivity, cleared=cleared
+        ),
         Html(" open" if draft.symptom or draft.expected or draft.observed else ""),
         m("new.framing"),
         m("new.symptom"),

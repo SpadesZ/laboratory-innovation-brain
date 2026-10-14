@@ -48,7 +48,7 @@ _M: dict[str, tuple[str, str]] = {
         "What can the system do now, and what is missing?",
         "系統現在能做什麼？還缺什麼？",
     ),
-    "acting_as": ("signed in as", "目前身分"),
+    "acting_as": ("Working as", "目前身分"),
     "language": ("Language", "語言"),
     "back": ("Back", "返回"),
     "tech.details": ("Technical details", "技術細節"),
@@ -335,6 +335,14 @@ _M: dict[str, tuple[str, str]] = {
     "v.no_root_cause": ("No root cause has been confirmed.", "尚未確認任何根本原因。"),
     "v.states": ("Hypotheses after this run:", "這次執行後各假說的狀態："),
     "v.no_hypothesis": ("No hypothesis was admitted.", "沒有任何假說被接受。"),
+    "v.no_verification_input": (
+        "No verification input was given, so no check could be planned. This research cannot "
+        "be continued: start new research and give a device project as its verification "
+        "input.",
+        "這次沒有提供驗證輸入，所以無法規劃任何檢查。這項研究不能繼續；請新增研究，並提供裝置專案作為"
+        "驗證輸入。",
+    ),
+    "v.source_status": ("source status: {status}", "來源狀態：{status}"),
     "v.stopped_at": (
         "It stopped at the {stage} step ({status}).",
         "停在「{stage}」步驟（{status}）。",
@@ -353,13 +361,17 @@ _M: dict[str, tuple[str, str]] = {
         "此假說沒有記錄機器否證條件。",
     ),
     "v.falsifier_prose": (
-        "The author's own explanation, in prose (not adjudicated):",
-        "提出者自己的文字說明（不作判定）：",
+        "The proposer's own wording of the falsifier (not used to decide):",
+        "提出者自己的文字否證說明（不作判定）：",
     ),
-    "v.still_competing": ("Still competing:", "仍在競爭："),
+    "v.supported": ("Supported:", "已獲支持："),
+    "v.still_competing": (
+        "Still open (neither supported nor ruled out):",
+        "尚未判定（未獲支持，也未排除）：",
+    ),
     "v.ruled_out": ("Ruled out:", "已排除："),
     "v.executed": ("Executed in this run", "這次執行的檢查"),
-    "v.observed": ("observed {observable} = {outcome}", "觀察到 {observable} = {outcome}"),
+    "v.observed": ("result: {observable} = {outcome}", "結果：{observable} = {outcome}"),
     "v.no_observation": ("no observed outcome is recorded for it", "沒有記錄任何觀察結果"),
     "v.nothing_executed": ("No check was executed in this run.", "這次沒有執行任何檢查。"),
     "v.run_unrecorded": (
@@ -456,7 +468,7 @@ _M: dict[str, tuple[str, str]] = {
     ),
     "v.nothing_next": ("No further check is planned.", "沒有規劃其他檢查。"),
     "v.l2.conclusion": ("The research service's conclusion, as recorded", "研究服務記錄的結論"),
-    "v.l2.observed": ("Observed facts", "觀察到的事實"),
+    "v.l2.observed": ("Results of executed checks", "已執行檢查的結果"),
     "v.l2.observed_item": (
         "{check}: {observable} = {outcome} ({epistemic})",
         "{check}：{observable} = {outcome}（{epistemic}）",
@@ -483,7 +495,10 @@ _M: dict[str, tuple[str, str]] = {
         "an outcome space the record does not name",
         "紀錄未載明的結果空間",
     ),
-    "v.l2.interpretations": ("Model interpretations", "模型的詮釋"),
+    "v.l2.interpretations": (
+        "Reasoning and critique (positions, not evidence)",
+        "推理與審查的立場（不是證據）",
+    ),
     "v.l2.objection": ("{mechanism}: {objection}", "{mechanism}：{objection}"),
     "v.l2.critique_stage": (
         "These are critique-stage judgments, not governed belief changes.",

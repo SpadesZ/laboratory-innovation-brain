@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
+from lab_brain.research.episode_view import Conclusion
 from lab_brain.research.report import EpisodeReport
 
 _EXCERPT = 220
@@ -258,4 +261,40 @@ def render_markdown(report: EpisodeReport) -> str:
     return "\n".join(out)
 
 
-__all__ = ["render_markdown"]
+def render_recorded_since(conclusions: Sequence[Conclusion]) -> str:
+    """What the record says about the report's conclusions now, for an exported report.
+
+    A stored report is frozen: written when its run ended, never edited. A conclusion can be
+    flagged afterwards (`012p`), or stop being relied on; an export that showed only the report
+    would present a flagged CONFIRMED cause as if nothing were known against it. Empty when
+    there is nothing to add, so the export is then exactly the stored report.
+    """
+    lines: list[str] = []
+    for c in conclusions:
+        what = f"`{c.failure_analysis_id}` ({c.status}, {c.failure_class})"
+        for flag in c.flags:
+            lines.append(
+                f"- {what} is flagged **{flag.kind}** by {flag.recorded_by}: {flag.statement}"
+                f" (evidence: {', '.join(flag.evidence_refs)})"
+            )
+        if c.not_relied_on and not c.flags:
+            lines.append(
+                f"- {what} is not relied on by case memory or the miner: {c.not_relied_on}"
+            )
+    if not lines:
+        return ""
+    return "\n".join(
+        [
+            "",
+            "## Recorded since this report",
+            "",
+            "Read from the stored records when this file was exported. The report above is as "
+            "its run wrote it; nothing in it was changed.",
+            "",
+            *lines,
+            "",
+        ]
+    )
+
+
+__all__ = ["render_markdown", "render_recorded_since"]

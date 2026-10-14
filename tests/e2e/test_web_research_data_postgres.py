@@ -303,7 +303,7 @@ def test_an_import_is_declared_authorized_and_goes_through_the_one_ingestion_pat
 
     page = browser.get(sent.location)
     shown = _text(page)
-    assert "1 file(s) imported. How each was processed:" in shown
+    assert "1 file(s) received. How each was processed:" in shown
     assert f"{REPORT.name} Ready for research -- Nothing to do: pick it in New research." in shown
     assert f"{units} passage(s)" in shown
     # Reloading the result page shows it again; it never imports twice.
@@ -404,7 +404,7 @@ def test_every_import_state_says_what_happened_and_what_to_do(db, tmp_path):
     )
 
     shown = _text(browser.get(again.location))
-    assert "3 file(s) imported. How each was processed:" in shown
+    assert "3 file(s) received. How each was processed:" in shown
     assert (
         f"rs_report_copy.md Same content as an earlier file -- Identical to “{REPORT.name}”, "
         "so nothing was added twice. Use that one; it keeps its own classification (Lab "
@@ -559,6 +559,28 @@ def test_new_research_uses_existing_data_adds_files_confirms_and_runs_without_a_
     assert "waiting for a simulation that cannot run here (mesh sensitivity)" in shown
     assert "Run 1" in shown and "Paused, waiting (provisional conclusion)" in shown
     assert episode_id in _details(page), "the canonical id stays in the technical details"
+
+
+def test_a_question_is_classified_only_at_a_level_the_researcher_holds(db, tmp_path):
+    """The import rule ("may declare -- and read") for the question too (product audit F12): a
+    level above the researcher's clearance is shown disabled, and refused on both POSTs before
+    anything is written."""
+    _member(db)  # PUBLIC and INTERNAL
+    browser = _workspace(tmp_path)
+    before = _census(db)
+    new = browser.get(f"/runs/new?project={PROJECT}")
+    question = re.search(r'name="sensitivity".*?</fieldset>', new.text, flags=re.S)
+    assert question is not None
+    assert re.search(r'value="CONFIDENTIAL_LAB"[^>]*disabled', question.group(0))
+    assert not re.search(r'value="INTERNAL"[^>]*disabled', question.group(0))
+    token = _token(new)
+    fields = {"csrf": token, "project": PROJECT, "goal": GOAL, "sensitivity": "CONFIDENTIAL_LAB"}
+    confirm = browser.post("/runs/review", fields)
+    assert confirm.status == 400
+    assert "does not include “Lab confidential”" in _text(confirm), _text(confirm)[:400]
+    start = browser.post("/runs", fields, {"measurement": [(REPORT.name, REPORT.read_bytes())]})
+    assert start.status == 400 and "does not include “Lab confidential”" in _text(start)
+    assert _census(db) == before
 
 
 def test_another_projects_data_is_refused_before_anything_is_written(db, tmp_path):

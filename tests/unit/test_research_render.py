@@ -122,3 +122,47 @@ def test_a_continuation_says_which_run_it_is_and_what_it_did_not_redo():
     assert "- job `job:2` was parked" in text
     assert "This run admitted no statement." in text
     assert text.index("## Continuation") < text.index("## Result")
+
+
+def test_an_export_carries_what_was_recorded_about_its_conclusions_since():
+    """IA audit F-07: a stored report is frozen; a flag recorded afterwards must travel with an
+    export, and an export with nothing to add is exactly the stored report."""
+    from lab_brain.research.episode_view import Conclusion, ConclusionFlag
+    from lab_brain.research.render import render_recorded_since
+
+    flagged = Conclusion(
+        failure_analysis_id="fan:1",
+        status="CONFIRMED",
+        confirmed_root_cause="hyp:1",
+        failure_class="missing correction artefact",
+        warrant_refs=(),
+        flags=(
+            ConclusionFlag(
+                kind="FALSE_CONFIRMATION",
+                statement="the true cause was a taper-inclusive normalization length",
+                evidence_refs=("docs/audit/causal-warrant-gate-v1/REPORT.zh-TW.md",),
+                recorded_by="migration:012p",
+            ),
+        ),
+        not_relied_on="fan:1 is flagged FALSE_CONFIRMATION",
+    )
+    unrelied = Conclusion(
+        failure_analysis_id="fan:2",
+        status="CONFIRMED",
+        confirmed_root_cause="hyp:2",
+        failure_class="length normalization error",
+        warrant_refs=("dwg:1",),
+        flags=(),
+        not_relied_on="the answer dwg:1 in its hypothesis set does not verify",
+    )
+    relied = Conclusion("fan:3", "CONFIRMED", "hyp:3", "x", ("dds:x",), (), None)
+    text = render_recorded_since((flagged, unrelied, relied))
+    assert text.startswith("\n## Recorded since this report\n")
+    assert (
+        "- `fan:1` (CONFIRMED, missing correction artefact) is flagged **FALSE_CONFIRMATION** by "
+        "migration:012p: the true cause was a taper-inclusive normalization length (evidence: "
+        "docs/audit/causal-warrant-gate-v1/REPORT.zh-TW.md)" in text
+    )
+    assert "is not relied on by case memory or the miner: the answer dwg:1" in text
+    assert "fan:3" not in text and text.count("fan:1") == 1
+    assert render_recorded_since((relied,)) == ""
