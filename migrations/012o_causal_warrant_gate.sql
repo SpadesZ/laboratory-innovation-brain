@@ -340,6 +340,10 @@ BEGIN
         RAISE EXCEPTION 'relation % records outcome %, but its prediction expected %',
             NEW.relation_id, NEW.attributes ->> 'outcome', v_prediction.expected_outcome;
     END IF;
+    IF cardinality(NEW.supporting_attestation_ids) = 0 THEN
+        RAISE EXCEPTION 'relation % claims % of % with no attestation recording it',
+            NEW.relation_id, v_prediction.expected_outcome, v_prediction.observable_ref;
+    END IF;
     SELECT created_in_episode INTO v_episode FROM hypotheses
      WHERE hypothesis_id = NEW.to_entity_id;
     FOREACH v_attestation IN ARRAY NEW.supporting_attestation_ids LOOP

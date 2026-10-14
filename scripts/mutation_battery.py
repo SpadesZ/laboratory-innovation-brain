@@ -4206,6 +4206,30 @@ MUTATIONS: tuple[Mutation, ...] = (
         new="            if False:\n",
         tests=("tests/unit/test_causal_warrant_gate.py",),
     ),
+    Mutation(
+        name="an_identified_class_ignores_its_own_refutation",
+        guards="Causal Warrant Gate -- an outcome the candidate's own class cannot produce blocks it, predicted or not",
+        path="src/lab_brain/verification/loop.py",
+        old="                if not own.refuted_by(link):\n",
+        new="                if True:\n",
+        tests=("tests/unit/test_causal_warrant_gate.py",),
+    ),
+    Mutation(
+        name="a_class_member_is_recorded_in_its_authors_words",
+        guards="Causal Warrant Gate -- a member of a declared class is recorded as that class",
+        path="src/lab_brain/verification/loop.py",
+        old="                        certificate.hypothesis.mechanism if declared is None else declared.mechanism\n",
+        new="                        certificate.hypothesis.mechanism\n",
+        tests=("tests/e2e/test_causal_warrant_counterexample_postgres.py",),
+    ),
+    Mutation(
+        name="a_relation_with_no_attestation_agrees",
+        guards="Causal Warrant Gate -- a relation citing no attestation warrants nothing",
+        path="src/lab_brain/core/warrant.py",
+        old="        agrees = bool(relation.supporting_attestation_ids)\n",
+        new="        agrees = True\n",
+        tests=("tests/unit/test_causal_warrant_gate.py",),
+    ),
 )
 
 

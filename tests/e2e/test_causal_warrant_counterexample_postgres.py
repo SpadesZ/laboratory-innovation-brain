@@ -22,6 +22,7 @@ must stop blocking once the rival is excluded by its own warranted refutation.
 
 from __future__ import annotations
 
+import argparse
 import copy
 import dataclasses
 import datetime as dt
@@ -40,6 +41,7 @@ from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore, WarrantStoreError
 from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.interfaces import cli
+from lab_brain.interfaces.review_cli import run_review
 from lab_brain.verification.loop import StopReason
 from tests.debate_fixtures import ACTOR, PROJECT
 from tests.postgres_fixtures import database_url
@@ -165,8 +167,14 @@ def test_a_person_can_warrant_an_uncatalogued_account_by_saying_which_mechanism_
     assert run.loop is not None and run.request is not None
     resumed = run.loop.run(run.request)
     assert resumed.stop_reason is StopReason.CONFIRMED
-    assert resumed.failure_analysis.failure_class == NOVEL_MECHANISM
+    # Recorded as the class the person said it is, so case memory groups it with that class; the
+    # author's own account stays on the hypothesis, and the conclusion states the class.
+    assert resumed.failure_analysis.failure_class == "length normalization error"
     assert resumed.failure_analysis.warrant_refs == (grant.grant_id,)
+    assert any(
+        n.startswith(f"confirmed as the declared class 'length normalization error' ({DOMAIN_REF})")
+        for n in resumed.notes
+    ), resumed.notes
 
 
 # -- proxy support --------------------------------------------------------------------------------
@@ -685,6 +693,69 @@ def test_an_expired_question_is_asked_again_not_left_to_block_forever(db):
     assert resumed.failure_analysis.resolution_status is not ResolutionStatus.CONFIRMED
     (again,) = store.outstanding(PROJECT)
     assert again.subject_id == review.subject_id and again.review_id != review.review_id
+
+
+def test_an_overdue_question_is_closed_from_the_command_line_and_asked_again(db):
+    """Nothing in the product schedules OPS-002's expiry sweep, so a person can run it: the
+    overdue review is closed by expiry -- never answered late -- and the next run asks again."""
+    _queue(db)
+    fx = _proxy()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    store = SqlDiagnosticWarrantStore(db)
+    (review,) = store.outstanding(PROJECT)
+    assert review.expires_at is not None
+    later = review.expires_at + dt.timedelta(minutes=1)
+
+    def review_cli(command: str, now: dt.datetime) -> tuple[int, str]:
+        out = io.StringIO()
+        args = argparse.Namespace(review_command=command, project=PROJECT, actor=REVIEWER)
+        code = run_review(args, db, out=out, now=lambda: now, mint=lambda k: f"{k}:cli-expiry")
+        return code, out.getvalue()
+
+    code, listed = review_cli("list", later)
+    assert code == 0 and "EXPIRED unanswered" in listed
+    code, early = review_cli("expire", review.expires_at - dt.timedelta(minutes=1))
+    assert code == 0 and "No review is overdue" in early
+    code, swept = review_cli("expire", later)
+    assert code == 0 and f"expired {review.review_id}" in swept
+    assert store.outstanding(PROJECT) == ()
+    assert run.loop is not None and run.request is not None
+    resumed = run.loop.run(dataclasses.replace(run.request, available_inputs=frozenset()))
+    assert resumed.failure_analysis.resolution_status is not ResolutionStatus.CONFIRMED
+    (again,) = store.outstanding(PROJECT)
+    assert again.subject_id == review.subject_id and again.review_id != review.review_id
+
+
+def test_a_prediction_claimed_with_no_attestation_is_refused(db):
+    """A relation saying an observation recorded a prediction's outcome cites that record."""
+    fx = load_fixture()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    extraction = next(s for s in run.result.steps if s.chosen == sp.CAP_EXTRACTION_CONSISTENCY)
+    (observation,) = db.execute(
+        "SELECT observation_id FROM attestations WHERE run_id = %s", (extraction.run_id,)
+    ).fetchone()
+    contact = run.certificates_by_mechanism["contact_discontinuity"]
+    signature = db.execute(
+        "SELECT prediction_id FROM predictions WHERE hypothesis_id = %s AND expected_outcome ="
+        " 'DISCONTINUOUS'",
+        (contact,),
+    ).fetchone()[0]
+    with pytest.raises(psycopg.Error, match="with no attestation recording it"):
+        db.execute(
+            "INSERT INTO relation_judgments (relation_id, from_entity_id, to_entity_id,"
+            " relation_type, attributes, supporting_attestation_ids, actor_id, project_id,"
+            " valid_from, created_at)"
+            " VALUES ('rel:bare', %s, %s, 'SUPPORTS', %s, ARRAY[]::text[], %s, %s, %s, %s)",
+            (
+                observation,
+                contact,
+                psycopg.types.json.Jsonb({"prediction_id": signature, "outcome": "DISCONTINUOUS"}),
+                ACTOR,
+                PROJECT,
+                T0,
+                T0,
+            ),
+        )
 
 
 def test_invalidating_a_rivals_affirmation_does_not_discharge_it(db):

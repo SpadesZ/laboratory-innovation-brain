@@ -5,6 +5,9 @@
     resolve   APPROVED (the outcome does bear on the mechanism as claimed) or REJECTED, with a
               rationale -- written atomically by `diagnostic_warrant_resolve`; with APPROVED,
               `--is-class` also states that the hypothesis IS a declared class
+    expire    close the project's overdue reviews through OPS-002's declared expiry path
+              (`ReviewExpiryProcessor`), so the episode may ask again; an expired question is
+              closed by expiry, never answered late
 
 THE DOMAIN'S ATTRIBUTION IS PART OF THE PACKET. When the observed outcome is a declared class's
 signature, `show` says so: the recorded failure confirmed a mechanism on exactly such an outcome,
@@ -34,7 +37,9 @@ from typing import Any, TextIO
 
 from lab_brain.core.models.review_resolution import ReviewOutcome
 from lab_brain.core.models.warrant import DiagnosticDeclarationSet
+from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore, WarrantStoreError
+from lab_brain.core.review_expiry import ReviewExpiryProcessor
 from lab_brain.research.vertical import ENTRY_POINT_GROUP
 
 
@@ -44,6 +49,7 @@ def add_review_parser(sub: Any) -> None:
     listed = actions.add_parser("list", help="outstanding diagnostic warrant reviews")
     shown = actions.add_parser("show", help="one review's packet")
     shown.add_argument("review_id")
+    expired = actions.add_parser("expire", help="close overdue reviews so they may be asked again")
     resolved = actions.add_parser("resolve", help="answer one review")
     resolved.add_argument("review_id")
     resolved.add_argument("--outcome", required=True, choices=("APPROVED", "REJECTED"))
@@ -62,7 +68,7 @@ def add_review_parser(sub: Any) -> None:
             "as `review show` prints it) -- e.g. a paraphrase of a catalog mechanism"
         ),
     )
-    for parser in (listed, shown, resolved):
+    for parser in (listed, shown, resolved, expired):
         parser.add_argument("--project", required=True)
         parser.add_argument("--actor", required=True)
 
@@ -189,8 +195,24 @@ def run_review(
             print("No diagnostic warrant review is outstanding.", file=out)
         for item in pending:
             due = item.due_at.isoformat() if item.due_at else "no deadline"
-            print(f"{item.review_id}  relation {item.subject_id}  due {due}", file=out)
+            lapsed = (
+                "  EXPIRED unanswered -- `review expire` closes it"
+                if item.expires_at is not None and item.expires_at <= now()
+                else ""
+            )
+            print(f"{item.review_id}  relation {item.subject_id}  due {due}{lapsed}", file=out)
         return 0
+    if args.review_command == "expire":
+        swept = ReviewExpiryProcessor(reviews=SqlReviewItemStore(connection)).sweep(
+            project_id=args.project, now=now(), actor_id=args.actor, trace_id=mint("trace")
+        )
+        for event in swept.expired:
+            print(f"expired {event.subject_id} ({event.event_id})", file=out)
+        for review_id, why in sorted(swept.refused.items()):
+            print(f"not expired {review_id}: {why}", file=out)
+        if not swept.expired and not swept.refused:
+            print("No review is overdue.", file=out)
+        return 1 if swept.refused else 0
     review = next(
         (r for r in store.outstanding(args.project) if r.review_id == args.review_id), None
     )

@@ -237,7 +237,8 @@ class WarrantResolver:
         classes: set[str] = set()
         runs: list[Run] = []
         unknown = False
-        agrees = True
+        # No attestation, no record of the observation for the claim to agree with.
+        agrees = bool(relation.supporting_attestation_ids)
         for attestation_id in sorted(set(relation.supporting_attestation_ids)):
             attestation = self._attestations(project_id, attestation_id)
             if attestation is None:

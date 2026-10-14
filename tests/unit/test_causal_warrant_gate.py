@@ -50,6 +50,7 @@ from lab_brain.core.models.warrant import (
     DiagnosticDeclarationSet,
     DiagnosticWarrantGrant,
     GrantVerdict,
+    Link,
 )
 from lab_brain.core.warrant import WarrantResolver, WarrantUnverified, domain_warrant
 from lab_brain.verification.loop import LoopDependencies, LoopRequest, VerificationLoop
@@ -598,18 +599,28 @@ def _standing(
     world: _World,
     certificates: tuple[HypothesisCertificate, ...] | None = None,
     declarations: DiagnosticDeclarationSet | None = None,
+    outcomes: tuple[tuple[str, Link], ...] | None = None,
 ) -> Any:
     deps = LoopDependencies(
         **{
             name: cast(Any, None)
             for name in LoopDependencies.__dataclass_fields__
-            if name not in {"belief", "evidence", "warrant_reviews", "now", "declarations"}
+            if name
+            not in {
+                "belief",
+                "evidence",
+                "warrant_reviews",
+                "now",
+                "declarations",
+                "episode_outcomes",
+            }
         },
         belief=cast(Any, world),
         evidence=cast(Any, world),
         warrant_reviews=world,
         now=lambda: T0,
         declarations=declarations,
+        episode_outcomes=None if outcomes is None else (lambda _p, _e: outcomes),
     )
     certificates = certificates or tuple(
         certificate(h.split(":", 1)[1], h, ()) for h in sorted(world.states)
@@ -1278,3 +1289,64 @@ def test_an_attestation_of_another_observation_lends_nothing():
         _resolver(cert, attestations=borrowed).resolve(PROJECT, "hyp:h", (relation,)).records
     )
     assert record.warrant is None
+
+
+def test_a_relation_with_no_attestation_warrants_nothing():
+    """A claim about an observation with no record of that observation agrees with nothing."""
+    sig = prediction("h", "fl.endface", "DIRTY", RelationType.SUPPORTS)
+    contra = prediction("h", "fl.endface", "CLEAN", RelationType.CONTRADICTS)
+    cert = certificate("h", "connector end-face contamination", (sig, contra))
+    bare = observed(sig).model_copy(
+        update={"supporting_attestation_ids": (), "actor_id": "act:runner"}
+    )
+    (record,) = _resolver(cert).resolve(PROJECT, "hyp:h", (bare,)).records
+    assert record.warrant is None
+    (control,) = _resolver(cert).resolve(PROJECT, "hyp:h", (observed(sig),)).records
+    assert control.warrant is WarrantBasis.DOMAIN
+
+
+def test_an_identified_member_is_refuted_by_its_class_outcome_nobody_predicted():
+    """A paraphrase joined the pool-exhaustion class by a person's statement, so it never had to
+    predict that class's refuting outcome. A second check observed IDLE_CAPACITY anyway: the
+    domain says the class cannot produce it, so the identified member is not confirmed."""
+    para = prediction("para", "web.pool_wait", "SATURATED_WAITING", RelationType.SUPPORTS)
+    certificates = (certificate("para", "connections run out under load", (para,)),)
+    para_rel = observed(para, observation="obs:pool-check")
+    ref = "dds:web.timeout_causes@1.0.0#pool_exhaustion"
+    world = _World(
+        states={"hyp:para": BeliefState.SUPPORTED},
+        relations={"hyp:para": (para_rel,)},
+        records={
+            "hyp:para": (
+                _record(para_rel, warranted=True).model_copy(
+                    update={
+                        "warrant": WarrantBasis.REVIEW,
+                        "warrant_ref": "dwg:para",
+                        "identifies": ref,
+                    }
+                ),
+            )
+        },
+    )
+    pool = INCIDENT.declarations[0]
+    seen = (("obs:pool-check", pool.signature),)
+    control = _standing(world, certificates, INCIDENT, outcomes=seen)
+    assert control.confirmable == "hyp:para" and control.declared_class == "pool_exhaustion"
+    refuted = _standing(
+        world,
+        certificates,
+        INCIDENT,
+        outcomes=(*seen, ("obs:pool-recheck", pool.link("IDLE_CAPACITY"))),
+    )
+    assert refuted.confirmable is None and refuted.undischarged == ("hyp:para",)
+    assert any(
+        "IDLE_CAPACITY is an outcome the declared class 'database connection pool exhaustion' "
+        "cannot produce" in n
+        for n in refuted.notes
+    )
+    # The same outcome name on another observable refutes nothing.
+    elsewhere = (
+        "obs:other",
+        ("web.query_latency", "os:web.query_latency", "1.0.0", "IDLE_CAPACITY"),
+    )
+    assert _standing(world, certificates, INCIDENT, outcomes=(*seen, elsewhere)).confirmable

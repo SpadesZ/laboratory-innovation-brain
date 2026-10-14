@@ -84,6 +84,10 @@ class DiagnosticDeclaration(CoreModel):
             prediction.outcome_space_version,
         ) == (self.observable_ref, self.outcome_space_id, self.outcome_space_version)
 
+    def refuted_by(self, link: Link) -> bool:
+        """Whether this observed outcome is one the class cannot produce on its observable."""
+        return link[:3] == self.signature[:3] and link[3] in self.refutes_outcomes
+
     def effect_for(self, outcome: str) -> RelationType | None:
         """What observing `outcome` means for this class, or None if the declaration is silent."""
         if outcome == self.supports_outcome:

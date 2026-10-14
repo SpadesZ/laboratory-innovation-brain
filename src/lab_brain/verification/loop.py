@@ -85,6 +85,7 @@ from lab_brain.core.models.verification import SelectionPolicy, VerificationPlan
 from lab_brain.core.models.warrant import (
     DiagnosticDeclaration,
     DiagnosticDeclarationSet,
+    Link,
     parse_domain_ref,
 )
 from lab_brain.core.repositories.failures import FailureStore
@@ -316,6 +317,8 @@ class Standing:
     undischarged: tuple[str, ...] = ()
     awaiting: tuple[str, ...] = ()
     notes: tuple[str, ...] = ()
+    #: The declared class the candidate stands for -- bound, or identified by a person -- if any.
+    declared_class: str | None = None
 
 
 @dataclass(frozen=True)
@@ -949,7 +952,8 @@ class VerificationLoop:
         # -- accounts for that class's signature; a person approving a link without saying the
         # hypothesis IS the declared class does not. Every outcome the episode observed is read,
         # predicted or not.
-        for where, owner in self._observed_signatures(request, certificates, admitted):
+        observed = self._observed(request, certificates, admitted)
+        for where, owner in self._observed_signatures(observed):
             if f"class:{owner.class_id}" == keys[candidate]:
                 continue
             undischarged.append(candidate)
@@ -960,6 +964,26 @@ class VerificationLoop:
             )
             if note not in notes:
                 notes.append(note)
+        # The candidate's own class refuted by the domain: an outcome its declaration says the
+        # class cannot produce, observed anywhere in the episode. A member that joined the class by
+        # a person's identity statement never had to predict that outcome, so no relation of the
+        # family need record it -- read it off the observations.
+        own = (
+            None
+            if d.declarations is None or not keys[candidate].startswith("class:")
+            else d.declarations.by_class(keys[candidate].split(":", 1)[1])
+        )
+        if own is not None:
+            for where, link in observed:
+                if not own.refuted_by(link):
+                    continue
+                undischarged.append(candidate)
+                note = (
+                    f"{where}: the observed {link[3]} is an outcome the declared class "
+                    f"'{own.mechanism}' cannot produce -- it refutes {candidate}'s class"
+                )
+                if note not in notes:
+                    notes.append(note)
         produced = (
             [r for x in sorted(observations) for r in d.relations_from(request.project_id, x)]
             if d.relations_from is not None
@@ -1024,50 +1048,42 @@ class VerificationLoop:
             undischarged=tuple(dict.fromkeys(undischarged)),
             awaiting=tuple(threats),
             notes=tuple(notes),
+            declared_class=None if own is None else own.class_id,
         )
 
-    def _observed_signatures(
+    def _observed(
         self,
         request: LoopRequest,
         certificates: Mapping[str, HypothesisCertificate],
         admitted: Mapping[str, Sequence[RelationJudgment]],
+    ) -> list[tuple[str, Link]]:
+        """Every outcome the episode observed, by observation: its own attestations, predicted or
+        not, and what each admitted relation records."""
+        found: set[tuple[str, Link]] = set()
+        if self._d.episode_outcomes is not None:
+            found.update(self._d.episode_outcomes(request.project_id, request.episode_id))
+        for h, relations in admitted.items():
+            predictions = {p.prediction_id: p for p in certificates[h].predictions}
+            for relation in relations:
+                prediction = predictions.get(str(relation.attributes.get("prediction_id")))
+                link = None if prediction is None else observed_link(relation, prediction)
+                if link is not None:
+                    found.add((relation.from_entity_id, link))
+        return sorted(found)
+
+    def _observed_signatures(
+        self, observed: Sequence[tuple[str, Link]]
     ) -> list[tuple[str, DiagnosticDeclaration]]:
-        """Each declared signature the episode observed, by observation (or relation)."""
+        """Each declared signature the episode observed, by observation."""
         declarations = self._d.declarations
         if declarations is None:
             return []
         found: dict[str, DiagnosticDeclaration] = {}
-        if self._d.episode_outcomes is not None:
-            for observation_id, link in self._d.episode_outcomes(
-                request.project_id, request.episode_id
-            ):
-                owner = declarations.signature_of(link)
-                if owner is not None:
-                    found[observation_id] = owner
-        for h, relations in admitted.items():
-            for relation in relations:
-                owner = self._signature_owner(certificates[h], relation)
-                if owner is not None:
-                    found.setdefault(relation.from_entity_id, owner)
+        for observation_id, link in observed:
+            owner = declarations.signature_of(link)
+            if owner is not None:
+                found.setdefault(observation_id, owner)
         return sorted(found.items())
-
-    def _signature_owner(
-        self, certificate: HypothesisCertificate, relation: RelationJudgment
-    ) -> DiagnosticDeclaration | None:
-        """The declared class whose signature this relation observed, if any."""
-        declarations = self._d.declarations
-        if declarations is None:
-            return None
-        prediction = next(
-            (
-                p
-                for p in certificate.predictions
-                if p.prediction_id == relation.attributes.get("prediction_id")
-            ),
-            None,
-        )
-        link = None if prediction is None else observed_link(relation, prediction)
-        return None if link is None else declarations.signature_of(link)
 
     def _ask(self, request: LoopRequest, relation_ids: Sequence[str], notes: list[str]) -> None:
         """Queue the warrant reviews the confirmation rule is waiting on, idempotently.
@@ -1204,6 +1220,11 @@ class VerificationLoop:
         analysis: FailureAnalysis | None = None
         if stop is StopReason.CONFIRMED and supported is not None:
             certificate = next(c for c in request.certificates if c.hypothesis_id == supported)
+            declared = (
+                None
+                if d.declarations is None or standing.declared_class is None
+                else d.declarations.by_class(standing.declared_class)
+            )
             try:
                 trace = self._trace(request.project_id, supported)
                 analysis = confirm_root_cause(
@@ -1215,7 +1236,12 @@ class VerificationLoop:
                     symptom=request.symptom,
                     expected_behavior=request.expected_behavior,
                     observed_behavior=request.observed_behavior,
-                    failure_class=certificate.hypothesis.mechanism,
+                    # A member of a declared class -- bound, or identified by a person -- is
+                    # recorded as that class, so case memory groups it with the class, not one
+                    # author's wording.
+                    failure_class=(
+                        certificate.hypothesis.mechanism if declared is None else declared.mechanism
+                    ),
                     warrant_refs=self._warrant_refs(request, supported, trace),
                     created_at=d.now(),
                 )
@@ -1223,7 +1249,9 @@ class VerificationLoop:
                 extra.append(f"{supported} is SUPPORTED but not confirmable: {refused}")
                 stop = StopReason.NO_SUFFICIENT_ACTION
             else:
-                extra.extend(self._declared_statements(analysis.warrant_refs, certificate))
+                extra.extend(
+                    self._declared_statements(analysis.warrant_refs, declared, certificate)
+                )
         if analysis is None:
             analysis = FailureAnalysis(
                 failure_analysis_id=d.mint("failure_analysis"),
@@ -1253,23 +1281,35 @@ class VerificationLoop:
         )
 
     def _declared_statements(
-        self, refs: Sequence[str], certificate: HypothesisCertificate
+        self,
+        refs: Sequence[str],
+        declared: DiagnosticDeclaration | None,
+        certificate: HypothesisCertificate,
     ) -> list[str]:
-        """What a DOMAIN-warranted conclusion confirms is the declared class, so say it in the
-        class's words -- beside, never in place of, the hypothesis author's own account."""
+        """What a conclusion of a declared class confirms is the class, so say it in the class's
+        words -- beside, never in place of, the hypothesis author's own account. The class is named
+        by a DOMAIN warrant, or by a person's statement that the hypothesis IS that class."""
         declarations = self._d.declarations
         if declarations is None:
             return []
         notes = []
+        named: set[str] = set()
         for ref in refs:
             parsed = parse_domain_ref(ref)
             declaration = None if parsed is None else declarations.by_class(parsed[2])
             if declaration is not None:
+                named.add(declaration.class_id)
                 notes.append(
                     f"confirmed as the declared class '{declaration.mechanism}' ({ref}): "
                     f"{declaration.statement} -- {certificate.hypothesis_id}'s own statement is "
                     "its author's account"
                 )
+        if declared is not None and declared.class_id not in named:
+            notes.append(
+                f"confirmed as the declared class '{declared.mechanism}' "
+                f"({declarations.domain_ref(declared)}): {declared.statement} -- "
+                f"{certificate.hypothesis_id}'s own statement is its author's account"
+            )
         return notes
 
     def _warrant_refs(
