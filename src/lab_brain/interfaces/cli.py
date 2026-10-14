@@ -504,6 +504,15 @@ def build_parser() -> argparse.ArgumentParser:
     flag.add_argument("--statement", required=True)
     flag.add_argument("--evidence", action="append", required=True, help="repeatable")
     flag.add_argument("--actor", required=True, help="the person recording the flag")
+    roles = admin_sub.add_parser(
+        "db-roles",
+        help=(
+            "grant the services' database role row privileges only, and an auditor's role reads "
+            "(run as the migrator; the operator creates both roles and their logins)"
+        ),
+    )
+    roles.add_argument("--app-role", default="lab_brain_app")
+    roles.add_argument("--reader-role", default="lab_brain_reader")
     admin_sub.add_parser("show", help="list actors, projects, memberships, LLM administrators")
     return parser
 
@@ -974,6 +983,10 @@ def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
                     recorded_by=args.actor,
                 )
             ]
+        elif args.admin_command == "db-roles":
+            lines = deployment.grant_database_roles(
+                connection, app_role=args.app_role, reader_role=args.reader_role
+            )
         else:
             lines = deployment.describe(connection)
     except deployment.OperatorRefused as refused:

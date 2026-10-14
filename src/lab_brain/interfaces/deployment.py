@@ -23,11 +23,16 @@ what lets a DIAGNOSTIC_WARRANT question be asked at all (`012o` refuses one with
 new declaration is a new version; the one it replaces is deactivated, never edited, so every item
 already queued keeps the deadline it was given. `flag-analysis` records that a stored conclusion
 is wrong or unwarranted without touching it (`012p`).
+
+LEAST-PRIVILEGE DATABASE ACCESS (V1.1). `db-roles` grants the services' role row privileges only
+and an auditor's role reads, so the database's own rules bind every service: see
+`grant_database_roles`. Connecting the services as that role is the deployment's decision.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import re
 import uuid
 from collections.abc import Sequence
 from typing import Any
@@ -352,6 +357,106 @@ def describe(c: Any) -> list[str]:
     return lines
 
 
+#: A role name this command writes into SQL. GRANT takes no bind parameters, so the name is checked
+#: to be a plain lower-case identifier instead.
+_ROLE_NAME = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
+
+#: The migrations ledger: written by the migrator, read by anyone, never written by a service.
+_LEDGER = "schema_migrations"
+
+
+def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str]:
+    """Least-privilege database access: the services' role and an auditor's role (V1.1).
+
+    WHY. Every rule the Causal Warrant Gate puts in the database is a trigger or a constraint, and a
+    superuser -- or a table's owner -- can step past both: `session_replication_role`, `ALTER
+    TABLE ... DISABLE TRIGGER`, and `TRUNCATE`, which fires no row trigger. So the services connect
+    as `app_role`: not a superuser, owning nothing, holding row privileges only, and the triggers
+    bind it. `reader_role` reads. The migrator, which owns the schema, runs the migrations and this
+    command and nothing else.
+
+    The operator creates both roles, and gives `app_role` its login and password, outside version
+    control (`CREATE ROLE lab_brain_app LOGIN PASSWORD ...`). Refused, before anything is granted:
+    a role that could undo what is granted here -- a superuser; one that can create roles or
+    databases, replicate, bypass row security or set `session_replication_role`; one that owns an
+    object in this database; or a member of a role that is or does any of those.
+
+    Idempotent: privileges are revoked first and granted again, so running it twice, or after a
+    migration added tables, leaves exactly this set.
+    """
+    roles = (app_role, reader_role)
+    for role in roles:
+        if not _ROLE_NAME.match(role):
+            raise OperatorRefused(f"a database role here is a plain lower-case name, not {role!r}")
+    if app_role == reader_role:
+        raise OperatorRefused("the services' role and the auditors' role are different roles")
+    for role in roles:
+        row = c.execute(
+            "SELECT rolsuper OR rolcreaterole OR rolcreatedb OR rolreplication OR rolbypassrls,"
+            " has_parameter_privilege(oid, 'session_replication_role', 'SET')"
+            " FROM pg_roles WHERE rolname = %s",
+            (role,),
+        ).fetchone()
+        if row is None:
+            raise OperatorRefused(
+                f"database role {role} does not exist; the operator creates it (and its login) "
+                "outside version control"
+            )
+        if row[0] or row[1]:
+            raise OperatorRefused(
+                f"{role} can create roles or databases, replicate, bypass row security or turn "
+                "triggers off; the services' and auditors' roles hold row privileges only"
+            )
+        owned = c.execute(
+            "SELECT (SELECT count(*) FROM pg_class WHERE pg_has_role(%s, relowner, 'USAGE'))"
+            " + (SELECT count(*) FROM pg_proc WHERE pg_has_role(%s, proowner, 'USAGE'))"
+            " + (SELECT count(*) FROM pg_namespace WHERE pg_has_role(%s, nspowner, 'USAGE'))"
+            " + (SELECT count(*) FROM pg_roles r WHERE r.rolsuper"
+            "    AND pg_has_role(%s, r.oid, 'MEMBER'))",
+            (role, role, role, role),
+        ).fetchone()
+        if owned is not None and int(owned[0]) > 0:
+            raise OperatorRefused(
+                f"{role} owns, or acts as a role that owns, objects in this database (or is a "
+                "member of a superuser): an owner can turn its own tables' triggers off"
+            )
+    app, reader = (f'"{r}"' for r in roles)
+    statements = (
+        "REVOKE CREATE ON SCHEMA public FROM PUBLIC",
+        f"GRANT USAGE ON SCHEMA public TO {app}, {reader}",
+        f"REVOKE ALL ON ALL TABLES IN SCHEMA public FROM {app}, {reader}",
+        f"REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM {app}, {reader}",
+        f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {app}",
+        f"REVOKE INSERT, UPDATE, DELETE ON {_LEDGER} FROM {app}",
+        f"GRANT SELECT ON ALL TABLES IN SCHEMA public TO {reader}",
+        f"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {app}",
+        f"GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {reader}",
+        # Tables later migrations create, when the same migrator creates them.
+        "ALTER DEFAULT PRIVILEGES IN SCHEMA public"
+        f" GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {app}",
+        f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {reader}",
+        f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO {app}",
+    )
+    try:
+        with c.transaction():
+            for statement in statements:
+                c.execute(statement)
+    except Exception as exc:  # the database's own refusal, as it said it
+        diag = getattr(exc, "diag", None)
+        if getattr(exc, "sqlstate", None) is None and diag is None:
+            raise
+        raise OperatorRefused(
+            getattr(diag, "message_primary", None) or str(exc).splitlines()[0]
+        ) from exc
+    row = c.execute("SELECT count(*) FROM pg_tables WHERE schemaname = 'public'").fetchone()
+    tables = 0 if row is None else int(row[0])
+    return [
+        f"database role {app_role}: reads and writes rows of {tables} tables -- no TRUNCATE, no "
+        f"ownership, {_LEDGER} read-only; the triggers bind it",
+        f"database role {reader_role}: reads them",
+    ]
+
+
 def _write(c: Any, sql: str, params: Sequence[object]) -> None:
     try:
         with c.transaction():
@@ -376,6 +481,7 @@ __all__ = [
     "ensure_actor",
     "ensure_project",
     "flag_analysis",
+    "grant_database_roles",
     "grant_llm_admin",
     "revoke_llm_admin",
     "set_membership",
