@@ -128,8 +128,39 @@ class CandidateHeuristic(CoreModel):
         return self
 
 
+class FlagKind(StrEnum):
+    """What a flag says about a stored conclusion (`012p`)."""
+
+    #: Its recorded cause is not the cause.
+    FALSE_CONFIRMATION = "FALSE_CONFIRMATION"
+    #: It may be right, but nothing accountable warranted it.
+    UNWARRANTED_CONFIRMATION = "UNWARRANTED_CONFIRMATION"
+
+
+class FailureAnalysisFlag(CoreModel):
+    """A recorded statement that a stored conclusion is wrong or unwarranted (`012p`).
+
+    The conclusion is append-only and is never edited; the flag sits beside it, bound to the exact
+    content it was written about, and whatever reads the conclusion reads the flag: case memory
+    and the miner skip a flagged analysis, and the episode page shows the flag.
+    """
+
+    flag_id: str
+    project_id: str
+    failure_analysis_id: str
+    kind: FlagKind
+    statement: str = Field(min_length=1)
+    evidence_refs: tuple[str, ...] = Field(min_length=1)
+    analysis_digest: str
+    #: `act:<person>`, or `migration:<file>` for an audit finding a migration carried.
+    recorded_by: str
+    recorded_at: dt.datetime
+
+
 __all__ = [
     "CandidateHeuristic",
     "FailureAnalysis",
+    "FailureAnalysisFlag",
+    "FlagKind",
     "ResolutionStatus",
 ]

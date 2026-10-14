@@ -40,6 +40,7 @@ from lab_brain.core.canonical_json import canonical_hash
 from lab_brain.core.models.base import CoreModel
 from lab_brain.core.models.enums import RelationType
 from lab_brain.core.models.prediction import Prediction
+from lab_brain.core.models.reviewer import grant_statement
 
 #: (observable, outcome space, space version, outcome): the observed side of a link.
 Link = tuple[str, str, str, str]
@@ -234,6 +235,11 @@ class DiagnosticWarrantGrant(CoreModel):
     #: how a person says a model's paraphrase is a catalog mechanism. Approving the link alone
     #: does not say it -- an outcome can diagnose a mechanism the domain did not name.
     identifies_class_ref: str | None = None
+    #: V1.1: the reviewer key enrolment the answer was signed with, and the Ed25519 signature
+    #: over `statement()`. An answer without them -- or whose signature does not verify against
+    #: an authority-enrolled key -- counts as no answer (`lab_brain.security.reviewer_identity`).
+    enrolment_id: str | None = None
+    signature: str | None = None
 
     @model_validator(mode="after")
     def _a_rationale_is_required(self) -> Self:
@@ -254,6 +260,25 @@ class DiagnosticWarrantGrant(CoreModel):
                 "reference is not a declaration reference"
             )
         return self
+
+    def statement(self) -> bytes:
+        """The exact bytes the reviewer signed (`core.models.reviewer.grant_statement`)."""
+        return grant_statement(
+            grant_id=self.grant_id,
+            project_id=self.project_id,
+            review_id=self.review_id,
+            relation_id=self.relation_id,
+            relation_type=self.relation_type.value,
+            hypothesis_id=self.hypothesis_id,
+            prediction_id=self.prediction_id,
+            verdict=self.verdict.value,
+            granted_by_actor_id=self.granted_by_actor_id,
+            granted_at=self.granted_at,
+            rationale=self.rationale,
+            considered_rival_ids=self.considered_rival_ids,
+            identifies_class_ref=self.identifies_class_ref,
+            enrolment_id=self.enrolment_id or "",
+        )
 
 
 __all__ = [

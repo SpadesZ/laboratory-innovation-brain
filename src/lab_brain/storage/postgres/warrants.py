@@ -3,7 +3,8 @@
 The research service, its read side and the vertical test harness all resolve warrants the same
 way -- certificates, attestations, observations and runs from their own stores, grants from
 `012o` -- so the write path and the read path can never disagree about what a relation's warrant
-or evidence line is. Each caller names the declaration sets its vertical registers.
+or evidence line is. Each caller names the declaration sets its vertical registers, and the review
+authorities whose enrolled reviewers' signatures it accepts (`012p`).
 """
 
 from __future__ import annotations
@@ -11,13 +12,16 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from lab_brain.core.models.failure import FailureAnalysis
 from lab_brain.core.models.warrant import DiagnosticDeclarationSet, Link
 from lab_brain.core.repositories.evidence import SqlAttestationStore, SqlRelationStore
+from lab_brain.core.repositories.failures import ConfirmationVerifier
 from lab_brain.core.repositories.hypotheses import SqlHypothesisStore
 from lab_brain.core.repositories.jobs import SqlJobStore
 from lab_brain.core.repositories.observations import SqlObservationStore
 from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore
 from lab_brain.core.warrant import EpisodeOutcomes, WarrantResolver
+from lab_brain.security.reviewer_identity import ReviewerTrust, grant_authenticator
 
 
 def sql_warrant_resolver(
@@ -25,17 +29,55 @@ def sql_warrant_resolver(
     *,
     declaration_sets: Sequence[DiagnosticDeclarationSet],
     active: str | None,
+    trust: ReviewerTrust,
 ) -> WarrantResolver:
+    """The resolver every composition root uses. `trust` is the deployment's pinned review
+    authorities: an answer counts only if its reviewer's signature verifies under them, and an
+    empty trust -- no authority configured -- counts no answer at all."""
+    grants = SqlDiagnosticWarrantStore(connection)
     return WarrantResolver(
         certificates=SqlHypothesisStore(connection).get_certificate,
         attestations=SqlAttestationStore(connection).get,
         observations=SqlObservationStore(connection).get,
         runs=SqlJobStore(connection).get_run,
-        grants=SqlDiagnosticWarrantStore(connection),
+        grants=grants,
+        authenticate=grant_authenticator(grants, trust),
         relations=SqlRelationStore(connection).get,
         declaration_sets=declaration_sets,
         active=active,
     )
+
+
+def confirmation_verifier(connection: Any, trust: ReviewerTrust) -> ConfirmationVerifier:
+    """Whether a stored confirmation may inform case memory and the miner (V1.1).
+
+    The database refused it unless the confirmation rule held over the recorded evidence (`012p`),
+    but SQL cannot check a signature. So every reviewer answer recorded on any relation of any
+    member of the cause's hypothesis set must verify -- an answer that does not was counted by
+    nothing the loop did, and the database cannot tell; a confirmation that it could have shaped
+    is not relied on. Conservative by design: one bad answer in the set withholds the conclusion
+    from reuse, never from the record.
+    """
+    store = SqlDiagnosticWarrantStore(connection)
+    authenticate = grant_authenticator(store, trust)
+
+    def verify(analysis: FailureAnalysis) -> str | None:
+        rows = connection.execute(
+            "SELECT g.grant_id FROM diagnostic_warrant_grants g"
+            " JOIN hypotheses h ON h.hypothesis_id = g.hypothesis_id"
+            " JOIN hypotheses c ON c.hypothesis_set_id = h.hypothesis_set_id"
+            " WHERE c.project_id = %s AND c.hypothesis_id = %s AND g.project_id = %s"
+            " ORDER BY g.grant_id",
+            (analysis.project_id, analysis.confirmed_root_cause, analysis.project_id),
+        ).fetchall()
+        for (grant_id,) in rows:
+            grant = store.grant(analysis.project_id, str(grant_id))
+            why = "not readable" if grant is None else authenticate(grant)
+            if why is not None:
+                return f"the answer {grant_id} in its hypothesis set does not verify: {why}"
+        return None
+
+    return verify
 
 
 def episode_outcomes(connection: Any) -> EpisodeOutcomes:
@@ -65,4 +107,4 @@ def episode_outcomes(connection: Any) -> EpisodeOutcomes:
     return read
 
 
-__all__ = ["episode_outcomes", "sql_warrant_resolver"]
+__all__ = ["confirmation_verifier", "episode_outcomes", "sql_warrant_resolver"]

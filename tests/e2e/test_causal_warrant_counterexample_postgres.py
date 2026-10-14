@@ -42,9 +42,17 @@ from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore, Warr
 from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.interfaces import cli
 from lab_brain.interfaces.review_cli import run_review
+from lab_brain.security.reviewer_identity import ReviewerSigner
 from lab_brain.verification.loop import StopReason
 from tests.debate_fixtures import ACTOR, PROJECT
 from tests.postgres_fixtures import database_url
+from tests.reviewer_keys import (
+    AUTHORITY,
+    AUTHORITY_ACTOR,
+    enrol,
+    ensure_authority_actor,
+    key_for,
+)
 from tests.vertical_fixtures import case_by_id, load_fixture, run_case
 
 pytestmark = pytest.mark.postgres
@@ -54,6 +62,17 @@ PROXY_MECHANISM = "missing contact-resistance correction"
 NOVEL_MECHANISM = "taper sections counted into the normalization length"
 DOMAIN_REF = "dds:sp.rs_anomaly_mechanisms@1.0.0#normalization_error"
 REVIEWER = "act:pi"
+#: The reviewer's enrolled key (`_queue` enrols it): every answer below is signed with it.
+SIGNER = ReviewerSigner(
+    actor_id=REVIEWER, enrolment_id=f"enr:{PROJECT}:{REVIEWER}", key=key_for(REVIEWER)
+)
+
+
+def _unenrolled(actor_id: str) -> ReviewerSigner:
+    """A key nobody enrolled, for someone the database refuses for another reason first."""
+    return ReviewerSigner(actor_id=actor_id, enrolment_id="enr:none", key=key_for(actor_id))
+
+
 #: Long enough that a review created on the fixture's clock is still open at T0.
 EXPIRY_MINUTES = 10_000_000
 T0 = dt.datetime(2026, 10, 14, 9, 0, tzinfo=dt.UTC)
@@ -82,6 +101,8 @@ def _queue(db: Any) -> None:
         " active) VALUES ('rqp:test', '1.0.0', %s, 10, 60, %s, %s, %s, TRUE)",
         (PROJECT, EXPIRY_MINUTES, REVIEWER, T0),
     )
+    ensure_authority_actor(db)
+    enrol(SqlDiagnosticWarrantStore(db), project_id=PROJECT, actor_id=REVIEWER)
 
 
 def _renamed(mechanism: str, statement: str) -> dict[str, Any]:
@@ -158,7 +179,7 @@ def test_a_person_can_warrant_an_uncatalogued_account_by_saying_which_mechanism_
         review_id=review.review_id,
         project_id=PROJECT,
         outcome=ReviewOutcome.APPROVED,
-        actor_id=REVIEWER,
+        signer=SIGNER,
         rationale="a taper-inclusive length is exactly what makes the bases disagree",
         considered_rival_ids=tuple(sorted(run.certificates_by_mechanism.values())),
         resolved_at=T0,
@@ -235,7 +256,7 @@ def test_a_refused_warrant_never_counts_and_is_not_asked_again(db):
         review_id=review.review_id,
         project_id=PROJECT,
         outcome=ReviewOutcome.REJECTED,
-        actor_id=REVIEWER,
+        signer=SIGNER,
         rationale="a missing contact-resistance term cannot change the normalization length",
         considered_rival_ids=(),
         resolved_at=T0,
@@ -247,7 +268,7 @@ def test_a_refused_warrant_never_counts_and_is_not_asked_again(db):
             review_id=review.review_id,
             project_id=PROJECT,
             outcome=ReviewOutcome.APPROVED,
-            actor_id=REVIEWER,
+            signer=SIGNER,
             rationale="second thoughts",
             considered_rival_ids=(),
             resolved_at=T0,
@@ -281,7 +302,7 @@ def test_only_a_human_member_of_the_project_can_answer(db):
             review_id=review.review_id,
             project_id=PROJECT,
             outcome=ReviewOutcome.APPROVED,
-            actor_id="act:nobody",
+            signer=_unenrolled("act:nobody"),
             rationale="r",
             considered_rival_ids=(),
             resolved_at=T0,
@@ -338,18 +359,30 @@ def test_the_report_names_the_unproposed_class_whose_signature_was_observed(db):
     ), run.result.notes
 
 
-def test_a_person_answers_through_the_command_line(db):
+def _authorities_file(tmp_path: Any) -> str:
+    path = tmp_path / "review-authorities"
+    path.write_text(f"{AUTHORITY_ACTOR} ed25519:{AUTHORITY.public_key}\n", encoding="utf-8")
+    return str(path)
+
+
+def test_a_person_answers_through_the_command_line(db, tmp_path):
     _queue(db)
     fx = _proxy()
     run_case(db, fx, case_by_id(fx, CASE))
     (review,) = SqlDiagnosticWarrantStore(db).outstanding(PROJECT)
+    key_path = tmp_path / "pi.key"
+    key_for(REVIEWER).save(key_path)
+    env = {
+        "LAB_BRAIN_DATABASE_URL": database_url(),
+        "LAB_BRAIN_REVIEW_AUTHORITIES": _authorities_file(tmp_path),
+    }
 
     def cli_run(*argv: str) -> tuple[int, str]:
         out = io.StringIO()
         code = cli.main(
             list(argv),
             out=out,
-            env={"LAB_BRAIN_DATABASE_URL": database_url()},
+            env=env,
             connect=lambda s: psycopg.connect(s.dsn, autocommit=True),
         )
         return code, out.getvalue()
@@ -364,21 +397,52 @@ def test_a_person_answers_through_the_command_line(db):
     assert f"--is-class {DOMAIN_REF}" in packet
     code, refused = cli_run("review", "list", "--project", PROJECT, "--actor", "act:nobody")
     assert code == 1 and review.review_id not in refused
+    # Without a key the command refuses before anything is written; with someone else's key
+    # it refuses too: the key, not the --actor, is who answers.
+    impostor = tmp_path / "impostor.key"
+    key_for("act:impostor").save(impostor)
+    code, refused = cli_run(
+        "review",
+        "resolve",
+        review.review_id,
+        *who,
+        "--key",
+        str(impostor),
+        "--outcome",
+        "APPROVED",
+        "--rationale",
+        "the impostor approves",
+    )
+    assert code == 1 and "is not enrolled for act:pi" in refused, refused
+    assert SqlDiagnosticWarrantStore(db).outstanding(PROJECT) == (review,)
     code, answered = cli_run(
         "review",
         "resolve",
         review.review_id,
         *who,
+        "--key",
+        str(key_path),
         "--outcome",
         "REJECTED",
         "--rationale",
         "a missing contact-resistance term cannot change the normalization length",
     )
-    assert code == 0 and "NOT_WARRANTED" in answered
+    assert code == 0 and "NOT_WARRANTED" in answered, answered
     code, again = cli_run(
-        "review", "resolve", review.review_id, *who, "--outcome", "APPROVED", "--rationale", "x"
+        "review",
+        "resolve",
+        review.review_id,
+        *who,
+        "--key",
+        str(key_path),
+        "--outcome",
+        "APPROVED",
+        "--rationale",
+        "x",
     )
     assert code == 1 and "No outstanding review" in again
+    code, keys = cli_run("review", "keys", *who)
+    assert code == 0 and f"enr:{PROJECT}:{REVIEWER}" in keys and "verifies" in keys
 
 
 def test_the_person_who_ran_the_episode_cannot_warrant_its_relations(db):
@@ -401,7 +465,7 @@ def test_the_person_who_ran_the_episode_cannot_warrant_its_relations(db):
             review_id=review.review_id,
             project_id=PROJECT,
             outcome=ReviewOutcome.APPROVED,
-            actor_id=ACTOR,
+            signer=_unenrolled(ACTOR),
             rationale="my own run looks right to me",
             considered_rival_ids=(),
             resolved_at=T0,
@@ -422,7 +486,7 @@ def test_an_expired_review_is_not_answered_late(db):
             review_id=review.review_id,
             project_id=PROJECT,
             outcome=ReviewOutcome.APPROVED,
-            actor_id=REVIEWER,
+            signer=SIGNER,
             rationale="late",
             considered_rival_ids=(),
             resolved_at=review.expires_at + dt.timedelta(minutes=1),
@@ -470,7 +534,7 @@ def test_an_unwarranted_falsifier_neither_vetoes_nor_is_ignored(db):
         review_id=review.review_id,
         project_id=PROJECT,
         outcome=ReviewOutcome.REJECTED,
-        actor_id=REVIEWER,
+        signer=SIGNER,
         rationale="an open contact via does not change the extraction's normalization length",
         considered_rival_ids=(),
         resolved_at=T0,
@@ -502,7 +566,9 @@ def test_a_grant_written_directly_is_refused_whoever_writes_it(db):
             " ON CONFLICT DO NOTHING",
             (granter, granter),
         )
-        with pytest.raises(psycopg.Error, match=r"not an active human member|not the closure"):
+        with pytest.raises(
+            psycopg.Error, match=r"not an active human member|unsigned|not the closure"
+        ):
             db.execute(
                 "INSERT INTO diagnostic_warrant_grants (grant_id, project_id, review_id,"
                 " relation_id, relation_type, hypothesis_id, prediction_id, verdict,"
@@ -590,7 +656,7 @@ def test_approving_a_link_alone_does_not_make_a_paraphrase_the_declared_class(db
         review_id=review.review_id,
         project_id=PROJECT,
         outcome=ReviewOutcome.APPROVED,
-        actor_id=REVIEWER,
+        signer=SIGNER,
         rationale="the outcome does bear on this account",
         considered_rival_ids=(),
         resolved_at=T0,

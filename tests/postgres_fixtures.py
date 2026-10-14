@@ -68,6 +68,11 @@ _TABLES = (
     "external_snapshots",
     "external_access_scopes",
     "candidate_heuristics",
+    # Causal Warrant Gate V1.1 (`012p`): flags reference analyses; enrolments and revocations
+    # reference actors and projects; declaration sets are not project-scoped, so nothing would
+    # cascade them away. All append-only.
+    "failure_analysis_flags",
+    "diagnostic_declaration_sets",
     "failure_analyses",
     "verification_plans",
     "selection_policies",

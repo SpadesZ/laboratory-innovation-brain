@@ -1106,6 +1106,42 @@ def _records_html(view: EpisodeView) -> Html:
     return _table(("capability", "run", "observation", "attestation", "relations and events"), rows)
 
 
+def _conclusions_html(view: EpisodeView, m: Messages) -> Html:
+    """Each stored confirmation, with any flag beside it and whether anything relies on it."""
+    parts: list[Html] = []
+    for c in view.conclusions:
+        if c.status != "CONFIRMED":
+            continue
+        flags = cat(
+            h(
+                '<div class="box warn"><p>{}</p><p>{}</p><p class="muted">{} · {}</p></div>',
+                m("v.conclusion.flagged", kind=f.kind),
+                f.statement,
+                f.recorded_by,
+                ", ".join(f.evidence_refs),
+            )
+            for f in c.flags
+        )
+        reliance = (
+            m("v.conclusion.not_relied", why=c.not_relied_on)
+            if c.not_relied_on
+            else m("v.conclusion.relied")
+        )
+        parts.append(
+            h(
+                "<p><code>{}</code> CONFIRMED <code>{}</code> -- {} ({})</p>{}"
+                '<p class="muted">{}</p>',
+                c.failure_analysis_id,
+                c.confirmed_root_cause or "-",
+                c.failure_class,
+                ", ".join(c.warrant_refs) or "no warrant",
+                flags,
+                reliance,
+            )
+        )
+    return cat(parts)
+
+
 def episode_page(
     *,
     actor_id: str,
@@ -1213,6 +1249,9 @@ def episode_page(
             _section(
                 "result", m("v.result"), _result_html(episode, report, runs, report_ordinal, m)
             ),
+            _section("conclusions", m("v.conclusions"), _conclusions_html(view, m))
+            if any(c.status == "CONFIRMED" for c in view.conclusions)
+            else Html(""),
             _section("hypotheses", m("v.hypotheses"), _hypotheses_html(report, view, m)),
             _section("tested", m("v.tested"), _tested_html(report, view, runs, report_ordinal, m)),
             _section("learned", m("v.learned"), _learned_html(report, view, m)),

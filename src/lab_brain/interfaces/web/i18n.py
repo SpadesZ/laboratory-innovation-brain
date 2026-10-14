@@ -497,6 +497,19 @@ _M: dict[str, tuple[str, str]] = {
         "Records behind each executed check",
         "每項已執行檢查背後的紀錄",
     ),
+    "v.conclusions": ("Recorded conclusions", "已記錄的結論"),
+    "v.conclusion.flagged": (
+        "This conclusion is flagged {kind}. It stays on record as written:",
+        "這個結論已被標註為 {kind}，紀錄保持原樣：",
+    ),
+    "v.conclusion.not_relied": (
+        "Not used as a precedent or for heuristics: {why}",
+        "不作為先例或歸納來源：{why}",
+    ),
+    "v.conclusion.relied": (
+        "Its warrants verify; case memory may cite it as a precedent.",
+        "其依據均可驗證；可作為案例記憶中的先例。",
+    ),
     "act.EXISTING_EVIDENCE_LOOKUP": ("existing-evidence lookup", "查詢既有證據"),
     "act.ANALYTICAL_RULE_CHECK": ("analytical check", "分析檢查"),
     "act.HISTORICAL_CASE_COMPARISON": ("historical case comparison", "歷史案例比對"),

@@ -130,7 +130,9 @@ from lab_brain.research.service import (
     ResearchRequest,
 )
 from lab_brain.research.vertical import VerticalFactory
+from lab_brain.security.reviewer_identity import ReviewerTrust
 from lab_brain.storage.artifacts.local import LocalArtifactStore
+from lab_brain.storage.postgres.warrants import confirmation_verifier
 from lab_brain.surface.disclosure import ErrorNotFound
 
 #: The largest request body the workspace reads (all uploads of one run together).
@@ -1102,7 +1104,14 @@ class Workspace:
         report = self._authorized(c, chosen.report) if chosen is not None else None
         # What the stored records say each executed check meant -- read, in the episode's own
         # project, which `_opened` has just authorised this actor for.
-        view = load_episode_view(c, project_id=opened.project_id, episode_id=episode_id)
+        view = load_episode_view(
+            c,
+            project_id=opened.project_id,
+            episode_id=episode_id,
+            verify=confirmation_verifier(
+                c, ReviewerTrust.configured_at(self._settings.review_authorities)
+            ),
+        )
         return Response(
             "200 OK",
             pages.episode_page(
@@ -1190,6 +1199,7 @@ class Workspace:
             vertical_factory=self._factory,
             mint=mint,
             reasoning=reasoning,
+            reviewer_trust=ReviewerTrust.configured_at(self._settings.review_authorities),
         )
         report = service.run(request)
         if len(minted) != 1:  # pragma: no cover - the service mints one per run

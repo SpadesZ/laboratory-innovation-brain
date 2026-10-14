@@ -29,8 +29,14 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from lab_brain.core.models.enums import EpistemicType
+from lab_brain.core.models.failure import ResolutionStatus
 from lab_brain.core.models.hypothesis_set import HypothesisCertificate
 from lab_brain.core.models.prediction import Prediction
+from lab_brain.core.repositories.failures import (
+    ConfirmationVerifier,
+    SqlFailureStore,
+    trust_refusal,
+)
 from lab_brain.core.repositories.hypotheses import SqlHypothesisStore
 from lab_brain.research.continuation import verification_key_prefix
 from lab_brain.verification.evidence import comparable
@@ -113,6 +119,28 @@ class CheckResult:
 
 
 @dataclass(frozen=True)
+class ConclusionFlag:
+    kind: str
+    statement: str
+    evidence_refs: tuple[str, ...]
+    recorded_by: str
+
+
+@dataclass(frozen=True)
+class Conclusion:
+    """One stored FailureAnalysis of the episode, with what is recorded beside it (`012p`)."""
+
+    failure_analysis_id: str
+    status: str
+    confirmed_root_cause: str | None
+    failure_class: str
+    warrant_refs: tuple[str, ...]
+    flags: tuple[ConclusionFlag, ...]
+    #: For a confirmation: why case memory and the miner do not rely on it, or None if they do.
+    not_relied_on: str | None
+
+
+@dataclass(frozen=True)
 class ExecutedCheck:
     """A verification Run of the episode, as its row says: which check, when, and how it ended."""
 
@@ -134,6 +162,8 @@ class EpisodeView:
     predictions: Mapping[str, tuple[DeclaredPrediction, ...]] = field(default_factory=dict)
     #: capability id -> its action type, as the episode's verification plans recorded it.
     action_types: Mapping[str, str] = field(default_factory=dict)
+    #: Every FailureAnalysis the episode recorded, oldest first, with its flags.
+    conclusions: tuple[Conclusion, ...] = ()
 
     def falsifiers(self, hypothesis_id: str) -> tuple[DeclaredPrediction, ...]:
         return tuple(p for p in self.predictions.get(hypothesis_id, ()) if p.designated_falsifier)
@@ -203,8 +233,49 @@ def _split(
     return matched, other, tuple(p for p in over if p not in matched and p not in other)
 
 
-def load_episode_view(connection: Any, *, project_id: str, episode_id: str) -> EpisodeView:
-    """The read model of one episode: every verification Run it has, and what each meant."""
+def _conclusions(
+    connection: Any, project_id: str, episode_id: str, verify: ConfirmationVerifier | None
+) -> tuple[Conclusion, ...]:
+    """The episode's stored conclusions and their flags. A flagged or unverifiable confirmation
+    stays on record exactly as written; this says why nothing downstream relies on it."""
+    store = SqlFailureStore(connection, verify=verify)
+    found: list[Conclusion] = []
+    for analysis in store.analyses(project_id):
+        if analysis.episode_id != episode_id:
+            continue
+        flags = store.flags(project_id, analysis.failure_analysis_id)
+        found.append(
+            Conclusion(
+                failure_analysis_id=analysis.failure_analysis_id,
+                status=analysis.resolution_status.value,
+                confirmed_root_cause=analysis.confirmed_root_cause,
+                failure_class=analysis.failure_class,
+                warrant_refs=analysis.warrant_refs,
+                flags=tuple(
+                    ConclusionFlag(f.kind.value, f.statement, f.evidence_refs, f.recorded_by)
+                    for f in flags
+                ),
+                not_relied_on=(
+                    trust_refusal(analysis, flags, verify)
+                    if analysis.resolution_status is ResolutionStatus.CONFIRMED
+                    else None
+                ),
+            )
+        )
+    return tuple(found)
+
+
+def load_episode_view(
+    connection: Any,
+    *,
+    project_id: str,
+    episode_id: str,
+    verify: ConfirmationVerifier | None = None,
+) -> EpisodeView:
+    """The read model of one episode: every verification Run it has, and what each meant.
+
+    `verify` is the deployment's confirmation verifier (reviewer signatures); without it, a
+    confirmation resting on a reviewer's answer is shown as not relied on."""
     set_row = connection.execute(
         "SELECT hypothesis_set_id FROM research_runs WHERE project_id = %s AND episode_id = %s"
         " AND hypothesis_set_id IS NOT NULL ORDER BY ordinal LIMIT 1",
@@ -296,7 +367,11 @@ def load_episode_view(connection: Any, *, project_id: str, episode_id: str) -> E
             )
         results[run_id] = tuple(found)
     return EpisodeView(
-        executed=executed, results=results, predictions=predictions, action_types=action_types
+        executed=executed,
+        results=results,
+        predictions=predictions,
+        action_types=action_types,
+        conclusions=_conclusions(connection, project_id, episode_id, verify),
     )
 
 

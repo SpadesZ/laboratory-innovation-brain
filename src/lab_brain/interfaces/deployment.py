@@ -16,11 +16,19 @@ mode is named.
 
 Every command is idempotent: run twice with the same arguments, the second run changes nothing and
 says so.
+
+THE REVIEW QUEUE IS DECLARED HERE TOO (Causal Warrant Gate V1.1). A project's review-queue policy
+-- capacity, SLA, expiry, and the person whose standing decision authorises automatic expiry -- is
+what lets a DIAGNOSTIC_WARRANT question be asked at all (`012o` refuses one with no deadline). A
+new declaration is a new version; the one it replaces is deactivated, never edited, so every item
+already queued keeps the deadline it was given. `flag-analysis` records that a stored conclusion
+is wrong or unwarranted without touching it (`012p`).
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import uuid
 from collections.abc import Sequence
 from typing import Any
 
@@ -172,6 +180,152 @@ def revoke_llm_admin(c: Any, actor_id: str, at: dt.datetime) -> str:
     return f"{actor_id} no longer administers the LLM routes"
 
 
+#: The defaults a declaration uses for what it does not name: a warrant question is a short
+#: judgment (15 minutes each, `VerificationLoop._ask`), due within three days and closed by expiry
+#: after fourteen, when the next run asks it again.
+REVIEW_QUEUE_DEFAULTS = {
+    "capacity": 50,
+    "sla_minutes": 3 * 24 * 60,
+    "expiry_minutes": 14 * 24 * 60,
+    "reviewer_minutes_per_day": 60,
+}
+
+
+def declare_review_queue(
+    c: Any,
+    project_id: str,
+    *,
+    declared_by: str,
+    at: dt.datetime,
+    capacity: int = REVIEW_QUEUE_DEFAULTS["capacity"],
+    sla_minutes: int = REVIEW_QUEUE_DEFAULTS["sla_minutes"],
+    expiry_minutes: int = REVIEW_QUEUE_DEFAULTS["expiry_minutes"],
+    reviewer_minutes_per_day: int = REVIEW_QUEUE_DEFAULTS["reviewer_minutes_per_day"],
+    if_absent: bool = False,
+) -> str:
+    """The project's active review-queue policy: these numbers, declared by `declared_by`.
+
+    `declared_by` must be an active person in the project: expiry under this policy is that
+    person's standing decision (`v3.3-a15`), not the operator's or a service account's.
+    """
+    if (
+        c.execute(
+            "SELECT 1 FROM actors a JOIN project_memberships m ON m.actor_id = a.actor_id"
+            " WHERE a.actor_id = %s AND a.actor_type = 'HUMAN' AND a.active"
+            " AND m.project_id = %s AND m.active",
+            (declared_by, project_id),
+        ).fetchone()
+        is None
+    ):
+        raise OperatorRefused(
+            f"{declared_by} is not an active person in {project_id}; a review queue's expiry is a "
+            "member's standing decision"
+        )
+    if expiry_minutes < sla_minutes or min(sla_minutes, expiry_minutes) <= 0 or capacity < 0:
+        raise OperatorRefused(
+            "a review queue needs a positive SLA, an expiry no earlier than it, and a capacity of "
+            "zero or more"
+        )
+    current = c.execute(
+        "SELECT policy_id, version, capacity, default_sla_minutes, default_expiry_minutes,"
+        " reviewer_minutes_per_day, declared_by_actor_id FROM review_queue_policies"
+        " WHERE project_id = %s AND active",
+        (project_id,),
+    ).fetchone()
+    wanted = (capacity, sla_minutes, expiry_minutes, reviewer_minutes_per_day, declared_by)
+    if current is not None and (if_absent or tuple(current[2:]) == wanted):
+        return f"review queue of {project_id} unchanged ({current[0]}@{current[1]})"
+    policy_id = f"rqp:{project_id.removeprefix('prj:')}"
+    versions = [
+        int(v)
+        for (v,) in c.execute(
+            "SELECT version FROM review_queue_policies WHERE policy_id = %s", (policy_id,)
+        ).fetchall()
+        if str(v).isdigit()
+    ]
+    version = str(max(versions, default=0) + 1)
+    try:
+        with c.transaction():
+            c.execute(
+                "UPDATE review_queue_policies SET active = FALSE WHERE project_id = %s AND active",
+                (project_id,),
+            )
+            c.execute(
+                "INSERT INTO review_queue_policies (policy_id, version, project_id, capacity,"
+                " default_sla_minutes, default_expiry_minutes, reviewer_minutes_per_day,"
+                " declared_by_actor_id, effective_from, active)"
+                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)",
+                (
+                    policy_id,
+                    version,
+                    project_id,
+                    capacity,
+                    sla_minutes,
+                    expiry_minutes,
+                    reviewer_minutes_per_day,
+                    declared_by,
+                    at,
+                ),
+            )
+    except Exception as exc:
+        diag = getattr(exc, "diag", None)
+        if getattr(exc, "sqlstate", None) is None and diag is None:
+            raise
+        raise OperatorRefused(
+            getattr(diag, "message_primary", None) or str(exc).splitlines()[0]
+        ) from exc
+    replaced = "" if current is None else f", replacing {current[0]}@{current[1]}"
+    return (
+        f"review queue of {project_id}: {policy_id}@{version} -- capacity {capacity}, due after "
+        f"{sla_minutes} min, expires after {expiry_minutes} min, declared by {declared_by}"
+        f"{replaced}"
+    )
+
+
+FLAG_KINDS = ("FALSE_CONFIRMATION", "UNWARRANTED_CONFIRMATION")
+
+
+def flag_analysis(
+    c: Any,
+    failure_analysis_id: str,
+    *,
+    kind: str,
+    statement: str,
+    evidence: Sequence[str],
+    recorded_by: str,
+) -> str:
+    """Flag a stored conclusion, bound to its exact content; the conclusion is not touched."""
+    if kind not in FLAG_KINDS:
+        raise OperatorRefused(f"a flag is one of {', '.join(FLAG_KINDS)}")
+    if not statement.strip() or not [e for e in evidence if e.strip()]:
+        raise OperatorRefused("a flag says what is wrong and cites at least one piece of evidence")
+    row = c.execute(
+        "SELECT project_id, failure_analysis_digest(f) FROM failure_analyses f"
+        " WHERE f.failure_analysis_id = %s",
+        (failure_analysis_id,),
+    ).fetchone()
+    if row is None:
+        raise OperatorRefused(f"no failure analysis {failure_analysis_id}")
+    flag_id = f"flg:{uuid.uuid4()}"
+    _write(
+        c,
+        "INSERT INTO failure_analysis_flags (flag_id, project_id, failure_analysis_id, kind,"
+        " statement, evidence_refs, analysis_digest, recorded_by)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+        (
+            flag_id,
+            row[0],
+            failure_analysis_id,
+            kind,
+            statement.strip(),
+            [e.strip() for e in evidence if e.strip()],
+            row[1],
+            recorded_by,
+        ),
+    )
+    return f"flagged {failure_analysis_id} {kind} ({flag_id})"
+
+
 def describe(c: Any) -> list[str]:
     """The deployment's actors, projects, memberships and LLM administrators, as text."""
     lines = ["actors:"]
@@ -212,12 +366,16 @@ def _write(c: Any, sql: str, params: Sequence[object]) -> None:
 
 
 __all__ = [
+    "FLAG_KINDS",
     "KNOWN_SCOPES",
     "PRIVACY_MODES",
+    "REVIEW_QUEUE_DEFAULTS",
     "OperatorRefused",
+    "declare_review_queue",
     "describe",
     "ensure_actor",
     "ensure_project",
+    "flag_analysis",
     "grant_llm_admin",
     "revoke_llm_admin",
     "set_membership",

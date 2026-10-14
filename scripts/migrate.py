@@ -284,6 +284,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # WARRANT_GRANT closure kind, and the warrants a confirmation names. After 011f (closure
     # kinds), 011h (review subjects), 011l (failure_analyses) and 005b (transition_policies).
     "012o_causal_warrant_gate.sql",
+    # Causal Warrant Gate V1.1: signed answers under authority-enrolled reviewer keys, the
+    # registered declaration sets and the confirmation rule for every writer, and flags on
+    # recorded conclusions. After 012o (grants, warrant refs) and 011a (conflicts).
+    "012p_causal_warrant_gate_v1_1.sql",
 )
 
 _BOOTSTRAP = """

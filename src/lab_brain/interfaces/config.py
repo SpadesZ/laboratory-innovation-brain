@@ -37,6 +37,10 @@ from typing import Any
 #: half-configured.
 DSN_VARIABLE = "LAB_BRAIN_DATABASE_URL"
 
+#: The deployment's pinned review authorities (Causal Warrant Gate V1.1): a path to a file, read
+#: by `lab_brain.security.reviewer_identity`. Optional; without it no reviewer's answer verifies.
+REVIEW_AUTHORITIES_VARIABLE = "LAB_BRAIN_REVIEW_AUTHORITIES"
+
 
 class ConfigurationError(RuntimeError):
     """The process is not configured to reach a database.
@@ -48,9 +52,11 @@ class ConfigurationError(RuntimeError):
 
 @dataclass(frozen=True)
 class Settings:
-    """Everything a CLI process needs to reach the system. Currently one field."""
+    """Everything a CLI process needs to reach the system."""
 
     dsn: str
+    #: Path of the review authorities file, or empty: no authority, so no answer verifies.
+    review_authorities: str = ""
 
 
 def read_settings(env: Mapping[str, str]) -> Settings:
@@ -62,7 +68,7 @@ def read_settings(env: Mapping[str, str]) -> Settings:
             "default connection on purpose: a command that quietly connected to a plausible "
             "local database would eventually report on the wrong one"
         )
-    return Settings(dsn=dsn)
+    return Settings(dsn=dsn, review_authorities=env.get(REVIEW_AUTHORITIES_VARIABLE, "").strip())
 
 
 def open_connection(settings: Settings) -> Any:
@@ -83,6 +89,7 @@ def open_connection(settings: Settings) -> Any:
 
 __all__ = [
     "DSN_VARIABLE",
+    "REVIEW_AUTHORITIES_VARIABLE",
     "ConfigurationError",
     "Settings",
     "open_connection",

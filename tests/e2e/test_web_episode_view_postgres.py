@@ -54,6 +54,7 @@ from tests.e2e.test_web_debate_retry_postgres import _activated, _deployment
 from tests.e2e.test_web_llm_credentials_postgres import KEY, _post, _setup, _text
 from tests.e2e.test_web_llm_runtime_postgres import _research
 from tests.fake_llm_provider import FakeProvider
+from tests.reviewer_keys import TRUST
 from tests.wsgi_client import Browser
 
 pytestmark = pytest.mark.postgres
@@ -248,6 +249,7 @@ def test_each_executed_check_and_each_governed_move_is_explained_from_the_stored
             db,
             declaration_sets=vertical.declaration_sets,
             active=vertical.active_declarations,
+            trust=TRUST,
         ),
     ).attempt_transition(
         project_id=PROJECT,

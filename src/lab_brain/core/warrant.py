@@ -16,6 +16,11 @@ A catalog reasoner and a language model that state the same declared link are wa
 and a route named after the catalog reasoner gains nothing. Only claim content, the registered
 declaration sets and durable grants decide. A relation that cannot be traced to its prediction gets
 no DOMAIN warrant: there is then no declared link to compare.
+
+A GRANT COUNTS ONLY IF ITS REVIEWER SIGNED IT (V1.1). Every grant read here -- to resolve, and again
+to re-check a stored decision -- goes through the composition root's `GrantAuthenticator`, which
+verifies the reviewer's Ed25519 signature under an authority-enrolled key. An answer that does not
+verify is no answer: it neither warrants nor refuses, and the relation stays unsettled.
 """
 
 from __future__ import annotations
@@ -54,6 +59,10 @@ class GrantLookup(Protocol):
 
     def grant(self, project_id: str, grant_id: str) -> DiagnosticWarrantGrant | None: ...
 
+
+#: None when a recorded answer is one its named reviewer signed under an enrolled key; otherwise
+#: why it is not. Supplied by the composition root (`lab_brain.security.reviewer_identity`).
+GrantAuthenticator = Callable[[DiagnosticWarrantGrant], str | None]
 
 CertificateLookup = Callable[[str, str], HypothesisCertificate | None]
 #: (project, episode) -> every (observation id, observed link) the episode's runs recorded.
@@ -182,6 +191,7 @@ class WarrantResolver:
         observations: ObservationLookup,
         runs: RunLookup,
         grants: GrantLookup | None,
+        authenticate: GrantAuthenticator,
         relations: RelationLookup | None = None,
         declaration_sets: Sequence[DiagnosticDeclarationSet] = (),
         active: str | None = None,
@@ -198,6 +208,8 @@ class WarrantResolver:
         self._observations = observations
         self._runs = runs
         self._grants = grants
+        #: No default: every composition root says whose signatures it trusts, or none.
+        self._authenticate = authenticate
         #: The stored relations, so the read path re-checks a recorded warrant against the
         #: relation as stored -- not against the snapshot's own copy of it. None only where there
         #: is no store to ask (unit tests); a deployment always passes one.
@@ -216,6 +228,29 @@ class WarrantResolver:
 
     def certificate(self, project_id: str, hypothesis_id: str) -> HypothesisCertificate | None:
         return self._certificates(project_id, hypothesis_id)
+
+    def _counted(
+        self, project_id: str, relation_ids: Sequence[str]
+    ) -> tuple[DiagnosticWarrantGrant, ...]:
+        """The recorded answers for these relations that their reviewers signed."""
+        if self._grants is None:
+            return ()
+        return tuple(
+            g
+            for g in self._grants.grants_for_relations(project_id, relation_ids)
+            if self._authenticate(g) is None
+        )
+
+    def unverified_answers(self, project_id: str, relation_ids: Sequence[str]) -> dict[str, str]:
+        """Recorded answers that count as none, by relation, and why -- for the record's notes."""
+        if self._grants is None:
+            return {}
+        found: dict[str, str] = {}
+        for grant in self._grants.grants_for_relations(project_id, relation_ids):
+            why = self._authenticate(grant)
+            if why is not None:
+                found[grant.relation_id] = why
+        return found
 
     # -- facts ------------------------------------------------------------------------------
 
@@ -291,12 +326,9 @@ class WarrantResolver:
             return ResolvedEvidence()
         certificate = self._certificates(project_id, hypothesis_id)
         grants: dict[str, DiagnosticWarrantGrant] = {}
-        if self._grants is not None:
-            for grant in self._grants.grants_for_relations(
-                project_id, [r.relation_id for r in gated]
-            ):
-                if grant.hypothesis_id == hypothesis_id:
-                    grants[grant.relation_id] = grant
+        for grant in self._counted(project_id, [r.relation_id for r in gated]):
+            if grant.hypothesis_id == hypothesis_id:
+                grants[grant.relation_id] = grant
         active = self.active
         records: list[RelationEvidence] = []
         predictions = (
@@ -445,13 +477,7 @@ class WarrantResolver:
                     f"for {record.relation_id}"
                 )
             return
-        grant = (
-            None
-            if self._grants is None
-            else next(
-                iter(self._grants.grants_for_relations(project_id, [record.relation_id])), None
-            )
-        )
+        grant = next(iter(self._counted(project_id, [record.relation_id])), None)
         if record.identifies is not None:
             certificate = self._certificates(project_id, hypothesis_id)
             if (
@@ -485,6 +511,7 @@ __all__ = [
     "AttestationLookup",
     "CertificateLookup",
     "EpisodeOutcomes",
+    "GrantAuthenticator",
     "GrantLookup",
     "ObservationLookup",
     "RelationLookup",

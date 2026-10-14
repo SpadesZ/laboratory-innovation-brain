@@ -10,6 +10,8 @@ authors = [{ name = "SpadesZ", email = "rickiekuo1203@gmail.com" }]
 dependencies = [
     "pydantic>=2.9",
     "pyyaml>=6.0",
+    # Ed25519 signatures on reviewer answers and enrolments (Causal Warrant Gate V1.1).
+    "cryptography>=43",
 ]
 
 [project.optional-dependencies]

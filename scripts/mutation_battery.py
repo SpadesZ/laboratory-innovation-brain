@@ -27,15 +27,28 @@ WITH THE POSTGRES PROFILE ENABLED. Some entries are killed only by PostgreSQL-ga
 skipped test is a passing test as far as the exit code is concerned -- so a run without
 `LAB_BRAIN_TEST_POSTGRES=1` and a migrated `LAB_BRAIN_DATABASE_URL` reports those guards as having
 no teeth when what it actually measured is that their tests did not run.
+
+SQL GUARDS, TOO (Causal Warrant Gate V1.1). An entry whose `path` is a migration is not written to
+disk -- an applied migration is checksummed, and the file is the record. Instead the battery builds
+a template database once per migration (every migration before it, applied in order), then for
+each entry clones the template, applies the MUTATED migration and every later one to the clone,
+runs the entry's tests against the clone (`LAB_BRAIN_DATABASE_URL` pointing at it), and drops it.
+The template and clones live on the server `LAB_BRAIN_DATABASE_URL` names; it must be a
+disposable development server.
+
+    python scripts/mutation_battery.py [--only NAME ...]
 """
 
 from __future__ import annotations
 
+import argparse
+import os
 import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -3918,8 +3931,8 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="unwarranted_conclusions_are_precedents",
         guards="Causal Warrant Gate -- case memory reads warranted conclusions only",
         path="src/lab_brain/core/repositories/failures.py",
-        old="            and a.warrant_refs\n            and normalise_symptom(a.symptom) == wanted\n",
-        new="            and normalise_symptom(a.symptom) == wanted\n",
+        old="    if not analysis.warrant_refs:\n        return (\n",
+        new="    if False:\n        return (\n",
         tests=("tests/unit/test_root_cause_trace.py",),
     ),
     Mutation(
@@ -4230,10 +4243,458 @@ MUTATIONS: tuple[Mutation, ...] = (
         new="        agrees = True\n",
         tests=("tests/unit/test_causal_warrant_gate.py",),
     ),
+    Mutation(
+        name="the_resolver_counts_unverified_answers",
+        guards="Causal Warrant Gate V1.1 -- an answer counts only if its reviewer's signature verifies",
+        path="src/lab_brain/core/warrant.py",
+        old="            if self._authenticate(g) is None\n",
+        new="            if True\n",
+        tests=(
+            "tests/unit/test_reviewer_identity.py",
+            "tests/e2e/test_causal_warrant_v1_1_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="a_grant_signature_is_not_checked",
+        guards="Causal Warrant Gate V1.1 -- the reviewer's signature over the whole answer is verified",
+        path="src/lab_brain/security/reviewer_identity.py",
+        old="        if not _verify(enrolment.public_key, grant.signature, grant.statement()):\n",
+        new="        if False:\n",
+        tests=("tests/unit/test_reviewer_identity.py",),
+    ),
+    Mutation(
+        name="an_enrolment_signature_is_not_checked",
+        guards="Causal Warrant Gate V1.1 -- an enrolment counts only under a pinned authority's signature",
+        path="src/lab_brain/security/reviewer_identity.py",
+        old="        if not _verify(\n            authority.public_key, enrolment.authority_signature, enrolment_statement(enrolment)\n        ):\n",
+        new="        if False:\n",
+        tests=("tests/unit/test_reviewer_identity.py",),
+    ),
+    Mutation(
+        name="any_key_may_claim_the_authority",
+        guards="Causal Warrant Gate V1.1 -- an authority key acts only for the person it is pinned for",
+        path="src/lab_brain/security/reviewer_identity.py",
+        old="        if authority.actor_id != actor_id:\n",
+        new="        if False:\n",
+        tests=("tests/unit/test_reviewer_identity.py",),
+    ),
+    Mutation(
+        name="an_unpinned_key_is_an_authority",
+        guards="Causal Warrant Gate V1.1 -- only a key pinned outside the database is an authority",
+        path="src/lab_brain/security/reviewer_identity.py",
+        old="        authority = self._by_key.get(authority_key_id)\n        if authority is None:\n",
+        new="        authority = self._by_key.get(authority_key_id) or next(iter(self._by_key.values()))\n        if authority is None:\n",
+        tests=("tests/unit/test_reviewer_identity.py",),
+    ),
+    Mutation(
+        name="a_revoked_key_still_answers",
+        guards="Causal Warrant Gate V1.1 -- a revoked key answers nothing from its revocation",
+        path="src/lab_brain/security/reviewer_identity.py",
+        old="            if revocation.effective_at <= grant.granted_at:\n",
+        new="            if False:\n",
+        tests=("tests/unit/test_reviewer_identity.py",),
+    ),
+    Mutation(
+        name="an_answer_may_predate_its_key",
+        guards="Causal Warrant Gate V1.1 -- an answer cannot predate the enrolment of its key",
+        path="src/lab_brain/security/reviewer_identity.py",
+        old="        if grant.granted_at < enrolment.enrolled_at:\n",
+        new="        if False:\n",
+        tests=("tests/unit/test_reviewer_identity.py",),
+    ),
+    Mutation(
+        name="an_unsigned_answer_counts",
+        guards="Causal Warrant Gate V1.1 -- an unsigned answer is no answer",
+        path="src/lab_brain/security/reviewer_identity.py",
+        old="        if grant.enrolment_id is None or grant.signature is None:\n",
+        new="        if False:\n",
+        tests=("tests/unit/test_reviewer_identity.py",),
+    ),
+    Mutation(
+        name="another_persons_enrolment_signs",
+        guards="Causal Warrant Gate V1.1 -- an answer is signed under the answering person's own enrolment",
+        path="src/lab_brain/security/reviewer_identity.py",
+        old="        if (enrolment.project_id, enrolment.actor_id) != (\n",
+        new="        if False and (enrolment.project_id, enrolment.actor_id) != (\n",
+        tests=("tests/unit/test_reviewer_identity.py",),
+    ),
+    Mutation(
+        name="a_flagged_conclusion_is_relied_on",
+        guards="Causal Warrant Gate V1.1 -- a flagged conclusion feeds neither case memory nor the miner",
+        path="src/lab_brain/core/repositories/failures.py",
+        old="    if flags:\n",
+        new="    if False:\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="an_unverifiable_review_conclusion_is_relied_on",
+        guards="Causal Warrant Gate V1.1 -- a conclusion resting on an answer nothing verified is not relied on",
+        path="src/lab_brain/core/repositories/failures.py",
+        old='    if any(not ref.startswith("dds:") for ref in analysis.warrant_refs):\n',
+        new="    if False:\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="the_confirmation_verifier_accepts_anything",
+        guards="Causal Warrant Gate V1.1 -- every answer in a confirmed cause's set must verify before reuse",
+        path="src/lab_brain/storage/postgres/warrants.py",
+        old='            if why is not None:\n                return f"the answer {grant_id}',
+        new='            if False:\n                return f"the answer {grant_id}',
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="declarations_are_not_registered",
+        guards="Causal Warrant Gate V1.1 -- the confirmation rule in SQL reads the code's own declarations",
+        path="tests/vertical_fixtures.py",
+        old="    SqlDeclarationSetStore(connection).ensure((declarations,), declarations.ref)\n",
+        new="",
+        tests=("tests/e2e/test_causal_warrant_counterexample_postgres.py",),
+    ),
+    Mutation(
+        name="a_stranger_declaration_version_is_accepted",
+        guards="Causal Warrant Gate V1.1 -- a declaration version the code does not declare stops the run",
+        path="src/lab_brain/core/repositories/warrants.py",
+        old="        if unknown:\n            raise WarrantStoreError(\n",
+        new="        if False:\n            raise WarrantStoreError(\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="a_changed_declaration_digest_is_accepted",
+        guards="Causal Warrant Gate V1.1 -- a registered declaration version must be the code's, by digest",
+        path="src/lab_brain/core/repositories/warrants.py",
+        old="            if row is not None and row[0] != declarations.digest:\n",
+        new="            if False:\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="the_review_sweep_is_not_run",
+        guards="Causal Warrant Gate V1.1 -- every research run closes the project's overdue reviews first",
+        path="src/lab_brain/research/service.py",
+        old="        self._expire_overdue_reviews(request, trace_id, run)\n",
+        new="",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="the_review_queue_command_ignores_its_declarer",
+        guards="Causal Warrant Gate V1.1 -- a review queue's expiry is a member's standing decision",
+        path="src/lab_brain/interfaces/deployment.py",
+        old='        ).fetchone()\n        is None\n    ):\n        raise OperatorRefused(\n            f"{declared_by} is not an active person',
+        new='        ).fetchone()\n        is None\n        and False\n    ):\n        raise OperatorRefused(\n            f"{declared_by} is not an active person',
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_an_unsigned_answer_is_written",
+        guards="Causal Warrant Gate V1.1 (012p) -- every new answer carries an enrolment and a signature",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF NEW.enrolment_id IS NULL OR NEW.signature IS NULL THEN\n",
+        new="    IF FALSE THEN\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_another_persons_enrolment_signs",
+        guards="Causal Warrant Gate V1.1 (012p) -- an answer is signed under its reviewer's own enrolment",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF NOT FOUND OR v_enrolment.actor_id <> NEW.granted_by_actor_id THEN\n",
+        new="    IF FALSE THEN\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_a_revoked_enrolment_answers",
+        guards="Causal Warrant Gate V1.1 (012p) -- a revoked enrolment answers nothing more",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF EXISTS (SELECT 1 FROM warrant_reviewer_revocations WHERE enrolment_id = NEW.enrolment_id)\n    THEN\n",
+        new="    IF FALSE\n    THEN\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_an_answer_predates_its_key",
+        guards="Causal Warrant Gate V1.1 (012p) -- an answer is dated after its key's enrolment",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF NEW.granted_at < v_enrolment.enrolled_at THEN\n",
+        new="    IF FALSE THEN\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_an_answer_predates_its_question",
+        guards="Causal Warrant Gate V1.1 (012p) -- an answer is dated after its question",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF NEW.granted_at < v_review.created_at THEN\n",
+        new="    IF FALSE THEN\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_a_non_member_is_enrolled",
+        guards="Causal Warrant Gate V1.1 (012p) -- only an active member of the project is enrolled",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="            '% is not an active human member of %, so no reviewer key can be enrolled for them '\n",
+        new="            '% is not an active human member of %, so no reviewer key can be enrolled for them ' || CASE WHEN TRUE THEN '' END\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_a_key_is_shared",
+        guards="Causal Warrant Gate V1.1 (012p) -- one key belongs to one person",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="         WHERE key_id = NEW.key_id AND actor_id <> NEW.actor_id\n",
+        new="         WHERE FALSE\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_a_revoked_key_is_enrolled_again",
+        guards="Causal Warrant Gate V1.1 (012p) -- a revoked key is never enrolled again",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="         WHERE e.key_id = NEW.key_id\n",
+        new="         WHERE FALSE\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_an_authority_key_is_a_reviewer_key",
+        guards="Causal Warrant Gate V1.1 (012p) -- an authority key is never a reviewer key",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="         WHERE key_id = NEW.authority_key_id OR authority_key_id = NEW.key_id\n",
+        new="         WHERE FALSE\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_self_authorization",
+        guards="Causal Warrant Gate V1.1 (012p) -- nobody enrols their own key",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="        CHECK (authority_actor_id <> actor_id),\n",
+        new="        CHECK (TRUE),\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_a_key_id_names_another_key",
+        guards="Causal Warrant Gate V1.1 (012p) -- a key id is the key's own digest",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="        key_id = 'rk:' || left(encode(sha256(decode(public_key, 'base64')), 'hex'), 32)\n",
+        new="        TRUE\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_enrolments_are_editable",
+        guards="Causal Warrant Gate V1.1 (012p) -- enrolments and revocations are append-only",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="DROP TRIGGER IF EXISTS warrant_reviewer_enrolments_no_update ON warrant_reviewer_enrolments;\nCREATE TRIGGER warrant_reviewer_enrolments_no_update\n    BEFORE UPDATE OR DELETE ON warrant_reviewer_enrolments\n",
+        new="DROP TRIGGER IF EXISTS warrant_reviewer_enrolments_no_update ON warrant_reviewer_enrolments;\nCREATE TRIGGER warrant_reviewer_enrolments_no_update\n    BEFORE TRUNCATE ON warrant_reviewer_enrolments\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_the_rule_is_not_enforced",
+        guards="Causal Warrant Gate V1.1 (012p) -- a CONFIRMED row is refused unless the confirmation rule holds",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF cardinality(v_breaches) > 0 THEN\n        RAISE EXCEPTION\n            'failure analysis % confirms %, but",
+        new="    IF FALSE THEN\n        RAISE EXCEPTION\n            'failure analysis % confirms %, but",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_another_classes_signature_is_ignored",
+        guards="Causal Warrant Gate V1.1 (012p) -- another declared class's observed signature blocks a unique confirmation",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="         WHERE 'class:' || d.class_id IS DISTINCT FROM v_key\n",
+        new="         WHERE FALSE\n",
+        tests=(
+            "tests/e2e/test_causal_warrant_v1_1_postgres.py",
+            "tests/e2e/test_causal_warrant_counterexample_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="sql_an_affirming_rival_is_ignored",
+        guards="Causal Warrant Gate V1.1 (012p) -- a rival affirming the supporting observation blocks it unless excluded",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="       AND r.to_entity_id = ANY (v_rivals) AND NOT (r.to_entity_id = ANY (v_excluded));\n",
+        new="       AND FALSE;\n",
+        tests=(
+            "tests/e2e/test_causal_warrant_v1_1_postgres.py",
+            "tests/e2e/test_causal_warrant_counterexample_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="sql_an_unsettled_question_is_ignored",
+        guards="Causal Warrant Gate V1.1 (012p) -- an unanswered question that could overturn the conclusion holds it",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF cardinality(v_found) > 0 THEN\n        v_breaches := v_breaches || format('a person''s answer on %s",
+        new="    IF FALSE THEN\n        v_breaches := v_breaches || format('a person''s answer on %s",
+        tests=("tests/e2e/test_causal_warrant_counterexample_postgres.py",),
+    ),
+    Mutation(
+        name="sql_a_partial_declaration_binds",
+        guards="Causal Warrant Gate V1.1 (012p) -- a class binds only over its whole declaration",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF NOT ((p_supports || chr(31) || 'SUPPORTS') = ANY (v_declared)) THEN\n        RETURN FALSE;\n    END IF;\n    RETURN NOT EXISTS (",
+        new="    RETURN TRUE;\n    RETURN NOT EXISTS (",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_an_identity_statement_is_ignored",
+        guards="Causal Warrant Gate V1.1 (012p) -- a person's identity statement puts a paraphrase in its class",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF cardinality(v_said) = 1 THEN\n",
+        new="    IF FALSE THEN\n",
+        tests=("tests/e2e/test_causal_warrant_counterexample_postgres.py",),
+    ),
+    Mutation(
+        name="sql_a_revoked_answer_counts",
+        guards="Causal Warrant Gate V1.1 (012p) -- an answer from a key revoked before it was given counts for nothing",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="           SELECT 1 FROM warrant_reviewer_revocations v\n            WHERE v.enrolment_id = g.enrolment_id AND v.effective_at <= g.granted_at\n",
+        new="            SELECT 1 WHERE FALSE\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_rivals_may_be_omitted",
+        guards="Causal Warrant Gate V1.1 (012p) -- a confirmation names every member of its set",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF cardinality(v_missing) > 0 THEN\n        RAISE EXCEPTION 'failure analysis % omits rivals",
+        new="    IF FALSE THEN\n        RAISE EXCEPTION 'failure analysis % omits rivals",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_a_class_member_keeps_its_authors_words",
+        guards="Causal Warrant Gate V1.1 (012p) -- a declared class's member is recorded as the class",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="        IF FOUND AND NEW.failure_class IS DISTINCT FROM v_class THEN\n",
+        new="        IF FALSE THEN\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_declarations_are_malformed",
+        guards="Causal Warrant Gate V1.1 (012p) -- a registered declaration set is well formed",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF (SELECT count(*) <> count(DISTINCT d ->> 'class_id')\n",
+        new="    IF FALSE AND (SELECT count(*) <> count(DISTINCT d ->> 'class_id')\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_a_supersession_names_nothing",
+        guards="Causal Warrant Gate V1.1 (012p) -- a version supersedes only an earlier version of its own set",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF NEW.supersedes IS NOT NULL AND (\n",
+        new="    IF FALSE AND (\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_a_flag_moves_to_other_content",
+        guards="Causal Warrant Gate V1.1 (012p) -- a flag names the exact content of the row it flags",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF failure_analysis_digest(v_analysis) <> NEW.analysis_digest THEN\n",
+        new="    IF FALSE THEN\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_an_open_analysis_is_flagged_false",
+        guards="Causal Warrant Gate V1.1 (012p) -- only a confirmation can be a false one",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    IF v_analysis.resolution_status <> 'CONFIRMED' THEN\n        RAISE EXCEPTION 'flag % names %, which is %",
+        new="    IF FALSE THEN\n        RAISE EXCEPTION 'flag % names %, which is %",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_the_known_flag_ignores_content",
+        guards="Causal Warrant Gate V1.1 (012p) -- the recorded false confirmation is flagged only as recorded",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="       AND fa.failure_class = 'missing correction artefact'\n",
+        new="",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
+    Mutation(
+        name="sql_flags_are_editable",
+        guards="Causal Warrant Gate V1.1 (012p) -- flags are append-only",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="    BEFORE UPDATE OR DELETE ON failure_analysis_flags\n",
+        new="    BEFORE TRUNCATE ON failure_analysis_flags\n",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
+    ),
 )
 
 
+def _killed(result: subprocess.CompletedProcess[str]) -> tuple[bool, str]:
+    if result.returncode != 0:
+        tail = [
+            ln for ln in result.stdout.strip().splitlines() if ln.startswith(("FAILED", "ERROR"))
+        ]
+        lines = result.stdout.strip().splitlines() or [result.stderr.strip() or "no output"]
+        first = tail[0] if tail else lines[-1]
+        return True, f"killed by {first[:100]}"
+    return False, "SURVIVED — tests still pass with the guard disabled"
+
+
+def _with_database(url: str, name: str) -> str:
+    parts = urlsplit(url)
+    return urlunsplit(parts._replace(path=f"/{name}"))
+
+
+_TEMPLATES: dict[str, str] = {}
+
+
+def _template(base_url: str, migration: str) -> str:
+    """A database holding every migration before `migration`, built once per battery run."""
+    import psycopg
+
+    if migration in _TEMPLATES:
+        return _TEMPLATES[migration]
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from migrate import APPLY_ORDER  # type: ignore[import-not-found]
+
+    name = f"{urlsplit(base_url).path.lstrip('/')}_battery_tpl"
+    with psycopg.connect(base_url, autocommit=True) as admin:
+        admin.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
+        admin.execute(f'CREATE DATABASE "{name}"')
+    with psycopg.connect(_with_database(base_url, name), autocommit=True) as db:
+        for filename in APPLY_ORDER[: APPLY_ORDER.index(Path(migration).name)]:
+            db.execute((ROOT / "migrations" / filename).read_text(encoding="utf-8"))
+    _TEMPLATES[migration] = name
+    return name
+
+
+def run_sql(mutation: Mutation) -> tuple[bool, str]:
+    """A migration mutation: applied to a clone of the template, never to the file on disk."""
+    import psycopg
+
+    base = os.environ.get("LAB_BRAIN_DATABASE_URL")
+    if not base or os.environ.get("LAB_BRAIN_TEST_POSTGRES") != "1":
+        return False, "NOT RUN — a SQL mutation needs LAB_BRAIN_TEST_POSTGRES=1 and a database URL"
+    source = (ROOT / mutation.path).read_text(encoding="utf-8")
+    if mutation.old not in source:
+        return False, "ANCHOR NOT FOUND — the mutation did not apply"
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from migrate import APPLY_ORDER  # type: ignore[import-not-found]
+
+    template = _template(base, mutation.path)
+    scratch = f"{template}_mut"
+    with psycopg.connect(base, autocommit=True) as admin:
+        admin.execute(f'DROP DATABASE IF EXISTS "{scratch}" WITH (FORCE)')
+        admin.execute(f'CREATE DATABASE "{scratch}" TEMPLATE "{template}"')
+    try:
+        with psycopg.connect(_with_database(base, scratch), autocommit=True) as db:
+            db.execute(source.replace(mutation.old, mutation.new, 1))
+            for filename in APPLY_ORDER[APPLY_ORDER.index(Path(mutation.path).name) + 1 :]:
+                db.execute((ROOT / "migrations" / filename).read_text(encoding="utf-8"))
+        result = subprocess.run(
+            [
+                str(PY),
+                "-m",
+                "pytest",
+                *mutation.tests,
+                "-q",
+                "-x",
+                "--no-header",
+                "-p",
+                "no:cacheprovider",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "LAB_BRAIN_DATABASE_URL": _with_database(base, scratch)},
+        )
+        return _killed(result)
+    finally:
+        with psycopg.connect(base, autocommit=True) as admin:
+            admin.execute(f'DROP DATABASE IF EXISTS "{scratch}" WITH (FORCE)')
+
+
 def run(mutation: Mutation) -> tuple[bool, str]:
+    if mutation.path.startswith("migrations/"):
+        return run_sql(mutation)
     target = ROOT / mutation.path
     # A real file copy rather than holding the source in memory: if this process is killed
     # mid-run, the backup on disk is what lets the working tree be restored by hand.
@@ -4261,31 +4722,31 @@ def run(mutation: Mutation) -> tuple[bool, str]:
             capture_output=True,
             text=True,
         )
-        if result.returncode != 0:
-            tail = [
-                ln
-                for ln in result.stdout.strip().splitlines()
-                if ln.startswith(("FAILED", "ERROR"))
-            ]
-            first = tail[0] if tail else result.stdout.strip().splitlines()[-1]
-            return True, f"killed by {first[:100]}"
-        return False, "SURVIVED — tests still pass with the guard disabled"
+        return _killed(result)
     finally:
         shutil.move(backup, target)
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="targeted mutation battery")
+    parser.add_argument("--only", nargs="*", default=None, help="run only these entries")
+    selected = parser.parse_args().only
+    chosen = [m for m in MUTATIONS if selected is None or m.name in selected]
+    unknown = sorted(set(selected or ()) - {m.name for m in MUTATIONS})
+    if unknown:
+        print(f"unknown entries: {', '.join(unknown)}")
+        return 2
     killed = 0
-    print(f"{len(MUTATIONS)} mutations\n")
-    for mutation in MUTATIONS:
+    print(f"{len(chosen)} mutations\n")
+    for mutation in chosen:
         ok, detail = run(mutation)
         killed += ok
         status = "KILLED " if ok else "SURVIVED"
         print(f"[{status}] {mutation.name}")
         print(f"           {mutation.guards}")
         print(f"           {detail}\n")
-    print(f"{killed}/{len(MUTATIONS)} killed")
-    return 0 if killed == len(MUTATIONS) else 1
+    print(f"{killed}/{len(chosen)} killed")
+    return 0 if killed == len(chosen) else 1
 
 
 if __name__ == "__main__":

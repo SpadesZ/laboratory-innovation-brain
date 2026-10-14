@@ -74,13 +74,14 @@ from lab_brain.interfaces.config import (
     open_connection,
     read_settings,
 )
-from lab_brain.interfaces.review_cli import add_review_parser, run_review
+from lab_brain.interfaces.review_cli import add_review_parser, run_keygen, run_review
 from lab_brain.research.continuation import ContinuationRefused
 from lab_brain.research.literature import LiteratureRequest
 from lab_brain.research.reasoning import active_runtime_name
 from lab_brain.research.render import render_markdown
 from lab_brain.research.service import InputDocument, ResearchEpisodeService, ResearchRequest
 from lab_brain.research.vertical import ENTRY_POINT_GROUP, VerticalNotFound, load_vertical_factory
+from lab_brain.security.reviewer_identity import ReviewerTrust
 from lab_brain.storage.artifacts.local import LocalArtifactStore
 from lab_brain.surface.catalog import MessageCatalog, Severity, default_catalog
 from lab_brain.surface.disclosure import DiagnosticsService, ErrorNotFound
@@ -475,6 +476,34 @@ def build_parser() -> argparse.ArgumentParser:
     )
     llm_admin.add_argument("actor_id")
     llm_admin.add_argument("--revoke", action="store_true")
+    queue = admin_sub.add_parser(
+        "review-queue",
+        help="declare a project's review-queue policy (capacity, SLA, expiry) as a new version",
+    )
+    queue.add_argument("project_id")
+    queue.add_argument(
+        "--declared-by",
+        required=True,
+        help="the member whose standing decision authorises expiry under this policy",
+    )
+    queue.add_argument("--capacity", type=int, default=50)
+    queue.add_argument("--sla-minutes", type=int, default=3 * 24 * 60)
+    queue.add_argument("--expiry-minutes", type=int, default=14 * 24 * 60)
+    queue.add_argument("--reviewer-minutes-per-day", type=int, default=60)
+    queue.add_argument(
+        "--if-absent", action="store_true", help="leave an existing active policy as it is"
+    )
+    flag = admin_sub.add_parser(
+        "flag-analysis",
+        help="record that a stored conclusion is wrong or unwarranted (it is never edited)",
+    )
+    flag.add_argument("failure_analysis_id")
+    flag.add_argument(
+        "--kind", required=True, choices=["FALSE_CONFIRMATION", "UNWARRANTED_CONFIRMATION"]
+    )
+    flag.add_argument("--statement", required=True)
+    flag.add_argument("--evidence", action="append", required=True, help="repeatable")
+    flag.add_argument("--actor", required=True, help="the person recording the flag")
     admin_sub.add_parser("show", help="list actors, projects, memberships, LLM administrators")
     return parser
 
@@ -704,6 +733,10 @@ def main(
     stream = out or sys.stdout
     opener = connect or open_connection
 
+    if args.command == "review" and args.review_command == "keygen":
+        # A key is made on the person's own machine and recorded nowhere: no database.
+        return run_keygen(args, out=stream, env=os.environ if env is None else env)
+
     try:
         settings = read_settings(os.environ if env is None else env)
     except ConfigurationError as exc:
@@ -729,7 +762,13 @@ def main(
             # The resolve function writes three rows in one statement; autocommit, as the other
             # durable stores require.
             connection.autocommit = True
-            return run_review(args, connection, out=stream)
+            return run_review(
+                args,
+                connection,
+                out=stream,
+                trust=ReviewerTrust.configured_at(settings.review_authorities),
+                env=os.environ if env is None else env,
+            )
         if args.command == "research":
             try:
                 factory = load_vertical_factory(args.domain or _only_vertical())
@@ -759,6 +798,7 @@ def main(
                     connection=connection,
                     artifact_store=LocalArtifactStore(Path(args.artifact_root).resolve()),
                     vertical_factory=factory,
+                    reviewer_trust=ReviewerTrust.configured_at(settings.review_authorities),
                 ),
                 request,
                 out=stream,
@@ -897,6 +937,31 @@ def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
         elif args.admin_command == "llm-admin":
             change = deployment.revoke_llm_admin if args.revoke else deployment.grant_llm_admin
             lines = [change(connection, args.actor_id, utc_now())]
+        elif args.admin_command == "review-queue":
+            lines = [
+                deployment.declare_review_queue(
+                    connection,
+                    args.project_id,
+                    declared_by=args.declared_by,
+                    at=utc_now(),
+                    capacity=args.capacity,
+                    sla_minutes=args.sla_minutes,
+                    expiry_minutes=args.expiry_minutes,
+                    reviewer_minutes_per_day=args.reviewer_minutes_per_day,
+                    if_absent=args.if_absent,
+                )
+            ]
+        elif args.admin_command == "flag-analysis":
+            lines = [
+                deployment.flag_analysis(
+                    connection,
+                    args.failure_analysis_id,
+                    kind=args.kind,
+                    statement=args.statement,
+                    evidence=args.evidence,
+                    recorded_by=args.actor,
+                )
+            ]
         else:
             lines = deployment.describe(connection)
     except deployment.OperatorRefused as refused:

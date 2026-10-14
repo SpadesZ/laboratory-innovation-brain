@@ -242,6 +242,12 @@ class _Grants:
         return next((g for g in self._grants if g.grant_id == grant_id), None)
 
 
+def _signed_as_given(_grant: DiagnosticWarrantGrant) -> None:
+    """These tests are about what an answer warrants once it counts; that a grant counts only
+    when its reviewer's signature verifies is `tests/unit/test_reviewer_identity.py`'s."""
+    return None
+
+
 def _resolver(
     *certificates: HypothesisCertificate,
     grants: _Grants | None = None,
@@ -255,6 +261,7 @@ def _resolver(
         observations=lambda _p, _o: None,
         runs=lambda _r: None,
         grants=grants,
+        authenticate=_signed_as_given,
         relations=relations,
         declaration_sets=(FIBRE,),
         active=FIBRE.ref,

@@ -73,14 +73,19 @@ def _model_statement(db: Any, run: VerticalRun, mechanism: str) -> str:
 
 
 def _insert_analysis(
-    db: Any, run: VerticalRun, cause: str, evidence: list[str], warrants: tuple[str, ...] = ()
+    db: Any,
+    run: VerticalRun,
+    cause: str,
+    evidence: list[str],
+    warrants: tuple[str, ...] = (),
+    failure_class: str = "forged",
 ) -> None:
     db.execute(
         "INSERT INTO failure_analyses (failure_analysis_id, project_id, episode_id, symptom,"
         " expected_behavior, observed_behavior, candidate_causes, confirmed_root_cause,"
         " root_cause_evidence_ids, failure_class, resolution_status, created_at, warrant_refs)"
         " VALUES (%s, %s, %s, 'Rs flat', 'design Rs', 'several times design', %s, %s, %s,"
-        " 'forged', 'CONFIRMED', %s, %s)",
+        " %s, 'CONFIRMED', %s, %s)",
         (
             "fan:forged",
             PROJECT,
@@ -88,6 +93,7 @@ def _insert_analysis(
             [c.hypothesis_id for c in run.debate.certificates],
             cause,
             evidence,
+            failure_class,
             T,
             list(warrants),
         ),
@@ -202,7 +208,17 @@ def test_sql_refuses_a_confirmation_resting_on_anything_but_executed_evidence(db
     genuine = list(run.result.failure_analysis.root_cause_evidence_ids)
     with pytest.raises(Exception, match="no diagnostic warrant"):
         _insert_analysis(db, run, contact, genuine)
-    _insert_analysis(db, run, contact, genuine, run.result.failure_analysis.warrant_refs)
+    # Since V1.1 (`012p`) a member of a declared class is recorded as that class, for every writer.
+    with pytest.raises(Exception, match="is recorded as that class"):
+        _insert_analysis(db, run, contact, genuine, run.result.failure_analysis.warrant_refs)
+    _insert_analysis(
+        db,
+        run,
+        contact,
+        genuine,
+        run.result.failure_analysis.warrant_refs,
+        failure_class=run.result.failure_analysis.failure_class,
+    )
 
 
 def test_candidate_heuristics_rest_on_confirmed_failures_and_the_memory_is_append_only(db):

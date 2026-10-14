@@ -60,7 +60,10 @@ from lab_brain.core.repositories.verification_plans import (
     InMemoryVerificationPlanStore,
     SqlVerificationPlanStore,
 )
-from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore
+from lab_brain.core.repositories.warrants import (
+    SqlDeclarationSetStore,
+    SqlDiagnosticWarrantStore,
+)
 from lab_brain.domains.registry import DomainPackRegistry
 from lab_brain.domains.silicon_photonics import SiliconPhotonicsPack
 from lab_brain.domains.silicon_photonics import vertical as sp_vertical
@@ -82,7 +85,11 @@ from lab_brain.storage.artifacts.local import InMemoryArtifactStore
 from lab_brain.storage.postgres.capabilities import PostgresResourceBroker
 from lab_brain.storage.postgres.run_outputs import SqlRunOutputSink
 from lab_brain.storage.postgres.verification_evidence import SqlEvidenceSink
-from lab_brain.storage.postgres.warrants import episode_outcomes, sql_warrant_resolver
+from lab_brain.storage.postgres.warrants import (
+    confirmation_verifier,
+    episode_outcomes,
+    sql_warrant_resolver,
+)
 from lab_brain.tool_providers.lumerical.mock_vertical import (
     MockChargeDcBackend,
     MockMeshSensitivityBackend,
@@ -118,6 +125,7 @@ from tests.debate_fixtures import (
     build_world,
     fixture_falsifier,
 )
+from tests.reviewer_keys import TRUST
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_PATH = ROOT / "fixtures" / "vertical" / "sp_rs_root_cause_benchmark.json"
@@ -300,6 +308,39 @@ class VerticalRun:
         )
 
 
+class CheckedLoop(VerificationLoop):
+    """The loop, with the database's confirmation rule held to the loop's after every run.
+
+    `confirmation_rule_breaches` (`012p`) restates `VerificationLoop.standing` in SQL so that a
+    direct writer meets the same rule. Two statements of one rule drift unless something holds
+    them together: after each run, for every member, SQL finds no breach exactly when the loop's
+    rule would confirm that member. Every PostgreSQL scenario built on `run_case` checks it.
+    """
+
+    def __init__(self, dependencies: LoopDependencies, connection: Any) -> None:
+        super().__init__(dependencies)
+        self._connection = connection
+
+    def run(self, request: LoopRequest) -> LoopResult:
+        result = super().run(request)
+        assert_rules_agree(self._connection, self, request)
+        return result
+
+
+def assert_rules_agree(connection: Any, loop: VerificationLoop, request: LoopRequest) -> None:
+    confirmable = loop.standing(request).confirmable
+    for hypothesis_id in sorted(c.hypothesis_id for c in request.certificates):
+        row = connection.execute(
+            "SELECT confirmation_rule_breaches(%s, %s, %s)",
+            (request.project_id, request.episode_id, hypothesis_id),
+        ).fetchone()
+        breaches = list(row[0] or ())
+        assert (not breaches) == (confirmable == hypothesis_id), (
+            f"the SQL and Python confirmation rules disagree on {hypothesis_id}: the loop would "
+            f"confirm {confirmable}; SQL finds {breaches or 'no breach'}"
+        )
+
+
 def _mechanism_key(fx: Mapping[str, Any], mechanism: str) -> str:
     key: str = next(k for k, m in fx["mechanisms"].items() if m["mechanism"] == mechanism)
     return key
@@ -432,6 +473,7 @@ def run_case(
     # The pack's own diagnostic declarations, as the product resolves them -- never the fixture's
     # mechanisms, so a test cannot warrant itself.
     declarations = diagnostic_declaration_set()
+    SqlDeclarationSetStore(connection).ensure((declarations,), declarations.ref)
     authority = sp_vertical.VerticalAuthorityPolicy()
     v1 = SiliconPhotonicsAuthorityPolicy()
     episode = BeliefEpisode(
@@ -448,7 +490,7 @@ def run_case(
             (authority.policy_id, authority.policy_version): authority,
         },
         warrants=sql_warrant_resolver(
-            connection, declaration_sets=(declarations,), active=declarations.ref
+            connection, declaration_sets=(declarations,), active=declarations.ref, trust=TRUST
         ),
         warrant_reviews=SqlDiagnosticWarrantStore(connection),
         superseded=superseded_versions(
@@ -467,7 +509,7 @@ def run_case(
         attestations=world.find_attestation,
     )
     evidence = SqlEvidenceSink(connection=connection, outputs=outputs)
-    failures = SqlFailureStore(connection)
+    failures = SqlFailureStore(connection, verify=confirmation_verifier(connection, TRUST))
     inner = LeastCostPlanner(
         capabilities=regs.capabilities,
         metrics=regs.disagreement_metrics,
@@ -517,6 +559,9 @@ def run_case(
         declarations=declarations,
         episode_outcomes=episode_outcomes(connection),
         relations_from=SqlRelationStore(connection).from_observation,
+        unverified_answers=sql_warrant_resolver(
+            connection, declaration_sets=(declarations,), active=declarations.ref, trust=TRUST
+        ).unverified_answers,
     )
     request = LoopRequest(
         project_id=PROJECT,
@@ -546,7 +591,7 @@ def run_case(
             caps=BudgetCaps(wall_clock_s=10**8, license_seat_s=10**7, human_minutes=10**4),
         ),
     )
-    loop = VerificationLoop(deps)
+    loop = CheckedLoop(deps, connection)
     result = loop.run(request)
     return VerticalRun(
         case_id=str(case["case_id"]),

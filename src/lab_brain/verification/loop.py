@@ -298,6 +298,10 @@ class LoopDependencies:
     #: Every relation one observation produced, invalidated ones included: a rival's affirmation
     #: of the observation a candidate rests on does not vanish because its window was closed.
     relations_from: Callable[[str, str], Sequence[RelationJudgment]] | None = None
+    #: Recorded reviewer answers that count as none -- unsigned, or not verifying under the
+    #: deployment's review authorities -- by relation, and why (V1.1). Read for the notes only:
+    #: the resolver already ignores them.
+    unverified_answers: Callable[[str, Sequence[str]], Mapping[str, str]] | None = None
 
 
 @dataclass(frozen=True)
@@ -1074,16 +1078,17 @@ class VerificationLoop:
     def _observed_signatures(
         self, observed: Sequence[tuple[str, Link]]
     ) -> list[tuple[str, DiagnosticDeclaration]]:
-        """Each declared signature the episode observed, by observation."""
+        """Every declared signature the episode observed, by observation -- each one, never only
+        the first an observation records (`confirmation_rule_breaches` reads them all too)."""
         declarations = self._d.declarations
         if declarations is None:
             return []
-        found: dict[str, DiagnosticDeclaration] = {}
+        found: dict[tuple[str, str], DiagnosticDeclaration] = {}
         for observation_id, link in observed:
             owner = declarations.signature_of(link)
             if owner is not None:
-                found.setdefault(observation_id, owner)
-        return sorted(found.items())
+                found.setdefault((observation_id, owner.class_id), owner)
+        return [(where, owner) for (where, _), owner in sorted(found.items())]
 
     def _ask(self, request: LoopRequest, relation_ids: Sequence[str], notes: list[str]) -> None:
         """Queue the warrant reviews the confirmation rule is waiting on, idempotently.
@@ -1267,7 +1272,33 @@ class VerificationLoop:
                 ),
                 created_at=d.now(),
             )
-        stored = d.failures.add_analysis(analysis)
+        extra.extend(n for n in self._unverified_notes(request) if n not in extra)
+        try:
+            stored = d.failures.add_analysis(analysis)
+        except RepositoryError as refused:
+            if analysis.resolution_status is not ResolutionStatus.CONFIRMED:
+                raise
+            # The database evaluates the confirmation rule for every writer (`012p`). A refusal
+            # here means the record does not support what the loop concluded: record nothing
+            # stronger than an open question, and say why.
+            extra = [n for n in extra if not n.startswith("confirmed ")]
+            extra.append(f"the database refused the confirmation of {supported}: {refused}")
+            stop = StopReason.HUMAN_ACTION_REQUIRED
+            trace = None
+            stored = d.failures.add_analysis(
+                FailureAnalysis(
+                    failure_analysis_id=d.mint("failure_analysis"),
+                    project_id=request.project_id,
+                    episode_id=request.episode_id,
+                    symptom=request.symptom,
+                    expected_behavior=request.expected_behavior,
+                    observed_behavior=request.observed_behavior,
+                    candidate_causes=causes,
+                    failure_class="UNRESOLVED",
+                    resolution_status=ResolutionStatus.OPEN,
+                    created_at=d.now(),
+                )
+            )
         candidates: tuple[CandidateHeuristic, ...] = ()
         if stored.resolution_status is ResolutionStatus.CONFIRMED:
             candidates = self._mine(request.project_id)
@@ -1337,16 +1368,31 @@ class VerificationLoop:
             )
         )
 
+    def _unverified_notes(self, request: LoopRequest) -> list[str]:
+        """Say so when a recorded reviewer answer counts as none: it does not verify."""
+        reader = self._d.unverified_answers
+        if reader is None:
+            return []
+        relations = sorted(
+            {
+                r.relation_id
+                for c in request.certificates
+                for r in self._d.evidence.admitted_for_subject(request.project_id, c.hypothesis_id)
+                if r.relation_type in (RelationType.SUPPORTS, RelationType.CONTRADICTS)
+            }
+        )
+        return [
+            f"the answer recorded on {relation_id} counts as no answer: {why}"
+            for relation_id, why in sorted(reader(request.project_id, relations).items())
+        ]
+
     def _mine(self, project_id: str) -> tuple[CandidateHeuristic, ...]:
         d = self._d
-        # Only conclusions that name their warrants generalise. A confirmation recorded before the
+        # Only conclusions case memory may rely on generalise: they name their warrants, carry no
+        # flag, and every reviewer answer behind them verifies. A confirmation recorded before the
         # Causal Warrant Gate stays on record and is not mined: nothing says its support diagnosed
         # its mechanism.
-        confirmed = [
-            f
-            for f in d.failures.analyses(project_id)
-            if f.resolution_status is ResolutionStatus.CONFIRMED and f.warrant_refs
-        ]
+        confirmed = list(d.failures.trusted_confirmations(project_id))
         evidence: dict[str, MinedEvidence] = {}
         usable: list[FailureAnalysis] = []
         for failure in confirmed:

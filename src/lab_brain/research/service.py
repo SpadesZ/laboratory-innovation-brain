@@ -97,7 +97,8 @@ from lab_brain.core.repositories.observability import SqlSpanRepository
 from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from lab_brain.core.repositories.source_works import SqlClaimStore, SqlSourceWorkStore
 from lab_brain.core.repositories.verification_plans import SqlVerificationPlanStore
-from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore
+from lab_brain.core.repositories.warrants import SqlDeclarationSetStore, SqlDiagnosticWarrantStore
+from lab_brain.core.review_expiry import ReviewExpiryProcessor
 from lab_brain.core.revision_gate import HypothesisRevisionGate
 from lab_brain.core.scientific_read import ScientificReadRefused
 from lab_brain.evidence.dense_index import EmbeddingSpace, hashing_embedder
@@ -149,11 +150,16 @@ from lab_brain.research.vertical import (
 )
 from lab_brain.security.egress import EgressAuditLog, EgressGate
 from lab_brain.security.external import AuthorizedExternalRunner, ExternalReach
+from lab_brain.security.reviewer_identity import ReviewerTrust
 from lab_brain.storage.postgres.capabilities import PostgresResourceBroker
 from lab_brain.storage.postgres.external_artifacts import SqlExternalArtifactSink
 from lab_brain.storage.postgres.run_outputs import SqlRunOutputSink
 from lab_brain.storage.postgres.verification_evidence import SqlEvidenceSink
-from lab_brain.storage.postgres.warrants import episode_outcomes, sql_warrant_resolver
+from lab_brain.storage.postgres.warrants import (
+    confirmation_verifier,
+    episode_outcomes,
+    sql_warrant_resolver,
+)
 from lab_brain.surface.ingestion_item import derive_state
 from lab_brain.tools.dispatch import BudgetedToolDispatcher
 from lab_brain.verification.least_cost import LeastCostPlanner
@@ -342,15 +348,21 @@ class ResearchEpisodeService:
         clock: Callable[[], dt.datetime] = utc_now,
         mint: Callable[[str], str] = new_id,
         reasoning: ReasoningRuntime | None = None,
+        reviewer_trust: ReviewerTrust | None = None,
     ) -> None:
         """`reasoning` is the active language-model runtime, if one is active. `None` is the
-        explicit fallback: the pack's local catalog reasoner serves every model slot."""
+        explicit fallback: the pack's local catalog reasoner serves every model slot.
+
+        `reviewer_trust` is the deployment's pinned review authorities (Causal Warrant Gate
+        V1.1). Without one, no reviewer's answer verifies, so no REVIEW warrant counts: DOMAIN
+        warrants still do, and everything that needs a person waits."""
         self._connection = connection
         self._store = artifact_store
         self._factory = vertical_factory
         self._clock = clock
         self._mint = mint
         self._reasoning = reasoning
+        self._trust = reviewer_trust or ReviewerTrust()
         self._service = IngestionService(
             connection=connection, artifact_store=artifact_store, clock=clock
         )
@@ -767,6 +779,9 @@ class ResearchEpisodeService:
         for policy in (ADMISSION_POLICY, *vertical.transition_policies):
             if policies.get(policy.policy_id, policy.version) is None:
                 policies.register(policy)
+        # The confirmation rule is evaluated in SQL for every writer (`012p`), over the
+        # declarations this code registers -- exactly, or not at all.
+        SqlDeclarationSetStore(c).ensure(vertical.declaration_sets, vertical.active_declarations)
         benchmarks = SqlBenchmarkStore(c)
         for space in vertical.registry.registries.disagreement_metrics.declared_spaces():
             if benchmarks.outcome_space(space.outcome_space_id, space.version) is None:
@@ -1239,6 +1254,7 @@ class ResearchEpisodeService:
                 c,
                 declaration_sets=vertical.declaration_sets,
                 active=vertical.active_declarations,
+                trust=self._trust,
             ),
             warrant_reviews=SqlDiagnosticWarrantStore(c),
             superseded=superseded_versions(vertical.transition_policies),
@@ -1258,6 +1274,34 @@ class ResearchEpisodeService:
         return brain, episode
 
     # -- 6. verification: M4's loop, and 7. the pending question --------------------------------
+
+    def _expire_overdue_reviews(self, request: ResearchRequest, trace_id: str, run: _Run) -> None:
+        """Close the project's overdue reviews through OPS-002's declared path before verifying.
+
+        An overdue DIAGNOSTIC_WARRANT review is not answerable (a late answer is refused) and,
+        left QUEUED, would hold its relation's question forever. Expired, it is closed against a
+        GovernanceEvent -- nobody decided -- and the loop asks again in this run. The queue
+        policy that priced each item is what authorises its expiry; this run only carries it out.
+        """
+        swept = ReviewExpiryProcessor(reviews=SqlReviewItemStore(self._connection)).sweep(
+            project_id=request.project_id,
+            now=self._clock(),
+            actor_id=request.actor_id,
+            trace_id=trace_id,
+        )
+        if swept.expired or swept.refused:
+            run.stage(
+                "review expiry",
+                "DONE" if not swept.refused else "PARTIAL",
+                f"closed {len(swept.expired)} overdue review(s) by expiry; they are asked again "
+                "if still needed"
+                + (
+                    f"; {len(swept.refused)} could not be expired: "
+                    + "; ".join(f"{k}: {v}" for k, v in sorted(swept.refused.items()))
+                    if swept.refused
+                    else ""
+                ),
+            )
 
     def _verify(
         self,
@@ -1279,11 +1323,12 @@ class ResearchEpisodeService:
             )
             return
         c = self._connection
+        self._expire_overdue_reviews(request, trace_id, run)
         regs = vertical.registry.registries
         jobs = SqlJobStore(c)
         outputs = SqlRunOutputSink(connection=c, store=self._store, now=self._clock)
         evidence = SqlEvidenceSink(connection=c, outputs=outputs)
-        failures = SqlFailureStore(c)
+        failures = SqlFailureStore(c, verify=confirmation_verifier(c, self._trust))
         events = SqlBeliefEventStore(c)
         planner = cast(
             Planner,
@@ -1337,6 +1382,12 @@ class ResearchEpisodeService:
                 warrant_reviews=SqlDiagnosticWarrantStore(c),
                 episode_outcomes=episode_outcomes(c),
                 relations_from=SqlRelationStore(c).from_observation,
+                unverified_answers=sql_warrant_resolver(
+                    c,
+                    declaration_sets=vertical.declaration_sets,
+                    active=vertical.active_declarations,
+                    trust=self._trust,
+                ).unverified_answers,
                 declarations=next(
                     (s for s in vertical.declaration_sets if s.ref == vertical.active_declarations),
                     None,
@@ -1500,6 +1551,7 @@ class ResearchEpisodeService:
                     c,
                     declaration_sets=vertical.declaration_sets,
                     active=vertical.active_declarations,
+                    trust=self._trust,
                 ),
             )
             for certificate in sorted(
