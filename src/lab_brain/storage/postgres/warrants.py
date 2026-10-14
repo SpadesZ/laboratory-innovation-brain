@@ -48,7 +48,12 @@ def sql_warrant_resolver(
     )
 
 
-def confirmation_verifier(connection: Any, trust: ReviewerTrust) -> ConfirmationVerifier:
+def confirmation_verifier(
+    connection: Any,
+    trust: ReviewerTrust,
+    *,
+    declaration_sets: Sequence[DiagnosticDeclarationSet],
+) -> ConfirmationVerifier:
     """Whether a stored confirmation may inform case memory and the miner (V1.1).
 
     The database refused it unless the confirmation rule held over the recorded evidence (`012p`),
@@ -57,11 +62,18 @@ def confirmation_verifier(connection: Any, trust: ReviewerTrust) -> Confirmation
     nothing the loop did, and the database cannot tell; a confirmation that it could have shaped
     is not relied on. Conservative by design: one bad answer in the set withholds the conclusion
     from reuse, never from the record.
+
+    A DOMAIN warrant (`dds:`) must name a class of a declaration set this code registers: SQL
+    accepted it against whatever the table held, and only the code is the domain's declaration.
     """
     store = SqlDiagnosticWarrantStore(connection)
     authenticate = grant_authenticator(store, trust)
+    declared = {s.domain_ref(d) for s in declaration_sets for d in s.declarations}
 
     def verify(analysis: FailureAnalysis) -> str | None:
+        for ref in analysis.warrant_refs:
+            if ref.startswith("dds:") and ref not in declared:
+                return f"its DOMAIN warrant {ref} names no declaration this code registers"
         rows = connection.execute(
             "SELECT g.grant_id FROM diagnostic_warrant_grants g"
             " JOIN hypotheses h ON h.hypothesis_id = g.hypothesis_id"

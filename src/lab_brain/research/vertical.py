@@ -102,6 +102,27 @@ class ProductVertical:
     active_declarations: str | None = None
 
 
+def installed_declaration_sets() -> tuple[DiagnosticDeclarationSet, ...]:
+    """Every diagnostic declaration set the installed product verticals register.
+
+    Built with no backends: a vertical's declarations are data, and reading them executes nothing.
+    A vertical that cannot be built this way contributes nothing rather than failing the caller --
+    which then trusts fewer DOMAIN warrants, never more.
+    """
+    from importlib.metadata import entry_points
+
+    found: list[DiagnosticDeclarationSet] = []
+    for entry in entry_points(group=ENTRY_POINT_GROUP):
+        try:
+            vertical = entry.load()(
+                outputs=None, jobs=None, broker=None, now=lambda: dt.datetime.now(dt.UTC)
+            )
+        except Exception:  # pragma: no cover - a vertical that needs its backends to build
+            continue
+        found.extend(vertical.declaration_sets)
+    return tuple(found)
+
+
 class VerticalFactory(Protocol):
     """What an entry point in `lab_brain.domain_verticals` resolves to."""
 

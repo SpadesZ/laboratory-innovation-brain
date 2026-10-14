@@ -1328,7 +1328,12 @@ class ResearchEpisodeService:
         jobs = SqlJobStore(c)
         outputs = SqlRunOutputSink(connection=c, store=self._store, now=self._clock)
         evidence = SqlEvidenceSink(connection=c, outputs=outputs)
-        failures = SqlFailureStore(c, verify=confirmation_verifier(c, self._trust))
+        failures = SqlFailureStore(
+            c,
+            verify=confirmation_verifier(
+                c, self._trust, declaration_sets=vertical.declaration_sets
+            ),
+        )
         events = SqlBeliefEventStore(c)
         planner = cast(
             Planner,

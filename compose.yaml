@@ -40,6 +40,10 @@
 #   LAB_BRAIN_INFERENCE_DEADLINE  seconds one model call may wait for its answer (default 180):
 #                             ONE value for `web` (research calls, probes from the page) and
 #                             `local-models` (its probes). A CPU-only local model needs more
+#   LAB_BRAIN_REVIEW_AUTHORITIES_FILE  the host file pinning the review authorities whose enrolled
+#                             reviewers may answer diagnostic warrant reviews (Causal Warrant Gate
+#                             V1.1), mounted read-only. The default, the committed example, pins
+#                             none: no answer verifies and anything needing a person waits
 
 name: lab-brain-workspace
 
@@ -55,8 +59,10 @@ x-app: &app
     LAB_BRAIN_PROJECT: ${LAB_BRAIN_PROJECT:-prj:lab}
     LAB_BRAIN_PROJECT_NAME: ${LAB_BRAIN_PROJECT_NAME:-Laboratory}
     LAB_BRAIN_CLEARANCE: ${LAB_BRAIN_CLEARANCE:-PUBLIC,INTERNAL}
+    LAB_BRAIN_REVIEW_AUTHORITIES: /run/lab-brain-review/authorities
   volumes:
     - secrets:/run/lab-brain-secrets:ro
+    - ${LAB_BRAIN_REVIEW_AUTHORITIES_FILE:-./deployment/docker/review-authorities.example}:/run/lab-brain-review/authorities:ro
 
 services:
   secrets:
@@ -130,6 +136,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - secrets:/run/lab-brain-secrets:ro
+      - ${LAB_BRAIN_REVIEW_AUTHORITIES_FILE:-./deployment/docker/review-authorities.example}:/run/lab-brain-review/authorities:ro
       - artifacts:/var/lib/lab-brain/artifacts
       # Pasted model-provider keys: this service only (see the header).
       - credentials:/var/lib/lab-brain/credentials

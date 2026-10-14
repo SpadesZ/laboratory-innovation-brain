@@ -652,10 +652,23 @@ class SqlDeclarationSetStore:
         set_ids = sorted({s.set_id for s in declaration_sets})
         if not set_ids:
             return
+        # Any registered version this code does not declare that could speak to this code's
+        # domain: a version of one of its sets, or any set declaring a class on an observable its
+        # declarations use. The SQL rule reads every active set, so a set nobody reviewed as code
+        # would otherwise bind hypotheses, warrant links and own signatures here.
+        observables = sorted(
+            {
+                "\x1f".join((d.observable_ref, d.outcome_space_id, d.outcome_space_version))
+                for s in declaration_sets
+                for d in s.declarations
+            }
+        )
         stranger = self._connection.execute(
-            "SELECT set_id || '@' || version FROM diagnostic_declaration_sets"
-            " WHERE set_id = ANY (%s) ORDER BY 1",
-            (set_ids,),
+            "SELECT DISTINCT set_ref FROM diagnostic_declarations"
+            " WHERE set_id = ANY (%s)"
+            " OR concat_ws(chr(31), observable_ref, outcome_space_id, outcome_space_version)"
+            " = ANY (%s) ORDER BY 1",
+            (set_ids, observables),
         ).fetchall()
         unknown = sorted(str(r[0]) for r in stranger if str(r[0]) not in known)
         if unknown:

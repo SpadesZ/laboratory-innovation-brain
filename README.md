@@ -232,6 +232,18 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   舊版政策與所有已存決策可逐位元重新推導；先前未經認可的確認保留在紀錄中，但不再作為前例或歸納啟發式的來源。
   設計與稽核記錄：
   [`docs/implementation/causal-warrant-gate-v1.md`](docs/implementation/causal-warrant-gate-v1.md)。
+- 因果依據閘門 V1.1（同一分支，未合併）：
+  - **回答依據審查的人必須以金鑰簽章**。審查權限者（authority）以自己的金鑰登錄審查者的公鑰
+    （`lab-brain review keygen|enrol|revoke|keys`），審查者以 `lab-brain review resolve --key` 簽署答覆。
+    每次讀取答覆時都會驗證簽章。
+  - 審查權限者的公鑰放在資料庫之外的設定檔（`LAB_BRAIN_REVIEW_AUTHORITIES`），所以能寫資料庫的人無法冒用
+    他人身分回答。未設定時，任何答覆都不成立（失效即關閉）。
+  - 資料庫對每一個寫入者檢查確認規則：直接寫入的 CONFIRMED 列，若規則不成立就會被拒絕。
+  - 審查佇列以 `lab-brain admin review-queue` 宣告。每次 research run 會先關閉逾期的審查，必要時重新詢問。
+  - 已知的錯誤確認 `fan:30d9407f` 以 `012p` 附上 FALSE_CONFIRMATION 標註：紀錄本身不修改，episode 頁面
+    會在結論旁顯示標註，也不再作為先例或歸納來源。
+  - 設計記錄：
+    [`docs/implementation/causal-warrant-gate-v1.1.md`](docs/implementation/causal-warrant-gate-v1.1.md)。
 - 套用配置後，新研究經由同一個 `ScientificLLM`、預算／外部傳輸規則、型別化角色解析器與
   InferenceProvenance 使用真實模型；未套用時由本機規則式推理負責（明示的備援）。「反方審查」退回
   「主要推理」時會明確標示「不是獨立的模型」。

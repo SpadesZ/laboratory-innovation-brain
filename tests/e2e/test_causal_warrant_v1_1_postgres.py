@@ -321,7 +321,10 @@ def test_a_signed_answer_still_confirms_and_is_relied_on_only_where_it_verifies(
     resumed = run.loop.run(run.request)
     assert resumed.stop_reason is StopReason.CONFIRMED
     confirmed = resumed.failure_analysis.failure_analysis_id
-    trusted = SqlFailureStore(db, verify=confirmation_verifier(db, TRUST))
+    trusted = SqlFailureStore(
+        db,
+        verify=confirmation_verifier(db, TRUST, declaration_sets=(diagnostic_declaration_set(),)),
+    )
     assert confirmed in {a.failure_analysis_id for a in trusted.trusted_confirmations(PROJECT)}
     unverifiable = SqlFailureStore(db)
     assert confirmed not in {
@@ -459,9 +462,9 @@ def test_a_direct_confirmation_must_name_every_rival_and_the_declared_class(db):
 
 def test_a_review_queue_is_declared_by_command_as_a_new_version(db):
     _queue(db)  # creates the project, its PI, and the test's own policy
-    assert _main("admin", "review-queue", PROJECT, "--declared-by", "act:nobody")[0] == 2, (
-        "only a member's standing decision authorises expiry"
-    )
+    # A person who exists but is not a member of the project: expiry is not their decision here.
+    code, printed = _main("admin", "review-queue", PROJECT, "--declared-by", AUTHORITY_ACTOR)
+    assert code == 2 and "not an active person in" in printed, printed
     code, printed = _main(
         "admin", "review-queue", PROJECT, "--declared-by", REVIEWER, "--if-absent"
     )
@@ -555,6 +558,32 @@ def test_registered_declarations_must_be_the_codes(db):
     )
     with pytest.raises(WarrantStoreError, match=r"9.9.9, which this code does not declare"):
         store.ensure((declarations,), declarations.ref)
+    # A set under ANOTHER id that declares a class on one of this code's observables is refused as
+    # well: the SQL rule reads every active set, whatever it is called.
+    db.execute("TRUNCATE diagnostic_declaration_sets")
+    store.ensure((declarations,), declarations.ref)
+    db.execute(
+        "INSERT INTO diagnostic_declaration_sets (set_id, version, domain, digest, declarations)"
+        " SELECT 'lookalike.set', '1', domain, digest, declarations FROM"
+        " diagnostic_declaration_sets WHERE set_id = %s",
+        (declarations.set_id,),
+    )
+    with pytest.raises(WarrantStoreError, match=r"lookalike.set@1, which this code does not"):
+        store.ensure((declarations,), declarations.ref)
+
+
+def test_reuse_refuses_a_domain_warrant_the_code_does_not_declare(db):
+    fx = load_fixture()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    analysis = run.result.failure_analysis
+    verify = confirmation_verifier(db, TRUST, declaration_sets=(diagnostic_declaration_set(),))
+    assert verify(analysis) is None
+    forged = analysis.model_copy(
+        update={"warrant_refs": ("dds:lookalike.set@1#normalization_error",)}
+    )
+    assert "names no declaration this code registers" in (verify(forged) or "")
+    nothing = confirmation_verifier(db, TRUST, declaration_sets=())
+    assert nothing(analysis) is not None, "a verifier that knows no declaration trusts none"
 
 
 # -- 4. the recorded false confirmation -------------------------------------------------------------
@@ -636,7 +665,10 @@ def test_a_person_flags_a_conclusion_and_case_memory_stops_relying_on_it(db):
     fx = load_fixture()
     run = run_case(db, fx, case_by_id(fx, CASE))
     analysis = run.result.failure_analysis
-    store = SqlFailureStore(db, verify=confirmation_verifier(db, TRUST))
+    store = SqlFailureStore(
+        db,
+        verify=confirmation_verifier(db, TRUST, declaration_sets=(diagnostic_declaration_set(),)),
+    )
     assert analysis.failure_analysis_id in {
         a.failure_analysis_id for a in store.trusted_confirmations(PROJECT)
     }

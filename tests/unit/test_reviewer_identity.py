@@ -312,3 +312,66 @@ def test_signatures_are_ed25519_shaped() -> None:
     raw = base64.b64decode(key_for(REVIEWER).sign(b"x"))
     assert len(raw) == 64
     assert ReviewAuthority(AUTHORITY_ACTOR, AUTHORITY.public_key).key_id.startswith("rk:")
+
+
+def test_a_key_or_signature_has_exactly_one_spelling() -> None:
+    """Base64 tolerates non-zero padding bits; a second spelling of one key or signature would be
+    a second string the database compares. Only the canonical spelling is a key or a signature."""
+    from lab_brain.core.models.reviewer import is_public_key, is_signature
+
+    public = key_for(REVIEWER).public_key
+    signature = key_for(REVIEWER).sign(b"x")
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+    def respelled(value: str, pad: int) -> str:
+        last = value[-pad - 1]
+        twin = alphabet[alphabet.index(last) + 1]
+        return value[: -pad - 1] + twin + value[-pad:]
+
+    assert is_public_key(public) and not is_public_key(respelled(public, 1))
+    assert base64.b64decode(respelled(public, 1)) == base64.b64decode(public)
+    assert is_signature(signature) and not is_signature(respelled(signature, 2))
+
+
+def test_no_pinned_authority_key_is_ever_a_reviewer_key() -> None:
+    """With two authorities pinned, one cannot enrol the other's key as a reviewer's."""
+    second = key_for("act:second-authority")
+    trust = ReviewerTrust(
+        (
+            ReviewAuthority(AUTHORITY_ACTOR, AUTHORITY.public_key),
+            ReviewAuthority("act:second-authority", second.public_key),
+        )
+    )
+    trust.verify_enrolment(_enrolment())
+    with pytest.raises(IdentityUnverified, match="an authority key is not a reviewer key"):
+        trust.verify_enrolment(_enrolment(public_key=second.public_key))
+
+
+def _resigned(
+    grant: DiagnosticWarrantGrant, key: SigningKey, **changes: Any
+) -> DiagnosticWarrantGrant:
+    """`grant` with `changes`, signed again -- validly -- with `key`: what a key holder could do."""
+    changed = grant.model_copy(update=changes)
+    return changed.model_copy(update={"signature": key.sign(changed.statement())})
+
+
+def test_a_validly_signed_answer_still_cannot_predate_its_key() -> None:
+    """Signed by the right key, and still refused: the enrolment did not exist yet."""
+    store = _store()
+    signer = enrol(store, project_id=PROJECT, actor_id=REVIEWER, at=T0 - dt.timedelta(hours=2))
+    grant = _answer(store, signer)
+    authenticate = grant_authenticator(store, TRUST)
+    assert authenticate(grant) is None
+    early = _resigned(grant, signer.key, granted_at=T0 - dt.timedelta(hours=3))
+    assert "predates the enrolment" in (authenticate(early) or "")
+
+
+def test_a_validly_signed_answer_under_another_persons_enrolment_is_not_theirs() -> None:
+    """A colleague's key signs perfectly; the answer names the PI, so it is not the PI's."""
+    store = _store()
+    colleague = enrol(store, project_id=PROJECT, actor_id="act:colleague")
+    mine = enrol(store, project_id=PROJECT, actor_id=REVIEWER)
+    grant = _answer(store, mine)
+    borrowed = _resigned(grant, colleague.key, enrolment_id=colleague.enrolment_id)
+    why = grant_authenticator(store, TRUST)(borrowed) or ""
+    assert "is by act:pi" in why and "act:colleague's" in why

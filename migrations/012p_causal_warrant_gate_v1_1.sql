@@ -34,15 +34,16 @@ CREATE TABLE IF NOT EXISTS warrant_reviewer_enrolments (
     enrolment_id         TEXT PRIMARY KEY CHECK (btrim(enrolment_id) <> ''),
     project_id           TEXT NOT NULL REFERENCES projects (project_id),
     actor_id             TEXT NOT NULL REFERENCES actors (actor_id),
-    -- Raw Ed25519 public key, base64 (32 bytes).
-    public_key           TEXT NOT NULL CHECK (public_key ~ '^[A-Za-z0-9+/]{43}=$'),
+    -- Raw Ed25519 public key, canonical base64 (32 bytes: the last character carries two zero
+    -- padding bits), so one key has one spelling.
+    public_key           TEXT NOT NULL CHECK (public_key ~ '^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$'),
     key_id               TEXT NOT NULL,
     scope                TEXT NOT NULL CHECK (scope = 'DIAGNOSTIC_WARRANT'),
     enrolled_at          TIMESTAMPTZ NOT NULL,
     authority_actor_id   TEXT NOT NULL REFERENCES actors (actor_id),
     authority_key_id     TEXT NOT NULL CHECK (authority_key_id ~ '^rk:[0-9a-f]{32}$'),
     -- Ed25519 signature, base64 (64 bytes), over `core.models.reviewer.enrolment_statement`.
-    authority_signature  TEXT NOT NULL CHECK (authority_signature ~ '^[A-Za-z0-9+/]{86}==$'),
+    authority_signature  TEXT NOT NULL CHECK (authority_signature ~ '^[A-Za-z0-9+/]{85}[AQgw]==$'),
     recorded_at          TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
 
     CONSTRAINT warrant_reviewer_enrolments_key_id_is_the_key CHECK (
@@ -112,7 +113,7 @@ CREATE TABLE IF NOT EXISTS warrant_reviewer_revocations (
     reason               TEXT NOT NULL CHECK (btrim(reason) <> ''),
     authority_actor_id   TEXT NOT NULL REFERENCES actors (actor_id),
     authority_key_id     TEXT NOT NULL CHECK (authority_key_id ~ '^rk:[0-9a-f]{32}$'),
-    authority_signature  TEXT NOT NULL CHECK (authority_signature ~ '^[A-Za-z0-9+/]{86}==$'),
+    authority_signature  TEXT NOT NULL CHECK (authority_signature ~ '^[A-Za-z0-9+/]{85}[AQgw]==$'),
     recorded_at          TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
 
     CONSTRAINT warrant_reviewer_revocations_one_per_enrolment UNIQUE (enrolment_id),
@@ -156,7 +157,7 @@ ALTER TABLE diagnostic_warrant_grants
     DROP CONSTRAINT IF EXISTS diagnostic_warrant_grants_signature_is_ed25519;
 ALTER TABLE diagnostic_warrant_grants
     ADD CONSTRAINT diagnostic_warrant_grants_signature_is_ed25519
-    CHECK (signature IS NULL OR signature ~ '^[A-Za-z0-9+/]{86}==$');
+    CHECK (signature IS NULL OR signature ~ '^[A-Za-z0-9+/]{85}[AQgw]==$');
 
 ALTER TABLE diagnostic_warrant_grants
     DROP CONSTRAINT IF EXISTS diagnostic_warrant_grants_enrolment_in_project;

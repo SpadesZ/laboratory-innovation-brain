@@ -277,6 +277,21 @@ case memory. Migration `012o`. Every
 stored decision re-derives byte-exact; benchmark verdicts unchanged. See
 [`causal-warrant-gate-v1.md`](docs/implementation/causal-warrant-gate-v1.md).
 
+**Causal Warrant Gate V1.1** (2026-10-14; same branch, not merged; not a milestone, no status
+changed).
+- A warrant review's answer is signed (Ed25519) under a key that a review authority enrolled for that
+  person in that project. Authority keys are pinned outside the database
+  (`LAB_BRAIN_REVIEW_AUTHORITIES`).
+- Every read that counts an answer verifies it; an answer that does not verify is no answer. With no
+  authority configured, none verifies.
+- The database evaluates the loop's confirmation rule (`confirmation_rule_breaches`) for every writer
+  of a CONFIRMED row, over registered declaration sets that must match the code. The PostgreSQL
+  harness checks that SQL and the loop agree after every run.
+- Case memory and the miner read only trusted confirmations.
+- Review queues are declared by command, and every research run expires overdue reviews first.
+- `fan:30d9407f` is flagged FALSE_CONFIRMATION where it exists, bound to its content, never edited.
+- Migration `012p`. See [`causal-warrant-gate-v1.1.md`](docs/implementation/causal-warrant-gate-v1.1.md).
+
 Slice M1-P1: **HARD-LOCKED** 2026-09-21 at `f8e5e9c02ee98ed2a7faa6f604347b84b88c773b` on
 independent M2 review. That lock is on the *slice*, predates the milestone locks above, and remains
 in force independently of them. The fourteen locked items are tabulated in

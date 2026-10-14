@@ -510,6 +510,15 @@ _M: dict[str, tuple[str, str]] = {
         "Its warrants verify; case memory may cite it as a precedent.",
         "其依據均可驗證；可作為案例記憶中的先例。",
     ),
+    "v.conclusion.not_relied_l1": (
+        "-- recorded as confirmed, but not used as a precedent or for heuristics; the records "
+        "say why.",
+        "——紀錄為已確認，但不作為先例或歸納來源；原因見紀錄層。",
+    ),
+    "v.l3.conclusions": (
+        "Recorded conclusions, their warrants and flags",
+        "已記錄的結論、其依據與標註",
+    ),
     "act.EXISTING_EVIDENCE_LOOKUP": ("existing-evidence lookup", "查詢既有證據"),
     "act.ANALYTICAL_RULE_CHECK": ("analytical check", "分析檢查"),
     "act.HISTORICAL_CASE_COMPARISON": ("historical case comparison", "歷史案例比對"),

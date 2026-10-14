@@ -129,7 +129,7 @@ from lab_brain.research.service import (
     ResearchEpisodeService,
     ResearchRequest,
 )
-from lab_brain.research.vertical import VerticalFactory
+from lab_brain.research.vertical import VerticalFactory, installed_declaration_sets
 from lab_brain.security.reviewer_identity import ReviewerTrust
 from lab_brain.storage.artifacts.local import LocalArtifactStore
 from lab_brain.storage.postgres.warrants import confirmation_verifier
@@ -1109,7 +1109,9 @@ class Workspace:
             project_id=opened.project_id,
             episode_id=episode_id,
             verify=confirmation_verifier(
-                c, ReviewerTrust.configured_at(self._settings.review_authorities)
+                c,
+                ReviewerTrust.configured_at(self._settings.review_authorities),
+                declaration_sets=installed_declaration_sets(),
             ),
         )
         return Response(

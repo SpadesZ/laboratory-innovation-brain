@@ -38,6 +38,7 @@ from lab_brain.core.models.reviewer import (
     ReviewerKeyRevocation,
     enrolment_statement,
     is_public_key,
+    is_signature,
     key_id,
     revocation_statement,
 )
@@ -167,7 +168,7 @@ class ReviewerTrust:
         )
         if authority.actor_id == enrolment.actor_id:
             raise IdentityUnverified(f"{what}: an authority does not enrol itself")
-        if authority.key_id == enrolment.key_id:
+        if enrolment.key_id in self._by_key:
             raise IdentityUnverified(f"{what}: an authority key is not a reviewer key")
         if not _verify(
             authority.public_key, enrolment.authority_signature, enrolment_statement(enrolment)
@@ -218,6 +219,8 @@ class ReviewerTrust:
                     f"{what} is signed with a key revoked from "
                     f"{revocation.effective_at.isoformat()}"
                 )
+        if not is_signature(grant.signature):
+            raise IdentityUnverified(f"{what}: the signature is not a canonical Ed25519 one")
         if not _verify(enrolment.public_key, grant.signature, grant.statement()):
             raise IdentityUnverified(f"{what}: the reviewer's signature does not verify")
 

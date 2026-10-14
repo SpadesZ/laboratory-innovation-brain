@@ -46,7 +46,6 @@ import argparse
 import datetime as dt
 import uuid
 from collections.abc import Callable, Mapping
-from importlib.metadata import entry_points
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, TextIO
@@ -57,7 +56,7 @@ from lab_brain.core.models.warrant import DiagnosticDeclarationSet
 from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore, WarrantStoreError
 from lab_brain.core.review_expiry import ReviewExpiryProcessor
-from lab_brain.research.vertical import ENTRY_POINT_GROUP
+from lab_brain.research.vertical import installed_declaration_sets
 from lab_brain.security.reviewer_identity import (
     AUTHORITIES_ENV,
     IdentityUnverified,
@@ -129,21 +128,7 @@ def _member(connection: Any, actor_id: str, project_id: str) -> bool:
 
 
 def _installed_declarations() -> tuple[DiagnosticDeclarationSet, ...]:
-    """Every diagnostic declaration set the installed product verticals register.
-
-    Built with no backends: a vertical's declarations are data, and reading them executes nothing.
-    A vertical that cannot be built this way contributes nothing rather than failing the packet.
-    """
-    found: list[DiagnosticDeclarationSet] = []
-    for entry in entry_points(group=ENTRY_POINT_GROUP):
-        try:
-            vertical = entry.load()(
-                outputs=None, jobs=None, broker=None, now=lambda: dt.datetime.now(dt.UTC)
-            )
-        except Exception:  # pragma: no cover - a vertical that needs its backends to build
-            continue
-        found.extend(vertical.declaration_sets)
-    return tuple(found)
+    return installed_declaration_sets()
 
 
 def _attribution(link: tuple[str, str, str, str], mechanism: str) -> list[str]:

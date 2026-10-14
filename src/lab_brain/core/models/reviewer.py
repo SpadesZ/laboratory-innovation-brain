@@ -45,11 +45,18 @@ _KEY_ID = re.compile(r"^rk:[0-9a-f]{32}$")
 
 
 def _decoded(value: str, size: int) -> bytes | None:
+    """The raw bytes, if `value` is their canonical base64 spelling and nothing else.
+
+    Canonical, because base64 tolerates non-zero padding bits: without this one key or signature
+    could be stored under several strings, and a string is what the database compares.
+    """
     try:
         raw = base64.b64decode(value, validate=True)
     except (binascii.Error, ValueError):
         return None
-    return raw if len(raw) == size else None
+    if len(raw) != size or base64.b64encode(raw).decode("ascii") != value:
+        return None
+    return raw
 
 
 def is_public_key(value: str) -> bool:

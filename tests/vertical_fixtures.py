@@ -509,7 +509,10 @@ def run_case(
         attestations=world.find_attestation,
     )
     evidence = SqlEvidenceSink(connection=connection, outputs=outputs)
-    failures = SqlFailureStore(connection, verify=confirmation_verifier(connection, TRUST))
+    failures = SqlFailureStore(
+        connection,
+        verify=confirmation_verifier(connection, TRUST, declaration_sets=(declarations,)),
+    )
     inner = LeastCostPlanner(
         capabilities=regs.capabilities,
         metrics=regs.disagreement_metrics,

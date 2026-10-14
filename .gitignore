@@ -18,6 +18,8 @@ htmlcov/
 *.key
 # The container deployment's language-model API keys (the committed file is the .example)
 deployment/docker/llm-keys.env
+# The deployment's pinned review authorities (the committed file is the .example)
+deployment/docker/review-authorities
 
 # Local artifact store and numerical arrays live outside version control
 var/
