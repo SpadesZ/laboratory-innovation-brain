@@ -11,13 +11,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from lab_brain.core.models.warrant import DiagnosticDeclarationSet
+from lab_brain.core.models.warrant import DiagnosticDeclarationSet, Link
 from lab_brain.core.repositories.evidence import SqlAttestationStore, SqlRelationStore
 from lab_brain.core.repositories.hypotheses import SqlHypothesisStore
 from lab_brain.core.repositories.jobs import SqlJobStore
 from lab_brain.core.repositories.observations import SqlObservationStore
 from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore
-from lab_brain.core.warrant import WarrantResolver
+from lab_brain.core.warrant import EpisodeOutcomes, WarrantResolver
 
 
 def sql_warrant_resolver(
@@ -38,4 +38,31 @@ def sql_warrant_resolver(
     )
 
 
-__all__ = ["sql_warrant_resolver"]
+def episode_outcomes(connection: Any) -> EpisodeOutcomes:
+    """Every outcome the episode's own runs observed, as (observation, observable, space, version,
+    outcome) -- read off the attestations, so an outcome nobody predicted is seen too."""
+
+    def read(project_id: str, episode_id: str) -> tuple[tuple[str, Link], ...]:
+        rows = connection.execute(
+            "SELECT o.observation_id, o.metric_or_event, a.method ->> 'outcome_space',"
+            " a.method ->> 'outcome'"
+            " FROM attestations a"
+            " JOIN observations o ON o.observation_id = a.observation_id"
+            " JOIN runs r ON r.run_id = o.run_id"
+            " JOIN jobs j ON j.job_id = r.job_id"
+            " WHERE a.project_id = %s AND j.episode_id = %s"
+            " ORDER BY o.observation_id",
+            (project_id, episode_id),
+        ).fetchall()
+        found: list[tuple[str, Link]] = []
+        for observation_id, observable, space, outcome in rows:
+            if not space or "@" not in str(space) or outcome is None:
+                continue
+            space_id, version = str(space).rsplit("@", 1)
+            found.append((str(observation_id), (str(observable), space_id, version, str(outcome))))
+        return tuple(found)
+
+    return read
+
+
+__all__ = ["episode_outcomes", "sql_warrant_resolver"]

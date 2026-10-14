@@ -60,11 +60,12 @@ ALTER TABLE review_items ADD CONSTRAINT review_items_subject_type_check
         'DIAGNOSTIC_WARRANT'
     ));
 
--- One question per relation, ever. A refused warrant is an answer, and asking again would spend
--- reviewer capacity to re-open it.
+-- One live question per relation. A refused warrant is an answer, and asking again would spend
+-- reviewer capacity to re-open it; an EXPIRED one is not an answer -- nobody decided -- so the
+-- relation may be asked about again, or it would block its hypothesis forever.
 CREATE UNIQUE INDEX IF NOT EXISTS review_items_one_diagnostic_warrant_per_relation
     ON review_items (project_id, subject_id)
-    WHERE subject_type = 'DIAGNOSTIC_WARRANT';
+    WHERE subject_type = 'DIAGNOSTIC_WARRANT' AND status <> 'EXPIRED';
 
 CREATE OR REPLACE FUNCTION review_items_warrant_subject_is_a_gated_relation()
 RETURNS TRIGGER AS $$
@@ -121,7 +122,8 @@ BEGIN
       FROM review_items
      WHERE project_id = p_project_id
        AND subject_type = 'DIAGNOSTIC_WARRANT'
-       AND subject_id = p_relation_id;
+       AND subject_id = p_relation_id
+       AND status <> 'EXPIRED';
     IF FOUND THEN
         RETURN v_existing;
     END IF;
@@ -171,6 +173,15 @@ CREATE TABLE IF NOT EXISTS diagnostic_warrant_grants (
     rationale             TEXT NOT NULL CHECK (btrim(rationale) <> ''),
     considered_rival_ids  TEXT[] NOT NULL DEFAULT '{}'
                           CHECK (array_position(considered_rival_ids, NULL) IS NULL),
+    -- The reviewer's explicit statement that the hypothesis IS a declared class (a `dds:` ref):
+    -- a model's paraphrase of a catalog mechanism, said to be that mechanism by a person. Only
+    -- with a WARRANTED support; the DomainPack re-checks that the class exists and that the
+    -- observed outcome is its signature, which SQL cannot.
+    identifies_class_ref  TEXT
+                          CHECK (identifies_class_ref IS NULL
+                                 OR (verdict = 'WARRANTED' AND relation_type = 'SUPPORTS'
+                                     AND identifies_class_ref
+                                         ~ '^dds:[^@#[:space:]]+@[^@#[:space:]]+#[^@#[:space:]]+$')),
     CONSTRAINT diagnostic_warrant_grants_one_per_review UNIQUE (review_id),
     CONSTRAINT diagnostic_warrant_grants_one_per_relation UNIQUE (project_id, relation_id),
     CONSTRAINT diagnostic_warrant_grants_id_project_unique UNIQUE (grant_id, project_id),
@@ -291,9 +302,76 @@ BEGIN
             'relation %''s content is immutable; only an invalidation may be recorded on it',
             OLD.relation_id;
     END IF;
+    -- The actor column names who ran the episode while the relation is current -- the person a
+    -- warrant must not come from -- and who invalidated it afterwards. It changes only with that.
+    IF NEW.actor_id IS DISTINCT FROM OLD.actor_id AND NEW.valid_to IS NULL THEN
+        RAISE EXCEPTION
+            'relation %''s actor changes only with its invalidation', OLD.relation_id;
+    END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- A relation that names a prediction is the system's record that THIS observation matched THAT
+-- prediction. Checked for every writer: the prediction is the target hypothesis's own; the
+-- relation's outcome is the one predicted; and each cited attestation records that outcome, of the
+-- prediction's observable and outcome space, for the observation the relation comes from, made by a
+-- run of the hypothesis's own episode. Otherwise one INSERT could lend another episode's -- or
+-- another observable's -- observation to a hypothesis it never tested.
+CREATE OR REPLACE FUNCTION relation_judgments_describe_their_observation()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_prediction predictions%ROWTYPE;
+    v_episode    TEXT;
+    v_attestation TEXT;
+    v_found      BOOLEAN;
+BEGIN
+    IF NEW.relation_type NOT IN ('SUPPORTS', 'CONTRADICTS')
+       OR NOT (NEW.attributes ? 'prediction_id') THEN
+        RETURN NEW;
+    END IF;
+    SELECT * INTO v_prediction FROM predictions
+     WHERE prediction_id = NEW.attributes ->> 'prediction_id';
+    IF NOT FOUND OR v_prediction.hypothesis_id <> NEW.to_entity_id THEN
+        RAISE EXCEPTION 'relation % names prediction %, which is not a prediction of %',
+            NEW.relation_id, NEW.attributes ->> 'prediction_id', NEW.to_entity_id;
+    END IF;
+    IF NEW.attributes ->> 'outcome' IS DISTINCT FROM v_prediction.expected_outcome THEN
+        RAISE EXCEPTION 'relation % records outcome %, but its prediction expected %',
+            NEW.relation_id, NEW.attributes ->> 'outcome', v_prediction.expected_outcome;
+    END IF;
+    SELECT created_in_episode INTO v_episode FROM hypotheses
+     WHERE hypothesis_id = NEW.to_entity_id;
+    FOREACH v_attestation IN ARRAY NEW.supporting_attestation_ids LOOP
+        SELECT EXISTS (
+            SELECT 1
+              FROM attestations a
+              JOIN observations o ON o.observation_id = a.observation_id
+              JOIN runs r ON r.run_id = o.run_id
+              JOIN jobs j ON j.job_id = r.job_id
+             WHERE a.attestation_id = v_attestation
+               AND a.observation_id = NEW.from_entity_id
+               AND o.metric_or_event = v_prediction.observable_ref
+               AND a.method ->> 'outcome_space'
+                   = v_prediction.outcome_space_id || '@' || v_prediction.outcome_space_version
+               AND a.method ->> 'outcome' = v_prediction.expected_outcome
+               AND (v_episode IS NULL OR j.episode_id = v_episode)
+        ) INTO v_found;
+        IF NOT v_found THEN
+            RAISE EXCEPTION
+                'relation % cites %, which does not record % of % for observation % in the '
+                'episode of %', NEW.relation_id, v_attestation, v_prediction.expected_outcome,
+                v_prediction.observable_ref, NEW.from_entity_id, NEW.to_entity_id;
+        END IF;
+    END LOOP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS relation_judgments_describe_their_observation ON relation_judgments;
+CREATE TRIGGER relation_judgments_describe_their_observation
+    BEFORE INSERT ON relation_judgments
+    FOR EACH ROW EXECUTE FUNCTION relation_judgments_describe_their_observation();
 
 DROP TRIGGER IF EXISTS relation_judgments_content_is_immutable ON relation_judgments;
 CREATE TRIGGER relation_judgments_content_is_immutable
@@ -410,7 +488,8 @@ CREATE OR REPLACE FUNCTION diagnostic_warrant_resolve(
     p_actor_id             TEXT,
     p_rationale            TEXT,
     p_considered_rival_ids TEXT[],
-    p_resolved_at          TIMESTAMPTZ
+    p_resolved_at          TIMESTAMPTZ,
+    p_identifies_class_ref TEXT DEFAULT NULL
 ) RETURNS TEXT AS $$
 DECLARE
     v_review   review_items%ROWTYPE;
@@ -462,13 +541,15 @@ BEGIN
 
     INSERT INTO diagnostic_warrant_grants (
         grant_id, project_id, review_id, relation_id, relation_type, hypothesis_id,
-        prediction_id, verdict, granted_by_actor_id, granted_at, rationale, considered_rival_ids
+        prediction_id, verdict, granted_by_actor_id, granted_at, rationale, considered_rival_ids,
+        identifies_class_ref
     ) VALUES (
         p_grant_id, p_project_id, p_review_id, v_relation.relation_id, v_relation.relation_type,
         v_relation.to_entity_id,
         v_relation.attributes ->> 'prediction_id',
         CASE p_outcome WHEN 'APPROVED' THEN 'WARRANTED' ELSE 'NOT_WARRANTED' END,
-        p_actor_id, p_resolved_at, p_rationale, COALESCE(p_considered_rival_ids, '{}')
+        p_actor_id, p_resolved_at, p_rationale, COALESCE(p_considered_rival_ids, '{}'),
+        p_identifies_class_ref
     );
 
     INSERT INTO review_resolutions (
@@ -486,6 +567,32 @@ BEGIN
     RETURN p_grant_id;
 END;
 $$ LANGUAGE plpgsql;
+
+-- A superseded policy version stays registered so every decision recorded under it re-derives; a
+-- new event under it is refused, for every writer. Events already stored are not re-inserted.
+CREATE OR REPLACE FUNCTION belief_revision_events_not_under_a_superseded_policy()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_successor TEXT;
+BEGIN
+    SELECT policy_id || '@' || version INTO v_successor FROM transition_policies
+     WHERE supersedes = NEW.policy_id || '@' || NEW.policy_version
+     LIMIT 1;
+    IF FOUND THEN
+        RAISE EXCEPTION
+            'event % cites %@%, which % supersedes; a new transition is authorised under the '
+            'version that replaced it', NEW.event_id, NEW.policy_id, NEW.policy_version,
+            v_successor;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS belief_revision_events_not_under_a_superseded_policy
+    ON belief_revision_events;
+CREATE TRIGGER belief_revision_events_not_under_a_superseded_policy
+    BEFORE INSERT ON belief_revision_events
+    FOR EACH ROW EXECUTE FUNCTION belief_revision_events_not_under_a_superseded_policy();
 
 -- ---------------------------------------------------------------------------------------------
 -- 5. What a confirmation rests on
@@ -516,22 +623,27 @@ BEGIN
             'support an accountable source warranted, not on a declared effect alone (012o)',
             NEW.failure_analysis_id, NEW.confirmed_root_cause;
     END IF;
-    -- Each reference is a declaration reference (whose content the DomainPack re-checks; SQL
-    -- cannot) or a WARRANTED grant on a SUPPORTS relation of the cause itself.
+    -- Each reference must be one the decision that moved the cause to SUPPORTED recorded for a
+    -- SUPPORTS relation -- the snapshot the read path re-checks against the declarations and the
+    -- grants. A reference shaped like a warrant but recorded nowhere is not one.
     FOREACH v_ref IN ARRAY NEW.warrant_refs LOOP
-        IF v_ref ~ '^dds:[^@#[:space:]]+@[^@#[:space:]]+#[^@#[:space:]]+$' THEN
-            CONTINUE;
-        END IF;
         IF NOT EXISTS (
-            SELECT 1 FROM diagnostic_warrant_grants g
-             WHERE g.grant_id = v_ref AND g.project_id = NEW.project_id
-               AND g.verdict = 'WARRANTED' AND g.relation_type = 'SUPPORTS'
-               AND g.hypothesis_id = NEW.confirmed_root_cause
+            SELECT 1
+              FROM belief_revision_events e
+              JOIN belief_transition_decisions d
+                ON d.decision_id = e.authorization_decision_id
+             CROSS JOIN LATERAL jsonb_array_elements(
+                   COALESCE(d.decision_input_snapshot::jsonb -> 'hypothesis' -> 'relation_evidence',
+                            '[]'::jsonb)) AS r
+             WHERE e.project_id = NEW.project_id
+               AND e.target_id = NEW.confirmed_root_cause
+               AND e.to_state = 'SUPPORTED'
+               AND r ->> 'relation_type' = 'SUPPORTS'
+               AND r ->> 'warrant_ref' = v_ref
         ) THEN
             RAISE EXCEPTION
-                'failure analysis % cites warrant %, which is neither a declaration reference nor '
-                'a WARRANTED grant on a SUPPORTS relation of %', NEW.failure_analysis_id, v_ref,
-                NEW.confirmed_root_cause;
+                'failure analysis % cites warrant %, which no decision promoting % recorded for '
+                'its support', NEW.failure_analysis_id, v_ref, NEW.confirmed_root_cause;
         END IF;
     END LOOP;
     RETURN NEW;

@@ -253,7 +253,8 @@ def test_each_executed_check_and_each_governed_move_is_explained_from_the_stored
         project_id=PROJECT,
         hypothesis_id=hypothesis,
         policy_id="policy:sp-fidelity-reject",
-        policy_version="1.0.0",
+        # The version in force: 1.0.0 is superseded (Causal Warrant Gate) and refuses new attempts.
+        policy_version="2.0.0",
         candidate_to_state=BeliefState.CONTRADICTED,
         stakes="HIGH",
         occurred_at=dt.datetime.now(dt.UTC),

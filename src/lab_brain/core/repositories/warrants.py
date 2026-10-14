@@ -31,7 +31,8 @@ class WarrantStoreError(RepositoryError):
 
 _GRANT_COLUMNS = (
     "grant_id, project_id, review_id, relation_id, relation_type, hypothesis_id, prediction_id, "
-    "verdict, granted_by_actor_id, granted_at, rationale, considered_rival_ids"
+    "verdict, granted_by_actor_id, granted_at, rationale, considered_rival_ids, "
+    "identifies_class_ref"
 )
 
 
@@ -99,10 +100,11 @@ class SqlDiagnosticWarrantStore:
         rationale: str,
         considered_rival_ids: Sequence[str],
         resolved_at: dt.datetime,
+        identifies_class_ref: str | None = None,
     ) -> DiagnosticWarrantGrant:
         try:
             self._connection.execute(
-                "SELECT diagnostic_warrant_resolve(%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                "SELECT diagnostic_warrant_resolve(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (
                     resolution_id,
                     grant_id,
@@ -113,6 +115,7 @@ class SqlDiagnosticWarrantStore:
                     rationale,
                     list(considered_rival_ids),
                     resolved_at,
+                    identifies_class_ref,
                 ),
             )
         except Exception as exc:
@@ -210,7 +213,10 @@ class InMemoryDiagnosticWarrantStore:
         estimated_minutes: int,
     ) -> str:
         for existing in self.reviews.values():
-            if (existing.project_id, existing.subject_id) == (project_id, relation_id):
+            if (
+                existing.project_id,
+                existing.subject_id,
+            ) == (project_id, relation_id) and existing.status is not ReviewStatus.EXPIRED:
                 return existing.review_id
         if not self._priced:
             raise WarrantStoreError(f"project {project_id} has no active review queue policy")
@@ -248,6 +254,7 @@ class InMemoryDiagnosticWarrantStore:
         rationale: str,
         considered_rival_ids: Sequence[str],
         resolved_at: dt.datetime,
+        identifies_class_ref: str | None = None,
     ) -> DiagnosticWarrantGrant:
         review = self.reviews.get(review_id)
         if review is None or review.project_id != project_id:
@@ -286,6 +293,7 @@ class InMemoryDiagnosticWarrantStore:
             granted_at=resolved_at,
             rationale=rationale,
             considered_rival_ids=tuple(considered_rival_ids),
+            identifies_class_ref=identifies_class_ref,
         )
         self.grants[grant_id] = grant
         self.reviews[review_id] = review.model_copy(

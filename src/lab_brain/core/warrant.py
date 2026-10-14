@@ -56,6 +56,8 @@ class GrantLookup(Protocol):
 
 
 CertificateLookup = Callable[[str, str], HypothesisCertificate | None]
+#: (project, episode) -> every (observation id, observed link) the episode's runs recorded.
+EpisodeOutcomes = Callable[[str, str], Sequence[tuple[str, Link]]]
 RelationLookup = Callable[[str, str], RelationJudgment | None]
 AttestationLookup = Callable[[str, str], Attestation | None]
 ObservationLookup = Callable[[str, str], Observation | None]
@@ -224,7 +226,10 @@ class WarrantResolver:
         return classes, line
 
     def _observed(
-        self, project_id: str, relation: RelationJudgment
+        self,
+        project_id: str,
+        relation: RelationJudgment,
+        prediction: Prediction | None = None,
     ) -> tuple[tuple[str, ...], str | None, bool]:
         """Authority classes, evidence line, and whether every attestation recorded the outcome
         the relation claims -- a relation is a claim about an observation, and the observation's
@@ -238,15 +243,36 @@ class WarrantResolver:
             if attestation is None:
                 unknown = True
                 continue
-            recorded = attestation.method.get("outcome") if attestation.method else None
-            if recorded is not None and recorded != relation.attributes.get("outcome"):
+            method = attestation.method or {}
+            if method.get("outcome") is not None and (
+                method.get("outcome") != relation.attributes.get("outcome")
+            ):
+                agrees = False
+            # The attestation must be of the observation the relation comes from, in the
+            # prediction's outcome space -- not another observation's record lent to it.
+            if attestation.observation_id != relation.from_entity_id:
+                agrees = False
+            if prediction is not None and method.get("outcome_space") not in (
+                None,
+                prediction.outcome_space_ref,
+            ):
                 agrees = False
             if attestation.authority_class:
                 classes.add(attestation.authority_class)
             run_id = attestation.run_id
-            if run_id is None and attestation.observation_id is not None:
-                observation = self._observations(project_id, attestation.observation_id)
-                run_id = None if observation is None else observation.run_id
+            observation = (
+                None
+                if attestation.observation_id is None
+                else self._observations(project_id, attestation.observation_id)
+            )
+            if (
+                prediction is not None
+                and observation is not None
+                and observation.metric_or_event != prediction.observable_ref
+            ):
+                agrees = False
+            if run_id is None and observation is not None:
+                run_id = observation.run_id
             run = None if run_id is None else self._runs(run_id)
             if run is None or run.project_id != project_id:
                 unknown = True
@@ -272,8 +298,13 @@ class WarrantResolver:
                     grants[grant.relation_id] = grant
         active = self.active
         records: list[RelationEvidence] = []
+        predictions = (
+            {} if certificate is None else {p.prediction_id: p for p in certificate.predictions}
+        )
         for relation in gated:
-            classes, line, agrees = self._observed(project_id, relation)
+            classes, line, agrees = self._observed(
+                project_id, relation, predictions.get(str(relation.attributes.get("prediction_id")))
+            )
             warrant: WarrantBasis | None = None
             ref: str | None = None
             refused = False
@@ -301,6 +332,11 @@ class WarrantResolver:
                 warrant, ref = WarrantBasis.DOMAIN, active.domain_ref(declaration)
             elif answered is not None:
                 warrant, ref = WarrantBasis.REVIEW, answered.grant_id
+            identifies = (
+                None
+                if answered is None or warrant is not WarrantBasis.REVIEW or certificate is None
+                else self._identity(answered, relation, certificate)
+            )
             prediction_id = relation.attributes.get("prediction_id")
             records.append(
                 RelationEvidence(
@@ -312,9 +348,38 @@ class WarrantResolver:
                     warrant=warrant,
                     warrant_ref=ref,
                     refused=refused,
+                    identifies=identifies,
                 )
             )
         return ResolvedEvidence(records=tuple(records))
+
+    def _identity(
+        self,
+        grant: DiagnosticWarrantGrant,
+        relation: RelationJudgment,
+        certificate: HypothesisCertificate,
+    ) -> str | None:
+        """The class a person said this hypothesis is -- if it is declared, in a registered set,
+        and the outcome they warranted is that class's signature. Otherwise no identity."""
+        if grant.identifies_class_ref is None:
+            return None
+        parsed = parse_domain_ref(grant.identifies_class_ref)
+        declarations = None if parsed is None else self._sets.get(f"{parsed[0]}@{parsed[1]}")
+        declaration = (
+            None if declarations is None or parsed is None else declarations.by_class(parsed[2])
+        )
+        prediction = next(
+            (
+                p
+                for p in certificate.predictions
+                if p.prediction_id == relation.attributes.get("prediction_id")
+            ),
+            None,
+        )
+        link = None if prediction is None else observed_link(relation, prediction)
+        if declaration is None or link != declaration.signature:
+            return None
+        return grant.identifies_class_ref
 
     # -- re-checking a recorded record -------------------------------------------------------
 
@@ -346,7 +411,15 @@ class WarrantResolver:
                 )
         if record.prediction_id != relation.attributes.get("prediction_id"):
             raise WarrantUnverified(f"record for {record.relation_id} names another prediction")
-        classes, line, agrees = self._observed(project_id, relation)
+        owner = self._certificates(project_id, hypothesis_id)
+        prediction = (
+            None
+            if owner is None
+            else next(
+                (p for p in owner.predictions if p.prediction_id == record.prediction_id), None
+            )
+        )
+        classes, line, agrees = self._observed(project_id, relation, prediction)
         if record.warrant is not None and not agrees:
             raise WarrantUnverified(
                 f"{record.relation_id} claims an outcome its attestations did not record"
@@ -378,6 +451,17 @@ class WarrantResolver:
                 iter(self._grants.grants_for_relations(project_id, [record.relation_id])), None
             )
         )
+        if record.identifies is not None:
+            certificate = self._certificates(project_id, hypothesis_id)
+            if (
+                grant is None
+                or certificate is None
+                or self._identity(grant, relation, certificate) != record.identifies
+            ):
+                raise WarrantUnverified(
+                    f"{record.relation_id} records an identity with {record.identifies} that no "
+                    "grant states, or that the declaration does not support"
+                )
         if record.warrant is WarrantBasis.REVIEW:
             if (
                 grant is None
@@ -399,6 +483,7 @@ __all__ = [
     "GATED_TYPES",
     "AttestationLookup",
     "CertificateLookup",
+    "EpisodeOutcomes",
     "GrantLookup",
     "ObservationLookup",
     "RelationLookup",

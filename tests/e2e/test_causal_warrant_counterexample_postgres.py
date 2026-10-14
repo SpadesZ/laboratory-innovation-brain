@@ -29,11 +29,14 @@ import io
 from typing import Any
 
 import psycopg
+import psycopg.types.json
 import pytest
 
 from lab_brain.core.models.failure import ResolutionStatus
 from lab_brain.core.models.review import ReviewStatus
 from lab_brain.core.models.review_resolution import ReviewOutcome
+from lab_brain.core.repositories.evidence import SqlRelationStore
+from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore, WarrantStoreError
 from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.interfaces import cli
@@ -131,8 +134,10 @@ def test_the_catalog_mechanism_confirms_on_its_own_check_with_a_domain_warrant(d
     assert analysis.warrant_refs == (DOMAIN_REF,)
 
 
-def test_a_person_can_warrant_an_uncatalogued_mechanism_and_only_then_it_confirms(db):
-    """A genuinely new account of the true cause is not refused -- and not confirmed unasked."""
+def test_a_person_can_warrant_an_uncatalogued_account_by_saying_which_mechanism_it_is(db):
+    """A new account of the true cause is not refused -- and not confirmed unasked. Its observed
+    outcome is the declared signature of the length normalization error, so the person also says
+    the hypothesis IS that declared mechanism; only then does it confirm."""
     _queue(db)
     fx = _renamed(
         NOVEL_MECHANISM,
@@ -155,6 +160,7 @@ def test_a_person_can_warrant_an_uncatalogued_mechanism_and_only_then_it_confirm
         rationale="a taper-inclusive length is exactly what makes the bases disagree",
         considered_rival_ids=tuple(sorted(run.certificates_by_mechanism.values())),
         resolved_at=T0,
+        identifies_class_ref=DOMAIN_REF,
     )
     assert run.loop is not None and run.request is not None
     resumed = run.loop.run(run.request)
@@ -345,6 +351,9 @@ def test_a_person_answers_through_the_command_line(db):
     assert code == 0 and review.review_id in listed
     code, packet = cli_run("review", "show", review.review_id, *who)
     assert code == 0 and PROXY_MECHANISM in packet and "DISAGREES SUPPORTS" in packet
+    # The reviewer sees that the domain attributes this outcome to another mechanism.
+    assert "declared signature of 'length normalization error'" in packet
+    assert f"--is-class {DOMAIN_REF}" in packet
     code, refused = cli_run("review", "list", "--project", PROJECT, "--actor", "act:nobody")
     assert code == 1 and review.review_id not in refused
     code, answered = cli_run(
@@ -530,13 +539,19 @@ def test_a_confirmation_citing_a_warrant_that_does_not_exist_is_refused(db):
     fx = load_fixture()
     run = run_case(db, fx, case_by_id(fx, CASE))
     analysis = run.result.failure_analysis
-    with pytest.raises(psycopg.Error, match="neither a declaration reference"):
+    for forged in ("dwg:nobody-granted-this", "dds:no-such-set@9#nothing", DOMAIN_REF + "x"):
+        _insert_confirmation(db, analysis, forged)
+
+
+def _insert_confirmation(db: Any, analysis: Any, ref: str) -> None:
+    """A confirmation citing a warrant no decision promoting the cause recorded is refused."""
+    with pytest.raises(psycopg.Error, match="no decision promoting"):
         db.execute(
             "INSERT INTO failure_analyses (failure_analysis_id, project_id, episode_id, symptom,"
             " expected_behavior, observed_behavior, candidate_causes, confirmed_root_cause,"
             " root_cause_evidence_ids, failure_class, resolution_status, created_at,"
             " warrant_refs) VALUES ('fan:fake-warrant', %s, %s, 's', 'e', 'o', %s, %s, %s, 'c',"
-            " 'CONFIRMED', %s, ARRAY['dwg:nobody-granted-this'])",
+            " 'CONFIRMED', %s, ARRAY[%s])",
             (
                 PROJECT,
                 analysis.episode_id,
@@ -544,5 +559,152 @@ def test_a_confirmation_citing_a_warrant_that_does_not_exist_is_refused(db):
                 analysis.confirmed_root_cause,
                 list(analysis.root_cause_evidence_ids),
                 T0,
+                ref,
             ),
         )
+
+
+def test_approving_a_link_alone_does_not_make_a_paraphrase_the_declared_class(db):
+    """The domain says DISAGREES is the length normalization error's signature. A reviewer who
+    approves the link without saying the hypothesis IS that mechanism has not accounted for it:
+    an outcome can diagnose a mechanism the domain did not name. Nothing is confirmed."""
+    _queue(db)
+    fx = _renamed(
+        NOVEL_MECHANISM,
+        "The extraction divides by a length that includes the tapers, so Rs per length is high.",
+    )
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    store = SqlDiagnosticWarrantStore(db)
+    (review,) = store.outstanding(PROJECT)
+    store.resolve(
+        resolution_id="res:link-only",
+        grant_id="dwg:link-only",
+        review_id=review.review_id,
+        project_id=PROJECT,
+        outcome=ReviewOutcome.APPROVED,
+        actor_id=REVIEWER,
+        rationale="the outcome does bear on this account",
+        considered_rival_ids=(),
+        resolved_at=T0,
+    )
+    assert run.loop is not None and run.request is not None
+    resumed = run.loop.run(dataclasses.replace(run.request, available_inputs=frozenset()))
+    assert resumed.failure_analysis.resolution_status is not ResolutionStatus.CONFIRMED
+    assert any("declared signature of 'length normalization error'" in n for n in resumed.notes)
+
+
+def test_an_unpredicted_declared_signature_is_still_evidence(db):
+    """Nobody predicted DISAGREES, so no relation records it -- but the episode observed it, and
+    it is the declared signature of a mechanism nobody proposed. The device has both defects; the
+    contact discontinuity is supported and is not confirmed as THE cause."""
+    fx = copy.deepcopy(load_fixture())
+    rival = fx["mechanisms"]["normalization_error"]
+    rival["mechanism"] = PROXY_MECHANISM
+    rival["statement"] = "The extraction omits the contact-resistance correction term."
+    rival["predictions"] = [
+        p for p in rival["predictions"] if p["relation_effect"] == "CONTRADICTS"
+    ]
+    case = copy.deepcopy(case_by_id(fx, "contact-open-via"))
+    case["device"] = {**case["device"], "extraction_normalization_length_um": "1000"}
+    run = run_case(db, fx, case)
+    observed = {(o.observable_ref, o.outcome) for s in run.result.steps for o in s.outcomes}
+    assert ("sp.normalization_basis", "DISAGREES") in observed
+    assert "contact_discontinuity" in _promoted(run)
+    assert run.result.failure_analysis.resolution_status is not ResolutionStatus.CONFIRMED
+    assert any(
+        "declared signature of 'length normalization error'" in n for n in run.result.notes
+    ), run.result.notes
+
+
+def test_a_relation_cannot_borrow_another_observation(db):
+    """One INSERT lending an observation of one observable to a prediction about another -- or
+    another episode's observation -- is refused for every writer."""
+    fx = load_fixture()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    extraction = next(s for s in run.result.steps if s.chosen == sp.CAP_EXTRACTION_CONSISTENCY)
+    observation, attestation = db.execute(
+        "SELECT observation_id, attestation_id FROM attestations WHERE run_id = %s",
+        (extraction.run_id,),
+    ).fetchone()
+    contact = run.certificates_by_mechanism["contact_discontinuity"]
+    signature = db.execute(
+        "SELECT prediction_id FROM predictions WHERE hypothesis_id = %s AND expected_outcome ="
+        " 'DISCONTINUOUS'",
+        (contact,),
+    ).fetchone()[0]
+    with pytest.raises(psycopg.Error, match="does not record"):
+        db.execute(
+            "INSERT INTO relation_judgments (relation_id, from_entity_id, to_entity_id,"
+            " relation_type, attributes, supporting_attestation_ids, project_id, valid_from,"
+            " created_at) VALUES ('rel:borrowed', %s, %s, 'SUPPORTS', %s, %s, %s, %s, %s)",
+            (
+                observation,
+                contact,
+                psycopg.types.json.Jsonb({"prediction_id": signature, "outcome": "DISCONTINUOUS"}),
+                [attestation],
+                PROJECT,
+                T0,
+                T0,
+            ),
+        )
+
+
+def test_the_runner_of_a_relation_cannot_be_rewritten_to_dodge_the_self_grant_rule(db):
+    fx = load_fixture()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    (relation_id,) = next(s.relation_ids for s in run.result.steps if s.relation_ids)
+    with pytest.raises(psycopg.Error, match="actor changes only with its invalidation"):
+        db.execute(
+            "UPDATE relation_judgments SET actor_id = 'act:someone-else' WHERE relation_id = %s",
+            (relation_id,),
+        )
+
+
+def test_an_expired_question_is_asked_again_not_left_to_block_forever(db):
+    """Nobody answering is not an answer: once the review expires, the relation is asked about
+    again, rather than its hypothesis waiting on a question nobody can answer any more."""
+    _queue(db)
+    fx = _proxy()
+    run = run_case(db, fx, case_by_id(fx, CASE))
+    store = SqlDiagnosticWarrantStore(db)
+    (review,) = store.outstanding(PROJECT)
+    assert review.expires_at is not None
+    SqlReviewItemStore(db).expire(
+        review=review,
+        governance_event_id="gev:expired",
+        resolution_id="res:expired",
+        actor_id=REVIEWER,
+        reason_code="REVIEW_EXPIRED",
+        rationale="nobody answered in time",
+        now=review.expires_at + dt.timedelta(minutes=1),
+        trace_id="trc:expiry",
+    )
+    assert store.outstanding(PROJECT) == ()
+    assert run.loop is not None and run.request is not None
+    resumed = run.loop.run(dataclasses.replace(run.request, available_inputs=frozenset()))
+    assert resumed.failure_analysis.resolution_status is not ResolutionStatus.CONFIRMED
+    (again,) = store.outstanding(PROJECT)
+    assert again.subject_id == review.subject_id and again.review_id != review.review_id
+
+
+def test_invalidating_a_rivals_affirmation_does_not_discharge_it(db):
+    """Closing the rival's relation is not evidence that the rival does not produce the outcome."""
+    fx = _shared("PREDICTS")
+    case = {**case_by_id(fx, CASE), "unavailable": [sp.CAP_INSPECT_CONNECTIVITY]}
+    run = run_case(db, fx, case)
+    contact = run.certificates_by_mechanism["contact_discontinuity"]
+    (affirmation,) = (
+        r
+        for r in SqlRelationStore(db).admitted_for_subject(PROJECT, contact)
+        if r.relation_type.value == "PREDICTS"
+    )
+    SqlRelationStore(db).invalidate(
+        project_id=PROJECT,
+        relation_id=affirmation.relation_id,
+        reason="tidy",
+        actor_id=REVIEWER,
+        at=T0,
+    )
+    assert run.loop is not None and run.request is not None
+    resumed = run.loop.run(dataclasses.replace(run.request, available_inputs=frozenset()))
+    assert resumed.failure_analysis.resolution_status is not ResolutionStatus.CONFIRMED

@@ -3,7 +3,13 @@
     list      the project's outstanding warrant reviews, oldest first
     show      one review's packet: what was claimed, what was observed, what the rivals said
     resolve   APPROVED (the outcome does bear on the mechanism as claimed) or REJECTED, with a
-              rationale -- written atomically by `diagnostic_warrant_resolve`
+              rationale -- written atomically by `diagnostic_warrant_resolve`; with APPROVED,
+              `--is-class` also states that the hypothesis IS a declared class
+
+THE DOMAIN'S ATTRIBUTION IS PART OF THE PACKET. When the observed outcome is a declared class's
+signature, `show` says so: the recorded failure confirmed a mechanism on exactly such an outcome,
+and the reviewer must see that the domain attributes it elsewhere. Approving the link does not make
+the hypothesis that class -- only `--is-class` does, and the confirmation rule reads nothing else.
 
 WHAT A REVIEWER IS ASKED. Whether one observed outcome bears on one hypothesis's mechanism the way
 its author declared: for SUPPORTS, that the mechanism produces it and the rivals do not; for
@@ -23,10 +29,13 @@ import argparse
 import datetime as dt
 import uuid
 from collections.abc import Callable
+from importlib.metadata import entry_points
 from typing import Any, TextIO
 
 from lab_brain.core.models.review_resolution import ReviewOutcome
+from lab_brain.core.models.warrant import DiagnosticDeclarationSet
 from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore, WarrantStoreError
+from lab_brain.research.vertical import ENTRY_POINT_GROUP
 
 
 def add_review_parser(sub: Any) -> None:
@@ -45,6 +54,14 @@ def add_review_parser(sub: Any) -> None:
         default=[],
         help="a rival hypothesis id the outcome was weighed against (repeatable)",
     )
+    resolved.add_argument(
+        "--is-class",
+        default=None,
+        help=(
+            "with APPROVED: state that the hypothesis IS this declared class (its dds: reference, "
+            "as `review show` prints it) -- e.g. a paraphrase of a catalog mechanism"
+        ),
+    )
     for parser in (listed, shown, resolved):
         parser.add_argument("--project", required=True)
         parser.add_argument("--actor", required=True)
@@ -58,6 +75,43 @@ def _member(connection: Any, actor_id: str, project_id: str) -> bool:
         (actor_id, project_id),
     ).fetchone()
     return row is not None
+
+
+def _installed_declarations() -> tuple[DiagnosticDeclarationSet, ...]:
+    """Every diagnostic declaration set the installed product verticals register.
+
+    Built with no backends: a vertical's declarations are data, and reading them executes nothing.
+    A vertical that cannot be built this way contributes nothing rather than failing the packet.
+    """
+    found: list[DiagnosticDeclarationSet] = []
+    for entry in entry_points(group=ENTRY_POINT_GROUP):
+        try:
+            vertical = entry.load()(
+                outputs=None, jobs=None, broker=None, now=lambda: dt.datetime.now(dt.UTC)
+            )
+        except Exception:  # pragma: no cover - a vertical that needs its backends to build
+            continue
+        found.extend(vertical.declaration_sets)
+    return tuple(found)
+
+
+def _attribution(link: tuple[str, str, str, str], mechanism: str) -> list[str]:
+    lines = []
+    for declarations in _installed_declarations():
+        owner = declarations.signature_of(link)
+        if owner is None:
+            continue
+        ref = declarations.domain_ref(owner)
+        lines.append(
+            f"  domain says  {link[3]} on {link[0]} is the declared signature of "
+            f"'{owner.mechanism}' ({ref})"
+        )
+        if owner.mechanism != mechanism:
+            lines.append(
+                "               approving the link does not make this hypothesis that mechanism; "
+                f"if it IS, say so with --is-class {ref}"
+            )
+    return lines
 
 
 def _packet(connection: Any, project_id: str, relation_id: str) -> list[str]:
@@ -89,6 +143,9 @@ def _packet(connection: Any, project_id: str, relation_id: str) -> list[str]:
         return lines
     observable, space, version, outcome = prediction
     lines.append(f"  observable   {observable} in {space}@{version}")
+    lines.extend(
+        _attribution((str(observable), str(space), str(version), str(outcome)), str(mechanism))
+    )
     rivals = connection.execute(
         "SELECT p.hypothesis_id, h.mechanism, p.expected_outcome,"
         " p.relation_effect_if_observed -> 0 ->> 'relation_type'"
@@ -159,6 +216,7 @@ def run_review(
             rationale=args.rationale,
             considered_rival_ids=tuple(args.rival),
             resolved_at=now(),
+            identifies_class_ref=args.is_class,
         )
     except WarrantStoreError as refused:
         print(f"lab-brain: {refused}", file=out)

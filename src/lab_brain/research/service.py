@@ -153,7 +153,7 @@ from lab_brain.storage.postgres.capabilities import PostgresResourceBroker
 from lab_brain.storage.postgres.external_artifacts import SqlExternalArtifactSink
 from lab_brain.storage.postgres.run_outputs import SqlRunOutputSink
 from lab_brain.storage.postgres.verification_evidence import SqlEvidenceSink
-from lab_brain.storage.postgres.warrants import sql_warrant_resolver
+from lab_brain.storage.postgres.warrants import episode_outcomes, sql_warrant_resolver
 from lab_brain.surface.ingestion_item import derive_state
 from lab_brain.tools.dispatch import BudgetedToolDispatcher
 from lab_brain.verification.least_cost import LeastCostPlanner
@@ -195,6 +195,7 @@ _WAITING = frozenset(
         # discriminated from a rival. Both can still be settled, so the episode is resumable.
         "AWAITING_REVIEW",
         "SUPPORTED_UNDISCRIMINATED",
+        "COMPETING_SUPPORT",
     }
 )
 
@@ -205,6 +206,7 @@ _WAITING_REASONS = {
     "SUPPORTED_UNDISCRIMINATED": (
         "awaiting evidence that tells the SUPPORTED mechanism from a rival"
     ),
+    "COMPETING_SUPPORT": "awaiting a person: two mechanisms are SUPPORTED",
 }
 
 #: What the Causal Warrant Gate's stops add to an unconfirmed conclusion.
@@ -1333,6 +1335,8 @@ class ResearchEpisodeService:
                 mint=self._mint,
                 now=self._clock,
                 warrant_reviews=SqlDiagnosticWarrantStore(c),
+                episode_outcomes=episode_outcomes(c),
+                relations_from=SqlRelationStore(c).from_observation,
                 declarations=next(
                     (s for s in vertical.declaration_sets if s.ref == vertical.active_declarations),
                     None,

@@ -226,6 +226,10 @@ class DiagnosticWarrantGrant(CoreModel):
     #: The rivals the reviewer weighed the outcome against. Recorded because a warrant is only as
     #: good as the alternatives it was weighed against.
     considered_rival_ids: tuple[str, ...] = ()
+    #: The reviewer's explicit statement that the hypothesis IS this declared class (`dds:` ref):
+    #: how a person says a model's paraphrase is a catalog mechanism. Approving the link alone
+    #: does not say it -- an outcome can diagnose a mechanism the domain did not name.
+    identifies_class_ref: str | None = None
 
     @model_validator(mode="after")
     def _a_rationale_is_required(self) -> Self:
@@ -236,6 +240,15 @@ class DiagnosticWarrantGrant(CoreModel):
             )
         if self.relation_type not in (RelationType.SUPPORTS, RelationType.CONTRADICTS):
             raise ValueError(f"grant {self.grant_id} is for a {self.relation_type.value} relation")
+        if self.identifies_class_ref is not None and (
+            self.verdict is not GrantVerdict.WARRANTED
+            or self.relation_type is not RelationType.SUPPORTS
+            or parse_domain_ref(self.identifies_class_ref) is None
+        ):
+            raise ValueError(
+                f"grant {self.grant_id} identifies a class but is not a WARRANTED support, or the "
+                "reference is not a declaration reference"
+            )
         return self
 
 

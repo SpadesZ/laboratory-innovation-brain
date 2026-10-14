@@ -455,7 +455,10 @@ class BeliefEpisode:
                 "(policy_id, version) and an unregistered one cannot be re-derived later, so the "
                 "transition it would authorise could never be audited"
             )
-        if (policy_id, policy_version) in self._superseded:
+        successor = getattr(self._policies, "superseded_by", None)
+        if (policy_id, policy_version) in self._superseded or (
+            successor is not None and successor(policy_id, policy_version) is not None
+        ):
             raise EpisodeRefused(
                 f"{policy_id}@{policy_version} is superseded. It stays registered so the decisions "
                 "recorded under it re-derive; a new transition is attempted under the version "

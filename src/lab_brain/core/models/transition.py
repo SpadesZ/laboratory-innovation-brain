@@ -202,6 +202,9 @@ class RelationEvidence(CoreModel):
     warrant_ref: str | None = None
     #: A reviewer refused the warrant: terminal for this relation, which never counts again.
     refused: bool = False
+    #: The declared class a reviewer said this hypothesis IS (`dds:` ref), when they said so and
+    #: the observed outcome is that class's signature. Read by the confirmation rule, not here.
+    identifies: str | None = None
 
     @model_validator(mode="after")
     def _a_warrant_names_its_source(self) -> Self:

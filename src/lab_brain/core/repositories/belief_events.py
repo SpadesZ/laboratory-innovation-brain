@@ -301,6 +301,15 @@ class SqlTransitionPolicyStore:
         )
         return policy
 
+    def superseded_by(self, policy_id: str, version: str) -> str | None:
+        """The registered `policy@version` that supersedes this one, if any."""
+        row = self._connection.execute(
+            "SELECT policy_id || '@' || version FROM transition_policies"
+            " WHERE supersedes = %s ORDER BY policy_id, version LIMIT 1",
+            (f"{policy_id}@{version}",),
+        ).fetchone()
+        return None if row is None else str(row[0])
+
     def get(self, policy_id: str, version: str) -> TransitionPolicy | None:
         row = self._connection.execute(
             "SELECT policy_id, version, domain, from_state, candidate_to_state,"

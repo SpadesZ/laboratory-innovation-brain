@@ -82,7 +82,7 @@ from lab_brain.storage.artifacts.local import InMemoryArtifactStore
 from lab_brain.storage.postgres.capabilities import PostgresResourceBroker
 from lab_brain.storage.postgres.run_outputs import SqlRunOutputSink
 from lab_brain.storage.postgres.verification_evidence import SqlEvidenceSink
-from lab_brain.storage.postgres.warrants import sql_warrant_resolver
+from lab_brain.storage.postgres.warrants import episode_outcomes, sql_warrant_resolver
 from lab_brain.tool_providers.lumerical.mock_vertical import (
     MockChargeDcBackend,
     MockMeshSensitivityBackend,
@@ -515,6 +515,8 @@ def run_case(
         now=world.now,
         warrant_reviews=SqlDiagnosticWarrantStore(connection),
         declarations=declarations,
+        episode_outcomes=episode_outcomes(connection),
+        relations_from=SqlRelationStore(connection).from_observation,
     )
     request = LoopRequest(
         project_id=PROJECT,

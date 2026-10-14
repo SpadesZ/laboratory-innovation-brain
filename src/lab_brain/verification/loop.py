@@ -100,7 +100,7 @@ from lab_brain.core.root_cause import (
     mine_candidate_heuristics,
     trace_root_cause,
 )
-from lab_brain.core.warrant import evidence_line, observed_link
+from lab_brain.core.warrant import EpisodeOutcomes, evidence_line, observed_link
 from lab_brain.evidence.condition_schema_registry import ConditionSchemaRegistry
 from lab_brain.ingestion.admission_gate import AdmissionRequest
 from lab_brain.tools.contracts import ToolRequest
@@ -152,6 +152,8 @@ _WAITING = frozenset(
         StopReason.BUDGET_BLOCKED,
         StopReason.AWAITING_REVIEW,
         StopReason.SUPPORTED_UNDISCRIMINATED,
+        # Two classes supported: they may co-occur, or a person may say they are one.
+        StopReason.COMPETING_SUPPORT,
     }
 )
 
@@ -289,6 +291,12 @@ class LoopDependencies:
     #: The active diagnostic declaration set, so the planner can project which results a DOMAIN
     #: warrant would cover. The same set the belief path's resolver uses.
     declarations: DiagnosticDeclarationSet | None = None
+    #: Every outcome the episode's runs observed, predicted or not -- so a declared signature
+    #: nobody predicted still counts as evidence of its mechanism.
+    episode_outcomes: EpisodeOutcomes | None = None
+    #: Every relation one observation produced, invalidated ones included: a rival's affirmation
+    #: of the observation a candidate rests on does not vanish because its window was closed.
+    relations_from: Callable[[str, str], Sequence[RelationJudgment]] | None = None
 
 
 @dataclass(frozen=True)
@@ -859,7 +867,16 @@ class VerificationLoop:
                     certificates[h].hypothesis.mechanism, certificates[h].predictions
                 )
             )
-            return h if declaration is None else f"class:{declaration.class_id}"
+            if declaration is not None:
+                return f"class:{declaration.class_id}"
+            # A person's explicit statement that this hypothesis IS a declared class -- the only
+            # way a paraphrase joins that class. Approving a link alone never does.
+            said = {
+                r.identifies.split("#", 1)[1]
+                for r in views[h].relation_evidence
+                if r.warranted and r.identifies is not None
+            }
+            return f"class:{next(iter(said))}" if len(said) == 1 else h
 
         # Excluded: rejected through the governed policy -- fidelity, conditions, independence and
         # all -- on a refutation an accountable source warranted. A coarse result that only
@@ -928,40 +945,37 @@ class VerificationLoop:
         # An observed outcome the domain declares to be ANOTHER class's signature is evidence of
         # that mechanism, whoever claimed it and whatever a person said about their claim: the
         # failure may have two causes, or the candidate may be the wrong one. Not confirmed.
-        # Unless the candidate's own class accounts for it with a warranted relation: then a
-        # person has accountably said the candidate explains that outcome (a paraphrase of the
-        # declared class, say), and the note asks them to make the identity explicit.
-        accounted = {r for h in family for r in with_warrant(h, RelationType.SUPPORTS)}
-        for h in ids:
-            for relation in admitted[h]:
-                owner = self._signature_owner(certificates[h], relation)
-                if owner is None or f"class:{owner.class_id}" == keys[candidate]:
-                    continue
-                if relation.relation_id in accounted:
-                    note = (
-                        f"{relation.relation_id}: the observed "
-                        f"{relation.attributes.get('outcome')} is the declared signature of "
-                        f"'{owner.mechanism}', and a person warranted it for {h} -- say whether "
-                        f"{h} is that declared mechanism"
-                    )
-                    if note not in notes:
-                        notes.append(note)
-                    continue
-                undischarged.append(candidate)
-                note = (
-                    f"{relation.relation_id}: the observed {relation.attributes.get('outcome')}"
-                    f" is the declared signature of '{owner.mechanism}', another mechanism "
-                    f"than {candidate}'s -- evidence of a second or a different cause"
-                )
-                if note not in notes:
-                    notes.append(note)
+        # Only the candidate's own class -- bound, or identified by a person's explicit statement
+        # -- accounts for that class's signature; a person approving a link without saying the
+        # hypothesis IS the declared class does not. Every outcome the episode observed is read,
+        # predicted or not.
+        for where, owner in self._observed_signatures(request, certificates, admitted):
+            if f"class:{owner.class_id}" == keys[candidate]:
+                continue
+            undischarged.append(candidate)
+            note = (
+                f"{where}: the observed outcome is the declared signature of '{owner.mechanism}', "
+                f"another mechanism than {candidate}'s -- evidence of a second or a different "
+                "cause; if a hypothesis IS that mechanism, a reviewer can say so"
+            )
+            if note not in notes:
+                notes.append(note)
+        produced = (
+            [r for x in sorted(observations) for r in d.relations_from(request.project_id, x)]
+            if d.relations_from is not None
+            else []
+        )
         for rival in rivals:
             if rival in excluded:
                 continue
             affirming = sorted(
-                r.relation_id
-                for r in admitted[rival]
-                if r.from_entity_id in observations and r.relation_type in _AFFIRMING
+                {
+                    r.relation_id
+                    for r in (*admitted[rival], *produced)
+                    if r.to_entity_id == rival
+                    and r.from_entity_id in observations
+                    and r.relation_type in _AFFIRMING
+                }
             )
             if affirming:
                 undischarged.append(rival)
@@ -1011,6 +1025,31 @@ class VerificationLoop:
             awaiting=tuple(threats),
             notes=tuple(notes),
         )
+
+    def _observed_signatures(
+        self,
+        request: LoopRequest,
+        certificates: Mapping[str, HypothesisCertificate],
+        admitted: Mapping[str, Sequence[RelationJudgment]],
+    ) -> list[tuple[str, DiagnosticDeclaration]]:
+        """Each declared signature the episode observed, by observation (or relation)."""
+        declarations = self._d.declarations
+        if declarations is None:
+            return []
+        found: dict[str, DiagnosticDeclaration] = {}
+        if self._d.episode_outcomes is not None:
+            for observation_id, link in self._d.episode_outcomes(
+                request.project_id, request.episode_id
+            ):
+                owner = declarations.signature_of(link)
+                if owner is not None:
+                    found[observation_id] = owner
+        for h, relations in admitted.items():
+            for relation in relations:
+                owner = self._signature_owner(certificates[h], relation)
+                if owner is not None:
+                    found.setdefault(relation.from_entity_id, owner)
+        return sorted(found.items())
 
     def _signature_owner(
         self, certificate: HypothesisCertificate, relation: RelationJudgment

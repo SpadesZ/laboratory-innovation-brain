@@ -206,6 +206,21 @@ class SqlRelationStore:
         ).fetchone()
         return None if row is None else self._hydrate(row)
 
+    def from_observation(
+        self, project_id: str, observation_id: str
+    ) -> tuple[RelationJudgment, ...]:
+        """Every relation one observation produced, invalidated ones included, by id.
+
+        For the Causal Warrant Gate's confirmation rule: a rival's affirmation of the observation
+        a candidate rests on must not disappear because someone closed its validity window.
+        """
+        rows = self._connection.execute(
+            f"SELECT {_RELATION_COLUMNS} FROM relation_judgments"
+            " WHERE project_id = %s AND from_entity_id = %s ORDER BY relation_id",
+            (project_id, observation_id),
+        ).fetchall()
+        return tuple(self._hydrate(row) for row in rows)
+
     def admitted_for_subject(
         self, project_id: str, subject_id: str
     ) -> tuple[RelationJudgment, ...]:

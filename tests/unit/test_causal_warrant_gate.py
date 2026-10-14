@@ -1140,3 +1140,141 @@ def test_a_grant_for_another_prediction_and_an_unrecorded_outcome_warrant_nothin
         _resolver(bound, attestations=attestation).resolve(PROJECT, "hyp:b", (claimed,)).records
     )
     assert unrecorded.warrant is None
+
+
+def test_a_persons_identity_statement_counts_only_where_the_domain_supports_it():
+    """'This hypothesis IS class C' is honoured when the warranted outcome is C's signature."""
+    sig = prediction("p", "fl.endface", "DIRTY", RelationType.SUPPORTS)
+    cert = certificate("p", "grime on the ferrule", (sig,))
+    relation = observed(sig)
+
+    def grant(identifies: str) -> DiagnosticWarrantGrant:
+        return DiagnosticWarrantGrant(
+            grant_id="dwg:id",
+            project_id=PROJECT,
+            review_id="rvw:id",
+            relation_id=relation.relation_id,
+            relation_type=RelationType.SUPPORTS,
+            hypothesis_id="hyp:p",
+            prediction_id=sig.prediction_id,
+            verdict=GrantVerdict.WARRANTED,
+            granted_by_actor_id="act:reviewer",
+            granted_at=T0,
+            rationale="grime on the ferrule is end-face contamination",
+            identifies_class_ref=identifies,
+        )
+
+    right = "dds:fl.loss_mechanisms@1.0.0#contamination"
+    (record,) = (
+        _resolver(cert, grants=_Grants(grant(right))).resolve(PROJECT, "hyp:p", (relation,)).records
+    )
+    assert record.warrant is WarrantBasis.REVIEW and record.identifies == right
+    # The macrobend class's signature is a wavelength-dependent step, not a dirty end-face.
+    wrong = "dds:fl.loss_mechanisms@1.0.0#macrobend"
+    (record,) = (
+        _resolver(cert, grants=_Grants(grant(wrong))).resolve(PROJECT, "hyp:p", (relation,)).records
+    )
+    assert record.warrant is WarrantBasis.REVIEW and record.identifies is None
+
+
+def test_an_identified_paraphrase_joins_its_class_and_an_unidentified_one_does_not():
+    pool_pair = (
+        prediction("pool", "web.pool_wait", "SATURATED_WAITING", RelationType.SUPPORTS),
+        prediction("pool", "web.pool_wait", "IDLE_CAPACITY", RelationType.CONTRADICTS),
+    )
+    para = prediction("para", "web.pool_wait", "SATURATED_WAITING", RelationType.SUPPORTS)
+    certificates = (
+        certificate("pool", "database connection pool exhaustion", pool_pair),
+        certificate("para", "connections run out under load", (para,)),
+    )
+    pool_rel = observed(pool_pair[0], observation="obs:pool-check")
+    para_rel = observed(para, observation="obs:pool-check")
+    ref = "dds:web.timeout_causes@1.0.0#pool_exhaustion"
+
+    def world(identified: bool) -> _World:
+        para_record = _record(para_rel, warranted=True, line="line:1").model_copy(
+            update={"warrant": WarrantBasis.REVIEW, "warrant_ref": "dwg:para"}
+        )
+        if identified:
+            para_record = para_record.model_copy(update={"identifies": ref})
+        return _World(
+            states={"hyp:pool": BeliefState.SUPPORTED, "hyp:para": BeliefState.SUPPORTED},
+            relations={"hyp:pool": (pool_rel,), "hyp:para": (para_rel,)},
+            records={
+                "hyp:pool": (_record(pool_rel, warranted=True),),
+                "hyp:para": (para_record,),
+            },
+        )
+
+    joined = _standing(world(True), certificates=certificates, declarations=INCIDENT)
+    assert joined.confirmable is not None and not joined.competing
+    apart = _standing(world(False), certificates=certificates, declarations=INCIDENT)
+    assert apart.confirmable is None and apart.competing == ("hyp:para", "hyp:pool")
+
+
+def test_the_policy_store_says_what_is_superseded_even_where_nobody_wired_it():
+    from lab_brain.core.episode import BeliefEpisode, EpisodeRefused
+
+    first = _promote(version="1.0.0", diagnostic_warrant_required=False)
+    store = type(
+        "Store",
+        (),
+        {
+            "get": staticmethod(lambda _i, _v: first),
+            "superseded_by": staticmethod(lambda _i, _v: "pol:toy-promote@2.0.0"),
+        },
+    )()
+    episode = BeliefEpisode(
+        **{
+            name: cast(Any, None)
+            for name in (
+                "decisions",
+                "events",
+                "relations",
+                "authority_classes",
+                "conflicts",
+                "reviews",
+                "ids",
+            )
+        },
+        policies=cast(Any, store),
+    )
+    with pytest.raises(EpisodeRefused, match="superseded"):
+        episode.attempt_transition(
+            project_id=PROJECT,
+            hypothesis_id="hyp:h",
+            policy_id=first.policy_id,
+            policy_version=first.version,
+            candidate_to_state=BeliefState.SUPPORTED,
+            stakes="HIGH",
+            occurred_at=T0,
+            trace_id="trc:toy",
+        )
+
+
+def test_an_attestation_of_another_observation_lends_nothing():
+    sig = prediction("h", "fl.endface", "DIRTY", RelationType.SUPPORTS)
+    contra = prediction("h", "fl.endface", "CLEAN", RelationType.CONTRADICTS)
+    cert = certificate("h", "connector end-face contamination", (sig, contra))
+    relation = observed(sig, observation="obs:this")
+    from lab_brain.core.models.attestation import Attestation
+
+    def borrowed(_p: str, _a: str) -> Any:
+        return cast(
+            Attestation,
+            type(
+                "A",
+                (),
+                {
+                    "method": {"outcome": "DIRTY", "outcome_space": sig.outcome_space_ref},
+                    "authority_class": None,
+                    "run_id": None,
+                    "observation_id": "obs:another",
+                },
+            )(),
+        )
+
+    (record,) = (
+        _resolver(cert, attestations=borrowed).resolve(PROJECT, "hyp:h", (relation,)).records
+    )
+    assert record.warrant is None
