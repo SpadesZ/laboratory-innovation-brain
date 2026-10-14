@@ -23,4 +23,10 @@ deployment/docker/review-authorities
 
 # Local artifact store and numerical arrays live outside version control
 var/
+# A store or report created in the repository root by mistake: research bytes, possibly
+# confidential, must not be committed (keep stores under var/ or outside the checkout).
+/artifacts/
+/objects/
+/_staging/
+/report.md
 artifacts_store/

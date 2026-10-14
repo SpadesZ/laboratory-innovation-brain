@@ -257,7 +257,7 @@ def _model(runner, classifier, *, reach=ExternalReach.LOCAL) -> ScientificLLM:
 # ---------------------------------------------------------------------------
 
 
-def test_the_whole_m1_vertical_is_durable_and_authorized(world):
+def test_the_whole_m1_vertical_is_durable_and_authorized(world, tmp_path):
     """Episode -> Job -> suspend -> NEW CONNECTION -> resume -> Run -> evidence -> authorized
     retrieval -> source status -> authorized model call -> DURABLE provenance -> reload -> UX.
     """
@@ -372,7 +372,7 @@ def test_the_whole_m1_vertical_is_durable_and_authorized(world):
 
         # And the belief gate reads THAT record, not a set this test supplied.
         gate = IngestionService(
-            connection=fresh, artifact_store=LocalArtifactStore(".")
+            connection=fresh, artifact_store=LocalArtifactStore(tmp_path)
         ).belief_basis_gate()
         assert gate.evaluate([durable_inference.basis_ref]).permitted
         assert not gate.evaluate(["inf:never-recorded"]).permitted

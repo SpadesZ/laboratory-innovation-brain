@@ -100,7 +100,7 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
   --verification-input PS-504.device.json `
   --literature-corpus fixtures\external\literature_corpus.json `
   --literature-query "series resistance contact normalization reverse bias" `
-  --artifact-root .\artifacts --report report.md
+  --artifact-root .\var\artifacts --report report.md
 ```
 
 - 執行者必須是該 project 的有效成員；否則沒有 episode、沒有資料列、沒有報告。
@@ -116,7 +116,7 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
 
 ```powershell
 .\.venv\Scripts\lab-brain.exe research run `
-  --project prj:ps-rs --actor act:rkuo --episode <episode id> --artifact-root .\artifacts
+  --project prj:ps-rs --actor act:rkuo --episode <episode id> --artifact-root .\var\artifacts
 ```
 
 - `research run` 不帶 `--episode` 一律開**新** episode（id 由系統產生）；帶 `--episode` 只代表**續跑**。
@@ -131,7 +131,7 @@ $env:LAB_BRAIN_DATABASE_URL = "postgresql://lab_brain:lab_brain@localhost:5433/l
 ### 在瀏覽器中研究：`lab-brain web`
 
 ```powershell
-.\.venv\Scripts\lab-brain.exe web --actor act:rkuo --artifact-root .\artifacts
+.\.venv\Scripts\lab-brain.exe web --actor act:rkuo --artifact-root .\var\artifacts
 # 開啟 http://127.0.0.1:8765/
 ```
 
