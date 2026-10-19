@@ -5066,6 +5066,78 @@ MUTATIONS: tuple[Mutation, ...] = (
         new="     WHERE FALSE AND NOT EXISTS (\n",
         tests=("tests/integration/test_project_scoped_provenance_postgres.py",),
     ),
+    Mutation(
+        name="a_review_only_link_warrants_automatically",
+        guards="Review-only declared links (012t) -- a link the declaration leaves to a person is never a DOMAIN warrant",
+        path="src/lab_brain/core/warrant.py",
+        old="    if not declaration.warrants(relation.relation_type):\n        return None\n",
+        new="    if False:\n        return None\n",
+        tests=("tests/unit/test_causal_warrant_gate.py",),
+    ),
+    Mutation(
+        name="the_planner_projects_a_review_only_link_as_a_warrant",
+        guards="Review-only declared links (012t) -- planning projects a withdrawn link's result as going to a person",
+        path="src/lab_brain/verification/sufficiency.py",
+        old="            and declaration.warrants(relation.relation_type)\n",
+        new="            and True\n",
+        tests=(
+            "tests/unit/test_causal_warrant_gate.py::test_planning_projects_a_withdrawn_link_as_going_to_a_person",
+        ),
+    ),
+    Mutation(
+        name="review_only_enters_the_digest_while_empty",
+        guards="Review-only declared links (012t) -- a set naming no withdrawn link keeps the digest it was registered under",
+        path="src/lab_brain/core/models/warrant.py",
+        old='            if not declaration.get("review_only"):\n',
+        new="            if False:\n",
+        tests=("tests/unit/test_sp_candidate_declarations.py",),
+    ),
+    Mutation(
+        name="the_candidate_withdraws_nothing",
+        guards="Review-only declared links (012t) -- the candidate's withdrawals reach its declarations",
+        path="src/lab_brain/cognition/catalog_reasoner.py",
+        old="                review_only=tuple(sorted(set(mechanism.review_only))),\n",
+        new="                review_only=(),\n",
+        tests=("tests/unit/test_sp_candidate_declarations.py",),
+    ),
+    Mutation(
+        name="the_packet_hides_a_withdrawn_link",
+        guards="Review-only declared links (012t) -- a reviewer is told the domain leaves the link to them",
+        path="src/lab_brain/interfaces/review_cli.py",
+        old="        if owner.review_only:\n",
+        new="        if False:\n",
+        tests=("tests/unit/test_sp_candidate_declarations.py",),
+    ),
+    Mutation(
+        name="sql_a_review_only_link_is_a_domain_warrant",
+        guards="Review-only declared links (012t) -- SQL's confirmation rule reads a withdrawn link as a person's to warrant",
+        path="migrations/012t_review_only_declarations.sql",
+        old="                    AND NOT (p_relation.relation_type = ANY (v_decl.review_only));\n",
+        new="                    AND TRUE;\n",
+        tests=(
+            "tests/e2e/test_sp_candidate_declarations_postgres.py::test_sql_reads_a_withdrawn_link_as_no_domain_warrant",
+        ),
+    ),
+    Mutation(
+        name="sql_review_only_is_not_checked",
+        guards="Review-only declared links (012t) -- a malformed review_only is refused at registration",
+        path="migrations/012t_review_only_declarations.sql",
+        old="        OR (d ? 'review_only' AND (\n",
+        new="        OR (FALSE AND (\n",
+        tests=(
+            "tests/e2e/test_sp_candidate_declarations_postgres.py::test_sql_registers_the_withdrawn_links_and_refuses_a_malformed_one",
+        ),
+    ),
+    Mutation(
+        name="sql_the_view_drops_review_only",
+        guards="Review-only declared links (012t) -- the declarations view carries each withdrawn link",
+        path="migrations/012t_review_only_declarations.sql",
+        old="       ARRAY(SELECT jsonb_array_elements_text(coalesce(d -> 'review_only', '[]'::jsonb)))\n",
+        new="       ARRAY(SELECT jsonb_array_elements_text('[]'::jsonb))\n",
+        tests=(
+            "tests/e2e/test_sp_candidate_declarations_postgres.py::test_sql_registers_the_withdrawn_links_and_refuses_a_malformed_one",
+        ),
+    ),
 )
 
 

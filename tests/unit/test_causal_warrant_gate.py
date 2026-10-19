@@ -422,6 +422,33 @@ def test_a_set_without_links_left_to_a_person_keeps_its_digest():
     assert left.canonical_form()["declarations"][0]["review_only"] == ["CONTRADICTS"]
 
 
+def test_planning_projects_a_withdrawn_link_as_going_to_a_person():
+    """The planner counts a planned check's result as the resolver would count the real one: a
+    link the declaration leaves to a person is projected with no warrant, its other link with
+    the DOMAIN warrant (`sufficiency._planned_evidence`)."""
+    from types import SimpleNamespace
+
+    from lab_brain.verification import sufficiency
+
+    left = _left_to_a_person(RelationType.SUPPORTS)
+    declaration = left.by_class("contamination")
+    state = SimpleNamespace(declaration=declaration, declaration_ref=left.domain_ref(declaration))
+    capability = SimpleNamespace(capability_id="cap:fl.inspect_endface")
+    warrants = {}
+    for p in (
+        prediction("c", "fl.endface", "DIRTY", RelationType.SUPPORTS),
+        prediction("c", "fl.endface", "CLEAN", RelationType.CONTRADICTS),
+    ):
+        relations = sufficiency._observed(p, PROJECT, None)
+        (record,) = sufficiency._planned_evidence(state, p, relations, [], capability)  # type: ignore[arg-type]
+        warrants[record.relation_type] = (record.warrant, record.warrant_ref)
+    assert warrants[RelationType.SUPPORTS] == (None, None)
+    assert warrants[RelationType.CONTRADICTS] == (
+        WarrantBasis.DOMAIN,
+        "dds:fl.loss_mechanisms@1.1.0#contamination",
+    )
+
+
 @pytest.mark.parametrize(
     "review_only",
     [

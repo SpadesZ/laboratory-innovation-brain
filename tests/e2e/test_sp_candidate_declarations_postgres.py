@@ -98,6 +98,30 @@ def test_a_withdrawn_link_goes_to_a_person_in_sql_and_in_the_loop_alike(db, case
     assert record.correct, (record.stop, record.confirmed, record.pending_action)
 
 
+def test_sql_reads_a_withdrawn_link_as_no_domain_warrant(db):
+    """SQL's own statement of the warrant rule (`cwg_evidence`, 012t), read directly: the loop
+    never asks SQL to move belief on a link it cannot warrant, so the differential check alone
+    would not see SQL reading one as DOMAIN. One case observes all three withdrawn links."""
+    candidate, registered = candidate_declarations()
+    fx = load_fixture(FIXTURE)
+    run = run_case(
+        db, fx, case_by_id(fx, "mesh-coarse-access"), declarations=candidate, registered=registered
+    )
+    assert run.request is not None
+    warrants: dict[tuple[str, str], set[object]] = {}
+    for certificate in run.request.certificates:
+        mechanism = certificate.hypothesis.mechanism
+        for row in db.execute(
+            "SELECT relation_type, warrant FROM cwg_evidence(%s, %s)",
+            (run.request.project_id, certificate.hypothesis.hypothesis_id),
+        ).fetchall():
+            warrants.setdefault((mechanism, row[0]), set()).add(row[1])
+    assert warrants[("mesh convergence artifact", "SUPPORTS")] == {None}
+    assert warrants[("access contact discontinuity", "CONTRADICTS")] == {None}
+    assert warrants[("dopant compensation in the rib", "CONTRADICTS")] == {None}
+    assert warrants[("length normalization error", "CONTRADICTS")] == {"DOMAIN"}, "the control"
+
+
 def test_sql_registers_the_withdrawn_links_and_refuses_a_malformed_one(db):
     candidate, registered = candidate_declarations()
     fx = load_fixture(FIXTURE)
