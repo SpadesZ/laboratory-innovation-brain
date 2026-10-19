@@ -45,6 +45,10 @@ from lab_brain.core.models.transition import (
 #: `HypothesisView` fields added after decisions were first stored; see `canonical_form`.
 _OMITTED_WHEN_EMPTY: tuple[str, ...] = ("relation_evidence",)
 
+#: Relation fields a stored snapshot never carried (`012r`), dropped from each admitted
+#: relation while unset -- always, in a snapshot: an admitted relation is current.
+_RELATION_OMITTED_WHEN_UNSET: tuple[str, ...] = ("invalidated_by_actor_id",)
+
 
 class DecisionType(StrEnum):
     """§17.14.1. Fixed to ``BELIEF_TRANSITION`` for this use.
@@ -105,6 +109,11 @@ class DecisionInputSnapshot(CoreModel):
         for name in _OMITTED_WHEN_EMPTY:
             if not view.get(name):
                 view.pop(name, None)
+        # The same rule for a relation field added after snapshots were stored (`012r`).
+        for relation in form["admitted_relations"]:
+            for name in _RELATION_OMITTED_WHEN_UNSET:
+                if relation.get(name) is None:
+                    relation.pop(name, None)
         return form
 
     def canonical_bytes_text(self) -> str:

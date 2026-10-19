@@ -172,7 +172,8 @@ def _packet(connection: Any, project_id: str, relation_id: str) -> list[str]:
     relation = connection.execute(
         "SELECT r.relation_type, r.to_entity_id, r.from_entity_id, r.attributes,"
         " h.mechanism, h.statement, h.inference_provenance_id"
-        " FROM relation_judgments r JOIN hypotheses h ON h.hypothesis_id = r.to_entity_id"
+        " FROM relation_judgments r JOIN hypotheses h"
+        " ON h.hypothesis_id = r.to_entity_id AND h.project_id = r.project_id"
         " WHERE r.project_id = %s AND r.relation_id = %s",
         (project_id, relation_id),
     ).fetchone()
@@ -181,8 +182,8 @@ def _packet(connection: Any, project_id: str, relation_id: str) -> list[str]:
     kind, hypothesis_id, observation_id, attributes, mechanism, statement, inference = relation
     prediction = connection.execute(
         "SELECT observable_ref, outcome_space_id, outcome_space_version, expected_outcome"
-        " FROM predictions WHERE prediction_id = %s",
-        (attributes.get("prediction_id"),),
+        " FROM predictions WHERE prediction_id = %s AND project_id = %s",
+        (attributes.get("prediction_id"), project_id),
     ).fetchone()
     lines = [
         f"  hypothesis   {hypothesis_id}",

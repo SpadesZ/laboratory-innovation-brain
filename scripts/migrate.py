@@ -291,6 +291,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # The research question's classification on every research run, carried by every
     # continuation. After 012c/012k (research_runs).
     "012q_question_classification.sql",
+    # A relation's invalidation is final and keeps its author; relations are never deleted.
+    # After 012o (whose immutability rule it restates).
+    "012r_relation_invalidation.sql",
 )
 
 _BOOTSTRAP = """
