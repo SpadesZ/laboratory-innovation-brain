@@ -1,5 +1,12 @@
 #!/bin/sh
-# Every start: migrations, then the operator's bootstrap of the researcher this workspace acts as.
+# Every start, as the migrator: migrations; the services' database roles and their privileges;
+# then the operator's bootstrap of the researcher this workspace acts as.
+#
+# The services' roles (least privilege, `service_roles.py`): `lab_brain_app`, which `web` and
+# `local-models` connect as, is created or set to exactly its declared attributes and the password
+# in the services' own secret volume; `lab-brain admin db-roles` then grants it row privileges only
+# -- after the migrations, so every table they created is covered -- and `lab_brain_reader` reads.
+# The migrator's own password is never mounted where the services run.
 #
 # The bootstrap is the deployment operator's decision, made explicit (`lab-brain admin`, idempotent):
 #   - the researcher, a person (HUMAN);
@@ -15,6 +22,8 @@
 # Their membership of the bootstrap project is what the configuration says, each start.
 set -eu
 python /app/scripts/migrate.py
+python /app/deployment/docker/service_roles.py "$LAB_BRAIN_APP_PASSWORD_FILE"
+lab-brain admin db-roles --app-role lab_brain_app --reader-role lab_brain_reader
 lab-brain admin actor "$LAB_BRAIN_ACTOR" --name "$LAB_BRAIN_ACTOR_NAME"
 lab-brain admin project "$LAB_BRAIN_PROJECT" --name "$LAB_BRAIN_PROJECT_NAME"
 lab-brain admin member "$LAB_BRAIN_PROJECT" "$LAB_BRAIN_ACTOR" \

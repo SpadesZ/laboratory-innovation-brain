@@ -7,18 +7,27 @@
 # The development/test database is `compose.dev.yaml`; this file never uses it.
 #
 # WHAT RUNS
-#   secrets       once: generates the database password into the `secrets` volume (first start)
+#   secrets       once: generates the two database passwords (first start) -- the migrator's into
+#                 the `secrets` volume, the services' role's into `app-secrets`
 #   db            PostgreSQL 17 + pgvector; on the internal network only, never published
-#   init          once per start: every migration, then the operator's bootstrap -- the researcher,
-#                 their project and membership, their LLM administration (deployment/docker/.
+#   init          once per start, as the migrator: every migration; the services' database roles
+#                 and their privileges; then the operator's bootstrap -- the researcher, their
+#                 project and membership, their LLM administration (deployment/docker/
 #                 bootstrap.sh, configured by the LAB_BRAIN_* variables below)
 #   web           the workspace, published on the HOST'S LOOPBACK ONLY (127.0.0.1). It has no login:
 #                 whoever reaches it acts as its actor, so nothing beyond this machine may
 #   local-models  once per start: the lightweight LOCAL routes -- the host's Ollama probed through
 #                 the ordinary capability tests; never a reasoning route (llm_runtime.local_setup)
 #
-# NO SECRET IS BAKED IN. The database password is generated at first start and lives only in the
-# `secrets` volume. A model-provider API key pasted in AI model settings is kept in the
+# LEAST PRIVILEGE IN THE DATABASE. Every rule the research records keep is a trigger or a
+# constraint, and a superuser or a table's owner can step past both. So only `init` connects as
+# the migrator (`lab_brain`, who owns the schema); `web` and `local-models` connect as
+# `lab_brain_app`, which owns nothing and holds row privileges only (`lab-brain admin db-roles`):
+# no TRUNCATE, no DDL, no `session_replication_role`, the migrations ledger read-only. Neither
+# service mounts the migrator's password; `lab_brain_reader` (no login) is the auditors' role.
+#
+# NO SECRET IS BAKED IN. The database passwords are generated at first start and live only in
+# the `secrets` and `app-secrets` volumes. A model-provider API key pasted in AI model settings is kept in the
 # `credentials` volume -- mounted on `web` and nowhere else, one 0600 file per key in a 0700
 # directory, named by an opaque id -- and the database stores only that reference and a
 # fingerprint. That is FILESYSTEM ISOLATION, NOT ENCRYPTION: whoever can read the Docker volume can
@@ -54,7 +63,6 @@ x-app: &app
   image: lab-brain-workspace:local
   pull_policy: never
   environment: &app-env
-    LAB_BRAIN_DATABASE_PASSWORD_FILE: /run/lab-brain-secrets/db_password
     LAB_BRAIN_DATABASE_HOST: db
     LAB_BRAIN_ACTOR: ${LAB_BRAIN_ACTOR:-act:researcher}
     LAB_BRAIN_ACTOR_NAME: ${LAB_BRAIN_ACTOR_NAME:-Local researcher}
@@ -64,18 +72,28 @@ x-app: &app
     LAB_BRAIN_REVIEW_AUTHORITIES: /run/lab-brain-review/authorities
     LAB_BRAIN_REVIEW_QUEUE_DECLARED_BY: ${LAB_BRAIN_REVIEW_QUEUE_DECLARED_BY:-}
   volumes:
-    - secrets:/run/lab-brain-secrets:ro
     - ${LAB_BRAIN_REVIEW_AUTHORITIES_FILE:-./deployment/docker/review-authorities.example}:/run/lab-brain-review/authorities:ro
+
+# Who a process is in the database. `init` alone is the migrator; the services are `lab_brain_app`.
+x-migrator-db: &migrator-db
+  LAB_BRAIN_DATABASE_USER: lab_brain
+  LAB_BRAIN_DATABASE_PASSWORD_FILE: /run/lab-brain-secrets/db_password
+x-service-db: &service-db
+  LAB_BRAIN_DATABASE_USER: lab_brain_app
+  LAB_BRAIN_DATABASE_PASSWORD_FILE: /run/lab-brain-app-secrets/db_password
 
 services:
   secrets:
     <<: *app
     user: "0:0"
     entrypoint: ["python", "/app/deployment/docker/make_secret.py"]
-    command: ["/run/lab-brain-secrets/db_password"]
+    command:
+      - /run/lab-brain-secrets/db_password
+      - /run/lab-brain-app-secrets/db_password
     environment: {}
     volumes:
       - secrets:/run/lab-brain-secrets
+      - app-secrets:/run/lab-brain-app-secrets
     restart: "no"
 
   db:
@@ -99,6 +117,14 @@ services:
 
   init:
     <<: *app
+    environment:
+      <<: [*app-env, *migrator-db]
+      # The services' role's password, which `init` sets on that role (service_roles.py).
+      LAB_BRAIN_APP_PASSWORD_FILE: /run/lab-brain-app-secrets/db_password
+    volumes:
+      - secrets:/run/lab-brain-secrets:ro
+      - app-secrets:/run/lab-brain-app-secrets:ro
+      - ${LAB_BRAIN_REVIEW_AUTHORITIES_FILE:-./deployment/docker/review-authorities.example}:/run/lab-brain-review/authorities:ro
     command: ["sh", "/app/deployment/docker/bootstrap.sh"]
     depends_on:
       db:
@@ -110,7 +136,7 @@ services:
     build: .
     pull_policy: build
     environment:
-      <<: *app-env
+      <<: [*app-env, *service-db]
       LAB_BRAIN_PUBLISHED_PORT: ${LAB_BRAIN_PORT:-8765}
       # The clock the pages show times in (stored times are UTC and unchanged).
       TZ: ${LAB_BRAIN_TZ:-Asia/Taipei}
@@ -138,7 +164,7 @@ services:
       # The machine this container runs on (Docker Desktop provides it; Linux needs the mapping).
       - "host.docker.internal:host-gateway"
     volumes:
-      - secrets:/run/lab-brain-secrets:ro
+      - app-secrets:/run/lab-brain-app-secrets:ro
       - ${LAB_BRAIN_REVIEW_AUTHORITIES_FILE:-./deployment/docker/review-authorities.example}:/run/lab-brain-review/authorities:ro
       - artifacts:/var/lib/lab-brain/artifacts
       # Pasted model-provider keys: this service only (see the header).
@@ -165,7 +191,7 @@ services:
   local-models:
     <<: *app
     environment:
-      <<: *app-env
+      <<: [*app-env, *service-db]
       LAB_BRAIN_OLLAMA_URL: ${LAB_BRAIN_OLLAMA_URL-http://host.docker.internal:11434/v1}
     command:
       - sh
@@ -177,6 +203,9 @@ services:
         --inference-deadline ${LAB_BRAIN_INFERENCE_DEADLINE:-180}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      - app-secrets:/run/lab-brain-app-secrets:ro
+      - ${LAB_BRAIN_REVIEW_AUTHORITIES_FILE:-./deployment/docker/review-authorities.example}:/run/lab-brain-review/authorities:ro
     depends_on:
       init:
         condition: service_completed_successfully
@@ -186,4 +215,5 @@ volumes:
   db:
   artifacts:
   secrets:
+  app-secrets:
   credentials:

@@ -1,7 +1,9 @@
-"""Generate the database password once, into the `secrets` volume (compose.yaml, service `secrets`).
+"""Generate the database passwords once, into their volumes (compose.yaml, service `secrets`).
 
-An existing password is never replaced: the database was initialised with it. The file is readable
-by the database and workspace processes that mount the volume; nothing else mounts it.
+One file per argument: the migrator's password in the `secrets` volume, and the services' role's
+password in `app-secrets`. An existing password is never replaced: the database was initialised
+with the first, and the services' role was given the second. Each file is readable by the
+processes that mount its volume; each volume is mounted only where its password is needed.
 """
 
 from __future__ import annotations
@@ -12,19 +14,26 @@ import sys
 from pathlib import Path
 
 
-def main(target: str) -> int:
+def ensure_secret(target: str) -> str:
     path = Path(target)
     if path.exists():
-        print("database password: kept")
-        return 0
+        return f"{path.name} in {path.parent}: kept"
     path.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o444)
     with os.fdopen(fd, "w") as out:
         out.write(secrets.token_hex(24))
     os.chmod(path, 0o444)
-    print("database password: generated")
+    return f"{path.name} in {path.parent}: generated"
+
+
+def main(targets: list[str]) -> int:
+    if not targets:
+        print("usage: make_secret.py PATH [PATH ...]", file=sys.stderr)
+        return 2
+    for target in targets:
+        print(f"database password {ensure_secret(target)}")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1]))
+    sys.exit(main(sys.argv[1:]))
