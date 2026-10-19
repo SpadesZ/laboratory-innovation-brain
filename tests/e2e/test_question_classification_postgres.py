@@ -144,6 +144,22 @@ def test_a_continuation_carries_the_recorded_classification_and_cannot_change_it
     assert [label for _, label in _labels(db, episode_id)] == ["CONFIDENTIAL_LAB"] * 3
 
 
+def test_a_question_is_continued_only_by_someone_still_cleared_for_it(db, tmp_path):
+    """The opener's clearance is read again at each continuation: lowered since the episode
+    opened, the question is not asked again -- on any path -- and nothing is written."""
+    _member(db)
+    _clear(db, "PUBLIC", "INTERNAL", "CONFIDENTIAL_LAB")
+    episode_id = _open(tmp_path, SensitivityLabel.CONFIDENTIAL_LAB)
+    _clear(db, "PUBLIC", "INTERNAL")
+    before = _census(db)
+    with pytest.raises(ContinuationRefused, match="does not include it; it is not continued"):
+        _continue(tmp_path, episode_id)
+    code, printed = _cli(tmp_path, "--episode", episode_id)
+    assert code == 1 and "does not include it" in printed, printed
+    assert _census(db) == before, "a question its asker can no longer read is not asked again"
+    assert _labels(db, episode_id) == [(1, "CONFIDENTIAL_LAB")]
+
+
 def test_an_episode_opened_before_012q_continues_only_under_a_declared_classification(db, tmp_path):
     _member(db)
     _clear(db, "PUBLIC", "INTERNAL", "CONFIDENTIAL_LAB")
