@@ -364,6 +364,12 @@ _ROLE_NAME = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 #: The migrations ledger: written by the migrator, read by anyone, never written by a service.
 _LEDGER = "schema_migrations"
 
+#: What an auditor may read of an account: everything but its password hash and lockout.
+_ACCOUNT_COLUMNS = (
+    "account_id, actor_id, email, display_name, system_role, status, email_verified_at,"
+    " email_verified_by, approved_at, approved_by_actor_id, created_at"
+)
+
 
 def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str]:
     """Least-privilege database access: the services' role and an auditor's role (V1.1).
@@ -421,7 +427,7 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
                 "member of a superuser): an owner can turn its own tables' triggers off"
             )
     app, reader = (f'"{r}"' for r in roles)
-    statements = (
+    statements: tuple[str, ...] = (
         "REVOKE CREATE ON SCHEMA public FROM PUBLIC",
         f"GRANT USAGE ON SCHEMA public TO {app}, {reader}",
         f"REVOKE ALL ON ALL TABLES IN SCHEMA public FROM {app}, {reader}",
@@ -437,6 +443,14 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
         f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {reader}",
         f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO {app}",
     )
+    # Accounts (`012u`): an auditor reads who has which account and role, never a password hash,
+    # a session or a reset token. Revoked again on every run, since a later migration's tables
+    # reach the auditor through the default privileges above.
+    if c.execute("SELECT to_regclass('public.accounts')").fetchone()[0] is not None:
+        statements += (
+            f"REVOKE SELECT ON accounts, account_sessions, account_tokens FROM {reader}",
+            f"GRANT SELECT ({_ACCOUNT_COLUMNS}) ON accounts TO {reader}",
+        )
     try:
         with c.transaction():
             for statement in statements:
