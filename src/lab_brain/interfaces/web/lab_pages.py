@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from lab_brain.accounts.projects import LABELS, Membership
 from lab_brain.interfaces.web.i18n import Messages
-from lab_brain.interfaces.web.pages import Chrome, Html, cat, h, page
+from lab_brain.interfaces.web.pages import Chrome, Html, cat, h, page, when
 
 Messages.extend(
     {
@@ -251,6 +251,12 @@ class ProjectOverview:
     oversight: Sequence[tuple[str, str, dt.datetime]]
 
 
+def _last_owner(view: ProjectOverview, member: Membership) -> bool:
+    """Removing the project's only active owner is refused, so it is not offered."""
+    owners = [m for m in view.memberships if m.active and m.role == "OWNER"]
+    return member.role == "OWNER" and len(owners) == 1
+
+
 def project_page(
     chrome: Chrome, view: ProjectOverview, *, notice: str | None = None, error: str | None = None
 ) -> bytes:
@@ -269,7 +275,7 @@ def project_page(
                 member.actor_id,
                 m("proj.remove"),
             )
-            if view.can_manage and member.active
+            if view.can_manage and member.active and not _last_owner(view, member)
             else Html("")
         )
         rows.append(
@@ -333,10 +339,7 @@ def project_page(
     looked = (
         h(
             "<ul>{}</ul>",
-            cat(
-                h("<li>{} — {}</li>", who, at.strftime("%Y-%m-%d %H:%M"))
-                for who, _s, at in view.oversight
-            ),
+            cat(h("<li>{} — {}</li>", who, when(at)) for who, _s, at in view.oversight),
         )
         if view.oversight
         else h('<p class="muted">{}</p>', m("proj.oversight.none"))
@@ -419,9 +422,7 @@ def inbox_page(
                 q.statement,
                 m("inbox.claim"),
                 q.claim,
-                h("<p>{}: {}</p>", m("inbox.due"), q.due.strftime("%Y-%m-%d %H:%M UTC"))
-                if q.due
-                else Html(""),
+                h("<p>{}: {}</p>", m("inbox.due"), when(q.due)) if q.due else Html(""),
                 m("inbox.how"),
                 m("inbox.how.lead"),
                 q.command,

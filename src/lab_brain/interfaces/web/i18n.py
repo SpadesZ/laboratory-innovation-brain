@@ -71,6 +71,10 @@ _M: dict[str, tuple[str, str]] = {
         "{actor} 目前還不是任何研究專案的成員。請部署管理者把你加入研究專案"
         "（lab-brain admin member <研究專案> {actor} ...）。",
     ),
+    "home.no_projects.accounts": (
+        "You are not in any research project yet. Create one, or ask a project's owner to add you.",
+        "您尚未參與任何研究專案。可以自行建立，或請專案擁有者把您加入。",
+    ),
     "col.episode": ("Research task", "研究任務"),
     "col.project": ("Research project", "研究專案"),
     "col.goal": ("Question", "研究問題"),

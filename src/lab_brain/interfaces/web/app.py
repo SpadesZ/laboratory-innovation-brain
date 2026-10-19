@@ -1498,9 +1498,13 @@ class Workspace:
         every project -- grants none of it. Refused before anything is read or written. With
         accounts, only an active administrator holds it."""
         signed_in_admin = self._account is not None and self._account.is_admin
-        if (self._accounts_config is not None and not signed_in_admin) or not self._llm(
-            c
-        ).is_administrator:
+        if self._accounts_config is not None and not signed_in_admin:
+            raise _Refused(
+                self._message(
+                    req, "403 Forbidden", req.m("msg.not_llm_admin.title"), req.m("admin.llm_only")
+                )
+            )
+        if not self._llm(c).is_administrator:
             raise _Refused(
                 self._message(
                     req,
@@ -2305,7 +2309,7 @@ class Workspace:
         if path == "/admin" or path.startswith("/admin/"):
             if not self._account.is_admin:
                 return self._message(
-                    req, "403 Forbidden", req.m("msg.refused"), req.m("admin.refused.not_permitted")
+                    req, "403 Forbidden", req.m("msg.refused"), req.m("admin.only")
                 )
             return self._admin_route(c, req)
         return None

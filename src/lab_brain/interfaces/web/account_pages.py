@@ -10,7 +10,7 @@ from __future__ import annotations
 import datetime as dt
 
 from lab_brain.interfaces.web.i18n import Messages
-from lab_brain.interfaces.web.pages import Chrome, Html, cat, e, h, page
+from lab_brain.interfaces.web.pages import Chrome, Html, cat, e, h, page, when_text
 
 Messages.extend(
     {
@@ -373,7 +373,7 @@ def account_page(
             (m("acct.email"), e(email)),
             (m("acct.role"), e(m(f"acct.role.{role}"))),
             (m("acct.state"), e(m(f"acct.state.{status}"))),
-            (m("acct.since"), e(since.strftime("%Y-%m-%d"))),
+            (m("acct.since"), e(when_text(since))),
         )
     )
     mine = cat(

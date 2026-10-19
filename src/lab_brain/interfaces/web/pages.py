@@ -48,6 +48,7 @@ border-radius:4px}
 header.top a.here{background:#34416a;color:#fff}header.top a.brand{color:#fff;margin-right:12px}
 header.top .who{margin-left:auto;opacity:.9;font-size:13px}
 header.top code{background:#34416a;color:#fff}
+header.top .badge{background:#34416a;color:#fff}
 header.top form{display:flex;gap:4px;align-items:center;margin:0 0 0 12px}
 header.top form button{margin:0;padding:2px 8px;font-size:12px;background:#34416a}
 header.top form button.here{background:#fff;color:#1f2a44}
@@ -83,7 +84,7 @@ color:#7a1a1a}
 .notice{background:#fff8e1;border-color:#e8d38c}.warn{background:#fff1c2;border-color:#e8c46a}
 form.inline{display:inline}label{display:block;font-weight:600;margin-top:12px}
 label.check{font-weight:400}
-input[type=text],input[type=password],input[type=url],textarea,select{width:100%;
+input[type=text],input[type=password],input[type=email],input[type=url],textarea,select{width:100%;
 box-sizing:border-box;padding:6px;font:inherit}
 textarea{min-height:70px}button{margin-top:14px;padding:7px 16px;font:inherit;font-weight:600;
 background:#1f2a44;color:#fff;border:0;border-radius:4px;cursor:pointer}

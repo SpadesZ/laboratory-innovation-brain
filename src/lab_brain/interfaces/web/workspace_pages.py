@@ -779,11 +779,18 @@ def _project_options(projects: Sequence[ProjectRow], chosen: str | None) -> Html
 
 def _no_projects(chrome: Chrome, title_key: str) -> bytes:
     m = chrome.m
-    body = h(
-        '<h1>{}</h1><p class="box notice">{}</p>',
-        m(title_key),
-        m("home.no_projects", actor=chrome.actor_id),
+    # With accounts, a person creates their own project or is added to one -- in words, with no
+    # actor id and no operator command.
+    text = (
+        h(
+            '{} <a href="/projects">{}</a>',
+            m("home.no_projects.accounts"),
+            m("proj.create"),
+        )
+        if chrome.account_name is not None
+        else m("home.no_projects", actor=chrome.actor_id)
     )
+    body = h('<h1>{}</h1><p class="box notice">{}</p>', m(title_key), text)
     return page(m(title_key), body, chrome=chrome)
 
 

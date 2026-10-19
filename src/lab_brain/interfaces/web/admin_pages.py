@@ -19,11 +19,22 @@ from lab_brain.accounts.oversight import (
 )
 from lab_brain.accounts.service import Account
 from lab_brain.interfaces.web.i18n import Messages
-from lab_brain.interfaces.web.pages import Chrome, Html, cat, h, page
+from lab_brain.interfaces.web.pages import Chrome, Html, cat, h, page, when
 
 Messages.extend(
     {
         "admin.title": ("Laboratory", "實驗室管理"),
+        "admin.only": (
+            "This page is for the laboratory's administrators.",
+            "此頁面僅供實驗室管理員使用。",
+        ),
+        "admin.llm_only": (
+            "AI model settings are managed by the laboratory's administrators. Whether a "
+            "project's evidence may reach an external model is that project's own setting, "
+            "on its page.",
+            "AI 模型設定由實驗室管理員管理。專案證據能否送往外部模型，是該專案自己的設定，"
+            "請到專案頁面查看。",
+        ),
         "admin.pending": ("Waiting for approval", "等待核准"),
         "admin.pending.none": ("Nobody is waiting for approval.", "目前沒有等待核准的人。"),
         "admin.unverified": ("not confirmed yet", "尚未確認信箱"),
@@ -87,10 +98,6 @@ Messages.extend(
 )
 
 
-def _when(at: dt.datetime | None) -> str:
-    return at.strftime("%Y-%m-%d %H:%M") if at else "-"
-
-
 def _post(action: str, csrf: str, label: str, *, extra: Html | None = None, kind: str = "") -> Html:
     return h(
         '<form method="post" action="{}" class="inline">'
@@ -130,7 +137,7 @@ def dashboard_page(
                 (
                     a.display_name,
                     a.email,
-                    _when(a.created_at),
+                    when(a.created_at),
                     cat(
                         [
                             _post(
@@ -177,7 +184,7 @@ def dashboard_page(
                 s.owned,
                 s.assigned,
                 s.episodes,
-                _when(s.last_activity),
+                when(s.last_activity),
             )
             for s in members
             if s.account.status != "PENDING"
@@ -199,7 +206,7 @@ def dashboard_page(
                 p.members,
                 p.episodes,
                 p.open_episodes,
-                _when(p.last_activity),
+                when(p.last_activity),
             )
             for p in projects
         ],
@@ -241,7 +248,7 @@ def _episodes(m: Messages, episodes: Sequence[EpisodeSummary]) -> Html:
                 ep.state,
                 ep.last_outcome or "-",
                 ep.runs,
-                _when(ep.started),
+                when(ep.started),
             )
             for ep in episodes
         ],
@@ -327,7 +334,7 @@ def member_page(
                 m("admin.history"),
                 _table(
                     [m("admin.when"), m("admin.state"), m("admin.by")],
-                    [(_when(at), kind, by or "-") for kind, by, _d, at in history],
+                    [(when(at), kind, by or "-") for kind, by, _d, at in history],
                 ),
             ),
         ]
@@ -356,7 +363,7 @@ def project_oversight_page(chrome: Chrome, detail: ProjectDetail) -> bytes:
         _table(
             [m("admin.file"), m("admin.kind"), m("admin.label"), m("admin.by"), m("admin.when")],
             [
-                (d.file_name, d.kind, m(f"label.{d.label}"), d.submitted_by, _when(d.submitted_at))
+                (d.file_name, d.kind, m(f"label.{d.label}"), d.submitted_by, when(d.submitted_at))
                 for d in detail.data
             ],
         )
