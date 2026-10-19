@@ -642,9 +642,7 @@ class SqlDeclarationSetStore:
                         declarations.version,
                         declarations.domain,
                         declarations.digest,
-                        json.dumps(
-                            declarations.model_dump(mode="json")["declarations"], sort_keys=True
-                        ),
+                        json.dumps(declarations.canonical_form()["declarations"], sort_keys=True),
                         previous.get(declarations.set_id),
                     ),
                 )

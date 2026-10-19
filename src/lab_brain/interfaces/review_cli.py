@@ -156,6 +156,12 @@ def _attribution(link: tuple[str, str, str, str], mechanism: str) -> list[str]:
             f"               that class is refuted by {', '.join(owner.refutes_outcomes)} on "
             f"{owner.observable_ref}"
         )
+        if owner.review_only:
+            lines.append(
+                "               the domain leaves this class's "
+                f"{' and '.join(e.value for e in owner.review_only)} link to a person: the check "
+                "cannot observe what the link claims, so only your answer can warrant it"
+            )
         if owner.mechanism != mechanism:
             lines.append(
                 "               approving the link does not make this hypothesis that mechanism; "

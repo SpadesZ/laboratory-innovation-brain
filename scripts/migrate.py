@@ -297,6 +297,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # Every scientific reference resolves within its own project: observations, attestations,
     # relation support, bundle members, heuristic sources. After 012r and every table it names.
     "012s_project_scoped_provenance.sql",
+    # A declared diagnostic link may be left to a person: never a DOMAIN warrant. Restates
+    # 012p's declaration view and warrant function.
+    "012t_review_only_declarations.sql",
 )
 
 _BOOTSTRAP = """

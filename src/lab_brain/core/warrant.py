@@ -105,7 +105,8 @@ def domain_warrant(
     The hypothesis must be bound to a class (exact mechanism, agreeing predictions), the relation
     must be an observation of one of its predictions on the class's observable, and the declared
     meaning of the observed outcome must be the relation's own type: the class's signature for
-    SUPPORTS, one of its refuting outcomes for CONTRADICTS.
+    SUPPORTS, one of its refuting outcomes for CONTRADICTS -- and a link the declaration does
+    not leave to a person (`review_only`, `012t`).
     """
     if relation.relation_type not in GATED_TYPES:
         return None
@@ -126,6 +127,8 @@ def domain_warrant(
         return None
     link = observed_link(relation, prediction)
     if link is None or declaration.effect_for(link[3]) is not relation.relation_type:
+        return None
+    if not declaration.warrants(relation.relation_type):
         return None
     return declaration
 

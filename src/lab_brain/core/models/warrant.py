@@ -17,6 +17,14 @@ the set: among the declared classes only this one produces it -- which is what m
 of it discriminating rather than merely consistent, and why a set refuses two classes claiming the
 same outcome. Declaring the exclusivity is the domain's responsibility, reviewed as code.
 
+A LINK MAY BE DECLARED AND STILL LEFT TO A PERSON. `review_only` names the link effects --
+SUPPORTS for the signature, CONTRADICTS for the refutations -- whose observation the domain
+does not warrant automatically, because the check cannot observe what the link claims (a
+drawn-layout reading cannot refute a fabricated defect). Such a link still identifies the
+class, still binds a hypothesis to it and still holds a conclusion back when it is observed;
+only its warrant is a person's (REVIEW). Omitted from the set's canonical form while empty,
+so every set registered before it (`012t`) keeps its digest.
+
 BINDING IS BY CONTENT, NOT BY AUTHOR. A hypothesis is of a declared class when it states the class's
 canonical mechanism exactly AND its own predictions on the class's observable state the whole
 declaration -- the signature as SUPPORTS, every refuting outcome as CONTRADICTS, nothing that
@@ -61,6 +69,9 @@ class DiagnosticDeclaration(CoreModel):
     supports_outcome: str
     #: Outcomes this class cannot produce on the observable: observing one refutes it.
     refutes_outcomes: tuple[str, ...] = Field(min_length=1)
+    #: The link effects this declaration leaves to a person (`012t`): an observation of one is
+    #: never a DOMAIN warrant. SUPPORTS is the signature, CONTRADICTS every refutation.
+    review_only: tuple[RelationType, ...] = ()
 
     @model_validator(mode="after")
     def _an_outcome_cannot_both_support_and_refute(self) -> Self:
@@ -69,7 +80,19 @@ class DiagnosticDeclaration(CoreModel):
                 f"class {self.class_id} declares {self.supports_outcome} as both its signature "
                 "and its refutation"
             )
+        allowed = (RelationType.SUPPORTS, RelationType.CONTRADICTS)
+        if any(e not in allowed for e in self.review_only) or list(self.review_only) != sorted(
+            set(self.review_only)
+        ):
+            raise ValueError(
+                f"class {self.class_id}'s review_only names each of SUPPORTS and CONTRADICTS at "
+                f"most once, in order; not {[e.value for e in self.review_only]}"
+            )
         return self
+
+    def warrants(self, effect: RelationType) -> bool:
+        """Whether observing this declaration's link of `effect` is a DOMAIN warrant."""
+        return effect not in self.review_only
 
     def link(self, outcome: str) -> Link:
         return (self.observable_ref, self.outcome_space_id, self.outcome_space_version, outcome)
@@ -172,9 +195,17 @@ class DiagnosticDeclarationSet(CoreModel):
     def ref(self) -> str:
         return f"{self.set_id}@{self.version}"
 
+    def canonical_form(self) -> dict[str, object]:
+        """The set as it is hashed and registered: `review_only` omitted where empty (`012t`)."""
+        form = self.model_dump(mode="json")
+        for declaration in form["declarations"]:
+            if not declaration.get("review_only"):
+                declaration.pop("review_only", None)
+        return form
+
     @property
     def digest(self) -> str:
-        return canonical_hash(self.model_dump(mode="json"))
+        return canonical_hash(self.canonical_form())
 
     def domain_ref(self, declaration: DiagnosticDeclaration) -> str:
         return f"dds:{self.ref}#{declaration.class_id}"

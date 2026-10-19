@@ -376,6 +376,67 @@ def test_a_refuting_outcome_is_warranted_only_for_the_bound_class():
     assert domain_warrant(observed(contra), unbound, FIBRE) is None
 
 
+def _left_to_a_person(effect: RelationType) -> DiagnosticDeclarationSet:
+    """FIBRE with the contamination class's `effect` link left to a person (`012t`)."""
+    return DiagnosticDeclarationSet.model_validate(
+        {
+            **FIBRE.model_dump(),
+            "version": "1.1.0",
+            "declarations": [
+                {**d.model_dump(), "review_only": [effect]}
+                if d.class_id == "contamination"
+                else d.model_dump()
+                for d in FIBRE.declarations
+            ],
+        }
+    )
+
+
+@pytest.mark.parametrize("effect", [RelationType.SUPPORTS, RelationType.CONTRADICTS])
+def test_a_link_left_to_a_person_is_declared_but_never_a_domain_warrant(effect):
+    contra = prediction("c", "fl.endface", "CLEAN", RelationType.CONTRADICTS)
+    sig = prediction("c", "fl.endface", "DIRTY", RelationType.SUPPORTS)
+    bound = certificate("c", "connector end-face contamination", (sig, contra))
+    left = _left_to_a_person(effect)
+    # Still the class's declaration: it binds the hypothesis and names the signature.
+    assert left.bound_class(bound.hypothesis.mechanism, bound.predictions) is not None
+    assert left.signature_of(("fl.endface", "os:fl.endface", "1.0.0", "DIRTY")) is not None
+    by_effect = {RelationType.SUPPORTS: sig, RelationType.CONTRADICTS: contra}
+    other = next(e for e in by_effect if e is not effect)
+    assert domain_warrant(observed(by_effect[effect]), bound, left) is None
+    assert domain_warrant(observed(by_effect[other]), bound, left) is not None
+    assert domain_warrant(observed(by_effect[effect]), bound, FIBRE) is not None
+
+
+def test_a_set_without_links_left_to_a_person_keeps_its_digest():
+    """`review_only` is omitted from the canonical form while empty, so every set registered
+    before `012t` hashes as it did; one that names a link is a different set."""
+    assert all("review_only" not in d for d in FIBRE.canonical_form()["declarations"])
+    assert (
+        FIBRE.digest
+        == _left_to_a_person(RelationType.SUPPORTS)
+        .model_copy(update={"version": FIBRE.version, "declarations": FIBRE.declarations})
+        .digest
+    )
+    left = _left_to_a_person(RelationType.CONTRADICTS)
+    assert left.canonical_form()["declarations"][0]["review_only"] == ["CONTRADICTS"]
+
+
+@pytest.mark.parametrize(
+    "review_only",
+    [
+        ["PREDICTS"],
+        ["SUPPORTS", "SUPPORTS"],
+        ["SUPPORTS", "CONTRADICTS"],
+    ],
+)
+def test_review_only_names_each_gated_effect_at_most_once_in_order(review_only):
+    with pytest.raises(ValueError, match="review_only names each of SUPPORTS and CONTRADICTS"):
+        DiagnosticDeclaration.model_validate(
+            {**FIBRE.declarations[0].model_dump(), "review_only": review_only}
+        )
+
+
 # -- policy ------------------------------------------------------------------------------------
 
 

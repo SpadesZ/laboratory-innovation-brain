@@ -293,6 +293,7 @@ def _planned_evidence(
             and state.declaration_ref is not None
             and declaration.same_observable(prediction)
             and declaration.effect_for(prediction.expected_outcome) is relation.relation_type
+            and declaration.warrants(relation.relation_type)
         )
         records.append(
             RelationEvidence(

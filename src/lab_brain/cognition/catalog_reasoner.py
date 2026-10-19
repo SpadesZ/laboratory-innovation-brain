@@ -45,6 +45,7 @@ from lab_brain.cognition.roles import (
     NOVELTY_AUDITOR,
     QUERY_REWRITER,
 )
+from lab_brain.core.models.enums import RelationType
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.core.models.warrant import DiagnosticDeclaration, DiagnosticDeclarationSet
 from lab_brain.security.external import ExternalReach
@@ -83,6 +84,9 @@ class CatalogMechanism:
     cues: tuple[str, ...]
     #: Lower-case phrases whose presence in a record points AGAINST it.
     counter_cues: tuple[str, ...] = ()
+    #: The link effects the pack declares but leaves to a person (`012t`): SUPPORTS for the
+    #: signature, CONTRADICTS for the refutations. See `DiagnosticDeclaration.review_only`.
+    review_only: tuple[RelationType, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.predictions:
@@ -166,6 +170,7 @@ def diagnostic_declarations(catalog: MechanismCatalog, domain: str) -> Diagnosti
                 outcome_space_version=signature.outcome_space_version,
                 supports_outcome=signature.expected_outcome,
                 refutes_outcomes=tuple(sorted({p.expected_outcome for p in refutes})),
+                review_only=tuple(sorted(set(mechanism.review_only))),
             )
         )
     return DiagnosticDeclarationSet(
