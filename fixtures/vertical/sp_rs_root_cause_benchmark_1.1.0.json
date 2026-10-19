@@ -2,7 +2,7 @@
   "benchmark_set_id": "bench:sp.rs_root_cause",
   "version": "1.1.0",
   "domain": "silicon_photonics",
-  "description": "Fixed VS-SP-001 root-cause benchmark for the M4 exit gate (section 26.1): the Rs bias-insensitive anomaly on a PN phase shifter, diagnosed from a normalized mock device project. NOT CHERRY-PICKED: the mechanism catalog was written first, then one case per mechanism and per operating condition the loop must survive (a recurrence, a licence outage, a closed lab, a non-converged solver), each with its expected stop written before any loop was run. Cases the loop cannot resolve are included and expected to end unresolved. Devices are mock projects: the fault is visible only as the geometry or configuration that would cause it, never as a label the backends read. VERSION 1.1.0 (candidate, for the owner's decision): the expectations under the candidate declarations sp.rs_anomaly_mechanisms@1.1.0, which leave three links to a person because their check cannot observe what the link claims (Causal Warrant Gate V1.1, review 04). Two 1.0.0 cases change their expected stop; each states the 1.0.0 expectation and why. Three regression cases from review 04 are added. UNLIKE 1.0.0, these expectations were NOT all written before any loop ran: an experiment on 2026-10-15 had already run the two changed cases under the same withdrawals. Cases marked known_limitation state the scientifically correct outcome that neither declaration version reaches.",
+  "description": "Fixed VS-SP-001 root-cause benchmark for the M4 exit gate (section 26.1): the Rs bias-insensitive anomaly on a PN phase shifter, diagnosed from a normalized mock device project. NOT CHERRY-PICKED: the mechanism catalog was written first, then one case per mechanism and per operating condition the loop must survive (a recurrence, a licence outage, a closed lab, a non-converged solver), each with its expected stop written before any loop was run. Cases the loop cannot resolve are included and expected to end unresolved. Devices are mock projects: the fault is visible only as the geometry or configuration that would cause it, never as a label the backends read. VERSION 1.1.0 (candidate, for the owner's decision): the expectations under the candidate declarations sp.rs_anomaly_mechanisms@1.1.0, which leave three links to a person because their check cannot observe what the link claims (Causal Warrant Gate V1.1, review 04). Two 1.0.0 cases change their expected stop; each states the 1.0.0 expectation and why. Three regression cases from review 04 are added. UNLIKE 1.0.0, these expectations were NOT all written before any loop ran: an experiment on 2026-10-15 had already run the two changed cases under the same withdrawals. Cases marked known_limitation state the scientifically correct outcome that neither declaration version reaches. REVISED after an independent science review of the candidate, 2026-10-20 (94 episodes under both declaration versions): probe-lab-closed keeps 1.0.0's expected stop, now for the stated reason, and is a known limitation of 1.1.0; the truth of the two mesh cases is corrected; five of the review's counterexamples are added, each a known limitation.",
   "intent": "DIAGNOSIS",
   "stakes": "HIGH",
   "question": "Why is Rs extremely high and weakly bias dependent while Cj trends normally",
@@ -333,7 +333,7 @@
         "device_id": "PS-504",
         "access_mesh_max_edge_nm": "40"
       },
-      "truth": "mesh_artifact",
+      "truth": "not a mesh artifact: the device is physically nominal and only its simulation mesh is coarse, which can inflate a SIMULATED resistance but not the MEASURED one; the cause of the measured anomaly is not in this case",
       "expected": {
         "stop": "HUMAN_ACTION_REQUIRED",
         "cause": null,
@@ -345,7 +345,8 @@
         "cause": "mesh_artifact"
       },
       "changed_in": "1.1.0",
-      "rationale": "1.1.0 leaves the mesh class's signature (UNSTABLE) to a person: a coarse access mesh makes a simulated resistance unreliable, but the observed anomaly is a measured one and the declaration cannot tell the two apart. Nothing else the cheap checks observe settles the rivals, so the loop stops at the next discriminating action, the four-point probe, which needs a person. The 1.0.0 confirmation of a mesh artifact as the cause of a measured anomaly was the category error review 04 named."
+      "rationale": "1.1.0 leaves the mesh class's signature (UNSTABLE) to a person: a coarse access mesh makes a simulated resistance unreliable, but the observed anomaly is a measured one and the declaration cannot tell the two apart. Nothing else the cheap checks observe settles the rivals, so the loop stops at the next discriminating action, the four-point probe, which needs a person. The 1.0.0 confirmation of a mesh artifact as the cause of a measured anomaly was the category error review 04 named. Even after the probe, this episode cannot conclude today: an observed UNSTABLE still counts as the mesh class's declared signature and holds back every other class's confirmation (independent science review of the candidate, 2026-10-20).",
+      "truth_in_1_0_0": "mesh_artifact"
     },
     {
       "case_id": "dopant-counterdoped",
@@ -397,13 +398,14 @@
         "access_mesh_max_edge_nm": "40"
       },
       "seat_held_elsewhere": true,
-      "truth": "mesh_artifact",
+      "truth": "not a mesh artifact: the device is physically nominal and only its simulation mesh is coarse, which can inflate a SIMULATED resistance but not the MEASURED one; the cause of the measured anomaly is not in this case",
       "expected": {
         "stop": "AWAITING_RESOURCE",
         "cause": null,
         "waiting_on": "cap:sp.mesh_sensitivity"
       },
-      "cheap_resolvable": false
+      "cheap_resolvable": false,
+      "truth_in_1_0_0": "mesh_artifact"
     },
     {
       "case_id": "probe-artifact",
@@ -430,17 +432,12 @@
       ],
       "truth": "probe_artifact",
       "expected": {
-        "stop": "HUMAN_ACTION_REQUIRED",
-        "cause": null,
-        "next_action": "cap:sp.fabricate_split_lot"
-      },
-      "cheap_resolvable": false,
-      "expected_in_1_0_0": {
         "stop": "NO_SUFFICIENT_ACTION",
         "cause": null
       },
-      "changed_in": "1.1.0",
-      "rationale": "1.1.0 leaves the contact and dopant refutations to a person: a drawn-layout reading cannot refute a fabricated contact defect, and a design-file solve cannot refute process compensation. With the probe station closed, those two classes are no longer excluded by design-file readings, and a split lot -- a fabrication a person must authorise -- is the remaining action that could discriminate them. 1.0.0's NO_SUFFICIENT_ACTION rested on the terminal design-file refutations review 04 called false."
+      "cheap_resolvable": false,
+      "rationale": "The probe artifact -- this case's truth -- is tested only by the four-point probe, and the probe station is closed: the right stop names what is left open and waits for it. No sufficient action remains: the split lot produces only a carrier profile, so it cannot discriminate the contact class, does not test the probe artifact, and is an irreversible fabrication of new devices. 1.0.0 reaches this stop, but by refuting the contact and dopant classes on design-file readings that cannot see fabricated faults.",
+      "known_limitation": "1.1.0 no longer refutes contact and dopant on design-file readings, and then asks for a split lot (6 weeks, $40k, irreversible) that cannot settle the question: an unjustified escalation. A closed station should be a temporary resource, and an irreversible fabrication should not be the next step while a rival's declared check is only temporarily unavailable (independent science review of the candidate, 2026-10-20)."
     },
     {
       "case_id": "dopant-nonconverged",
@@ -523,6 +520,130 @@
       "rationale": "The pack's extraction scales the resistance by the normalization length (R x L), so a SHORTER length lowers the reported per-length value: it cannot explain an inflated one. The normalization class must not be confirmed.",
       "known_limitation": "the normalization signature is blind to direction; 1.0.0 and 1.1.0 both confirm a normalization error here. A directional signature is the domain expert's decision.",
       "cheap_resolvable": false
+    },
+    {
+      "case_id": "dopant-with-coarse-mesh",
+      "note": "review counterexample C1: counter-doping 3E17 against the 5E17 rib, and a coarse 40 nm access mesh in the simulation",
+      "device": {
+        "device_id": "PS-514",
+        "counterdoping_cm3": "3E17",
+        "access_mesh_max_edge_nm": "40"
+      },
+      "truth": "dopant_compensation",
+      "expected": {
+        "stop": "CONFIRMED",
+        "cause": "dopant_compensation"
+      },
+      "rationale": "The rib is counter-doped; the coarse mesh affects only the simulation and cannot explain a measured anomaly. Dopant compensation is the cause.",
+      "known_limitation": "1.0.0 confirms the mesh artifact; 1.1.0 supports dopant compensation but the observed UNSTABLE, still the mesh class's declared signature, holds the confirmation back, and no answer releases it.",
+      "cheap_resolvable": false,
+      "added_in": "1.1.0",
+      "source": "independent science review of the candidate, 2026-10-20"
+    },
+    {
+      "case_id": "dopant-with-coarse-mesh-probe-closed",
+      "note": "review counterexample C13: as dopant-with-coarse-mesh, with the probe station closed",
+      "device": {
+        "device_id": "PS-515",
+        "counterdoping_cm3": "3E17",
+        "access_mesh_max_edge_nm": "40"
+      },
+      "unavailable": [
+        "cap:sp.fourpoint_probe"
+      ],
+      "truth": "dopant_compensation",
+      "expected": {
+        "stop": "CONFIRMED",
+        "cause": "dopant_compensation"
+      },
+      "rationale": "As dopant-with-coarse-mesh; the closed probe station changes nothing about the cause.",
+      "known_limitation": "1.0.0 confirms the mesh artifact; 1.1.0 stops awaiting a review whose answer, either way, cannot confirm dopant compensation.",
+      "cheap_resolvable": false,
+      "added_in": "1.1.0",
+      "source": "independent science review of the candidate, 2026-10-20"
+    },
+    {
+      "case_id": "contact-overlap-just-below-rule",
+      "note": "review counterexample C2: anode via overlap 95 nm against a 100 nm rule",
+      "device": {
+        "device_id": "PS-516",
+        "contacts": [
+          {
+            "contact_id": "anode",
+            "region": "p_plus",
+            "via_to_metal": true,
+            "overlap_nm": "95"
+          },
+          {
+            "contact_id": "cathode",
+            "region": "n_plus",
+            "via_to_metal": true,
+            "overlap_nm": "400"
+          }
+        ]
+      },
+      "truth": "probe_artifact",
+      "expected": {
+        "stop": "HUMAN_ACTION_REQUIRED",
+        "cause": null,
+        "next_action": "cap:sp.fourpoint_probe"
+      },
+      "rationale": "A 95 nm overlap against a 100 nm rule adds at most a few percent of contact resistance, not a several-fold Rs: the rule flag must not confirm a contact discontinuity. The four-point probe is the discriminating action.",
+      "known_limitation": "the contact signature (any rule violation is DISCONTINUOUS) is blind to size; both versions confirm a contact discontinuity.",
+      "cheap_resolvable": false,
+      "added_in": "1.1.0",
+      "source": "independent science review of the candidate, 2026-10-20"
+    },
+    {
+      "case_id": "dopant-and-overlap-just-below-rule",
+      "note": "review counterexample C10: counter-doping 3E17 and an anode overlap of 95 nm",
+      "device": {
+        "device_id": "PS-517",
+        "counterdoping_cm3": "3E17",
+        "contacts": [
+          {
+            "contact_id": "anode",
+            "region": "p_plus",
+            "via_to_metal": true,
+            "overlap_nm": "95"
+          },
+          {
+            "contact_id": "cathode",
+            "region": "n_plus",
+            "via_to_metal": true,
+            "overlap_nm": "400"
+          }
+        ]
+      },
+      "truth": "dopant_compensation",
+      "expected": {
+        "stop": "CONFIRMED",
+        "cause": "dopant_compensation"
+      },
+      "rationale": "The 95 nm overlap cannot explain a several-fold Rs; the counter-doped rib can. The DC sweep that observes it must run before anything is confirmed.",
+      "known_limitation": "both versions confirm a contact discontinuity on the size-blind signature, and the dopant check never runs.",
+      "cheap_resolvable": false,
+      "added_in": "1.1.0",
+      "source": "independent science review of the candidate, 2026-10-20"
+    },
+    {
+      "case_id": "weak-counterdoping",
+      "note": "review counterexample C3: counter-doping 1.6E17 against the 5E17 rib (ratio 0.32)",
+      "device": {
+        "device_id": "PS-518",
+        "counterdoping_cm3": "1.6E17"
+      },
+      "truth": "probe_artifact",
+      "expected": {
+        "stop": "HUMAN_ACTION_REQUIRED",
+        "cause": null,
+        "next_action": "cap:sp.fourpoint_probe"
+      },
+      "rationale": "A compensation ratio of 0.32 raises the access resistivity about 1.5 to 1.7 times, not several-fold: it is present, but it does not account for the anomaly.",
+      "known_limitation": "the dopant signature (ratio above 0.3 is COMPENSATED) over-claims magnitude; both versions confirm dopant compensation.",
+      "cheap_resolvable": false,
+      "added_in": "1.1.0",
+      "source": "independent science review of the candidate, 2026-10-20"
     }
   ],
   "supersedes": "bench:sp.rs_root_cause@1.0.0",

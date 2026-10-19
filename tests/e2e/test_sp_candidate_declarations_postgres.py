@@ -72,21 +72,23 @@ def test_every_case_ends_where_benchmark_1_1_0_says_but_its_known_limitations(be
     assert sum(r.unjustified_escalations for r in primary) == 0
     assert sum(r.unnecessary_high_cost for r in primary) == 0
     changed = {c["case_id"] for c in fx["cases"] if c.get("changed_in") == "1.1.0"}
-    assert changed == {"mesh-coarse-access", "probe-lab-closed"}
+    assert changed == {"mesh-coarse-access"}
     assert all(r.correct for r in primary if r.case_id in changed)
 
 
 @pytest.mark.parametrize("case_id", ["mesh-coarse-access", "probe-lab-closed"])
-def test_the_changed_cases_end_where_1_0_0_expected_under_1_0_0(db, case_id):
-    """The control: same case, same loop, the product's own declarations."""
+def test_under_1_0_0_the_cases_the_candidate_moves_end_where_they_did(db, case_id):
+    """The control: same case, same loop, the product's own declarations. mesh-coarse-access
+    ends where 1.0.0 expected (a mesh confirmation); probe-lab-closed ends where 1.1.0 expects
+    too -- by 1.0.0's design-file refutations, the review found -- while the candidate moves it."""
     fx = load_fixture(FIXTURE)
     case = case_by_id(fx, case_id)
     record = record_for(run_case(db, fx, case), case)
-    old = case["expected_in_1_0_0"]
+    old = case.get("expected_in_1_0_0", case["expected"])
     assert (record.stop, record.confirmed) == (old["stop"], old.get("cause"))
 
 
-@pytest.mark.parametrize("case_id", ["mesh-coarse-access", "probe-lab-closed"])
+@pytest.mark.parametrize("case_id", ["mesh-coarse-access"])
 def test_a_withdrawn_link_goes_to_a_person_in_sql_and_in_the_loop_alike(db, case_id):
     """One case each, under the candidate: the loop stops for a person, and `run_case`'s
     differential check finds SQL's confirmation rule reading the same warrants."""

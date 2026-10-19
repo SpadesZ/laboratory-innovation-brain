@@ -232,6 +232,9 @@ def mechanism_catalog() -> MechanismCatalog:
 #: Its evidence is benchmark 1.1.0 (`fixtures/vertical/sp_rs_root_cause_benchmark_1.1.0.json`).
 #: Activating it is a pack change: its digest moves to DECLARATION_DIGESTS, both versions are
 #: registered with 1.1.0 active, CATALOG_VERSION follows, and benchmark 1.1.0 replaces 1.0.0.
+#: STATUS: NOT READY TO ACTIVATE. An independent science review found the mesh withdrawal
+#: incomplete and an unjustified escalation when the probe station is closed
+#: (`docs/audit/sp-declarations-1.1.0-candidate/`).
 CANDIDATE_VERSION = "1.1.0"
 
 #: The links 1.1.0 leaves to a person, and why each check cannot warrant it.
