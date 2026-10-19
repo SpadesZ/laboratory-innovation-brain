@@ -39,7 +39,7 @@ import psycopg
 import pytest
 
 from tests.conftest_fixtures import make_artifact
-from tests.postgres_fixtures import DEFAULT_URL, admit_hypothesis_identity
+from tests.postgres_fixtures import DEFAULT_URL, admit_hypothesis_identity, place_artifact
 
 #: ONE PAIR, THOUGH THE INVARIANT SPANS TWO REQUIREMENTS. Markers multiply out, so declaring both
 #: EPI-004 and EPI-006 here would claim (EPI-004, T-EPI-006) -- a pair §26 does not map, and
@@ -201,6 +201,8 @@ def world(db):  # type: ignore[no-untyped-def]
             artifact.lineage_revision,
         ),
     )
+    for placed_in in (PROJECT, OTHER):
+        place_artifact(db, artifact.artifact_id, project_id=placed_in)
     db.execute("INSERT INTO claims (claim_id, normalized_proposition) VALUES ('clm:1', 'rs')")
     db.execute(
         "INSERT INTO condition_schemas (domain, schema_id, version, json_schema,"

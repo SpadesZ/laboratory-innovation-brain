@@ -257,6 +257,28 @@ def admit_hypothesis_identity(
     )
 
 
+def place_artifact(
+    connection,  # type: ignore[no-untyped-def]
+    artifact_id: str,
+    *,
+    project_id: str = "prj:test",
+    sensitivity_label: str = "INTERNAL",
+) -> None:
+    """Record a directly inserted artifact as present in a project, as ingestion does (`012s`).
+
+    Ingestion writes the `artifacts` row and the project's `artifact_occurrences` row together
+    (`storage/postgres/ingestion_writer.py`, `run_outputs.py`); since `012s` an observation or an
+    attestation may cite an artifact only where it is present. Fixtures that insert the
+    `artifacts` row directly, to set up evidence without running an ingestion, call this after it
+    so the evidence they write is what the product would have written. Idempotent.
+    """
+    connection.execute(
+        "INSERT INTO artifact_occurrences (artifact_id, project_id, sensitivity_label)"
+        " VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+        (artifact_id, project_id, sensitivity_label),
+    )
+
+
 def reset_database(connection: Any) -> Any:
     """Every table empty, then the one actor and project every test may assume.
 

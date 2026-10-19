@@ -294,6 +294,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # A relation's invalidation is final and keeps its author; relations are never deleted.
     # After 012o (whose immutability rule it restates).
     "012r_relation_invalidation.sql",
+    # Every scientific reference resolves within its own project: observations, attestations,
+    # relation support, bundle members, heuristic sources. After 012r and every table it names.
+    "012s_project_scoped_provenance.sql",
 )
 
 _BOOTSTRAP = """

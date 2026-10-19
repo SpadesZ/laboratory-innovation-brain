@@ -34,7 +34,7 @@ from lab_brain.core.repositories import (
 )
 from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
 from tests.conftest_fixtures import forged_authorization, make_artifact
-from tests.postgres_fixtures import admit_hypothesis_identity
+from tests.postgres_fixtures import admit_hypothesis_identity, place_artifact
 
 pytestmark = [
     pytest.mark.postgres,
@@ -75,6 +75,7 @@ def seeded(db):  # type: ignore[no-untyped-def]
             artifact.lineage_revision,
         ),
     )
+    place_artifact(db, artifact.artifact_id, project_id=PROJECT)
     db.execute("INSERT INTO claims (claim_id, normalized_proposition) VALUES ('clm:1', 'rs high')")
     db.execute(
         "INSERT INTO condition_schemas (domain, schema_id, version, json_schema,"
@@ -592,6 +593,12 @@ def test_the_database_refuses_a_cross_project_attestation_reference(seeded):
 
     # And an attestation from another project cannot be cited under this event's project.
     seeded.execute("INSERT INTO projects (project_id, name) VALUES ('prj:other', 'Other')")
+    # Its artifact is present there too: an attestation ingestion could have written (`012s`).
+    seeded.execute(
+        "INSERT INTO artifact_occurrences (artifact_id, project_id, sensitivity_label)"
+        " SELECT source_artifact_id, 'prj:other', 'INTERNAL' FROM attestations"
+        " WHERE attestation_id = 'att:1'"
+    )
     seeded.execute(
         "INSERT INTO attestations (attestation_id, claim_id, epistemic_type, source_artifact_id,"
         " locator, conditions, conditions_schema_version, project_id, extractor_version,"

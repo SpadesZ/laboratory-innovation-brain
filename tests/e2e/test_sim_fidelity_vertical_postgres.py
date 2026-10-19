@@ -83,7 +83,7 @@ from lab_brain.domains.silicon_photonics.authority_policy import (
 )
 from lab_brain.domains.silicon_photonics.condition_schema import SCHEMA_REF, registration
 from tests.conftest_fixtures import make_artifact
-from tests.postgres_fixtures import admit_hypothesis_identity
+from tests.postgres_fixtures import admit_hypothesis_identity, place_artifact
 
 pytestmark = [
     pytest.mark.postgres,
@@ -176,6 +176,7 @@ def world(db):  # type: ignore[no-untyped-def]
             artifact.lineage_revision,
         ),
     )
+    place_artifact(db, artifact.artifact_id, project_id=PROJECT)
     db.execute(
         "INSERT INTO claims (claim_id, normalized_proposition) VALUES ('clm:rs', 'Rs is high')"
     )

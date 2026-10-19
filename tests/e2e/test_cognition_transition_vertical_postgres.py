@@ -38,6 +38,7 @@ import itertools
 
 import pytest
 
+from lab_brain.cognition.llm import ScientificOutput
 from lab_brain.core.belief import (
     EpistemicStateProjection,
     admit_hypothesis,
@@ -58,6 +59,7 @@ from lab_brain.core.models.attestation import (
     EpistemicType,
     ExtractionProvenance,
 )
+from lab_brain.core.models.inference import InferenceProvenance, LogicalSlot
 from lab_brain.core.repositories import (
     SqlAttestationStore,
     SqlBeliefEventStore,
@@ -66,9 +68,10 @@ from lab_brain.core.repositories import (
 )
 from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
 from lab_brain.core.repositories.conflicts import SqlConflictStore
+from lab_brain.core.repositories.inference import SqlInferenceProvenanceStore
 from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from tests.conftest_fixtures import make_artifact
-from tests.postgres_fixtures import admit_hypothesis_identity
+from tests.postgres_fixtures import admit_hypothesis_identity, place_artifact
 
 pytestmark = [
     pytest.mark.postgres,
@@ -151,6 +154,7 @@ def world(db):  # type: ignore[no-untyped-def]
             artifact.lineage_revision,
         ),
     )
+    place_artifact(db, artifact.artifact_id, project_id=PROJECT)
     db.execute("INSERT INTO claims (claim_id, normalized_proposition) VALUES ('clm:1', 'rs')")
     db.execute(
         "INSERT INTO condition_schemas (domain, schema_id, version, json_schema,"
@@ -403,6 +407,26 @@ def test_a_relation_an_llm_proposed_is_evidence_and_still_not_a_verdict(world):
     skip it.
     """
     attestation, _ = _persist_evidence(world)
+    # The inference it names is recorded in its project, as every scientific model call is
+    # (LLM-001); since `012s` a relation names only an inference of its own project.
+    SqlInferenceProvenanceStore(world).record(
+        ScientificOutput(
+            text="att:1 contradicts the hypothesis",
+            provenance=InferenceProvenance(
+                inference_id="inf:llm-1",
+                role="relation_judge",
+                logical_slot=LogicalSlot.RELATION,
+                model_id="toy-model",
+                model_version="1.0.0",
+                prompt_id="prm:relation",
+                prompt_version="1.0.0",
+                evidence_bundle_hash="sha256:" + "b" * 64,
+                created_at=T0,
+                trace_id="trc:llm-relation",
+            ),
+        ),
+        project_id=PROJECT,
+    )
     SqlRelationStore(world).add(
         RelationJudgment(
             relation_id="rel:llm",

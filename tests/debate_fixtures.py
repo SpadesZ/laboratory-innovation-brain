@@ -106,6 +106,7 @@ from lab_brain.sources.adapter import (
 )
 from tests.classification_fixtures import labelled
 from tests.conftest_fixtures import TOY_COMPARATOR_VERSION, make_artifact, make_attestation
+from tests.postgres_fixtures import place_artifact
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_PATH = ROOT / "fixtures" / "debate" / "sp_rs_anomaly_debate.json"
@@ -624,6 +625,7 @@ def seed_postgres(
                 artifact.lineage_revision,
             ),
         )
+        place_artifact(connection, artifact.artifact_id, project_id=item.project_id)
         if attestations.get(item.project_id, item.attestation_id) is None:
             attestations.add(
                 attestations_by_id[item.attestation_id]

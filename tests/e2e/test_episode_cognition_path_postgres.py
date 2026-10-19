@@ -69,7 +69,7 @@ from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisio
 from lab_brain.core.repositories.conflicts import SqlConflictStore
 from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from tests.conftest_fixtures import make_artifact
-from tests.postgres_fixtures import admit_hypothesis_identity
+from tests.postgres_fixtures import admit_hypothesis_identity, place_artifact
 from tests.toy_authority import ToyAuthorityPolicy
 
 pytestmark = [
@@ -203,6 +203,7 @@ def world(db):  # type: ignore[no-untyped-def]
             artifact.lineage_revision,
         ),
     )
+    place_artifact(db, artifact.artifact_id, project_id=PROJECT)
     db.execute("INSERT INTO claims (claim_id, normalized_proposition) VALUES ('clm:1', 'rs')")
     db.execute(
         "INSERT INTO condition_schemas (domain, schema_id, version, json_schema,"

@@ -26,7 +26,7 @@ from lab_brain.core.models.conflict import (
 )
 from lab_brain.core.repositories.conflicts import ConflictStoreError, SqlConflictStore
 from tests.conftest_fixtures import make_artifact
-from tests.postgres_fixtures import admit_hypothesis_identity
+from tests.postgres_fixtures import admit_hypothesis_identity, place_artifact
 
 pytestmark = [
     pytest.mark.postgres,
@@ -71,6 +71,8 @@ def seeded(db):  # type: ignore[no-untyped-def]
             artifact.lineage_revision,
         ),
     )
+    for placed_in in (PROJECT, OTHER):
+        place_artifact(db, artifact.artifact_id, project_id=placed_in)
     db.execute("INSERT INTO claims (claim_id, normalized_proposition) VALUES ('clm:1', 'rs')")
     db.execute(
         "INSERT INTO condition_schemas (domain, schema_id, version, json_schema,"

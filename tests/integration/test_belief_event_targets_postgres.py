@@ -105,10 +105,22 @@ def test_no_write_path_can_target_a_hypothesis_nobody_admitted(world, db):
     assert _events(db, "hyp:ghost") == 0
 
 
+def _place_in_other(db, attestation_id: str) -> None:  # type: ignore[no-untyped-def]
+    """The attestation's artifact is present in OTHER too, so the copy there is one ingestion
+    could have written (`012s`)."""
+    db.execute(
+        "INSERT INTO artifact_occurrences (artifact_id, project_id, sensitivity_label)"
+        " SELECT source_artifact_id, %s, 'INTERNAL' FROM attestations WHERE attestation_id = %s"
+        " ON CONFLICT DO NOTHING",
+        (OTHER, attestation_id),
+    )
+
+
 def test_an_event_cannot_target_another_projects_hypothesis(world, db):
     """The key is the pair: a hypothesis admitted in one project is not a target in another."""
     outcome = world.debate.run(world.request())
     admitted = outcome.certificates[0].hypothesis_id
+    _place_in_other(db, _basis(world).attestation_id)
     db.execute(
         "INSERT INTO attestations (attestation_id, claim_id, epistemic_type, source_artifact_id,"
         " locator, conditions, conditions_schema_version, project_id, extractor_version,"
@@ -145,6 +157,7 @@ def test_two_projects_may_use_the_same_hypothesis_id(world, db):
     """M0b's rule, kept: identity is (project_id, hypothesis_id), and the histories stay apart."""
     for project in (PROJECT, OTHER):
         admit_hypothesis_identity(db, "hyp:shared", project_id=project, actor_id="act:researcher")
+    _place_in_other(db, _basis(world).attestation_id)
     db.execute(
         "INSERT INTO attestations (attestation_id, claim_id, epistemic_type, source_artifact_id,"
         " locator, conditions, conditions_schema_version, project_id, extractor_version,"
