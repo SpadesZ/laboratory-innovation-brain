@@ -323,3 +323,28 @@ def test_the_operator_bootstraps_one_administrator_bound_to_an_existing_person(l
         )
     with pytest.raises(psycopg.errors.RaiseException, match="never change"):
         db.execute("UPDATE accounts SET email = 'other@lab.example'")
+
+
+def test_the_operator_bootstraps_from_the_command_line_and_only_once(lab):
+    import io
+
+    from lab_brain.interfaces import cli
+    from tests.postgres_fixtures import database_url
+
+    def run(*argv: str) -> tuple[int, str]:
+        out = io.StringIO()
+        code = cli.main(
+            ["admin", "bootstrap-admin", *argv],
+            out=out,
+            env={"LAB_BRAIN_DATABASE_URL": database_url()},
+            connect=lambda s: psycopg.connect(s.dsn, autocommit=True),
+        )
+        return code, out.getvalue()
+
+    code, printed = run("--email", "Owner@Lab.example", "--name", "Lab Owner")
+    assert code == 0, printed
+    assert "owner@lab.example" in printed and "/password/reset?token=" in printed
+    token = printed.rsplit("token=", 1)[1].strip()
+    assert lab.service().token_purpose(token) == "SET_PASSWORD"
+    code, printed = run("--email", "second@lab.example", "--name", "Second")
+    assert code == 2 and "active administrator exists" in printed

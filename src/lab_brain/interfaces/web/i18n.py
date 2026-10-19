@@ -38,6 +38,18 @@ _M: dict[str, tuple[str, str]] = {
         "What has been investigated, and where does each stand?",
         "做過哪些研究？各自進行到哪裡？",
     ),
+    "nav.projects": ("Projects", "研究專案"),
+    "nav.projects.hint": (
+        "Which projects am I in, and who works there?",
+        "我參與哪些專案？誰在專案裡？",
+    ),
+    "nav.inbox": ("Decisions", "待我決定"),
+    "nav.inbox.hint": ("What is waiting for me to decide or do?", "有哪些事等我決定或處理？"),
+    "nav.admin": ("Laboratory", "實驗室管理"),
+    "nav.admin.hint": (
+        "Everyone, every project, and who is waiting for approval",
+        "所有成員、所有專案，以及等待核准的人",
+    ),
     "nav.llm": ("AI models", "AI 模型設定"),
     "nav.llm.hint": (
         "Which AI model handles which kind of work?",

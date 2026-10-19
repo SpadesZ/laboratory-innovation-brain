@@ -22,6 +22,7 @@ follow the chosen locale; a report's text, every identifier and every stored val
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import html
 import re
@@ -214,6 +215,12 @@ class Chrome:
     csrf: str | None = None
     path: str = "/"
     section: str = ""
+    #: With accounts: the signed-in person's name and whether they administer the laboratory --
+    #: or `signed_out` on the sign-in pages. Without accounts (one researcher, named when the
+    #: workspace started): None, and the frame shows the actor as before.
+    account_name: str | None = None
+    admin: bool = False
+    signed_out: bool = False
 
     @property
     def m(self) -> Messages:
@@ -232,6 +239,33 @@ _SECTIONS = (
 )
 
 
+#: With accounts, a person also reaches their projects and the decisions waiting for them; an
+#: administrator, the laboratory overview -- and only an administrator, the AI model settings.
+_ACCOUNT_SECTIONS = (
+    ("home", "/", "nav.home"),
+    ("projects", "/projects", "nav.projects"),
+    ("inbox", "/inbox", "nav.inbox"),
+    ("data", "/data", "nav.data"),
+    ("new", "/runs/new", "nav.new"),
+    ("episodes", "/episodes", "nav.episodes"),
+)
+_ADMIN_SECTIONS = (
+    ("admin", "/admin", "nav.admin"),
+    ("llm", "/settings/llm", "nav.llm"),
+    ("status", "/status", "nav.status"),
+)
+
+
+def _sections(chrome: Chrome) -> tuple[tuple[str, str, str], ...]:
+    if chrome.signed_out:
+        return ()
+    if chrome.account_name is None:
+        return _SECTIONS
+    return _ACCOUNT_SECTIONS + (
+        _ADMIN_SECTIONS if chrome.admin else (("status", "/status", "nav.status"),)
+    )
+
+
 def page(title: str, body: Html, *, chrome: Chrome) -> bytes:
     m = chrome.m
     nav = cat(
@@ -242,7 +276,7 @@ def page(title: str, body: Html, *, chrome: Chrome) -> bytes:
             Html(' class="here"' if chrome.section == key else ""),
             m(label),
         )
-        for key, href, label in _SECTIONS
+        for key, href, label in _sections(chrome)
     )
     switch = Html("")
     if chrome.csrf is not None:
@@ -267,8 +301,7 @@ def page(title: str, body: Html, *, chrome: Chrome) -> bytes:
         '<!doctype html><html lang="{}"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<title>{} - {}</title><style>{}</style></head><body>"
-        '<header class="top"><a class="brand" href="/">{}</a>{}{}'
-        '<span class="who">{} <code>{}</code></span></header><main>{}</main>'
+        '<header class="top"><a class="brand" href="/">{}</a>{}{}{}</header><main>{}</main>'
         "</body></html>",
         m.locale,
         title,
@@ -277,10 +310,26 @@ def page(title: str, body: Html, *, chrome: Chrome) -> bytes:
         m("brand"),
         nav,
         switch,
-        m("acting_as"),
-        chrome.actor_id,
+        _who(chrome),
         body,
     ).encode("utf-8")
+
+
+def _who(chrome: Chrome) -> Html:
+    m = chrome.m
+    if chrome.signed_out:
+        return Html("")
+    if chrome.account_name is None:
+        return h('<span class="who">{} <code>{}</code></span>', m("acting_as"), chrome.actor_id)
+    return h(
+        '<span class="who"><a href="/account">{}</a> <span class="badge">{}</span></span>'
+        '<form method="post" action="/logout"><input type="hidden" name="csrf" value="{}">'
+        '<button type="submit">{}</button></form>',
+        chrome.account_name,
+        m("acct.role.ADMIN" if chrome.admin else "acct.role.MEMBER"),
+        chrome.csrf or "",
+        m("acct.sign_out"),
+    )
 
 
 def _list(items: Sequence[Html]) -> Html:
@@ -335,7 +384,7 @@ class RunRow:
 def _chrome(actor_id: str, chrome: Chrome | None, section: str) -> Chrome:
     if chrome is None:
         return Chrome(actor_id, section=section)
-    return Chrome(chrome.actor_id, chrome.locale, chrome.csrf, chrome.path, section)
+    return dataclasses.replace(chrome, section=section)
 
 
 def message_page(

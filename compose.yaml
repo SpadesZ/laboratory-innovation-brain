@@ -14,10 +14,20 @@
 #                 and their privileges; then the operator's bootstrap -- the researcher, their
 #                 project and membership, their LLM administration (deployment/docker/
 #                 bootstrap.sh, configured by the LAB_BRAIN_* variables below)
-#   web           the workspace, published on the HOST'S LOOPBACK ONLY (127.0.0.1). It has no login:
-#                 whoever reaches it acts as its actor, so nothing beyond this machine may
+#   web           the workspace, published on the HOST'S LOOPBACK ONLY (127.0.0.1), with accounts:
+#                 each person signs in; an administrator approves registrations (see ACCOUNTS)
 #   local-models  once per start: the lightweight LOCAL routes -- the host's Ollama probed through
 #                 the ordinary capability tests; never a reasoning route (llm_runtime.local_setup)
+#
+# ACCOUNTS. The first administrator is the operator's, once, from the command line (it prints a
+# one-time link to set the password; no password is typed or printed):
+#     docker compose run --rm init lab-brain admin bootstrap-admin --email you@your.lab \
+#         --name "Your Name" --actor act:researcher
+# `--actor` binds the account to the deployment's existing researcher and their research. Others
+# register at /register, confirm their address and are approved by an administrator. Account
+# mail needs an SMTP server (deployment/docker/mail.env, git-ignored: LAB_BRAIN_SMTP_HOST,
+# _PORT, _FROM, _USERNAME, _PASSWORD_FILE) or an outbox directory (LAB_BRAIN_MAIL_OUTBOX, read
+# with `docker compose cp`); with neither, registration and password reset stay CLOSED.
 #
 # LEAST PRIVILEGE IN THE DATABASE. Every rule the research records keep is a trigger or a
 # constraint, and a superuser or a table's owner can step past both. So only `init` connects as
@@ -140,15 +150,21 @@ services:
       LAB_BRAIN_PUBLISHED_PORT: ${LAB_BRAIN_PORT:-8765}
       # The clock the pages show times in (stored times are UTC and unchanged).
       TZ: ${LAB_BRAIN_TZ:-Asia/Taipei}
+      # An outbox for account mail when there is no SMTP server: a path on the outbox volume.
+      LAB_BRAIN_MAIL_OUTBOX: ${LAB_BRAIN_MAIL_OUTBOX:-}
       LAB_BRAIN_OLLAMA_URL: ${LAB_BRAIN_OLLAMA_URL-http://host.docker.internal:11434/v1}
     env_file:
       - path: deployment/docker/llm-keys.env
+        required: false
+      # Account mail (see ACCOUNTS); absent, registration and password reset are closed.
+      - path: deployment/docker/mail.env
         required: false
     command:
       - sh
       - -c
       - >-
-        exec lab-brain web --actor "$$LAB_BRAIN_ACTOR"
+        exec lab-brain web --accounts
+        $${LAB_BRAIN_MAIL_OUTBOX:+--mail-outbox "$$LAB_BRAIN_MAIL_OUTBOX"}
         --artifact-root /var/lib/lab-brain/artifacts
         --host 0.0.0.0 --port 8765 --in-container
         --published-port "$$LAB_BRAIN_PUBLISHED_PORT"
@@ -169,6 +185,7 @@ services:
       - artifacts:/var/lib/lab-brain/artifacts
       # Pasted model-provider keys: this service only (see the header).
       - credentials:/var/lib/lab-brain/credentials
+      - mail-outbox:/var/lib/lab-brain/outbox
     depends_on:
       init:
         condition: service_completed_successfully
@@ -217,3 +234,4 @@ volumes:
   secrets:
   app-secrets:
   credentials:
+  mail-outbox:

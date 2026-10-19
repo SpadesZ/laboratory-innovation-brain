@@ -20,6 +20,8 @@ htmlcov/
 deployment/docker/llm-keys.env
 # The deployment's pinned review authorities (the committed file is the .example)
 deployment/docker/review-authorities
+# The deployment's account mail settings (the committed file is the .example)
+deployment/docker/mail.env
 
 # Local artifact store and numerical arrays live outside version control
 var/
