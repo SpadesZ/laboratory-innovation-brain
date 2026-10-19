@@ -28,7 +28,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -44,6 +44,7 @@ from lab_brain.core.models.cost import BudgetCaps, CostVector
 from lab_brain.core.models.enums import SensitivityLabel, TrustClass
 from lab_brain.core.models.job import Job, JobState
 from lab_brain.core.models.verification import PlanDecision
+from lab_brain.core.models.warrant import DiagnosticDeclarationSet
 from lab_brain.core.repositories.belief_events import (
     SqlBeliefEventStore,
     SqlBeliefTransitionDecisionStore,
@@ -80,6 +81,7 @@ from lab_brain.domains.silicon_photonics.diagnosis import (
     NormalizationBasisReader,
 )
 from lab_brain.domains.silicon_photonics.product import (
+    candidate_declaration_set,
     diagnostic_declaration_set,
     product_vertical,
 )
@@ -140,13 +142,13 @@ STRATEGIES = (LEAST_COST, SIMULATE_FIRST)
 HIGH_COST_TYPES = frozenset({ActionType.SIMULATION, ActionType.MEASUREMENT, ActionType.FABRICATION})
 
 
-def load_fixture() -> dict[str, Any]:
-    return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
+def load_fixture(path: Path = FIXTURE_PATH) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
 
 
-def fixture_digest() -> str:
+def fixture_digest(path: Path = FIXTURE_PATH) -> str:
     """Over LF-normalised bytes, so a checkout's line endings cannot move the benchmark's identity."""
-    data = FIXTURE_PATH.read_bytes().replace(b"\r\n", b"\n")
+    data = path.read_bytes().replace(b"\r\n", b"\n")
     return "sha256:" + hashlib.sha256(data).hexdigest()
 
 
@@ -368,8 +370,15 @@ def run_case(
     strategy: str = LEAST_COST,
     scope: str | None = None,
     episode_id: str | None = None,
+    declarations: DiagnosticDeclarationSet | None = None,
+    registered: Sequence[DiagnosticDeclarationSet] | None = None,
 ) -> VerticalRun:
-    """One diagnosis episode, end to end, against `connection`. Writes durable rows."""
+    """One diagnosis episode, end to end, against `connection`. Writes durable rows.
+
+    `declarations` is the version the episode reasons under (the pack's own by default),
+    `registered` every version the deployment registers (just that one by default) -- the
+    same for the loop, the belief path, the confirmation verifier and SQL.
+    """
     scope = scope or f"{case['case_id']}-{strategy}"
     episode_id = episode_id or f"epi:{scope}"
     scientist = VerticalScientist(
@@ -478,8 +487,9 @@ def run_case(
     # -- 3. the governed belief path, both comparator versions registered ------------------------
     # The pack's own diagnostic declarations, as the product resolves them -- never the fixture's
     # mechanisms, so a test cannot warrant itself.
-    declarations = diagnostic_declaration_set()
-    SqlDeclarationSetStore(connection).ensure((declarations,), declarations.ref)
+    declarations = declarations or diagnostic_declaration_set()
+    registered = tuple(registered or (declarations,))
+    SqlDeclarationSetStore(connection).ensure(registered, declarations.ref)
     authority = sp_vertical.VerticalAuthorityPolicy()
     v1 = SiliconPhotonicsAuthorityPolicy()
     episode = BeliefEpisode(
@@ -496,7 +506,7 @@ def run_case(
             (authority.policy_id, authority.policy_version): authority,
         },
         warrants=sql_warrant_resolver(
-            connection, declaration_sets=(declarations,), active=declarations.ref, trust=TRUST
+            connection, declaration_sets=registered, active=declarations.ref, trust=TRUST
         ),
         warrant_reviews=SqlDiagnosticWarrantStore(connection),
         superseded=superseded_versions(
@@ -521,8 +531,8 @@ def run_case(
         verify=confirmation_verifier(
             connection,
             trust=TRUST,
-            declaration_sets=reading.declaration_sets,
-            active=reading.active_declarations,
+            declaration_sets=registered,
+            active=declarations.ref,
             authority_policies=reading.authority_policies,
             now=world.now,
         ),
@@ -577,7 +587,7 @@ def run_case(
         episode_outcomes=episode_outcomes(connection),
         relations_from=SqlRelationStore(connection).from_observation,
         unverified_answers=sql_warrant_resolver(
-            connection, declaration_sets=(declarations,), active=declarations.ref, trust=TRUST
+            connection, declaration_sets=registered, active=declarations.ref, trust=TRUST
         ).unverified_answers,
     )
     request = LoopRequest(
@@ -633,13 +643,25 @@ def run_with_history(
     case: Mapping[str, Any],
     *,
     strategy: str = LEAST_COST,
+    declarations: DiagnosticDeclarationSet | None = None,
+    registered: Sequence[DiagnosticDeclarationSet] | None = None,
 ) -> tuple[VerticalRun, tuple[VerticalRun, ...]]:
     """The case, after replaying every case its `history` names -- in order, same project."""
+    under = {"declarations": declarations, "registered": registered}
     earlier = tuple(
-        run_case(connection, fx, case_by_id(fx, prior), strategy=strategy)
+        run_case(connection, fx, case_by_id(fx, prior), strategy=strategy, **under)
         for prior in case.get("history", ())
     )
-    return run_case(connection, fx, case, strategy=strategy), earlier
+    return run_case(connection, fx, case, strategy=strategy, **under), earlier
+
+
+def candidate_declarations() -> tuple[
+    DiagnosticDeclarationSet, tuple[DiagnosticDeclarationSet, ...]
+]:
+    """The candidate declaration version, and what a deployment activating it would register:
+    1.0.0 kept for what was concluded under it, 1.1.0 active (`product.CANDIDATE_VERSION`)."""
+    candidate = candidate_declaration_set()
+    return candidate, (diagnostic_declaration_set(), candidate)
 
 
 # -- the benchmark ---------------------------------------------------------------------------
@@ -687,19 +709,33 @@ def record_for(run: VerticalRun, case: Mapping[str, Any]) -> CaseRecord:
     )
 
 
-def run_benchmark(connection: Any, reset: Callable[[Any], Any]) -> BenchmarkRun:
+def run_benchmark(
+    connection: Any,
+    reset: Callable[[Any], Any],
+    *,
+    path: Path = FIXTURE_PATH,
+    declarations: DiagnosticDeclarationSet | None = None,
+    registered: Sequence[DiagnosticDeclarationSet] | None = None,
+) -> BenchmarkRun:
     """Every case under both strategies, each from a freshly reset database."""
-    fx = load_fixture()
+    fx = load_fixture(path)
     records: list[CaseRecord] = []
     for strategy in STRATEGIES:
         for case in fx["cases"]:
             reset(connection)
-            run, _ = run_with_history(connection, fx, case, strategy=strategy)
+            run, _ = run_with_history(
+                connection,
+                fx,
+                case,
+                strategy=strategy,
+                declarations=declarations,
+                registered=registered,
+            )
             records.append(record_for(run, case))
     return evaluate(
         records,
         benchmark_set_id=fx["benchmark_set_id"],
-        fixture_digest=fixture_digest(),
+        fixture_digest=fixture_digest(path),
         primary=LEAST_COST,
         baseline=SIMULATE_FIRST,
     )
@@ -715,6 +751,7 @@ __all__ = [
     "SimulateFirstPlanner",
     "VerticalRun",
     "VerticalScientist",
+    "candidate_declarations",
     "case_by_id",
     "device_for",
     "fixture_digest",

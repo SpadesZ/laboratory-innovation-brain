@@ -26,6 +26,7 @@ person performs them -- and stay plannable as requests for a person to act.
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 from collections.abc import Callable
 from typing import Any
@@ -37,6 +38,7 @@ from lab_brain.cognition.catalog_reasoner import (
     diagnostic_declarations,
 )
 from lab_brain.core.models.capability import ActionType, Availability
+from lab_brain.core.models.enums import RelationType
 from lab_brain.core.models.warrant import DiagnosticDeclarationSet
 from lab_brain.domains.registry import DomainPackRegistry
 from lab_brain.domains.silicon_photonics import diagnosis
@@ -223,6 +225,67 @@ def mechanism_catalog() -> MechanismCatalog:
     )
 
 
+#: A CANDIDATE declaration version, prepared for the owner's decision and NOT registered:
+#: `product_vertical` registers 1.0.0 only, so nothing the product concludes reads it. It answers
+#: the science review of 1.0.0 (Causal Warrant Gate V1.1, review 04): three links whose check
+#: cannot observe what the link claims are left to a person (`012t`). Every other link is 1.0.0's.
+#: Its evidence is benchmark 1.1.0 (`fixtures/vertical/sp_rs_root_cause_benchmark_1.1.0.json`).
+#: Activating it is a pack change: its digest moves to DECLARATION_DIGESTS, both versions are
+#: registered with 1.1.0 active, CATALOG_VERSION follows, and benchmark 1.1.0 replaces 1.0.0.
+CANDIDATE_VERSION = "1.1.0"
+
+#: The links 1.1.0 leaves to a person, and why each check cannot warrant it.
+CANDIDATE_REVIEW_ONLY: dict[str, tuple[RelationType, str]] = {
+    "contact_discontinuity": (
+        RelationType.CONTRADICTS,
+        "the connectivity inspection reads the drawn layout; CONTINUOUS there cannot refute a "
+        "contact defect introduced in fabrication",
+    ),
+    "dopant_compensation": (
+        RelationType.CONTRADICTS,
+        "the DC sweep solves the design file's doping; NOMINAL there cannot refute compensation "
+        "the process introduced",
+    ),
+    "mesh_artifact": (
+        RelationType.SUPPORTS,
+        "a coarse access mesh makes a SIMULATED resistance unreliable; UNSTABLE does not say that "
+        "it caused an anomaly MEASURED on a device, and the declaration cannot tell the two apart",
+    ),
+}
+
+CANDIDATE_DIGESTS: dict[str, str] = {
+    "sp.rs_anomaly_mechanisms@1.1.0": (
+        "sha256:bd0a5f97b9791df03cfbfe0bf2c425d9c65bcec43ae61de04142347d1d1d8e84"
+    ),
+}
+
+
+def candidate_mechanism_catalog() -> MechanismCatalog:
+    """1.0.0's catalog under the candidate version, with the three links left to a person."""
+    base = mechanism_catalog()
+    return dataclasses.replace(
+        base,
+        version=CANDIDATE_VERSION,
+        mechanisms=tuple(
+            dataclasses.replace(m, review_only=(CANDIDATE_REVIEW_ONLY[m.key][0],))
+            if m.key in CANDIDATE_REVIEW_ONLY
+            else m
+            for m in base.mechanisms
+        ),
+    )
+
+
+def candidate_declaration_set() -> DiagnosticDeclarationSet:
+    """The candidate 1.1.0 declarations, pinned by digest like every registered version."""
+    declarations = diagnostic_declarations(candidate_mechanism_catalog(), DOMAIN)
+    if CANDIDATE_DIGESTS.get(declarations.ref) != declarations.digest:
+        raise RuntimeError(
+            f"candidate declaration set {declarations.ref} hashes to {declarations.digest}, not "
+            "its pinned digest: a candidate link changed without being reviewed again"
+        )
+    return declarations
+
+
 def read_device_project(data: bytes) -> VerificationInput:
     """The user's device project, read as the pack's declared verification input."""
     try:
@@ -334,6 +397,8 @@ def _never_run(request: SimulationRequest) -> ExecutionOutcome:
 
 
 __all__ = [
+    "CANDIDATE_REVIEW_ONLY",
+    "CANDIDATE_VERSION",
     "CATALOG_ID",
     "CATALOG_VERSION",
     "SIMULATOR_REQUIRES",
