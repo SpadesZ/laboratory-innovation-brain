@@ -46,8 +46,10 @@ def _run(  # type: ignore[no-untyped-def]
     project_id: str = PROJECT,
 ) -> None:
     db.execute(
+        # Every run records its question's classification (`012q`).
         "INSERT INTO research_runs (research_run_id, episode_id, project_id, actor_id, ordinal,"
-        " hypothesis_set_id, started_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        " hypothesis_set_id, started_at, question_label)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, 'INTERNAL')",
         (run_id, episode_id, project_id, actor, ordinal, set_id, T0),
     )
 

@@ -204,12 +204,13 @@ def _packet(connection: Any, project_id: str, relation_id: str) -> list[str]:
     rivals = connection.execute(
         "SELECT p.hypothesis_id, h.mechanism, p.expected_outcome,"
         " p.relation_effect_if_observed -> 0 ->> 'relation_type'"
-        " FROM predictions p JOIN hypotheses h ON h.hypothesis_id = p.hypothesis_id"
-        " WHERE h.hypothesis_set_id = (SELECT hypothesis_set_id FROM hypotheses"
-        "   WHERE hypothesis_id = %s)"
+        " FROM predictions p JOIN hypotheses h"
+        " ON h.hypothesis_id = p.hypothesis_id AND h.project_id = p.project_id"
+        " WHERE p.project_id = %s AND h.hypothesis_set_id = (SELECT hypothesis_set_id"
+        "   FROM hypotheses WHERE project_id = %s AND hypothesis_id = %s)"
         " AND p.hypothesis_id <> %s AND p.observable_ref = %s"
         " ORDER BY p.hypothesis_id, p.expected_outcome",
-        (hypothesis_id, hypothesis_id, observable),
+        (project_id, project_id, hypothesis_id, hypothesis_id, observable),
     ).fetchall()
     if not rivals:
         lines.append("  rivals       none declares anything about this observable")

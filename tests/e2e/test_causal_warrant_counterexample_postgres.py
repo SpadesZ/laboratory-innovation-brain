@@ -41,11 +41,11 @@ from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore, WarrantStoreError
 from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.interfaces import cli
-from lab_brain.interfaces.review_cli import run_review
+from lab_brain.interfaces.review_cli import _packet, run_review
 from lab_brain.security.reviewer_identity import ReviewerSigner
 from lab_brain.verification.loop import StopReason
 from tests.debate_fixtures import ACTOR, PROJECT
-from tests.postgres_fixtures import database_url
+from tests.postgres_fixtures import admit_hypothesis_identity, database_url, reset_database
 from tests.reviewer_keys import (
     AUTHORITY,
     AUTHORITY_ACTOR,
@@ -365,6 +365,32 @@ def _authorities_file(tmp_path: Any) -> str:
     return str(path)
 
 
+def test_the_review_packet_reads_only_its_own_projects_records(db):
+    """A hypothesis id is unique within a project, not across projects (`hypotheses` is keyed
+    by both), so another project may hold the same ids. The packet a reviewer reads is built
+    from the relation's own project: its hypothesis, prediction and rivals -- never a twin's
+    mechanism, and never a lookup that two projects' rows make ambiguous."""
+    fx = _proxy()
+    _queue(db)
+    run_case(db, fx, case_by_id(fx, CASE))
+    (review,) = SqlDiagnosticWarrantStore(db).outstanding(PROJECT)
+    alone = _packet(db, PROJECT, review.subject_id)
+    assert any(PROXY_MECHANISM in line for line in alone), "\n".join(alone)
+    held = db.execute(
+        "SELECT hypothesis_id FROM hypotheses WHERE project_id = %s", (PROJECT,)
+    ).fetchall()
+    # The same research again, after another project already holds hypotheses under these ids:
+    # its rows are stored first, where a lookup by id alone finds them.
+    reset_database(db)
+    db.execute("INSERT INTO projects (project_id, name) VALUES ('prj:twin', 'Twin')")
+    for (hypothesis_id,) in held:
+        admit_hypothesis_identity(db, hypothesis_id, project_id="prj:twin")
+    _queue(db)
+    run_case(db, fx, case_by_id(fx, CASE))
+    (review,) = SqlDiagnosticWarrantStore(db).outstanding(PROJECT)
+    assert _packet(db, PROJECT, review.subject_id) == alone
+
+
 def test_a_person_answers_through_the_command_line(db, tmp_path):
     _queue(db)
     fx = _proxy()
@@ -601,11 +627,11 @@ def test_a_relation_cannot_be_rewritten_under_its_warrant(db):
             " WHERE relation_id = %s",
             (relation_id,),
         )
-    # An invalidation is still a recordable fact.
+    # An invalidation is still a recordable fact, and names who made it (`012r`).
     db.execute(
-        "UPDATE relation_judgments SET valid_to = %s, invalidation_reason = 'superseded'"
-        " WHERE relation_id = %s",
-        (T0, relation_id),
+        "UPDATE relation_judgments SET valid_to = %s, invalidation_reason = 'superseded',"
+        " invalidated_by_actor_id = %s WHERE relation_id = %s",
+        (T0, ACTOR, relation_id),
     )
 
 
@@ -727,10 +753,19 @@ def test_the_runner_of_a_relation_cannot_be_rewritten_to_dodge_the_self_grant_ru
     fx = load_fixture()
     run = run_case(db, fx, case_by_id(fx, CASE))
     (relation_id,) = next(s.relation_ids for s in run.result.steps if s.relation_ids)
-    with pytest.raises(psycopg.Error, match="actor changes only with its invalidation"):
+    with pytest.raises(psycopg.Error, match=r"author \(actor_id act:\S+\) is immutable"):
         db.execute(
             "UPDATE relation_judgments SET actor_id = 'act:someone-else' WHERE relation_id = %s",
             (relation_id,),
+        )
+    # Nor alongside an invalidation, as `012o` allowed: the invalidator is recorded beside the
+    # author, never in its place (`012r`).
+    with pytest.raises(psycopg.Error, match=r"author \(actor_id act:\S+\) is immutable"):
+        db.execute(
+            "UPDATE relation_judgments SET valid_to = %s, invalidation_reason = 'superseded',"
+            " invalidated_by_actor_id = 'act:someone-else', actor_id = 'act:someone-else'"
+            " WHERE relation_id = %s",
+            (T0, relation_id),
         )
 
 
