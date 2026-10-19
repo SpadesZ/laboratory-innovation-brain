@@ -122,6 +122,16 @@ _M: dict[str, tuple[str, str]] = {
         "工作台沒有這次執行的報告（在其他地方執行）",
     ),
     "ep.running": ("running", "執行中"),
+    "ep.continue.declare": (
+        "How sensitive is this research question?",
+        "這個研究問題的敏感度為何？",
+    ),
+    "ep.continue.declare.hint": (
+        "This research was opened before its question's classification was recorded. "
+        "Declare it to continue: it is recorded with this run and kept from then on.",
+        "這項研究開始時還沒有記錄研究問題的分級。請宣告分級後再繼續；分級會隨這次執行記錄，"
+        "之後一律沿用。",
+    ),
     "ep.no_report": (
         "No report of this research was recorded in the workspace.",
         "工作台沒有這項研究的報告紀錄。",

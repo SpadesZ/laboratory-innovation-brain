@@ -738,6 +738,8 @@ def test_the_command_line_never_reaches_a_model_and_refuses_while_a_runtime_is_a
             ACTOR,
             "--goal",
             GOAL,
+            "--sensitivity",
+            "INTERNAL",
             "--measurement",
             str(REPORT),
             "--artifact-root",

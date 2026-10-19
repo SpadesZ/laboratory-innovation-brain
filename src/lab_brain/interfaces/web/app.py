@@ -109,6 +109,7 @@ from lab_brain.research.confirmation import confirmation_verifier
 from lab_brain.research.continuation import (
     ContinuationRefused,
     EpisodeNotContinuable,
+    SqlResearchRunStore,
 )
 from lab_brain.research.data import (
     MATERIAL_KINDS,
@@ -1065,10 +1066,10 @@ class Workspace:
             request = self._research_request(form, req.m, usable)
             # The same rule as the confirmation step: the question's level is one this actor
             # holds in the project, or it could not read its own question back.
-            if request.sensitivity.value not in self._cleared(c, request.project_id):
-                raise FormError(
-                    req.m("new.goal.not_cleared", label=req.m(f"sens.{request.sensitivity.value}"))
-                )
+            asked = request.sensitivity
+            if asked is None or asked.value not in self._cleared(c, request.project_id):
+                level = asked.value if asked is not None else ""
+                raise FormError(req.m("new.goal.not_cleared", label=req.m(f"sens.{level}")))
         except FormError as refused:
             return self._new_run(
                 c,
@@ -1142,6 +1143,15 @@ class Workspace:
                 # The episode's own state, as stored. Whether it may really continue is the
                 # service's answer when the form is sent.
                 continuable=opened.row.state not in ("COMPLETED", "ABANDONED"),
+                # Opened before `012q`: continuing asks for the question's classification.
+                declare_label=(
+                    self._cleared(c, opened.project_id)
+                    if SqlResearchRunStore(c).question_label(
+                        project_id=opened.project_id, episode_id=episode_id
+                    )
+                    is None
+                    else None
+                ),
                 chrome=self._chrome(req, "episodes"),
                 project_name={p.project_id: p.name for p in self._projects(c)}.get(
                     opened.project_id
@@ -1153,12 +1163,30 @@ class Workspace:
         opened = self._opened(c, episode_id)
         if opened is None:
             return self._not_found(req, episode_id)
+        # A continuation carries the question's recorded classification (`012q`). An episode
+        # opened before one was recorded continues only under one declared here, at a
+        # level this actor holds -- the same rule as opening research.
+        declared = req.form.value("sensitivity") if req.form is not None else ""
+        if declared and (
+            declared not in {s.value for s in SensitivityLabel}
+            or declared not in self._cleared(c, opened.project_id)
+        ):
+            return self._message(
+                req,
+                "409 Conflict",
+                req.m("ep.not_continued"),
+                req.m("new.goal.not_cleared", label=req.m(f"sens.{declared}"))
+                if declared in {s.value for s in SensitivityLabel}
+                else req.m("msg.unknown_classification", value=repr(declared)),
+                back=f"/episodes/{_path(episode_id)}",
+            )
         request = ResearchRequest(
             project_id=opened.project_id,
             actor_id=self._actor,
             goal="",
             documents=(),
             episode_id=episode_id,
+            sensitivity=SensitivityLabel(declared) if declared else None,
         )
         try:
             report, run_id = self._run(c, req, request)

@@ -79,7 +79,12 @@ from lab_brain.research.continuation import ContinuationRefused
 from lab_brain.research.literature import LiteratureRequest
 from lab_brain.research.reasoning import active_runtime_name
 from lab_brain.research.render import render_markdown
-from lab_brain.research.service import InputDocument, ResearchEpisodeService, ResearchRequest
+from lab_brain.research.service import (
+    InputDocument,
+    QuestionNotCleared,
+    ResearchEpisodeService,
+    ResearchRequest,
+)
 from lab_brain.research.vertical import ENTRY_POINT_GROUP, VerticalNotFound, load_vertical_factory
 from lab_brain.security.reviewer_identity import IdentityUnverified, ReviewerTrust
 from lab_brain.storage.artifacts.local import LocalArtifactStore
@@ -277,10 +282,12 @@ def build_parser() -> argparse.ArgumentParser:
     # Required, not defaulted: where raw bytes are stored is a deployment decision, and a
     # command that picked a temp directory would store evidence nobody can find again.
     opened.add_argument("--artifact-root", required=True)
+    # Required, not defaulted: a classification nobody chose is not a classification.
     opened.add_argument(
         "--sensitivity",
-        default=SensitivityLabel.INTERNAL.value,
+        required=True,
         choices=[label.value for label in SensitivityLabel],
+        help="the classification of the goal and the files in this project",
     )
 
     research = sub.add_parser("research", help="research episodes, end to end")
@@ -355,7 +362,11 @@ def build_parser() -> argparse.ArgumentParser:
     ran.add_argument(
         "--sensitivity",
         choices=[label.value for label in SensitivityLabel],
-        help="the classification of the goal and the files in this project (default INTERNAL)",
+        help=(
+            "the classification of the goal and the files in this project: required to open "
+            "an episode. A continuation keeps the episode's recorded classification; give it "
+            "only for an episode opened before one was recorded"
+        ),
     )
     ran.add_argument("--report", metavar="FILE", help="also write the report (Markdown) here")
 
@@ -613,7 +624,7 @@ def run_research(
         # One message for every refusal reason -- see `inbox`.
         print(f"No research for {request.actor_id} in {request.project_id}.", file=out)
         return 1
-    except ContinuationRefused as refused:
+    except (ContinuationRefused, QuestionNotCleared) as refused:
         # `EpisodeNotContinuable` is one message for an unknown id, another project's episode and
         # another actor's; the others are about the actor's own episode.
         print(str(refused), file=out)
@@ -649,7 +660,6 @@ _NEW_INPUTS: tuple[tuple[str, str], ...] = (
     ("symptom", "--symptom"),
     ("expected", "--expected"),
     ("observed", "--observed"),
-    ("sensitivity", "--sensitivity"),
 )
 
 
@@ -663,6 +673,11 @@ def _research_request(args: argparse.Namespace) -> ResearchRequest:
             )
     elif not args.goal:
         raise ConfigurationError("--goal is required to open an episode")
+    elif not args.sensitivity:
+        raise ConfigurationError(
+            "--sensitivity is required to open an episode: the question is classified "
+            "explicitly, never filed under a default"
+        )
     documents: list[InputDocument] = []
     for option, trust_class in _DOCUMENT_KINDS.items():
         for name in getattr(args, option):
@@ -707,7 +722,7 @@ def _research_request(args: argparse.Namespace) -> ResearchRequest:
         literature=literature,
         episode_id=args.episode,
         trace_id=args.trace,
-        sensitivity=SensitivityLabel(args.sensitivity or SensitivityLabel.INTERNAL.value),
+        sensitivity=SensitivityLabel(args.sensitivity) if args.sensitivity else None,
         symptom=args.symptom,
         expected_behavior=args.expected,
         observed_behavior=args.observed,

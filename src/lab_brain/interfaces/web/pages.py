@@ -814,6 +814,36 @@ def _learned_html(report: EpisodeReport | None, view: EpisodeView, m: Messages) 
     )
 
 
+#: The question classifications, most restrictive first (`SensitivityLabel`'s order).
+_LABELS = ("RESTRICTED_NDA", "CONFIDENTIAL_LAB", "INTERNAL", "PUBLIC")
+
+
+def _declare_label(cleared: frozenset[str] | None, m: Messages) -> Html:
+    """For an episode opened before its question's classification was recorded (`012q`): the
+    classification its continuation must declare, at a level the actor holds. Nothing to
+    ask otherwise -- a continuation carries the recorded one."""
+    if cleared is None:
+        return Html("")
+    return h(
+        '<fieldset><legend>{}</legend><p class="muted">{}</p>{}</fieldset>',
+        m("ep.continue.declare"),
+        m("ep.continue.declare.hint"),
+        cat(
+            h(
+                '<label><input type="radio" name="sensitivity" value="{}" required{}> {}{}'
+                "</label><br>",
+                label,
+                Html("" if label in cleared else " disabled"),
+                m(f"sens.{label}"),
+                h(' <span class="muted">({})</span>', m("sens.not_cleared"))
+                if label not in cleared
+                else Html(""),
+            )
+            for label in _LABELS
+        ),
+    )
+
+
 def _next_html(
     episode: EpisodeRow,
     report: EpisodeReport | None,
@@ -821,6 +851,7 @@ def _next_html(
     csrf: str,
     continuable: bool,
     m: Messages,
+    declare_label: frozenset[str] | None = None,
 ) -> Html:
     parts: list[Html] = []
     if report is not None:
@@ -879,10 +910,11 @@ def _next_html(
             h(
                 '<form method="post" action="/episodes/{}/continue" class="box">'
                 '<input type="hidden" name="csrf" value="{}">'
-                '<div>{}</div><button type="submit" class="primary">{}</button></form>',
+                '<div>{}</div>{}<button type="submit" class="primary">{}</button></form>',
                 episode.episode_id,
                 csrf,
                 m("ep.continue.text"),
+                _declare_label(declare_label, m),
                 m("ep.continue.button"),
             )
         )
@@ -1208,6 +1240,7 @@ def episode_page(
     chrome: Chrome | None = None,
     project_name: str | None = None,
     view: EpisodeView | None = None,
+    declare_label: frozenset[str] | None = None,
 ) -> bytes:
     """The research, in the order a researcher reads it.
 
@@ -1313,7 +1346,11 @@ def episode_page(
             _section("hypotheses", m("v.hypotheses"), _hypotheses_html(report, view, m)),
             _section("tested", m("v.tested"), _tested_html(report, view, runs, report_ordinal, m)),
             _section("learned", m("v.learned"), _learned_html(report, view, m)),
-            _section("next", m("v.next"), _next_html(episode, report, view, csrf, continuable, m)),
+            _section(
+                "next",
+                m("v.next"),
+                _next_html(episode, report, view, csrf, continuable, m, declare_label),
+            ),
             _layer(
                 "reasoning",
                 m("v.reasoning"),

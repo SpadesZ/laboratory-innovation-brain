@@ -34,7 +34,14 @@ from lab_brain.llm_runtime.secrets import DirectoryCredentialStore, SecretStore
 from lab_brain.research.vertical import load_vertical_factory
 from tests.e2e.test_research_episode_postgres import ACTOR
 from tests.e2e.test_web_llm_credentials_postgres import KEY, _connection, _post, _setup, _text
-from tests.e2e.test_web_llm_runtime_postgres import _bind, _egress, _model, _research, _runtime
+from tests.e2e.test_web_llm_runtime_postgres import (
+    _bind,
+    _egress,
+    _model,
+    _research,
+    _runtime,
+    _token,
+)
 from tests.fake_llm_provider import FakeProvider
 from tests.postgres_fixtures import database_url
 from tests.wsgi_client import Browser
@@ -279,3 +286,56 @@ def test_the_workspace_holds_probes_and_research_calls_to_its_one_deadline(
     # Discovery and health: their own short timeout. Every probe and research call: 37 s.
     assert set(waited) == {DISCOVERY_TIMEOUT_S, 37.0}, waited
     assert waited.count(37.0) >= 3, "two models probed, and the active runtime's routes"
+
+
+def test_a_continued_debate_reasons_under_the_questions_own_classification(db, tmp_path, fake):
+    """Data-organization audit F-01 (`012q`). A Lab-confidential question over INTERNAL data, in a
+    project that lets INTERNAL -- not Lab-confidential -- material reach the external model. The
+    first run's debate is refused before anything leaves. Continuing it debates the same question
+    again, under its recorded classification, so it is refused again. Before `012q` the
+    continuation rebuilt its request under the default INTERNAL, and the question reached the
+    model."""
+    from tests.e2e.test_research_episode_postgres import GOAL, PROJECT, REPORT, _device
+    from tests.e2e.test_web_research_data_postgres import _added, _artifact, _import
+
+    _setup(db)
+    db.execute(
+        "UPDATE project_memberships SET sensitivity_clearance ="
+        " ARRAY['PUBLIC', 'INTERNAL', 'CONFIDENTIAL_LAB'] WHERE actor_id = %s",
+        (ACTOR,),
+    )
+    browser = _deployment(tmp_path, inference_deadline=30)
+    _activated(db, browser, fake)  # the project's egress: PUBLIC and INTERNAL only
+    (item,) = _added(_import(browser, PROJECT, [(REPORT.name, REPORT.read_bytes())]))
+    artifact = _artifact(db, item)
+    device = _device(tmp_path, "mesh-coarse-access")
+    token = _token(browser.get("/runs/new"))
+    opened = browser.post(
+        "/runs",
+        {
+            "csrf": token,
+            "project": PROJECT,
+            "goal": GOAL,
+            "sensitivity": "CONFIDENTIAL_LAB",
+            "use": [artifact],
+            f"kind:{artifact}": "measurement",
+        },
+        {"verification_input": [(device.name, device.read_bytes())]},
+    )
+    assert opened.status == 303, _text(opened)[:800]
+    episode_id = unquote(opened.location.rsplit("/", 1)[1])
+    assert fake.research_calls() == [], "run 1: nothing Lab-confidential reached the model"
+    state, outcome = db.execute(
+        "SELECT state, outcome_status FROM research_episodes WHERE episode_id = %s", (episode_id,)
+    ).fetchone()
+    assert state == "SUSPENDED", (state, outcome, _text(browser.get(opened.location))[:2500])
+
+    continued = _post(browser, f"/episodes/{episode_id}/continue", {})
+    assert continued.status == 303, _text(continued)[:800]
+    assert fake.research_calls() == [], (
+        "the continuation's debate kept the question's classification"
+    )
+    assert db.execute(
+        "SELECT ordinal, question_label FROM research_runs WHERE episode_id = %s ORDER BY ordinal",
+        (episode_id,),
+    ).fetchall() == [(1, "CONFIDENTIAL_LAB"), (2, "CONFIDENTIAL_LAB")]

@@ -90,7 +90,12 @@ _COLUMNS = (
     "started_at",
     "finished_at",
     "outcome",
+    "question_label",
 )
+
+
+#: What `start` writes: every column but the two a run records when it finishes.
+_INSERTED = tuple(c for c in _COLUMNS if c not in ("finished_at", "outcome"))
 
 
 class ContinuationRefused(Exception):
@@ -129,6 +134,9 @@ class ResearchRunRecord:
     started_at: dt.datetime
     finished_at: dt.datetime | None = None
     outcome: str | None = None
+    #: The question's classification this run reasoned under (`012q`). None only on runs
+    #: recorded before it.
+    question_label: str | None = None
 
 
 class SqlResearchRunStore:
@@ -176,8 +184,8 @@ class SqlResearchRunStore:
 
     def start(self, record: ResearchRunRecord) -> ResearchRunRecord:
         self._connection.execute(
-            f"INSERT INTO research_runs ({', '.join(_COLUMNS[:11])}) "
-            f"VALUES ({', '.join(['%s'] * 11)})",
+            f"INSERT INTO research_runs ({', '.join(_INSERTED)}) "
+            f"VALUES ({', '.join(['%s'] * len(_INSERTED))})",
             (
                 record.research_run_id,
                 record.episode_id,
@@ -190,9 +198,20 @@ class SqlResearchRunStore:
                 record.expected_behavior,
                 record.observed_behavior,
                 record.started_at,
+                record.question_label,
             ),
         )
         return record
+
+    def question_label(self, *, project_id: str, episode_id: str) -> str | None:
+        """The classification the episode's question was last recorded under, or None when
+        no run of it recorded one (an episode opened before `012q`)."""
+        row = self._connection.execute(
+            "SELECT question_label FROM research_runs WHERE episode_id = %s AND project_id = %s"
+            " AND question_label IS NOT NULL ORDER BY ordinal DESC LIMIT 1",
+            (episode_id, project_id),
+        ).fetchone()
+        return None if row is None else str(row[0])
 
     def record_verification_input(self, research_run_id: str, artifact_id: str) -> None:
         self._connection.execute(

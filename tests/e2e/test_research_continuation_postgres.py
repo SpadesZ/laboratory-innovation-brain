@@ -25,7 +25,7 @@ from pathlib import Path
 import psycopg
 import pytest
 
-from lab_brain.core.models.enums import TrustClass
+from lab_brain.core.models.enums import SensitivityLabel, TrustClass
 from lab_brain.core.models.job import Job, JobState
 from lab_brain.core.repositories.episodes import SqlEpisodeStore
 from lab_brain.core.repositories.jobs import SqlJobStore
@@ -115,7 +115,15 @@ def _open(tmp_path: Path, db, case_id: str = "mesh-coarse-access") -> str:  # ty
     """A first run by ACTOR; returns the minted episode id."""
     device = _device(tmp_path, case_id)
     code, printed = _cli(
-        tmp_path, "--goal", GOAL, "--measurement", str(REPORT), "--verification-input", str(device)
+        tmp_path,
+        "--goal",
+        GOAL,
+        "--sensitivity",
+        "INTERNAL",
+        "--measurement",
+        str(REPORT),
+        "--verification-input",
+        str(device),
     )
     assert code == 0, printed
     row = db.execute(
@@ -290,6 +298,8 @@ def test_a_foreign_or_unknown_episode_id_gets_one_answer_and_nothing_is_written(
                 "trc:ingest-only",
                 "--artifact-root",
                 str(tmp_path / "artifacts"),
+                "--sensitivity",
+                "INTERNAL",
                 str(REPORT),
             ],
             out=out,
@@ -349,6 +359,8 @@ def test_a_foreign_or_unknown_episode_id_gets_one_answer_and_nothing_is_written(
             "trc:probe",
             "--artifact-root",
             str(tmp_path / "artifacts"),
+            "--sensitivity",
+            "INTERNAL",
             str(REPORT),
         ],
         out=out,
@@ -371,7 +383,9 @@ def test_a_completed_episode_receives_no_new_research_run(db, tmp_path):
     confirmed = _open(tmp_path, db, "contact-open-via")
     assert _episode_row(db, confirmed)[3] == "COMPLETED"
     # And one closed as NOT_REACHED: no verification input, so nothing was verified.
-    code, printed = _cli(tmp_path, "--goal", GOAL, "--measurement", str(REPORT))
+    code, printed = _cli(
+        tmp_path, "--goal", GOAL, "--sensitivity", "INTERNAL", "--measurement", str(REPORT)
+    )
     assert code == 0, printed
     not_reached = db.execute(
         "SELECT episode_id FROM research_episodes WHERE outcome_status = 'NOT_REACHED'"
@@ -481,6 +495,7 @@ def test_a_live_run_holds_the_episode_and_an_interrupted_one_is_recovered(db, tm
             expected_behavior=opening.expected_behavior,
             observed_behavior=opening.observed_behavior,
             started_at=opening.started_at,
+            question_label=opening.question_label,
         )
     )
     jobs = SqlJobStore(other)
@@ -537,6 +552,7 @@ def test_a_parked_check_is_superseded_and_the_continuation_confirms_the_cause(db
             goal=GOAL,
             documents=(document,),
             verification_input=(device.name, device.read_bytes()),
+            sensitivity=SensitivityLabel.INTERNAL,
             wall_clock_budget_s=0,
         )
     )
@@ -620,6 +636,7 @@ def test_a_verification_error_parks_the_episode_and_a_continuation_retries_it(
                     ),
                 ),
                 verification_input=(device.name, device.read_bytes()),
+                sensitivity=SensitivityLabel.INTERNAL,
             )
         )
     assert any(s.stage == "verification" and s.status == "FAILED" for s in first.stages)

@@ -266,8 +266,11 @@ class ResearchRequest:
     #: goal, when given, must be the episode's.
     episode_id: str | None = None
     trace_id: str | None = None
-    #: The classification of the goal and the documents in this project (§14.1).
-    sensitivity: SensitivityLabel = SensitivityLabel.INTERNAL
+    #: The classification of the goal and the documents in this project (§14.1). Declared,
+    #: never defaulted: required to open an episode. A continuation carries the episode's
+    #: recorded classification (`012q`); given here, it must be that classification, or --
+    #: for an episode opened before one was recorded -- the one this run declares.
+    sensitivity: SensitivityLabel | None = None
     symptom: str | None = None
     expected_behavior: str | None = None
     observed_behavior: str | None = None
@@ -276,6 +279,44 @@ class ResearchRequest:
     max_steps: int = 8
     #: Research data already in the project, used as ingested (see `ProjectData`).
     project_data: tuple[ProjectData, ...] = ()
+
+
+class QuestionNotCleared(ValueError):
+    """The question is classified above what its asker may read in the project. Nothing was
+    written."""
+
+
+def _settled(request: ResearchRequest) -> SensitivityLabel:
+    """The question's classification, which `_open` and `_continue` settle before any step
+    that uses it."""
+    if request.sensitivity is None:  # pragma: no cover - both entries settle it first
+        raise ValueError("the question's classification was used before it was settled")
+    return request.sensitivity
+
+
+def _continued_label(
+    episode_id: str, recorded: str | None, declared: SensitivityLabel | None
+) -> SensitivityLabel:
+    """The classification a continuation of `episode_id` reasons under (`012q`).
+
+    The recorded one, unchanged. A declared one must be it: a continuation neither lowers nor
+    raises a question's classification. An episode opened before any was recorded continues
+    only under one this run declares -- never a default.
+    """
+    if recorded is not None:
+        if declared is not None and declared.value != recorded:
+            raise ContinuationRefused(
+                f"Episode {episode_id}'s question is classified {recorded}; a continuation "
+                f"keeps that classification and cannot carry {declared.value}."
+            )
+        return SensitivityLabel(recorded)
+    if declared is None:
+        raise ContinuationRefused(
+            f"Episode {episode_id} was opened before its question's classification was "
+            "recorded. Declare it to continue (--sensitivity, or the classification on the "
+            "research page); it is recorded with this run and kept from then on."
+        )
+    return declared
 
 
 class UuidEpisodeIds:
@@ -407,6 +448,20 @@ class ResearchEpisodeService:
         """A new episode, under an id minted here -- never one the caller names."""
         if not request.goal.strip():
             raise ValueError("a research run that opens an episode needs a goal")
+        if request.sensitivity is None:
+            # Never a default: a question filed under a label nobody chose could be reasoned
+            # over, or sent to a model, below its own classification.
+            raise ValueError(
+                "a research run that opens an episode declares its question's classification"
+            )
+        if request.sensitivity not in self._clearance(request.actor_id, request.project_id):
+            # The rule imports follow ("may declare -- and read"): a question its asker could
+            # not read back is not asked, whichever path asks it.
+            raise QuestionNotCleared(
+                f"{request.actor_id}'s access in {request.project_id} does not include "
+                f"{request.sensitivity.value}, so they could not read this question back. "
+                "Classify it at a level they hold. Nothing was written."
+            )
         c = self._connection
         ledger = SqlResearchRunStore(c)
         episode_id = self._mint("episode")
@@ -436,6 +491,7 @@ class ResearchEpisodeService:
                     expected_behavior=request.expected_behavior,
                     observed_behavior=request.observed_behavior,
                     started_at=started,
+                    question_label=request.sensitivity.value,
                 )
             )
             run = _Run(record=record)
@@ -514,6 +570,17 @@ class ResearchEpisodeService:
                 raise ContinuationRefused(
                     f"Episode {episode_id} runs on trace {episode.trace_id}; a continuation keeps "
                     "the episode's trace."
+                )
+            label = _continued_label(
+                episode_id,
+                ledger.question_label(project_id=request.project_id, episode_id=episode_id),
+                request.sensitivity,
+            )
+            if label not in self._clearance(request.actor_id, request.project_id):
+                raise ContinuationRefused(
+                    f"Episode {episode_id}'s question is classified {label.value}, and "
+                    f"{request.actor_id}'s access in {request.project_id} does not include it; "
+                    "it is not continued."
                 )
             # The reasoning history, loaded and checked BEFORE anything is written: the set a run
             # of the episode recorded (the opener's, or a retry's), else -- no set at all -- the
@@ -605,11 +672,14 @@ class ResearchEpisodeService:
                     expected_behavior=opener.expected_behavior,
                     observed_behavior=opener.observed_behavior,
                     started_at=started,
+                    question_label=label.value,
                 )
             )
-            # The episode's own framing, from here on: this request adds nothing.
+            # The episode's own framing, from here on: this request adds nothing -- and the
+            # question keeps its recorded classification, whatever a caller defaulted to.
             effective = dataclasses.replace(
                 request,
+                sensitivity=label,
                 goal=episode.goal,
                 trace_id=episode.trace_id,
                 symptom=opener.symptom,
@@ -834,7 +904,7 @@ class ResearchEpisodeService:
                 document.data,
                 job_id=job.job_id,
                 actor_id=request.actor_id,
-                sensitivity_label=request.sensitivity,
+                sensitivity_label=_settled(request),
                 uri=document.uri,
                 media_type=document.media_type,
             )
@@ -1197,7 +1267,7 @@ class ResearchEpisodeService:
                     domain=vertical.domain,
                     admission_policy=ADMISSION_POLICY,
                     budget_policy=budget,
-                    question_label=request.sensitivity,
+                    question_label=_settled(request),
                     available_inputs=(
                         frozenset({run.verification.kind})
                         if run.verification is not None
@@ -2249,6 +2319,7 @@ __all__ = [
     "EpisodeInProgress",
     "EpisodeNotContinuable",
     "InputDocument",
+    "QuestionNotCleared",
     "ResearchEpisodeService",
     "ResearchRequest",
     "UuidEpisodeIds",

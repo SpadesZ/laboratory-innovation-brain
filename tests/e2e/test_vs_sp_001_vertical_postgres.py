@@ -94,6 +94,8 @@ def _open_episode_from_the_cli(tmp_path: Path) -> tuple[int, str]:
             EPISODE,
             "--artifact-root",
             str(tmp_path),
+            "--sensitivity",
+            "INTERNAL",
         ],
         out=out,
         env={"LAB_BRAIN_DATABASE_URL": database_url()},

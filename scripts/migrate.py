@@ -288,6 +288,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # registered declaration sets and the confirmation rule for every writer, and flags on
     # recorded conclusions. After 012o (grants, warrant refs) and 011a (conflicts).
     "012p_causal_warrant_gate_v1_1.sql",
+    # The research question's classification on every research run, carried by every
+    # continuation. After 012c/012k (research_runs).
+    "012q_question_classification.sql",
 )
 
 _BOOTSTRAP = """
