@@ -3684,12 +3684,12 @@ MUTATIONS: tuple[Mutation, ...] = (
         old=(
             "                        effect=_effects(p.effects, m),\n"
             '                        designated=m("v.designated") if p.designated_falsifier else "",\n'
-            "                        status=_prediction_word(p, view, t),\n"
+            "                        status=_prediction_word(p, seen, t),\n"
         ),
         new=(
             "                        effect=_effects(p.effects, m),\n"
             '                        designated=m("v.designated"),\n'
-            "                        status=_prediction_word(p, view, t),\n"
+            "                        status=_prediction_word(p, seen, t),\n"
         ),
         tests=("tests/unit/test_episode_view_page.py",),
     ),
@@ -5671,7 +5671,7 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="r4_checks_never_run_go_unmentioned",
         guards="Reading -- every check that cannot run here is named unknown and unverified",
         path="src/lab_brain/interfaces/web/pages.py",
-        old="    if report.pending:\n        reasons.append(\n",
+        old="    if not_run:\n        reasons.append(\n",
         new="    if False:\n        reasons.append(\n",
         tests=(
             "tests/unit/test_research_reading.py",
@@ -5698,8 +5698,8 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="r7_conflicting_evidence_unremarked",
         guards="Reading -- a hypothesis both supported and challenged is said to have conflicting evidence",
         path="src/lab_brain/interfaces/web/pages.py",
-        old='        or {"SUPPORTS", "CONTRADICTS"}\n        <= {r.relation_type',
-        new='        or {"SUPPORTS", "CONTRADICTS", "NEVER"}\n        <= {r.relation_type',
+        old='        if {"SUPPORTS", "CONTRADICTS"}\n        <= {r.relation_type',
+        new='        if {"SUPPORTS", "CONTRADICTS", "NEVER"}\n        <= {r.relation_type',
         tests=("tests/unit/test_research_reading.py",),
     ),
     Mutation(
@@ -5733,6 +5733,46 @@ MUTATIONS: tuple[Mutation, ...] = (
         old='                        source_digest="sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest(),\n',
         new='                        source_digest="sha256:" + hashlib.sha256(b"").hexdigest(),\n',
         tests=("tests/e2e/test_research_acceptance_without_lumerical_postgres.py",),
+    ),
+    Mutation(
+        name="r12_a_challenged_hypothesis_called_supported",
+        guards="Reading -- a challenged hypothesis is not said to be both supported and challenged",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old='        if {"SUPPORTS", "CONTRADICTS"}\n        <= {r.relation_type',
+        new='        if x.final_state == "CHALLENGED" or {"SUPPORTS", "CONTRADICTS"}\n        <= {r.relation_type',
+        tests=("tests/unit/test_research_reading.py",),
+    ),
+    Mutation(
+        name="r13_a_budget_refusal_reads_as_a_run",
+        guards="Reading -- a check that did not execute is never said to have run",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old='    return action.status == "EXECUTED"\n',
+        new="    return True\n",
+        tests=("tests/unit/test_research_reading.py",),
+    ),
+    Mutation(
+        name="r14_a_match_hidden_by_another_reading",
+        guards="Reading -- a prediction an observation matched is shown as observed",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old="    if any(p in r.matched for r in results):\n",
+        new="    if False:\n",
+        tests=("tests/unit/test_research_reading.py",),
+    ),
+    Mutation(
+        name="r15_a_warrant_wait_read_as_an_open_rival",
+        guards="Reading -- with no rival open, a supported hypothesis is not said to wait on rivals",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old='                "v.why.supported_not_confirmed" if still_open else "v.why.supported_unconfirmed",\n',
+        new='                "v.why.supported_not_confirmed",\n',
+        tests=("tests/unit/test_research_reading.py",),
+    ),
+    Mutation(
+        name="r16_tested_rivals_called_never_tested",
+        guards="Reading -- a rival an observation bore on is not called never tested",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old="        untested = [x for x in rivals if not _observed_about(x, seen)]\n",
+        new="        untested = rivals\n",
+        tests=("tests/unit/test_research_reading.py",),
     ),
 )
 

@@ -286,10 +286,10 @@ def test_a_result_no_declared_prediction_matched_moves_nothing_and_is_said_so():
     l1 = _l1(_page(_report(), _view(_result())))
     assert "normalization basis = agrees matched no declared prediction" in l1
     assert "neither supports nor contradicts any hypothesis, and no belief could move" in l1
-    assert "NORMALIZATION_BASIS_ISSUE: if disagrees, refutes, its machine falsifier" in l1
+    assert "NORMALIZATION_BASIS_ISSUE: if disagrees, contradicts, its machine falsifier" in l1
     assert "No governed belief change happened in this run." in l1
     assert (
-        "if normalization basis = disagrees: refutes it, its machine falsifier -- not what was"
+        "if normalization basis = disagrees: contradicts it, its machine falsifier -- not what was"
         " observed (agrees was)" in l1
     )
     assert "if normalization basis = split dependent: supports it -- not observed yet" in l1
@@ -334,7 +334,7 @@ def test_a_matched_falsifier_its_governed_transition_or_why_there_was_none():
     l1 = _l1(_page(_report(), _view(_matched(transitions=(moved,)))))
     assert (
         "normalization basis = agrees matched the prediction NORMALIZATION_BASIS_ISSUE declared in"
-        " advance (if agrees, it refutes the hypothesis), its machine falsifier." in l1
+        " advance (if agrees, it contradicts the hypothesis), its machine falsifier." in l1
     )
     assert (
         "NORMALIZATION_BASIS_ISSUE: Open -> Refuted (ruled out), a governed belief change"
@@ -361,7 +361,8 @@ def test_no_prediction_about_the_observable_or_no_observation_recorded_is_said_a
 
 
 def test_the_tested_and_next_sections_separate_executed_human_and_unavailable_checks():
-    l1 = _l1(_page(_report(), _view(_result())))
+    markup = _page(_report(), _view(_result()))
+    l1 = _l1(markup)
     executed = l1[l1.index("Executed in this run") : l1.index("Planned, needs a person")]
     assert (
         "extraction consistency (analytical check) executed Observation normalization basis ="
@@ -380,7 +381,13 @@ def test_the_tested_and_next_sections_separate_executed_human_and_unavailable_ch
         "Best next check: charge ac sweep (simulation). It cannot run here: no simulation backend"
         " is wired in this deployment. It needs: a licence." in nxt
     )
-    assert "DEPLETION_EFFECT -> CONTRADICTED if RS_BIAS_INSENSITIVE" in nxt, "as the run wrote it"
+    # With no declaration of what the check observes, L1 says nothing it would decide; the
+    # run's own words stay in the full report.
+    assert "Its result would decide" not in nxt
+    assert "DEPLETION_EFFECT -> CONTRADICTED if RS_BIAS_INSENSITIVE" not in l1
+    assert "DEPLETION_EFFECT -> CONTRADICTED if RS_BIAS_INSENSITIVE" in _text(
+        markup[markup.index('<details id="v-audit"') :]
+    )
     assert "A person can act now: fourpoint probe (measurement)." in nxt
     assert "The critic raised 1 objection(s)" in l1, "critique, kept apart from belief changes"
 
@@ -615,7 +622,7 @@ def test_a_prediction_in_another_outcome_space_is_not_comparable_on_the_page():
     l1, l2 = _l1(markup), _reasoning(markup)
     assert "normalization basis = agrees matched no declared prediction" in l1
     assert (
-        "NORMALIZATION_BASIS_ISSUE: if agrees, refutes, its machine falsifier -- declared in"
+        "NORMALIZATION_BASIS_ISSUE: if agrees, contradicts, its machine falsifier -- declared in"
         " another outcome space or version, so not comparable" in l1
     )
     assert "No governed belief change happened in this run." in l1

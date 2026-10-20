@@ -515,6 +515,9 @@ _RULED_OUT = frozenset({"CONTRADICTED"})
 #: Where a hypothesis stands, for reading the comparison: supported first, ruled out last.
 _STANDING = {"SUPPORTED": 0, "CONTRADICTED": 2, "EVOLVED": 3, "SUPERSEDED": 3}
 
+#: States that leave the lifecycle (`BELIEF_TERMINAL_STATES`): neither open nor ruled out.
+_SET_ASIDE = frozenset({"EVOLVED", "SUPERSEDED"})
+
 #: Publication statuses an excerpt needs no warning for (anything else -- RETRACTED, WITHDRAWN,
 #: ERRATUM_ISSUED, SUPERSEDED, SOURCE_UNAVAILABLE -- is shown beside it).
 _ORDINARY_STATUS = frozenset({"ACTIVE", "UNKNOWN", ""})
@@ -547,6 +550,8 @@ class Terms:
         self.kinds: Mapping[str, str] = kinds or {}
         self.presentation: Mapping[str, Mapping[str, str]] = presentation or {}
         self._renderings: Mapping[str, str] = self.presentation.get(self.locale, {})
+        #: The pack's own note on these renderings (who has reviewed them), in this locale.
+        self.note = self._renderings.get("@note", "")
         self._as_written = self.locale == RESEARCH_OUTPUT_LANGUAGE
         #: canonical -> what was shown for it (None: no curated rendering), first seen first.
         self.shown: dict[str, str | None] = {}
@@ -631,10 +636,22 @@ def _joined(items: Sequence[Html], m: Messages) -> Html:
     return cat(items, m("v.sep")) if items else e(m("none"))
 
 
+#: The waits the research service writes for the Causal Warrant Gate's stops, in words.
+_WAITS = {
+    "awaiting a person's diagnostic warrant answer": "ep.waiting.warrant",
+    "awaiting evidence that tells the SUPPORTED mechanism from a rival": (
+        "ep.waiting.undiscriminated"
+    ),
+    "awaiting a person: two mechanisms are SUPPORTED": "ep.waiting.competing",
+}
+
+
 def _waiting(reason: str | None, t: Terms) -> Html:
     """Why an episode waits, without identifiers: the shapes the service writes, in words."""
     if not reason:
         return Html("")
+    if reason in _WAITS:
+        return e(t.m(_WAITS[reason]))
     if reason.startswith("awaiting simulator for "):
         return mh(
             t.m,
@@ -652,7 +669,11 @@ def _groups(
     """Supported, still open, ruled out -- by each hypothesis's state after the run."""
     supported = [x for x in report.hypotheses if x.final_state == "SUPPORTED"]
     ruled_out = [x for x in report.hypotheses if x.final_state in _RULED_OUT]
-    still_open = [x for x in report.hypotheses if x not in supported and x not in ruled_out]
+    still_open = [
+        x
+        for x in report.hypotheses
+        if x not in supported and x not in ruled_out and x.final_state not in _SET_ASIDE
+    ]
     return supported, still_open, ruled_out
 
 
@@ -725,6 +746,36 @@ def _person_actions(report: EpisodeReport | None) -> list[str]:
         if plan.chosen and plan.chosen not in done | blocked and plan.chosen not in chosen:
             chosen.append(plan.chosen)
     return chosen
+
+
+def _ran(action: ActionLine) -> bool:
+    """Whether a check of this run executed (`WorkflowStatus.EXECUTED`). A budget refusal or a
+    wait for a seat is in `completed` too, and nothing executed."""
+    return action.status == "EXECUTED"
+
+
+def _not_run(report: EpisodeReport) -> list[tuple[str, str, str]]:
+    """(check, kind, status) for every check this run planned that did not execute: blocked
+    here, refused by the budget, or waiting for a resource -- its result unknown. A check that
+    ran and failed is not among them (`_failed`)."""
+    return [(p.capability_id, p.action_type, "BLOCKED") for p in report.pending] + [
+        (a.capability_id, a.action_type, a.status)
+        for a in report.completed
+        if not _ran(a) and a.status != "FAILED"
+    ]
+
+
+def _failed(report: EpisodeReport) -> list[ActionLine]:
+    return [a for a in report.completed if a.status == "FAILED"]
+
+
+def _observed_about(x: HypothesisLine, seen: Sequence[_Seen]) -> bool:
+    """Whether any observation the shown run relies on bears on this hypothesis's predictions."""
+    return any(
+        p.hypothesis_id == x.hypothesis_id
+        for s in seen
+        for p in (*s.result.matched, *s.result.unmatched, *s.result.incomparable)
+    ) or bool(_relations(seen, x.hypothesis_id))
 
 
 def _action_type(
@@ -839,7 +890,7 @@ def _result_html(
         headline = mh(
             m,
             "v.conclusion.CONFIRMED",
-            mechanism=t.text(confirmed.mechanism) if confirmed else c.confirmed_hypothesis or "-",
+            mechanism=t.text(confirmed.mechanism) if confirmed else m("v.unknown_cause"),
         )
     else:
         headline = e(_words("v.conclusion", c.status, m))
@@ -872,15 +923,23 @@ def _result_html(
             )
     if report.hypotheses:
         supported, still_open, ruled_out = _groups(report)
+        aside = [x for x in report.hypotheses if x.final_state in _SET_ASIDE]
         lines.append(
             h(
-                '<ul class="standing"><li>{} {}</li><li>{} {}</li><li>{} {}</li></ul>',
+                '<ul class="standing"><li>{} {}</li><li>{} {}</li><li>{} {}</li>{}</ul>',
                 m("v.supported"),
                 _joined([t.text(x.mechanism) for x in supported], m),
                 m("v.still_competing"),
                 _joined([t.text(x.mechanism) for x in still_open], m),
                 m("v.ruled_out"),
                 _joined([t.text(x.mechanism) for x in ruled_out], m),
+                h(
+                    "<li>{} {}</li>",
+                    m("v.set_aside"),
+                    _joined([t.text(x.mechanism) for x in aside], m),
+                )
+                if aside
+                else Html(""),
             )
         )
     parts.append(h('<div class="box conclusion">{}</div>', cat(lines)))
@@ -924,11 +983,14 @@ def _evidence_status(
     if not x.minimal_test:
         return e(m("v.ev.untested_unknown"))
     test = x.minimal_test
-    if test in {p.capability_id for p in report.pending}:
+    ran = {s.capability_id for s in seen} | {a.capability_id for a in report.completed if _ran(a)}
+    if test in {c for c, _, _ in _not_run(report)}:
         where = m("v.ev.blocked")
+    elif test in {a.capability_id for a in _failed(report)}:
+        where = m("v.ev.failed")
     elif test in _person_actions(report):
         where = m("v.ev.person")
-    elif test in {s.capability_id for s in seen} | {a.capability_id for a in report.completed}:
+    elif test in ran:
         where = m("v.ev.ran_no_observation")
     else:
         where = m("v.ev.unplanned")
@@ -1079,6 +1141,7 @@ def _tested_html(
     executed = [
         _checked(a.capability_id, a.action_type, a.status, view.results.get(a.run_id or "", ()), t)
         for a in _this_run(report)
+        if _ran(a)
     ]
     parts.append(
         h(
@@ -1107,23 +1170,26 @@ def _tested_html(
     ]
     if person:
         parts.append(h("<h3>{}</h3><ul>{}</ul>", m("v.needs_person"), cat(person)))
-    if report.pending:
-        parts.append(
-            h(
-                "<h3>{}</h3><ul>{}</ul>",
-                m("v.unavailable"),
-                cat(
-                    h(
-                        "<li>{} {} {}</li>",
-                        _check_kind(p.capability_id, p.action_type, t),
-                        status("ws", "BLOCKED", m),
-                        m("v.not_run_unknown"),
-                    )
-                    for p in report.pending
-                ),
-            )
+    unavailable = [
+        h(
+            "<li>{} {} {}</li>",
+            _check_kind(capability, kind, t),
+            status("ws", state, m),
+            m("v.not_run_unknown"),
         )
-    checks = _this_run(report)
+        for capability, kind, state in _not_run(report)
+    ] + [
+        h(
+            "<li>{} {} {}</li>",
+            _check_kind(a.capability_id, a.action_type, t),
+            status("ws", a.status, m),
+            m("v.failed_no_result"),
+        )
+        for a in _failed(report)
+    ]
+    if unavailable:
+        parts.append(h("<h3>{}</h3><ul>{}</ul>", m("v.unavailable"), cat(unavailable)))
+    checks = [a for a in _this_run(report) if _ran(a)]
     moves = sum(len(r.transitions) for a in checks for r in view.results.get(a.run_id or "", ()))
     objections = sum(len(x.objections) for x in report.hypotheses)
     parts.append(
@@ -1140,17 +1206,18 @@ def _tested_html(
     return cat(parts)
 
 
-def _prediction_word(p: DeclaredPrediction, view: EpisodeView, t: Terms) -> Html:
-    """Has this prediction been observed? From the read model's comparison only."""
+def _prediction_word(p: DeclaredPrediction, seen: Sequence[_Seen], t: Terms) -> Html:
+    """Has this prediction been observed, by the observations the shown run relies on (its own
+    and earlier runs', never a later run's)? A match anywhere says so, whatever else was seen."""
     m = t.m
-    for results in view.results.values():
-        for r in results:
-            if p in r.matched:
-                return e(m("v.pred.observed"))
-            if p in r.unmatched:
-                return mh(m, "v.pred.other", outcome=t.name(r.outcome))
-            if p in r.incomparable:
-                return e(m("v.pred.not_comparable"))
+    results = [s.result for s in seen]
+    if any(p in r.matched for r in results):
+        return e(m("v.pred.observed"))
+    other = [r for r in results if p in r.unmatched]
+    if other:
+        return mh(m, "v.pred.other", outcome=_joined([t.name(r.outcome) for r in other], m))
+    if any(p in r.incomparable for r in results):
+        return e(m("v.pred.not_comparable"))
     return e(m("v.pred.pending"))
 
 
@@ -1179,7 +1246,7 @@ def _support_html(
                         expected=t.name(p.expected_outcome),
                         effect=_effects(p.effects, m),
                         designated=m("v.designated") if p.designated_falsifier else "",
-                        status=_prediction_word(p, view, t),
+                        status=_prediction_word(p, seen, t),
                     ),
                 )
                 for p in typed
@@ -1260,7 +1327,11 @@ def _reasoner_line(report: EpisodeReport, t: Terms) -> Html:
 
 
 def _why_html(
-    report: EpisodeReport | None, seen: Sequence[_Seen], t: Terms, view: EpisodeView
+    report: EpisodeReport | None,
+    seen: Sequence[_Seen],
+    t: Terms,
+    view: EpisodeView,
+    suspend_reason: str | None = None,
 ) -> Html:
     """Why the system can or cannot conclude, from the typed record: what is still open, what
     conflicts, what was never run -- never a verdict the record does not hold."""
@@ -1289,10 +1360,14 @@ def _why_html(
             reasons.append(e(m("v.why.warranted", n=n)))
         if ruled_out:
             reasons.append(mh(m, "v.why.others_ruled_out", names=names(ruled_out)))
-        untested = [x for x in still_open if x.hypothesis_id != c.confirmed_hypothesis]
+        rivals = [x for x in still_open if x.hypothesis_id != c.confirmed_hypothesis]
+        untested = [x for x in rivals if not _observed_about(x, seen)]
         if untested:
             # A confirmation can rest on a diagnostic signature with rivals never tested: said.
             reasons.append(mh(m, "v.why.untested_rivals", names=names(untested)))
+        tested = [x for x in rivals if x not in untested]
+        if tested:
+            reasons.append(mh(m, "v.why.open_rivals", names=names(tested)))
     else:
         lead = m("v.why.cannot")
         if not report.hypotheses:
@@ -1301,29 +1376,50 @@ def _why_html(
             reasons.append(mh(m, "v.why.open", n=len(still_open), names=names(still_open)))
         if len(supported) > 1:
             reasons.append(mh(m, "v.why.competing", n=len(supported), names=names(supported)))
+        # With a rival open, support is not confirmation; with none open, the governed path still
+        # did not confirm it -- and the page says what it waits for, never an open rival.
         reasons += [
-            mh(m, "v.why.supported_not_confirmed", mechanism=t.text(x.mechanism)) for x in supported
+            mh(
+                m,
+                "v.why.supported_not_confirmed" if still_open else "v.why.supported_unconfirmed",
+                mechanism=t.text(x.mechanism),
+            )
+            for x in supported
         ]
+        if suspend_reason in _WAITS:
+            reasons.append(mh(m, "v.why.waiting", reason=_waiting(suspend_reason, t)))
         if c.status == "INCONCLUSIVE":
             reasons.append(e(m("v.why.inconclusive")))
     conflicting = [
         x
         for x in report.hypotheses
-        if x.final_state == "CHALLENGED"
-        or {"SUPPORTS", "CONTRADICTS"}
+        if {"SUPPORTS", "CONTRADICTS"}
         <= {r.relation_type for _, r in _relations(seen, x.hypothesis_id)}
     ]
     reasons += [mh(m, "v.why.conflicting", mechanism=t.text(x.mechanism)) for x in conflicting]
+    reasons += [
+        mh(m, "v.why.challenged", mechanism=t.text(x.mechanism))
+        for x in report.hypotheses
+        if x.final_state == "CHALLENGED" and x not in conflicting
+    ]
     if any(s.stage == "verification" and s.status == "SKIPPED" for s in report.stages):
         reasons.append(e(m("v.why.no_input")))
-    if report.pending:
+    not_run = _not_run(report)
+    if not_run:
         reasons.append(
             mh(
                 m,
                 "v.why.unperformed",
-                checks=_joined(
-                    [_check_kind(p.capability_id, p.action_type, t) for p in report.pending], m
-                ),
+                checks=_joined([_check_kind(c, kind, t) for c, kind, _ in not_run], m),
+            )
+        )
+    failed = _failed(report)
+    if failed:
+        reasons.append(
+            mh(
+                m,
+                "v.why.failed",
+                checks=_joined([_check_kind(a.capability_id, a.action_type, t) for a in failed], m),
             )
         )
     person = _person_actions(report)
@@ -1370,7 +1466,8 @@ def _declare_label(cleared: frozenset[str] | None, m: Messages) -> Html:
 
 def _would_decide(p: PendingAction, report: EpisodeReport, view: EpisodeView, t: Terms) -> Html:
     """What a check that has not run would decide: the declared predictions over what it would
-    observe. Without the pack's declaration of what it observes, the run's own words."""
+    observe. Without the pack's declaration of what it observes, nothing here: the run's own words
+    stay in the full report."""
     m = t.m
     observes = t.observes.get(p.capability_id, ())
     lines = [
@@ -1389,7 +1486,7 @@ def _would_decide(p: PendingAction, report: EpisodeReport, view: EpisodeView, t:
         for x in report.hypotheses
         for q in view.predictions.get(x.hypothesis_id, ())
         if q.observable in observes
-    ] or [h("<li>{}</li>", t.text(d)) for d in p.would_decide]
+    ]
     if not lines:
         return Html("")
     return h("<div>{}</div><ul>{}</ul>", m("v.would_decide"), cat(lines))
@@ -1447,6 +1544,8 @@ def _next_html(
                     mh(m, "v.person", check=t.name(c), kind=_kind(view.action_types.get(c), m)),
                 )
             )
+        if episode.suspend_reason == "awaiting a person's diagnostic warrant answer":
+            parts.append(h('<p class="next">{}</p>', m("v.next.warrant")))
     if not parts:
         if report is None:
             parts.append(h("<p>{}</p>", m("ep.no_report")))
@@ -1827,7 +1926,7 @@ def _l1_html(
             _section("hypotheses", m("v.hypotheses"), _hypotheses_html(report, view, seen, t)),
             _section("tested", m("v.tested"), _tested_html(report, view, runs, ordinal, t)),
             _section("support", m("v.support"), _support_html(report, view, seen, t)),
-            _section("why", m("v.why"), _why_html(report, seen, t, view)),
+            _section("why", m("v.why"), _why_html(report, seen, t, view, episode.suspend_reason)),
             _section(
                 "next",
                 m("v.next"),
@@ -1837,10 +1936,15 @@ def _l1_html(
     )
 
 
-def _untranslated_html(t: Terms) -> Html:
-    if not t.untranslated:
-        return Html("")
-    return h('<p class="box notice">{}</p>', t.m("tr.notice", n=t.untranslated))
+def _translation_notes(t: Terms) -> Html:
+    """Beside the question: how many passages are shown untranslated, and what the curated
+    renderings are (the pack's own note: who has reviewed them)."""
+    notes: list[Html] = []
+    if t.untranslated:
+        notes.append(h('<p class="box notice">{}</p>', t.m("tr.notice", n=t.untranslated)))
+    if t.note and any(rendering is not None for rendering in t.shown.values()):
+        notes.append(h('<p class="muted">{}</p>', t.m("tr.curated_note", note=t.note)))
+    return cat(notes)
 
 
 def _originals_html(t: Terms) -> Html:
@@ -1985,7 +2089,7 @@ def episode_page(
         [
             _question_html(episode, project_name, m),
             h('<p class="box notice">{}</p>', notice) if notice else Html(""),
-            _untranslated_html(t),
+            _translation_notes(t),
             l1,
             _layer(
                 "reasoning",
@@ -2032,7 +2136,7 @@ def summary_document(
         [
             h('<p class="muted">{}</p>', m("sum.title")),
             _question_html(episode, project_name, m),
-            _untranslated_html(t),
+            _translation_notes(t),
             l1,
             h(
                 '<section id="v-provenance" class="view"><h2>{}</h2>{}<h3>{}</h3>{}</section>',

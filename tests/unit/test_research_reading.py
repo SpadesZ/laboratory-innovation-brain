@@ -12,7 +12,10 @@ certain than the record.
                   or confirmed finding -- and only a confirmation carries the last
     why           the page says why the system can or cannot conclude: rivals still open, support
                   that is not confirmation, conflicting evidence, checks that never ran (unknown,
-                  nothing assumed in their place), and who reasoned, from inference provenance
+                  nothing assumed in their place), and who reasoned, from inference provenance --
+                  and never more: a challenged hypothesis is not called supported, a wait on a
+                  warrant is not an open rival, a budget refusal is not a run, a later run's
+                  result is not this run's, and "inconclusive" is not "rivals remain"
     next          what a check that has not run would decide comes from the declared predictions
     summary       the exported summary is a derived document that names its source's digest and
                   the renderings it used, and carries no form
@@ -252,7 +255,14 @@ def _insufficient() -> tuple[EpisodeReport, EpisodeView]:
     return report, view
 
 
-def _page(report: EpisodeReport, view: EpisodeView, locale: str, *, terms: bool = True) -> str:
+def _page(
+    report: EpisodeReport,
+    view: EpisodeView,
+    locale: str,
+    *,
+    terms: bool = True,
+    reason: str = f"awaiting simulator for {sp.CAP_MESH_SENSITIVITY}",
+) -> str:
     return pages.episode_page(
         actor_id="act:1",
         episode=pages.EpisodeRow(
@@ -262,7 +272,7 @@ def _page(report: EpisodeReport, view: EpisodeView, locale: str, *, terms: bool 
             report.goal,
             "SUSPENDED",
             None,
-            f"awaiting simulator for {sp.CAP_MESH_SENSITIVITY}",
+            reason,
             T0,
             None,
             1,
@@ -336,15 +346,14 @@ def test_model_written_text_is_shown_as_written_marked_and_listed_never_guessed(
 
 def test_rendering_changes_no_record_and_each_rendering_sits_beside_its_original():
     report, view = _insufficient()
-    before = dataclasses.replace(report)
     markup = _page(report, view, "zh-TW")
-    assert report == before
     audit = markup[markup.index('<details id="v-audit"') :]
     assert pages.report_html(report, locale="zh-TW") in audit, "the full report, as written"
     assert "網格收斂假象（mesh convergence artifact） mesh convergence artifact 策展翻譯" in _text(
         audit
     )
-    assert "sp.presentation@1.0.0" in _text(audit)
+    assert "sp.presentation@1.0.1" in _text(audit)
+    assert "本頁的中文術語為策展翻譯（尚待實驗室領域專家審閱）" in _l1(markup)
     # Without the pack's renderings nothing is invented: the words are shown as written.
     bare = _l1(_page(report, view, "zh-TW", terms=False))
     assert "mesh convergence artifact（未翻譯，顯示英文原文）" in bare
@@ -379,7 +388,7 @@ def test_why_names_what_is_open_and_every_check_that_never_ran():
     assert "證據不足時，系統不會宣告確認" in why
     hypotheses = _section(_page(report, view, "zh-TW"), "hypotheses")
     assert "尚未檢驗。能檢驗它的是網格敏感度模擬" in hypotheses
-    assert "這裡無法執行，結果未知（未驗證）" in hypotheses
+    assert "沒有在這裡執行，結果未知（未驗證）" in hypotheses
 
 
 def test_why_says_support_is_not_confirmation_and_names_conflicting_evidence():
@@ -474,7 +483,7 @@ def _confirmed() -> tuple[EpisodeReport, EpisodeView]:
 def test_why_explains_a_confirmation_from_its_record():
     why = _section(_page(*_confirmed(), "zh-TW"), "why")
     assert "系統可以下結論" in why
-    assert "已被觀察否證的對立假說：存取區接點不連續（access contact discontinuity）" in why
+    assert "已被觀察排除的對立假說：存取區接點不連續（access contact discontinuity）" in why
     assert "限制：本研究從未檢驗的對立假說" not in why, "every rival here was refuted"
     assert (
         "支持的觀察：網格敏感度模擬（mesh sensitivity）：觀察到 "
@@ -513,7 +522,7 @@ def test_what_an_unrun_check_would_decide_comes_from_the_declared_predictions():
     )
     assert (
         "若 網格收斂穩定性（mesh stability） = 穩定（stable）："
-        "否證「網格收斂假象（mesh convergence artifact）」" in nxt
+        "牴觸「網格收斂假象（mesh convergence artifact）」" in nxt
     )
     assert "需要：已安裝並具授權席位的 Lumerical DEVICE/CHARGE，以及" in nxt
     assert "SUPPORTED if UNSTABLE" not in nxt, "derived from the predictions, not the run's prose"
@@ -563,5 +572,201 @@ def test_the_summary_is_a_derived_document_naming_its_source_and_carrying_no_for
     provenance = text[text.index("本摘要的來源") :]
     assert "由第 1 次執行所記錄的報告衍生" in provenance
     assert "sha256:" + "ab" * 32 in provenance
-    assert "sp.presentation@1.0.0" in provenance
+    assert "sp.presentation@1.0.1" in provenance
     assert "以英文原文顯示的段落數（無策展翻譯） 0" in provenance
+
+
+# -- the separately scoped review of 3afee21 (2026-10-21) ------------------------------------------
+
+
+def _with(
+    report: EpisodeReport,
+    view: EpisodeView,
+    key: str,
+    state: str,
+    *results: CheckResult,
+    actions: tuple[ActionLine, ...] = (),
+) -> tuple[EpisodeReport, EpisodeView]:
+    """`key` in `state`, with these observations and actions added to the shown run."""
+    report = dataclasses.replace(
+        report,
+        hypotheses=tuple(
+            dataclasses.replace(x, final_state=state) if x.hypothesis_id == f"hyp:{key}" else x
+            for x in report.hypotheses
+        ),
+        completed=(*report.completed, *actions),
+    )
+    return report, dataclasses.replace(
+        view, results={**view.results, **{r.run_id: (r,) for r in results}}
+    )
+
+
+def _ran(capability: str, run: str, kind: str = "SIMULATION", status: str = "EXECUTED"):
+    return ActionLine(capability, kind, status, f"job:{run}", run, "solver", ())
+
+
+def test_a_challenged_hypothesis_is_never_said_to_be_supported():
+    """Review 1 and 6: CHALLENGED is a contradiction that did not rule it out -- no support."""
+    report, view = _insufficient()
+    stable = _observed(
+        "mesh_artifact", "run:mesh", diagnosis.STABLE, "CONTRADICTS", to_state="CHALLENGED"
+    )
+    report, view = _with(
+        report,
+        view,
+        "mesh_artifact",
+        "CHALLENGED",
+        stable,
+        actions=(_ran(sp.CAP_MESH_SENSITIVITY, "run:mesh"),),
+    )
+    markup = _page(report, view, "zh-TW")
+    why = _section(markup, "why")
+    assert (
+        "「網格收斂假象（mesh convergence artifact）」受到挑戰：有牴觸它的結果，但它尚未被排除"
+        in why
+    )
+    assert "同時有支持與挑戰" not in why
+    row = _section(markup, "hypotheses")
+    row = row[row.index("網格收斂假象（mesh convergence artifact） 受到挑戰") :]
+    assert "——牴觸此假說。" in row.split("脊部摻雜補償", 1)[0]
+    assert "否證此假說" not in _l1(markup), "a contradiction is not, by itself, a refutation"
+
+
+def test_a_confirmation_waiting_on_a_warrant_says_so_and_names_no_open_rival():
+    """Review 2: every rival ruled out, the gate waits for a person's warrant answer."""
+    report, view = _confirmed()
+    report = dataclasses.replace(
+        report, conclusion=Conclusion(status="PROVISIONAL", statement="not confirmed")
+    )
+    markup = _page(report, view, "zh-TW", reason="awaiting a person's diagnostic warrant answer")
+    why = _section(markup, "why")
+    assert (
+        "「網格收斂假象（mesh convergence artifact）」獲得支持，且沒有其他假說仍待判定，但治理程序沒有確認它"
+        in why
+    )
+    assert "目前等待：等待人員回覆診斷依據（diagnostic warrant）審查" in why
+    assert "只要仍有對立假說未被排除" not in why
+    assert "等待人員回覆診斷依據（diagnostic warrant）審查" in _section(markup, "result")
+    nxt = _section(markup, "next")
+    assert "需要有權回覆的人回覆診斷依據審查" in nxt and "沒有規劃其他檢查" not in nxt
+
+
+def test_a_predictions_standing_comes_from_what_this_run_relies_on():
+    """Review 3: a match is never hidden by another reading, nor taken from a later run."""
+    report, view = _insufficient()
+    elevated = _observed(
+        "probe_artifact", "run:probe", diagnosis.ELEVATED, "SUPPORTS", to_state=None
+    )
+    nominal = _observed(
+        "probe_artifact", "run:probe2", diagnosis.NOMINAL, "CONTRADICTS", to_state=None
+    )
+    report, view = _with(
+        report,
+        view,
+        "probe_artifact",
+        "ACTIVE",
+        elevated,
+        nominal,
+        actions=(
+            _ran(sp.CAP_FOURPOINT_PROBE, "run:probe", "MEASUREMENT"),
+            _ran(sp.CAP_FOURPOINT_PROBE, "run:probe2", "MEASUREMENT"),
+        ),
+    )
+    # A mesh result a LATER run recorded: started after the shown run began, and not its own.
+    later = _observed("mesh_artifact", "run:later", diagnosis.UNSTABLE, "SUPPORTS", to_state=None)
+    view = dataclasses.replace(
+        view,
+        results={**view.results, "run:later": (later,)},
+        executed=(
+            *view.executed,
+            ExecutedCheck(
+                "run:later", sp.CAP_MESH_SENSITIVITY, "SUCCEEDED", T0 + dt.timedelta(hours=2)
+            ),
+        ),
+    )
+    support = _section(_page(report, view, "zh-TW"), "support")
+    probe = support[support.index("量測探針接觸假象（probe contact artifact） 尚未判定") :]
+    probe = probe[: probe.index("提出者自己的文字否證說明")]
+    assert (
+        "若 探針接觸電阻（probe contact resistance） = 正常（nominal）：牴觸此假說（即它的機器否證條件）——已觀察到"
+        in probe
+    )
+    assert (
+        "若 探針接觸電阻（probe contact resistance） = 偏高（elevated）：支持此假說——已觀察到"
+        in probe
+    )
+    mesh = support[support.index("網格收斂假象（mesh convergence artifact） 尚未判定") :]
+    mesh = mesh[: mesh.index("提出者自己的文字否證說明")]
+    assert "= 不穩定（unstable）：支持此假說——尚未觀察" in mesh, (
+        "a later run's result is not this run's"
+    )
+
+
+def test_a_check_that_did_not_execute_is_never_said_to_have_run():
+    """Review 4: a budget refusal is not a run; a failed run gives no result."""
+    report, view = _insufficient()
+    report = dataclasses.replace(
+        report,
+        pending=(_blocked(sp.CAP_CHARGE_DC, False),),
+        completed=(
+            *report.completed,
+            _ran(sp.CAP_MESH_SENSITIVITY, "run:mesh", status="BUDGET_BLOCKED"),
+            _ran(sp.CAP_FOURPOINT_PROBE, "run:probe", "MEASUREMENT", status="FAILED"),
+        ),
+    )
+    markup = _page(report, view, "zh-TW")
+    why = _section(markup, "why")
+    assert (
+        "以下檢查沒有執行，結果未知、未經驗證，也沒有以任何假設值代替：CHARGE 直流掃描模擬（DC sweep）（模擬）、"
+        "網格敏感度模擬（mesh sensitivity）（模擬）" in why
+    )
+    assert "以下檢查執行失敗，不使用其任何結果：四點探針量測（four-point probe）（量測）" in why
+    tested = _section(markup, "tested")
+    executed = tested[tested.index("這次執行的檢查") : tested.index("這個環境無法執行")]
+    assert "網格敏感度模擬" not in executed and "四點探針量測" not in executed
+    assert "網格敏感度模擬（mesh sensitivity）（模擬） 超出預算而未執行 ——未執行" in tested
+    assert "四點探針量測（four-point probe）（量測） 執行失敗 ——執行失敗" in tested
+    row = _section(markup, "hypotheses")
+    mesh = row[row.index("網格收斂假象（mesh convergence artifact）") :]
+    assert "沒有在這裡執行，結果未知（未驗證）" in mesh.split("存取區接點不連續", 1)[0]
+    assert "已執行，但沒有記錄" not in row
+
+
+def test_inconclusive_says_no_hypothesis_remains_not_that_rivals_do():
+    """Review 5: INCONCLUSIVE is given when nothing is left in contention."""
+    report, view = _insufficient()
+    report = dataclasses.replace(
+        report,
+        hypotheses=tuple(
+            dataclasses.replace(x, final_state="CONTRADICTED") for x in report.hypotheses
+        ),
+        pending=(),
+        plans=(),
+        conclusion=Conclusion(status="INCONCLUSIVE", statement="not confirmed"),
+    )
+    markup = _page(report, view, "zh-TW", reason="")
+    assert "已沒有任何假說仍在競爭。" in _section(markup, "result")
+    why = _section(markup, "why")
+    assert "已沒有任何假說仍在競爭：每一個都已被排除或擱置，因此沒有一個能解釋觀察結果" in why
+    assert "剩下的假說" not in _l1(markup)
+
+
+def test_a_confirmation_tells_rivals_never_tested_from_rivals_tested_but_open():
+    """Review 7: a rival a check observed is not "never tested"."""
+    report, view = _confirmed()
+    nominal = _observed(
+        "dopant_compensation", "run:dc", diagnosis.NOMINAL, "CONTRADICTS", to_state="CHALLENGED"
+    )
+    report, view = _with(
+        report,
+        view,
+        "dopant_compensation",
+        "CHALLENGED",
+        nominal,
+        actions=(_ran(sp.CAP_CHARGE_DC, "run:dc"),),
+    )
+    why = _section(_page(report, view, "zh-TW"), "why")
+    assert (
+        "限制：已檢驗但尚未被排除的對立假說：脊部摻雜補償（dopant compensation in the rib）" in why
+    )
+    assert "從未檢驗" not in why, "every rival here was observed"

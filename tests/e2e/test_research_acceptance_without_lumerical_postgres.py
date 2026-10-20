@@ -192,7 +192,7 @@ def test_sufficient_evidence_confirms_from_a_signature_and_names_what_was_never_
         " connectivity） = 不連續（discontinuous）" in why
     )
     assert "此確認依據 1 項已記錄的診斷依據（diagnostic warrant），且可驗證" in why
-    assert "已被觀察否證的對立假說：長度正規化錯誤（length normalization error）" in why
+    assert "已被觀察排除的對立假說：長度正規化錯誤（length normalization error）" in why
     assert "限制：本研究從未檢驗的對立假說：" in why
     assert "網格收斂假象（mesh convergence artifact）" in why.split("限制：", 1)[1]
     assert "假說與反方審查來自本機的規則式目錄推理器，沒有使用語言模型。" in why
@@ -288,6 +288,11 @@ def test_the_summary_names_its_source_and_a_continuation_leaves_run_one_as_it_wa
     assert '<html lang="zh-TW">' in zh_summary and "研究摘要（衍生文件）" in zh_summary
     assert digest in zh_summary, "the same record, whichever language it is read in"
 
+    stored = db.execute(
+        "SELECT p.report::text FROM research_run_reports p JOIN research_runs r"
+        " USING (research_run_id) WHERE r.episode_id = %s AND r.ordinal = 1",
+        (episode,),
+    ).fetchone()[0]
     before = _in(j.owner, "zh-TW", f"/episodes/{episode}?run=1")
     continued = j.owner.post(
         f"/episodes/{episode}/continue", {"csrf": _csrf(j.owner.get(f"/episodes/{episode}"))}
@@ -300,6 +305,15 @@ def test_the_summary_names_its_source_and_a_continuation_leaves_run_one_as_it_wa
     assert "先前已執行、這次不再重複的檢查" in _section(second, "tested")
     assert "第 2 次執行是從上次停下的地方繼續，不是重新開始。" in _section(second, "result")
     assert j.owner.get(f"/episodes/{episode}/runs/1/report.md").body == record.body
+    # Reading run 1 in both languages, exporting it and continuing changed no stored record of it.
+    assert (
+        db.execute(
+            "SELECT p.report::text FROM research_run_reports p JOIN research_runs r"
+            " USING (research_run_id) WHERE r.episode_id = %s AND r.ordinal = 1",
+            (episode,),
+        ).fetchone()[0]
+        == stored
+    )
 
     for path in (f"/episodes/{episode}", f"/episodes/{episode}/runs/1/summary.html"):
         refused = j.outsider.get(path)

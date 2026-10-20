@@ -22,7 +22,13 @@ from typing import Final
 from lab_brain.domains.silicon_photonics import diagnosis, reasoning, tools
 from lab_brain.domains.silicon_photonics import vertical as sp
 
-PRESENTATION_REF: Final = "sp.presentation@1.0.0 (curated; awaiting the laboratory's review)"
+PRESENTATION_REF: Final = "sp.presentation@1.0.1"
+
+#: Who has reviewed the renderings, said with them in each locale (`Terms.note`).
+NOTE: Final = {
+    "en": "awaiting the laboratory's review",
+    "zh-TW": "尚待實驗室領域專家審閱",
+}
 
 #: Identifiers (capabilities, observables, outcomes) -> (English name, Traditional Chinese name).
 NAMES: Final[dict[str, tuple[str, str]]] = {
@@ -43,7 +49,7 @@ NAMES: Final[dict[str, tuple[str, str]]] = {
         "four-point probe measurement",
         "四點探針量測（four-point probe）",
     ),
-    sp.CAP_FABRICATE_SPLIT: ("split-lot fabrication", "分批試製（split-lot fabrication）"),
+    sp.CAP_FABRICATE_SPLIT: ("split-lot fabrication", "分組試製（split-lot fabrication）"),
     tools.CHARGE_AC_CAPABILITY: ("CHARGE AC sweep simulation", "CHARGE 交流掃描模擬（AC sweep）"),
     sp.OBS_CONNECTIVITY: ("contact connectivity", "接點連通性（contact connectivity）"),
     sp.OBS_NORMALIZATION: ("normalization basis", "長度正規化基準（normalization basis）"),
@@ -57,7 +63,7 @@ NAMES: Final[dict[str, tuple[str, str]]] = {
     diagnosis.DISAGREES: ("disagrees", "不一致（disagrees）"),
     diagnosis.STABLE: ("stable", "穩定（stable）"),
     diagnosis.UNSTABLE: ("unstable", "不穩定（unstable）"),
-    diagnosis.NOMINAL: ("nominal", "符合設計值（nominal）"),
+    diagnosis.NOMINAL: ("nominal", "正常（nominal）"),
     diagnosis.COMPENSATED: ("compensated", "出現摻雜補償（compensated）"),
     diagnosis.ELEVATED: ("elevated", "偏高（elevated）"),
     reasoning.RS_FALLS: (
@@ -134,9 +140,13 @@ ZH_TW: Final[dict[str, str]] = {
 def presentation() -> dict[str, dict[str, str]]:
     """Locale -> canonical text or identifier -> rendering, for `ProductVertical.presentation`."""
     return {
-        "en": {key: en for key, (en, _) in NAMES.items()},
-        "zh-TW": {**{key: zh for key, (_, zh) in NAMES.items()}, **ZH_TW},
+        "en": {**{key: en for key, (en, _) in NAMES.items()}, "@note": NOTE["en"]},
+        "zh-TW": {
+            **{key: zh for key, (_, zh) in NAMES.items()},
+            **ZH_TW,
+            "@note": NOTE["zh-TW"],
+        },
     }
 
 
-__all__ = ["NAMES", "PRESENTATION_REF", "ZH_TW", "presentation"]
+__all__ = ["NAMES", "NOTE", "PRESENTATION_REF", "ZH_TW", "presentation"]

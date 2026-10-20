@@ -354,8 +354,8 @@ _M: dict[str, tuple[str, str]] = {
     "v.conclusion.CONFIRMED": ("Root cause: {mechanism}", "根本原因：{mechanism}"),
     "v.conclusion.PROVISIONAL": ("The question is still open.", "問題仍待解答。"),
     "v.conclusion.INCONCLUSIVE": (
-        "No available check can decide between the hypotheses.",
-        "目前沒有可用的檢查能分辨這些假說。",
+        "No hypothesis remains in contention.",
+        "已沒有任何假說仍在競爭。",
     ),
     "v.conclusion.NOT_REACHED": (
         "The research stopped before verification.",
@@ -594,8 +594,8 @@ _M: dict[str, tuple[str, str]] = {
         "尚未檢驗；紀錄中沒有能檢驗它的檢查。",
     ),
     "v.ev.blocked": (
-        "it cannot run here, so its result is unknown (unverified)",
-        "這裡無法執行，結果未知（未驗證）",
+        "it did not run here, so its result is unknown (unverified)",
+        "沒有在這裡執行，結果未知（未驗證）",
     ),
     "v.ev.person": (
         "a person must perform it; there is no result yet",
@@ -639,12 +639,61 @@ _M: dict[str, tuple[str, str]] = {
     "v.why.can": ("The system can conclude:", "系統可以下結論："),
     "v.why.cannot": ("The system cannot conclude yet:", "系統目前還不能下結論："),
     "v.why.others_ruled_out": (
-        "rivals refuted by an observation: {names}",
-        "已被觀察否證的對立假說：{names}",
+        "rivals ruled out by an observation: {names}",
+        "已被觀察排除的對立假說：{names}",
+    ),
+    "v.why.open_rivals": (
+        "a limitation -- rivals tested but not ruled out: {names}",
+        "限制：已檢驗但尚未被排除的對立假說：{names}",
+    ),
+    "v.why.supported_unconfirmed": (
+        "{mechanism} is supported and no rival remains open, but the governed path has not "
+        "confirmed it",
+        "「{mechanism}」獲得支持，且沒有其他假說仍待判定，但治理程序沒有確認它",
+    ),
+    "v.why.waiting": ("what it waits for: {reason}", "目前等待：{reason}"),
+    "v.why.challenged": (
+        "{mechanism} is challenged: a result contradicts it, but it has not been ruled out",
+        "「{mechanism}」受到挑戰：有牴觸它的結果，但它尚未被排除",
+    ),
+    "v.why.failed": (
+        "ran and failed, so no result from them is used: {checks}",
+        "以下檢查執行失敗，不使用其任何結果：{checks}",
+    ),
+    "v.failed_no_result": (
+        "-- it ran and failed; no result from it is used.",
+        "——執行失敗，不使用它的任何結果。",
+    ),
+    "v.ev.failed": ("it ran and failed, so there is no result", "執行失敗，沒有結果"),
+    "v.set_aside": ("Revised or superseded:", "已修正或被取代："),
+    "v.unknown_cause": ("a hypothesis this report does not list", "本報告未列出的假說"),
+    "v.next.warrant": (
+        "A person who may answer it must answer the diagnostic warrant review (under Decisions): "
+        "does the observed outcome bear on the hypothesis's mechanism as the hypothesis claims? "
+        "Then continue this research.",
+        "需要有權回覆的人回覆診斷依據審查（在「待我決定」）：觀察到的結果是否如假說所述反映該機制？"
+        "回覆後再繼續這項研究。",
+    ),
+    "ep.waiting.warrant": (
+        "waiting for a person's answer on a diagnostic warrant",
+        "等待人員回覆診斷依據（diagnostic warrant）審查",
+    ),
+    "ep.waiting.undiscriminated": (
+        "waiting for evidence that tells the supported mechanism from a rival",
+        "等待能把獲得支持的機制與對立假說區分開來的證據",
+    ),
+    "ep.waiting.competing": (
+        "waiting for a person: two mechanisms are supported",
+        "等待人員判斷：有兩個機制同時獲得支持",
+    ),
+    "tr.curated_note": (
+        "The Chinese terms on this page are curated translations ({note}); each original is under "
+        "Audit and provenance.",
+        "本頁的中文術語為策展翻譯（{note}）；原文見「稽核與來源紀錄」。",
     ),
     "v.why.warranted": (
         "the confirmation rests on {n} recorded diagnostic warrant(s), and they verify",
-        "此確認依據 {n} 項已記錄的診斷依據（diagnostic warrant），且可驗證",
+        "此確認依據 {n} 項已記錄的診斷依據（diagnostic warrant），且已通過驗證",
     ),
     "v.why.untested_rivals": (
         "a limitation -- rivals never tested in this research: {names}",
@@ -652,9 +701,8 @@ _M: dict[str, tuple[str, str]] = {
     ),
     "v.why.basis": ("the supporting observation: {observation}", "支持的觀察：{observation}"),
     "v.why.not_relied": (
-        "the confirmation is on record, but its warrants do not verify, so it is not used as a "
-        "precedent",
-        "此確認已記錄，但其依據無法驗證，因此不作為先例",
+        "the confirmation is on record, but case memory does not rely on it; the records say why",
+        "此確認已記錄，但案例記憶不以它為依據；原因見紀錄層",
     ),
     "v.why.open": (
         "{n} hypothesis(es) still open -- neither supported nor ruled out: {names}",
@@ -665,13 +713,14 @@ _M: dict[str, tuple[str, str]] = {
         "「{mechanism}」獲得支持；但只要仍有對立假說未被排除，支持就不等於確認",
     ),
     "v.why.competing": (
-        "{n} rival hypotheses are each supported by an observation of their own: {names} -- the "
-        "evidence does not single out one cause",
-        "{n} 個對立假說各自獲得自己的觀察支持：{names}——證據無法指出單一原因",
+        "{n} rival hypotheses are supported at once: {names} -- the evidence does not single out "
+        "one cause",
+        "{n} 個對立假說同時獲得支持：{names}——證據無法指出單一原因",
     ),
     "v.why.inconclusive": (
-        "no available check can tell the remaining hypotheses apart",
-        "沒有可用的檢查能分辨剩下的假說",
+        "no hypothesis remains in contention: each was ruled out or set aside, so none explains "
+        "the observations",
+        "已沒有任何假說仍在競爭：每一個都已被排除或擱置，因此沒有一個能解釋觀察結果",
     ),
     "v.why.conflicting": (
         "the evidence about {mechanism} conflicts: it is both supported and challenged",
@@ -773,7 +822,7 @@ _M: dict[str, tuple[str, str]] = {
     "ws.BUDGET_BLOCKED": ("refused by the budget", "超出預算而未執行"),
     "ws.BLOCKED": ("cannot run here", "無法在此執行"),
     "rt.SUPPORTS": ("supports", "支持"),
-    "rt.CONTRADICTS": ("refutes", "否證"),
+    "rt.CONTRADICTS": ("contradicts", "牴觸"),
     "td.ALLOW": ("allowed", "核准"),
     "td.DENY": ("denied", "否決"),
     "td.NEED_MORE_EVIDENCE": ("needs more evidence", "需要更多證據"),

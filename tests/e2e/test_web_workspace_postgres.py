@@ -160,7 +160,7 @@ def test_a_researcher_runs_the_vertical_in_the_workspace_and_continues_it_later(
     assert pages.report_html(report) in page.text, "the page shows the report the run returned"
     assert (
         "Status now: Waiting -- can be continued waiting for a simulation that cannot run here "
-        "(mesh sensitivity)" in shown
+        "(mesh sensitivity simulation)" in shown
     )
     assert "awaiting simulator for cap:sp.mesh_sensitivity" in shown, "stored, in the details"
     assert f"{REPORT.name} document INTERNAL_MEASUREMENT READY" in shown

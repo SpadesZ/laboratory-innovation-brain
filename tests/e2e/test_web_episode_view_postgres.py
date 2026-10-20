@@ -201,19 +201,20 @@ def test_each_executed_check_and_each_governed_move_is_explained_from_the_stored
     declared = _all(
         db,
         "SELECT h.mechanism, p.observable_ref, p.expected_outcome,"
-        " p.prediction_id = ANY (h.falsifier_prediction_ids)"
+        " p.prediction_id = ANY (h.falsifier_prediction_ids),"
+        " p.relation_effect_if_observed -> 0 ->> 'relation_type'"
         " FROM hypotheses h JOIN predictions p ON p.hypothesis_id = h.hypothesis_id"
         " WHERE h.created_in_episode = %s",
         episode,
     )
     assert any(d[3] for d in declared) and not all(d[3] for d in declared), declared
-    for mechanism, observable, expected, designated in declared:
-        shown = re.search(
-            rf"if {re.escape(_name(observable))} = {re.escape(_name(expected))}: \w+ it, its"
-            " machine falsifier",
-            cards[mechanism],
-        )
-        assert bool(shown) == designated, (mechanism, observable, expected, designated)
+    for mechanism, observable, expected, designated, effect in declared:
+        # The prediction as declared -- observable, outcome and its own effect, in words -- and
+        # marked a machine falsifier exactly when the certificate designates it.
+        said = f"if {_name(observable)} = {_name(expected)}: {EN(f'rt.{effect}')} it"
+        assert said in cards[mechanism], (mechanism, said)
+        shown = f"{said}, its machine falsifier" in cards[mechanism]
+        assert shown == designated, (mechanism, observable, expected, designated)
 
     # Disclosure: no identifier in L1; the audit layer holds every record behind every check.
     assert not IDENTIFIER.findall(l1), IDENTIFIER.findall(l1)
@@ -360,10 +361,11 @@ def test_an_outcome_no_hypothesis_declared_moves_nothing_and_the_page_says_so(db
     for mechanism, state in states.items():
         assert f"{mechanism} {EN(f'bs.{state}')}" in hypotheses, (mechanism, state)
     support = _section(l1, "What supports or challenges", "Why the system can")
-    assert (
-        "if normalization basis = disagrees: supports it, its machine falsifier" in support
-        or "if normalization basis = disagrees: refutes it, its machine falsifier" in support
-    )
+    for _, expected, effect, _ in declared:
+        assert (
+            f"if normalization basis = {_name(expected)}: {EN(f'rt.{effect}')} it, its machine"
+            " falsifier" in support
+        )
     assert "No root cause has been confirmed." in l1
     assert not IDENTIFIER.findall(l1), IDENTIFIER.findall(l1)
     assert observation in _audit(page)
