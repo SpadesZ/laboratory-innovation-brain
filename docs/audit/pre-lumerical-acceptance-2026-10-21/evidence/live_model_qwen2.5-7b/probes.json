@@ -1,0 +1,66 @@
+[
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "CHAT",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 19719,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "CODE",
+  "outcome": "FAILED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 4813,
+  "detail": "the reply does not parse as Python"
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "ROLE_CRITIQUE",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 62484,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "ROLE_HYPOTHESIS",
+  "outcome": "FAILED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 225500,
+  "detail": "multi-space: the typed role parser refused it: HYPOTHESIS_ENGINE: hypothesis 'h1' carries no typed prediction; §8.1 predictions are typed objects, not prose, and a certificate without one is not admissible"
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "ROLE_QUERY",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 9750,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "ROLE_SPECIALIST",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 36344,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "STRUCTURED_JSON",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 3359,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "VISION",
+  "outcome": "ERROR",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": null,
+  "detail": "PROTOCOL_ERROR: HTTP 400: {\"error\":{\"message\":\"Multimodal data provided, but model does not support multimodal requests.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":null}}"
+ }
+]

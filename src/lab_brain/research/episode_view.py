@@ -165,9 +165,6 @@ class EpisodeView:
     #: Every FailureAnalysis the episode recorded, oldest first, with its flags.
     conclusions: tuple[Conclusion, ...] = ()
 
-    def falsifiers(self, hypothesis_id: str) -> tuple[DeclaredPrediction, ...]:
-        return tuple(p for p in self.predictions.get(hypothesis_id, ()) if p.designated_falsifier)
-
 
 def _declared(certificate: HypothesisCertificate) -> tuple[DeclaredPrediction, ...]:
     designated = set(certificate.falsifier_prediction_ids)

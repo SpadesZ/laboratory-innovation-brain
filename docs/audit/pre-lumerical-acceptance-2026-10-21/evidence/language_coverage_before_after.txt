@@ -1,0 +1,8 @@
+code: lib-integration f3fadf6
+sufficient   chars= 2448 all= 60.4% terms= 62.2% authored= 60.5% raw=['ACTIVE', 'AGREES', 'ALLOW', 'CONFIRMED', 'CONTINUOUS', 'CONTRADICTED', 'CONTRADICTS', 'DISCONTINUOUS', 'EXECUTED', 'NOMINAL', 'STABLE', 'SUPPORTED', 'SUPPORTS']
+insufficient chars= 3002 all= 58.5% terms= 60.3% authored= 58.8% raw=['ACTIVE', 'AGREES', 'ALLOW', 'BLOCKED', 'CONTINUOUS', 'CONTRADICTED', 'CONTRADICTS', 'EXECUTED', 'NOMINAL', 'PROVISIONAL', 'STABLE', 'SUPPORTED', 'UNSTABLE']
+competing    chars= 2905 all= 60.3% terms= 62.2% authored= 60.8% raw=['ACTIVE', 'AGREES', 'ALLOW', 'BLOCKED', 'CONTINUOUS', 'CONTRADICTED', 'DISAGREES', 'DISCONTINUOUS', 'EXECUTED', 'NOMINAL', 'PROVISIONAL', 'STABLE', 'SUPPORTED', 'SUPPORTS', 'UNSTABLE']
+code: lib-acceptance 3afee21
+sufficient   chars= 4056 all= 21.2% terms=  4.8% authored=  0.0% raw=[]
+insufficient chars= 4704 all= 18.7% terms=  4.7% authored=  0.9% raw=[]
+competing    chars= 4805 all= 20.6% terms=  4.7% authored=  0.9% raw=[]

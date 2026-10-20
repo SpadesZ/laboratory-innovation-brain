@@ -1,0 +1,54 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+______ test_a_real_local_model_researches_three_cases_without_lumerical _______
+db = <psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc_live) at 0x28f5e17a300>
+tmp_path = WindowsPath('C:/Users/Franky Kuo/AppData/Local/Temp/pytest-of-Franky Kuo/pytest-7965/test_a_real_local_model_resear0')
+    def test_a_real_local_model_researches_three_cases_without_lumerical(db, tmp_path):
+        _member(db)
+        _admin(db)
+        browser = _workspace(tmp_path)
+>       _qualified(db, browser)
+tests\e2e\test_research_live_model_postgres.py:176: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+db = <psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc_live) at 0x28f5e17a300>
+browser = <tests.wsgi_client.Browser object at 0x0000028F5E17ADB0>
+    def _qualified(db: Any, browser: Browser) -> dict[str, str]:
+        """The named models tested (all eight probes) and locked through the pages, bound to the
+        slots and activated -- or the test fails with what refused them."""
+        added = _post(browser, "/settings/llm/connections", {"provider": "ollama", "name": "local"})
+        assert added.status == 303, _text(added)[:600]
+        (connection,) = db.execute(
+            "SELECT connection_id FROM llm_connections WHERE name = 'local'"
+        ).fetchone()
+        assert _post(browser, f"/settings/llm/connections/{connection}/fetch", {}).status == 303
+        ids: dict[str, str] = {}
+        for name in dict.fromkeys((PRIMARY, CRITIC, UTILITY)):
+            ids[name] = _model(db, name, connection)
+            assert _post(browser, f"/settings/llm/models/{ids[name]}/test", {}).status == 303
+            assert _post(browser, f"/settings/llm/models/{ids[name]}/lock", {}).status == 303
+        probes = _rows(
+            db,
+            "SELECT m.model_name, p.capability, p.outcome, p.probe_version, p.latency_ms, p.detail"
+            " FROM llm_capability_probes p JOIN llm_models m USING (model_profile_id)"
+            " WHERE m.connection_id = %s ORDER BY m.model_name, p.capability",
+            connection,
+        )
+        _write("probes.json", json.dumps(probes, indent=1, ensure_ascii=False))
+        runtime = _runtime(browser, "live acceptance")
+        for slot, name in (
+            ("REASONING_PRIMARY", PRIMARY),
+            ("FAST_UTILITY", UTILITY),
+            ("REASONING_ADVERSARIAL", CRITIC),
+        ):
+            bound = _bind(browser, runtime, slot, ids[name])
+            if bound.status != 303:
+                failed = [p for p in probes if p["model_name"] == name and p["outcome"] != "PASSED"]
+>               pytest.fail(
+                    f"BLOCKED: {slot} refuses {name}: {_text(bound)[:300]} -- probes not passed: "
+                    + json.dumps(failed, ensure_ascii=False)
+                )
+E               Failed: BLOCKED: REASONING_PRIMARY refuses qwen2.5:7b: live acceptance - Lab Brain body{font:15px/1.5 system-ui,-apple-system,"Segoe UI","Noto Sans TC","Microsoft JhengHei", sans-serif;margin:0;color:#1d2330;background:#f6f7f9} header.top{background:#1f2a44;color:#fff;padding:8px 24px;display:flex;gap:6px; align-items:center;flex-wrap:wrap}header.top na -- probes not passed: [{"model_name": "qwen2.5:7b", "capability": "CODE", "outcome": "FAILED", "probe_version": "probe-6.0.0", "latency_ms": 4813, "detail": "the reply does not parse as Python"}, {"model_name": "qwen2.5:7b", "capability": "ROLE_HYPOTHESIS", "outcome": "FAILED", "probe_version": "probe-6.0.0", "latency_ms": 225500, "detail": "multi-space: the typed role parser refused it: HYPOTHESIS_ENGINE: hypothesis 'h1' carries no typed prediction; §8.1 predictions are typed objects, not prose, and a certificate without one is not admissible"}, {"model_name": "qwen2.5:7b", "capability": "VISION", "outcome": "ERROR", "probe_version": "probe-6.0.0", "latency_ms": null, "detail": "PROTOCOL_ERROR: HTTP 400: {\"error\":{\"message\":\"Multimodal data provided, but model does not support multimodal requests.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":null}}"}]
+tests\e2e\test_research_live_model_postgres.py:132: Failed
+=========================== short test summary info ===========================
+FAILED tests/e2e/test_research_live_model_postgres.py::test_a_real_local_model_researches_three_cases_without_lumerical
+1 failed in 508.51s (0:08:28)

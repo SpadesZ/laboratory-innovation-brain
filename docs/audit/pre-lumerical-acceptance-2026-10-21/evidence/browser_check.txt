@@ -1,0 +1,42 @@
+Browser check of the research result pages -- commit 3afee21 (branch pre-lumerical-acceptance)
+
+Where: the desktop app's built-in browser (Chromium), against `lab-brain web --accounts` on
+http://localhost:8801, database `lab_brain_acc_ui` (disposable, migrated from this commit's 69
+migrations). State was written through the application by a seed script: an administrator opened
+the project "Rs anomaly in PN phase shifters" for its owner (a member account); the owner opened
+three research tasks with the measurement report and a device project each, and continued the
+insufficient one once. Reasoner: the pack's rule-based catalog reasoner (no language model).
+
+    sufficient    contact-open-via                          -> COMPLETED, CONFIRMED (contact discontinuity)
+    insufficient  probe-artifact (sound design), 2 runs     -> SUSPENDED, not confirmed
+    competing     contact-open-via + normalization 1000 um  -> SUSPENDED, not confirmed
+
+Signed in as the member (test fixture credentials). Language switched with the page's own buttons.
+
+Viewports (resize_window): pane default 1024 x 768 ("desktop"); mobile preset 375 x 812.
+Overflow measured with `document.documentElement.scrollWidth` against `innerWidth`, and every
+element of <main> whose right edge passes the viewport outside a `.scroll` wrapper:
+
+    desktop zh-TW insufficient   innerWidth 1024, scrollWidth 1009, overflowing elements: none
+    mobile  zh-TW insufficient   innerWidth  375, scrollWidth  375, overflowing elements: none
+            comparison table 343 px wide in a 343 px box (no horizontal scroll needed)
+    mobile  zh-TW sufficient     innerWidth  375, scrollWidth  375
+    mobile  zh-TW summary        innerWidth  375, scrollWidth  375
+    mobile  en    competing      innerWidth  375, scrollWidth  375
+
+Section order measured on the desktop zh-TW page (offsetTop, px):
+    v-question 108, v-result 234, v-hypotheses 623, v-tested 985, v-support 1535, v-why 3581,
+    v-next 3863, then the collapsed layers v-reasoning 4374, v-audit 4444
+
+Summary export (/episodes/<id>/runs/1/summary.html): document.forms.length = 0 in both
+languages; <html lang> = "zh-TW" and "en" respectively; provenance table names the SHA-256 of
+report.md, the renderings used (sp.presentation@1.0.0), 0 passages without a rendering, and the
+reasoner from provenance.
+
+Screenshots: screenshots/01..23 (names say language, viewport, case and section). They are the
+pane's own captures, scaled by the pane; the first screenshot taken before the neutral colour of
+"open" was fixed is not included.
+
+Found and fixed during the check: an open hypothesis ("尚未判定" / "Open") was drawn in the same
+green as a supported one; it is now neutral grey (pages.py, `.state.bs-ACTIVE`).
+Not checked here: other browsers, print layout of the summary, screen readers.

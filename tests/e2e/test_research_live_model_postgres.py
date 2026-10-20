@@ -98,6 +98,11 @@ def _rows(db: Any, sql: str, *args: object) -> list[dict[str, Any]]:
     return [dict(zip(names, row, strict=True)) for row in cursor.fetchall()]
 
 
+def _said(markup: str) -> str:
+    """What a refusal page says, without its frame."""
+    return _text(markup.split("<main>", 1)[-1].split("</main>", 1)[0])[:400]
+
+
 def _qualified(db: Any, browser: Browser) -> dict[str, str]:
     """The named models tested (all eight probes) and locked through the pages, bound to the
     slots and activated -- or the test fails with what refused them."""
@@ -130,7 +135,7 @@ def _qualified(db: Any, browser: Browser) -> dict[str, str]:
         if bound.status != 303:
             failed = [p for p in probes if p["model_name"] == name and p["outcome"] != "PASSED"]
             pytest.fail(
-                f"BLOCKED: {slot} refuses {name}: {_text(bound)[:300]} -- probes not passed: "
+                f"BLOCKED: {slot} refuses {name}: {_said(bound.text)} -- probes not passed: "
                 + json.dumps(failed, ensure_ascii=False)
             )
     activated = _post(browser, f"/settings/llm/runtimes/{runtime}/activate", {})

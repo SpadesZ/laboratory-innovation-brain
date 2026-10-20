@@ -3680,9 +3680,17 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="page_shows_every_declared_prediction_as_a_falsifier",
         guards="episode page -- a hypothesis card names only its designated falsifiers as machine falsifiers",
-        path="src/lab_brain/research/episode_view.py",
-        old="        return tuple(p for p in self.predictions.get(hypothesis_id, ()) if p.designated_falsifier)\n",
-        new="        return tuple(self.predictions.get(hypothesis_id, ()))\n",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old=(
+            "                        effect=_effects(p.effects, m),\n"
+            '                        designated=m("v.designated") if p.designated_falsifier else "",\n'
+            "                        status=_prediction_word(p, view, t),\n"
+        ),
+        new=(
+            "                        effect=_effects(p.effects, m),\n"
+            '                        designated=m("v.designated"),\n'
+            "                        status=_prediction_word(p, view, t),\n"
+        ),
         tests=("tests/unit/test_episode_view_page.py",),
     ),
     Mutation(

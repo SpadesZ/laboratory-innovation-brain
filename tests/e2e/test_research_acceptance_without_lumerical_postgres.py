@@ -93,7 +93,8 @@ def _device(case_id: str, **override: str) -> bytes:
 
 
 def _research(j: Lab2, db: Any, device: bytes) -> str:
-    """Add the measurement report as research data, then open research on it."""
+    """Add the measurement report as research data, then open research on it -- and check the
+    run admitted its evidence from that very artifact."""
     imported = j.owner.post(
         "/data",
         {
@@ -123,7 +124,14 @@ def _research(j: Lab2, db: Any, device: bytes) -> str:
     assert review.status == 200, review.text[:2000]
     started = j.owner.post("/runs", _hidden(review))
     assert started.status == 303, started.text[:2000]
-    return unquote(started.location.rsplit("/", 1)[1].split("?", 1)[0])
+    episode = unquote(started.location.rsplit("/", 1)[1].split("?", 1)[0])
+    assert _one(
+        db,
+        "SELECT count(*) FROM attestations WHERE project_id = %s AND source_artifact_id = %s",
+        j.project,
+        artifact,
+    )[0], "the evidence is traceable to the research data it came from"
+    return episode
 
 
 def _in(browser: Browser, locale: str, path: str) -> str:
@@ -189,6 +197,8 @@ def test_sufficient_evidence_confirms_from_a_signature_and_names_what_was_never_
     assert "網格收斂假象（mesh convergence artifact）" in why.split("限制：", 1)[1]
     assert "假說與反方審查來自本機的規則式目錄推理器，沒有使用語言模型。" in why
     assert "未翻譯" not in _text(zh.split('<details id="v-reasoning"', 1)[0])
+    reasoning = zh.split('<details id="v-reasoning"', 1)[1].split('<details id="v-audit"', 1)[0]
+    assert REPORT.name in _text(reasoning), "each excerpt names the document it came from"
 
     en = _in(j.owner, "en", f"/episodes/{episode}")
     assert "Confirmed finding Confirmed Root cause: access contact discontinuity" in _section(
