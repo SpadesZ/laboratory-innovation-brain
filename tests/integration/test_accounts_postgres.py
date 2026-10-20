@@ -547,3 +547,15 @@ def test_the_operators_first_start_settings_leave_later_changes_alone(lab):
         code, printed = run(*argv)
         assert code == 0 and "left as it is" in printed, printed
     assert _bootstrap_state(db) == before
+
+
+def test_a_session_follows_the_accounts_state_whoever_changed_it(lab):
+    """A suspension written past the service (which would also end the sessions) still ends
+    them: a session signs in only an account that is ACTIVE now."""
+    admin = lab.admin()
+    ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    _, token = lab.service().sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    lab.connection.execute(
+        "UPDATE accounts SET status = 'SUSPENDED' WHERE account_id = %s", (ada.account_id,)
+    )
+    assert lab.service().session(token) is None
