@@ -56,8 +56,8 @@ Messages.extend(
         "proj.role": ("Role", "角色"),
         "proj.readable": ("May read", "可讀取分級"),
         "proj.actions": ("Actions", "操作"),
-        "proj.you.marker": ("you", "你"),
-        "proj.inactive": ("removed", "已移除"),
+        "proj.you.marker": ("(you)", "（你）"),
+        "proj.inactive": ("(removed)", "（已移除）"),
         "proj.add": ("Add a member", "加入成員"),
         "proj.add.email": ("Their account's email address", "對方帳號的電子郵件"),
         "proj.add.owner": (
@@ -370,10 +370,8 @@ def members_section(
                 h(
                     "{}{}{}",
                     name,
-                    h(' <span class="muted">({})</span>', m("proj.you.marker"))
-                    if mine
-                    else Html(""),
-                    h(' <span class="muted">({})</span>', m("proj.inactive"))
+                    h(' <span class="muted">{}</span>', m("proj.you.marker")) if mine else Html(""),
+                    h(' <span class="muted">{}</span>', m("proj.inactive"))
                     if not member.active
                     else Html(""),
                 ),
