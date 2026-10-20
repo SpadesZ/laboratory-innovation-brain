@@ -1,0 +1,24 @@
+models/gemini-3.1-pro-preview | CHAT | PASSED | probe-6.0.0 | 57217 |  | 2026-10-13 11:10:22.246343+00
+models/gemini-3.1-pro-preview | CODE | PASSED | probe-6.0.0 | 4055 |  | 2026-10-13 11:15:11.631786+00
+models/gemini-3.1-pro-preview | ROLE_CRITIQUE | FAILED | probe-6.0.0 | 16984 | the typed role parser refused it: ADVERSARIAL_CRITIC: 'CONTRADICTS' is not a valid ObjectionKind | 2026-10-13 11:15:07.537039+00
+models/gemini-3.1-pro-preview | ROLE_HYPOTHESIS | PASSED | probe-6.0.0 | 104850 |  | 2026-10-13 11:14:02.777912+00
+models/gemini-3.1-pro-preview | ROLE_QUERY | PASSED | probe-6.0.0 | 47382 |  | 2026-10-13 11:11:15.874631+00
+models/gemini-3.1-pro-preview | ROLE_SPECIALIST | PASSED | probe-6.0.0 | 47876 |  | 2026-10-13 11:14:50.539078+00
+models/gemini-3.1-pro-preview | STRUCTURED_JSON | PASSED | probe-6.0.0 | 4478 |  | 2026-10-13 11:10:27.041873+00
+models/gemini-3.1-pro-preview | VISION | PASSED | probe-6.0.0 | 5870 |  | 2026-10-13 11:15:17.481736+00
+qwen2.5:7b | CHAT | PASSED | probe-6.0.0 | 20257 |  | 2026-10-13 11:24:02.104794+00
+qwen2.5:7b | CODE | FAILED | probe-6.0.0 | 5313 | the reply does not parse as Python | 2026-10-13 11:30:10.425948+00
+qwen2.5:7b | ROLE_CRITIQUE | PASSED | probe-6.0.0 | 63218 |  | 2026-10-13 11:30:05.070087+00
+qwen2.5:7b | ROLE_HYPOTHESIS | FAILED | probe-6.0.0 | 243347 | contextual-minimum: the typed role parser refused it: HYPOTHESIS_ENGINE: hypothesis 'h1' designates no typed falsifier: falsifier_prediction_keys must name at least one of its own predictions whose relation_effect is CONTRADICTS. The prose falsifier explains;  | 2026-10-13 11:28:23.950784+00
+qwen2.5:7b | ROLE_QUERY | PASSED | probe-6.0.0 | 13424 |  | 2026-10-13 11:24:20.689701+00
+qwen2.5:7b | ROLE_SPECIALIST | PASSED | probe-6.0.0 | 37815 |  | 2026-10-13 11:29:01.803806+00
+qwen2.5:7b | STRUCTURED_JSON | PASSED | probe-6.0.0 | 5019 |  | 2026-10-13 11:24:07.2305+00
+qwen2.5:7b | VISION | ERROR | probe-6.0.0 |  | PROTOCOL_ERROR: HTTP 400: {"error":{"message":"{\"error\":{\"code\":400,\"message\":\"Multimodal data provided, but model does not support multimodal requests.\",\"type\":\"invalid_request_error\"}}","type":"invalid_request_error","param":null,"code":null}} | 2026-10-13 11:30:10.541148+00
+qwen2.5-coder:7b | CHAT | PASSED | probe-6.0.0 | 24929 |  | 2026-10-13 11:09:51.76595+00
+qwen2.5-coder:7b | CODE | PASSED | probe-6.0.0 | 3958 |  | 2026-10-13 11:23:40.372898+00
+qwen2.5-coder:7b | ROLE_CRITIQUE | PASSED | probe-6.0.0 | 73774 |  | 2026-10-13 11:23:36.391288+00
+qwen2.5-coder:7b | ROLE_HYPOTHESIS | FAILED | probe-6.0.0 | 388032 | multi-space: the typed role parser refused it: HYPOTHESIS_ENGINE: hypothesis 'h1' designates falsifier prediction 'h1-p1', whose relation_effect is SUPPORTS; a falsifier is a declared outcome that would CONTRADICT the hypothesis | 2026-10-13 11:21:36.904686+00
+qwen2.5-coder:7b | ROLE_QUERY | PASSED | probe-6.0.0 | 23153 |  | 2026-10-13 11:10:19.455489+00
+qwen2.5-coder:7b | ROLE_SPECIALIST | PASSED | probe-6.0.0 | 45819 |  | 2026-10-13 11:22:22.712899+00
+qwen2.5-coder:7b | STRUCTURED_JSON | PASSED | probe-6.0.0 | 6134 |  | 2026-10-13 11:09:57.947581+00
+qwen2.5-coder:7b | VISION | ERROR | probe-6.0.0 |  | PROTOCOL_ERROR: HTTP 400: {"error":{"message":"{\"error\":{\"code\":400,\"message\":\"Multimodal data provided, but model does not support multimodal requests.\",\"type\":\"invalid_request_error\"}}","type":"invalid_request_error","param":null,"code":null}} | 2026-10-13 11:23:40.536022+00

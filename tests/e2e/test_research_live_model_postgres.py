@@ -3,9 +3,17 @@
 SKIPPED UNLESS ASKED FOR. It runs only when `LAB_BRAIN_LIVE_PRIMARY` names a model this machine's
 Ollama serves (`LAB_BRAIN_LIVE_OLLAMA`, default http://127.0.0.1:11434/v1), with
 `LAB_BRAIN_LIVE_CRITIC` and `LAB_BRAIN_LIVE_UTILITY` for the other slots (each defaults to the
-primary). Local only: no credential, no egress, no cost. Nothing is stubbed -- every capability
-probe and every research call goes to the named model, and a run takes as long as the model does
+primary). Local: no credential, no egress, no cost. Nothing is stubbed -- every capability probe
+and every research call goes to the named model, and a run takes as long as the model does
 (`LAB_BRAIN_LIVE_DEADLINE`, seconds per inference, default 1800).
+
+AN EXTERNAL PRIMARY ONLY BY THE OWNER'S OWN SETTING. With `LAB_BRAIN_LIVE_PRIMARY_PROVIDER` (a
+preset such as `gemini`) and `LAB_BRAIN_LIVE_PRIMARY_KEY_ENV` (the NAME of an environment variable
+the owner has set to the key), the primary is reached through that provider: the workspace reads
+the key from that variable by name, as `lab-brain web` does, and the test never sees or stores it.
+That sends the test project's evidence -- the repository's fixture report, nothing of the lab's --
+to the provider and may cost money; the disposable project declares that egress through its own
+page first, as a real one must. The critic and utility slots stay local unless named otherwise.
 
     qualification  each model is tested with all eight capability probes and locked through the
                    pages, as an administrator does; a slot takes it only if it demonstrated what
@@ -41,7 +49,15 @@ from lab_brain.llm_runtime.secrets import SecretStore
 from lab_brain.research.vertical import load_vertical_factory
 from tests.e2e.test_research_episode_postgres import GOAL, PROJECT, REPORT, _member
 from tests.e2e.test_web_llm_credentials_postgres import _admin
-from tests.e2e.test_web_llm_runtime_postgres import _bind, _model, _post, _runtime, _text, _token
+from tests.e2e.test_web_llm_runtime_postgres import (
+    _bind,
+    _egress,
+    _model,
+    _post,
+    _runtime,
+    _text,
+    _token,
+)
 from tests.postgres_fixtures import database_url
 from tests.wsgi_client import Browser
 
@@ -51,6 +67,8 @@ UTILITY = os.environ.get("LAB_BRAIN_LIVE_UTILITY", "") or PRIMARY
 OLLAMA = os.environ.get("LAB_BRAIN_LIVE_OLLAMA", "http://127.0.0.1:11434/v1")
 DEADLINE = float(os.environ.get("LAB_BRAIN_LIVE_DEADLINE", "1800"))
 EVIDENCE = os.environ.get("LAB_BRAIN_LIVE_EVIDENCE", "")
+EXTERNAL = os.environ.get("LAB_BRAIN_LIVE_PRIMARY_PROVIDER", "")
+KEY_ENV = os.environ.get("LAB_BRAIN_LIVE_PRIMARY_KEY_ENV", "")
 
 pytestmark = [
     pytest.mark.postgres,
@@ -79,7 +97,7 @@ def _workspace(tmp_path: Path) -> Browser:
             artifact_root=tmp_path / "artifacts",
             vertical_factory=load_vertical_factory("silicon_photonics"),
             allowed_hosts=allowed_hosts("127.0.0.1", 8765),
-            secrets=SecretStore(environ={}),
+            secrets=SecretStore(environ={KEY_ENV: os.environ[KEY_ENV]} if KEY_ENV else {}),
             ollama_url=OLLAMA,
             inference_deadline=DEADLINE,
         )
@@ -112,17 +130,34 @@ def _qualified(db: Any, browser: Browser) -> dict[str, str]:
         "SELECT connection_id FROM llm_connections WHERE name = 'local'"
     ).fetchone()
     assert _post(browser, f"/settings/llm/connections/{connection}/fetch", {}).status == 303
+    where = dict.fromkeys((PRIMARY, CRITIC, UTILITY), connection)
+    if EXTERNAL:
+        assert KEY_ENV in os.environ, f"{KEY_ENV} is not set: the owner sets the key there"
+        added = _post(
+            browser,
+            "/settings/llm/connections",
+            {"provider": EXTERNAL, "name": "external", "env_name": KEY_ENV},
+        )
+        assert added.status == 303, _said(added.text)
+        (external,) = db.execute(
+            "SELECT connection_id FROM llm_connections WHERE name = 'external'"
+        ).fetchone()
+        assert _post(browser, f"/settings/llm/connections/{external}/fetch", {}).status == 303
+        where[PRIMARY] = external
+        # The disposable project declares its own egress, through its page, before any of its
+        # evidence may reach the external connection.
+        _egress(browser, db)
     ids: dict[str, str] = {}
-    for name in dict.fromkeys((PRIMARY, CRITIC, UTILITY)):
-        ids[name] = _model(db, name, connection)
+    for name, held_by in where.items():
+        ids[name] = _model(db, name, held_by)
         assert _post(browser, f"/settings/llm/models/{ids[name]}/test", {}).status == 303
         assert _post(browser, f"/settings/llm/models/{ids[name]}/lock", {}).status == 303
     probes = _rows(
         db,
         "SELECT m.model_name, p.capability, p.outcome, p.probe_version, p.latency_ms, p.detail"
         " FROM llm_capability_probes p JOIN llm_models m USING (model_profile_id)"
-        " WHERE m.connection_id = %s ORDER BY m.model_name, p.capability",
-        connection,
+        " WHERE m.connection_id = ANY(%s) ORDER BY m.model_name, p.capability",
+        sorted(set(where.values())),
     )
     _write("probes.json", json.dumps(probes, indent=1, ensure_ascii=False))
     runtime = _runtime(browser, "live acceptance")
