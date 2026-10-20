@@ -1,0 +1,54 @@
+Browser check of integration-integrity-accounts, 2026-10-20
+Code: the integration worktree at 46b6c64, then at 101ecd1 (the fixes it found), restarted between.
+Server: `lab-brain web --accounts` on localhost:8799, file outbox for mail, disposable database
+lab_brain_int_ui (freshly migrated, 68 migrations). Browser: the desktop app's built-in browser.
+Accounts: a bootstrapped administrator; members registered through the verify-first service; one
+research run started through the workspace by the project's owner. Test passwords not recorded.
+
+Verify-first registration, in the browser (signed out)
+- /register shows the email field only ("in it you choose your name and password").
+- The mailed link (outbox): GET shows name, password and repeat fields; nothing is consumed.
+- A 5-character password -> "A password has at least 12 characters." on the same form, the name
+  and the link kept; the same link then confirmed with a valid password -> "Your address is
+  confirmed."
+- Opening the used link again -> "This link no longer works". At 46b6c64 it pointed to "Forgot
+  your password?"; at 101ecd1 a confirmation link points to registering again.
+
+ADMIN, not a member of the project (en, then zh-TW at 375x812)
+- /admin/projects/<id>: members with Change access / Remove (ADMIN only), every research
+  episode, and every artifact the project holds: the uploaded report, the device file the run
+  read and its two outputs. At 46b6c64 the last three showed as "cas://sha256:..."; at 101ecd1
+  "Stored by the research (application/json)" / 研究過程儲存（...）, the id under technical
+  details.
+- /admin/episodes/<id>: the report in full, 0 "withheld", with its Markdown export link.
+- /admin/projects/<id>/artifacts/<id>: the INTERNAL report's text, and a run output's JSON.
+
+Owner (en at 375x812, then zh-TW)
+- Project page: no membership forms and no actions column; "A laboratory administrator adds,
+  changes and removes members."; the administrator's four looks listed (project summary, the
+  reports, the named file, a stored run file).
+- At 46b6c64 the stored-file line carried the content address and widened the page to 708 px
+  at a 375 px viewport; at 101ecd1 the page is 375 px wide.
+
+Horizontal overflow at 375x812 (document scrollWidth == innerWidth == 375), at 101ecd1
+- owner: /projects/<id> (en and zh-TW), /projects, /episodes, /episodes/<id>
+- ADMIN, zh-TW: /admin, /admin/projects/<id> (details open), /admin/episodes/<id>,
+  /admin/projects/<id>/artifacts/<id>
+
+Not checked in the browser
+- A form posted after its session ended, the language switch's redirect checks, and the
+  route-by-route matrix: covered by tests/e2e/test_web_accounts_postgres.py and
+  tests/security/test_web_access_matrix_postgres.py.
+- Screen readers; only the markup was checked.
+
+After the adversarial audit's fixes (integration at dba0ca9, server restarted, UI database
+migrated to 012w)
+- Bob (member at PUBLIC) on the project page: the administrator's four looks read "read a file
+  classified above what you may read" (twice), "read the reports of a research question
+  classified above what you may read", "opened the project summary" -- no question text and no
+  file name above PUBLIC (audit A1).
+- Bob on /projects: no form to open a project; "A laboratory administrator opens new research
+  projects and names their owner." (audit A6).
+- The administrator on /projects: the form asks for the owner's email ("not your own"); naming
+  themself -> "Your own membership is changed by another laboratory administrator."; naming Bob
+  -> /admin/projects/<new id>?done=created, "Research project created.", Bob the owner at Public.

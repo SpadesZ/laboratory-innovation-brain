@@ -1,0 +1,8 @@
+integration-integrity-accounts at ff81f14: a database migrated at 665b899 (012u, no 012v), then upgraded
+migrate at 665b899 (012u, no 012v) -> exit 0 ['applied 67 migration(s)']
+applied: (67, '012u_accounts.sql')
+planted under 012u: [('p@lab.example', True, True)]
+migrate with 012v -> exit 0 ['  applied  012w_account_races_and_sessions.sql', 'applied 2 migration(s)']
+after 012v: [('p@lab.example', True, False)]
+constraint validated: (True,)
+dropped lab_brain_drill_012v
