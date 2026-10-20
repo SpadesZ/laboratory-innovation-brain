@@ -324,6 +324,10 @@ def test_another_actor_or_project_sees_nothing_and_writes_nothing(db, tmp_path):
 
 
 def test_an_excerpt_is_withheld_once_the_actor_may_no_longer_read_it(db, tmp_path):
+    """A report is kept; a clearance is not. Once the actor may no longer read the research's
+    question (its classification is recorded, 012q), neither its page nor its export is theirs
+    (adversarial audit A2). An episode from before 012q has no recorded classification and stays
+    its opener's -- and there every excerpt is re-authorized against their clearance now."""
     _member(db)
     browser = _workspace(tmp_path)
     sent = _start(browser, tmp_path, case=None)
@@ -337,6 +341,18 @@ def test_an_excerpt_is_withheld_once_the_actor_may_no_longer_read_it(db, tmp_pat
         " WHERE actor_id = %s AND project_id = %s",
         (ACTOR, PROJECT),
     )
+    assert browser.get(sent.location).status == 404, "an INTERNAL question, read at PUBLIC"
+    assert browser.get(f"/episodes/{episode_id}/runs/1/report.md").status == 404
+
+    # The same episode as one from before 012q: its runs record no classification. Written
+    # past the triggers, as only history can be (012q keeps a recorded label immutable).
+    db.execute("SET session_replication_role = replica")
+    try:
+        db.execute(
+            "UPDATE research_runs SET question_label = NULL WHERE episode_id = %s", (episode_id,)
+        )
+    finally:
+        db.execute("SET session_replication_role = origin")
     page = browser.get(sent.location)
     assert page.status == 200
     assert html.escape(excerpt) not in page.text
