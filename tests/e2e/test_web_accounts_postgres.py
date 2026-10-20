@@ -148,6 +148,7 @@ def test_a_person_registers_confirms_is_approved_and_signs_in(lab, tmp_path, peo
         },
     )
     assert again.status == 410, "the link works once"
+    assert 'href="/register"' in again.text, "the way to a new confirmation link"
     waiting = _sign_in(browser, "cy@lab.example")
     assert waiting.status == 401 and "has not approved" in waiting.text
     admin = _browser(tmp_path, lab.mail)
@@ -574,6 +575,7 @@ def test_an_administrator_reads_everything_each_read_recorded_and_writes_nothing
     material = admin.get(f"/admin/projects/{project_id}/artifacts/{item_id}")
     first_line = REPORT.read_text(encoding="utf-8").splitlines()[0]
     assert material.status == 200 and html.escape(first_line, quote=False) in material.text
+    assert "cas://" not in oversight.text, "no content address in the primary view"
     assert {f"material:{item_id}", "project-summary"} <= recorded()
     seen = ada.get(f"/projects/{project_id}").text
     assert f"read the file “{REPORT.name}”" in seen and "read the reports of" in seen

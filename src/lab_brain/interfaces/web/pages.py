@@ -94,6 +94,7 @@ button:focus-visible,a:focus-visible{outline:3px solid #6b8fd6;outline-offset:2p
 pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#fff;border:1px solid #d9dde5;
 border-radius:6px;padding:10px 12px;font:13px/1.5 ui-monospace,Consolas,monospace}
 .actions{display:flex;flex-direction:column;gap:4px}details>summary{cursor:pointer}
+main p,main li,main h1{overflow-wrap:anywhere}
 @media (max-width:640px){header.top{padding:8px 12px}main{padding:16px 16px 48px}
 header.top .who{margin-left:0}header.top form{margin-left:0}
 th,td{padding:4px 6px}}

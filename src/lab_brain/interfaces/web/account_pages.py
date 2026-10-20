@@ -81,6 +81,12 @@ Messages.extend(
             "地址已確認。接下來由管理員審核帳號，核准後即可登入。",
         ),
         "acct.link_invalid.title": ("This link no longer works", "此連結已失效"),
+        "acct.link_invalid.verify": (
+            "This confirmation link has expired or has been used. To get a new one, register "
+            "again with the same address.",
+            "此確認連結已過期或已使用。若需要新的連結，請用同一個地址再註冊一次。",
+        ),
+        "acct.register.again": ("Register again", "再次註冊"),
         "acct.link_invalid": (
             "This link has expired or has been used. Ask for a new one.",
             "此連結已過期或已使用，請重新申請。",

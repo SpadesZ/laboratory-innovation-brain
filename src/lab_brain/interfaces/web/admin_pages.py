@@ -110,6 +110,7 @@ Messages.extend(
             "該研究專案成員。這裡的任何操作都不會修改研究內容。",
         ),
         "admin.export": ("Download (Markdown)", "下載（Markdown）"),
+        "admin.unnamed": ("Stored by the research ({media})", "研究過程儲存（{media}）"),
         "origin.UPLOAD": ("Uploaded file", "上傳的檔案"),
         "origin.WATCHER_FILESYSTEM": ("Watched folder", "監看資料夾"),
         "origin.WATCHER_GIT": ("Watched repository", "監看儲存庫"),
@@ -507,7 +508,7 @@ def project_oversight_page(
                         '<a href="/admin/projects/{}/artifacts/{}">{}</a>',
                         s.project_id,
                         d.artifact_id,
-                        d.file_name,
+                        d.file_name or m("admin.unnamed", media=d.media_type),
                     ),
                     (kind_name(d.kind, m) if d.kind else m(f"origin.{d.origin}")),
                     levels(m, (d.label,) if d.label else ()),
@@ -588,12 +589,13 @@ def material_page(
 ) -> bytes:
     m = chrome.m
     d = material.summary
+    title = d.file_name or m("admin.unnamed", media=d.media_type)
     colon = "：" if m.locale == "zh-TW" else ": "
     body = cat(
         [
             h(
                 '<h1>{}</h1><p class="muted"><a href="/admin/projects/{}">{}</a> · {}</p>',
-                d.file_name,
+                title,
                 project_id,
                 project_name,
                 m("admin.oversight_note"),
@@ -614,6 +616,11 @@ def material_page(
             h("<pre>{}</pre>", text)
             if text is not None
             else h('<p class="box error" role="alert">{}</p>', m("admin.material.unreadable")),
+            h(
+                "<details><summary>{}</summary><p><code>{}</code></p></details>",
+                m("details"),
+                d.artifact_id,
+            ),
         ]
     )
-    return page(d.file_name, body, chrome=chrome)
+    return page(title, body, chrome=chrome)
