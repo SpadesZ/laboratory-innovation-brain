@@ -1,10 +1,11 @@
 """The workspace's own words, in English and Traditional Chinese.
 
-ONLY THE INTERFACE IS TRANSLATED. Headings, labels, buttons, hints and the workspace's own notices
-come from this catalog. Nothing the research service, a document or a provider produced is: a
-report's statements, evidence excerpts, stage details, conclusions, the service's refusals, every
-identifier (episode, hypothesis, attestation, capability, run, route) and every enum value (states,
-slots, capabilities, outcomes) are shown exactly as stored, in whatever locale is chosen.
+THE INTERFACE IS TRANSLATED; THE RECORD IS NOT. Headings, labels, buttons, hints, the
+workspace's own notices and the words for stored status values (`bs.`, `cs.`, `ws.`, `td.`, `ss.`
+-- the value stays the tooltip) come from this catalog. Nothing the research service, a document or
+a provider produced is rewritten: a report's statements, evidence excerpts, stage details,
+conclusions, the service's refusals and every identifier are shown as stored. A pack's declared
+words have curated renderings of their own (`pages.Terms`); anything else is shown as written.
 
 The interface language is a per-browser preference (a cookie). It is not the research-output
 language: the research service writes its report in English, and changing the interface language
@@ -333,11 +334,15 @@ _M: dict[str, tuple[str, str]] = {
     ),
     "msg.settings_refused": ("Not done", "沒有完成"),
     # -- the episode page: what was asked, found, tested and learned (three disclosure layers) ---
-    "v.result": ("Result", "結果"),
-    "v.hypotheses": ("Competing hypotheses", "互相競爭的假說"),
-    "v.tested": ("What was tested", "做了哪些檢查"),
-    "v.learned": ("What was learned", "學到了什麼"),
-    "v.next": ("Next action", "下一步"),
+    "v.result": ("Current conclusion", "目前結論"),
+    "v.hypotheses": (
+        "Competing hypotheses and where each stands",
+        "互相競爭的假說與各自的證據狀態",
+    ),
+    "v.tested": ("What was tested and observed", "實際做了哪些檢查、觀察到什麼"),
+    "v.support": ("What supports or challenges each hypothesis", "支持或挑戰各假說的證據"),
+    "v.why": ("Why the system can or cannot conclude", "為什麼能（或不能）下結論"),
+    "v.next": ("What to do next", "下一步該做什麼"),
     "v.reasoning": ("Evidence and reasoning", "證據與推理"),
     "v.audit": ("Audit and provenance", "稽核與來源紀錄"),
     "v.run_shown": ("Showing run {n} of {total}.", "顯示第 {n} 次執行（共 {total} 次）。"),
@@ -346,21 +351,17 @@ _M: dict[str, tuple[str, str]] = {
         "Run {n} continued this research from where it stopped; it did not start over.",
         "第 {n} 次執行是從上次停下的地方繼續，不是重新開始。",
     ),
-    "v.conclusion.CONFIRMED": ("Confirmed: {mechanism}", "已確認：{mechanism}"),
-    "v.conclusion.PROVISIONAL": (
-        "Not confirmed -- the question is still open.",
-        "尚未確認——問題仍待解答。",
-    ),
+    "v.conclusion.CONFIRMED": ("Root cause: {mechanism}", "根本原因：{mechanism}"),
+    "v.conclusion.PROVISIONAL": ("The question is still open.", "問題仍待解答。"),
     "v.conclusion.INCONCLUSIVE": (
-        "Inconclusive -- no available check can decide between the hypotheses.",
-        "無法定論——目前沒有可用的檢查能分辨這些假說。",
+        "No available check can decide between the hypotheses.",
+        "目前沒有可用的檢查能分辨這些假說。",
     ),
     "v.conclusion.NOT_REACHED": (
-        "Not reached -- the research stopped before verification.",
-        "未完成——研究在驗證之前就停止了。",
+        "The research stopped before verification.",
+        "研究在驗證之前就停止了。",
     ),
     "v.no_root_cause": ("No root cause has been confirmed.", "尚未確認任何根本原因。"),
-    "v.states": ("Hypotheses after this run:", "這次執行後各假說的狀態："),
     "v.no_hypothesis": ("No hypothesis was admitted.", "沒有任何假說被接受。"),
     "v.no_verification_input": (
         "No verification input was given, so no check could be planned. This research cannot "
@@ -373,11 +374,6 @@ _M: dict[str, tuple[str, str]] = {
     "v.stopped_at": (
         "It stopped at the {stage} step ({status}).",
         "停在「{stage}」步驟（{status}）。",
-    ),
-    "v.falsifier_machine": (
-        "Would be refuted if {observable} = {outcome} -- the machine falsifier verification "
-        "adjudicates.",
-        "若 {observable} = {outcome} 則此假說被否證——這是驗證據以判定的機器否證條件。",
     ),
     "v.falsifier_recorded": (
         "Machine falsifier, as the run recorded it:",
@@ -398,7 +394,8 @@ _M: dict[str, tuple[str, str]] = {
     ),
     "v.ruled_out": ("Ruled out:", "已排除："),
     "v.executed": ("Executed in this run", "這次執行的檢查"),
-    "v.observed": ("result: {observable} = {outcome}", "結果：{observable} = {outcome}"),
+    "v.observed": ("{observable} = {outcome}", "{observable} = {outcome}"),
+    "v.check_kind": ("{check} ({kind})", "{check}（{kind}）"),
     "v.no_observation": ("no observed outcome is recorded for it", "沒有記錄任何觀察結果"),
     "v.nothing_executed": ("No check was executed in this run.", "這次沒有執行任何檢查。"),
     "v.run_unrecorded": (
@@ -412,12 +409,12 @@ _M: dict[str, tuple[str, str]] = {
     "v.needs_person": ("Planned, needs a person", "已規劃、需要人員執行"),
     "v.unavailable": ("Cannot run here", "這個環境無法執行"),
     "v.matched": (
-        "{observable} = {outcome} matched {mechanism}'s declared prediction ({expected} -> "
-        "{effect}){designated}.",
-        "{observable} = {outcome} 符合 {mechanism} 事先宣告的預測"
-        "（{expected} -> {effect}）{designated}。",
+        "{observable} = {outcome} matched the prediction {mechanism} declared in advance (if "
+        "{expected}, it {effect} the hypothesis){designated}.",
+        "{observable} = {outcome} 符合「{mechanism}」事先宣告的預測"
+        "（若為 {expected}，則{effect}此假說）{designated}。",
     ),
-    "v.designated": (", its machine falsifier", "，即它的機器否證條件"),
+    "v.designated": (", its machine falsifier", "（即它的機器否證條件）"),
     "v.not_comparable": (
         " -- declared in another outcome space or version, so not comparable",
         "——宣告於不同的結果空間或版本，無法比較",
@@ -427,21 +424,22 @@ _M: dict[str, tuple[str, str]] = {
         "——此觀察沒有記錄其結果空間，無法比較",
     ),
     "v.moved": (
-        "{mechanism}: {from_state} -> {to_state}, a governed transition (decision: {decision}).",
-        "{mechanism}：{from_state} -> {to_state}，經過治理程序的狀態轉移（決定：{decision}）。",
+        "{mechanism}: {from_state} -> {to_state}, a governed belief change (decision: {decision}).",
+        "「{mechanism}」：{from_state} → {to_state}，經治理程序的信念改變（決定：{decision}）。",
     ),
     "v.decided": (
-        "{mechanism}: its transition policy decided {result}; its state did not change.",
-        "{mechanism}：轉移政策的決定是 {result}；狀態沒有改變。",
+        "{mechanism}: its transition policy decided \u201c{result}\u201d; its state did not "
+        "change.",
+        "「{mechanism}」：轉移政策的決定是「{result}」；狀態沒有改變。",
     ),
     "v.no_decision": (
         "{mechanism}: no governed transition is recorded for this relation.",
-        "{mechanism}：這個關係沒有任何經治理程序的狀態轉移紀錄。",
+        "「{mechanism}」：這個關係沒有任何經治理程序的狀態轉移紀錄。",
     ),
     "v.matched_unrecorded": (
         "{observable} = {outcome} is comparable to {mechanism}'s declared prediction, but no "
         "relation is recorded for it.",
-        "{observable} = {outcome} 與 {mechanism} 宣告的預測相符，但沒有記錄任何關係。",
+        "{observable} = {outcome} 與「{mechanism}」宣告的預測相符，但沒有記錄任何關係。",
     ),
     "v.no_match": (
         "{observable} = {outcome} matched no declared prediction, so it neither supports nor "
@@ -451,8 +449,8 @@ _M: dict[str, tuple[str, str]] = {
     ),
     "v.declared_over": ("Declared about {observable}:", "對 {observable} 事先宣告的預測："),
     "v.declared_item": (
-        "{mechanism}: {expected} -> {effect}{designated}",
-        "{mechanism}：{expected} -> {effect}{designated}",
+        "{mechanism}: if {expected}, {effect}{designated}",
+        "「{mechanism}」：若為 {expected}，則{effect}{designated}",
     ),
     "v.no_prediction": (
         "No hypothesis declared a prediction about {observable}; the result is on record and "
@@ -481,14 +479,18 @@ _M: dict[str, tuple[str, str]] = {
         "反方審查提出了 {n} 項質疑。質疑屬於審查意見，不是信念改變；詳見「證據與推理」。",
     ),
     "v.best_next": (
-        "Best next check: {check} ({kind}). It cannot run here: {reason}",
-        "最佳的下一項檢查：{check}（{kind}）。這裡無法執行：{reason}",
+        "Best next check: {check} ({kind}).",
+        "最佳的下一項檢查：{check}（{kind}）。",
+    ),
+    "v.blocked_because": (
+        "It cannot run here: {reason}. It needs: {requires}.",
+        "這裡無法執行：{reason}。需要：{requires}。",
     ),
     "v.also_blocked": (
         "Also cannot run here: {check} ({kind}).",
         "同樣無法在這裡執行：{check}（{kind}）。",
     ),
-    "v.would_decide": ("It would decide:", "它可以判定："),
+    "v.would_decide": ("Its result would decide:", "它的結果可以判定："),
     "v.person": (
         "A person can act now: {check} ({kind}).",
         "現在可由人員執行：{check}（{kind}）。",
@@ -561,6 +563,233 @@ _M: dict[str, tuple[str, str]] = {
         "Recorded conclusions, their warrants and flags",
         "已記錄的結論、其依據與標註",
     ),
+    # -- the episode page, read as a researcher asks (pages: L1) -------------------------------
+    "v.sep": (", ", "、"),
+    "v.tag.hyp": ("Hypothesis", "假說"),
+    "v.tag.pred": ("Prediction", "預測"),
+    "v.tag.obs": ("Observation", "觀察"),
+    "v.tag.interp": ("Interpretation", "解讀"),
+    "v.tag.finding": ("Confirmed finding", "已確認的發現"),
+    "col.standing": ("Where it stands", "目前狀態"),
+    "col.evidence_status": ("Evidence so far", "目前的證據"),
+    "v.observation": (
+        "{check}: observed {observable} = {outcome}",
+        "{check}：觀察到 {observable} = {outcome}",
+    ),
+    "v.ev.effect": ("-- this {effect} it.", "——{effect}此假說。"),
+    "v.ev.unrecorded": (
+        "-- comparable to its declared prediction, but no relation is recorded.",
+        "——與它事先宣告的預測可比較，但沒有記錄任何關係。",
+    ),
+    "v.ev.no_bearing": (
+        "-- it matched none of its declared predictions, so it neither supports nor refutes it.",
+        "——不符合它事先宣告的任何預測，既不支持也不否證此假說。",
+    ),
+    "v.ev.untested": (
+        "Not tested yet. The check that tests it: {check} ({kind}) -- {where}.",
+        "尚未檢驗。能檢驗它的是{check}（{kind}）——{where}。",
+    ),
+    "v.ev.untested_unknown": (
+        "Not tested yet; no check that tests it is recorded.",
+        "尚未檢驗；紀錄中沒有能檢驗它的檢查。",
+    ),
+    "v.ev.blocked": (
+        "it cannot run here, so its result is unknown (unverified)",
+        "這裡無法執行，結果未知（未驗證）",
+    ),
+    "v.ev.person": (
+        "a person must perform it; there is no result yet",
+        "需由人員執行，目前沒有結果",
+    ),
+    "v.ev.ran_no_observation": (
+        "it ran, but recorded no outcome about this hypothesis",
+        "已執行，但沒有記錄與此假說相關的結果",
+    ),
+    "v.ev.unplanned": ("this run did not plan it", "這次執行沒有規劃"),
+    "v.not_run_unknown": (
+        "-- not run; its result is unknown and nothing is assumed about it.",
+        "——未執行；結果未知，也不作任何假設。",
+    ),
+    "v.predicted": ("What it predicts (declared before any check)", "它事先宣告的預測"),
+    "v.pred.item": (
+        "if {observable} = {expected}: {effect} it{designated} -- {status}",
+        "若 {observable} = {expected}：{effect}此假說{designated}——{status}",
+    ),
+    "v.pred.observed": ("observed", "已觀察到"),
+    "v.pred.other": (
+        "not what was observed ({outcome} was)",
+        "與觀察不同（觀察到的是 {outcome}）",
+    ),
+    "v.pred.not_comparable": (
+        "not comparable with what was observed (another outcome space)",
+        "無法與觀察比較（結果空間不同）",
+    ),
+    "v.pred.pending": ("not observed yet", "尚未觀察"),
+    "v.supporting": ("Observations that support it", "支持它的觀察"),
+    "v.challenging": ("Observations that challenge it", "挑戰它的觀察"),
+    "v.objections": (
+        "The critic raised {n} objection(s) to it -- critique, not evidence; see Evidence and "
+        "reasoning.",
+        "反方審查對它提出 {n} 項質疑——屬於審查意見，不是證據；詳見「證據與推理」。",
+    ),
+    "v.would.item": (
+        "if {observable} = {outcome}: {effect} {mechanism}",
+        "若 {observable} = {outcome}：{effect}「{mechanism}」",
+    ),
+    "v.why.can": ("The system can conclude:", "系統可以下結論："),
+    "v.why.cannot": ("The system cannot conclude yet:", "系統目前還不能下結論："),
+    "v.why.others_ruled_out": (
+        "rivals refuted by an observation: {names}",
+        "已被觀察否證的對立假說：{names}",
+    ),
+    "v.why.warranted": (
+        "the confirmation rests on {n} recorded diagnostic warrant(s), and they verify",
+        "此確認依據 {n} 項已記錄的診斷依據（diagnostic warrant），且可驗證",
+    ),
+    "v.why.untested_rivals": (
+        "a limitation -- rivals never tested in this research: {names}",
+        "限制：本研究從未檢驗的對立假說：{names}",
+    ),
+    "v.why.basis": ("the supporting observation: {observation}", "支持的觀察：{observation}"),
+    "v.why.not_relied": (
+        "the confirmation is on record, but its warrants do not verify, so it is not used as a "
+        "precedent",
+        "此確認已記錄，但其依據無法驗證，因此不作為先例",
+    ),
+    "v.why.open": (
+        "{n} hypothesis(es) still open -- neither supported nor ruled out: {names}",
+        "仍有 {n} 個假說尚未判定（未獲支持，也未排除）：{names}",
+    ),
+    "v.why.supported_not_confirmed": (
+        "{mechanism} is supported, but support is not confirmation while rivals remain open",
+        "「{mechanism}」獲得支持；但只要仍有對立假說未被排除，支持就不等於確認",
+    ),
+    "v.why.competing": (
+        "{n} rival hypotheses are each supported by an observation of their own: {names} -- the "
+        "evidence does not single out one cause",
+        "{n} 個對立假說各自獲得自己的觀察支持：{names}——證據無法指出單一原因",
+    ),
+    "v.why.inconclusive": (
+        "no available check can tell the remaining hypotheses apart",
+        "沒有可用的檢查能分辨剩下的假說",
+    ),
+    "v.why.conflicting": (
+        "the evidence about {mechanism} conflicts: it is both supported and challenged",
+        "關於「{mechanism}」的證據互相矛盾：同時有支持與挑戰它的結果",
+    ),
+    "v.why.no_input": (
+        "no verification input was given, so nothing could be checked",
+        "沒有提供驗證輸入，因此無法做任何檢查",
+    ),
+    "v.why.unperformed": (
+        "not performed, so their results are unknown and unverified -- nothing is assumed in "
+        "their place: {checks}",
+        "以下檢查沒有執行，結果未知、未經驗證，也沒有以任何假設值代替：{checks}",
+    ),
+    "v.why.person": ("waiting for a person to perform: {checks}", "等待人員執行：{checks}"),
+    "v.why.rules": (
+        "The hypotheses and the critique came from the local rule-based catalog reasoner, not a "
+        "language model.",
+        "假說與反方審查來自本機的規則式目錄推理器，沒有使用語言模型。",
+    ),
+    "v.why.models": (
+        "The hypotheses and the critique came from language models, as their inference "
+        "provenance records: {models}.",
+        "假說與反方審查由語言模型產生（依推論來源紀錄）：{models}。",
+    ),
+    "v.why.model_item": ("{role}: {model}", "{role}：{model}"),
+    "v.why.reasoner": ("Reasoner, as recorded: {reasoner}", "推理來源（依紀錄）：{reasoner}"),
+    "v.why.no_debate": ("No debate is recorded for this run.", "這次執行沒有辯論紀錄。"),
+    "v.why.rule": (
+        "A belief changes only when an observation matches a prediction declared in advance and "
+        "the governed transition allows it; the system never declares a confirmation the evidence "
+        "does not support.",
+        "只有當觀察結果符合事先宣告的預測、且經治理程序核准時，信念才會改變；"
+        "證據不足時，系統不會宣告確認。",
+    ),
+    "v.l3.originals": ("Translations beside their originals", "翻譯與原文對照"),
+    "tr.untranslated": (" (untranslated)", "（未翻譯，顯示英文原文）"),
+    "tr.notice": (
+        "{n} passage(s) on this page have no curated translation and are shown in English, marked.",
+        "本頁有 {n} 段文字沒有經策展的中文翻譯，以英文原文顯示並加註標示。",
+    ),
+    "tr.as_written": (
+        "Research is recorded in English and shown here as written.",
+        "研究紀錄以英文撰寫，此處依原文顯示。",
+    ),
+    "tr.provenance": (
+        "Translations: {ref}. The record keeps its original text; each translation is shown "
+        "beside it.",
+        "翻譯來源：{ref}。紀錄保留原文；每段翻譯都與原文並列。",
+    ),
+    "tr.none": ("(no translation)", "（無翻譯）"),
+    "tr.curated": ("curated translation", "策展翻譯"),
+    "tr.missing": ("no curated translation: shown in English", "無策展翻譯：以英文原文顯示"),
+    "col.shown": ("Shown", "頁面顯示"),
+    "col.original": ("Original, as recorded", "原文（紀錄）"),
+    "col.rendering": ("Source", "來源"),
+    "col.item": ("Item", "項目"),
+    "col.value": ("Value", "內容"),
+    "ep.summary_export": ("summary in this language", "本語言的研究摘要"),
+    "sum.title": ("Research summary (derived document)", "研究摘要（衍生文件）"),
+    "sum.provenance": ("Where this summary comes from", "本摘要的來源"),
+    "sum.derived": ("What this is", "文件性質"),
+    "sum.derived_text": (
+        "Derived for reading from run {n}'s recorded report. The record is that report itself, "
+        "unchanged (report.md).",
+        "由第 {n} 次執行所記錄的報告衍生，供閱讀之用；"
+        "正式紀錄是該報告本身（report.md），未經更動。",
+    ),
+    "sum.source": (
+        "SHA-256 of the record's export (report.md) when this was made",
+        "製作時正式紀錄匯出檔（report.md）的 SHA-256",
+    ),
+    "sum.renderings": ("Translations used", "使用的翻譯"),
+    "sum.untranslated": (
+        "Passages shown in English (no curated translation)",
+        "以英文原文顯示的段落數（無策展翻譯）",
+    ),
+    "sum.reasoner": ("Who reasoned", "推理來源"),
+    "sum.exported": ("Made at", "製作時間"),
+    "sum.episode": ("Research task", "研究任務"),
+    # -- stored values, in words (the value itself stays the tooltip) ---------------------------
+    "bs.DRAFT": ("Draft", "草稿"),
+    "bs.ADMITTED": ("Admitted, not yet tested", "已受理、尚未檢驗"),
+    "bs.ACTIVE": ("Open", "尚未判定"),
+    "bs.SUPPORTED": ("Supported", "獲得支持"),
+    "bs.CHALLENGED": ("Challenged", "受到挑戰"),
+    "bs.CONTRADICTED": ("Refuted (ruled out)", "已被否證（排除）"),
+    "bs.INCONCLUSIVE": ("Inconclusive", "無法判定"),
+    "bs.EVOLVED": ("Revised into a new hypothesis", "已修正為新假說"),
+    "bs.SUPERSEDED": ("Superseded", "已被取代"),
+    "cs.CONFIRMED": ("Confirmed", "已確認"),
+    "cs.PROVISIONAL": ("Not confirmed", "尚未確認"),
+    "cs.INCONCLUSIVE": ("Inconclusive", "無法定論"),
+    "cs.NOT_REACHED": ("Not reached", "未完成"),
+    "ws.EXECUTED": ("executed", "已執行"),
+    "ws.SUCCEEDED": ("succeeded", "已完成"),
+    "ws.FAILED": ("failed", "執行失敗"),
+    "ws.AWAITING_RESOURCE": ("waiting for a resource", "等待資源"),
+    "ws.BUDGET_BLOCKED": ("refused by the budget", "超出預算而未執行"),
+    "ws.BLOCKED": ("cannot run here", "無法在此執行"),
+    "rt.SUPPORTS": ("supports", "支持"),
+    "rt.CONTRADICTS": ("refutes", "否證"),
+    "td.ALLOW": ("allowed", "核准"),
+    "td.DENY": ("denied", "否決"),
+    "td.NEED_MORE_EVIDENCE": ("needs more evidence", "需要更多證據"),
+    "td.NEED_HUMAN_REVIEW": ("needs a person's review", "需要人員審查"),
+    "ss.DONE": ("done", "完成"),
+    "ss.SKIPPED": ("skipped", "略過"),
+    "ss.REFUSED": ("refused", "被拒絕"),
+    "ss.FAILED": ("failed", "失敗"),
+    "ss.PARTIAL": ("partly done", "部分完成"),
+    "stage.ingestion": ("ingestion", "資料匯入"),
+    "stage.evidence": ("evidence", "證據"),
+    "stage.external evidence": ("external evidence", "外部證據"),
+    "stage.hypotheses": ("hypotheses", "假說"),
+    "stage.verification input": ("verification input", "驗證輸入"),
+    "stage.verification": ("verification", "驗證"),
+    "stage.pending simulation": ("pending simulation", "待執行的模擬"),
     "act.EXISTING_EVIDENCE_LOOKUP": ("existing-evidence lookup", "查詢既有證據"),
     "act.ANALYTICAL_RULE_CHECK": ("analytical check", "分析檢查"),
     "act.HISTORICAL_CASE_COMPARISON": ("historical case comparison", "歷史案例比對"),
@@ -587,6 +816,10 @@ class Messages:
     def __call__(self, key: str, **values: object) -> str:
         text = _M[key][self._index]
         return text.format(**values) if values else text
+
+    def template(self, key: str) -> str:
+        """The message unformatted, for a caller that fills it with markup (`pages.mh`)."""
+        return _M[key][self._index]
 
     @staticmethod
     def extend(entries: dict[str, tuple[str, str]]) -> None:

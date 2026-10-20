@@ -554,9 +554,9 @@ def test_new_research_uses_existing_data_adds_files_confirms_and_runs_without_a_
 
     page = browser.get(started.location)
     shown = _text(page)
-    assert f"Research task {GOAL}" in shown
+    assert f"Question: {GOAL}" in shown
     assert "Status now: Waiting -- can be continued" in shown
-    assert "waiting for a simulation that cannot run here (mesh sensitivity)" in shown
+    assert "waiting for a simulation that cannot run here (mesh sensitivity simulation)" in shown
     assert "Run 1" in shown and "Paused, waiting (provisional conclusion)" in shown
     assert episode_id in _details(page), "the canonical id stays in the technical details"
 

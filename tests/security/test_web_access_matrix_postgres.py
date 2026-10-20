@@ -60,6 +60,7 @@ GETS: list[Entry] = [
     ('"/account"', "GET", "/account", {}, _ALL_200, ("outsider", "admin")),
     ("_EPISODE_PATH", "GET", "/episodes/{e}", {}, _OPENER_ONLY, ()),
     ("_MARKDOWN_PATH", "GET", "/episodes/{e}/runs/1/report.md", {}, _OPENER_ONLY, ()),
+    ("_SUMMARY_PATH", "GET", "/episodes/{e}/runs/1/summary.html", {}, _OPENER_ONLY, ()),
     (
         "_EGRESS_PATH",
         "GET",

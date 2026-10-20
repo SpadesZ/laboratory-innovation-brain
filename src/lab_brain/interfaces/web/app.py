@@ -43,6 +43,7 @@ import base64
 import binascii
 import copy
 import dataclasses
+import hashlib
 import hmac
 import json
 import os
@@ -142,7 +143,7 @@ from lab_brain.research.data import (
     ResearchData,
     UsableData,
 )
-from lab_brain.research.episode_view import load_episode_view
+from lab_brain.research.episode_view import EpisodeView, load_episode_view
 from lab_brain.research.literature import LiteratureRequest
 from lab_brain.research.reasoning import ReasoningRuntime
 from lab_brain.research.render import render_markdown, render_recorded_since
@@ -178,6 +179,7 @@ _ID = r"([A-Za-z0-9:_.\-]{1,200})"
 _EPISODE_PATH = re.compile(rf"^/episodes/{_ID}$")
 _CONTINUE_PATH = re.compile(rf"^/episodes/{_ID}/continue$")
 _MARKDOWN_PATH = re.compile(rf"^/episodes/{_ID}/runs/([0-9]{{1,6}})/report\.md$")
+_SUMMARY_PATH = re.compile(rf"^/episodes/{_ID}/runs/([0-9]{{1,6}})/summary\.html$")
 _CONNECTION_PATH = re.compile(rf"^/settings/llm/connections/{_ID}(?:/([a-z]+))?$")
 _MODEL_PATH = re.compile(rf"^/settings/llm/models/{_ID}(?:/([a-z]+))?$")
 _RUNTIME_PATH = re.compile(rf"^/settings/llm/runtimes/{_ID}(?:/([a-z]+))?$")
@@ -321,6 +323,9 @@ class Workspace:
         #: service (what ROLE_HYPOTHESIS is probed at) and to the runtime loader (what a model on
         #: REASONING_PRIMARY must have demonstrated).
         self._hypotheses: int | None = None
+        #: How the vertical's declared words read in each language, which version of those
+        #: renderings, and what each declared check observes: read once, presentation only.
+        self._presentation: pages.Terms | None = None
         #: The deployment's inference deadline (`--inference-deadline`): the capability probes
         #: this workspace runs and the research calls its active runtime makes are held to it.
         self._deadline = checked_deadline(
@@ -453,6 +458,8 @@ class Workspace:
             return self._continue(c, req, m.group(1))
         if (m := _MARKDOWN_PATH.match(path)) and method == "GET":
             return self._markdown(c, req, m.group(1), int(m.group(2)))
+        if (m := _SUMMARY_PATH.match(path)) and method == "GET":
+            return self._summary(c, req, m.group(1), int(m.group(2)))
         if path == "/runtime" and method == "GET":
             return self._active_runtime(c, req)
         if m := _EGRESS_PATH.match(path):
@@ -1184,6 +1191,20 @@ class Workspace:
             authority_policies=vertical.authority_policies,
         )
 
+    def _terms(self, req: _Req) -> pages.Terms:
+        """The installed vertical's declared words in this request's language."""
+        if self._presentation is None:
+            vertical = self._factory(outputs=None, jobs=None, broker=None, now=utc_now)
+            declared = tuple(vertical.planning_capabilities)
+            self._presentation = pages.Terms(
+                presentation=vertical.presentation,
+                ref=vertical.presentation_ref,
+                observes={c.capability_id: c.produces for c in declared},
+                kinds={c.capability_id: c.action_type.value for c in declared},
+            )
+        known = self._presentation
+        return pages.Terms(req.locale, known.presentation, known.ref, known.observes, known.kinds)
+
     def _episode(self, c: Any, req: _Req, episode_id: str) -> Response:
         opened = self._opened(c, episode_id)
         if opened is None:
@@ -1237,6 +1258,7 @@ class Workspace:
                 project_name={p.project_id: p.name for p in self._projects(c)}.get(
                     opened.project_id
                 ),
+                terms=self._terms(req),
             ),
         )
 
@@ -1297,16 +1319,7 @@ class Workspace:
             project_id=opened.project_id, episode_id=episode_id
         ):
             if recorded.ordinal == ordinal:
-                text = render_markdown(self._authorized(c, recorded.report))
-                # The report as its run wrote it, then what the record says about its
-                # conclusions now: a flag recorded since must travel with the export.
-                view = load_episode_view(
-                    c,
-                    project_id=opened.project_id,
-                    episode_id=episode_id,
-                    verify=self._confirmation_verifier(c),
-                )
-                text += render_recorded_since(view.conclusions)
+                text, _ = self._export(c, opened.project_id, episode_id, recorded.report)
                 name = re.sub(r"[^A-Za-z0-9._-]+", "-", episode_id).strip("-")
                 return Response(
                     "200 OK",
@@ -1314,6 +1327,65 @@ class Workspace:
                     content_type="text/markdown; charset=utf-8",
                     headers=(
                         ("Content-Disposition", f'inline; filename="{name}-run-{ordinal}.md"'),
+                    ),
+                )
+        return self._message(
+            req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_recorded_run")
+        )
+
+    def _export(
+        self, c: Any, project_id: str, episode_id: str, report: EpisodeReport
+    ) -> tuple[str, EpisodeView]:
+        """The report as its run wrote it -- with what this actor may not read withheld -- then
+        what the record says about its conclusions now: a flag recorded since must travel with
+        the export. And the read model that said so."""
+        view = load_episode_view(
+            c, project_id=project_id, episode_id=episode_id, verify=self._confirmation_verifier(c)
+        )
+        text = render_markdown(self._authorized(c, report)) + render_recorded_since(
+            view.conclusions
+        )
+        return text, view
+
+    def _summary(self, c: Any, req: _Req, episode_id: str, ordinal: int) -> Response:
+        """One run's research summary in this request's language: a derived document, served
+        to whoever may read the run's report, naming the digest of that report's export."""
+        opened = self._opened(c, episode_id)
+        if opened is None:
+            return self._not_found(req, episode_id)
+        stored = SqlResearchReportStore(c).for_episode(
+            project_id=opened.project_id, episode_id=episode_id
+        )
+        for recorded in stored:
+            if recorded.ordinal == ordinal:
+                text, view = self._export(c, opened.project_id, episode_id, recorded.report)
+                ordinals = {r.ordinal for r in stored}
+                runs = [
+                    dataclasses.replace(r, recorded=r.ordinal in ordinals)
+                    for r in self._runs(c, opened.project_id, episode_id)
+                ]
+                name = re.sub(r"[^A-Za-z0-9._-]+", "-", episode_id).strip("-")
+                terms = self._terms(req)
+                return Response(
+                    "200 OK",
+                    pages.summary_document(
+                        episode=opened.row,
+                        runs=runs,
+                        report=self._authorized(c, recorded.report),
+                        report_ordinal=ordinal,
+                        view=view,
+                        terms=terms,
+                        project_name={p.project_id: p.name for p in self._projects(c)}.get(
+                            opened.project_id
+                        ),
+                        source_digest="sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest(),
+                        exported_at=utc_now(),
+                    ),
+                    headers=(
+                        (
+                            "Content-Disposition",
+                            f'inline; filename="{name}-run-{ordinal}.{terms.locale}.html"',
+                        ),
                     ),
                 )
         return self._message(

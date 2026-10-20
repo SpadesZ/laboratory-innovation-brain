@@ -9,15 +9,22 @@ research service returned, the same object `research.render.render_markdown` ren
 field by field, in the same order. The episode header shows the stored episode and research-run
 rows as they are. There is no script: the browser receives HTML and forms, nothing that computes.
 
-THE EPISODE PAGE READS IN LAYERS. L1, open, answers in words what a researcher asks -- the
-question, the result, the competing hypotheses, what was tested, what was learned and what to do
-next -- from the report's typed fields and `research.episode_view`'s read of the stored records
-(observations, declared predictions, relations, governed transitions); it shows no identifiers and
-no prose from the report is parsed for meaning. L2 (collapsed) holds the evidence and reasoning;
-L3 (collapsed) every record id, the runs and the full report, as before.
+THE EPISODE PAGE READS IN LAYERS. L1, open, answers in words what a researcher asks, in this
+order -- the question and the current conclusion, the competing hypotheses side by side, what was
+tested and observed, what supports or challenges each hypothesis, why the system can or cannot
+conclude, and what to do next -- from the report's typed fields and `research.episode_view`'s read
+of the stored records (observations, declared predictions, relations, governed transitions). It
+shows no identifiers, marks each line as a hypothesis, prediction, observation, interpretation or
+confirmed finding, and parses no prose from the report for meaning. L2 (collapsed) holds the
+evidence and reasoning; L3 (collapsed) every record id, the runs, each rendering beside its
+original and the full report, as before.
 
-ONLY THE INTERFACE IS TRANSLATED (`i18n`). Headings, labels and the workspace's own sentences
-follow the chosen locale; a report's text, every identifier and every stored value do not.
+THE RECORD IS NEVER TRANSLATED; ITS READING IS. Headings, labels and the workspace's own sentences
+follow the chosen locale (`i18n`), and so do stored status values, named in words with the value
+as the tooltip. The pack's declared words -- mechanism names and statements, checks, observables,
+outcomes -- are shown through its curated renderings (`Terms`, `ProductVertical.presentation`);
+anything without one, model-written text above all, is shown as written and marked untranslated.
+Identifiers, stored values and the full report stay exactly as stored.
 """
 
 from __future__ import annotations
@@ -26,17 +33,23 @@ import dataclasses
 import datetime as dt
 import html
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
-from lab_brain.interfaces.web.i18n import LOCALE_NAMES, LOCALES, Messages
+from lab_brain.interfaces.web.i18n import (
+    LOCALE_NAMES,
+    LOCALES,
+    RESEARCH_OUTPUT_LANGUAGE,
+    Messages,
+)
 from lab_brain.research.episode_view import (
     CheckResult,
     DeclaredPrediction,
     EpisodeView,
     ExecutedCheck,
+    Relation,
 )
-from lab_brain.research.report import ActionLine, EpisodeReport
+from lab_brain.research.report import ActionLine, EpisodeReport, HypothesisLine, PendingAction
 
 _CSS = """
 body{font:15px/1.5 system-ui,-apple-system,"Segoe UI","Noto Sans TC","Microsoft JhengHei",
@@ -155,6 +168,20 @@ details.layer{margin:18px 0;border-top:1px solid #d9dde5}details.layer>summary{c
 details.layer>summary h2{display:inline-block;border:0;margin:14px 0 6px}
 .card.hypothesis h3{margin-top:0}.card.hypothesis li.machine{color:#1f3d7a}
 .card.hypothesis li.prose{color:#5b6475}li.no-match{color:#3a4254}li.moved{font-weight:600}
+.card.hypothesis h4{font-size:13px;margin:10px 0 2px;color:#3a4254}.card.hypothesis p.prose{
+color:#5b6475;font-size:13px}
+.tag{display:inline-block;padding:0 6px;margin-right:4px;border:1px solid;border-radius:4px;
+font-size:11px;font-weight:700;vertical-align:1px}
+.tag-hyp{color:#1f3d7a;border-color:#bcd0f5;background:#eef4ff}
+.tag-pred{color:#5a3d8a;border-color:#d3c4ef;background:#f5f0ff}
+.tag-obs{color:#11522a;border-color:#9fd6ad;background:#eefaf1}
+.tag-interp{color:#6b4e00;border-color:#e8d38c;background:#fff8e1}
+.tag-finding{color:#fff;border-color:#11522a;background:#11522a}
+.untr{color:#8a5a00;font-size:12px;margin-left:2px}
+.box.conclusion{border-left:4px solid #1f2a44}.box.conclusion p strong{font-size:16px}
+ul.standing{margin:6px 0 0;padding-left:18px}
+.state.bs-ACTIVE,.state.bs-ADMITTED,.state.bs-DRAFT{background:#e3e7ee;color:#3a4254}
+.state.bs-CHALLENGED,.state.bs-INCONCLUSIVE{background:#fff1c2;color:#6b4e00}
 """
 
 
@@ -485,22 +512,276 @@ def _layer(key: str, title: str, body: Html) -> Html:
 
 _RULED_OUT = frozenset({"CONTRADICTED"})
 
+#: Where a hypothesis stands, for reading the comparison: supported first, ruled out last.
+_STANDING = {"SUPPORTED": 0, "CONTRADICTED": 2, "EVOLVED": 3, "SUPERSEDED": 3}
+
 #: Publication statuses an excerpt needs no warning for (anything else -- RETRACTED, WITHDRAWN,
 #: ERRATUM_ISSUED, SUPERSEDED, SOURCE_UNAVAILABLE -- is shown beside it).
 _ORDINARY_STATUS = frozenset({"ACTIVE", "UNKNOWN", ""})
 
 
-def _waiting(reason: str | None, m: Messages) -> str:
+class Terms:
+    """The installed pack's declared words in the reader's language (`ProductVertical`).
+
+    A canonical string or identifier is looked up exactly as stored; no record changes. Outside
+    the language research is written in, text without a curated rendering -- everything a model
+    wrote, and any declared sentence nobody has rendered yet -- is shown as written and marked
+    untranslated, never guessed. Every lookup is remembered, so the audit layer can set each
+    rendering beside its original. `observes` is which observables each declared check produces,
+    for saying what a check that has not run would decide, and `kinds` what kind of action it is.
+    """
+
+    def __init__(
+        self,
+        locale: str = "en",
+        presentation: Mapping[str, Mapping[str, str]] | None = None,
+        ref: str | None = None,
+        observes: Mapping[str, tuple[str, ...]] | None = None,
+        kinds: Mapping[str, str] | None = None,
+    ) -> None:
+        self.m = Messages(locale)
+        self.locale = self.m.locale
+        self.ref = ref
+        self.observes: Mapping[str, tuple[str, ...]] = observes or {}
+        #: Each declared check's action type, for one no plan of this run recorded.
+        self.kinds: Mapping[str, str] = kinds or {}
+        self.presentation: Mapping[str, Mapping[str, str]] = presentation or {}
+        self._renderings: Mapping[str, str] = self.presentation.get(self.locale, {})
+        self._as_written = self.locale == RESEARCH_OUTPUT_LANGUAGE
+        #: canonical -> what was shown for it (None: no curated rendering), first seen first.
+        self.shown: dict[str, str | None] = {}
+
+    def text(self, canonical: str) -> Html:
+        """Prose -- declared or generated: its curated rendering, or the original, marked."""
+        if self._as_written or not canonical:
+            return e(canonical)
+        rendering = self._renderings.get(canonical)
+        self.shown.setdefault(canonical, rendering)
+        return e(rendering) if rendering is not None else self._untranslated(canonical)
+
+    def name(self, identifier: str) -> Html:
+        """A declared identifier -- a check, an observable, an outcome -- as words; the identifier
+        is the tooltip and is listed in the audit layer."""
+        rendering = self._renderings.get(identifier)
+        if rendering is None:
+            words = label(identifier)
+            words = words.lower() if words.isupper() else words
+            if self._as_written:
+                return h('<span title="{}">{}</span>', identifier, words)
+            self.shown.setdefault(identifier, None)
+            return h('<span title="{}">{}</span>', identifier, self._untranslated(words))
+        if not self._as_written:
+            self.shown.setdefault(identifier, rendering)
+        return h('<span title="{}">{}</span>', identifier, rendering)
+
+    @property
+    def untranslated(self) -> int:
+        return sum(1 for rendering in self.shown.values() if rendering is None)
+
+    def _untranslated(self, original: str) -> Html:
+        return h(
+            '<span lang="en">{}</span><span class="untr">{}</span>',
+            original,
+            self.m("tr.untranslated"),
+        )
+
+
+def mh(m: Messages, key: str, **values: object) -> Html:
+    """A message whose values may be markup this package built (a `Terms` name, a status): the
+    template is escaped, and each value is escaped unless it is already `Html`."""
+    return Html(html.escape(m.template(key)).format(**{k: e(v) for k, v in values.items()}))
+
+
+def status(kind: str, value: str | None, m: Messages) -> Html:
+    """A stored status in words (`kind.<VALUE>`); the stored value is its tooltip and its style.
+    A value with no words is shown as stored."""
+    stored = value or "-"
+    try:
+        words = m(f"{kind}.{stored}")
+    except KeyError:
+        words = stored
+    value_class = re.sub(r"[^A-Z_]", "", stored)
+    return h(
+        '<span class="state state-{} {}-{}" title="{}">{}</span>',
+        value_class,
+        kind,
+        value_class,
+        stored,
+        words,
+    )
+
+
+def _tag(kind: str, m: Messages) -> Html:
+    """What a line is: hypothesis, prediction, observation, interpretation or finding."""
+    return h('<span class="tag tag-{}">{}</span>', kind, m(f"v.tag.{kind}"))
+
+
+def _words(kind: str, value: str, m: Messages) -> str:
+    try:
+        return m(f"{kind}.{value}")
+    except KeyError:
+        return value
+
+
+def _effects(effects: Sequence[str], m: Messages) -> str:
+    return "/".join(_words("rt", x, m) for x in effects)
+
+
+def _joined(items: Sequence[Html], m: Messages) -> Html:
+    return cat(items, m("v.sep")) if items else e(m("none"))
+
+
+def _waiting(reason: str | None, t: Terms) -> Html:
     """Why an episode waits, without identifiers: the shapes the service writes, in words."""
     if not reason:
-        return ""
+        return Html("")
     if reason.startswith("awaiting simulator for "):
-        return m(
-            "ep.waiting.simulator", capability=label(reason.removeprefix("awaiting simulator for "))
+        return mh(
+            t.m,
+            "ep.waiting.simulator",
+            capability=t.name(reason.removeprefix("awaiting simulator for ")),
         )
     if reason.startswith("the debate failed before a hypothesis set existed"):
-        return m("ep.waiting.debate")
-    return ""
+        return e(t.m("ep.waiting.debate"))
+    return Html("")
+
+
+def _groups(
+    report: EpisodeReport,
+) -> tuple[list[HypothesisLine], list[HypothesisLine], list[HypothesisLine]]:
+    """Supported, still open, ruled out -- by each hypothesis's state after the run."""
+    supported = [x for x in report.hypotheses if x.final_state == "SUPPORTED"]
+    ruled_out = [x for x in report.hypotheses if x.final_state in _RULED_OUT]
+    still_open = [x for x in report.hypotheses if x not in supported and x not in ruled_out]
+    return supported, still_open, ruled_out
+
+
+def _ordered(hypotheses: Sequence[HypothesisLine]) -> list[HypothesisLine]:
+    return sorted(hypotheses, key=lambda x: _STANDING.get(x.final_state, 1))
+
+
+@dataclass(frozen=True)
+class _Seen:
+    """One observed outcome of one executed check, and whether an earlier run executed it."""
+
+    capability_id: str
+    result: CheckResult
+    earlier: bool
+
+
+def _this_run(report: EpisodeReport | None) -> list[ActionLine]:
+    return list(report.completed) if report is not None else []
+
+
+def _earlier(
+    report: EpisodeReport | None, view: EpisodeView, runs: Sequence[RunRow], ordinal: int | None
+) -> list[ExecutedCheck]:
+    """Checks earlier research runs of the episode executed: started before the shown run began,
+    and not among its own -- never counted as executed again."""
+    mine = {a.run_id for a in _this_run(report) if a.run_id}
+    began = next((r.started_at for r in runs if r.ordinal == ordinal), None)
+    if not isinstance(began, dt.datetime):
+        return []
+    return [
+        x
+        for x in view.executed
+        if x.run_id not in mine and isinstance(x.started_at, dt.datetime) and x.started_at < began
+    ]
+
+
+def _seen(
+    report: EpisodeReport | None, view: EpisodeView, runs: Sequence[RunRow], ordinal: int | None
+) -> list[_Seen]:
+    """Every observed outcome the shown run can rely on: its own checks', then earlier runs'."""
+    return [
+        *(
+            _Seen(a.capability_id, r, False)
+            for a in _this_run(report)
+            for r in view.results.get(a.run_id or "", ())
+        ),
+        *(
+            _Seen(x.capability_id, r, True)
+            for x in _earlier(report, view, runs, ordinal)
+            for r in view.results.get(x.run_id, ())
+        ),
+    ]
+
+
+def _relations(seen: Sequence[_Seen], hypothesis_id: str) -> list[tuple[_Seen, Relation]]:
+    return [
+        (s, rel) for s in seen for rel in s.result.relations if rel.hypothesis_id == hypothesis_id
+    ]
+
+
+def _person_actions(report: EpisodeReport | None) -> list[str]:
+    """Checks a plan of this run chose that it did not execute and that are not blocked: a
+    person's act, as the plan named it."""
+    if report is None:
+        return []
+    done = {a.capability_id for a in report.completed}
+    blocked = {p.capability_id for p in report.pending}
+    chosen: list[str] = []
+    for plan in report.plans:
+        if plan.chosen and plan.chosen not in done | blocked and plan.chosen not in chosen:
+            chosen.append(plan.chosen)
+    return chosen
+
+
+def _action_type(
+    capability_id: str, report: EpisodeReport, view: EpisodeView, t: Terms
+) -> str | None:
+    return (
+        view.action_types.get(capability_id)
+        or t.kinds.get(capability_id)
+        or next((p.action_type for p in report.pending if p.capability_id == capability_id), None)
+        or next((a.action_type for a in report.completed if a.capability_id == capability_id), None)
+    )
+
+
+def _check_kind(capability_id: str, kind: str | None, t: Terms) -> Html:
+    return mh(t.m, "v.check_kind", check=t.name(capability_id), kind=_kind(kind, t.m))
+
+
+def _observation(s: _Seen, t: Terms) -> Html:
+    return mh(
+        t.m,
+        "v.observation",
+        check=t.name(s.capability_id),
+        observable=t.name(s.result.observable),
+        outcome=t.name(s.result.outcome),
+    )
+
+
+def _moves(relation: Relation, t: Terms) -> Html:
+    """What the governed path did with one relation: its transitions, or why there were none."""
+    m = t.m
+    if relation.transitions:
+        return cat(
+            (
+                mh(
+                    m,
+                    "v.moved",
+                    mechanism=t.text(x.mechanism),
+                    from_state=status("bs", x.from_state, m),
+                    to_state=status("bs", x.to_state, m),
+                    decision=_words("td", x.decision or "-", m),
+                )
+                for x in relation.transitions
+            ),
+            " ",
+        )
+    refused = [d for d in relation.decisions if d.result != "ALLOW"]
+    if refused:
+        return mh(
+            m,
+            "v.decided",
+            mechanism=t.text(relation.mechanism),
+            result=_words("td", refused[-1].result, m),
+        )
+    return mh(m, "v.no_decision", mechanism=t.text(relation.mechanism))
+
+
+# -- L1, section by section ------------------------------------------------------------------------
 
 
 def _result_html(
@@ -508,19 +789,15 @@ def _result_html(
     report: EpisodeReport | None,
     runs: Sequence[RunRow],
     ordinal: int | None,
-    m: Messages,
+    t: Terms,
 ) -> Html:
-    try:
-        state_text = m(f"ep.{episode.state}")
-    except KeyError:
-        state_text = episode.state
-    waiting = _waiting(episode.suspend_reason, m)
+    m = t.m
+    waiting = _waiting(episode.suspend_reason, t)
     parts: list[Html] = [
         h(
-            '<div class="box"><strong>{}</strong> <span class="state state-{}">{}</span>{}</div>',
+            '<div class="box"><strong>{}</strong> {}{}</div>',
             m("ep.state_now"),
-            re.sub(r"[^A-Z_]", "", episode.state),
-            state_text,
+            status("ep", episode.state, m),
             h(' <span class="purpose">{}</span>', waiting) if waiting else Html(""),
         )
     ]
@@ -555,142 +832,236 @@ def _result_html(
     if report.continuation is not None:
         parts.append(h("<p>{}</p>", m("v.continued", n=report.continuation.run_ordinal)))
     c = report.conclusion
-    mechanisms = {x.hypothesis_id: x.mechanism for x in report.hypotheses}
-    try:
-        headline = m(
-            f"v.conclusion.{c.status}",
-            mechanism=mechanisms.get(c.confirmed_hypothesis or "", c.confirmed_hypothesis or "-"),
+    confirmed = next(
+        (x for x in report.hypotheses if x.hypothesis_id == c.confirmed_hypothesis), None
+    )
+    if c.status == "CONFIRMED":
+        headline = mh(
+            m,
+            "v.conclusion.CONFIRMED",
+            mechanism=t.text(confirmed.mechanism) if confirmed else c.confirmed_hypothesis or "-",
         )
-    except KeyError:
-        headline = c.status
-    parts.append(h("<p>{} <strong>{}</strong></p>", state(c.status), headline))
+    else:
+        headline = e(_words("v.conclusion", c.status, m))
+    lines = [
+        h(
+            "<p>{}{} <strong>{}</strong></p>",
+            h("{} ", _tag("finding", m)) if c.status == "CONFIRMED" else Html(""),
+            status("cs", c.status, m),
+            headline,
+        )
+    ]
     if c.status != "CONFIRMED":
-        parts.append(h("<p>{}</p>", m("v.no_root_cause")))
+        lines.append(h("<p>{}</p>", m("v.no_root_cause")))
     if c.status == "NOT_REACHED":
         stopped = next(
             (s for s in report.stages if s.status in ("FAILED", "REFUSED")),
             next((s for s in report.stages if s.status == "SKIPPED"), None),
         )
         if stopped is not None:
-            parts.append(
-                h("<p>{}</p>", m("v.stopped_at", stage=stopped.stage, status=stopped.status))
+            lines.append(
+                h(
+                    "<p>{}</p>",
+                    mh(
+                        m,
+                        "v.stopped_at",
+                        stage=_words("stage", stopped.stage, m),
+                        status=status("ss", stopped.status, m),
+                    ),
+                )
             )
     if report.hypotheses:
-        counts: dict[str, int] = {}
-        for x in report.hypotheses:
-            counts[x.final_state] = counts.get(x.final_state, 0) + 1
-        parts.append(
+        supported, still_open, ruled_out = _groups(report)
+        lines.append(
             h(
-                "<p>{} {}</p>",
-                m("v.states"),
-                cat((h("{} {}", state(k), n) for k, n in sorted(counts.items())), " "),
+                '<ul class="standing"><li>{} {}</li><li>{} {}</li><li>{} {}</li></ul>',
+                m("v.supported"),
+                _joined([t.text(x.mechanism) for x in supported], m),
+                m("v.still_competing"),
+                _joined([t.text(x.mechanism) for x in still_open], m),
+                m("v.ruled_out"),
+                _joined([t.text(x.mechanism) for x in ruled_out], m),
             )
         )
+    parts.append(h('<div class="box conclusion">{}</div>', cat(lines)))
     return cat(parts)
 
 
-def _hypotheses_html(report: EpisodeReport | None, view: EpisodeView, m: Messages) -> Html:
+def _evidence_status(
+    x: HypothesisLine, report: EpisodeReport, view: EpisodeView, seen: Sequence[_Seen], t: Terms
+) -> Html:
+    """In one or two lines: what has been observed about this hypothesis, or why nothing has."""
+    m = t.m
+    found = _relations(seen, x.hypothesis_id)
+    if found:
+        return cat(
+            h(
+                "<div>{} {}{}</div>",
+                _observation(s, t),
+                mh(m, "v.ev.effect", effect=_words("rt", rel.relation_type, m)),
+                # A relation the governed path did not act on leaves the state where it was.
+                h(" {}", _moves(rel, t)) if not rel.transitions else Html(""),
+            )
+            for s, rel in found
+        )
+    over = [
+        (s, any(p.hypothesis_id == x.hypothesis_id for p in s.result.matched))
+        for s in seen
+        if any(
+            p.hypothesis_id == x.hypothesis_id
+            for p in (*s.result.matched, *s.result.unmatched, *s.result.incomparable)
+        )
+    ]
+    if over:
+        return cat(
+            h(
+                "<div>{} {}</div>",
+                _observation(s, t),
+                e(m("v.ev.unrecorded" if matched else "v.ev.no_bearing")),
+            )
+            for s, matched in over
+        )
+    if not x.minimal_test:
+        return e(m("v.ev.untested_unknown"))
+    test = x.minimal_test
+    if test in {p.capability_id for p in report.pending}:
+        where = m("v.ev.blocked")
+    elif test in _person_actions(report):
+        where = m("v.ev.person")
+    elif test in {s.capability_id for s in seen} | {a.capability_id for a in report.completed}:
+        where = m("v.ev.ran_no_observation")
+    else:
+        where = m("v.ev.unplanned")
+    return mh(
+        m,
+        "v.ev.untested",
+        check=t.name(test),
+        kind=_kind(_action_type(test, report, view, t), m),
+        where=where,
+    )
+
+
+def _hypotheses_html(
+    report: EpisodeReport | None, view: EpisodeView, seen: Sequence[_Seen], t: Terms
+) -> Html:
+    """The comparison: every hypothesis, where it stands, and what has been observed about it."""
+    m = t.m
     if report is None:
         # Run elsewhere (the command line): the workspace holds no report to read from.
         return h("<p>{}</p>", m("ep.no_report"))
     if not report.hypotheses:
         return h("<p>{}</p>", m("v.no_hypothesis"))
-    cards: list[Html] = []
-    for x in report.hypotheses:
-        typed = view.falsifiers(x.hypothesis_id)
-        if typed:
-            machine = [
+    return _table(
+        (m("col.hypothesis"), m("col.standing"), m("col.evidence_status")),
+        (
+            (
+                h("<strong>{}</strong>", t.text(x.mechanism)),
+                status("bs", x.final_state, m),
+                _evidence_status(x, report, view, seen, t),
+            )
+            for x in _ordered(report.hypotheses)
+        ),
+    )
+
+
+def _explain(result: CheckResult, t: Terms) -> Html:
+    """What one observed outcome did, from the typed records only -- see `research.episode_view`."""
+    m = t.m
+    obs, out = t.name(result.observable), t.name(result.outcome)
+    lines: list[Html] = []
+    if result.relations:
+        declared = {
+            p.prediction_id: p for p in (*result.matched, *result.unmatched, *result.incomparable)
+        }
+        for relation in result.relations:
+            p = declared.get(relation.prediction_id or "")
+            lines.append(
                 h(
-                    '<li class="machine"><strong>{}</strong></li>',
-                    m(
-                        "v.falsifier_machine",
-                        observable=label(p.observable),
-                        outcome=p.expected_outcome,
+                    "<li>{}</li>",
+                    mh(
+                        m,
+                        "v.matched",
+                        observable=obs,
+                        outcome=out,
+                        mechanism=t.text(relation.mechanism),
+                        expected=t.name(p.expected_outcome) if p else out,
+                        effect=_words("rt", relation.relation_type, m),
+                        designated=m("v.designated") if p and p.designated_falsifier else "",
                     ),
                 )
-                for p in typed
-            ]
-        elif x.machine_falsifiers:
-            machine = [
-                h('<li class="machine">{} <code>{}</code></li>', m("v.falsifier_recorded"), f)
-                for f in x.machine_falsifiers
-            ]
-        else:
-            machine = [h('<li class="machine muted">{}</li>', m("v.falsifier_none"))]
-        cards.append(
-            h(
-                '<div class="card hypothesis"><h3>{} {}</h3><p>{}</p><ul>{}{}</ul></div>',
-                x.mechanism,
-                state(x.final_state),
-                x.statement,
-                cat(machine),
-                h('<li class="prose">{} {}</li>', m("v.falsifier_prose"), x.falsifier),
             )
+            lines.append(
+                h(
+                    '<li class="{}">{}</li>',
+                    "moved" if relation.transitions else "",
+                    _moves(relation, t),
+                )
+            )
+        return cat(lines)
+    if result.matched:
+        return cat(
+            h(
+                "<li>{}</li>",
+                mh(
+                    m,
+                    "v.matched_unrecorded",
+                    observable=obs,
+                    outcome=out,
+                    mechanism=t.text(p.mechanism),
+                ),
+            )
+            for p in result.matched
         )
-    supported = [x.mechanism for x in report.hypotheses if x.final_state == "SUPPORTED"]
-    ruled_out = [x.mechanism for x in report.hypotheses if x.final_state in _RULED_OUT]
-    still_open = [
-        x.mechanism
-        for x in report.hypotheses
-        if x.final_state != "SUPPORTED" and x.final_state not in _RULED_OUT
-    ]
-    cards.append(
-        h(
-            "<p>{} {}</p><p>{} {}</p><p>{} {}</p>",
-            m("v.supported"),
-            ", ".join(supported) or m("none"),
-            m("v.still_competing"),
-            ", ".join(still_open) or m("none"),
-            m("v.ruled_out"),
-            ", ".join(ruled_out) or m("none"),
+    if result.unmatched or result.incomparable:
+        # Same outcome string or not, a prediction in another OutcomeSpace says nothing here.
+        apart = m("v.space_unrecorded") if result.outcome_space is None else m("v.not_comparable")
+        declared_items = cat(
+            h(
+                "<li>{}{}</li>",
+                mh(
+                    m,
+                    "v.declared_item",
+                    mechanism=t.text(p.mechanism),
+                    expected=t.name(p.expected_outcome),
+                    effect=_effects(p.effects, m),
+                    designated=m("v.designated") if p.designated_falsifier else "",
+                ),
+                apart if p in result.incomparable else "",
+            )
+            for p in (*result.unmatched, *result.incomparable)
         )
-    )
-    return cat(cards)
+        return h(
+            '<li class="no-match">{}<div>{}</div><ul>{}</ul></li>',
+            mh(m, "v.no_match", observable=obs, outcome=out),
+            mh(m, "v.declared_over", observable=obs),
+            declared_items,
+        )
+    return h("<li>{}</li>", mh(m, "v.no_prediction", observable=obs))
 
 
-def _this_run(report: EpisodeReport | None) -> list[ActionLine]:
-    return list(report.completed) if report is not None else []
-
-
-def _earlier(
-    report: EpisodeReport | None, view: EpisodeView, runs: Sequence[RunRow], ordinal: int | None
-) -> list[ExecutedCheck]:
-    """Checks earlier research runs of the episode executed: started before the shown run began,
-    and not among its own -- never counted as executed again."""
-    mine = {a.run_id for a in _this_run(report) if a.run_id}
-    began = next((r.started_at for r in runs if r.ordinal == ordinal), None)
-    if not isinstance(began, dt.datetime):
-        return []
-    return [
-        x
-        for x in view.executed
-        if x.run_id not in mine and isinstance(x.started_at, dt.datetime) and x.started_at < began
-    ]
-
-
-def _person_actions(report: EpisodeReport | None) -> list[str]:
-    """Checks a plan of this run chose that it did not execute and that are not blocked: a
-    person's act, as the plan named it."""
-    if report is None:
-        return []
-    done = {a.capability_id for a in report.completed}
-    blocked = {p.capability_id for p in report.pending}
-    chosen: list[str] = []
-    for plan in report.plans:
-        if plan.chosen and plan.chosen not in done | blocked and plan.chosen not in chosen:
-            chosen.append(plan.chosen)
-    return chosen
-
-
-def _observed(results: Sequence[CheckResult], m: Messages) -> Html:
-    if not results:
-        return h('<span class="muted">{}</span>', m("v.no_observation"))
-    return cat(
-        (
-            h("{}", m("v.observed", observable=label(r.observable), outcome=r.outcome))
+def _checked(
+    capability_id: str, kind: str | None, state: str, results: Sequence[CheckResult], t: Terms
+) -> Html:
+    """One executed check: what it observed, and what each observation did."""
+    m = t.m
+    observed = (
+        cat(
+            h(
+                "<li>{} {}</li>{}",
+                _tag("obs", m),
+                mh(m, "v.observed", observable=t.name(r.observable), outcome=t.name(r.outcome)),
+                _explain(r, t),
+            )
             for r in results
-        ),
-        "; ",
+        )
+        if results
+        else h('<li class="muted">{}</li><li>{}</li>', m("v.no_observation"), m("v.not_recorded"))
+    )
+    return h(
+        "<li>{} {}<ul>{}</ul></li>",
+        _check_kind(capability_id, kind, t),
+        status("ws", state, m),
+        observed,
     )
 
 
@@ -699,19 +1070,14 @@ def _tested_html(
     view: EpisodeView,
     runs: Sequence[RunRow],
     ordinal: int | None,
-    m: Messages,
+    t: Terms,
 ) -> Html:
+    m = t.m
     if report is None:
         return h("<p>{}</p>", m("v.run_unrecorded"))
     parts: list[Html] = []
     executed = [
-        h(
-            "<li>{} ({}) {} -- {}</li>",
-            _named(a.capability_id),
-            _kind(a.action_type, m),
-            state(a.status),
-            _observed(view.results.get(a.run_id or "", ()), m),
-        )
+        _checked(a.capability_id, a.action_type, a.status, view.results.get(a.run_id or "", ()), t)
         for a in _this_run(report)
     ]
     parts.append(
@@ -724,19 +1090,19 @@ def _tested_html(
         )
     )
     earlier = [
-        h(
-            "<li>{} ({}) {} -- {}</li>",
-            _named(x.capability_id),
-            _kind(view.action_types.get(x.capability_id), m),
-            state(x.status),
-            _observed(view.results.get(x.run_id, ()), m),
+        _checked(
+            x.capability_id,
+            view.action_types.get(x.capability_id),
+            x.status,
+            view.results.get(x.run_id, ()),
+            t,
         )
         for x in _earlier(report, view, runs, ordinal)
     ]
     if earlier:
         parts.append(h("<h3>{}</h3><ul>{}</ul>", m("v.earlier"), cat(earlier)))
     person = [
-        h("<li>{} ({})</li>", _named(c), _kind(view.action_types.get(c), m))
+        h("<li>{}</li>", _check_kind(c, view.action_types.get(c), t))
         for c in _person_actions(report)
     ]
     if person:
@@ -748,129 +1114,227 @@ def _tested_html(
                 m("v.unavailable"),
                 cat(
                     h(
-                        "<li>{} ({}) {}</li>",
-                        _named(p.capability_id),
-                        _kind(p.action_type, m),
-                        state("BLOCKED"),
+                        "<li>{} {} {}</li>",
+                        _check_kind(p.capability_id, p.action_type, t),
+                        status("ws", "BLOCKED", m),
+                        m("v.not_run_unknown"),
                     )
                     for p in report.pending
                 ),
             )
         )
+    checks = _this_run(report)
+    moves = sum(len(r.transitions) for a in checks for r in view.results.get(a.run_id or "", ()))
+    objections = sum(len(x.objections) for x in report.hypotheses)
+    parts.append(
+        h(
+            "<p><strong>{}</strong></p>{}",
+            m("v.summary_moves", n=moves)
+            if moves
+            else (m("v.summary_none") if checks else m("v.no_checks_learned")),
+            h('<p class="muted">{}</p>', m("v.critique_note", n=objections))
+            if objections
+            else Html(""),
+        )
+    )
     return cat(parts)
 
 
-def _effect(prediction: DeclaredPrediction) -> str:
-    return "/".join(prediction.effects)
+def _prediction_word(p: DeclaredPrediction, view: EpisodeView, t: Terms) -> Html:
+    """Has this prediction been observed? From the read model's comparison only."""
+    m = t.m
+    for results in view.results.values():
+        for r in results:
+            if p in r.matched:
+                return e(m("v.pred.observed"))
+            if p in r.unmatched:
+                return mh(m, "v.pred.other", outcome=t.name(r.outcome))
+            if p in r.incomparable:
+                return e(m("v.pred.not_comparable"))
+    return e(m("v.pred.pending"))
 
 
-def _explain(result: CheckResult, m: Messages) -> Html:
-    """What one observed outcome did, from the typed records only -- see `research.episode_view`."""
-    obs, out = label(result.observable), result.outcome
-    lines: list[Html] = []
-    if result.relations:
-        declared = {
-            p.prediction_id: p for p in (*result.matched, *result.unmatched, *result.incomparable)
-        }
-        for relation in result.relations:
-            p = declared.get(relation.prediction_id or "")
-            lines.append(
-                h(
-                    "<li>{}</li>",
-                    m(
-                        "v.matched",
-                        observable=obs,
-                        outcome=out,
-                        mechanism=relation.mechanism,
-                        expected=p.expected_outcome if p else out,
-                        effect=relation.relation_type,
-                        designated=m("v.designated") if p and p.designated_falsifier else "",
-                    ),
-                )
-            )
-            for t in relation.transitions:
-                lines.append(
-                    h(
-                        '<li class="moved">{}</li>',
-                        m(
-                            "v.moved",
-                            mechanism=t.mechanism,
-                            from_state=t.from_state,
-                            to_state=t.to_state,
-                            decision=t.decision or "-",
-                        ),
-                    )
-                )
-            if not relation.transitions:
-                refused = [d for d in relation.decisions if d.result != "ALLOW"]
-                lines.append(
-                    h(
-                        "<li>{}</li>",
-                        m("v.decided", mechanism=relation.mechanism, result=refused[-1].result)
-                        if refused
-                        else m("v.no_decision", mechanism=relation.mechanism),
-                    )
-                )
-        return cat(lines)
-    if result.matched:
-        return cat(
-            h(
-                "<li>{}</li>",
-                m("v.matched_unrecorded", observable=obs, outcome=out, mechanism=p.mechanism),
-            )
-            for p in result.matched
-        )
-    if result.unmatched or result.incomparable:
-        # Same outcome string or not, a prediction in another OutcomeSpace says nothing here.
-        apart = m("v.space_unrecorded") if result.outcome_space is None else m("v.not_comparable")
-        declared_items = cat(
-            h(
-                "<li>{}{}</li>",
-                m(
-                    "v.declared_item",
-                    mechanism=p.mechanism,
-                    expected=p.expected_outcome,
-                    effect=_effect(p),
-                    designated=m("v.designated") if p.designated_falsifier else "",
-                ),
-                apart if p in result.incomparable else "",
-            )
-            for p in (*result.unmatched, *result.incomparable)
-        )
-        return h(
-            '<li class="no-match">{}<div>{}</div><ul>{}</ul></li>',
-            m("v.no_match", observable=obs, outcome=out),
-            m("v.declared_over", observable=obs),
-            declared_items,
-        )
-    return h("<li>{}</li>", m("v.no_prediction", observable=obs))
-
-
-def _learned_html(report: EpisodeReport | None, view: EpisodeView, m: Messages) -> Html:
+def _support_html(
+    report: EpisodeReport | None, view: EpisodeView, seen: Sequence[_Seen], t: Terms
+) -> Html:
+    """Per hypothesis: its claim, what it predicted, and the observations for and against it."""
+    m = t.m
     if report is None:
         return h("<p>{}</p>", m("v.run_unrecorded"))
-    checks = _this_run(report)
-    if not checks:
-        return h("<p>{}</p>", m("v.no_checks_learned"))
-    items: list[Html] = []
-    moves = 0
-    for a in checks:
-        results = view.results.get(a.run_id or "", ())
-        explained = (
-            cat(_explain(r, m) for r in results)
-            if results
-            else h("<li>{}</li>", m("v.not_recorded"))
+    if not report.hypotheses:
+        return h("<p>{}</p>", m("v.no_hypothesis"))
+    cards: list[Html] = []
+    for x in _ordered(report.hypotheses):
+        typed = view.predictions.get(x.hypothesis_id, ())
+        if typed:
+            predicted = [
+                h(
+                    '<li class="{}">{} {}</li>',
+                    "machine" if p.designated_falsifier else "",
+                    _tag("pred", m),
+                    mh(
+                        m,
+                        "v.pred.item",
+                        observable=t.name(p.observable),
+                        expected=t.name(p.expected_outcome),
+                        effect=_effects(p.effects, m),
+                        designated=m("v.designated") if p.designated_falsifier else "",
+                        status=_prediction_word(p, view, t),
+                    ),
+                )
+                for p in typed
+            ]
+        elif x.machine_falsifiers:
+            predicted = [
+                h('<li class="machine">{} <code>{}</code></li>', m("v.falsifier_recorded"), f)
+                for f in x.machine_falsifiers
+            ]
+        else:
+            predicted = [h('<li class="machine muted">{}</li>', m("v.falsifier_none"))]
+        found = _relations(seen, x.hypothesis_id)
+
+        def items(kind: str, found: list[tuple[_Seen, Relation]] = found) -> Html:
+            chosen = [
+                h("<li>{} {}<div>{}</div></li>", _tag("obs", m), _observation(s, t), _moves(rel, t))
+                for s, rel in found
+                if rel.relation_type == kind
+            ]
+            return cat(chosen) if chosen else h('<li class="muted">{}</li>', m("none"))
+
+        cards.append(
+            h(
+                '<div class="card hypothesis"><h3>{} {}</h3><p>{} {}</p>'
+                "<h4>{}</h4><ul>{}</ul><h4>{}</h4><ul>{}</ul><h4>{}</h4><ul>{}</ul>{}"
+                '<p class="prose">{} {}</p></div>',
+                t.text(x.mechanism),
+                status("bs", x.final_state, m),
+                _tag("hyp", m),
+                t.text(x.statement),
+                m("v.predicted"),
+                cat(predicted),
+                m("v.supporting"),
+                items("SUPPORTS"),
+                m("v.challenging"),
+                items("CONTRADICTS"),
+                h(
+                    '<p class="muted">{} {}</p>',
+                    _tag("interp", m),
+                    m("v.objections", n=len(x.objections)),
+                )
+                if x.objections
+                else Html(""),
+                m("v.falsifier_prose"),
+                t.text(x.falsifier),
+            )
         )
-        moves += sum(len(r.transitions) for r in results)
-        items.append(h("<li>{}<ul>{}</ul></li>", _named(a.capability_id), explained))
-    objections = sum(len(x.objections) for x in report.hypotheses)
+    return cat(cards)
+
+
+def _reasoner_line(report: EpisodeReport, t: Terms) -> Html:
+    """Who proposed and criticised the hypotheses, as the run's inference provenance recorded."""
+    m = t.m
+    d = report.debate
+    if d is None:
+        return e(m("v.why.no_debate"))
+    if d.reasoner.startswith("rules:"):
+        return e(m("v.why.rules"))
+    prefix = "language model: "
+    if d.reasoner.startswith(prefix):
+        from lab_brain.core.models.inference import LogicalSlot
+        from lab_brain.interfaces.web.labels import SLOT_NAMES
+
+        named: list[Html] = []
+        for part in d.reasoner.removeprefix(prefix).split("; "):
+            slot, _, model = part.partition(" -> ")
+            names = SLOT_NAMES.get(LogicalSlot(slot)) if slot in LogicalSlot else None
+            named.append(
+                mh(
+                    m,
+                    "v.why.model_item",
+                    role=names[LOCALES.index(m.locale)] if names else slot,
+                    model=model,
+                )
+            )
+        return mh(m, "v.why.models", models=_joined(named, m))
+    return mh(m, "v.why.reasoner", reasoner=d.reasoner)
+
+
+def _why_html(
+    report: EpisodeReport | None, seen: Sequence[_Seen], t: Terms, view: EpisodeView
+) -> Html:
+    """Why the system can or cannot conclude, from the typed record: what is still open, what
+    conflicts, what was never run -- never a verdict the record does not hold."""
+    m = t.m
+    if report is None:
+        return h("<p>{}</p>", m("ep.no_report"))
+    c = report.conclusion
+    supported, still_open, ruled_out = _groups(report)
+
+    def names(xs: Sequence[HypothesisLine]) -> Html:
+        return _joined([t.text(x.mechanism) for x in xs], m)
+
+    reasons: list[Html] = []
+    if c.status == "CONFIRMED":
+        lead = m("v.why.can")
+        reasons += [
+            mh(m, "v.why.basis", observation=_observation(s, t))
+            for s, rel in _relations(seen, c.confirmed_hypothesis or "")
+            if rel.relation_type == "SUPPORTS"
+        ]
+        stored = [x for x in view.conclusions if x.status == "CONFIRMED"]
+        if any(x.not_relied_on for x in stored):
+            reasons.append(e(m("v.why.not_relied")))
+        elif any(x.warrant_refs for x in stored):
+            n = max(len(x.warrant_refs) for x in stored)
+            reasons.append(e(m("v.why.warranted", n=n)))
+        if ruled_out:
+            reasons.append(mh(m, "v.why.others_ruled_out", names=names(ruled_out)))
+        untested = [x for x in still_open if x.hypothesis_id != c.confirmed_hypothesis]
+        if untested:
+            # A confirmation can rest on a diagnostic signature with rivals never tested: said.
+            reasons.append(mh(m, "v.why.untested_rivals", names=names(untested)))
+    else:
+        lead = m("v.why.cannot")
+        if not report.hypotheses:
+            reasons.append(e(m("v.no_hypothesis")))
+        if still_open:
+            reasons.append(mh(m, "v.why.open", n=len(still_open), names=names(still_open)))
+        if len(supported) > 1:
+            reasons.append(mh(m, "v.why.competing", n=len(supported), names=names(supported)))
+        reasons += [
+            mh(m, "v.why.supported_not_confirmed", mechanism=t.text(x.mechanism)) for x in supported
+        ]
+        if c.status == "INCONCLUSIVE":
+            reasons.append(e(m("v.why.inconclusive")))
+    conflicting = [
+        x
+        for x in report.hypotheses
+        if x.final_state == "CHALLENGED"
+        or {"SUPPORTS", "CONTRADICTS"}
+        <= {r.relation_type for _, r in _relations(seen, x.hypothesis_id)}
+    ]
+    reasons += [mh(m, "v.why.conflicting", mechanism=t.text(x.mechanism)) for x in conflicting]
+    if any(s.stage == "verification" and s.status == "SKIPPED" for s in report.stages):
+        reasons.append(e(m("v.why.no_input")))
+    if report.pending:
+        reasons.append(
+            mh(
+                m,
+                "v.why.unperformed",
+                checks=_joined(
+                    [_check_kind(p.capability_id, p.action_type, t) for p in report.pending], m
+                ),
+            )
+        )
+    person = _person_actions(report)
+    if person:
+        reasons.append(mh(m, "v.why.person", checks=_joined([t.name(x) for x in person], m)))
+    reasons.append(_reasoner_line(report, t))
     return h(
-        "<ul>{}</ul><p><strong>{}</strong></p>{}",
-        cat(items),
-        m("v.summary_moves", n=moves) if moves else m("v.summary_none"),
-        h('<p class="muted">{}</p>', m("v.critique_note", n=objections))
-        if objections
-        else Html(""),
+        '<p><strong>{}</strong></p><ul>{}</ul><p class="muted">{}</p>',
+        lead,
+        cat(h("<li>{}</li>", r) for r in reasons),
+        m("v.why.rule"),
     )
 
 
@@ -904,44 +1368,74 @@ def _declare_label(cleared: frozenset[str] | None, m: Messages) -> Html:
     )
 
 
+def _would_decide(p: PendingAction, report: EpisodeReport, view: EpisodeView, t: Terms) -> Html:
+    """What a check that has not run would decide: the declared predictions over what it would
+    observe. Without the pack's declaration of what it observes, the run's own words."""
+    m = t.m
+    observes = t.observes.get(p.capability_id, ())
+    lines = [
+        h(
+            "<li>{} {}</li>",
+            _tag("pred", m),
+            mh(
+                m,
+                "v.would.item",
+                observable=t.name(q.observable),
+                outcome=t.name(q.expected_outcome),
+                effect=_effects(q.effects, m),
+                mechanism=t.text(x.mechanism),
+            ),
+        )
+        for x in report.hypotheses
+        for q in view.predictions.get(x.hypothesis_id, ())
+        if q.observable in observes
+    ] or [h("<li>{}</li>", t.text(d)) for d in p.would_decide]
+    if not lines:
+        return Html("")
+    return h("<div>{}</div><ul>{}</ul>", m("v.would_decide"), cat(lines))
+
+
 def _next_html(
     episode: EpisodeRow,
     report: EpisodeReport | None,
     view: EpisodeView,
-    csrf: str,
+    csrf: str | None,
     continuable: bool,
-    m: Messages,
+    t: Terms,
     declare_label: frozenset[str] | None = None,
 ) -> Html:
+    """What the researcher should do next. `csrf` None: no form (an exported summary)."""
+    m = t.m
     parts: list[Html] = []
     if report is not None:
         for p in report.pending:
             if p.best_next:
                 parts.append(
                     h(
-                        "<p>{}</p>{}",
-                        m(
+                        '<div class="next"><p><strong>{}</strong></p><p>{}</p>{}</div>',
+                        mh(
+                            m,
                             "v.best_next",
-                            check=label(p.capability_id),
+                            check=t.name(p.capability_id),
                             kind=_kind(p.action_type, m),
-                            reason=p.blocked_because,
                         ),
-                        h(
-                            "<div>{}</div><ul>{}</ul>",
-                            m("v.would_decide"),
-                            cat(h("<li>{}</li>", d) for d in p.would_decide),
-                        )
-                        if p.would_decide
-                        else Html(""),
+                        mh(
+                            m,
+                            "v.blocked_because",
+                            reason=t.text(p.blocked_because),
+                            requires=t.text(p.requires) if p.requires else m("none"),
+                        ),
+                        _would_decide(p, report, view, t),
                     )
                 )
             else:
                 parts.append(
                     h(
                         "<p>{}</p>",
-                        m(
+                        mh(
+                            m,
                             "v.also_blocked",
-                            check=label(p.capability_id),
+                            check=t.name(p.capability_id),
                             kind=_kind(p.action_type, m),
                         ),
                     )
@@ -950,7 +1444,7 @@ def _next_html(
             parts.append(
                 h(
                     "<p>{}</p>",
-                    m("v.person", check=label(c), kind=_kind(view.action_types.get(c), m)),
+                    mh(m, "v.person", check=t.name(c), kind=_kind(view.action_types.get(c), m)),
                 )
             )
     if not parts:
@@ -961,10 +1455,8 @@ def _next_html(
             parts.append(h('<p class="box warn">{}</p>', m("v.no_verification_input")))
         else:
             parts.append(h("<p>{}</p>", m("v.nothing_next")))
-    try:
-        state_text = m(f"ep.{episode.state}")
-    except KeyError:
-        state_text = episode.state
+    if csrf is None:
+        return cat(parts)
     if continuable:
         parts.append(
             h(
@@ -979,8 +1471,14 @@ def _next_html(
             )
         )
     else:
-        parts.append(h('<p class="box muted">{}</p>', m("ep.readonly", state=state_text)))
+        parts.append(
+            h('<p class="box muted">{}</p>', m("ep.readonly", state=_words("ep", episode.state, m)))
+        )
     return cat(parts)
+
+
+def _effect(prediction: DeclaredPrediction) -> str:
+    return "/".join(prediction.effects)
 
 
 def _reasoning_html(
@@ -1287,6 +1785,87 @@ def _conclusion_records_html(view: EpisodeView, m: Messages) -> Html:
     return _table(("analysis", "status", "cause", "class", "warrants", "flags", "relied on"), rows)
 
 
+def _question_html(episode: EpisodeRow, project_name: str | None, m: Messages) -> Html:
+    return h(
+        '<section id="v-question" class="view"><p class="muted">{}</p><h1>{}</h1>'
+        '<p class="muted">{} {} · {} {} · {}</p></section>',
+        m("ep.goal"),
+        episode.goal,
+        m("ep.project"),
+        project_name or label(episode.project_id),
+        m("ep.opened"),
+        when(episode.start_time),
+        m("ep.run_count", n=episode.runs),
+    )
+
+
+def _l1_html(
+    episode: EpisodeRow,
+    report: EpisodeReport | None,
+    runs: Sequence[RunRow],
+    ordinal: int | None,
+    view: EpisodeView,
+    t: Terms,
+    *,
+    csrf: str | None,
+    continuable: bool,
+    declare_label: frozenset[str] | None = None,
+) -> Html:
+    """L1 in the order a researcher asks: the conclusion; the hypotheses side by side; what was
+    tested and observed; what supports or challenges each; why the system can or cannot
+    conclude; what to do next."""
+    m = t.m
+    seen = _seen(report, view, runs, ordinal)
+    return cat(
+        [
+            _section("result", m("v.result"), _result_html(episode, report, runs, ordinal, t)),
+            _section("conclusions", m("v.conclusions"), _conclusion_notices_html(view, m))
+            if any(
+                c.status == "CONFIRMED" and (c.flags or c.not_relied_on) for c in view.conclusions
+            )
+            else Html(""),
+            _section("hypotheses", m("v.hypotheses"), _hypotheses_html(report, view, seen, t)),
+            _section("tested", m("v.tested"), _tested_html(report, view, runs, ordinal, t)),
+            _section("support", m("v.support"), _support_html(report, view, seen, t)),
+            _section("why", m("v.why"), _why_html(report, seen, t, view)),
+            _section(
+                "next",
+                m("v.next"),
+                _next_html(episode, report, view, csrf, continuable, t, declare_label),
+            ),
+        ]
+    )
+
+
+def _untranslated_html(t: Terms) -> Html:
+    if not t.untranslated:
+        return Html("")
+    return h('<p class="box notice">{}</p>', t.m("tr.notice", n=t.untranslated))
+
+
+def _originals_html(t: Terms) -> Html:
+    """Every rendering the page showed beside the text it renders, and where it came from."""
+    m = t.m
+    if not t.shown:
+        return h('<p class="muted">{}</p>', m("tr.as_written"))
+    return cat(
+        [
+            h('<p class="muted">{}</p>', m("tr.provenance", ref=t.ref or m("none"))),
+            _table(
+                (m("col.shown"), m("col.original"), m("col.rendering")),
+                (
+                    (
+                        rendering if rendering is not None else m("tr.none"),
+                        h('<span lang="en">{}</span>', original),
+                        m("tr.curated") if rendering is not None else m("tr.missing"),
+                    )
+                    for original, rendering in t.shown.items()
+                ),
+            ),
+        ]
+    )
+
+
 def episode_page(
     *,
     actor_id: str,
@@ -1301,30 +1880,50 @@ def episode_page(
     project_name: str | None = None,
     view: EpisodeView | None = None,
     declare_label: frozenset[str] | None = None,
+    terms: Terms | None = None,
 ) -> bytes:
     """The research, in the order a researcher reads it.
 
-    L1, open: question, result, competing hypotheses, what was tested, what was learned, next
-    action -- in words, without identifiers. L2 (collapsed): the evidence and reasoning behind
-    them. L3 (collapsed): every record id, the runs, and the full report exactly as before.
-    `view` is `research.episode_view`'s read of the stored records; without it, what it would have
-    said is shown as not recorded, never filled in.
+    L1, open: the question and current conclusion, the hypotheses compared, what was tested and
+    observed, what supports or challenges each, why the system can or cannot conclude, and what
+    to do next -- in words, without identifiers. L2 (collapsed): the evidence and reasoning
+    behind them. L3 (collapsed): every record id, the runs, each rendering beside its original,
+    and the full report exactly as before. `view` is `research.episode_view`'s read of the stored
+    records; without it, what it would have said is shown as not recorded, never filled in.
+    `terms` is how the pack's declared words read in this locale; without it they are shown as
+    written (and, outside English, marked untranslated).
     """
     frame = _chrome(actor_id, chrome, "episodes")
     m = frame.m
     view = view if view is not None else EpisodeView()
+    t = terms if terms is not None and terms.locale == m.locale else Terms(m.locale)
+    l1 = _l1_html(
+        episode,
+        report,
+        runs,
+        report_ordinal,
+        view,
+        t,
+        csrf=csrf,
+        continuable=continuable,
+        declare_label=declare_label,
+    )
     run_rows = []
     for r in runs:
         link = (
             h(
                 '<a href="/episodes/{}?run={}">{}</a> · '
-                '<a href="/episodes/{}/runs/{}/report.md">{}</a>',
+                '<a href="/episodes/{}/runs/{}/report.md">{}</a> · '
+                '<a href="/episodes/{}/runs/{}/summary.html">{}</a>',
                 episode.episode_id,
                 r.ordinal,
                 m("ep.report_link"),
                 episode.episode_id,
                 r.ordinal,
                 m("ep.markdown"),
+                episode.episode_id,
+                r.ordinal,
+                m("ep.summary_export"),
             )
             if r.recorded
             else h('<span class="muted">{}</span>', m("ep.not_recorded"))
@@ -1371,6 +1970,7 @@ def episode_page(
             h("<h3>{}</h3>{}", m("v.l3.conclusions"), _conclusion_records_html(view, m))
             if view.conclusions
             else Html(""),
+            h("<h3>{}</h3>{}", m("v.l3.originals"), _originals_html(t)),
             h(
                 '<h3>{}</h3><p class="muted">{}</p><section class="report">{}</section>',
                 m("ep.report_of", n=report_ordinal if report_ordinal else "-"),
@@ -1383,34 +1983,10 @@ def episode_page(
     )
     body = cat(
         [
-            h(
-                '<section id="v-question" class="view"><p class="muted">{}</p><h1>{}</h1>'
-                '<p class="muted">{} {} · {} {} · {}</p></section>',
-                m("ep.title"),
-                episode.goal,
-                m("ep.project"),
-                project_name or label(episode.project_id),
-                m("ep.opened"),
-                when(episode.start_time),
-                m("ep.run_count", n=episode.runs),
-            ),
+            _question_html(episode, project_name, m),
             h('<p class="box notice">{}</p>', notice) if notice else Html(""),
-            _section(
-                "result", m("v.result"), _result_html(episode, report, runs, report_ordinal, m)
-            ),
-            _section("conclusions", m("v.conclusions"), _conclusion_notices_html(view, m))
-            if any(
-                c.status == "CONFIRMED" and (c.flags or c.not_relied_on) for c in view.conclusions
-            )
-            else Html(""),
-            _section("hypotheses", m("v.hypotheses"), _hypotheses_html(report, view, m)),
-            _section("tested", m("v.tested"), _tested_html(report, view, runs, report_ordinal, m)),
-            _section("learned", m("v.learned"), _learned_html(report, view, m)),
-            _section(
-                "next",
-                m("v.next"),
-                _next_html(episode, report, view, csrf, continuable, m, declare_label),
-            ),
+            _untranslated_html(t),
+            l1,
             _layer(
                 "reasoning",
                 m("v.reasoning"),
@@ -1420,6 +1996,63 @@ def episode_page(
         ]
     )
     return page(f"{m('ep.title')}: {episode.goal[:60]}", body, chrome=frame)
+
+
+def summary_document(
+    *,
+    episode: EpisodeRow,
+    runs: Sequence[RunRow],
+    report: EpisodeReport,
+    report_ordinal: int,
+    view: EpisodeView,
+    terms: Terms,
+    project_name: str | None,
+    source_digest: str,
+    exported_at: dt.datetime,
+) -> bytes:
+    """One run's research summary as a file to keep or print: L1 in the reader's language, then
+    where it came from. A derived document: the record is the run's report, unchanged
+    (`report.md`), and `source_digest` is that export's SHA-256 at the moment of this one."""
+    t = terms
+    m = t.m
+    l1 = _l1_html(episode, report, runs, report_ordinal, view, t, csrf=None, continuable=False)
+    provenance = _table(
+        (m("col.item"), m("col.value")),
+        (
+            (m("sum.derived"), m("sum.derived_text", n=report_ordinal)),
+            (m("sum.source"), h("<code>{}</code>", source_digest)),
+            (m("sum.renderings"), t.ref or m("none")),
+            (m("sum.untranslated"), t.untranslated),
+            (m("sum.reasoner"), _reasoner_line(report, t)),
+            (m("sum.exported"), when(exported_at)),
+            (m("sum.episode"), h("<code>{}</code>", episode.episode_id)),
+        ),
+    )
+    body = cat(
+        [
+            h('<p class="muted">{}</p>', m("sum.title")),
+            _question_html(episode, project_name, m),
+            _untranslated_html(t),
+            l1,
+            h(
+                '<section id="v-provenance" class="view"><h2>{}</h2>{}<h3>{}</h3>{}</section>',
+                m("sum.provenance"),
+                provenance,
+                m("v.l3.originals"),
+                _originals_html(t),
+            ),
+        ]
+    )
+    return h(
+        '<!doctype html><html lang="{}"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        "<title>{} - {}</title><style>{}</style></head><body><main>{}</main></body></html>",
+        m.locale,
+        m("sum.title"),
+        episode.goal[:60],
+        Html(_CSS),
+        body,
+    ).encode("utf-8")
 
 
 # -- the report: `render_markdown`'s sections, as HTML --------------------------------------------

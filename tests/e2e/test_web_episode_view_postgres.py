@@ -43,7 +43,9 @@ from lab_brain.core.repositories import (
 from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
 from lab_brain.core.repositories.conflicts import SqlConflictStore
 from lab_brain.core.repositories.reviews import SqlReviewItemStore
+from lab_brain.domains.silicon_photonics.presentation import NAMES
 from lab_brain.domains.silicon_photonics.product import product_vertical
+from lab_brain.interfaces.web.i18n import Messages
 from lab_brain.interfaces.web.pages import label
 from lab_brain.research.episode_view import load_episode_view
 from lab_brain.research.report_store import SqlResearchReportStore
@@ -71,6 +73,21 @@ def fake() -> Iterator[FakeProvider]:
     provider = FakeProvider(api_key=KEY).start()
     yield provider
     provider.stop()
+
+
+EN = Messages("en")
+
+
+def _name(identifier: str) -> str:
+    """A check, observable or outcome as the English page names it: the pack's own name."""
+    return NAMES[identifier][0] if identifier in NAMES else label(identifier)
+
+
+def _moved(mechanism: str, from_state: str, to_state: str, decision: str) -> str:
+    return (
+        f"{mechanism}: {EN(f'bs.{from_state}')} -> {EN(f'bs.{to_state}')}, a governed belief change"
+        f" (decision: {EN(f'td.{decision}')})."
+    )
 
 
 def _all(db, sql: str, *args: object) -> list[tuple]:  # type: ignore[no-untyped-def]
@@ -120,18 +137,17 @@ def _checks(db, episode: str, after: object = None) -> list[tuple]:  # type: ign
     )
 
 
-def _states(db, episode: str) -> dict[str, int]:  # type: ignore[no-untyped-def]
-    """How many of the episode's hypotheses are in each state, by their latest belief event."""
-    counts: dict[str, int] = {}
-    for (state,) in _all(
-        db,
-        "SELECT DISTINCT ON (e.target_id) e.to_state FROM belief_revision_events e"
-        " JOIN hypotheses h ON h.hypothesis_id = e.target_id WHERE h.created_in_episode = %s"
-        " ORDER BY e.target_id, e.occurred_at DESC",
-        episode,
-    ):
-        counts[state] = counts.get(state, 0) + 1
-    return counts
+def _states(db, episode: str) -> dict[str, str]:  # type: ignore[no-untyped-def]
+    """Each of the episode's hypotheses (by mechanism) and its state, by its latest belief event."""
+    return dict(
+        _all(
+            db,
+            "SELECT DISTINCT ON (e.target_id) h.mechanism, e.to_state FROM belief_revision_events e"
+            " JOIN hypotheses h ON h.hypothesis_id = e.target_id WHERE h.created_in_episode = %s"
+            " ORDER BY e.target_id, e.occurred_at DESC",
+            episode,
+        )
+    )
 
 
 def _moves(db, observations: list[str]) -> list[tuple]:  # type: ignore[no-untyped-def]
@@ -164,19 +180,15 @@ def test_each_executed_check_and_each_governed_move_is_explained_from_the_stored
 
     checks = _checks(db, episode)
     assert any(c[1] == CHECK for c in checks), checks
-    tested = _section(l1, "Executed in this run", "What was learned")
+    tested = _section(l1, "Executed in this run", "What supports or challenges")
     for _, capability, observable, value, _ in checks:
-        assert label(capability) in tested, capability
-        assert f"result: {label(observable)} = {value}" in tested, (observable, value)
+        assert _name(capability) in tested, capability
+        assert f"Observation {_name(observable)} = {_name(value)}" in tested, (observable, value)
     moves = _moves(db, [c[4] for c in checks])
     assert moves, "the contact-open case moves belief through the stored relations"
-    learned = _section(l1, "What was learned", "Next action")
     for mechanism, from_state, to_state, decision, _, _ in moves:
-        assert (
-            f"{mechanism}: {from_state} -> {to_state}, a governed transition"
-            f" (decision: {decision})." in learned
-        )
-    assert f"{len(moves)} governed belief change(s) happened in this run." in learned
+        assert _moved(mechanism, from_state, to_state, decision) in tested
+    assert f"{len(moves)} governed belief change(s) happened in this run." in tested
     assert "A person can act now" in l1 or "Best next check" in l1 or "No further check" in l1
 
     # Each card names as machine falsifiers exactly the predictions its certificate designates.
@@ -196,8 +208,12 @@ def test_each_executed_check_and_each_governed_move_is_explained_from_the_stored
     )
     assert any(d[3] for d in declared) and not all(d[3] for d in declared), declared
     for mechanism, observable, expected, designated in declared:
-        shown = f"Would be refuted if {label(observable)} = {expected}" in cards[mechanism]
-        assert shown == designated, (mechanism, observable, expected, designated)
+        shown = re.search(
+            rf"if {re.escape(_name(observable))} = {re.escape(_name(expected))}: \w+ it, its"
+            " machine falsifier",
+            cards[mechanism],
+        )
+        assert bool(shown) == designated, (mechanism, observable, expected, designated)
 
     # Disclosure: no identifier in L1; the audit layer holds every record behind every check.
     assert not IDENTIFIER.findall(l1), IDENTIFIER.findall(l1)
@@ -316,19 +332,19 @@ def test_an_outcome_no_hypothesis_declared_moves_nothing_and_the_page_says_so(db
     # The page says what the rows say.
     page = browser.get(f"/episodes/{episode}").text
     l1 = _l1(page)
-    learned = _section(l1, "What was learned", "Next action")
+    learned = _section(l1, "What was tested and observed", "What supports or challenges")
     assert (
-        "normalization basis = AGREES matched no declared prediction, so it neither supports nor"
+        "normalization basis = agrees matched no declared prediction, so it neither supports nor"
         " contradicts any hypothesis, and no belief could move." in learned
     )
     assert "Declared about normalization basis:" in learned
     for mechanism, expected, effect, _ in declared:
-        assert f"{mechanism}: {expected} -> {effect}, its machine falsifier" in learned
-    for mechanism, from_state, to_state, decision, _, _ in moves:
         assert (
-            f"{mechanism}: {from_state} -> {to_state}, a governed transition"
-            f" (decision: {decision})." in learned
+            f"{mechanism}: if {_name(expected)}, {EN(f'rt.{effect}')}, its machine falsifier"
+            in learned
         )
+    for mechanism, from_state, to_state, decision, _, _ in moves:
+        assert _moved(mechanism, from_state, to_state, decision) in learned
     assert (
         f"{len(moves)} governed belief change(s) happened in this run." in learned
         if moves
@@ -338,13 +354,16 @@ def test_an_outcome_no_hypothesis_declared_moves_nothing_and_the_page_says_so(db
         r[0]
         for r in _all(db, "SELECT mechanism FROM hypotheses WHERE created_in_episode = %s", episode)
     ]
-    hypotheses = _section(l1, "Competing hypotheses", "What was tested")
-    result = _section(l1, "Result", "Competing hypotheses")
-    for state, n in _states(db, episode).items():
-        assert f"{state} {n}" in result, (state, n, result)
-    for mechanism in mechanisms:
-        assert mechanism in hypotheses
-    assert "Would be refuted if normalization basis = DISAGREES" in hypotheses
+    hypotheses = _section(l1, "Competing hypotheses and where", "What was tested and observed")
+    states = _states(db, episode)
+    assert sorted(states) == sorted(mechanisms)
+    for mechanism, state in states.items():
+        assert f"{mechanism} {EN(f'bs.{state}')}" in hypotheses, (mechanism, state)
+    support = _section(l1, "What supports or challenges", "Why the system can")
+    assert (
+        "if normalization basis = disagrees: supports it, its machine falsifier" in support
+        or "if normalization basis = disagrees: refutes it, its machine falsifier" in support
+    )
     assert "No root cause has been confirmed." in l1
     assert not IDENTIFIER.findall(l1), IDENTIFIER.findall(l1)
     assert observation in _audit(page)
@@ -381,8 +400,11 @@ def test_a_run_that_was_not_reached_says_where_it_stopped_and_that_nothing_moved
         next(s for s in report.stages if s.status == "SKIPPED"),
     )
     l1 = _l1(browser.get(f"/episodes/{episode}").text)
-    assert "Not reached -- the research stopped before verification." in l1
-    assert f"It stopped at the {stopped.stage} step ({stopped.status})." in l1
+    assert "Not reached The research stopped before verification." in l1
+    assert (
+        f"It stopped at the {EN(f'stage.{stopped.stage}')} step ({EN(f'ss.{stopped.status}')})."
+        in l1
+    )
     assert "No check was executed in this run." in l1
     assert "Nothing was tested in this run, so no belief could move." in l1
     assert not _checks(db, episode)
@@ -414,12 +436,14 @@ def test_a_continuation_shows_earlier_checks_as_earlier_and_counts_none_of_their
     assert "Run 2 continued this research from where it stopped; it did not start over." in second
     assert "Showing run 2 of 2." in second
     assert "No check was executed in this run." in second
-    earlier = _section(second, "Executed in earlier runs, not repeated", "What was learned")
+    earlier = _section(
+        second, "Executed in earlier runs, not repeated", "What supports or challenges"
+    )
     assert label(INGEST_CAPABILITY) not in earlier, "document ingestion is not a check"
     for _, capability, observable, value, _ in checks:
-        assert label(capability) in earlier, capability
+        assert _name(capability) in earlier, capability
         if observable is not None:
-            assert f"result: {label(observable)} = {value}" in earlier
+            assert f"Observation {_name(observable)} = {_name(value)}" in earlier
     assert "Nothing was tested in this run, so no belief could move." in second
     assert "governed belief change(s) happened in this run" not in second
     assert "Best next check:" in second and "It cannot run here:" in second

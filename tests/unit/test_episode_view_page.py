@@ -1,7 +1,8 @@
 """The episode page reads in layers: L1 in words, L2 the reasoning, L3 the full audit.
 
-    order          question, result, competing hypotheses, what was tested, what was learned,
-                   next action -- then evidence and reasoning, then audit and provenance
+    order          question and current conclusion, the hypotheses compared, what was tested and
+                   observed, what supports or challenges each, why the system can or cannot
+                   conclude, what to do next -- then evidence and reasoning, then audit
     disclosure     L1 is open; L2 and L3 are collapsed `<details>`
     identifiers    L1 shows no record identifier; L3 shows every one, and the full report
     explanations   what an observed outcome did comes from the typed read model only: no declared
@@ -56,7 +57,15 @@ from tests.report_samples import full_report
 
 HOSTILE = '<script>alert("x")</script><img src=x onerror=alert(1)>'
 T0 = dt.datetime(2026, 10, 8, 9, 0, tzinfo=dt.UTC)
-L1_ORDER = ("v-question", "v-result", "v-hypotheses", "v-tested", "v-learned", "v-next")
+L1_ORDER = (
+    "v-question",
+    "v-result",
+    "v-hypotheses",
+    "v-tested",
+    "v-support",
+    "v-why",
+    "v-next",
+)
 IDENTIFIER = re.compile(
     r"\b(?:epi|hyp|prd|run|job|obs|att|rel|bre|dec|art|cap|lrt|inf|rrn|vpl|bdl|crq|dbt|fan|hst):\S"
 )
@@ -275,12 +284,16 @@ def test_l1_shows_no_record_identifier_and_l3_shows_every_one():
 
 def test_a_result_no_declared_prediction_matched_moves_nothing_and_is_said_so():
     l1 = _l1(_page(_report(), _view(_result())))
-    assert "normalization basis = AGREES matched no declared prediction" in l1
+    assert "normalization basis = agrees matched no declared prediction" in l1
     assert "neither supports nor contradicts any hypothesis, and no belief could move" in l1
-    assert "NORMALIZATION_BASIS_ISSUE: DISAGREES -> CONTRADICTS, its machine falsifier" in l1
+    assert "NORMALIZATION_BASIS_ISSUE: if disagrees, refutes, its machine falsifier" in l1
     assert "No governed belief change happened in this run." in l1
-    assert "Would be refuted if normalization basis = DISAGREES" in l1
-    assert "Would be refuted if normalization basis = SPLIT_DEPENDENT" not in l1, "not designated"
+    assert (
+        "if normalization basis = disagrees: refutes it, its machine falsifier -- not what was"
+        " observed (agrees was)" in l1
+    )
+    assert "if normalization basis = split dependent: supports it -- not observed yet" in l1
+    assert "split dependent: supports it, its machine falsifier" not in l1, "not designated"
     assert "No root cause has been confirmed." in l1
     assert (
         "The proposer's own wording of the falsifier (not used to decide): The normalization basis"
@@ -320,17 +333,20 @@ def test_a_matched_falsifier_its_governed_transition_or_why_there_was_none():
     )
     l1 = _l1(_page(_report(), _view(_matched(transitions=(moved,)))))
     assert (
-        "normalization basis = AGREES matched NORMALIZATION_BASIS_ISSUE's declared prediction "
-        "(AGREES -> CONTRADICTS), its machine falsifier." in l1
+        "normalization basis = agrees matched the prediction NORMALIZATION_BASIS_ISSUE declared in"
+        " advance (if agrees, it refutes the hypothesis), its machine falsifier." in l1
     )
     assert (
-        "NORMALIZATION_BASIS_ISSUE: ACTIVE -> CONTRADICTED, a governed transition (decision: ALLOW)."
-        in l1
+        "NORMALIZATION_BASIS_ISSUE: Open -> Refuted (ruled out), a governed belief change"
+        " (decision: allowed)." in l1
     )
     assert "1 governed belief change(s) happened in this run." in l1
     refused = Decision("dec:2", "hyp:norm", "NEED_HUMAN_REVIEW", "p@1", "ACTIVE", "CONTRADICTED")
     l1 = _l1(_page(_report(), _view(_matched(refused))))
-    assert "its transition policy decided NEED_HUMAN_REVIEW; its state did not change" in l1
+    assert (
+        "its transition policy decided \u201cneeds a person's review\u201d; its state did not"
+        " change" in l1
+    )
     assert "No governed belief change happened in this run." in l1
     l1 = _l1(_page(_report(), _view(_matched())))
     assert "no governed transition is recorded for this relation" in l1
@@ -348,22 +364,23 @@ def test_the_tested_and_next_sections_separate_executed_human_and_unavailable_ch
     l1 = _l1(_page(_report(), _view(_result())))
     executed = l1[l1.index("Executed in this run") : l1.index("Planned, needs a person")]
     assert (
-        "extraction consistency (analytical check) EXECUTED -- result: normalization basis = AGREES"
-        in executed
+        "extraction consistency (analytical check) executed Observation normalization basis ="
+        " agrees" in executed
     )
     person = l1[l1.index("Planned, needs a person") : l1.index("Cannot run here")]
     assert "fourpoint probe (measurement)" in person
     assert "extraction consistency" not in person, "executed already, not a person's to do"
     assert (
-        "charge ac sweep (simulation) BLOCKED"
-        in l1[l1.index("Cannot run here") : l1.index("What was learned")]
+        "charge ac sweep (simulation) cannot run here -- not run; its result is unknown and"
+        " nothing is assumed about it."
+        in l1[l1.index("Cannot run here") : l1.index("What supports or challenges")]
     )
-    nxt = l1[l1.index("Next action") :]
+    nxt = l1[l1.index("What to do next") :]
     assert (
         "Best next check: charge ac sweep (simulation). It cannot run here: no simulation backend"
-        in nxt
+        " is wired in this deployment. It needs: a licence." in nxt
     )
-    assert "DEPLETION_EFFECT -> CONTRADICTED if RS_BIAS_INSENSITIVE" in nxt
+    assert "DEPLETION_EFFECT -> CONTRADICTED if RS_BIAS_INSENSITIVE" in nxt, "as the run wrote it"
     assert "A person can act now: fourpoint probe (measurement)." in nxt
     assert "The critic raised 1 objection(s)" in l1, "critique, kept apart from belief changes"
 
@@ -425,8 +442,10 @@ def test_a_continuation_shows_earlier_checks_as_earlier_and_counts_nothing_twice
     l1 = _l1(_page(report, view, runs=runs, ordinal=2))
     assert "Run 2 continued this research from where it stopped; it did not start over." in l1
     assert "No check was executed in this run." in l1
-    shown = l1[l1.index("Executed in earlier runs, not repeated") : l1.index("What was learned")]
-    assert "extraction consistency" in shown and "result: normalization basis = AGREES" in shown
+    shown = l1[
+        l1.index("Executed in earlier runs, not repeated") : l1.index("What supports or challenges")
+    ]
+    assert "extraction consistency" in shown and "Observation normalization basis = agrees" in shown
     assert "Nothing was tested in this run, so no belief could move." in l1
     assert "governed belief change(s) happened in this run" not in l1
     # Run 1, viewed itself, does not see itself as "earlier".
@@ -436,12 +455,25 @@ def test_a_continuation_shows_earlier_checks_as_earlier_and_counts_nothing_twice
 
 def test_every_message_exists_in_both_locales_and_the_headings_follow_the_locale():
     for key in sorted(i18n.keys()):
-        if key.startswith(("v.", "act.")) or key == "ep.waiting.debate":
+        if (
+            key.startswith(("v.", "act.", "bs.", "cs.", "ws.", "td.", "ss.", "rt.", "tr.", "sum."))
+            or key == "ep.waiting.debate"
+        ):
             assert all(t.strip() for t in i18n.templates(key)), key
     zh = _l1(_page(_report(), _view(_result()), locale="zh-TW"))
-    for heading in ("研究任務", "結果", "互相競爭的假說", "做了哪些檢查", "學到了什麼", "下一步"):
+    for heading in (
+        "研究問題",
+        "目前結論",
+        "互相競爭的假說與各自的證據狀態",
+        "實際做了哪些檢查、觀察到什麼",
+        "支持或挑戰各假說的證據",
+        "為什麼能（或不能）下結論",
+        "下一步該做什麼",
+    ):
         assert heading in zh, heading
-    assert "NORMALIZATION_BASIS_ISSUE" in zh and "AGREES" in zh, "stored values are not translated"
+    # Without the pack's renderings, its words are shown as written -- and said to be.
+    assert "NORMALIZATION_BASIS_ISSUE（未翻譯，顯示英文原文）" in zh
+    assert "agrees（未翻譯，顯示英文原文）" in zh
 
 
 def test_nothing_a_model_a_report_or_a_record_supplies_becomes_markup():
@@ -581,9 +613,9 @@ def test_a_prediction_in_another_outcome_space_is_not_comparable_on_the_page():
     )
     markup = _page(_report(), view)
     l1, l2 = _l1(markup), _reasoning(markup)
-    assert "normalization basis = AGREES matched no declared prediction" in l1
+    assert "normalization basis = agrees matched no declared prediction" in l1
     assert (
-        "NORMALIZATION_BASIS_ISSUE: AGREES -> CONTRADICTS, its machine falsifier -- declared in"
+        "NORMALIZATION_BASIS_ISSUE: if agrees, refutes, its machine falsifier -- declared in"
         " another outcome space or version, so not comparable" in l1
     )
     assert "No governed belief change happened in this run." in l1

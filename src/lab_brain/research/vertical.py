@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.metadata import entry_points
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -100,6 +100,11 @@ class ProductVertical:
     #: relation then goes to a person.
     declaration_sets: tuple[DiagnosticDeclarationSet, ...] = ()
     active_declarations: str | None = None
+    #: How the pack's declared words read in each interface language: locale -> canonical text or
+    #: identifier -> rendering, and which version of those renderings. Presentation only: nothing
+    #: that reasons, verifies or replays reads it.
+    presentation: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
+    presentation_ref: str | None = None
 
 
 def installed_declaration_sets() -> tuple[DiagnosticDeclarationSet, ...]:
