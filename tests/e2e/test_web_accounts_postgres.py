@@ -543,10 +543,20 @@ def test_an_administrator_reads_everything_each_read_recorded_and_writes_nothing
     own_export = ada.get(f"/episodes/{episode}/runs/1/report.md")
     assert own_export.status == 200 and WITHHELD not in own_export.text
 
-    read = admin.get(f"/admin/episodes/{episode}")
-    assert read.status == 200 and WITHHELD not in read.text, "nothing withheld from an ADMIN"
+    def recorded() -> set[str]:
+        return {
+            row[0]
+            for row in lab.connection.execute(
+                "SELECT subject FROM admin_access_log WHERE project_id = %s", (project_id,)
+            ).fetchall()
+        }
+
+    # Each way in records the look on its own: the export, opened directly, first.
     export = admin.get(f"/admin/episodes/{episode}/runs/1/report.md")
     assert export.status == 200 and export.text == own_export.text
+    assert f"episode-reports:{episode}" in recorded()
+    read = admin.get(f"/admin/episodes/{episode}")
+    assert read.status == 200 and WITHHELD not in read.text, "nothing withheld from an ADMIN"
     oversight = admin.get(f"/admin/projects/{project_id}")
     (item_id,) = lab.connection.execute(
         "SELECT raw_artifact_id FROM ingestion_items WHERE project_id = %s AND display_name = %s",
@@ -564,13 +574,7 @@ def test_an_administrator_reads_everything_each_read_recorded_and_writes_nothing
     material = admin.get(f"/admin/projects/{project_id}/artifacts/{item_id}")
     first_line = REPORT.read_text(encoding="utf-8").splitlines()[0]
     assert material.status == 200 and html.escape(first_line, quote=False) in material.text
-    subjects = {
-        row[0]
-        for row in lab.connection.execute(
-            "SELECT subject FROM admin_access_log WHERE project_id = %s", (project_id,)
-        ).fetchall()
-    }
-    assert {f"episode-reports:{episode}", f"material:{item_id}", "project-summary"} <= subjects
+    assert {f"material:{item_id}", "project-summary"} <= recorded()
     seen = ada.get(f"/projects/{project_id}").text
     assert f"read the file “{REPORT.name}”" in seen and "read the reports of" in seen
 
