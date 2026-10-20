@@ -1,0 +1,40 @@
+                db,
+                "SELECT inference_id, role, logical_slot, provider, model_id, model_version,"
+                " prompt_id, prompt_version, created_at::text, output_text FROM inference_provenance"
+                " WHERE project_id = %s AND trace_id = (SELECT trace_id FROM research_episodes"
+                " WHERE episode_id = %s) ORDER BY created_at",
+                PROJECT,
+                episode,
+            )
+            _write(f"{name}.provenance.json", json.dumps(provenance, indent=1, ensure_ascii=False))
+            assert provenance, "the run made no inference at all"
+            assert {p["model_id"] for p in provenance} <= models, {p["model_id"] for p in provenance}
+            assert not db.execute(
+                "SELECT 1 FROM jobs WHERE project_id = %s AND capability_id = ANY(%s)",
+                (PROJECT, SIMULATIONS),
+            ).fetchone(), "no simulation is run, and none is emulated"
+            _, outcome = db.execute(
+                "SELECT state, outcome_status FROM research_episodes WHERE episode_id = %s", (episode,)
+            ).fetchone()
+            if (outcome or "").startswith("CONFIRMED:"):
+                assert name == "sufficient", (name, outcome)
+                declared = db.execute(
+                    "SELECT p.observable_ref, p.expected_outcome FROM predictions p"
+                    " WHERE p.hypothesis_id = %s",
+                    (outcome.removeprefix("CONFIRMED:"),),
+                ).fetchall()
+                assert ("sp.contact_connectivity", "DISCONTINUOUS") in {tuple(r) for r in declared}
+            browser.post("/locale", {"csrf": _token(browser.get("/")), "locale": "zh-TW", "next": "/"})
+            page = browser.get(f"/episodes/{episode}").text
+            _write(f"{name}.zh-TW.html", page)
+            _write(
+                f"{name}.summary.zh-TW.html",
+                browser.get(f"/episodes/{episode}/runs/1/summary.html").text,
+            )
+>           assert "假說與反方審查由語言模型產生" in _text(page)
+E           assert '假說與反方審查由語言模型產生' in '研究任務: Why is Rs extremely high and weakly bias dependent while Cj - 實驗室研究大腦 body{font:15px/1.5 system-ui,-apple-syste...p:sp.charge_dc_sweep, cap:sp.mesh_sensitivity have no backend in this deployment 未執行： no external source was contacted'
+E            +  where '研究任務: Why is Rs extremely high and weakly bias dependent while Cj - 實驗室研究大腦 body{font:15px/1.5 system-ui,-apple-syste...p:sp.charge_dc_sweep, cap:sp.mesh_sensitivity have no backend in this deployment 未執行： no external source was contacted' = _text('<!doctype html><html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, init...nd in this deployment</li><li>未執行： no external source was contacted</li></ul></section></details></main></body></html>')
+tests\e2e\test_research_live_model_postgres.py:254: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/e2e/test_research_live_model_postgres.py::test_a_real_local_model_researches_three_cases_without_lumerical
+1 failed in 682.28s (0:11:22)

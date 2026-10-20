@@ -1,0 +1,15 @@
+3 mutations
+
+[KILLED ] r17_a_refused_debate_read_as_a_missing_input
+           Reading -- verification skipped after a refused debate is not said to lack an input
+           killed by FAILED tests/unit/test_research_reading.py::test_a_debate_refused_before_verification_is_not_said_to
+
+[KILLED ] r18_an_observable_named_as_the_test_left_unresolved
+           Reading -- a model's minimal test named by its observable reads as the pack's check
+           killed by FAILED tests/unit/test_research_reading.py::test_a_model_written_hypothesis_reads_through_the_packs_
+
+[KILLED ] r19_an_observation_held_for_review_unremarked
+           Reading -- an observation a policy sent to a person is said to wait for that review
+           killed by FAILED tests/unit/test_research_reading.py::test_an_observation_held_for_a_persons_review_is_said_to
+
+3/3 killed

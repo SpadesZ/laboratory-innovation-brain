@@ -1,0 +1,40 @@
+                "outcome": outcome,
+                "conclusion": report.conclusion.status,
+                "stages": [[x.stage, x.status, x.detail] for x in report.stages],
+                "hypotheses": [[x.mechanism, x.final_state] for x in report.hypotheses],
+                "inferences": [[p["role"], p["logical_slot"], p["model_id"]] for p in provenance],
+            }
+        _write("outcomes.json", json.dumps(outcomes, indent=1, ensure_ascii=False))
+        stopped = {
+            name: next(
+                (
+                    f"{stage} {status}: {detail}"
+                    for stage, status, detail in o["stages"]
+                    if status in ("FAILED", "REFUSED")
+                ),
+                None,
+            )
+            for name, o in outcomes.items()
+        }
+        reached = {
+            name
+            for name, o in outcomes.items()
+            if any(
+                stage == "verification" and status in ("DONE", "PARTIAL")
+                for stage, status, _ in o["stages"]
+            )
+        }
+>       assert reached == set(CASES), (
+            "the pipeline did not reach verification in every case: "
+            + json.dumps({n: stopped[n] for n in CASES if n not in reached}, ensure_ascii=False)
+        )
+E       AssertionError: the pipeline did not reach verification in every case: {"insufficient": "hypotheses FAILED: RoleOutputRefused: HYPOTHESIS_ENGINE (inference inf:2d91c487-683f-4a1a-b6cf-d830def4f6ac): the output is not JSON (Expecting value: line 1 column 1 (char 0))"}
+E       assert {'competing', 'sufficient'} == {'competing',... 'sufficient'}
+E         
+E         Extra items in the right set:
+E         'insufficient'
+E         Use -v to get more diff
+tests\e2e\test_research_live_model_postgres.py:299: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/e2e/test_research_live_model_postgres.py::test_a_real_model_researches_three_cases_without_lumerical
+1 failed in 1744.69s (0:29:04)

@@ -1,0 +1,257 @@
+{
+ "sufficient": {
+  "episode": "epi:9c19e32c-8093-44e0-9cd7-57ca82f51293",
+  "state": "SUSPENDED",
+  "outcome": null,
+  "conclusion": "PROVISIONAL",
+  "stages": [
+   [
+    "ingestion",
+    "DONE",
+    "1 of 1 document(s) stored, parsed and segmented"
+   ],
+   [
+    "evidence",
+    "DONE",
+    "19 verbatim statement(s) admitted as REPORTED evidence through the admission gate"
+   ],
+   [
+    "verification input",
+    "DONE",
+    "device PS-501, drawn length 500 um, 2 contacts"
+   ],
+   [
+    "external evidence",
+    "SKIPPED",
+    "no literature provider and public query were given; no external source was contacted"
+   ],
+   [
+    "hypotheses",
+    "DONE",
+    "5 competing hypotheses admitted after 1 debate round(s) and an independent critique"
+   ],
+   [
+    "verification",
+    "DONE",
+    "2 plan(s), 1 check(s) executed; stopped: HUMAN_ACTION_REQUIRED"
+   ],
+   [
+    "pending simulation",
+    "BLOCKED",
+    "best next action cap:sp.charge_ac_sweep requires an unavailable simulator"
+   ]
+  ],
+  "hypotheses": [
+   [
+    "carrier_profile_compensation",
+    "ACTIVE"
+   ],
+   [
+    "probe_contact_resistance",
+    "ACTIVE"
+   ],
+   [
+    "process_contact_resistance",
+    "ACTIVE"
+   ],
+   [
+    "simulation_mesh_artefact",
+    "ACTIVE"
+   ],
+   [
+    "uncorrected_extraction_artefact",
+    "ACTIVE"
+   ]
+  ],
+  "inferences": [
+   [
+    "EVIDENCE_RESEARCHER",
+    "FAST_UTILITY",
+    "qwen2.5:7b"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "sp.specialist.semiconductor_device",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "sp.specialist.simulation_numerics",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "EVIDENCE_RESEARCHER",
+    "FAST_UTILITY",
+    "qwen2.5:7b"
+   ],
+   [
+    "critic",
+    "REASONING_ADVERSARIAL",
+    "qwen2.5:7b"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ]
+  ]
+ },
+ "insufficient": {
+  "episode": "epi:6acd2856-5c12-491b-b894-68cc31ff0371",
+  "state": "SUSPENDED",
+  "outcome": null,
+  "conclusion": "NOT_REACHED",
+  "stages": [
+   [
+    "ingestion",
+    "DONE",
+    "1 of 1 document(s) stored, parsed and segmented"
+   ],
+   [
+    "evidence",
+    "DONE",
+    "19 verbatim statement(s) admitted as REPORTED evidence through the admission gate"
+   ],
+   [
+    "verification input",
+    "DONE",
+    "device PS-508, drawn length 500 um, 2 contacts"
+   ],
+   [
+    "external evidence",
+    "SKIPPED",
+    "no literature provider and public query were given; no external source was contacted"
+   ],
+   [
+    "hypotheses",
+    "FAILED",
+    "RoleOutputRefused: HYPOTHESIS_ENGINE (inference inf:2d91c487-683f-4a1a-b6cf-d830def4f6ac): the output is not JSON (Expecting value: line 1 column 1 (char 0))"
+   ],
+   [
+    "verification",
+    "SKIPPED",
+    "the debate did not produce admitted hypotheses"
+   ]
+  ],
+  "hypotheses": [],
+  "inferences": [
+   [
+    "EVIDENCE_RESEARCHER",
+    "FAST_UTILITY",
+    "qwen2.5:7b"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ]
+  ]
+ },
+ "competing": {
+  "episode": "epi:4fac5523-91db-4a00-8cd5-8822f71fced1",
+  "state": "SUSPENDED",
+  "outcome": null,
+  "conclusion": "PROVISIONAL",
+  "stages": [
+   [
+    "ingestion",
+    "DONE",
+    "1 of 1 document(s) stored, parsed and segmented"
+   ],
+   [
+    "evidence",
+    "DONE",
+    "19 verbatim statement(s) admitted as REPORTED evidence through the admission gate"
+   ],
+   [
+    "verification input",
+    "DONE",
+    "device PS-501, drawn length 500 um, 2 contacts"
+   ],
+   [
+    "external evidence",
+    "SKIPPED",
+    "no literature provider and public query were given; no external source was contacted"
+   ],
+   [
+    "hypotheses",
+    "DONE",
+    "5 competing hypotheses admitted after 1 debate round(s) and an independent critique"
+   ],
+   [
+    "verification",
+    "DONE",
+    "2 plan(s), 1 check(s) executed; stopped: HUMAN_ACTION_REQUIRED"
+   ],
+   [
+    "pending simulation",
+    "BLOCKED",
+    "best next action cap:sp.charge_ac_sweep requires an unavailable simulator"
+   ]
+  ],
+  "hypotheses": [
+   [
+    "depletion_modulation",
+    "ACTIVE"
+   ],
+   [
+    "extraction_script_error",
+    "ACTIVE"
+   ],
+   [
+    "mesh_artefact",
+    "ACTIVE"
+   ],
+   [
+    "probe_resistance",
+    "ACTIVE"
+   ],
+   [
+    "process_contact_resistance",
+    "ACTIVE"
+   ]
+  ],
+  "inferences": [
+   [
+    "EVIDENCE_RESEARCHER",
+    "FAST_UTILITY",
+    "qwen2.5:7b"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "sp.specialist.semiconductor_device",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "sp.specialist.simulation_numerics",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "EVIDENCE_RESEARCHER",
+    "FAST_UTILITY",
+    "qwen2.5:7b"
+   ],
+   [
+    "critic",
+    "REASONING_ADVERSARIAL",
+    "qwen2.5:7b"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ]
+  ]
+ }
+}

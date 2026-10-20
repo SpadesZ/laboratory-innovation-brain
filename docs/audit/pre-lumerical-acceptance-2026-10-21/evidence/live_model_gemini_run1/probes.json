@@ -1,0 +1,130 @@
+[
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "CHAT",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 2891,
+  "detail": ""
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "CODE",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 2483,
+  "detail": ""
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "ROLE_CRITIQUE",
+  "outcome": "FAILED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 11171,
+  "detail": "the typed role parser refused it: ADVERSARIAL_CRITIC: 'CONTRADICTS' is not a valid ObjectionKind"
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "ROLE_HYPOTHESIS",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 38108,
+  "detail": ""
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "ROLE_QUERY",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 3858,
+  "detail": ""
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "ROLE_SPECIALIST",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 10375,
+  "detail": ""
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "STRUCTURED_JSON",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 3014,
+  "detail": ""
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "VISION",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 3421,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "CHAT",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 19703,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "CODE",
+  "outcome": "FAILED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 4718,
+  "detail": "the reply does not parse as Python"
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "ROLE_CRITIQUE",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 54500,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "ROLE_HYPOTHESIS",
+  "outcome": "FAILED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 228125,
+  "detail": "multi-space: the typed role parser refused it: HYPOTHESIS_ENGINE: hypothesis 'h1' carries no typed prediction; §8.1 predictions are typed objects, not prose, and a certificate without one is not admissible"
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "ROLE_QUERY",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 10406,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "ROLE_SPECIALIST",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 32000,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "STRUCTURED_JSON",
+  "outcome": "PASSED",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": 3921,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "VISION",
+  "outcome": "ERROR",
+  "probe_version": "probe-6.0.0",
+  "latency_ms": null,
+  "detail": "PROTOCOL_ERROR: HTTP 400: {\"error\":{\"message\":\"Multimodal data provided, but model does not support multimodal requests.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":null}}"
+ }
+]
