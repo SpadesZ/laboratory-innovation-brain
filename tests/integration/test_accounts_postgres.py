@@ -1,0 +1,614 @@
+"""Accounts against PostgreSQL: the flow, the server's checks and the database's own rules (`012u`).
+
+flow          register -> the emailed link verifies -> an administrator approves -> sign in
+fail closed   no mailer: registration and reset are refused and nothing is written
+enumeration   registration and reset answer alike for a known address; sign-in tells an
+              account's state only to its correct password
+authority     only an active administrator other than the holder approves; the last active
+              administrator is kept; nobody changes their own role or suspends themself
+sessions      expire, go idle, end at sign-out, suspension and password reset
+lockout       five wrong passwords lock the account for fifteen minutes
+tokens        used once, expire; the database refuses a second use
+every writer  the triggers hold the approval, bootstrap, last-admin and append-only rules
+              for a direct writer too
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import psycopg
+import pytest
+
+from lab_brain.accounts.passwords import token_hash
+from lab_brain.accounts.service import AccountRefused
+from tests.account_fixtures import PASSWORD, Lab
+
+pytestmark = pytest.mark.postgres
+
+
+@pytest.fixture
+def lab(db: Any) -> Lab:
+    return Lab(db)
+
+
+def _refused(code: str) -> Any:
+    class _Match:
+        def __enter__(self) -> None:
+            return None
+
+        def __exit__(self, kind: Any, value: Any, tb: Any) -> bool:
+            assert isinstance(value, AccountRefused), f"expected {code}, got {value!r}"
+            assert value.code == code, f"expected {code}, got {value.code} ({value.detail})"
+            return True
+
+    return _Match()
+
+
+def _count(db: Any, table: str) -> int:
+    return int(db.execute(f"SELECT count(*) FROM {table}").fetchone()[0])
+
+
+def test_a_person_registers_verifies_is_approved_and_signs_in(lab):
+    admin = lab.admin()
+    accounts = lab.service()
+    accounts.register(email="  Ada@Uni.Example.EDU ")
+    (pending,) = [a for a in accounts.all() if a.email == "ada@uni.example.edu"]
+    assert (pending.status, pending.awaiting, pending.system_role) == (
+        "PENDING",
+        "VERIFICATION",
+        "MEMBER",
+    )
+    actor, password = lab.connection.execute(
+        "SELECT (SELECT ROW(actor_type, active)::text FROM actors WHERE actor_id = %s),"
+        " password_hash FROM accounts WHERE account_id = %s",
+        (pending.actor_id, pending.account_id),
+    ).fetchone()
+    assert actor == "(HUMAN,f)", "an actor that cannot act until approved"
+    assert password is None, "verify first: no password before the address is confirmed"
+    with _refused("sign_in_refused"):
+        accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    with _refused("not_verified"):
+        accounts.approve(pending.account_id, by=admin)
+    verified = accounts.verify_email(
+        lab.link("/verify"), display_name=" Ada  Lin ", password=PASSWORD
+    )
+    assert (verified.awaiting, verified.display_name) == ("APPROVAL", "Ada Lin")
+    with _refused("awaiting_approval"):
+        accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    approved = accounts.approve(pending.account_id, by=admin)
+    assert approved.is_active and not approved.is_admin
+    account, token = accounts.sign_in(email="ADA@uni.example.edu", password=PASSWORD)
+    assert account.account_id == pending.account_id
+    assert accounts.session(token) == approved
+    kinds = [k for k, *_ in reversed(accounts.events(pending.account_id))]
+    assert kinds == [
+        "REGISTERED",
+        "SIGN_IN_REFUSED",
+        "EMAIL_VERIFIED",
+        "PASSWORD_SET",
+        "APPROVED",
+        "SIGNED_IN",
+    ]
+    assert lab.connection.execute("SELECT session_hash FROM account_sessions").fetchone() == (
+        token_hash(token),
+    ), "only the token's hash is stored"
+
+
+def test_without_mail_nothing_that_needs_a_message_happens(lab):
+    accounts = lab.service(mail=False)
+    with _refused("mail_unavailable"):
+        accounts.register(email="ada@uni.example.edu")
+    with _refused("mail_unavailable"):
+        accounts.request_password_reset(email="ada@uni.example.edu")
+    assert _count(lab.connection, "accounts") == 0
+
+
+def test_a_known_address_is_not_revealed(lab):
+    admin = lab.admin()
+    lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    before = _count(lab.connection, "accounts")
+    lab.service().register(email="ada@uni.example.edu")
+    assert _count(lab.connection, "accounts") == before
+    assert "already has one" in lab.mail.sent[-1].body, "the holder is told, the caller is not"
+    for email, password in (
+        ("ada@uni.example.edu", "not the password at all"),
+        ("nobody@else.example", PASSWORD),
+    ):
+        with _refused("sign_in_refused"):
+            lab.service().sign_in(email=email, password=password)
+    sent = len(lab.mail.sent)
+    lab.service().request_password_reset(email="nobody@else.example")
+    assert len(lab.mail.sent) == sent, "no account, no message -- and the same answer"
+
+
+def test_registration_refuses_a_bad_address_and_a_weak_password(lab):
+    with _refused("invalid_email"):
+        lab.service().register(email="not-an-address")
+    assert _count(lab.connection, "accounts") == 0
+
+
+def test_approval_is_an_active_administrators_and_never_ones_own(lab):
+    admin = lab.admin()
+    member = lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    lab.member("bob@gmail.example", "Bob", admin=admin, approve=False)
+    (bob,) = [a for a in lab.service().all() if a.email == "bob@gmail.example"]
+    with _refused("not_permitted"):
+        lab.service().approve(bob.account_id, by=member)
+    # A demoted or suspended administrator's old Account object grants nothing.
+    second = lab.member("cy@lab.example", "Cy", admin=admin)
+    second = lab.service().set_role(second.account_id, "ADMIN", by=admin)
+    lab.service().set_role(second.account_id, "MEMBER", by=admin)
+    with _refused("not_permitted"):
+        lab.service().approve(bob.account_id, by=second)
+    db = lab.connection
+    # The database holds it for a direct writer: approval by a member, and by oneself.
+    for approver in (member.actor_id, bob.actor_id):
+        with pytest.raises(
+            psycopg.errors.RaiseException, match="approved only by an active administrator"
+        ):
+            db.execute(
+                "UPDATE accounts SET status = 'ACTIVE', approved_at = now(),"
+                " approved_by_actor_id = %s WHERE account_id = %s",
+                (approver, bob.account_id),
+            )
+    with pytest.raises(psycopg.errors.RaiseException, match="created PENDING"):
+        db.execute(
+            "INSERT INTO accounts (account_id, actor_id, email, display_name, system_role, status,"
+            " email_verified_at, email_verified_by, approved_at)"
+            " VALUES ('acc:00000000-0000-0000-0000-000000000001', %s, 'x@y.example', 'X', 'ADMIN',"
+            " 'ACTIVE', now(), 'OPERATOR', now())",
+            (bob.actor_id,),
+        )
+    # Past every trigger, the table's own constraint: no approval before verification.
+    unverified = lab.service()
+    unverified.register(email="dee@lab.example")
+    (dee,) = [a for a in unverified.all() if a.email == "dee@lab.example"]
+    db.execute("SET session_replication_role = replica")
+    try:
+        with pytest.raises(psycopg.errors.CheckViolation):
+            db.execute(
+                "UPDATE accounts SET approved_at = now(), approved_by_actor_id = %s"
+                " WHERE account_id = %s",
+                (admin.actor_id, dee.account_id),
+            )
+    finally:
+        db.execute("SET session_replication_role = origin")
+
+
+def test_the_last_active_administrator_is_kept(lab):
+    admin = lab.admin()
+    member = lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    db = lab.connection
+    for assignment in ("system_role = 'MEMBER'", "status = 'SUSPENDED'"):
+        with pytest.raises(psycopg.errors.RaiseException, match="last active administrator"):
+            db.execute(
+                f"UPDATE accounts SET {assignment} WHERE account_id = %s", (admin.account_id,)
+            )
+    with _refused("not_permitted"):
+        lab.service().set_role(admin.account_id, "MEMBER", by=admin)
+    with _refused("not_permitted"):
+        lab.service().suspend(admin.account_id, by=admin, reason="leaving")
+    promoted = lab.service().set_role(member.account_id, "ADMIN", by=admin)
+    assert promoted.is_admin
+    assert db.execute(
+        "SELECT granted_through FROM llm_administrators WHERE actor_id = %s AND revoked_at IS NULL",
+        (member.actor_id,),
+    ).fetchone() == ("ADMIN_ROLE",), "an administrator administers the model routes"
+    lab.service().set_role(admin.account_id, "MEMBER", by=promoted)
+    assert db.execute(
+        "SELECT count(*) FROM llm_administrators WHERE actor_id = %s AND revoked_at IS NULL",
+        (admin.actor_id,),
+    ).fetchone() == (0,), "and the grant ends with the role"
+    with pytest.raises(psycopg.errors.RaiseException, match="last active administrator"):
+        db.execute(
+            "UPDATE accounts SET status = 'SUSPENDED' WHERE account_id = %s", (member.account_id,)
+        )
+
+
+def test_sessions_expire_go_idle_and_end(lab):
+    admin = lab.admin()
+    member = lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    accounts = lab.service()
+    _, token = accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    lab.clock.advance(hours=1, minutes=59)
+    assert accounts.session(token) is not None, "used within two hours"
+    lab.clock.advance(hours=1, minutes=59)
+    assert accounts.session(token) is not None, "and again"
+    lab.clock.advance(hours=2)
+    assert accounts.session(token) is None, "two hours unused"
+    _, token = accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    for _ in range(7):
+        lab.clock.advance(hours=1, minutes=50)
+        accounts.session(token)
+    assert accounts.session(token) is None, "twelve hours after sign-in, used or not"
+    _, token = accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    accounts.sign_out(token)
+    assert accounts.session(token) is None
+    _, token = accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    accounts.suspend(member.account_id, by=admin, reason="left the lab")
+    assert accounts.session(token) is None
+    with _refused("suspended"):
+        accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    assert lab.connection.execute(
+        "SELECT active FROM actors WHERE actor_id = %s", (member.actor_id,)
+    ).fetchone() == (False,), "the actor's every grant is suspended with it (SEC-002)"
+    accounts.reactivate(member.account_id, by=admin)
+    _, token = accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    assert accounts.session(token) is not None
+    db = lab.connection
+    with pytest.raises(psycopg.errors.RaiseException, match="stays revoked"):
+        db.execute("UPDATE account_sessions SET revoked_at = NULL WHERE revoked_at IS NOT NULL")
+    with pytest.raises(psycopg.errors.RaiseException, match="never extended"):
+        db.execute("UPDATE account_sessions SET expires_at = expires_at + interval '1 day'")
+
+
+def test_five_wrong_passwords_lock_the_account_for_fifteen_minutes(lab):
+    admin = lab.admin()
+    lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    accounts = lab.service()
+    for _ in range(5):
+        with _refused("sign_in_refused"):
+            accounts.sign_in(email="ada@uni.example.edu", password="a wrong password!")
+    with _refused("sign_in_refused"):
+        accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    lab.clock.advance(minutes=15)
+    account, _ = accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    kinds = [k for k, *_ in accounts.events(account.account_id)]
+    assert kinds.count("SIGN_IN_REFUSED") == 4 and kinds.count("LOCKED") == 1
+
+
+def test_a_reset_link_works_once_for_thirty_minutes_and_ends_every_session(lab):
+    admin = lab.admin()
+    lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    accounts = lab.service()
+    _, before = accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    accounts.request_password_reset(email="ada@uni.example.edu")
+    first = lab.link("/password/reset")
+    accounts.request_password_reset(email="ada@uni.example.edu")
+    second = lab.link("/password/reset")
+    with _refused("token_invalid"):
+        accounts.reset_password(token=first, password="a brand new passphrase")
+    assert accounts.token_purpose(second) == "RESET_PASSWORD"
+    accounts.reset_password(token=second, password="a brand new passphrase")
+    assert accounts.session(before) is None, "a reset ends every session"
+    with _refused("token_invalid"):
+        accounts.reset_password(token=second, password="yet another passphrase")
+    with _refused("sign_in_refused"):
+        accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    accounts.sign_in(email="ada@uni.example.edu", password="a brand new passphrase")
+    accounts.request_password_reset(email="ada@uni.example.edu")
+    late = lab.link("/password/reset")
+    lab.clock.advance(minutes=31)
+    with _refused("token_invalid"):
+        accounts.reset_password(token=late, password="too late a passphrase")
+    with pytest.raises(psycopg.errors.RaiseException, match="used at most once"):
+        lab.connection.execute(
+            "UPDATE account_tokens SET used_at = now() WHERE used_at IS NOT NULL"
+        )
+    with pytest.raises(psycopg.errors.RaiseException, match="append-only"):
+        lab.connection.execute("DELETE FROM account_events")
+
+
+def test_a_changed_password_keeps_only_the_session_that_changed_it(lab):
+    admin = lab.admin()
+    member = lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    accounts = lab.service()
+    _, here = accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    _, elsewhere = accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    with _refused("wrong_password"):
+        accounts.change_password(member, current="not it at all!", new="another passphrase")
+    accounts.change_password(member, current=PASSWORD, new="another passphrase", keep_session=here)
+    assert accounts.session(here) is not None and accounts.session(elsewhere) is None
+
+
+def test_the_operator_bootstraps_one_administrator_bound_to_an_existing_person(lab):
+    db = lab.connection
+    # The deployment's researcher, with a project and research history before accounts existed.
+    db.execute(
+        "INSERT INTO actors (actor_id, actor_type, display_name) VALUES ('act:researcher', 'HUMAN', 'R')"
+    )
+    account, token = lab.service().bootstrap_admin(
+        email="owner@lab.example", display_name="Lab Owner", actor_id="act:researcher"
+    )
+    assert account.actor_id == "act:researcher" and account.is_admin
+    with _refused("sign_in_refused"):
+        lab.service().sign_in(email="owner@lab.example", password=PASSWORD)
+    assert lab.service().token_purpose(token) == "SET_PASSWORD"
+    lab.service().reset_password(token=token, password=PASSWORD)
+    lab.service().sign_in(email="owner@lab.example", password=PASSWORD)
+    with _refused("state"):
+        lab.service().bootstrap_admin(email="second@lab.example", display_name="Second")
+    with pytest.raises(psycopg.errors.RaiseException, match="only the first administrator"):
+        db.execute(
+            "INSERT INTO actors (actor_id, actor_type) VALUES ('act:sneak', 'HUMAN');"
+            "INSERT INTO accounts (account_id, actor_id, email, display_name, system_role, status,"
+            " email_verified_at, email_verified_by, approved_at)"
+            " VALUES ('acc:00000000-0000-0000-0000-000000000002', 'act:sneak', 's@y.example',"
+            " 'S', 'ADMIN', 'ACTIVE', now(), 'OPERATOR', now())"
+        )
+    with pytest.raises(psycopg.errors.RaiseException, match="never change"):
+        db.execute("UPDATE accounts SET email = 'other@lab.example'")
+
+
+def test_the_operator_bootstraps_from_the_command_line_and_only_once(lab):
+    import io
+
+    from lab_brain.interfaces import cli
+    from tests.postgres_fixtures import database_url
+
+    def run(*argv: str) -> tuple[int, str]:
+        out = io.StringIO()
+        code = cli.main(
+            ["admin", "bootstrap-admin", *argv],
+            out=out,
+            env={"LAB_BRAIN_DATABASE_URL": database_url()},
+            connect=lambda s: psycopg.connect(s.dsn, autocommit=True),
+        )
+        return code, out.getvalue()
+
+    code, printed = run("--email", "Owner@Lab.example", "--name", "Lab Owner")
+    assert code == 0, printed
+    assert "owner@lab.example" in printed and "/password/reset?token=" in printed
+    token = printed.rsplit("token=", 1)[1].strip()
+    assert lab.service().token_purpose(token) == "SET_PASSWORD"
+    code, printed = run("--email", "second@lab.example", "--name", "Second")
+    assert code == 2 and "active administrator exists" in printed
+
+
+def test_mail_to_one_address_and_new_registrations_are_throttled(lab, monkeypatch):
+    from lab_brain.accounts import service as service_module
+
+    admin = lab.admin()
+    lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    accounts = lab.service()
+    sent = len(lab.mail.sent)
+    for _ in range(5):
+        accounts.register(email="ada@uni.example.edu")
+        accounts.request_password_reset(email="ada@uni.example.edu")
+    assert len(lab.mail.sent) - sent == 2, "with the registration's own, three an hour"
+    lab.clock.advance(hours=1, minutes=1)
+    accounts.request_password_reset(email="ada@uni.example.edu")
+    assert len(lab.mail.sent) - sent == 3, "and again after the hour"
+    monkeypatch.setattr(service_module, "MAX_REGISTRATIONS_PER_HOUR", 1)
+    accounts.register(email="bob@gmail.example")
+    with _refused("busy"):
+        accounts.register(email="cy@lab.example")
+    assert not [a for a in accounts.all() if a.email == "cy@lab.example"]
+
+
+def test_a_reset_that_cannot_be_mailed_answers_as_any_other(lab):
+    from lab_brain.accounts.mail import MailUnavailable
+    from lab_brain.accounts.service import AccountService
+    from tests.account_fixtures import BASE_URL, CHEAP
+
+    admin = lab.admin()
+    ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
+
+    class Failing:
+        def send(self, message: Any) -> None:
+            raise MailUnavailable("the relay refused")
+
+    failing = AccountService(
+        lab.connection, mailer=Failing(), base_url=BASE_URL, now=lab.clock, cost=CHEAP
+    )
+    failing.request_password_reset(email="ada@uni.example.edu")
+    failing.request_password_reset(email="nobody@else.example")
+    kinds = [k for k, *_ in lab.service().events(ada.account_id)]
+    assert kinds[:2] == ["MAIL_FAILED", "PASSWORD_RESET_REQUESTED"], "recorded, not shown"
+
+
+def test_a_wrong_current_password_counts_toward_the_lockout(lab):
+    admin = lab.admin()
+    ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    accounts = lab.service()
+    for _ in range(5):
+        with _refused("wrong_password"):
+            accounts.change_password(ada, current="not it at all!", new="another passphrase")
+    with _refused("locked"):
+        accounts.change_password(ada, current=PASSWORD, new="another passphrase")
+    with _refused("sign_in_refused"):
+        accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    lab.clock.advance(minutes=15)
+    accounts.change_password(ada, current=PASSWORD, new="another passphrase")
+    kinds = [k for k, *_ in accounts.events(ada.account_id)]
+    assert kinds.count("PASSWORD_CHECK_REFUSED") == 4 and kinds.count("LOCKED") == 1
+
+
+def test_a_declined_registration_is_told_so_only_with_its_password(lab):
+    admin = lab.admin()
+    lab.member("bob@gmail.example", "Bob", admin=admin, approve=False)
+    (bob,) = [a for a in lab.service().all() if a.email == "bob@gmail.example"]
+    lab.service().reject(bob.account_id, by=admin)
+    with _refused("declined"):
+        lab.service().sign_in(email="bob@gmail.example", password=PASSWORD)
+    with _refused("sign_in_refused"):
+        lab.service().sign_in(email="bob@gmail.example", password="a wrong password!")
+
+
+def test_a_session_or_a_token_cannot_be_deleted_and_written_again(lab):
+    """Deleting a used token or a revoked session and inserting it again would revive it."""
+    admin = lab.admin()
+    lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    _, token = lab.service().sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    lab.service().sign_out(token)
+    db = lab.connection
+    for table in ("account_sessions", "account_tokens", "accounts"):
+        with pytest.raises(psycopg.errors.RaiseException, match="append-only"):
+            db.execute(f"DELETE FROM {table}")
+    assert lab.service().session(token) is None
+    with pytest.raises(psycopg.errors.RaiseException, match="created PENDING, as a MEMBER"):
+        db.execute(
+            "INSERT INTO actors (actor_id, actor_type) VALUES ('act:pending-admin', 'HUMAN');"
+            "INSERT INTO accounts (account_id, actor_id, email, display_name, system_role,"
+            " password_changed_at, created_at) VALUES ('acc:00000000-0000-0000-0000-000000000003',"
+            " 'act:pending-admin', 'p@y.example', 'P', 'ADMIN', now(), now())"
+        )
+
+
+def _bootstrap_state(db: Any) -> tuple[Any, ...]:
+    return tuple(
+        db.execute(
+            "SELECT (SELECT active FROM actors WHERE actor_id = 'act:researcher'),"
+            " (SELECT sensitivity_clearance FROM project_memberships"
+            "   WHERE actor_id = 'act:researcher'),"
+            " (SELECT count(*) FROM llm_administrators"
+            "   WHERE actor_id = 'act:researcher' AND revoked_at IS NULL)"
+        ).fetchone()
+    )
+
+
+def test_the_operators_first_start_settings_leave_later_changes_alone(lab):
+    """`--if-absent`, as the container's bootstrap runs it every start: a suspension, a changed
+    membership and a revoked model administration are not undone by the next start."""
+    import io
+
+    from lab_brain.interfaces import cli
+    from lab_brain.interfaces.deployment import revoke_llm_admin
+    from tests.postgres_fixtures import database_url
+
+    def run(*argv: str) -> tuple[int, str]:
+        out = io.StringIO()
+        code = cli.main(
+            ["admin", *argv],
+            out=out,
+            env={"LAB_BRAIN_DATABASE_URL": database_url()},
+            connect=lambda s: psycopg.connect(s.dsn, autocommit=True),
+        )
+        return code, out.getvalue()
+
+    db = lab.connection
+    db.execute(
+        "INSERT INTO projects (project_id, name, created_at) VALUES ('prj:boot', 'Boot', now())"
+    )
+    first = [
+        ("actor", "act:researcher", "--name", "R", "--if-absent"),
+        ("member", "prj:boot", "act:researcher", "--clearance", "INTERNAL", "--if-absent"),
+        ("llm-admin", "act:researcher", "--if-absent"),
+    ]
+    for argv in first:
+        code, printed = run(*argv)
+        assert code == 0, printed
+    admin, token = lab.service().bootstrap_admin(
+        email="owner@lab.example", display_name="Lab Owner", actor_id="act:researcher"
+    )
+    lab.service().reset_password(token=token, password=PASSWORD)
+    other = lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    other = lab.service().set_role(other.account_id, "ADMIN", by=admin)
+    lab.service().suspend(admin.account_id, by=other, reason="left the lab")
+    db.execute(
+        "UPDATE project_memberships SET sensitivity_clearance = ARRAY['PUBLIC']"
+        " WHERE actor_id = 'act:researcher'"
+    )
+    revoke_llm_admin(db, "act:researcher", lab.clock())
+    before = _bootstrap_state(db)
+    assert before == (False, ["PUBLIC"], 0)
+    for argv in first:
+        code, printed = run(*argv)
+        assert code == 0 and "left as it is" in printed, printed
+    assert _bootstrap_state(db) == before
+
+
+def test_a_session_follows_the_accounts_state_whoever_changed_it(lab):
+    """A suspension written past the service (which would also end the sessions) still ends
+    them: a session signs in only an account that is ACTIVE now."""
+    admin = lab.admin()
+    ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    _, token = lab.service().sign_in(email="ada@uni.example.edu", password=PASSWORD)
+    lab.connection.execute(
+        "UPDATE accounts SET status = 'SUSPENDED' WHERE account_id = %s", (ada.account_id,)
+    )
+    assert lab.service().session(token) is None
+
+
+def test_a_refused_name_or_password_leaves_the_link_usable_and_it_works_once(lab):
+    accounts = lab.service()
+    accounts.register(email="ada@uni.example.edu")
+    token = lab.link("/verify")
+    for name, password, code in (
+        ("Ada", "short", "weak_password"),
+        ("Ada", "ada@uni.example.edu", "weak_password"),
+        ("Ada", "aaaaaaaaaaaaaaaa", "weak_password"),
+        ("   ", PASSWORD, "invalid_name"),
+        ("x" * 121, PASSWORD, "invalid_name"),
+    ):
+        with _refused(code):
+            accounts.verify_email(token, display_name=name, password=password)
+    assert accounts.token_purpose(token) == "VERIFY_EMAIL", "a retry needs no new link"
+    (still,) = accounts.all()
+    assert still.email_verified_at is None
+    ada = accounts.verify_email(token, display_name="Ada", password=PASSWORD)
+    assert ada.email_verified_at is not None
+    with _refused("token_invalid"):
+        accounts.verify_email(token, display_name="Mallory", password="another passphrase")
+    assert accounts.get(ada.account_id).display_name == "Ada"
+
+
+def test_a_stranger_who_registers_an_address_holds_nothing_against_its_owner(lab):
+    """F12b. Under 012u the stranger chose a password at registration, and when the address's
+    owner opened the confirmation link, the account they confirmed signed in with it. Now the
+    link's holder chooses the name and the password; the stranger never had either."""
+    admin = lab.admin()
+    accounts = lab.service()
+    accounts.register(email="ada@uni.example.edu")  # the stranger: an address, nothing more
+    ada = accounts.verify_email(
+        lab.link("/verify"), display_name="Ada", password="ada's own passphrase"
+    )
+    accounts.approve(ada.account_id, by=admin)
+    accounts.sign_in(email="ada@uni.example.edu", password="ada's own passphrase")
+    for message in lab.mail.sent[1:]:
+        assert "Ada" not in message.body, "nothing a registrant typed reaches the address"
+    accounts.register(email="ada@uni.example.edu")  # the stranger again, after confirmation
+    assert "already has one" in lab.mail.sent[-1].body
+    assert accounts.get(ada.account_id).display_name == "Ada"
+
+
+def test_registering_again_before_confirming_sends_a_new_link_and_ends_the_old(lab):
+    accounts = lab.service()
+    accounts.register(email="ada@uni.example.edu")
+    first = lab.link("/verify")
+    accounts.register(email="ada@uni.example.edu")
+    second = lab.link("/verify")
+    assert first != second and _count(lab.connection, "accounts") == 1
+    with _refused("token_invalid"):
+        accounts.verify_email(first, display_name="Ada", password=PASSWORD)
+    ada = accounts.verify_email(second, display_name="Ada", password=PASSWORD)
+    kinds = [k for k, *_ in reversed(accounts.events(ada.account_id))]
+    assert kinds[:3] == ["REGISTERED", "VERIFICATION_RESENT", "EMAIL_VERIFIED"]
+
+
+def test_registration_takes_no_password_whether_or_not_the_address_is_known(lab, monkeypatch):
+    """Nothing about a password happens at registration, on any path: the two answers do the
+    same work, and nobody chose a password before reading the address's mail."""
+    from lab_brain.accounts import service as service_module
+
+    admin = lab.admin()
+    lab.member("ada@uni.example.edu", "Ada", admin=admin)
+
+    def refuse(*_a: Any, **_k: Any) -> str:
+        raise AssertionError("registration hashed a password")
+
+    monkeypatch.setattr(service_module, "hash_password", refuse)
+    lab.service().register(email="ada@uni.example.edu")
+    lab.service().register(email="new@uni.example.edu")
+    assert lab.connection.execute(
+        "SELECT password_hash FROM accounts WHERE email = 'new@uni.example.edu'"
+    ).fetchone() == (None,)
+
+
+def test_the_database_refuses_a_password_before_the_address_is_confirmed(lab):
+    """012v, for every writer: a password only on a confirmed account."""
+    lab.service().register(email="ada@uni.example.edu")
+    db = lab.connection
+    with pytest.raises(psycopg.errors.CheckViolation):
+        db.execute(
+            "UPDATE accounts SET password_hash = 'scrypt$1024$8$1$c2FsdA$a2V5'"
+            " WHERE email = 'ada@uni.example.edu'"
+        )
+    with pytest.raises(psycopg.errors.CheckViolation):
+        db.execute(
+            "INSERT INTO actors (actor_id, actor_type) VALUES ('act:with-password', 'HUMAN');"
+            "INSERT INTO accounts (account_id, actor_id, email, display_name, password_hash)"
+            " VALUES ('acc:00000000-0000-0000-0000-000000000004', 'act:with-password',"
+            " 'w@y.example', 'W', 'scrypt$1024$8$1$c2FsdA$a2V5')"
+        )

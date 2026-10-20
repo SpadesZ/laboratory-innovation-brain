@@ -19,16 +19,18 @@
 #     member whose standing decision authorises its expiry (v3.3-a15: never inferred), and only if
 #     none is declared already. Without one, a diagnostic warrant question cannot be asked and the
 #     episode records that nobody could be (fail closed).
-# Their membership of the bootstrap project is what the configuration says, each start.
+# The researcher, their membership and their LLM administration are written on the FIRST
+# start only (`--if-absent`): from then on the workspace's accounts manage them -- an
+# administrator's changes, or a suspension, are not undone by the next start.
 set -eu
 python /app/scripts/migrate.py
 python /app/deployment/docker/service_roles.py "$LAB_BRAIN_APP_PASSWORD_FILE"
 lab-brain admin db-roles --app-role lab_brain_app --reader-role lab_brain_reader
-lab-brain admin actor "$LAB_BRAIN_ACTOR" --name "$LAB_BRAIN_ACTOR_NAME"
+lab-brain admin actor "$LAB_BRAIN_ACTOR" --name "$LAB_BRAIN_ACTOR_NAME" --if-absent
 lab-brain admin project "$LAB_BRAIN_PROJECT" --name "$LAB_BRAIN_PROJECT_NAME"
 lab-brain admin member "$LAB_BRAIN_PROJECT" "$LAB_BRAIN_ACTOR" \
-    --clearance "$LAB_BRAIN_CLEARANCE" --scope LLM_EGRESS
-lab-brain admin llm-admin "$LAB_BRAIN_ACTOR"
+    --clearance "$LAB_BRAIN_CLEARANCE" --scope LLM_EGRESS --if-absent
+lab-brain admin llm-admin "$LAB_BRAIN_ACTOR" --if-absent
 if [ -n "${LAB_BRAIN_REVIEW_QUEUE_DECLARED_BY:-}" ]; then
     lab-brain admin review-queue "$LAB_BRAIN_PROJECT" \
         --declared-by "$LAB_BRAIN_REVIEW_QUEUE_DECLARED_BY" --if-absent

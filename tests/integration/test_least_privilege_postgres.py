@@ -143,6 +143,23 @@ def test_the_services_role_cannot_step_past_the_rules_that_bind_it(db, roles):  
     assert trigger_states == [("O",)], "every trigger on failure_analyses is still enabled"
 
 
+def test_the_auditors_role_reads_no_password_session_or_token(db, roles):  # type: ignore[no-untyped-def]
+    """Accounts (`012u`): who has which account and role, yes; their secrets' digests, no."""
+    app, reader, password = roles
+    assert _main("admin", "db-roles", "--app-role", app, "--reader-role", reader)[0] == 0
+    with _connect_as(reader, password) as as_reader:
+        assert as_reader.execute("SELECT count(email) FROM accounts").fetchone() == (0,)
+        for statement in (
+            "SELECT password_hash FROM accounts",
+            "SELECT * FROM accounts",
+            "SELECT session_hash FROM account_sessions",
+            "SELECT token_hash FROM account_tokens",
+        ):
+            _refused(as_reader, statement, psycopg.errors.InsufficientPrivilege)
+    with _connect_as(app, password) as as_app:
+        assert as_app.execute("SELECT count(password_hash) FROM accounts").fetchone() == (0,)
+
+
 def test_the_auditors_role_reads_and_writes_nothing(db, roles):  # type: ignore[no-untyped-def]
     app, reader, password = roles
     assert _main("admin", "db-roles", "--app-role", app, "--reader-role", reader)[0] == 0

@@ -22,6 +22,7 @@ follow the chosen locale; a report's text, every identifier and every stored val
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import html
 import re
@@ -41,12 +42,13 @@ _CSS = """
 body{font:15px/1.5 system-ui,-apple-system,"Segoe UI","Noto Sans TC","Microsoft JhengHei",
 sans-serif;margin:0;color:#1d2330;background:#f6f7f9}
 header.top{background:#1f2a44;color:#fff;padding:8px 24px;display:flex;gap:6px;
-align-items:center;flex-wrap:wrap}
+align-items:center;flex-wrap:wrap}header.top nav{display:flex;gap:6px;flex-wrap:wrap}
 header.top a{color:#dfe5f2;text-decoration:none;font-weight:600;padding:4px 10px;
 border-radius:4px}
 header.top a.here{background:#34416a;color:#fff}header.top a.brand{color:#fff;margin-right:12px}
 header.top .who{margin-left:auto;opacity:.9;font-size:13px}
 header.top code{background:#34416a;color:#fff}
+header.top .badge{background:#34416a;color:#fff}
 header.top form{display:flex;gap:4px;align-items:center;margin:0 0 0 12px}
 header.top form button{margin:0;padding:2px 8px;font-size:12px;background:#34416a}
 header.top form button.here{background:#fff;color:#1f2a44}
@@ -82,11 +84,19 @@ color:#7a1a1a}
 .notice{background:#fff8e1;border-color:#e8d38c}.warn{background:#fff1c2;border-color:#e8c46a}
 form.inline{display:inline}label{display:block;font-weight:600;margin-top:12px}
 label.check{font-weight:400}
-input[type=text],input[type=password],input[type=url],textarea,select{width:100%;
+input[type=text],input[type=password],input[type=email],input[type=url],textarea,select{width:100%;
 box-sizing:border-box;padding:6px;font:inherit}
 textarea{min-height:70px}button{margin-top:14px;padding:7px 16px;font:inherit;font-weight:600;
 background:#1f2a44;color:#fff;border:0;border-radius:4px;cursor:pointer}
 button.small{margin:2px 0;padding:3px 10px;font-size:13px}button.danger{background:#8a2323}
+button.secondary{background:#fff;color:#1f2a44;border:1px solid #1f2a44}
+button:focus-visible,a:focus-visible{outline:3px solid #6b8fd6;outline-offset:2px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#fff;border:1px solid #d9dde5;
+border-radius:6px;padding:10px 12px;font:13px/1.5 ui-monospace,Consolas,monospace}
+.actions{display:flex;flex-direction:column;gap:4px}details>summary{cursor:pointer}
+@media (max-width:640px){header.top{padding:8px 12px}main{padding:16px 16px 48px}
+header.top .who{margin-left:0}header.top form{margin-left:0}
+th,td{padding:4px 6px}}
 .hint{font-weight:400;color:#5b6475;font-size:13px}blockquote{margin:4px 0 8px 12px;
 padding-left:10px;border-left:3px solid #c9cfda;color:#333}
 ol.steps{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:8px 0}
@@ -214,6 +224,12 @@ class Chrome:
     csrf: str | None = None
     path: str = "/"
     section: str = ""
+    #: With accounts: the signed-in person's name and whether they administer the laboratory --
+    #: or `signed_out` on the sign-in pages. Without accounts (one researcher, named when the
+    #: workspace started): None, and the frame shows the actor as before.
+    account_name: str | None = None
+    admin: bool = False
+    signed_out: bool = False
 
     @property
     def m(self) -> Messages:
@@ -232,18 +248,46 @@ _SECTIONS = (
 )
 
 
+#: With accounts, a person also reaches their projects and the decisions waiting for them; an
+#: administrator, the laboratory overview -- and only an administrator, the AI model settings.
+_ACCOUNT_SECTIONS = (
+    ("home", "/", "nav.home"),
+    ("projects", "/projects", "nav.projects"),
+    ("inbox", "/inbox", "nav.inbox"),
+    ("data", "/data", "nav.data"),
+    ("new", "/runs/new", "nav.new"),
+    ("episodes", "/episodes", "nav.episodes"),
+)
+_ADMIN_SECTIONS = (
+    ("admin", "/admin", "nav.admin"),
+    ("llm", "/settings/llm", "nav.llm"),
+    ("status", "/status", "nav.status"),
+)
+
+
+def _sections(chrome: Chrome) -> tuple[tuple[str, str, str], ...]:
+    if chrome.signed_out:
+        return ()
+    if chrome.account_name is None:
+        return _SECTIONS
+    return _ACCOUNT_SECTIONS + (
+        _ADMIN_SECTIONS if chrome.admin else (("status", "/status", "nav.status"),)
+    )
+
+
 def page(title: str, body: Html, *, chrome: Chrome) -> bytes:
     m = chrome.m
-    nav = cat(
+    links = cat(
         h(
             '<a href="{}" title="{}"{}>{}</a>',
             href,
             m(f"{label}.hint"),
-            Html(' class="here"' if chrome.section == key else ""),
+            Html(' class="here" aria-current="page"' if chrome.section == key else ""),
             m(label),
         )
-        for key, href, label in _SECTIONS
+        for key, href, label in _sections(chrome)
     )
+    nav = h('<nav aria-label="{}">{}</nav>', m("nav.label"), links) if links else Html("")
     switch = Html("")
     if chrome.csrf is not None:
         switch = h(
@@ -267,8 +311,7 @@ def page(title: str, body: Html, *, chrome: Chrome) -> bytes:
         '<!doctype html><html lang="{}"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<title>{} - {}</title><style>{}</style></head><body>"
-        '<header class="top"><a class="brand" href="/">{}</a>{}{}'
-        '<span class="who">{} <code>{}</code></span></header><main>{}</main>'
+        '<header class="top"><a class="brand" href="/">{}</a>{}{}{}</header><main>{}</main>'
         "</body></html>",
         m.locale,
         title,
@@ -277,10 +320,26 @@ def page(title: str, body: Html, *, chrome: Chrome) -> bytes:
         m("brand"),
         nav,
         switch,
-        m("acting_as"),
-        chrome.actor_id,
+        _who(chrome),
         body,
     ).encode("utf-8")
+
+
+def _who(chrome: Chrome) -> Html:
+    m = chrome.m
+    if chrome.signed_out:
+        return Html("")
+    if chrome.account_name is None:
+        return h('<span class="who">{} <code>{}</code></span>', m("acting_as"), chrome.actor_id)
+    return h(
+        '<span class="who"><a href="/account">{}</a> <span class="badge">{}</span></span>'
+        '<form method="post" action="/logout"><input type="hidden" name="csrf" value="{}">'
+        '<button type="submit">{}</button></form>',
+        chrome.account_name,
+        m("acct.role.ADMIN" if chrome.admin else "acct.role.MEMBER"),
+        chrome.csrf or "",
+        m("acct.sign_out"),
+    )
 
 
 def _list(items: Sequence[Html]) -> Html:
@@ -335,7 +394,7 @@ class RunRow:
 def _chrome(actor_id: str, chrome: Chrome | None, section: str) -> Chrome:
     if chrome is None:
         return Chrome(actor_id, section=section)
-    return Chrome(chrome.actor_id, chrome.locale, chrome.csrf, chrome.path, section)
+    return dataclasses.replace(chrome, section=section)
 
 
 def message_page(

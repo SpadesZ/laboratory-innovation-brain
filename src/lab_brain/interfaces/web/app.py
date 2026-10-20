@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import copy
 import dataclasses
 import hmac
 import json
@@ -48,26 +49,48 @@ import os
 import re
 import secrets
 import shutil
+import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from http.cookies import CookieError, SimpleCookie
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, quote
+from urllib.parse import parse_qs, quote, urlsplit
 
+from lab_brain.accounts.mail import Mailer
+from lab_brain.accounts.oversight import EPISODE_REPORTS, Oversight, access_log
+from lab_brain.accounts.passwords import (
+    DEFAULT_COST,
+    ScryptCost,
+    keyed_digest,
+    normalized_email,
+    token_hash,
+)
+from lab_brain.accounts.projects import LABELS, LabProjects
+from lab_brain.accounts.service import (
+    SESSION_LIFETIME,
+    Account,
+    AccountRefused,
+    AccountService,
+)
 from lab_brain.composition import IngestionService
 from lab_brain.core.models.base import utc_now
 from lab_brain.core.models.enums import SensitivityLabel, TrustClass
 from lab_brain.core.models.identifiers import new_id
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.core.repositories.external_sources import SqlExternalSourceStore
+from lab_brain.core.repositories.warrants import SqlDiagnosticWarrantStore
 from lab_brain.core.scientific_read import ScientificReadRefused
 from lab_brain.interfaces.cli import _DOCUMENT_KINDS, _MEDIA_TYPES
 from lab_brain.interfaces.config import Settings
+from lab_brain.interfaces.review_cli import _packet
 from lab_brain.interfaces.web import (
+    account_pages,
+    admin_pages,
     credential_forms,
     egress_pages,
+    lab_pages,
     llm_guide,
     pages,
     settings_pages,
@@ -133,6 +156,7 @@ from lab_brain.research.service import (
 )
 from lab_brain.research.vertical import VerticalFactory
 from lab_brain.security.reviewer_identity import ReviewerTrust
+from lab_brain.storage.artifacts.interface import ArtifactStoreError
 from lab_brain.storage.artifacts.local import LocalArtifactStore
 from lab_brain.surface.disclosure import ErrorNotFound
 
@@ -145,6 +169,11 @@ LOOPBACK = ("127.0.0.1", "localhost", "[::1]")
 #: The interface-language cookie. Its value is only ever compared against `LOCALES`.
 LOCALE_COOKIE = "lb_locale"
 
+#: With accounts: the session cookie (a random token; the database keeps its SHA-256), and
+#: the signed-out browser's cookie its sign-in form's CSRF token is bound to.
+SESSION_COOKIE = "lb_session"
+ANONYMOUS_COOKIE = "lb_anon"
+
 _ID = r"([A-Za-z0-9:_.\-]{1,200})"
 _EPISODE_PATH = re.compile(rf"^/episodes/{_ID}$")
 _CONTINUE_PATH = re.compile(rf"^/episodes/{_ID}/continue$")
@@ -153,6 +182,16 @@ _CONNECTION_PATH = re.compile(rf"^/settings/llm/connections/{_ID}(?:/([a-z]+))?$
 _MODEL_PATH = re.compile(rf"^/settings/llm/models/{_ID}(?:/([a-z]+))?$")
 _RUNTIME_PATH = re.compile(rf"^/settings/llm/runtimes/{_ID}(?:/([a-z]+))?$")
 _EGRESS_PATH = re.compile(rf"^/projects/{_ID}/egress$")
+_PROJECT_PATH = re.compile(rf"^/projects/{_ID}$")
+_MEMBERS_PATH = re.compile(rf"^/projects/{_ID}/members(?:/(remove|change))?$")
+_ADMIN_ACCOUNT_PATH = re.compile(rf"^/admin/accounts/{_ID}$")
+_ADMIN_ACTION_PATH = re.compile(
+    rf"^/admin/accounts/{_ID}/(approve|reject|suspend|reactivate|role)$"
+)
+_ADMIN_PROJECT_PATH = re.compile(rf"^/admin/projects/{_ID}$")
+_ADMIN_EPISODE_PATH = re.compile(rf"^/admin/episodes/{_ID}$")
+_ADMIN_EXPORT_PATH = re.compile(rf"^/admin/episodes/{_ID}/runs/([0-9]{{1,6}})/report\.md$")
+_ADMIN_MATERIAL_PATH = re.compile(rf"^/admin/projects/{_ID}/artifacts/{_ID}$")
 
 #: Where a form posted to a collection path came from.
 _POSTED_FROM = {
@@ -224,6 +263,24 @@ class _Opened:
     row: pages.EpisodeRow
 
 
+@dataclass(frozen=True)
+class AccountsConfig:
+    """Sign-in for a laboratory (`lab-brain web --accounts`).
+
+    `mailer` None: mail fails closed -- registration and password reset are refused.
+    `base_url` is what emailed links point at. `cookie_secure`: the workspace is reached over
+    HTTPS (behind a TLS-terminating proxy), so its cookies are sent only over HTTPS.
+    `answer_floor`: seconds a registration or a reset request takes at least, whatever the
+    address -- so how long the work took (a new account's writes, a message to a real
+    address) does not tell whether the address has an account."""
+
+    mailer: Mailer | None
+    base_url: str
+    cookie_secure: bool = False
+    cost: ScryptCost = DEFAULT_COST
+    answer_floor: float = 1.0
+
+
 class _Refused(Exception):
     def __init__(self, response: Response) -> None:
         self.response = response
@@ -233,7 +290,7 @@ class Workspace:
     def __init__(
         self,
         *,
-        actor_id: str,
+        actor_id: str | None = None,
         settings: Settings,
         connect: Callable[[Settings], Any],
         artifact_root: Path,
@@ -246,8 +303,19 @@ class Workspace:
         ollama_url: str | None = None,
         credential_dir: Path | None = None,
         inference_deadline: float | None = None,
+        accounts: AccountsConfig | None = None,
     ) -> None:
-        self._actor = actor_id
+        # One of two trust models: one researcher, named at start-up (no login, loopback
+        # only), or a laboratory's accounts, where each request is the person it signs in.
+        if (actor_id is None) == (accounts is None):
+            raise ValueError("a workspace serves one named actor or its accounts, not both")
+        self._actor = actor_id or ""
+        self._accounts_config = accounts
+        self._account: Account | None = None
+        self._session_token = ""
+        #: Binds each form's CSRF token to its session (or signed-out browser): a token one
+        #: person sees is useless in another's browser. Per process, never stored.
+        self._csrf_key = os.urandom(32)
         #: How many competing hypotheses this deployment's research asks for: read once from its
         #: vertical (`ResearchEpisodeService.hypothesis_minimum`), then given to the settings
         #: service (what ROLE_HYPOTHESIS is probed at) and to the runtime loader (what a model on
@@ -320,6 +388,8 @@ class Workspace:
         path = str(environ.get("PATH_INFO") or "/")
         query = parse_qs(str(environ.get("QUERY_STRING") or ""))
         locale = self._requested_locale(environ)
+        if self._accounts_config is not None:
+            return self._respond_with_accounts(environ, method, path, query, locale)
         form: Form | None = None
         if method == "POST":
             origin = environ.get("HTTP_ORIGIN")
@@ -424,10 +494,7 @@ class Workspace:
     @staticmethod
     def _switch_locale(form: Form) -> Response:
         chosen = form.value("locale")
-        target = form.value("next")
-        # Only a path of this workspace: never another origin, never a protocol-relative URL.
-        if not target.startswith("/") or target.startswith("//") or "\\" in target:
-            target = "/"
+        target = _local_target(form.value("next"))
         if chosen not in LOCALES:
             return _redirect(target)
         return _redirect(
@@ -439,7 +506,19 @@ class Workspace:
         )
 
     def _chrome(self, req: _Req, section: str) -> Chrome:
-        return Chrome(self._actor, req.locale, self._csrf, req.target, section)
+        if self._accounts_config is None:
+            return Chrome(self._actor, req.locale, self._csrf, req.target, section)
+        if self._account is None:
+            return Chrome("", req.locale, self._csrf, req.target, section, signed_out=True)
+        return Chrome(
+            self._actor,
+            req.locale,
+            self._csrf,
+            req.target,
+            section,
+            account_name=self._account.display_name,
+            admin=self._account.is_admin,
+        )
 
     # -- research ---------------------------------------------------------------------------------
 
@@ -1031,6 +1110,8 @@ class Workspace:
                     for p in projects
                 ],
                 admin=llm.is_administrator,
+                technical=self._accounts_config is None
+                or (self._account is not None and self._account.is_admin),
             ),
         )
 
@@ -1421,7 +1502,15 @@ class Workspace:
 
     def _require_llm_admin(self, c: Any, req: _Req) -> None:
         """LLM settings are deployment administration (`012f`): membership of a project -- of
-        every project -- grants none of it. Refused before anything is read or written."""
+        every project -- grants none of it. Refused before anything is read or written. With
+        accounts, only an active administrator holds it."""
+        signed_in_admin = self._account is not None and self._account.is_admin
+        if self._accounts_config is not None and not signed_in_admin:
+            raise _Refused(
+                self._message(
+                    req, "403 Forbidden", req.m("msg.not_llm_admin.title"), req.m("admin.llm_only")
+                )
+            )
         if not self._llm(c).is_administrator:
             raise _Refused(
                 self._message(
@@ -2100,6 +2189,788 @@ class Workspace:
             lines.append(line if readable else dataclasses.replace(line, excerpt=WITHHELD))
         return dataclasses.replace(report, evidence=tuple(lines))
 
+    # -- accounts ---------------------------------------------------------------------------------
+    #
+    # With `accounts` (`lab-brain web --accounts`), who a request is comes from its session cookie
+    # and nothing else: the account it resolves to, re-read from the database on every request.
+    # The request is then served by a per-request copy of this workspace whose actor is that
+    # account's actor and whose CSRF token is bound to that session -- so every route below and
+    # every existing one acts as the signed-in person, and a token one person sees in a form is
+    # useless in another's browser. Signed out, only the sign-in pages answer.
+
+    def _respond_with_accounts(
+        self,
+        environ: Mapping[str, Any],
+        method: str,
+        path: str,
+        query: Mapping[str, Sequence[str]],
+        locale: str,
+    ) -> Response:
+        assert self._accounts_config is not None
+        cookies = _cookies(environ)
+        session_token = cookies.get(SESSION_COOKIE, "")
+        anonymous = cookies.get(ANONYMOUS_COOKIE, "")
+        extra: list[tuple[str, str]] = []
+        form: Form | None = None
+        if method == "POST":
+            origin = environ.get("HTTP_ORIGIN")
+            if origin is not None and origin not in {f"http://{h}" for h in self._hosts} | {
+                f"https://{h}" for h in self._hosts
+            }:
+                return self._forbidden()
+            try:
+                form = read_form(environ, limit=MAX_UPLOAD_BYTES)
+            except FormError as refused:
+                req = _Req(method, path, query, None, locale)
+                return self._message(req, "400 Bad Request", req.m("msg.refused"), str(refused))
+        elif method != "GET":
+            return Response("405 Method Not Allowed", b"", headers=(("Allow", "GET, POST"),))
+        connection = self._connect(self._settings)
+        try:
+            if path == "/healthz" and method == "GET":
+                connection.execute("SELECT 1").fetchone()
+                return Response("200 OK", b"ok", content_type="text/plain; charset=utf-8")
+            connection.autocommit = True
+            account = self._account_service(connection).session(session_token)
+            if account is None:
+                session_token = ""
+                if not anonymous:
+                    anonymous = _token()
+                    extra.append(self._cookie(ANONYMOUS_COOKIE, anonymous, 86400))
+                csrf = keyed_digest(self._csrf_key, "anonymous", anonymous)
+            else:
+                csrf = keyed_digest(self._csrf_key, "session", token_hash(session_token))
+            view = copy.copy(self)
+            view._csrf = csrf
+            view._account = account
+            view._actor = account.actor_id if account is not None else ""
+            view._session_token = session_token
+            req = _Req(method, path, query, form, locale)
+            if form is not None and not hmac.compare_digest(form.value("csrf"), csrf):
+                # Nothing of the form is acted on. Most often its session ended (it expired,
+                # or the person signed out elsewhere) while the page stayed open: say so, and
+                # offer the way back, instead of a bare refusal.
+                stale = view._stale_form(environ, req)
+                return dataclasses.replace(stale, headers=stale.headers + tuple(extra))
+            try:
+                response = view._account_route(connection, req)
+                if response is None:
+                    if account is None:
+                        response = _redirect(f"/login?next={quote(req.target)}")
+                    else:
+                        response = view._route(connection, req)
+            except _Refused as refused:
+                response = refused.response
+            return dataclasses.replace(response, headers=response.headers + tuple(extra))
+        finally:
+            connection.close()
+
+    def _stale_form(self, environ: Mapping[str, Any], req: _Req) -> Response:
+        if self._account is None:
+            came_from = urlsplit(str(environ.get("HTTP_REFERER") or ""))
+            back = "/"
+            if came_from.netloc in self._hosts:
+                back = _local_path(
+                    came_from.path + (f"?{came_from.query}" if came_from.query else "")
+                )
+            return _redirect(f"/login?expired=1&next={quote(back)}")
+        return self._message(
+            req, "403 Forbidden", req.m("msg.refused"), req.m("acct.form_stale"), back=req.path
+        )
+
+    def _account_service(self, c: Any) -> AccountService:
+        assert self._accounts_config is not None
+        config = self._accounts_config
+        return AccountService(c, mailer=config.mailer, base_url=config.base_url, cost=config.cost)
+
+    def _cookie(self, name: str, value: str, max_age: int) -> tuple[str, str]:
+        secure = "; Secure" if self._accounts_config and self._accounts_config.cookie_secure else ""
+        return (
+            "Set-Cookie",
+            f"{name}={value}; Path=/; Max-Age={max_age}; SameSite=Strict; HttpOnly{secure}",
+        )
+
+    def _account_route(self, c: Any, req: _Req) -> Response | None:
+        """The sign-in pages, a person's own account, projects, decisions and -- for an
+        administrator -- the laboratory. None: an existing workspace route."""
+        method, path, form = req.method, req.path, req.form
+        if path == "/locale" and form is not None:
+            return self._switch_locale(form)
+        public = {
+            "/login": (self._sign_in_form, self._sign_in),
+            "/register": (self._register_form, self._register),
+            "/verify": (self._verify_form, self._verify),
+            "/password/forgot": (self._forgot_form, self._forgot),
+            "/password/reset": (self._reset_form, self._reset),
+        }
+        if path in public:
+            show, act = public[path]
+            if method == "GET":
+                if self._account is not None and path in ("/login", "/register"):
+                    return _redirect("/")
+                return show(c, req)
+            if form is not None:
+                started = time.monotonic()
+                response = act(c, req, form)
+                if path in ("/register", "/password/forgot"):
+                    assert self._accounts_config is not None
+                    floor = self._accounts_config.answer_floor
+                    # ponytail: a blocking sleep holds a server thread; fine at a lab's volume.
+                    time.sleep(max(0.0, floor - (time.monotonic() - started)))
+                return response
+        if path == "/logout" and method == "POST":
+            self._account_service(c).sign_out(self._session_token)
+            return _redirect("/login?signed_out=1", self._cookie(SESSION_COOKIE, "", 0))
+        if self._account is None:
+            return None
+        if path == "/account" and method == "GET":
+            return self._account_view(c, req)
+        if path == "/account/password" and method == "POST" and form is not None:
+            return self._change_password(c, req, form)
+        if path == "/projects" and method == "GET":
+            return self._lab_projects(c, req)
+        if path == "/projects" and method == "POST" and form is not None:
+            return self._create_project(c, req, form)
+        if (m := _PROJECT_PATH.match(path)) and method == "GET":
+            return self._project_overview(c, req, m.group(1))
+        if (m := _MEMBERS_PATH.match(path)) and method == "POST" and form is not None:
+            return self._change_members(c, req, m.group(1), m.group(2) or "add", form)
+        if path == "/inbox" and method == "GET":
+            return self._inbox(c, req)
+        if path == "/admin" or path.startswith("/admin/"):
+            if not self._account.is_admin:
+                return self._message(
+                    req, "403 Forbidden", req.m("msg.refused"), req.m("admin.only")
+                )
+            return self._admin_route(c, req)
+        return None
+
+    def _signed_out_chrome(self, req: _Req) -> Chrome:
+        return Chrome("", req.locale, self._csrf, req.target, "", signed_out=True)
+
+    # -- signing in -------------------------------------------------------------------------------
+
+    def _sign_in_form(
+        self, c: Any, req: _Req, *, error: str | None = None, email: str = ""
+    ) -> Response:
+        notice = None
+        if req.query.get("signed_out"):
+            notice = req.m("acct.signed_out")
+        elif req.query.get("reset"):
+            notice = req.m("acct.reset.done")
+        elif req.query.get("expired"):
+            notice = req.m("acct.expired")
+        going = (req.query.get("next") or ["/"])[0]
+        if req.form is not None:
+            going = req.form.value("next") or "/"
+        return Response(
+            "200 OK" if error is None else "401 Unauthorized",
+            account_pages.sign_in_page(
+                self._signed_out_chrome(req),
+                next_path=_local_path(going),
+                error=error,
+                notice=notice,
+                email=email,
+                no_admin=not self._account_service(c).has_admin(),
+            ),
+        )
+
+    def _sign_in(self, c: Any, req: _Req, form: Form) -> Response:
+        email = form.value("email")
+        try:
+            _account, token = self._account_service(c).sign_in(
+                email=email, password=form.raw("password")
+            )
+        except AccountRefused as refused:
+            return self._sign_in_form(
+                c, req, error=account_pages.refusal(req.m, refused.code), email=email
+            )
+        return _redirect(
+            _local_path(form.value("next") or "/"),
+            self._cookie(SESSION_COOKIE, token, int(SESSION_LIFETIME.total_seconds())),
+        )
+
+    def _register_form(self, c: Any, req: _Req, **kw: Any) -> Response:
+        closed = not self._account_service(c).mail_configured()
+        return Response(
+            "200 OK" if not kw.get("error") else "409 Conflict",
+            account_pages.register_page(self._signed_out_chrome(req), closed=closed, **kw),
+        )
+
+    def _register(self, c: Any, req: _Req, form: Form) -> Response:
+        email = form.value("email")
+        try:
+            self._account_service(c).register(email=email)
+        except AccountRefused as refused:
+            return self._register_form(
+                c,
+                req,
+                error=account_pages.refusal(req.m, refused.code, refused.detail),
+                email=email,
+            )
+        return Response(
+            "200 OK",
+            account_pages.notice_page(
+                self._signed_out_chrome(req),
+                title=req.m("acct.registered.title"),
+                text=req.m("acct.registered"),
+                link=("/login", req.m("acct.sign_in")),
+            ),
+        )
+
+    def _verify_form(self, c: Any, req: _Req) -> Response:
+        token = (req.query.get("token") or [""])[0]
+        if self._account_service(c).token_purpose(token) != "VERIFY_EMAIL":
+            return self._link_invalid(req)
+        return Response(
+            "200 OK", account_pages.verify_page(self._signed_out_chrome(req), token=token)
+        )
+
+    def _verify(self, c: Any, req: _Req, form: Form) -> Response:
+        token, name = form.value("token"), form.value("name")
+        service = self._account_service(c)
+        if service.token_purpose(token) != "VERIFY_EMAIL":
+            return self._link_invalid(req)
+
+        def again(error: str) -> Response:
+            # The link still works: nothing was consumed.
+            return Response(
+                "409 Conflict",
+                account_pages.verify_page(
+                    self._signed_out_chrome(req), token=token, name=name, error=error
+                ),
+            )
+
+        if form.raw("password") != form.raw("repeat"):
+            return again(req.m("acct.refused.passwords_differ"))
+        try:
+            service.verify_email(token, display_name=name, password=form.raw("password"))
+        except AccountRefused as refused:
+            if refused.code in ("weak_password", "invalid_name"):
+                return again(account_pages.refusal(req.m, refused.code, refused.detail))
+            return self._link_invalid(req)
+        return Response(
+            "200 OK",
+            account_pages.notice_page(
+                self._signed_out_chrome(req),
+                title=req.m("acct.verify.title"),
+                text=req.m("acct.verify.done"),
+                link=("/login", req.m("acct.sign_in")),
+            ),
+        )
+
+    def _forgot_form(self, c: Any, req: _Req, **kw: Any) -> Response:
+        if not self._account_service(c).mail_configured():
+            kw.setdefault("error", req.m("acct.refused.mail_unavailable"))
+        return Response("200 OK", account_pages.forgot_page(self._signed_out_chrome(req), **kw))
+
+    def _forgot(self, c: Any, req: _Req, form: Form) -> Response:
+        try:
+            self._account_service(c).request_password_reset(email=form.value("email"))
+        except AccountRefused as refused:
+            return self._forgot_form(c, req, error=account_pages.refusal(req.m, refused.code))
+        return self._forgot_form(c, req, notice=req.m("acct.forgot.sent"))
+
+    def _reset_form(
+        self, c: Any, req: _Req, *, error: str | None = None, token: str | None = None
+    ) -> Response:
+        token = token if token is not None else (req.query.get("token") or [""])[0]
+        if self._account_service(c).token_purpose(token) not in ("RESET_PASSWORD", "SET_PASSWORD"):
+            return self._link_invalid(req)
+        return Response(
+            "200 OK" if error is None else "409 Conflict",
+            account_pages.reset_page(self._signed_out_chrome(req), token=token, error=error),
+        )
+
+    def _reset(self, c: Any, req: _Req, form: Form) -> Response:
+        token = form.value("token")
+        if form.raw("password") != form.raw("repeat"):
+            return self._reset_form(
+                c, req, error=req.m("acct.refused.passwords_differ"), token=token
+            )
+        try:
+            self._account_service(c).reset_password(token=token, password=form.raw("password"))
+        except AccountRefused as refused:
+            if refused.code == "weak_password":
+                return self._reset_form(
+                    c,
+                    req,
+                    error=account_pages.refusal(req.m, refused.code, refused.detail),
+                    token=token,
+                )
+            return self._link_invalid(req)
+        return _redirect("/login?reset=1", self._cookie(SESSION_COOKIE, "", 0))
+
+    def _link_invalid(self, req: _Req) -> Response:
+        return Response(
+            "410 Gone",
+            account_pages.notice_page(
+                self._signed_out_chrome(req),
+                title=req.m("acct.link_invalid.title"),
+                text=req.m("acct.link_invalid"),
+                link=("/password/forgot", req.m("acct.forgot")),
+            ),
+        )
+
+    # -- one's own account -------------------------------------------------------------------------
+
+    def _account_view(
+        self, c: Any, req: _Req, *, notice: str | None = None, error: str | None = None
+    ) -> Response:
+        account = self._account
+        assert account is not None
+        return Response(
+            "200 OK" if error is None else "409 Conflict",
+            account_pages.account_page(
+                self._chrome(req, ""),
+                name=account.display_name,
+                email=account.email,
+                role=account.system_role,
+                status=account.status,
+                since=account.created_at,
+                projects=LabProjects(c).owned_or_assigned(account.actor_id),
+                notice=notice,
+                error=error,
+            ),
+        )
+
+    def _change_password(self, c: Any, req: _Req, form: Form) -> Response:
+        assert self._account is not None
+        if form.raw("password") != form.raw("repeat"):
+            return self._account_view(c, req, error=req.m("acct.refused.passwords_differ"))
+        try:
+            self._account_service(c).change_password(
+                self._account,
+                current=form.raw("current"),
+                new=form.raw("password"),
+                keep_session=self._session_token,
+            )
+        except AccountRefused as refused:
+            return self._account_view(
+                c, req, error=account_pages.refusal(req.m, refused.code, refused.detail)
+            )
+        return self._account_view(c, req, notice=req.m("acct.password_changed"))
+
+    # -- projects ----------------------------------------------------------------------------------
+
+    def _lab_projects(self, c: Any, req: _Req, *, error: str | None = None) -> Response:
+        assert self._account is not None
+        notice = req.m("proj.created") if req.query.get("created") else None
+        return Response(
+            "200 OK" if error is None else "409 Conflict",
+            lab_pages.projects_page(
+                self._chrome(req, "projects"),
+                projects=LabProjects(c).owned_or_assigned(self._account.actor_id),
+                notice=notice,
+                error=error,
+            ),
+        )
+
+    def _create_project(self, c: Any, req: _Req, form: Form) -> Response:
+        assert self._account is not None
+        try:
+            project_id = LabProjects(c).create(
+                self._account, name=form.value("name"), clearance=form.values("clearance")
+            )
+        except AccountRefused as refused:
+            return self._lab_projects(c, req, error=_project_refusal(req.m, refused))
+        return _redirect(f"/projects/{quote(project_id)}?created=1")
+
+    def _project_overview(
+        self,
+        c: Any,
+        req: _Req,
+        project_id: str,
+        *,
+        notice: str | None = None,
+        error: str | None = None,
+    ) -> Response:
+        assert self._account is not None
+        projects = LabProjects(c)
+        mine = projects.membership(project_id, self._account.actor_id)
+        member = (
+            mine is not None
+            and mine.active
+            and self._gate(c).authorize_project(actor_id=self._actor, project_id=project_id).allowed
+        )
+        if not member:
+            if (
+                self._account.is_admin
+                and c.execute(
+                    "SELECT 1 FROM projects WHERE project_id = %s", (project_id,)
+                ).fetchone()
+            ):
+                return _redirect(f"/admin/projects/{quote(project_id)}")
+            return self._message(
+                req, "404 Not Found", req.m("msg.not_found"), req.m("proj.not_found")
+            )
+        row = c.execute(
+            "SELECT name, privacy_mode, created_at FROM projects WHERE project_id = %s",
+            (project_id,),
+        ).fetchone()
+        assert mine is not None
+        view = lab_pages.ProjectOverview(
+            project_id=project_id,
+            name=str(row[0]),
+            privacy_mode=str(row[1]),
+            created_at=row[2],
+            memberships=projects.memberships(project_id),
+            mine=mine,
+            can_manage=self._account.is_admin,
+            oversight=access_log(c, project_id),
+            actor_id=self._actor,
+        )
+        if req.query.get("created"):
+            notice = req.m("proj.created")
+        elif (done := (req.query.get("done") or [""])[0]) in _MEMBER_DONE:
+            notice = req.m(_MEMBER_DONE[done])
+        return Response(
+            "200 OK" if error is None else "409 Conflict",
+            lab_pages.project_page(self._chrome(req, "projects"), view, notice=notice, error=error),
+        )
+
+    def _change_members(
+        self, c: Any, req: _Req, project_id: str, action: str, form: Form
+    ) -> Response:
+        """Add, change or remove a member. An administrator who is not a member works from
+        the project's oversight page, and comes back to it."""
+        assert self._account is not None
+        projects = LabProjects(c)
+        here = projects.membership(project_id, self._account.actor_id)
+        from_oversight = self._account.is_admin and (here is None or not here.active)
+        try:
+            if action == "remove":
+                projects.remove_member(project_id, by=self._account, actor_id=form.value("actor"))
+            elif action == "change":
+                projects.change_member(
+                    project_id,
+                    by=self._account,
+                    actor_id=form.value("actor"),
+                    clearance=form.values("clearance"),
+                    owner=form.value("owner") == "1",
+                )
+            else:
+                address = normalized_email(form.value("email"))
+                target = (
+                    None
+                    if address is None
+                    else c.execute(
+                        "SELECT account_id FROM accounts WHERE email = %s", (address,)
+                    ).fetchone()
+                )
+                if target is None:
+                    raise AccountRefused("not_found")
+                projects.add_member(
+                    project_id,
+                    by=self._account,
+                    member_account_id=str(target[0]),
+                    clearance=form.values("clearance"),
+                    owner=form.value("owner") == "1",
+                )
+        except AccountRefused as refused:
+            if refused.code == "not_permitted" and here is None and not self._account.is_admin:
+                return self._message(
+                    req, "404 Not Found", req.m("msg.not_found"), req.m("proj.not_found")
+                )
+            if from_oversight:
+                return self._project_oversight(
+                    c, req, project_id, error=_project_refusal(req.m, refused)
+                )
+            return self._project_overview(
+                c, req, project_id, error=_project_refusal(req.m, refused)
+            )
+        done = {"add": "added", "change": "changed", "remove": "removed"}[action]
+        if from_oversight:
+            return _redirect(f"/admin/projects/{quote(project_id)}?done={done}")
+        return _redirect(f"/projects/{quote(project_id)}?done={done}")
+
+    # -- decisions ---------------------------------------------------------------------------------
+
+    def _inbox(self, c: Any, req: _Req) -> Response:
+        """What waits for this person: warrant questions they may answer, research they started
+        that stopped for a person, and -- for an administrator -- confirmed registrations."""
+        assert self._account is not None
+        warrants = SqlDiagnosticWarrantStore(c)
+        reviews: list[lab_pages.ReviewQuestion] = []
+        hidden = not_enrolled = 0
+        now = utc_now()
+        for project in self._projects(c):
+            outstanding = warrants.outstanding(project.project_id)
+            if not outstanding:
+                continue
+            cleared = self._cleared(c, project.project_id)
+            enrolled = any(
+                not warrants.revocations(project.project_id, e.enrolment_id)
+                for e in warrants.enrolments(project.project_id, self._actor)
+            )
+            for review in outstanding:
+                question = _question_of(c, project.project_id, review.subject_id)
+                if question is None or question.label not in cleared:
+                    hidden += 1
+                    continue
+                if not enrolled:
+                    not_enrolled += 1
+                    continue
+                reviews.append(
+                    lab_pages.ReviewQuestion(
+                        review_id=review.review_id,
+                        project_name=project.name,
+                        statement=question.statement,
+                        mechanism=question.mechanism,
+                        claim=req.m(
+                            f"inbox.claim.{question.relation_type}",
+                            observable=question.observable or req.m("inbox.observed"),
+                            outcome=question.outcome,
+                        ),
+                        due=review.due_at,
+                        overdue=review.due_at is not None and review.due_at < now,
+                        command=(
+                            f"lab-brain review show {review.review_id} --project "
+                            f"{project.project_id} --actor {self._actor}\n"
+                            f"lab-brain review resolve {review.review_id} --project "
+                            f"{project.project_id} --actor {self._actor} --key <your key file>"
+                            ' --outcome APPROVED|REJECTED --rationale "<why>"'
+                        ),
+                        packet=tuple(_packet(c, project.project_id, review.subject_id)),
+                    )
+                )
+        names = {p.project_id: p.name for p in self._projects(c)}
+        episodes = [
+            lab_pages.WaitingEpisode(e.episode_id, names[e.project_id], e.goal, e.suspend_reason)
+            for e in self._opened_episodes(c)
+            if e.project_id in names
+            and e.state not in ("COMPLETED", "ABANDONED")
+            and e.suspend_reason
+        ]
+        pending = (
+            sum(
+                1
+                for a in self._account_service(c).all()
+                if a.status == "PENDING" and a.email_verified_at is not None
+            )
+            if self._account.is_admin
+            else 0
+        )
+        return Response(
+            "200 OK",
+            lab_pages.inbox_page(
+                self._chrome(req, "inbox"),
+                reviews=reviews,
+                hidden=hidden,
+                not_enrolled=not_enrolled,
+                episodes=episodes,
+                pending=pending,
+            ),
+        )
+
+    # -- the laboratory ----------------------------------------------------------------------------
+
+    def _admin_route(self, c: Any, req: _Req) -> Response:
+        assert self._account is not None and self._account.is_admin
+        oversight = Oversight(c, self._account)
+        method, path, form = req.method, req.path, req.form
+        if path == "/admin" and method == "GET":
+            return self._admin_dashboard(c, req, oversight)
+        if (m := _ADMIN_ACCOUNT_PATH.match(path)) and method == "GET":
+            return self._admin_member(c, req, oversight, m.group(1))
+        if (m := _ADMIN_ACTION_PATH.match(path)) and method == "POST" and form is not None:
+            return self._admin_action(c, req, oversight, m.group(1), m.group(2), form)
+        if (m := _ADMIN_PROJECT_PATH.match(path)) and method == "GET":
+            done = (req.query.get("done") or [""])[0]
+            return self._project_oversight(
+                c,
+                req,
+                m.group(1),
+                notice=req.m(_MEMBER_DONE[done]) if done in _MEMBER_DONE else None,
+            )
+        if (m := _ADMIN_EPISODE_PATH.match(path)) and method == "GET":
+            return self._admin_episode(c, req, oversight, m.group(1))
+        if (m := _ADMIN_EXPORT_PATH.match(path)) and method == "GET":
+            return self._admin_export(c, req, oversight, m.group(1), int(m.group(2)))
+        if (m := _ADMIN_MATERIAL_PATH.match(path)) and method == "GET":
+            return self._admin_material(c, req, oversight, m.group(1), m.group(2))
+        return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
+
+    def _project_oversight(
+        self,
+        c: Any,
+        req: _Req,
+        project_id: str,
+        *,
+        notice: str | None = None,
+        error: str | None = None,
+    ) -> Response:
+        assert self._account is not None and self._account.is_admin
+        detail = Oversight(c, self._account).project(project_id)
+        if detail is None:
+            return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
+        return Response(
+            "200 OK" if error is None else "409 Conflict",
+            admin_pages.project_oversight_page(
+                self._chrome(req, "admin"),
+                detail,
+                actor_id=self._actor,
+                allowed=LABELS,
+                notice=notice,
+                error=error,
+            ),
+        )
+
+    def _admin_dashboard(
+        self, c: Any, req: _Req, oversight: Oversight, *, error: str | None = None
+    ) -> Response:
+        return Response(
+            "200 OK" if error is None else "409 Conflict",
+            admin_pages.dashboard_page(
+                self._chrome(req, "admin"),
+                members=oversight.members(),
+                projects=oversight.projects(),
+                notice=req.m("admin.done") if req.query.get("done") else None,
+                error=error,
+            ),
+        )
+
+    def _admin_member(
+        self,
+        c: Any,
+        req: _Req,
+        oversight: Oversight,
+        account_id: str,
+        *,
+        error: str | None = None,
+    ) -> Response:
+        found = oversight.member(account_id)
+        if found is None:
+            return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
+        account, projects, episodes = found
+        assert self._account is not None
+        return Response(
+            "200 OK" if error is None else "409 Conflict",
+            admin_pages.member_page(
+                self._chrome(req, "admin"),
+                account=account,
+                projects=projects,
+                episodes=episodes,
+                history=self._account_service(c).events(account_id),
+                self_view=account.account_id == self._account.account_id,
+                notice=req.m("admin.done") if req.query.get("done") else None,
+                error=error,
+            ),
+        )
+
+    def _admin_action(
+        self, c: Any, req: _Req, oversight: Oversight, account_id: str, action: str, form: Form
+    ) -> Response:
+        assert self._account is not None
+        service = self._account_service(c)
+        by = self._account
+        try:
+            if action == "approve":
+                service.approve(account_id, by=by)
+            elif action == "reject":
+                service.reject(account_id, by=by)
+            elif action == "suspend":
+                service.suspend(account_id, by=by, reason=form.value("reason"))
+            elif action == "reactivate":
+                service.reactivate(account_id, by=by)
+            else:
+                service.set_role(account_id, form.value("role"), by=by)
+        except AccountRefused as refused:
+            message = _admin_refusal(req.m, refused)
+            if action in ("approve", "reject"):
+                return self._admin_dashboard(c, req, oversight, error=message)
+            return self._admin_member(c, req, oversight, account_id, error=message)
+        if action in ("approve", "reject"):
+            return _redirect("/admin?done=1")
+        return _redirect(f"/admin/accounts/{quote(account_id)}?done=1")
+
+    def _admin_episode(self, c: Any, req: _Req, oversight: Oversight, episode_id: str) -> Response:
+        project_id = oversight.episode_project(episode_id)
+        if project_id is None:
+            return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
+        # Recorded first: an administrator reads every report in full, classified excerpts
+        # included, and the project's members are shown that they did.
+        oversight.record(project_id, f"{EPISODE_REPORTS}{episode_id}")
+        row = c.execute(
+            "SELECT e.goal, p.name FROM research_episodes e JOIN projects p"
+            " ON p.project_id = e.project_id WHERE e.episode_id = %s",
+            (episode_id,),
+        ).fetchone()
+        reports = [
+            (ordinal, text) for ordinal, text in self._full_reports(c, project_id, episode_id)
+        ]
+        return Response(
+            "200 OK",
+            admin_pages.episode_oversight_page(
+                self._chrome(req, "admin"),
+                episode_id=episode_id,
+                goal=str(row[0]),
+                project_name=str(row[1]),
+                reports=reports,
+            ),
+        )
+
+    def _full_reports(self, c: Any, project_id: str, episode_id: str) -> list[tuple[int, str]]:
+        """Each recorded report as its run wrote it -- nothing withheld -- then what the record
+        says about its conclusions now. For oversight only: the caller has recorded the
+        look."""
+        view = load_episode_view(
+            c, project_id=project_id, episode_id=episode_id, verify=self._confirmation_verifier(c)
+        )
+        since = render_recorded_since(view.conclusions)
+        return [
+            (recorded.ordinal, render_markdown(recorded.report) + since)
+            for recorded in SqlResearchReportStore(c).for_episode(
+                project_id=project_id, episode_id=episode_id
+            )
+        ]
+
+    def _admin_export(
+        self, c: Any, req: _Req, oversight: Oversight, episode_id: str, ordinal: int
+    ) -> Response:
+        project_id = oversight.episode_project(episode_id)
+        if project_id is None:
+            return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
+        oversight.record(project_id, f"{EPISODE_REPORTS}{episode_id}")
+        for number, text in self._full_reports(c, project_id, episode_id):
+            if number == ordinal:
+                name = re.sub(r"[^A-Za-z0-9._-]+", "-", episode_id).strip("-")
+                return Response(
+                    "200 OK",
+                    text.encode("utf-8"),
+                    content_type="text/markdown; charset=utf-8",
+                    headers=(
+                        ("Content-Disposition", f'inline; filename="{name}-run-{ordinal}.md"'),
+                    ),
+                )
+        return self._message(
+            req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_recorded_run")
+        )
+
+    def _admin_material(
+        self, c: Any, req: _Req, oversight: Oversight, project_id: str, artifact_id: str
+    ) -> Response:
+        material = oversight.material(project_id, artifact_id)
+        if material is None:
+            return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
+        name = c.execute(
+            "SELECT name FROM projects WHERE project_id = %s", (project_id,)
+        ).fetchone()
+        try:
+            text = self._artifacts.open(material.content_hash).decode("utf-8", errors="replace")
+        except ArtifactStoreError:
+            text = None
+        return Response(
+            "200 OK",
+            admin_pages.material_page(
+                self._chrome(req, "admin"),
+                project_id=project_id,
+                project_name=str(name[0]),
+                material=material,
+                text=text,
+            ),
+        )
+
     # -- answers ----------------------------------------------------------------------------------
 
     def _message(
@@ -2215,6 +3086,85 @@ def _episode_row(r: Sequence[Any]) -> pages.EpisodeRow:
     )
 
 
+def _cookies(environ: Mapping[str, Any]) -> dict[str, str]:
+    cookie: SimpleCookie = SimpleCookie()
+    try:
+        cookie.load(str(environ.get("HTTP_COOKIE") or ""))
+    except CookieError:
+        return {}
+    return {name: morsel.value for name, morsel in cookie.items()}
+
+
+def _local_target(target: str) -> str:
+    """`target` if it is a path of this workspace, else "/" -- never another origin. A browser
+    drops tabs and line breaks from a URL and reads a backslash as a slash, so `/<TAB>/x.example`
+    would leave for `//x.example`: any control character or backslash, or anything but a
+    single leading slash (a scheme, a host, `//`), sends the person home instead."""
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in target) or "\\" in target:
+        return "/"
+    if not target.startswith("/") or target.startswith("//"):
+        return "/"
+    return target
+
+
+def _local_path(target: str) -> str:
+    """A path of this workspace to go to after signing in -- never another origin, never a
+    sign-in page again."""
+    target = _local_target(target)
+    if target.startswith(("/login", "/logout", "/register", "/verify", "/password/")):
+        return "/"
+    return target
+
+
+#: The notice after a change of membership, by the `done` it redirects with.
+_MEMBER_DONE = {"added": "proj.added", "changed": "proj.changed", "removed": "proj.removed"}
+
+
+def _project_refusal(m: Messages, refused: AccountRefused) -> str:
+    try:
+        return m(f"proj.refused.{refused.code}")
+    except KeyError:
+        return m("proj.refused.not_permitted")
+
+
+def _admin_refusal(m: Messages, refused: AccountRefused) -> str:
+    try:
+        return m(f"admin.refused.{refused.code}", detail=refused.detail or "-")
+    except KeyError:
+        return m("admin.refused.not_permitted")
+
+
+@dataclass(frozen=True)
+class _Question:
+    """What a warrant question is about, in words, and the classification of the research."""
+
+    label: str | None
+    statement: str
+    mechanism: str
+    relation_type: str
+    outcome: str
+    #: What was measured: the observable the prediction this relation matched names.
+    observable: str = ""
+
+
+def _question_of(c: Any, project_id: str, relation_id: str) -> _Question | None:
+    row = c.execute(
+        "SELECT (SELECT q.question_label FROM research_runs q WHERE q.episode_id = s.episode_id"
+        "   AND q.question_label IS NOT NULL ORDER BY q.ordinal DESC LIMIT 1),"
+        " h.statement, h.mechanism, r.relation_type, coalesce(r.attributes ->> 'outcome', ''),"
+        " coalesce((SELECT p.observable_ref FROM predictions p"
+        "   WHERE p.prediction_id = r.attributes ->> 'prediction_id'), '')"
+        " FROM relation_judgments r"
+        " JOIN hypotheses h ON h.project_id = r.project_id AND h.hypothesis_id = r.to_entity_id"
+        " JOIN hypothesis_sets s ON s.project_id = h.project_id AND s.set_id = h.hypothesis_set_id"
+        " WHERE r.project_id = %s AND r.relation_id = %s",
+        (project_id, relation_id),
+    ).fetchone()
+    if row is None:
+        return None
+    return _Question(row[0], str(row[1]), str(row[2]), str(row[3]), str(row[4]), str(row[5]))
+
+
 def allowed_hosts(host: str, port: int) -> tuple[str, ...]:
     """The Host header values a workspace bound to `host:port` answers to."""
     names = LOOPBACK if host in LOOPBACK or host == "::1" else (host,)
@@ -2222,10 +3172,13 @@ def allowed_hosts(host: str, port: int) -> tuple[str, ...]:
 
 
 __all__ = [
+    "ANONYMOUS_COOKIE",
     "LOCALE_COOKIE",
     "LOOPBACK",
     "MAX_UPLOAD_BYTES",
+    "SESSION_COOKIE",
     "WITHHELD",
+    "AccountsConfig",
     "Response",
     "Workspace",
     "allowed_hosts",

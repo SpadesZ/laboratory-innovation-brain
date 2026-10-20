@@ -34,6 +34,15 @@ class Form:
         values = self.fields.get(name, ())
         return values[0].strip() if values else ""
 
+    def raw(self, name: str) -> str:
+        """The single value of `name` exactly as sent -- a password is never stripped."""
+        values = self.fields.get(name, ())
+        return values[0] if values else ""
+
+    def values(self, name: str) -> tuple[str, ...]:
+        """Every value of `name` (a group of checkboxes), stripped, empty ones dropped."""
+        return tuple(v.strip() for v in self.fields.get(name, ()) if v.strip())
+
     def uploads(self, name: str) -> tuple[Upload, ...]:
         """Uploaded files under `name`; a browser sends an empty part for an unused input."""
         return tuple(u for u in self.files.get(name, ()) if u.filename or u.data)

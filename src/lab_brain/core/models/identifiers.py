@@ -60,6 +60,11 @@ _ID_PREFIXES: Final[dict[str, str]] = {
     "condition_match": "cmt",
     "evidence_bundle": "bdl",
     "actor": "act",
+    # 012u. An account is a person's sign-in, bound to their actor; its events and an
+    # administrator's access to another person's research are records of their own.
+    "account": "acc",
+    "account_event": "ace",
+    "admin_access": "aac",
     "project": "prj",
     "lineage": "lin",
     # P6 / OPS-003. A trace is minted once per episode and threaded through every span; a span id

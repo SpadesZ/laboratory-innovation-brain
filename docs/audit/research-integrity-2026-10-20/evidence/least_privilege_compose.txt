@@ -1,0 +1,236 @@
+# Throwaway compose project lab-brain-lp-test (own image tag)
+
+## run
+workspace image before: sha256:a1466533096d53bcf6292b947c97a88e7b924bb5d39529472a83504a28f7ff5b
+
+## up1
+#1 [internal] load local bake definitions
+#1 reading from stdin 586B 0.1s done
+#1 DONE 0.1s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 1.45kB 0.1s done
+#2 DONE 0.2s
+
+#3 [internal] load metadata for docker.io/library/python:3.12-slim
+#3 DONE 0.2s
+
+#4 [internal] load .dockerignore
+#4 transferring context:
+#4 transferring context: 379B 0.4s done
+#4 DONE 0.7s
+
+#5 [1/8] FROM docker.io/library/python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
+#5 resolve docker.io/library/python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea 0.1s done
+#5 DONE 0.1s
+
+#6 [internal] load build context
+#6 transferring context: 3.60MB 4.7s
+#6 transferring context: 4.12MB 4.9s done
+#6 DONE 5.0s
+
+#7 [2/8] WORKDIR /app
+#7 CACHED
+
+#8 [3/8] COPY pyproject.toml README.md ./
+#8 DONE 0.1s
+
+#9 [4/8] COPY src ./src
+#9 DONE 0.2s
+
+#10 [5/8] COPY migrations ./migrations
+#10 DONE 0.1s
+
+#11 [6/8] COPY scripts/migrate.py ./scripts/migrate.py
+#11 DONE 0.1s
+
+#12 [7/8] COPY deployment/docker ./deployment/docker
+#12 DONE 0.1s
+
+#13 [8/8] RUN pip install -e ".[postgres]"     && install -m 0755 deployment/docker/entrypoint.sh /usr/local/bin/lab-brain-entrypoint     && groupadd --system --gid 10001 labbrain     && useradd --system --uid 10001 --gid labbrain --home-dir /var/lib/lab-brain        --shell /usr/sbin/nologin labbrain     && mkdir -p /var/lib/lab-brain/artifacts /var/lib/lab-brain/credentials     && chown -R labbrain:labbrain /var/lib/lab-brain     && chmod 0700 /var/lib/lab-brain/credentials
+#13 5.714 Obtaining file:///app
+#13 5.727   Installing build dependencies: started
+#13 12.36   Installing build dependencies: finished with status 'done'
+#13 12.36   Checking if build backend supports build_editable: started
+#13 12.87   Checking if build backend supports build_editable: finished with status 'done'
+#13 12.88   Getting requirements to build editable: started
+#13 13.68   Getting requirements to build editable: finished with status 'done'
+#13 13.68   Installing backend dependencies: started
+#13 18.38   Installing backend dependencies: finished with status 'done'
+#13 18.38   Preparing editable metadata (pyproject.toml): started
+#13 19.56   Preparing editable metadata (pyproject.toml): finished with status 'done'
+#13 20.53 Collecting cryptography>=43 (from lab-brain==0.0.1)
+#13 20.74   Downloading cryptography-50.0.2-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (4.4 kB)
+#13 21.09 Collecting pydantic>=2.9 (from lab-brain==0.0.1)
+#13 21.14   Downloading pydantic-2.14.1-py3-none-any.whl.metadata (133 kB)
+#13 21.37 Collecting pyyaml>=6.0 (from lab-brain==0.0.1)
+#13 21.43   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+#13 21.58 Collecting psycopg>=3.2 (from psycopg[binary]>=3.2; extra == "postgres"->lab-brain==0.0.1)
+#13 21.63   Downloading psycopg-3.3.6-py3-none-any.whl.metadata (4.4 kB)
+#13 21.87 Collecting cffi>=2.0.0 (from cryptography>=43->lab-brain==0.0.1)
+#13 21.92   Downloading cffi-2.1.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.5 kB)
+#13 22.00 Collecting typing-extensions>=4.6 (from psycopg>=3.2->psycopg[binary]>=3.2; extra == "postgres"->lab-brain==0.0.1)
+#13 22.06   Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+#13 22.33 Collecting psycopg-binary==3.3.6 (from psycopg[binary]>=3.2; extra == "postgres"->lab-brain==0.0.1)
+#13 22.39   Downloading psycopg_binary-3.3.6-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.7 kB)
+#13 22.45 Collecting annotated-types>=0.6.0 (from pydantic>=2.9->lab-brain==0.0.1)
+#13 22.52   Downloading annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
+#13 23.94 Collecting pydantic-core==2.50.1 (from pydantic>=2.9->lab-brain==0.0.1)
+#13 24.01   Downloading pydantic_core-2.50.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.5 kB)
+#13 24.09 Collecting typing-inspection>=0.4.4 (from pydantic>=2.9->lab-brain==0.0.1)
+#13 24.15   Downloading typing_inspection-0.4.4-py3-none-any.whl.metadata (2.6 kB)
+#13 24.25 Collecting pycparser (from cffi>=2.0.0->cryptography>=43->lab-brain==0.0.1)
+#13 24.31   Downloading pycparser-3.11-py3-none-any.whl.metadata (8.2 kB)
+#13 24.40 Downloading cryptography-50.0.2-cp311-abi3-manylinux_2_34_x86_64.whl (4.8 MB)
+#13 25.41    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.8/4.8 MB 4.8 MB/s eta 0:00:00
+#13 25.49 Downloading psycopg-3.3.6-py3-none-any.whl (215 kB)
+#13 25.58 Downloading psycopg_binary-3.3.6-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (5.2 MB)
+#13 26.15    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.2/5.2 MB 9.0 MB/s eta 0:00:00
+#13 26.21 Downloading pydantic-2.14.1-py3-none-any.whl (488 kB)
+#13 26.32 Downloading pydantic_core-2.50.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.2 MB)
+#13 26.60    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 7.7 MB/s eta 0:00:00
+#13 26.66 Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)
+#13 26.75    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 9.5 MB/s eta 0:00:00
+#13 26.81 Downloading annotated_types-0.8.0-py3-none-any.whl (13 kB)
+#13 26.87 Downloading cffi-2.1.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (221 kB)
+#13 26.95 Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+#13 27.04 Downloading typing_inspection-0.4.4-py3-none-any.whl (14 kB)
+#13 27.09 Downloading pycparser-3.11-py3-none-any.whl (51 kB)
+#13 27.14 Building wheels for collected packages: lab-brain
+#13 27.15   Building editable for lab-brain (pyproject.toml): started
+#13 27.34   Building editable for lab-brain (pyproject.toml): finished with status 'done'
+#13 27.34   Created wheel for lab-brain: filename=lab_brain-0.0.1-py3-none-any.whl size=13212 sha256=49b7ef288ea336885028cb6df235d8b962d54360a50a8d6f62639ebbf5a7b7b0
+#13 27.34   Stored in directory: /tmp/pip-ephem-wheel-cache-q769w4ks/wheels/54/1b/b7/aa63e25c8f14f4f2ae7b04e6097bdecb770e455c5c1ee0a600
+#13 27.35 Successfully built lab-brain
+#13 27.38 Installing collected packages: typing-extensions, pyyaml, pycparser, psycopg-binary, annotated-types, typing-inspection, pydantic-core, psycopg, cffi, pydantic, cryptography, lab-brain
+#13 29.29 Successfully installed annotated-types-0.8.0 cffi-2.1.1 cryptography-50.0.2 lab-brain-0.0.1 psycopg-3.3.6 psycopg-binary-3.3.6 pycparser-3.11 pydantic-2.14.1 pydantic-core-2.50.1 pyyaml-6.0.3 typing-extensions-4.16.0 typing-inspection-0.4.4
+#13 29.29 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+#13 29.70 useradd warning: labbrain's uid 10001 is greater than SYS_UID_MAX 999
+#13 DONE 29.9s
+
+#14 exporting to image
+#14 exporting layers
+#14 exporting layers 4.0s done
+#14 exporting manifest sha256:efa1eb708b99bfde4d48f901e7e149f8e4495a370a9999d6a4e0f25d53cc2b7d 0.0s done
+#14 exporting config sha256:5f1493b0df44b59bbd144960a4902f2a9dabd09eead90fb5a429b04c1416c627 0.0s done
+#14 exporting attestation manifest sha256:e9409a28fe7bcb7023b2c909f89d04d862e8e27a071c949c4342b38079eba2d0 0.1s done
+#14 exporting manifest list sha256:bb0a281c1db5c1db5b261539fffd9a7cbb3da12b309a3bbad4a6c771efc21d7e
+#14 exporting manifest list sha256:bb0a281c1db5c1db5b261539fffd9a7cbb3da12b309a3bbad4a6c771efc21d7e 0.0s done
+#14 naming to docker.io/library/lab-brain-lp-test:local 0.0s done
+#14 unpacking to docker.io/library/lab-brain-lp-test:local
+#14 unpacking to docker.io/library/lab-brain-lp-test:local 1.2s done
+#14 DONE 5.5s
+
+#15 resolving provenance for metadata file
+#15 DONE 0.2s
+ lab-brain-lp-test:local  Built
+ Network lab-brain-lp-test_default  Creating
+ Network lab-brain-lp-test_default  Created
+ Volume lab-brain-lp-test_secrets  Creating
+ Volume lab-brain-lp-test_secrets  Created
+ Volume lab-brain-lp-test_app-secrets  Creating
+ Volume lab-brain-lp-test_app-secrets  Created
+ Volume lab-brain-lp-test_artifacts  Creating
+ Volume lab-brain-lp-test_artifacts  Created
+ Volume lab-brain-lp-test_credentials  Creating
+ Volume lab-brain-lp-test_credentials  Created
+ Volume lab-brain-lp-test_db  Creating
+ Volume lab-brain-lp-test_db  Created
+ Container lab-brain-lp-test-secrets-1  Creating
+ Container lab-brain-lp-test-secrets-1  Created
+ Container lab-brain-lp-test-db-1  Creating
+ Container lab-brain-lp-test-db-1  Created
+ Container lab-brain-lp-test-init-1  Creating
+ Container lab-brain-lp-test-init-1  Created
+ Container lab-brain-lp-test-local-models-1  Creating
+ Container lab-brain-lp-test-web-1  Creating
+ Container lab-brain-lp-test-web-1  Created
+ Container lab-brain-lp-test-local-models-1  Created
+ Container lab-brain-lp-test-secrets-1  Starting
+ Container lab-brain-lp-test-secrets-1  Started
+ Container lab-brain-lp-test-secrets-1  Waiting
+ Container lab-brain-lp-test-secrets-1  Exited
+ Container lab-brain-lp-test-db-1  Starting
+ Container lab-brain-lp-test-db-1  Started
+ Container lab-brain-lp-test-db-1  Waiting
+ Container lab-brain-lp-test-db-1  Healthy
+ Container lab-brain-lp-test-init-1  Starting
+ Container lab-brain-lp-test-init-1  Started
+ Container lab-brain-lp-test-init-1  Waiting
+ Container lab-brain-lp-test-init-1  Waiting
+ Container lab-brain-lp-test-init-1  Exited
+ Container lab-brain-lp-test-local-models-1  Starting
+ Container lab-brain-lp-test-init-1  Exited
+ Container lab-brain-lp-test-web-1  Starting
+ Container lab-brain-lp-test-local-models-1  Started
+ Container lab-brain-lp-test-web-1  Started
+
+## inside_web
+connect as: lab_brain_app
+migrator password mounted here: False
+current_user, superuser: ('lab_brain_app', False)
+actors readable: 1
+refused  SET session_replication_role = replica -- InsufficientPrivilege: permission denied to set parameter "session_replication_role"
+refused  ALTER TABLE failure_analyses DISABLE TRIGGER ALL -- InsufficientPrivilege: must be owner of table failure_analyses
+refused  TRUNCATE relation_judgments -- InsufficientPrivilege: permission denied for table relation_judgments
+refused  CREATE TABLE lp_scratch (x INT) -- InsufficientPrivilege: permission denied for schema public
+refused  DELETE FROM schema_migrations -- InsufficientPrivilege: permission denied for table schema_migrations
+refused  SET ROLE lab_brain -- InsufficientPrivilege: permission denied to set role "lab_brain"
+
+## checks1
+== web pages over the host loopback
+/healthz 200
+/ 200
+== published ports
+8765/tcp -> 127.0.0.1:8797
+== sessions by role (db container, as migrator)
+lab_brain|1
+== role attributes
+lab_brain|t|t|t|t|t|t|SCRAM-SHA-256$4096:
+lab_brain_app|f|f|f|f|f|t|SCRAM-SHA-256$4096:
+lab_brain_reader|f|f|f|f|f|f|
+== rows written by local-models as lab_brain_app
+1|1
+== web mounts
+lab-brain-lp-test_artifacts/var/lib/docker/volumes/lab-brain-lp-test_artifacts/_data -> /var/lib/lab-brain/artifacts rw=true
+lab-brain-lp-test_credentials/var/lib/docker/volumes/lab-brain-lp-test_credentials/_data -> /var/lib/lab-brain/credentials rw=true
+lab-brain-lp-test_app-secrets/var/lib/docker/volumes/lab-brain-lp-test_app-secrets/_data -> /run/lab-brain-app-secrets rw=false
+<local path> Kuo/Desktop/SiPh Lab Brain/lib-integrity/deployment/docker/review-authorities.example -> /run/lab-brain-review/authorities rw=false
+
+
+## web_connections
+      3 user=lab_brain_app database=lab_brain
+
+## second_start
+== second start: secrets
+database password db_password in /run/lab-brain-secrets: kept
+database password db_password in /run/lab-brain-app-secrets: kept
+== second start: init
+pending  : 0
+database role lab_brain_app: unchanged (login; not a superuser, cannot create roles or databases, replicate or bypass row security)
+database role lab_brain_reader: unchanged (no login; not a superuser, cannot create roles or databases, replicate or bypass row security)
+database role lab_brain_app: reads and writes rows of 83 tables -- no TRUNCATE, no ownership, schema_migrations read-only; the triggers bind it
+database role lab_brain_reader: reads them
+actor act:researcher unchanged
+project prj:lab unchanged
+membership act:researcher in prj:lab unchanged
+stored verifier unchanged: yes
+
+## teardown
+ Volume lab-brain-lp-test_credentials  Removing
+ Volume lab-brain-lp-test_secrets  Removing
+ Volume lab-brain-lp-test_app-secrets  Removed
+ Volume lab-brain-lp-test_artifacts  Removed
+ Volume lab-brain-lp-test_db  Removed
+ Volume lab-brain-lp-test_credentials  Removed
+ Volume lab-brain-lp-test_secrets  Removed
+ Network lab-brain-lp-test_default  Removed
+Untagged: lab-brain-lp-test:local
+Deleted: sha256:d37dd04a4244c7a68b1b988cc484d72ff426b4a8bef0172cb954ad7c7ad45cbb
+== after
+0
+0
+workspace image after: sha256:a1466533096d53bcf6292b947c97a88e7b924bb5d39529472a83504a28f7ff5b
+"Name":"lab-brain","Status":"running(1)"
+"Name":"lab-brain-workspace","Status":"running(2)"

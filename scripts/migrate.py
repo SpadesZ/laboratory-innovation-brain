@@ -297,6 +297,11 @@ APPLY_ORDER: tuple[str, ...] = (
     # Every scientific reference resolves within its own project: observations, attestations,
     # relation support, bundle members, heuristic sources. After 012r and every table it names.
     "012s_project_scoped_provenance.sql",
+    # Accounts: sign-in, two system roles, states, sessions, single-use tokens and the
+    # append-only account and administrator-access records. After 012s.
+    "012u_accounts.sql",
+    # Verify first: a password only on an account whose address is confirmed. After 012u.
+    "012v_password_after_verification.sql",
 )
 
 _BOOTSTRAP = """

@@ -374,10 +374,36 @@ def build_parser() -> argparse.ArgumentParser:
         "web",
         help=(
             "the research workspace: start and continue research runs in a browser, on this "
-            "machine, as --actor"
+            "machine -- as one researcher (--actor), or as each signed-in person (--accounts)"
         ),
     )
-    web.add_argument("--actor", required=True, help="the actor every request is made as")
+    who = web.add_mutually_exclusive_group(required=True)
+    who.add_argument("--actor", help="one researcher: every request is made as this actor")
+    who.add_argument(
+        "--accounts",
+        action="store_true",
+        help=(
+            "a laboratory: each person signs in to their own account (ADMIN or MEMBER); "
+            "registration and password reset need mail (LAB_BRAIN_SMTP_*, or --mail-outbox)"
+        ),
+    )
+    web.add_argument(
+        "--mail-outbox",
+        metavar="DIR",
+        help=(
+            "with --accounts and no LAB_BRAIN_SMTP_HOST: write account mail (verification "
+            "and reset links) to this directory as .eml files for the operator to forward"
+        ),
+    )
+    web.add_argument(
+        "--public-url",
+        help="with --accounts: the address emailed links point at (default http://HOST:PORT)",
+    )
+    web.add_argument(
+        "--cookie-secure",
+        action="store_true",
+        help="with --accounts: reached over HTTPS, so cookies are sent only over HTTPS",
+    )
     web.add_argument("--artifact-root", required=True, help="where raw bytes are stored")
     web.add_argument(
         "--domain",
@@ -457,6 +483,14 @@ def build_parser() -> argparse.ArgumentParser:
     actor = admin_sub.add_parser("actor", help="create or rename a person (a HUMAN actor)")
     actor.add_argument("actor_id")
     actor.add_argument("--name", required=True, help="display name")
+    actor.add_argument(
+        "--if-absent",
+        action="store_true",
+        help=(
+            "only on the first start: leave an existing record exactly as it is (with "
+            "accounts, the workspace manages it from then on)"
+        ),
+    )
     project = admin_sub.add_parser("project", help="create or update a project")
     project.add_argument("project_id")
     project.add_argument("--name", required=True)
@@ -471,6 +505,14 @@ def build_parser() -> argparse.ArgumentParser:
     member.add_argument("project_id")
     member.add_argument("actor_id")
     member.add_argument("--role", default="researcher")
+    member.add_argument(
+        "--if-absent",
+        action="store_true",
+        help=(
+            "only on the first start: leave an existing record exactly as it is (with "
+            "accounts, the workspace manages it from then on)"
+        ),
+    )
     member.add_argument(
         "--clearance",
         default="",
@@ -487,6 +529,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     llm_admin.add_argument("actor_id")
     llm_admin.add_argument("--revoke", action="store_true")
+    llm_admin.add_argument(
+        "--if-absent",
+        action="store_true",
+        help="grant only if this person was never granted it (a later revocation stands)",
+    )
     queue = admin_sub.add_parser(
         "review-queue",
         help="declare a project's review-queue policy (capacity, SLA, expiry) as a new version",
@@ -524,6 +571,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     roles.add_argument("--app-role", default="lab_brain_app")
     roles.add_argument("--reader-role", default="lab_brain_reader")
+    boot = admin_sub.add_parser(
+        "bootstrap-admin",
+        help=(
+            "the first administrator account (only while there is none), and a one-time link "
+            "to set its password"
+        ),
+    )
+    boot.add_argument("--email", required=True)
+    boot.add_argument("--name", required=True, help="their display name")
+    boot.add_argument(
+        "--actor",
+        help="bind the account to this existing person (their projects and history)",
+    )
+    boot.add_argument(
+        "--public-url",
+        default="http://127.0.0.1:8765",
+        help="the workspace address the printed link points at",
+    )
     admin_sub.add_parser("show", help="list actors, projects, memberships, LLM administrators")
     return parser
 
@@ -788,7 +853,13 @@ def main(
     if args.command == "web":
         # The database answered; the workspace opens its own connection per request.
         connection.close()
-        return run_web(args, settings=settings, connect=opener, out=stream)
+        return run_web(
+            args,
+            settings=settings,
+            connect=opener,
+            out=stream,
+            env=os.environ if env is None else env,
+        )
 
     try:
         if args.command == "admin":
@@ -895,6 +966,7 @@ def run_web(
     connect: Callable[[Settings], Any],
     out: TextIO,
     serve: Callable[..., None] | None = None,
+    env: Mapping[str, str] | None = None,
 ) -> int:
     """Start the research workspace (`lab_brain.interfaces.web`) and serve until interrupted."""
     from lab_brain.interfaces.web import Workspace, allowed_hosts
@@ -918,8 +990,34 @@ def run_web(
     # is the Host it must name; outside one, the port it binds.
     published = getattr(args, "published_port", None) or args.port
     credential_dir = getattr(args, "credential_dir", None)
+    accounts = None
+    if getattr(args, "accounts", False):
+        from lab_brain.accounts.mail import mailer_from
+        from lab_brain.interfaces.web.app import AccountsConfig
+
+        outbox = getattr(args, "mail_outbox", None)
+        try:
+            mailer = mailer_from(
+                os.environ if env is None else env, outbox=Path(outbox) if outbox else None
+            )
+        except (ValueError, OSError) as exc:
+            print(f"lab-brain: account mail: {exc}", file=out)
+            return 2
+        host = "127.0.0.1" if container else args.host
+        accounts = AccountsConfig(
+            mailer=mailer,
+            base_url=getattr(args, "public_url", None) or f"http://{host}:{published}",
+            cookie_secure=bool(getattr(args, "cookie_secure", False)),
+        )
+        if mailer is None:
+            print(
+                "lab-brain: no account mail configured (LAB_BRAIN_SMTP_* or --mail-outbox): "
+                "registration and password reset stay closed",
+                file=out,
+            )
     workspace = Workspace(
         actor_id=args.actor,
+        accounts=accounts,
         settings=settings,
         connect=connect,
         artifact_root=Path(args.artifact_root),
@@ -932,7 +1030,7 @@ def run_web(
         inference_deadline=getattr(args, "inference_deadline", None),
     )
     print(
-        f"Research workspace for {args.actor}: http://"
+        f"Research workspace for {args.actor or 'signed-in accounts'}: http://"
         f"{'127.0.0.1' if container else args.host}:{published}/ (Ctrl+C stops it)",
         file=out,
     )
@@ -953,12 +1051,29 @@ def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
     from lab_brain.interfaces import deployment
 
     try:
-        if args.admin_command == "actor":
+        if (
+            args.admin_command == "actor"
+            and args.if_absent
+            and deployment.exists(connection, "actors", actor_id=args.actor_id)
+        ):
+            lines = [f"actor {args.actor_id} exists; left as it is"]
+        elif args.admin_command == "actor":
             lines = [deployment.ensure_actor(connection, args.actor_id, args.name)]
         elif args.admin_command == "project":
             lines = [
                 deployment.ensure_project(connection, args.project_id, args.name, args.privacy_mode)
             ]
+        elif (
+            args.admin_command == "member"
+            and args.if_absent
+            and deployment.exists(
+                connection,
+                "project_memberships",
+                actor_id=args.actor_id,
+                project_id=args.project_id,
+            )
+        ):
+            lines = [f"membership {args.actor_id} in {args.project_id} exists; left as it is"]
         elif args.admin_command == "member":
             lines = [
                 deployment.set_membership(
@@ -970,6 +1085,12 @@ def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
                     scopes=args.scope,
                 )
             ]
+        elif (
+            args.admin_command == "llm-admin"
+            and args.if_absent
+            and deployment.exists(connection, "llm_administrators", actor_id=args.actor_id)
+        ):
+            lines = [f"{args.actor_id} was granted LLM administration before; left as it is"]
         elif args.admin_command == "llm-admin":
             change = deployment.revoke_llm_admin if args.revoke else deployment.grant_llm_admin
             lines = [change(connection, args.actor_id, utc_now())]
@@ -1002,6 +1123,8 @@ def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
             lines = deployment.grant_database_roles(
                 connection, app_role=args.app_role, reader_role=args.reader_role
             )
+        elif args.admin_command == "bootstrap-admin":
+            lines = _bootstrap_admin(args, connection)
         else:
             lines = deployment.describe(connection)
     except deployment.OperatorRefused as refused:
@@ -1010,6 +1133,28 @@ def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
     for line in lines:
         print(line, file=out)
     return 0
+
+
+def _bootstrap_admin(args: argparse.Namespace, connection: Any) -> list[str]:
+    """The operator's first administrator: no password is ever typed here or printed --
+    a one-time link sets it, and is printed for the operator to open (it is not mailed: the
+    operator vouches for the address)."""
+    from lab_brain.accounts.service import AccountRefused, AccountService
+    from lab_brain.interfaces import deployment
+
+    base = args.public_url.rstrip("/")
+    service = AccountService(connection, mailer=None, base_url=base)
+    try:
+        account, token = service.bootstrap_admin(
+            email=args.email, display_name=args.name, actor_id=args.actor
+        )
+    except AccountRefused as refused:
+        raise deployment.OperatorRefused(refused.detail or refused.code) from None
+    return [
+        f"administrator {account.email} ({account.actor_id}) created, active",
+        "set their password, once, within 24 hours, at:",
+        f"  {base}/password/reset?token={token}",
+    ]
 
 
 def _only_vertical() -> str:

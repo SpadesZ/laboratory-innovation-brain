@@ -34,6 +34,13 @@ DEFAULT_URL = "postgresql://lab_brain:lab_brain@localhost:5433/lab_brain"
 #: RAISE the moment any row survives from an earlier test. TRUNCATE does not fire row-level DELETE
 #: triggers, so naming them here is both correct and the only safe way to clear them.
 _TABLES = (
+    # Accounts (`012u`): sessions, tokens, events and administrator access reference an
+    # account or an actor; all but sessions and tokens are append-only.
+    "admin_access_log",
+    "account_events",
+    "account_tokens",
+    "account_sessions",
+    "accounts",
     # Product vertical (`012c`). The research runs of an episode reference the episode, its
     # hypothesis set and its verification input, and are append-only: child of all three.
     # Research workspace (`012d`): a run's recorded report references the run.

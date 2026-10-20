@@ -89,7 +89,7 @@ def test_init_creates_and_grants_the_roles_after_the_migrations_and_before_the_b
         "python /app/scripts/migrate.py",
         'python /app/deployment/docker/service_roles.py "$LAB_BRAIN_APP_PASSWORD_FILE"',
         "lab-brain admin db-roles --app-role lab_brain_app --reader-role lab_brain_reader",
-        'lab-brain admin actor "$LAB_BRAIN_ACTOR" --name "$LAB_BRAIN_ACTOR_NAME"',
+        'lab-brain admin actor "$LAB_BRAIN_ACTOR" --name "$LAB_BRAIN_ACTOR_NAME" --if-absent',
     ]
 
 
@@ -143,3 +143,13 @@ def test_the_entrypoint_connects_as_the_named_role_only(tmp_path, user, expected
     else:
         assert result.returncode == 0, result.stderr
         assert result.stdout == f"postgresql://{expected}:{'p' * 48}@db:5432/lab_brain"
+
+
+def test_the_workspace_runs_with_accounts_and_mail_is_optional():
+    """The deployment signs each person in (`--accounts`); mail is an optional env file, and the
+    outbox is a volume of the workspace's own."""
+    web = _services()["web"]
+    command = " ".join(web["command"])
+    assert "lab-brain web --accounts" in command and "--actor" not in command
+    assert {"path": "deployment/docker/mail.env", "required": False} in web["env_file"]
+    assert _mounts(web).get("mail-outbox") == "/var/lib/lab-brain/outbox"

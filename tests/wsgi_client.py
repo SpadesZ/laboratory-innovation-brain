@@ -22,6 +22,8 @@ class Reply:
     status: int
     headers: Mapping[str, str]
     body: bytes
+    #: Every Set-Cookie header, in order (`headers` keeps one value per name).
+    set_cookies: tuple[str, ...] = ()
 
     @property
     def text(self) -> str:
@@ -50,6 +52,7 @@ class Browser:
         *,
         origin: str | None = "same",
         host: str | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> Reply:
         if files:
             body, content_type = _multipart(fields, files)
@@ -58,7 +61,9 @@ class Browser:
                 [(k, v) for k, vs in fields.items() for v in ([vs] if isinstance(vs, str) else vs)]
             ).encode()
             content_type = "application/x-www-form-urlencoded"
-        return self._call("POST", url, body, content_type, host=host, origin=origin)
+        return self._call(
+            "POST", url, body, content_type, host=host, origin=origin, headers=headers
+        )
 
     def _call(
         self,
@@ -69,6 +74,7 @@ class Browser:
         *,
         host: str | None,
         origin: str | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> Reply:
         parts = urlsplit(url)
         environ: dict[str, Any] = {
@@ -93,18 +99,29 @@ class Browser:
             environ["HTTP_ORIGIN"] = f"http://{host or self.host}" if origin == "same" else origin
         if self.cookies:
             environ["HTTP_COOKIE"] = "; ".join(f"{k}={v}" for k, v in self.cookies.items())
+        for name, value in (headers or {}).items():
+            environ["HTTP_" + name.upper().replace("-", "_")] = value
         captured: dict[str, Any] = {}
 
         def start_response(status: str, headers: list[tuple[str, str]]) -> None:
             captured["status"] = int(status.split(" ", 1)[0])
             captured["headers"] = dict(headers)
+            captured["set_cookies"] = [v for k, v in headers if k.lower() == "set-cookie"]
 
         chunks = self._app(environ, start_response)
-        reply = Reply(captured["status"], captured["headers"], b"".join(chunks))
-        cookie = reply.headers.get("Set-Cookie")
-        if cookie:
+        reply = Reply(
+            captured["status"],
+            captured["headers"],
+            b"".join(chunks),
+            tuple(captured["set_cookies"]),
+        )
+        # Every cookie the response set, as a browser keeps them; Max-Age=0 deletes one.
+        for cookie in reply.set_cookies:
             name, _, value = cookie.split(";", 1)[0].partition("=")
-            self.cookies[name.strip()] = value.strip()
+            if "max-age=0" in cookie.lower().replace(" ", ""):
+                self.cookies.pop(name.strip(), None)
+            else:
+                self.cookies[name.strip()] = value.strip()
         return reply
 
 

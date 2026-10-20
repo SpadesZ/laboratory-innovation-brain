@@ -23,6 +23,7 @@ RESEARCH_OUTPUT_LANGUAGE = "en"
 _M: dict[str, tuple[str, str]] = {
     # -- chrome -----------------------------------------------------------------------------------
     "brand": ("Lab Brain", "實驗室研究大腦"),
+    "nav.label": ("Main sections", "主要區塊"),
     # The main entries, in the order a researcher works; each `.hint` is the question it answers.
     "nav.home": ("Home", "首頁"),
     "nav.home.hint": ("What should I do next?", "現在該做什麼？"),
@@ -37,6 +38,18 @@ _M: dict[str, tuple[str, str]] = {
     "nav.episodes.hint": (
         "What has been investigated, and where does each stand?",
         "做過哪些研究？各自進行到哪裡？",
+    ),
+    "nav.projects": ("Projects", "研究專案"),
+    "nav.projects.hint": (
+        "Which projects am I in, and who works there?",
+        "我參與哪些專案？誰在專案裡？",
+    ),
+    "nav.inbox": ("Decisions", "待我決定"),
+    "nav.inbox.hint": ("What is waiting for me to decide or do?", "有哪些事等我決定或處理？"),
+    "nav.admin": ("Laboratory", "實驗室管理"),
+    "nav.admin.hint": (
+        "Everyone, every project, and who is waiting for approval",
+        "所有成員、所有專案，以及等待核准的人",
     ),
     "nav.llm": ("AI models", "AI 模型設定"),
     "nav.llm.hint": (
@@ -58,6 +71,10 @@ _M: dict[str, tuple[str, str]] = {
         "operator to add you to one (lab-brain admin member <project> {actor} ...).",
         "{actor} 目前還不是任何研究專案的成員。請部署管理者把你加入研究專案"
         "（lab-brain admin member <研究專案> {actor} ...）。",
+    ),
+    "home.no_projects.accounts": (
+        "You are not in any research project yet. Create one, or ask a project's owner to add you.",
+        "您尚未參與任何研究專案。可以自行建立，或請專案擁有者把您加入。",
     ),
     "col.episode": ("Research task", "研究任務"),
     "col.project": ("Research project", "研究專案"),
