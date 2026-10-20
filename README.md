@@ -59,6 +59,7 @@ application or a scientific finding.
 實驗室的科研信念狀態，作為可追溯、可反駁、可繼承的結構化記憶。
 
 - **規格**：[SAI 3.3](docs/spec/SAI_3.3.md)（`SAI` 是規格文件名稱，不是產品名稱）
+- **候選修訂**：[SAI 3.4 自主科學建模](docs/spec/SAI_3.4_Candidate.md)（待 Owner 核准；無新增 runtime，`READY_FOR_REAL_RESEARCH = false`）
 - **目標系統**：Laboratory Innovation Brain
 - **第一個 DomainPack**：Silicon Photonics（**不是** core hard-code）
 
