@@ -191,7 +191,7 @@ def test_sufficient_evidence_confirms_from_a_signature_and_names_what_was_never_
         "支持的觀察：接點連通性檢查（connectivity inspection）：觀察到 接點連通性（contact"
         " connectivity） = 不連續（discontinuous）" in why
     )
-    assert "此確認依據 1 項已記錄的診斷依據（diagnostic warrant），且可驗證" in why
+    assert "此確認依據 1 項已記錄的診斷依據（diagnostic warrant），且已通過驗證" in why
     assert "已被觀察排除的對立假說：長度正規化錯誤（length normalization error）" in why
     assert "限制：本研究從未檢驗的對立假說：" in why
     assert "網格收斂假象（mesh convergence artifact）" in why.split("限制：", 1)[1]
@@ -266,7 +266,7 @@ def test_competing_evidence_supports_two_rivals_and_confirms_neither(db, journey
     assert "已確認的發現" not in result
     why = _section(zh, "why")
     assert (
-        "2 個對立假說各自獲得自己的觀察支持：存取區接點不連續（access contact discontinuity）、"
+        "2 個對立假說同時獲得支持：存取區接點不連續（access contact discontinuity）、"
         "長度正規化錯誤（length normalization error）——證據無法指出單一原因" in why
     )
     assert "支持就不等於確認" in why
