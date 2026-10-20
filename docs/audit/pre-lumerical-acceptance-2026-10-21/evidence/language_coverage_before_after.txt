@@ -6,3 +6,7 @@ code: lib-acceptance 3afee21
 sufficient   chars= 4056 all= 21.2% terms=  4.8% authored=  0.0% raw=[]
 insufficient chars= 4704 all= 18.7% terms=  4.7% authored=  0.9% raw=[]
 competing    chars= 4805 all= 20.6% terms=  4.7% authored=  0.9% raw=[]
+code: lib-acceptance dd14f42
+sufficient   chars= 4092 all= 21.0% terms=  4.7% authored=  0.0% raw=[]
+insufficient chars= 4740 all= 18.6% terms=  4.6% authored=  0.9% raw=[]
+competing    chars= 4836 all= 20.4% terms=  4.6% authored=  0.9% raw=[]

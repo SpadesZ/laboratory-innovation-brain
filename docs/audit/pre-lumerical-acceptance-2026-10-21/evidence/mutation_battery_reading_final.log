@@ -1,0 +1,136 @@
+29 mutations
+
+[KILLED ] v2_locale_switch_leaves_the_workspace
+           language -- the way back after switching is only ever this workspace
+           killed by FAILED tests/e2e/test_web_llm_runtime_postgres.py::test_the_interface_switches_language_and_the_rese
+
+[KILLED ] chinese_page_says_runtime_readiness_again
+           language -- the primary Chinese pages use the agreed researcher vocabulary
+           killed by FAILED tests/e2e/test_web_research_data_postgres.py::test_the_primary_chinese_pages_speak_the_resear
+
+[KILLED ] english_page_shows_chinese
+           language -- the English interface is complete
+           killed by FAILED tests/e2e/test_web_research_data_postgres.py::test_the_english_interface_is_complete
+
+[KILLED ] page_shows_every_declared_prediction_as_a_falsifier
+           episode page -- a hypothesis card names only its designated falsifiers as machine falsifiers
+           killed by FAILED tests/unit/test_episode_view_page.py::test_a_result_no_declared_prediction_matched_moves_noth
+
+[KILLED ] page_lists_later_runs_checks_as_earlier
+           episode page -- only checks run before the shown run began are earlier ones
+           killed by FAILED tests/unit/test_episode_view_page.py::test_a_continuation_shows_earlier_checks_as_earlier_and
+
+[KILLED ] page_offers_an_executed_check_to_a_person
+           episode page -- a check this run executed is not listed as a person's to do
+           killed by FAILED tests/unit/test_episode_view_page.py::test_the_tested_and_next_sections_separate_executed_hum
+
+[KILLED ] page_counts_a_relation_as_a_belief_change
+           episode page -- a belief change is a governed transition, not a relation
+           killed by FAILED tests/unit/test_episode_view_page.py::test_a_matched_falsifier_its_governed_transition_or_why
+
+[KILLED ] page_reports_a_refused_decision_as_none
+           episode page -- a decision that refused a transition is said, not shown as no decision
+           killed by FAILED tests/unit/test_episode_view_page.py::test_a_matched_falsifier_its_governed_transition_or_why
+
+[KILLED ] page_implies_a_root_cause_for_an_open_question
+           episode page -- unless CONFIRMED, the page says no root cause has been confirmed
+           killed by FAILED tests/unit/test_episode_view_page.py::test_a_result_no_declared_prediction_matched_moves_noth
+
+[KILLED ] page_reports_an_observed_mismatch_as_pending
+           episode page -- a prediction a check observed otherwise is not shown as pending
+           killed by FAILED tests/unit/test_episode_view_page.py::test_l2_separates_observed_facts_interpretations_and_ea
+
+[KILLED ] page_shows_an_incomparable_prediction_as_an_ordinary_declaration
+           episode page -- L1 says a prediction in another OutcomeSpace is not comparable
+           killed by FAILED tests/unit/test_episode_view_page.py::test_a_prediction_in_another_outcome_space_is_not_compa
+
+[KILLED ] page_reads_an_incomparable_prediction_as_pending
+           episode page -- L2 says a prediction in another OutcomeSpace is not comparable, not pending
+           killed by FAILED tests/unit/test_episode_view_page.py::test_a_prediction_in_another_outcome_space_is_not_compa
+
+[KILLED ] page_omits_a_decision_without_a_transition_from_the_audit
+           episode page -- L3 shows every decision on a relation, not only those that moved a belief
+           killed by FAILED tests/unit/test_episode_view_page.py::test_l3_shows_every_decision_on_a_relation_even_without
+
+[KILLED ] r1_untranslated_text_passes_as_translated
+           Reading -- text with no curated rendering is shown as written and marked untranslated
+           killed by FAILED tests/unit/test_research_reading.py::test_model_written_text_is_shown_as_written_marked_and_l
+
+[KILLED ] r2_a_stored_status_shown_as_stored
+           Reading -- a stored status value is named in words, never shown as the enum
+           killed by FAILED tests/unit/test_research_reading.py::test_zh_tw_reads_in_chinese_with_english_terms_and_no_st
+
+[KILLED ] r3_every_conclusion_reads_as_a_finding
+           Reading -- only a confirmation is marked a confirmed finding
+           killed by FAILED tests/unit/test_research_reading.py::test_l1_marks_each_kind_of_line_and_only_a_confirmation_
+
+[KILLED ] r4_checks_never_run_go_unmentioned
+           Reading -- every check that cannot run here is named unknown and unverified
+           killed by FAILED tests/unit/test_research_reading.py::test_why_names_what_is_open_and_every_check_that_never_r
+
+[KILLED ] r5_competing_support_unremarked
+           Reading -- two rivals each supported: the evidence does not single out one cause
+           killed by FAILED tests/e2e/test_research_acceptance_without_lumerical_postgres.py::test_sufficient_evidence_co
+
+[KILLED ] r6_rivals_never_tested_hidden_behind_a_confirmation
+           Reading -- a confirmation names the rivals it never tested as a limitation
+           killed by FAILED tests/e2e/test_research_acceptance_without_lumerical_postgres.py::test_sufficient_evidence_co
+
+[KILLED ] r7_conflicting_evidence_unremarked
+           Reading -- a hypothesis both supported and challenged is said to have conflicting evidence
+           killed by FAILED tests/unit/test_research_reading.py::test_why_says_support_is_not_confirmation_and_names_conf
+
+[KILLED ] r8_what_an_unrun_check_decides_taken_from_prose
+           Reading -- what a check that has not run would decide comes from declared predictions
+           killed by FAILED tests/unit/test_research_reading.py::test_what_an_unrun_check_would_decide_comes_from_the_dec
+
+[KILLED ] r9_names_never_rendered
+           Reading -- a declared check, observable or outcome reads through the pack's rendering
+           killed by FAILED tests/unit/test_research_reading.py::test_zh_tw_reads_in_chinese_with_english_terms_and_no_st
+
+[KILLED ] r10_the_pack_ships_no_renderings
+           Reading -- the Silicon Photonics vertical carries its curated renderings
+           killed by FAILED tests/unit/test_sp_presentation.py::test_every_declared_word_a_researcher_reads_has_a_renderi
+
+[KILLED ] r11_the_summary_names_another_digest
+           Reading -- the summary names the SHA-256 of the record's export it was derived from
+           killed by FAILED tests/e2e/test_research_acceptance_without_lumerical_postgres.py::test_sufficient_evidence_co
+
+[KILLED ] r12_a_challenged_hypothesis_called_supported
+           Reading -- a challenged hypothesis is not said to be both supported and challenged
+           killed by FAILED tests/unit/test_research_reading.py::test_a_challenged_hypothesis_is_never_said_to_be_support
+
+[KILLED ] r13_a_budget_refusal_reads_as_a_run
+           Reading -- a check that did not execute is never said to have run
+           killed by FAILED tests/unit/test_research_reading.py::test_a_check_that_did_not_execute_is_never_said_to_have_
+
+[KILLED ] r14_a_match_hidden_by_another_reading
+           Reading -- a prediction an observation matched is shown as observed
+           killed by FAILED tests/unit/test_research_reading.py::test_a_predictions_standing_comes_from_what_this_run_rel
+
+[KILLED ] r15_a_warrant_wait_read_as_an_open_rival
+           Reading -- with no rival open, a supported hypothesis is not said to wait on rivals
+           killed by FAILED tests/unit/test_research_reading.py::test_a_confirmation_waiting_on_a_warrant_says_so_and_nam
+
+[KILLED ] r16_tested_rivals_called_never_tested
+           Reading -- a rival an observation bore on is not called never tested
+           killed by FAILED tests/unit/test_research_reading.py::test_a_confirmation_tells_rivals_never_tested_from_rival
+
+29/29 killed
+
+--- r5, r6, r11 again after the acceptance test was corrected (fb0447e); those tests pass on the unmutated tree ---
+3 mutations
+
+[KILLED ] r5_competing_support_unremarked
+           Reading -- two rivals each supported: the evidence does not single out one cause
+           killed by FAILED tests/e2e/test_research_acceptance_without_lumerical_postgres.py::test_competing_evidence_sup
+
+[KILLED ] r6_rivals_never_tested_hidden_behind_a_confirmation
+           Reading -- a confirmation names the rivals it never tested as a limitation
+           killed by FAILED tests/e2e/test_research_acceptance_without_lumerical_postgres.py::test_sufficient_evidence_co
+
+[KILLED ] r11_the_summary_names_another_digest
+           Reading -- the summary names the SHA-256 of the record's export it was derived from
+           killed by FAILED tests/e2e/test_research_acceptance_without_lumerical_postgres.py::test_the_summary_names_its_
+
+3/3 killed
