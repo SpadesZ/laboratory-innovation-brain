@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import datetime as dt
 
+from lab_brain.accounts.service import Account
 from lab_brain.interfaces.web.i18n import Messages
 from lab_brain.interfaces.web.pages import Chrome, Html, cat, e, h, page, when_text
 
@@ -20,9 +21,9 @@ Messages.extend(
         "acct.email": ("Email address", "電子郵件"),
         "acct.email.hint": (
             "A university or a personal address; you confirm it by a link we send there.",
-            "可使用學校或個人信箱；我們會寄確認連結到這個地址。",
+            "可使用學校或個人電子郵件；我們會寄確認連結到這個地址。",
         ),
-        "acct.name": ("Your name", "您的姓名"),
+        "acct.name": ("Your name", "你的姓名"),
         "acct.password": ("Password", "密碼"),
         "acct.password.new": ("New password", "新密碼"),
         "acct.password.current": ("Current password", "目前密碼"),
@@ -37,7 +38,7 @@ Messages.extend(
         "acct.forgot.lead": (
             "Enter your address. If it has a confirmed account, we send a link that works once, "
             "for 30 minutes.",
-            "請輸入您的電子郵件。若該地址有已確認的帳號，我們會寄出一次性連結，30 分鐘內有效。",
+            "請輸入你的電子郵件。若該地址有已確認的帳號，我們會寄出一次性連結，30 分鐘內有效。",
         ),
         "acct.forgot.send": ("Send the link", "寄出連結"),
         "acct.forgot.sent": (
@@ -51,16 +52,20 @@ Messages.extend(
             "Your password is set. Every earlier sign-in has ended; sign in with the new one.",
             "密碼已設定。之前所有的登入都已結束，請用新密碼登入。",
         ),
+        "acct.registered.title": ("Check your email", "請查看你的電子郵件"),
         "acct.registered": (
-            "Thank you. If the address can be registered, a confirmation link is on its way. "
-            "After you confirm it, an administrator reviews your account; you can sign in once "
-            "it is approved.",
-            "謝謝。若此地址可以註冊，確認連結已寄出。確認後由管理員審核帳號，核准後即可登入。",
+            "Thank you. If the address can be registered, a confirmation link is on its way "
+            "(look in the spam folder too); it works for 48 hours. After you confirm it, an "
+            "administrator reviews your account; you can sign in once it is approved. No link "
+            "came, or it expired? Register again with the same address: a new link is sent.",
+            "謝謝。若此地址可以註冊，確認連結已寄出（也請查看垃圾郵件），48 小時內有效。"
+            "確認後由管理員審核帳號，核准後即可登入。沒收到或連結已過期？用同一個地址再註冊一次，"
+            "就會寄出新的連結。",
         ),
         "acct.verify.title": ("Confirm your email address", "確認電子郵件"),
         "acct.verify.lead": (
             "Confirm this address for your Lab Brain account.",
-            "確認此地址屬於您的 Lab Brain 帳號。",
+            "確認此地址屬於你的 Lab Brain 帳號。",
         ),
         "acct.verify.button": ("Confirm my address", "確認我的地址"),
         "acct.verify.done": (
@@ -68,6 +73,7 @@ Messages.extend(
             "be able to sign in once it is approved.",
             "地址已確認。接下來由管理員審核帳號，核准後即可登入。",
         ),
+        "acct.link_invalid.title": ("This link no longer works", "此連結已失效"),
         "acct.link_invalid": (
             "This link has expired or has been used. Ask for a new one.",
             "此連結已過期或已使用，請重新申請。",
@@ -79,7 +85,7 @@ Messages.extend(
         ),
         "acct.refused.awaiting_verification": (
             "Your address is not confirmed yet. Open the link we sent you.",
-            "您的地址尚未確認，請開啟我們寄給您的連結。",
+            "你的地址尚未確認，請開啟我們寄給你的連結。",
         ),
         "acct.refused.awaiting_approval": (
             "Your address is confirmed; an administrator has not approved the account yet.",
@@ -88,6 +94,19 @@ Messages.extend(
         "acct.refused.suspended": (
             "This account is suspended. Contact the laboratory's administrator.",
             "此帳號已停用，請聯絡實驗室管理員。",
+        ),
+        "acct.refused.declined": (
+            "This registration was declined. If you belong to the laboratory, contact its "
+            "administrator.",
+            "此註冊未獲核准。若你是本實驗室成員，請聯絡實驗室管理員。",
+        ),
+        "acct.refused.locked": (
+            "Too many wrong passwords: changing it is paused for 15 minutes.",
+            "密碼錯誤次數過多，暫停變更密碼 15 分鐘。",
+        ),
+        "acct.refused.busy": (
+            "Too many registrations right now. Try again in an hour.",
+            "目前註冊人數過多，請一小時後再試。",
         ),
         "acct.refused.mail_unavailable": (
             "This workspace cannot send email yet, so registration and password reset are "
@@ -104,8 +123,25 @@ Messages.extend(
         ),
         "acct.refused.invalid_name": ("Please give your name.", "請填寫姓名。"),
         "acct.refused.weak_password": (
-            "That password is too weak: {detail}.",
-            "密碼強度不足：{detail}。",
+            "That password is too weak.",
+            "密碼強度不足。",
+        ),
+        "acct.weak.too_short": (
+            "A password has at least 12 characters.",
+            "密碼至少需要 12 個字元。",
+        ),
+        "acct.weak.too_long": (
+            "A password has at most 256 characters.",
+            "密碼最多 256 個字元。",
+        ),
+        "acct.weak.is_email": (
+            "A password is not your email address.",
+            "密碼不能與電子郵件相同。",
+        ),
+        "acct.weak.repetitive": (
+            "That password repeats a few characters. Use more varied ones -- a few unrelated "
+            "words work well.",
+            "此密碼重複使用少數字元，請使用更多不同的字元（幾個不相關的詞組合起來就很好）。",
         ),
         "acct.refused.wrong_password": ("The current password is not right.", "目前密碼不正確。"),
         "acct.refused.token_invalid": (
@@ -115,9 +151,9 @@ Messages.extend(
         "acct.refused.passwords_differ": ("The two passwords differ.", "兩次輸入的密碼不一致。"),
         "acct.repeat": ("Repeat the password", "再次輸入密碼"),
         "acct.no_admin": (
-            "This workspace has no administrator yet. The operator creates the first one with "
-            "`lab-brain admin bootstrap-admin`.",
-            "此工作區尚無管理員。請由維運者以 `lab-brain admin bootstrap-admin` 建立第一位管理員。",
+            "This workspace has no administrator yet, so nobody can be approved. The person "
+            "who runs the server creates the first administrator.",
+            "此工作區尚無管理員，因此目前無法核准任何帳號。第一位管理員由伺服器維運者建立。",
         ),
         "acct.page": ("My account", "我的帳號"),
         "acct.role.ADMIN": ("Administrator", "管理員"),
@@ -125,6 +161,8 @@ Messages.extend(
         "acct.state.PENDING": ("Awaiting approval", "等待核准"),
         "acct.state.ACTIVE": ("Active", "使用中"),
         "acct.state.SUSPENDED": ("Suspended", "已停用"),
+        "acct.state.DECLINED": ("Declined", "已婉拒"),
+        "acct.state.UNCONFIRMED": ("Email not confirmed", "尚未確認電子郵件"),
         "acct.role": ("Role", "角色"),
         "acct.state": ("Account", "帳號狀態"),
         "acct.since": ("Member since", "加入時間"),
@@ -133,7 +171,18 @@ Messages.extend(
             "Password changed. Sign-ins on other devices have ended.",
             "密碼已變更，其他裝置上的登入都已結束。",
         ),
-        "acct.signed_out": ("You are signed out.", "您已登出。"),
+        "acct.signed_out": ("You are signed out.", "你已登出。"),
+        "acct.expired": (
+            "Your sign-in ended (it expires after a while, or you signed out elsewhere). Sign "
+            "in again; nothing you sent was saved.",
+            "你的登入已結束（一段時間後會自動結束，或你在其他地方登出了）。請重新登入；"
+            "剛才送出的內容沒有儲存。",
+        ),
+        "acct.form_stale": (
+            "This form is out of date -- it was opened before you last signed in. Nothing was "
+            "saved. Open the page again and repeat what you did.",
+            "此表單已過期（它是在你上次登入前開啟的），內容沒有儲存。請重新開啟頁面再操作一次。",
+        ),
     }
 )
 
@@ -165,14 +214,31 @@ def _field(
 
 
 def _notice(text: str | None, kind: str = "notice") -> Html:
-    return h('<p class="box {}" role="alert">{}</p>', kind, text) if text else Html("")
+    role = "alert" if kind == "error" else "status"
+    return h('<p class="box {}" role="{}">{}</p>', kind, role, text) if text else Html("")
 
 
 def refusal(m: Messages, code: str, detail: str = "") -> str:
+    """A refusal in the reader's language. For a weak password, `detail` names the rule."""
+    if code == "weak_password":
+        try:
+            return m(f"acct.weak.{detail}")
+        except KeyError:
+            return m("acct.refused.weak_password")
     try:
         return m(f"acct.refused.{code}", detail=detail or "-")
     except KeyError:
         return m("acct.refused.sign_in_refused")
+
+
+def state_name(m: Messages, account: Account) -> str:
+    """An account's state as a person reads it: a suspension that was never preceded by an
+    approval is a declined registration, and a pending one may still await its email."""
+    if account.status == "SUSPENDED" and account.approved_at is None:
+        return m("acct.state.DECLINED")
+    if account.status == "PENDING" and account.email_verified_at is None:
+        return m("acct.state.UNCONFIRMED")
+    return m(f"acct.state.{account.status}")
 
 
 def sign_in_page(

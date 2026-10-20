@@ -24,7 +24,9 @@
 --     exception is the operator's bootstrap of the first administrator, which writes an ACTIVE
 --     ADMIN directly, and only while there is no active administrator;
 --   - the last active administrator cannot be demoted or suspended;
---   - a token is used at most once and never "unused" again; events and access records are
+--   - a new account is a PENDING MEMBER; a token is used at most once and never "unused"
+--     again; sessions and tokens are never deleted (a revoked session or a used token could
+--     otherwise come back by a delete and an insert); events and access records are
 --     append-only, and an account is never deleted.
 
 CREATE TABLE IF NOT EXISTS accounts (
@@ -75,7 +77,7 @@ $$ LANGUAGE sql STABLE;
 CREATE OR REPLACE FUNCTION accounts_follow_their_rules() RETURNS TRIGGER AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
-        IF NEW.status = 'PENDING' AND NEW.approved_at IS NULL
+        IF NEW.status = 'PENDING' AND NEW.approved_at IS NULL AND NEW.system_role = 'MEMBER'
            AND NEW.approved_by_actor_id IS NULL AND NEW.email_verified_at IS NULL THEN
             RETURN NEW;
         END IF;
@@ -86,8 +88,8 @@ BEGIN
             RETURN NEW;
         END IF;
         RAISE EXCEPTION
-            'account % is created PENDING and becomes active by verification and an '
-            'administrator''s approval; only the first administrator is bootstrapped active '
+            'account % is created PENDING, as a MEMBER, and becomes active by verification and '
+            'an administrator''s approval; only the first administrator is bootstrapped active '
             '(012u)', NEW.account_id;
     END IF;
     IF (NEW.account_id, NEW.actor_id, NEW.email, NEW.created_at)
@@ -172,6 +174,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Never deleted: a revoked or expired session could otherwise be deleted and inserted again.
+DROP TRIGGER IF EXISTS account_sessions_no_delete ON account_sessions;
+CREATE TRIGGER account_sessions_no_delete
+    BEFORE DELETE ON account_sessions
+    FOR EACH ROW EXECUTE FUNCTION account_records_are_append_only();
+
 DROP TRIGGER IF EXISTS account_sessions_stay_revoked ON account_sessions;
 CREATE TRIGGER account_sessions_stay_revoked
     BEFORE UPDATE ON account_sessions
@@ -203,6 +211,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Never deleted: a used token could otherwise be deleted and inserted again, unused.
+DROP TRIGGER IF EXISTS account_tokens_no_delete ON account_tokens;
+CREATE TRIGGER account_tokens_no_delete
+    BEFORE DELETE ON account_tokens
+    FOR EACH ROW EXECUTE FUNCTION account_records_are_append_only();
+
 DROP TRIGGER IF EXISTS account_tokens_are_used_once ON account_tokens;
 CREATE TRIGGER account_tokens_are_used_once
     BEFORE UPDATE ON account_tokens
@@ -217,7 +231,9 @@ CREATE TABLE IF NOT EXISTS account_events (
         'REGISTERED', 'BOOTSTRAPPED', 'EMAIL_VERIFIED', 'APPROVED', 'REJECTED', 'SUSPENDED',
         'REACTIVATED', 'ROLE_CHANGED', 'PASSWORD_SET', 'PASSWORD_RESET_REQUESTED',
         'PASSWORD_RESET', 'PASSWORD_CHANGED', 'SIGNED_IN', 'SIGN_IN_REFUSED', 'LOCKED',
-        'SIGNED_OUT', 'PROJECT_CREATED', 'MEMBERSHIP_GRANTED', 'MEMBERSHIP_REVOKED'
+        'SIGNED_OUT', 'PROJECT_CREATED', 'MEMBERSHIP_GRANTED', 'MEMBERSHIP_CHANGED',
+        'MEMBERSHIP_REVOKED', 'VERIFICATION_RESENT', 'REGISTRATION_NOTICE', 'MAIL_FAILED',
+        'PASSWORD_CHECK_REFUSED'
     )),
     -- Who acted: the account holder, an administrator, or NULL for the operator's command line.
     by_actor_id   TEXT REFERENCES actors (actor_id),

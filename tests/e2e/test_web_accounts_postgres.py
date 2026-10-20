@@ -1,7 +1,7 @@
 """The workspace with accounts, through a browser's requests: sign-in, roles, and the boundaries.
 
 signed out     every page but the sign-in pages sends the browser to sign in; a form post
-               without the right token is refused
+               without the right token acts on nothing and asks to sign in again
 the flow       register -> the mailed link (a GET shows a form; only its POST confirms) ->
                an administrator approves -> sign in; the session cookie is HttpOnly,
                SameSite=Strict, a fresh token the server chose
@@ -40,7 +40,7 @@ from tests.wsgi_client import Browser, Reply
 pytestmark = pytest.mark.postgres
 
 
-def _browser(tmp_path: Path, mail: MemoryMailer | None) -> Browser:
+def _browser(tmp_path: Path, mail: MemoryMailer | None, floor: float = 0.0) -> Browser:
     return Browser(
         Workspace(
             settings=Settings(dsn=database_url()),
@@ -48,7 +48,7 @@ def _browser(tmp_path: Path, mail: MemoryMailer | None) -> Browser:
             artifact_root=tmp_path / "artifacts",
             vertical_factory=load_vertical_factory("silicon_photonics"),
             allowed_hosts=allowed_hosts("127.0.0.1", 8765),
-            accounts=AccountsConfig(mailer=mail, base_url=BASE_URL, cost=CHEAP),
+            accounts=AccountsConfig(mailer=mail, base_url=BASE_URL, cost=CHEAP, answer_floor=floor),
         )
     )
 
@@ -98,8 +98,11 @@ def test_signed_out_every_page_but_the_sign_in_pages_asks_to_sign_in(lab, tmp_pa
         assert reply.status == 303 and reply.location.startswith("/login?next="), path
     for path in ("/login", "/register", "/password/forgot"):
         assert browser.get(path).status == 200, path
-    assert browser.post("/runs", {"csrf": "forged"}).status == 403
-    assert browser.post("/admin/accounts/acc:x/approve", {}).status == 403
+    runs = lab.connection.execute("SELECT count(*) FROM research_runs").fetchone()
+    for path, form in (("/runs", {"csrf": "forged"}), ("/admin/accounts/acc:x/approve", {})):
+        reply = browser.post(path, form)
+        assert reply.status == 303 and reply.location.startswith("/login?expired=1"), path
+    assert lab.connection.execute("SELECT count(*) FROM research_runs").fetchone() == runs
 
 
 def test_a_person_registers_confirms_is_approved_and_signs_in(lab, tmp_path, people):
@@ -233,7 +236,9 @@ def test_projects_are_their_members_and_oversight_is_shown_to_them(lab, tmp_path
         "SELECT count(*) FROM project_memberships WHERE project_id = %s", (project_id,)
     ).fetchone() == (1,)
     redirected = admin.get(f"/projects/{project_id}")
-    assert redirected.status == 303 and unquote(redirected.location) == f"/admin/projects/{project_id}"
+    assert (
+        redirected.status == 303 and unquote(redirected.location) == f"/admin/projects/{project_id}"
+    )
     assert "Ring drift" in admin.get(f"/admin/projects/{project_id}").text
     overview = ada.get(f"/projects/{project_id}")
     assert "Lab Owner" in overview.text, "the project's members see who looked"
@@ -283,7 +288,17 @@ def test_sign_out_suspension_and_reset_end_sessions(lab, tmp_path, people):
 
 
 @pytest.mark.parametrize(
-    "target", ["//evil.example/", "https://evil.example/", "/logout", "\\\\evil"]
+    "target",
+    [
+        "//evil.example/",
+        "https://evil.example/",
+        "/logout",
+        "\\\\evil",
+        "/\t/evil.example/",
+        "/\n/evil.example/",
+        "/\\evil.example/",
+        "javascript:alert(1)",
+    ],
 )
 def test_after_sign_in_the_browser_stays_on_this_workspace(lab, tmp_path, people, target):
     browser = _browser(tmp_path, lab.mail)
@@ -316,3 +331,151 @@ def test_the_sign_in_page_speaks_traditional_chinese(lab, tmp_path, people):
     assert "忘記密碼" in browser.get("/login").text
     _sign_in(browser, "owner@lab.example")
     assert "實驗室管理" in browser.get("/admin").text
+
+
+@pytest.mark.parametrize("target", ["/\t/evil.example/", "//evil.example", "https://x.example/"])
+def test_the_language_switch_stays_on_this_workspace(lab, tmp_path, target):
+    browser = _browser(tmp_path, lab.mail)
+    page = browser.get("/login")
+    switched = browser.post("/locale", {"csrf": _csrf(page), "locale": "zh-TW", "next": target})
+    assert switched.status == 303 and switched.location == "/"
+
+
+def test_a_form_from_an_ended_session_asks_to_sign_in_again_and_returns(lab, tmp_path, people):
+    ada = _browser(tmp_path, lab.mail)
+    _sign_in(ada, "ada@uni.example.edu")
+    page = ada.get("/projects")
+    token = _csrf(page)
+    lab.service().sign_out(ada.cookies["lb_session"])
+    refused = ada.post(
+        "/projects",
+        {"csrf": token, "name": "Lost work", "clearance": "INTERNAL"},
+        headers={"Referer": "http://127.0.0.1:8765/projects"},
+    )
+    assert refused.status == 303
+    assert refused.location == "/login?expired=1&next=/projects"
+    notice = ada.get(refused.location)
+    assert "Your sign-in ended" in notice.text and 'name="next" value="/projects"' in notice.text
+    assert lab.connection.execute(
+        "SELECT count(*) FROM projects WHERE name = 'Lost work'"
+    ).fetchone() == (0,), "nothing of the form is acted on"
+    back = ada.post(
+        "/login",
+        {
+            "csrf": _csrf(notice),
+            "email": "ada@uni.example.edu",
+            "password": "a wrong password!",
+            "next": "/projects",
+        },
+    )
+    assert back.status == 401 and 'name="next" value="/projects"' in back.text, (
+        "a failed attempt keeps where the person was going"
+    )
+    again = ada.post(
+        "/login",
+        {
+            "csrf": _csrf(back),
+            "email": "ada@uni.example.edu",
+            "password": PASSWORD,
+            "next": "/projects",
+        },
+    )
+    assert again.status == 303 and again.location == "/projects"
+    # Signed in again, a form from before says what happened instead of a bare refusal.
+    stale = ada.post("/projects", {"csrf": token, "name": "Old tab", "clearance": "INTERNAL"})
+    assert stale.status == 403 and "This form is out of date" in stale.text
+    # Signed out, a form sent from another site's page returns to this workspace's home.
+    elsewhere = _browser(tmp_path, lab.mail).post(
+        "/projects",
+        {"csrf": token},
+        headers={"Referer": "https://evil.example/projects"},
+    )
+    assert elsewhere.location == "/login?expired=1&next=/"
+
+
+def test_a_member_sees_the_systems_state_without_its_technical_details(lab, tmp_path, people):
+    ada, admin = _browser(tmp_path, lab.mail), _browser(tmp_path, lab.mail)
+    _sign_in(ada, "ada@uni.example.edu")
+    _sign_in(admin, "owner@lab.example")
+    member_view, admin_view = ada.get("/status"), admin.get("/status")
+    assert member_view.status == 200 and admin_view.status == 200
+    assert "schema_migrations=" in admin_view.text
+    assert "schema_migrations=" not in member_view.text
+    assert str(tmp_path) not in member_view.text, "no server path"
+
+
+def test_owners_change_access_and_an_administrator_manages_from_oversight(lab, tmp_path, people):
+    ada, admin = _browser(tmp_path, lab.mail), _browser(tmp_path, lab.mail)
+    _sign_in(ada, "ada@uni.example.edu")
+    _sign_in(admin, "owner@lab.example")
+    created = ada.post(
+        "/projects",
+        {"csrf": _csrf(ada.get("/projects")), "name": "Ring", "clearance": ["INTERNAL", "PUBLIC"]},
+    )
+    project_id = unquote(created.location.split("/projects/", 1)[1].split("?", 1)[0])
+    overview = ada.get(f"/projects/{project_id}")
+    added = ada.post(
+        f"/projects/{project_id}/members",
+        {"csrf": _csrf(overview), "email": "bob@gmail.example", "clearance": "PUBLIC"},
+    )
+    assert added.status == 303 and added.location.endswith("?done=added")
+    again = ada.post(
+        f"/projects/{project_id}/members",
+        {"csrf": _csrf(overview), "email": "bob@gmail.example", "clearance": "INTERNAL"},
+    )
+    assert again.status == 409 and "already a member" in again.text
+    changed = ada.post(
+        f"/projects/{project_id}/members/change",
+        {
+            "csrf": _csrf(overview),
+            "actor": people["bob"].actor_id,
+            "clearance": "INTERNAL",
+            "owner": "1",
+        },
+    )
+    assert changed.status == 303 and changed.location.endswith("?done=changed")
+    assert "Access changed." in ada.get(changed.location).text
+    own = ada.post(
+        f"/projects/{project_id}/members/change",
+        {"csrf": _csrf(overview), "actor": people["ada"].actor_id, "clearance": "PUBLIC"},
+    )
+    assert own.status == 409 and "another owner" in own.text
+    oversight = admin.get(f"/admin/projects/{project_id}")
+    assert oversight.status == 200 and "Change access" in oversight.text
+    self_grant = admin.post(
+        f"/projects/{project_id}/members",
+        {"csrf": _csrf(oversight), "email": "owner@lab.example", "clearance": "INTERNAL"},
+    )
+    assert self_grant.status == 409 and "another owner or a laboratory administrator" in (
+        self_grant.text
+    ), "an administrator does not join a project to read it"
+    removed = admin.post(
+        f"/projects/{project_id}/members/remove",
+        {"csrf": _csrf(oversight), "actor": people["ada"].actor_id},
+    )
+    assert removed.status == 303
+    assert unquote(removed.location) == f"/admin/projects/{project_id}?done=removed"
+    roles = lab.connection.execute(
+        "SELECT actor_id, role, active FROM project_memberships WHERE project_id = %s"
+        " ORDER BY actor_id",
+        (project_id,),
+    ).fetchall()
+    assert sorted(tuple(r) for r in roles) == sorted(
+        [(people["ada"].actor_id, "OWNER", False), (people["bob"].actor_id, "OWNER", True)]
+    )
+
+
+def test_registration_and_reset_take_as_long_for_a_known_address_as_for_any(lab, tmp_path, people):
+    import time
+
+    browser = _browser(tmp_path, lab.mail, floor=0.4)
+    page = browser.get("/register")
+    for path, fields in (
+        ("/register", {"name": "X", "password": PASSWORD, "repeat": PASSWORD}),
+        ("/password/forgot", {}),
+    ):
+        for email in ("ada@uni.example.edu", "nobody@new.example"):
+            started = time.monotonic()
+            reply = browser.post(path, {"csrf": _csrf(page), "email": email, **fields})
+            assert reply.status == 200, (path, email)
+            assert time.monotonic() - started >= 0.4, (path, email)

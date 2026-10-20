@@ -714,12 +714,16 @@ def test_cognition_cannot_write_a_projection_because_there_is_nothing_to_write_t
     #: `candidate_heuristics.status` joined with `011l` (M4). It is §17.11's review state of a mined
     #: candidate, CHECK-constrained to PENDING_REVIEW and append-only -- a statement about whether a
     #: person has reviewed a proposal, never about what any hypothesis is believed to be.
+    #: `accounts.status` joined with `012u`. It is a person's account state -- PENDING, ACTIVE or
+    #: SUSPENDED, CHECK-constrained -- whether they may sign in at all; it says nothing about any
+    #: hypothesis.
     declared_non_belief = {
         "review_items",
         "execution_spans",
         "runs",
         "ingestion_stage_results",
         "candidate_heuristics",
+        "accounts",
     }
     bare_status = {
         table

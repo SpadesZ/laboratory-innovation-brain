@@ -42,7 +42,9 @@ def _signed_in(tmp_path: Path, email: str) -> Browser:
             artifact_root=tmp_path / "artifacts",
             vertical_factory=load_vertical_factory("silicon_photonics"),
             allowed_hosts=allowed_hosts("127.0.0.1", 8765),
-            accounts=AccountsConfig(mailer=MemoryMailer(), base_url=BASE_URL, cost=CHEAP),
+            accounts=AccountsConfig(
+                mailer=MemoryMailer(), base_url=BASE_URL, cost=CHEAP, answer_floor=0.0
+            ),
         )
     )
     page = browser.get("/login")
@@ -86,13 +88,18 @@ def waiting(db: Any) -> dict[str, Any]:
 
 def test_the_enrolled_reviewer_is_asked_in_words_with_the_command_that_signs(waiting, db, tmp_path):
     unlabelled = _signed_in(tmp_path, "pi@lab.example").get("/inbox")
-    assert "1 question(s) in your projects concern research classified above" in unlabelled.text
+    assert (
+        "1 question(s) in your research projects concern research classified above"
+        in unlabelled.text
+    )
     _label(db, waiting["episode"], "INTERNAL")
     page = _signed_in(tmp_path, "pi@lab.example").get("/inbox")
     assert page.status == 200
     assert "Is this observation evidence for this explanation?" in page.text
     assert "contact-resistance correction" in page.text, "the explanation, in words"
     assert "is claimed to support this explanation" in page.text
+    assert "sp.normalization_basis = DISAGREES" in page.text, "what was measured"
+    assert "Overdue" in page.text, "its answer date has passed"
     assert "lab-brain review resolve" in page.text and f"--actor {REVIEWER}" in page.text
     assert "classified above" not in page.text
 

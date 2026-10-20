@@ -1136,6 +1136,10 @@ def data_page(
 # -- research history ---------------------------------------------------------------------------
 
 
+def outcome_name(status: str | None, m: Messages) -> str:
+    return _outcome(status, m)
+
+
 def _outcome(status: str | None, m: Messages) -> str:
     """An episode's conclusion in a word: "Finished" alone does not say whether anything was
     confirmed (product audit F15). The stored value can carry the cause's id after the status
@@ -1658,7 +1662,10 @@ def status_page(
     capabilities: Capabilities,
     egress: Sequence[tuple[str, str, str]],
     admin: bool,
+    technical: bool = True,
 ) -> bytes:
+    """`technical`: the addresses, backends and record details behind each part -- for those
+    who run the workspace (with accounts, its administrators), not every member."""
     m = chrome.m
     badge = {"ok": "READY", "problem": "FAILED", "missing": "UNBOUND", "limit": "WAITING"}
     rows = cat(
@@ -1709,7 +1716,9 @@ def status_page(
                     (cap, f"{kind} UNAVAILABLE: {why} -- needs: {needs}")
                     for cap, kind, why, needs in capabilities.blocked
                 ],
-            ),
+            )
+            if technical
+            else Html(""),
         )
         if capabilities.blocked
         else Html("")
@@ -1741,7 +1750,7 @@ def status_page(
         recheck,
         blocked,
         egress_card,
-        _tech(m, [(p.name, p.technical) for p in parts if p.technical]),
+        _tech(m, [(p.name, p.technical) for p in parts if p.technical]) if technical else Html(""),
     )
     return page(m("st.title"), body, chrome=chrome)
 
@@ -1766,6 +1775,7 @@ __all__ = [
     "kind_key",
     "kind_name",
     "new_research_page",
+    "outcome_name",
     "review_page",
     "sensitivity_name",
     "status_page",

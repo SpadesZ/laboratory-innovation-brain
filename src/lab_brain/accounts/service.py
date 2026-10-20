@@ -55,6 +55,10 @@ RESET_LIFETIME = dt.timedelta(minutes=30)
 SETUP_LIFETIME = dt.timedelta(hours=24)
 MAX_FAILURES = 5
 LOCKOUT = dt.timedelta(minutes=15)
+#: Mail an anonymous form can cause: messages to one account, and new registrations, an hour.
+THROTTLE_WINDOW = dt.timedelta(hours=1)
+MAX_MAILS_PER_HOUR = 3
+MAX_REGISTRATIONS_PER_HOUR = 30
 
 _COLUMNS = (
     "account_id, actor_id, email, display_name, system_role, status, email_verified_at,"
@@ -162,9 +166,14 @@ class AccountService:
         return self._mailer is not None
 
     def events(self, account_id: str) -> list[tuple[str, str | None, dict[str, Any], dt.datetime]]:
+        """(kind, who acted -- by name, or None for the operator's command line --, detail, when),
+        newest first."""
         rows = self._c.execute(
-            "SELECT kind, by_actor_id, detail, occurred_at FROM account_events"
-            " WHERE account_id = %s ORDER BY seq DESC",
+            "SELECT e.kind, coalesce(a.display_name, x.display_name, e.by_actor_id), e.detail,"
+            " e.occurred_at FROM account_events e"
+            " LEFT JOIN actors x ON x.actor_id = e.by_actor_id"
+            " LEFT JOIN accounts a ON a.actor_id = e.by_actor_id"
+            " WHERE e.account_id = %s ORDER BY e.seq DESC",
             (account_id,),
         ).fetchall()
         return [(str(r[0]), r[1], dict(r[2] or {}), r[3]) for r in rows]
@@ -172,8 +181,12 @@ class AccountService:
     # -- registration -----------------------------------------------------------------------------
 
     def register(self, *, email: str, display_name: str, password: str) -> None:
-        """A PENDING account and a verification link by mail -- or, for an address already
-        registered, a notice to that address. The caller is told the same either way."""
+        """A PENDING account and a verification link by mail. For an address already registered
+        but never confirmed: its name and password become this registration's and a fresh link is
+        sent (the earlier ones stop working) -- so an unconfirmed registration never holds an
+        address against the person who reads its mail. For a confirmed one: a notice to that
+        address. The caller is told the same either way, and the work is the same: the password
+        is hashed whichever branch is taken, so the answer's timing does not tell them apart."""
         mailer = self._require_mail()
         address = normalized_email(email)
         if address is None:
@@ -184,22 +197,51 @@ class AccountService:
         try:
             check_password_policy(password, email=address)
         except WeakPassword as weak:
-            raise AccountRefused("weak_password", str(weak)) from None
-        if self._c.execute("SELECT 1 FROM accounts WHERE email = %s", (address,)).fetchone():
-            self._send(
-                mailer,
-                Message(
-                    to=address,
-                    subject="Lab Brain: a registration with your address",
-                    body=(
-                        "Someone asked to register a Lab Brain account with this address, which "
-                        "already has one. Nothing was changed. If it was you, sign in, or reset "
-                        f"your password at {self._base}/password/forgot\n"
-                    ),
-                ),
-            )
-            return
+            raise AccountRefused("weak_password", weak.code) from None
+        hashed = hash_password(password, cost=self._cost)
         now = self._now()
+        found = self._c.execute(
+            f"SELECT {_COLUMNS} FROM accounts WHERE email = %s", (address,)
+        ).fetchone()
+        if found is not None:
+            account = _account(found)
+            if self._mailed_recently(account.account_id, now):
+                return
+            if account.awaiting == "VERIFICATION":
+                with self._c.transaction():
+                    self._c.execute(
+                        "UPDATE accounts SET display_name = %s, password_hash = %s,"
+                        " password_changed_at = %s WHERE account_id = %s",
+                        (name, hashed, now, account.account_id),
+                    )
+                    self._c.execute(
+                        "UPDATE actors SET display_name = %s WHERE actor_id = %s",
+                        (name, account.actor_id),
+                    )
+                    self._resend_verification(mailer, account)
+                return
+            with self._c.transaction():
+                self.record_event(account.account_id, "REGISTRATION_NOTICE", None, {})
+                self._send(
+                    mailer,
+                    Message(
+                        to=address,
+                        subject="Lab Brain: a registration with your address",
+                        body=(
+                            "Someone asked to register a Lab Brain account with this address, "
+                            "which already has one. Nothing was changed. If it was you, sign in, "
+                            f"or reset your password at {self._base}/password/forgot\n"
+                        ),
+                    ),
+                )
+            return
+        # A cap on new registrations an hour: verification mail is sent to any address typed, so
+        # an anonymous form must not become a way to send mail at volume.
+        recent = self._c.execute(
+            "SELECT count(*) FROM accounts WHERE created_at > %s", (now - THROTTLE_WINDOW,)
+        ).fetchone()
+        if recent is not None and int(recent[0]) >= MAX_REGISTRATIONS_PER_HOUR:
+            raise AccountRefused("busy")
         actor_id = new_id("actor")
         account_id = new_id("account")
         token = new_token()
@@ -212,32 +254,12 @@ class AccountService:
             self._c.execute(
                 "INSERT INTO accounts (account_id, actor_id, email, display_name, password_hash,"
                 " password_changed_at, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (
-                    account_id,
-                    actor_id,
-                    address,
-                    name,
-                    hash_password(password, cost=self._cost),
-                    now,
-                    now,
-                ),
+                (account_id, actor_id, address, name, hashed, now, now),
             )
             self.record_event(account_id, "REGISTERED", actor_id, {})
             self._token(account_id, "VERIFY_EMAIL", token, now + VERIFY_LIFETIME)
             # Inside the transaction: a link that could not be sent leaves no account behind.
-            self._send(
-                mailer,
-                Message(
-                    to=address,
-                    subject="Lab Brain: confirm your email address",
-                    body=(
-                        f"Confirm this address for your Lab Brain account ({name}):\n\n"
-                        f"{self._base}/verify?token={token}\n\n"
-                        "The link works once, for 48 hours. After you confirm, an administrator "
-                        "approves the account. If you did not register, ignore this message.\n"
-                    ),
-                ),
-            )
+            self._send(mailer, self._verification_message(address, token))
 
     def verify_email(self, token: str) -> Account:
         now = self._now()
@@ -473,7 +495,7 @@ class AccountService:
         if return_refusal:
             raise AccountRefused("sign_in_refused")
         if account.status == "SUSPENDED":
-            raise AccountRefused("suspended")
+            raise AccountRefused("suspended" if account.approved_at else "declined")
         if account.status == "PENDING":
             raise AccountRefused(
                 "awaiting_verification"
@@ -544,8 +566,9 @@ class AccountService:
 
     def request_password_reset(self, *, email: str) -> None:
         """A reset link by mail, for a verified account that is not suspended. The caller is told
-        the same whether or not there is one."""
-        mailer = self._require_mail()
+        the same whether or not there is one -- also when the mail cannot be sent, which is
+        recorded rather than shown (a failure only a real account could cause would tell)."""
+        self._require_mail()
         address = normalized_email(email)
         if address is None:
             return
@@ -558,6 +581,8 @@ class AccountService:
         if account.status == "SUSPENDED" or account.email_verified_at is None:
             return
         now = self._now()
+        if self._mailed_recently(account.account_id, now):
+            return
         token = new_token()
         with self._c.transaction():
             # One live reset link at a time.
@@ -568,8 +593,9 @@ class AccountService:
             )
             self._token(account.account_id, "RESET_PASSWORD", token, now + RESET_LIFETIME)
             self.record_event(account.account_id, "PASSWORD_RESET_REQUESTED", None, {})
-            self._send(
-                mailer,
+        assert self._mailer is not None
+        try:
+            self._mailer.send(
                 Message(
                     to=address,
                     subject="Lab Brain: reset your password",
@@ -579,7 +605,14 @@ class AccountService:
                         "The link works once, for 30 minutes. If you did not ask, ignore this "
                         "message; your password is unchanged.\n"
                     ),
-                ),
+                )
+            )
+        except MailUnavailable as failed:
+            self.record_event(
+                account.account_id,
+                "MAIL_FAILED",
+                None,
+                {"purpose": "RESET_PASSWORD", "error": str(failed)[:300]},
             )
 
     def reset_password(self, *, token: str, password: str) -> Account:
@@ -595,7 +628,7 @@ class AccountService:
             try:
                 check_password_policy(password, email=account.email)
             except WeakPassword as weak:
-                raise AccountRefused("weak_password", str(weak)) from None
+                raise AccountRefused("weak_password", weak.code) from None
             self._set_password(account, password, now)
             self._revoke_sessions(account_id)
             self.record_event(
@@ -620,19 +653,40 @@ class AccountService:
     def change_password(
         self, account: Account, *, current: str, new: str, keep_session: str = ""
     ) -> None:
-        """A signed-in person's new password. Every other session of the account ends."""
+        """A signed-in person's new password. Every other session of the account ends. A wrong
+        current password counts toward the same lockout as a sign-in."""
         now = self._now()
         with self._c.transaction():
             row = self._c.execute(
-                "SELECT password_hash FROM accounts WHERE account_id = %s FOR UPDATE",
+                "SELECT password_hash, failed_logins, locked_until FROM accounts"
+                " WHERE account_id = %s FOR UPDATE",
                 (account.account_id,),
             ).fetchone()
-            if row is None or not verify_password(current, row[0]):
+            if row is None:
                 raise AccountRefused("wrong_password")
-            try:
-                check_password_policy(new, email=account.email)
-            except WeakPassword as weak:
-                raise AccountRefused("weak_password", str(weak)) from None
+            stored, failures, locked_until = row[0], int(row[1]), row[2]
+            correct = verify_password(current, stored)
+            locked = locked_until is not None and locked_until > now
+            if not correct and not locked:
+                failures += 1
+                lock = now + LOCKOUT if failures >= MAX_FAILURES else None
+                self._c.execute(
+                    "UPDATE accounts SET failed_logins = %s, locked_until = %s"
+                    " WHERE account_id = %s",
+                    (0 if lock else failures, lock, account.account_id),
+                )
+                self.record_event(
+                    account.account_id, "LOCKED" if lock else "PASSWORD_CHECK_REFUSED", None, {}
+                )
+        if locked:
+            raise AccountRefused("locked")
+        if not correct:
+            raise AccountRefused("wrong_password")
+        try:
+            check_password_policy(new, email=account.email)
+        except WeakPassword as weak:
+            raise AccountRefused("weak_password", weak.code) from None
+        with self._c.transaction():
             self._set_password(account, new, now)
             self._c.execute(
                 "UPDATE account_sessions SET revoked_at = %s WHERE account_id = %s"
@@ -642,6 +696,45 @@ class AccountService:
             self.record_event(account.account_id, "PASSWORD_CHANGED", account.actor_id, {})
 
     # -- internals --------------------------------------------------------------------------------
+
+    def _resend_verification(self, mailer: Mailer, account: Account) -> None:
+        """A new verification link; the earlier ones stop working."""
+        now = self._now()
+        token = new_token()
+        with self._c.transaction():
+            self._c.execute(
+                "UPDATE account_tokens SET used_at = %s WHERE account_id = %s"
+                " AND purpose = 'VERIFY_EMAIL' AND used_at IS NULL",
+                (now, account.account_id),
+            )
+            self._token(account.account_id, "VERIFY_EMAIL", token, now + VERIFY_LIFETIME)
+            self.record_event(account.account_id, "VERIFICATION_RESENT", None, {})
+            self._send(mailer, self._verification_message(account.email, token))
+
+    def _verification_message(self, address: str, token: str) -> Message:
+        # Nothing a registrant typed goes into the message: the address is anyone's to type, so
+        # the body must not carry their words to it.
+        return Message(
+            to=address,
+            subject="Lab Brain: confirm your email address",
+            body=(
+                "Confirm this address for a Lab Brain account:\n\n"
+                f"{self._base}/verify?token={token}\n\n"
+                "The link works once, for 48 hours; any earlier link no longer works. After you "
+                "confirm, an administrator approves the account. If you did not register, "
+                "ignore this message.\n"
+            ),
+        )
+
+    def _mailed_recently(self, account_id: str, now: dt.datetime) -> bool:
+        """At most MAX_MAILS_PER_HOUR messages to one account an hour, whoever asks."""
+        row = self._c.execute(
+            "SELECT count(*) FROM account_events WHERE account_id = %s AND occurred_at > %s"
+            " AND kind IN ('REGISTERED', 'VERIFICATION_RESENT', 'REGISTRATION_NOTICE',"
+            " 'PASSWORD_RESET_REQUESTED')",
+            (account_id, now - THROTTLE_WINDOW),
+        ).fetchone()
+        return row is not None and int(row[0]) >= MAX_MAILS_PER_HOUR
 
     def _require_mail(self) -> Mailer:
         if self._mailer is None:

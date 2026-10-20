@@ -23,6 +23,7 @@ RESEARCH_OUTPUT_LANGUAGE = "en"
 _M: dict[str, tuple[str, str]] = {
     # -- chrome -----------------------------------------------------------------------------------
     "brand": ("Lab Brain", "實驗室研究大腦"),
+    "nav.label": ("Main sections", "主要區塊"),
     # The main entries, in the order a researcher works; each `.hint` is the question it answers.
     "nav.home": ("Home", "首頁"),
     "nav.home.hint": ("What should I do next?", "現在該做什麼？"),

@@ -41,19 +41,24 @@ _HASH = re.compile(r"^scrypt\$(\d+)\$(\d+)\$(\d+)\$([A-Za-z0-9+/=]+)\$([A-Za-z0-
 
 
 class WeakPassword(ValueError):
-    """The password does not meet the policy. Its message is safe to show."""
+    """The password does not meet the policy. `code` names which rule, for the interface to
+    say in the reader's language."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def check_password_policy(password: str, *, email: str = "") -> None:
     """At least 12 characters, at most 256, not the email address, not one repeated character."""
     if len(password) < MIN_PASSWORD:
-        raise WeakPassword(f"a password has at least {MIN_PASSWORD} characters")
+        raise WeakPassword("too_short", f"a password has at least {MIN_PASSWORD} characters")
     if len(password) > MAX_PASSWORD:
-        raise WeakPassword(f"a password has at most {MAX_PASSWORD} characters")
+        raise WeakPassword("too_long", f"a password has at most {MAX_PASSWORD} characters")
     if email and password.strip().lower() == email.strip().lower():
-        raise WeakPassword("a password is not the email address")
+        raise WeakPassword("is_email", "a password is not the email address")
     if len(set(password)) < 4:
-        raise WeakPassword("a password uses more than a few distinct characters")
+        raise WeakPassword("repetitive", "a password uses more than a few distinct characters")
 
 
 def _derive(password: str, salt: bytes, cost: ScryptCost) -> bytes:

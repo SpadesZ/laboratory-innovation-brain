@@ -7,8 +7,11 @@ The project is created PRIVATE.
 
 Who may change a project's membership: an active administrator, or an active OWNER of that
 project. An owner grants at most the clearance they hold there themselves; an administrator may
-grant any. A project keeps at least one active owner. Every grant and revocation is an account
-event naming who made it. Memberships are deactivated, never deleted.
+grant any. Nobody grants themself membership or changes their own access -- an administrator
+included: oversight is how an administrator reads a project, and it is recorded. Adding someone
+who is already a member is refused rather than silently rewriting their access; changing it is
+its own, explicit action. A project keeps at least one active owner. Every grant, change and
+revocation is an account event naming who made it. Memberships are deactivated, never deleted.
 """
 
 from __future__ import annotations
@@ -114,17 +117,12 @@ class LabProjects:
         member = self._accounts.get(member_account_id)
         if member is None or not member.is_active:
             raise AccountRefused("not_found", "only an active account joins a project")
-        labels = self._labels(clearance)
-        if not labels:
-            raise AccountRefused("clearance_required")
-        if not acting.is_admin:
-            own = self.membership(project_id, acting.actor_id)
-            held = set(own.clearance if own else ())
-            if not set(labels) <= held:
-                raise AccountRefused(
-                    "clearance_exceeds_own",
-                    f"an owner grants at most their own clearance ({', '.join(sorted(held))})",
-                )
+        if member.actor_id == acting.actor_id:
+            raise AccountRefused("own_membership", "nobody grants themself membership")
+        existing = self.membership(project_id, member.actor_id)
+        if existing is not None and existing.active:
+            raise AccountRefused("already_member", member.display_name)
+        labels = self._within(project_id, acting, clearance)
         with self._c.transaction():
             self._grant(
                 project_id,
@@ -144,15 +142,52 @@ class LabProjects:
         assert granted is not None
         return granted
 
+    def change_member(
+        self,
+        project_id: str,
+        *,
+        by: Account,
+        actor_id: str,
+        clearance: Sequence[str],
+        owner: bool,
+    ) -> Membership:
+        """A member's role and clearance, set explicitly -- never one's own."""
+        acting = self._authority(project_id, by)
+        if actor_id == acting.actor_id:
+            raise AccountRefused("own_membership", "nobody changes their own access")
+        target = self.membership(project_id, actor_id)
+        if target is None or not target.active:
+            raise AccountRefused("not_found")
+        labels = self._within(project_id, acting, clearance)
+        if target.role == OWNER and not owner and not self._other_owner(project_id, actor_id):
+            raise AccountRefused("last_owner", "a project keeps at least one active owner")
+        member = self._accounts.by_actor(actor_id)
+        with self._c.transaction():
+            self._grant(
+                project_id,
+                actor_id,
+                OWNER if owner else MEMBER_ROLE,
+                labels,
+                (LLM_EGRESS_SCOPE,) if owner else (),
+                acting,
+            )
+            if member is not None:
+                self._accounts.record_event(
+                    member.account_id,
+                    "MEMBERSHIP_CHANGED",
+                    acting.actor_id,
+                    {"project_id": project_id, "clearance": list(labels), "owner": owner},
+                )
+        changed = self.membership(project_id, actor_id)
+        assert changed is not None
+        return changed
+
     def remove_member(self, project_id: str, *, by: Account, actor_id: str) -> None:
         acting = self._authority(project_id, by)
         target = self.membership(project_id, actor_id)
         if target is None or not target.active:
             raise AccountRefused("not_found")
-        if target.role == OWNER and not any(
-            m.active and m.role == OWNER and m.actor_id != actor_id
-            for m in self.memberships(project_id)
-        ):
+        if target.role == OWNER and not self._other_owner(project_id, actor_id):
             raise AccountRefused("last_owner", "a project keeps at least one active owner")
         member = self._accounts.by_actor(actor_id)
         with self._c.transaction():
@@ -199,6 +234,30 @@ class LabProjects:
         if own is None or not own.active or own.role != OWNER:
             raise AccountRefused("not_permitted", "only an owner or an administrator does this")
         return current
+
+    def _other_owner(self, project_id: str, actor_id: str) -> bool:
+        return any(
+            m.active and m.role == OWNER and m.actor_id != actor_id
+            for m in self.memberships(project_id)
+        )
+
+    def _within(
+        self, project_id: str, acting: Account, clearance: Sequence[str]
+    ) -> tuple[str, ...]:
+        """The labels asked for: at least one, known, and -- unless an administrator grants
+        them -- within what the acting owner holds in the project."""
+        labels = self._labels(clearance)
+        if not labels:
+            raise AccountRefused("clearance_required")
+        if not acting.is_admin:
+            own = self.membership(project_id, acting.actor_id)
+            held = set(own.clearance if own else ())
+            if not set(labels) <= held:
+                raise AccountRefused(
+                    "clearance_exceeds_own",
+                    f"an owner grants at most their own clearance ({', '.join(sorted(held))})",
+                )
+        return labels
 
     @staticmethod
     def _labels(clearance: Sequence[str]) -> tuple[str, ...]:

@@ -80,6 +80,12 @@ class ProjectDetail:
     data: tuple[DataSummary, ...]
 
 
+#: What an administrator opened, as `admin_access_log.subject` records it.
+PROJECT_SUMMARY = "project-summary"
+EPISODE_REPORTS = "episode-reports:"
+MEMBER_RESEARCH = "member-research:"
+_SUBJECTS = (PROJECT_SUMMARY, EPISODE_REPORTS, MEMBER_RESEARCH)
+
 _EPISODES = (
     "SELECT e.episode_id, e.project_id, e.goal, e.state, e.outcome_status,"
     " coalesce(a.display_name, x.display_name, r.actor_id),"
@@ -171,7 +177,7 @@ class Oversight:
         summary = next((p for p in self.projects() if p.project_id == project_id), None)
         if summary is None:
             return None
-        self.record(project_id, f"project {project_id}")
+        self.record(project_id, PROJECT_SUMMARY)
         episodes = [
             _episode(r)
             for r in self._c.execute(
@@ -202,7 +208,6 @@ class Oversight:
         account = AccountService(self._c, mailer=None, base_url="", now=self._now).get(account_id)
         if account is None:
             return None
-        self.record(None, f"member {account_id}")
         projects = LabProjects(self._c, now=self._now).owned_or_assigned(account.actor_id)
         episodes = [
             _episode(r)
@@ -211,6 +216,11 @@ class Oversight:
                 (account.actor_id,),
             ).fetchall()
         ]
+        # The page lists this person's research in every project, so every one of those
+        # projects' members is told an administrator looked -- not only a log with no project.
+        self.record(None, f"{MEMBER_RESEARCH}{account_id}")
+        for listed in sorted({p for p, _n, _r in projects} | {e.project_id for e in episodes}):
+            self.record(listed, f"{MEMBER_RESEARCH}{account_id}")
         return account, projects, episodes
 
     def episode_project(self, episode_id: str) -> str | None:
@@ -220,6 +230,14 @@ class Oversight:
         return None if row is None else str(row[0])
 
     def record(self, project_id: str | None, subject: str) -> None:
+        """One record per administrator, project and subject an hour: a refresh or a language
+        switch is not another look."""
+        if self._c.execute(
+            "SELECT 1 FROM admin_access_log WHERE admin_actor_id = %s"
+            " AND project_id IS NOT DISTINCT FROM %s AND subject = %s AND accessed_at > %s",
+            (self.admin.actor_id, project_id, subject, self._now() - dt.timedelta(hours=1)),
+        ).fetchone():
+            return
         self._c.execute(
             "INSERT INTO admin_access_log (access_id, admin_actor_id, project_id, subject,"
             " accessed_at) VALUES (%s, %s, %s, %s, %s)",
@@ -227,18 +245,28 @@ class Oversight:
         )
 
 
-def access_log(connection: Any, project_id: str) -> list[tuple[str, str, dt.datetime]]:
-    """The administrator accesses to a project, for its members (no admin needed to read it)."""
+def access_log(connection: Any, project_id: str) -> list[tuple[str, str, str, dt.datetime]]:
+    """The administrator accesses to a project, for its members: (who, what -- PROJECT_SUMMARY,
+    EPISODE_REPORTS or MEMBER_RESEARCH --, the research question it concerns or "", when)."""
     rows = connection.execute(
-        "SELECT coalesce(a.display_name, l.admin_actor_id), l.subject, l.accessed_at"
+        "SELECT coalesce(a.display_name, l.admin_actor_id), l.subject,"
+        " coalesce(e.goal, ''), l.accessed_at"
         " FROM admin_access_log l LEFT JOIN accounts a ON a.actor_id = l.admin_actor_id"
+        " LEFT JOIN research_episodes e ON l.subject = %s || e.episode_id"
         " WHERE l.project_id = %s ORDER BY l.accessed_at DESC LIMIT 50",
-        (project_id,),
+        (EPISODE_REPORTS, project_id),
     ).fetchall()
-    return [(str(r[0]), str(r[1]), r[2]) for r in rows]
+    return [
+        (str(r[0]), next(k for k in _SUBJECTS if str(r[1]).startswith(k)), str(r[2]), r[3])
+        for r in rows
+        if any(str(r[1]).startswith(k) for k in _SUBJECTS)
+    ]
 
 
 __all__ = [
+    "EPISODE_REPORTS",
+    "MEMBER_RESEARCH",
+    "PROJECT_SUMMARY",
     "DataSummary",
     "EpisodeSummary",
     "MemberSummary",

@@ -52,6 +52,26 @@ class OperatorRefused(ValueError):
     """The operator's request is refused as asked. Nothing was written."""
 
 
+#: The tables `exists` may be asked about, and the columns it may match on.
+_EXISTS = {
+    "actors": ("actor_id",),
+    "project_memberships": ("actor_id", "project_id"),
+    "llm_administrators": ("actor_id",),
+}
+
+
+def exists(c: Any, table: str, **match: str) -> bool:
+    """Whether any row of `table` matches -- for `--if-absent`, which writes only on a first
+    start and leaves what the workspace has managed since exactly as it is."""
+    columns = _EXISTS[table]
+    if not match or set(match) - set(columns):
+        raise ValueError(f"{table} is matched on {columns}")
+    where = " AND ".join(f"{k} = %s" for k in match)
+    return bool(
+        c.execute(f"SELECT 1 FROM {table} WHERE {where} LIMIT 1", tuple(match.values())).fetchone()
+    )
+
+
 def ensure_actor(c: Any, actor_id: str, display_name: str) -> str:
     """A HUMAN actor, active. Created, renamed, or unchanged."""
     if not actor_id.startswith("act:") or len(actor_id) > 200:

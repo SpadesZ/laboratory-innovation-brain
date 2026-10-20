@@ -89,7 +89,7 @@ def test_init_creates_and_grants_the_roles_after_the_migrations_and_before_the_b
         "python /app/scripts/migrate.py",
         'python /app/deployment/docker/service_roles.py "$LAB_BRAIN_APP_PASSWORD_FILE"',
         "lab-brain admin db-roles --app-role lab_brain_app --reader-role lab_brain_reader",
-        'lab-brain admin actor "$LAB_BRAIN_ACTOR" --name "$LAB_BRAIN_ACTOR_NAME"',
+        'lab-brain admin actor "$LAB_BRAIN_ACTOR" --name "$LAB_BRAIN_ACTOR_NAME" --if-absent',
     ]
 
 

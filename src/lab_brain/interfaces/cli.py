@@ -483,6 +483,14 @@ def build_parser() -> argparse.ArgumentParser:
     actor = admin_sub.add_parser("actor", help="create or rename a person (a HUMAN actor)")
     actor.add_argument("actor_id")
     actor.add_argument("--name", required=True, help="display name")
+    actor.add_argument(
+        "--if-absent",
+        action="store_true",
+        help=(
+            "only on the first start: leave an existing record exactly as it is (with "
+            "accounts, the workspace manages it from then on)"
+        ),
+    )
     project = admin_sub.add_parser("project", help="create or update a project")
     project.add_argument("project_id")
     project.add_argument("--name", required=True)
@@ -497,6 +505,14 @@ def build_parser() -> argparse.ArgumentParser:
     member.add_argument("project_id")
     member.add_argument("actor_id")
     member.add_argument("--role", default="researcher")
+    member.add_argument(
+        "--if-absent",
+        action="store_true",
+        help=(
+            "only on the first start: leave an existing record exactly as it is (with "
+            "accounts, the workspace manages it from then on)"
+        ),
+    )
     member.add_argument(
         "--clearance",
         default="",
@@ -513,6 +529,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     llm_admin.add_argument("actor_id")
     llm_admin.add_argument("--revoke", action="store_true")
+    llm_admin.add_argument(
+        "--if-absent",
+        action="store_true",
+        help="grant only if this person was never granted it (a later revocation stands)",
+    )
     queue = admin_sub.add_parser(
         "review-queue",
         help="declare a project's review-queue policy (capacity, SLA, expiry) as a new version",
@@ -1030,12 +1051,29 @@ def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
     from lab_brain.interfaces import deployment
 
     try:
-        if args.admin_command == "actor":
+        if (
+            args.admin_command == "actor"
+            and args.if_absent
+            and deployment.exists(connection, "actors", actor_id=args.actor_id)
+        ):
+            lines = [f"actor {args.actor_id} exists; left as it is"]
+        elif args.admin_command == "actor":
             lines = [deployment.ensure_actor(connection, args.actor_id, args.name)]
         elif args.admin_command == "project":
             lines = [
                 deployment.ensure_project(connection, args.project_id, args.name, args.privacy_mode)
             ]
+        elif (
+            args.admin_command == "member"
+            and args.if_absent
+            and deployment.exists(
+                connection,
+                "project_memberships",
+                actor_id=args.actor_id,
+                project_id=args.project_id,
+            )
+        ):
+            lines = [f"membership {args.actor_id} in {args.project_id} exists; left as it is"]
         elif args.admin_command == "member":
             lines = [
                 deployment.set_membership(
@@ -1047,6 +1085,12 @@ def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
                     scopes=args.scope,
                 )
             ]
+        elif (
+            args.admin_command == "llm-admin"
+            and args.if_absent
+            and deployment.exists(connection, "llm_administrators", actor_id=args.actor_id)
+        ):
+            lines = [f"{args.actor_id} was granted LLM administration before; left as it is"]
         elif args.admin_command == "llm-admin":
             change = deployment.revoke_llm_admin if args.revoke else deployment.grant_llm_admin
             lines = [change(connection, args.actor_id, utc_now())]
