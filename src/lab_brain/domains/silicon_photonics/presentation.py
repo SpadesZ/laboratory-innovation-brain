@@ -74,6 +74,13 @@ NAMES: Final[dict[str, tuple[str, str]]] = {
     ),
 }
 
+COUNTER_DOPING = (
+    "Counter-doping compensates the rib and raises the resistance of the undepleted access path."
+)
+TWO_POINT = (
+    "Probe contact resistance in the two-point measurement inflates the reported series resistance."
+)
+
 #: Declared English sentences and names -> their Traditional Chinese rendering.
 ZH_TW: Final[dict[str, str]] = {
     # The mechanism catalog (`product.mechanism_catalog`): names, statements, falsifiers.
@@ -99,18 +106,14 @@ ZH_TW: Final[dict[str, str]] = {
         "加密存取區網格（mesh refinement）後，萃取出的 Rs 沒有改變"
     ),
     "dopant compensation in the rib": "脊部摻雜補償（dopant compensation in the rib）",
-    "Counter-doping compensates the rib and raises the resistance of the undepleted access "
-    "path.": (
+    COUNTER_DOPING: (
         "反向摻雜（counter-doping）補償了脊部（rib）的摻雜，使未空乏的存取路徑電阻升高。"
     ),
     "the DC sweep shows the design free-carrier density in the access region": (
         "直流掃描（DC sweep）顯示存取區的自由載子濃度（free-carrier density）符合設計值"
     ),
     "measurement probe contact artifact": "量測探針接觸假象（probe contact artifact）",
-    "Probe contact resistance in the two-point measurement inflates the reported series "
-    "resistance.": (
-        "二點量測（two-point measurement）中的探針接觸電阻，使報告的串聯電阻被高估。"
-    ),
+    TWO_POINT: "二點量測（two-point measurement）中的探針接觸電阻，使報告的串聯電阻被高估。",
     "a four point measurement reports the same series resistance": (
         "四點量測（four-point measurement）得到相同的串聯電阻"
     ),
