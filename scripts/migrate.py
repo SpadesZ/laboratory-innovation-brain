@@ -72,6 +72,24 @@ APPLY_ORDER: tuple[str, ...] = (
     # P5-fix / v3.3-a10. Adds §9.4's `token_count` to the three cost tables. Separate from 007a
     # because 007a is applied: an applied migration is checksummed and must not be edited.
     "007b_cost_token_dimension.sql",
+    # M1-P2 / OPS-001. Appendix A's whole `006` slot, both halves, which is why this takes the
+    # bare number rather than a suffix. After 001 for the `projects` foreign key and nothing
+    # else: Jobs and Runs are execution records, not scientific ones, and a dependency on the
+    # evidence tables would be a coupling neither §17.16 nor §17.4 declares. Placed here rather
+    # than at numeric position because `010a`'s header records that its `job_id` carries no
+    # foreign key *because this migration did not exist*; it exists now, and the ordering makes
+    # that legible.
+    "006_jobs_runs.sql",
+    # M1-P4 / OPS-001 repair. Two audit findings against `006`: `job_complete` persisted a
+    # SUBSET of §17.4 (seven fields silently replaced by column defaults, so the two stores
+    # disagreed about what a Run is), and `add_run` was a second, weaker completion path that
+    # permitted a durable Run whose Job did not resolve to it. Separate from `006` because
+    # `006` is applied and an applied migration is checksummed.
+    "006a_run_completion_integrity.sql",
+    # M1 final / OPS-001. The minimum §17.3 ResearchEpisode the exit gate's "delayed mock
+    # job resumes EPISODE" needs. Extends 006 because `jobs.episode_id` is the reference it
+    # resolves, and turns that column into a checked foreign key. After 006.
+    "006b_research_episodes.sql",
     # P6 / M0b-3. The observability third of Appendix A's 010 slot (OPS-003); the review and
     # benchmark halves land with OPS-002 and §17.19.2. After 007a/007b: span cost refs are a
     # foreign key into `cost_entries`.
@@ -124,6 +142,161 @@ APPLY_ORDER: tuple[str, ...] = (
     # an inactive executor. After 011f: it extends that migration's commit-boundary invariant
     # rather than adding a second notion of closure validity.
     "011g_governance_event_chain_binding.sql",
+    # M1 / UX-005. Adds EXTRACTION_UNCERTAINTY to `review_items.subject_type`. An extension
+    # of the vocabulary, not a change to M0b semantics: UX-005 forbids a parallel review
+    # surface because ReviewQueue depth is what prices human attention in §14.4.1, so a
+    # second queue would consume the same reviewers while being invisible to the planner.
+    "011h_review_subject_extraction.sql",
+    # M1 final / UX-001, UX-002, UX-003. Appendix A's 012 slot, with its exact slug.
+    # `ingestion_items` has NO state column -- §17.22 derives it. After 006b (stage results
+    # reference jobs), 010a (spans), 002/002a (artifacts) and 011h (review items).
+    "012_ingestion_items_errors.sql",
+    # M1 second audit / UX-001, ART-001. Drops one CHECK from 012 that content addressing makes
+    # unsatisfiable: identical bytes are the SAME artifact, so a duplicate item's
+    # `duplicate_of_artifact_id` necessarily equals its `raw_artifact_id`. Forward-only, because
+    # editing an applied file is what the checksum guard exists to catch.
+    "012a_duplicate_is_content_identity.sql",
+    # M1 third audit / UX-003, §17.24. The row `error_records.technical_detail_ref` points at.
+    # A separate table rather than columns, because the default payload is built FROM the error
+    # record -- a detail column would put restricted material into the object the untrusted tier
+    # is rendered from. After 012 (error_records) and 001 (projects).
+    "012b_technical_details.sql",
+    # M1-P1 / EVI-010 (`v3.3-a17`). The canonical evidence body. Extends 003 rather than taking
+    # Appendix A's 012, which is reserved for `ingestion_items_errors` (UX-001, a later slice).
+    # After 002 and 003: foreign keys into `artifacts` and `source_works`, and it is what an
+    # Attestation is made from.
+    "003a_evidence_units.sql",
+    # M1-P1 / EVI-010, ADR-0011. What an index holds about a unit. A SEPARATE migration on
+    # purpose: dropping every row for an `index_id` must be expressible without touching
+    # `evidence_units`, which is the schema-level form of "rebuilding an index changes no
+    # scientific evidence identity". The 'a' extension of Appendix A's 009 `vectors` slot, where
+    # EVI-007's dense index will later add columns -- nowhere near 003a. After 003a: the foreign
+    # key points from the index to the evidence, never the reverse.
+    "009a_retrieval_representations.sql",
+    # M1-P1 repair / `v3.3-a18` (SPEC-ISSUE-014, SPEC-ISSUE-015). Splits project scope off the
+    # content-derived evidence identity -- the ADR-0010 move one layer down -- and adds the
+    # segmentation witness. After 003a and 002a: it backfills occurrences from the column it then
+    # drops, and its occurrence trigger checks `artifact_occurrences`.
+    "003b_evidence_unit_occurrences.sql",
+    # M1-P1 repair / `v3.3-a18`. Consequence of the split: 009a's UNIQUE (unit, index) permitted
+    # only one project to index evidence that several may now hold, and its trigger read the
+    # column 003b drops. Must run after 003b for both reasons.
+    "009b_representation_project_scope.sql",
+    # M1-P1 repair / `v3.3-a18`. §17.25's durable-reference clause: the Attestation->EvidenceUnit
+    # link existed only as an admission-call parameter, so a reloaded attestation could not name
+    # the passage it read. After 003b: the column references `evidence_units` and its trigger
+    # reads `evidence_unit_occurrences`.
+    "003c_attestation_evidence_unit.sql",
+    # M1 final / LLM-001. §17.14 InferenceProvenance, durable and append-only. Extends 003
+    # because §17.2's Attestation carries `inference_provenance_id`. After 001 for the
+    # project foreign key.
+    "003d_inference_provenance.sql",
+    # M2 / VER-002, §9.5, §17.18, §10.7. The capabilities half of Appendix A's `007` slot, which
+    # `007a`'s header reserved for this milestone. Also carries the license/seat pool the M2 exit
+    # gate's "license/resource queue mock" needs, because a seat ceiling enforced in Python is
+    # correct for one scheduler and wrong for two -- the same argument `006` makes about duplicate
+    # callbacks. After 008 (`conditions_schema_version` is a foreign key into `condition_schemas`)
+    # and after 006 (`resource_leases.job_id` references `jobs`).
+    "007c_capabilities.sql",
+    # M3 / §7.3. `003d` constrained `logical_slot` to M1's function labels, so §7.3's own route
+    # slots were unrecordable. Widens the CHECK additively; M1's rows and code are unchanged.
+    "003e_model_route_slots.sql",
+    # M3 / LLM-002, VER-004/008. The benchmark half of Appendix A's 010 slot: OutcomeSpace and
+    # BenchmarkPolicy, both bound field-for-field to §17.19.2. No dependencies beyond 001.
+    "010c_outcome_spaces_benchmark_policies.sql",
+    # M3 / EPI-001, SRC-002, LLM-002. The Hypothesis certificate, competing sets, Position,
+    # CritiqueReport and the debate record. After 006b (episodes), 004a (bundles), 003d
+    # (inference provenance): every one of them is referenced by a foreign key.
+    "005e_hypotheses_and_debate.sql",
+    # M3 / EPI-001, VER-006, SRC-002. The Prediction half of Appendix A's 011 slot, and the
+    # belief-revision guard for certificates admitted through M3's gate. After 010c (outcome
+    # spaces), 005e (hypotheses, critiques) and 005a (the events it guards).
+    "011i_predictions.sql",
+    # M3 / SRC-003. PriorArtSearchRecord and NoveltyAssessment. After 006b (episodes) and 005e,
+    # whose episode-in-project trigger function it reuses.
+    "002b_prior_art_search.sql",
+    # M3 / EPI-001 -- closes R-12. Re-keys `hypotheses` on (project_id, hypothesis_id), M0b's
+    # identity for a history, and makes every belief event name an admitted hypothesis of its own
+    # project. After 011i, whose two functions it replaces with project-scoped lookups.
+    "011j_belief_event_targets.sql",
+    # M4 / VER-001, VER-005. SelectionPolicy and VerificationPlan (§9.6, §17.14.1). After 006b
+    # (episodes) and 005e, whose episode-in-project trigger function it reuses.
+    "011k_verification_plans.sql",
+    # M4 / EPI-002. FailureAnalysis and CandidateHeuristic, with the Run/Artifact trace in SQL.
+    # After 011j (hypotheses keyed on the pair), 006 (runs), 003 (observations, attestations),
+    # 004 and 005a (relations and the events that cite them).
+    "011l_failure_analyses.sql",
+    # M5 / GH-001, GH-002, GH-003. External snapshots and their lifecycle, and GH-003's guards on
+    # attestations and source works. In Appendix A's 002 slot (artifacts / source works); applied
+    # last because its attestation guard reads source_works and it references actors, projects and
+    # artifacts only.
+    "002c_external_snapshots.sql",
+    # M5 / GH-002. Access scopes, and the guard that a snapshot was read under its own project's
+    # scope. After 002c, whose table it guards and whose append-only function it reuses.
+    "002d_external_access_scopes.sql",
+    # M5 / GH-002, upgrade safety. Quarantines every pre-existing snapshot whose project and access
+    # scope cannot be proven coherent, and keeps quarantined material out of use. After 002d, whose
+    # scope table it reads, and after 003/004/004a/005a, whose tables it guards.
+    "002e_external_snapshot_quarantine.sql",
+    # Product vertical / episode continuation. The research runs of an episode: the opener
+    # binding, one live run, one reasoning history. After 006b (episodes), 005e (hypothesis sets
+    # and `m3_episode_is_in_project`), 001 (actors, projects) and 002 (artifacts).
+    "012c_research_runs.sql",
+    # Research workspace (web). The report each finished research run returned, bound to its
+    # run. After 012c (research_runs) and 006b/001 (episodes, projects).
+    "012d_research_run_reports.sql",
+    # Research workspace V2. Model connections (credential references only), health, models,
+    # capability probes, locks, runtimes and slot bindings. After 001 (actors).
+    "012e_llm_runtime.sql",
+    # Research workspace V2, closure. Deployment LLM administration apart from project egress
+    # authorization; LOCAL may name the Docker host. After 012e (llm_*) and 001 (actors,
+    # projects, memberships).
+    "012f_llm_authority.sql",
+    # Research data intake: the material kind a researcher declared for a file added outside a
+    # research run, bound to its ingestion item. After 012 (ingestion_items) and 001.
+    "012g_research_data_declarations.sql",
+    # A pasted model-provider key kept in this deployment's credential directory: the reference
+    # `file:lab-brain/llm/<uuid>` beside env: and wincred:. After 012e (llm_connections).
+    "012h_llm_credential_directory.sql",
+    # An ENABLED model connection reaches another host over https:// only; plaintext http:// only
+    # on this machine (NOT VALID: older rows are refused where they are used). After 012f (the
+    # this-machine host list it repeats).
+    "012i_llm_transport.sql",
+    # A provider reached but too slow for the call's deadline is TIMEOUT, not UNREACHABLE. After
+    # 012e (llm_connection_health).
+    "012j_llm_timeout_outcome.sql",
+    # A debate that failed before admitting a hypothesis set is retried in the same episode: the
+    # opening run's admitted statements by reference, and the set recorded once by whichever run
+    # debated it. After 012c (research_runs) and 001 (attestations).
+    "012k_research_debate_retry.sql",
+    # What a capability probe demanded (ROLE_HYPOTHESIS: the minimum it asked for) and an
+    # append-only record of every lock a model has had. After 012e (llm_capability_probes,
+    # llm_models).
+    "012l_llm_qualification.sql",
+    # The qualification-semantics digest each capability probe ran under; a lock counts only probes
+    # run under the digest in force. After 012l (llm_capability_probes.parameters).
+    "012m_llm_probe_semantics.sql",
+    # Every admitted hypothesis designates a typed falsifier: its own CONTRADICTS predictions,
+    # checked at its genesis event. After 011j (the genesis function it restates) and 011i
+    # (predictions).
+    "012n_typed_falsifier.sql",
+    # Causal Warrant Gate: the policy flag, DIAGNOSTIC_WARRANT reviews and their grants, the
+    # WARRANT_GRANT closure kind, and the warrants a confirmation names. After 011f (closure
+    # kinds), 011h (review subjects), 011l (failure_analyses) and 005b (transition_policies).
+    "012o_causal_warrant_gate.sql",
+    # Causal Warrant Gate V1.1: signed answers under authority-enrolled reviewer keys, the
+    # registered declaration sets and the confirmation rule for every writer, and flags on
+    # recorded conclusions. After 012o (grants, warrant refs) and 011a (conflicts).
+    "012p_causal_warrant_gate_v1_1.sql",
+    # The research question's classification on every research run, carried by every
+    # continuation. After 012c/012k (research_runs).
+    "012q_question_classification.sql",
+    # A relation's invalidation is final and keeps its author; relations are never deleted.
+    # After 012o (whose immutability rule it restates).
+    "012r_relation_invalidation.sql",
+    # Every scientific reference resolves within its own project: observations, attestations,
+    # relation support, bundle members, heuristic sources. After 012r and every table it names.
+    "012s_project_scoped_provenance.sql",
 )
 
 _BOOTSTRAP = """

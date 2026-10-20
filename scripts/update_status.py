@@ -327,7 +327,7 @@ def build_coverage_audit() -> str:
             "",
             "| | |",
             "|---|---|",
-            "| Audit document | [`M0a.md`](docs/spec_coverage_audit/M0a.md) (rev 6) |",
+            "| Audit document | [`M0a.md`](docs/spec_coverage_audit/M0a.md) (rev 7) |",
             f"| Scope | §6–§16, all {len(spec_headings())} numbered headings counted |",
             f"| Sections reconciled | {len(rows)} |",
             f"| Hard MUSTs | **{hard}** = {live} registered live + {deferred} named deferred |",

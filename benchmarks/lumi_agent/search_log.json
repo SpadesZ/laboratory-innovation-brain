@@ -1,0 +1,1351 @@
+{
+ "benchmark": "lumi-agent-blind-v1",
+ "cutoff_exclusive": "2026-03-23",
+ "per_query": 4,
+ "min_abstract_chars": 400,
+ "rule_version": "v2",
+ "rules": {
+  "D01": {
+   "since": "2021-01-01",
+   "must": [
+    [
+     "language model",
+     "llm"
+    ],
+    [
+     "fdtd",
+     "finite-difference time-domain",
+     "simulation"
+    ]
+   ]
+  },
+  "D02": {
+   "since": "2021-01-01",
+   "must": [
+    [
+     "language model",
+     "llm"
+    ],
+    [
+     "photonic"
+    ]
+   ]
+  },
+  "D03": {
+   "since": "2021-01-01",
+   "must": [
+    [
+     "language model",
+     "llm"
+    ],
+    [
+     "photonic",
+     "optical",
+     "optics"
+    ]
+   ]
+  },
+  "D04": {
+   "since": "2021-01-01",
+   "must": [
+    [
+     "language model",
+     "llm"
+    ],
+    [
+     "simulation",
+     "scientific"
+    ]
+   ]
+  },
+  "D05": {
+   "since": "2021-01-01",
+   "must": [
+    [
+     "language model",
+     "llm"
+    ],
+    [
+     "api",
+     "library",
+     "libraries"
+    ]
+   ]
+  },
+  "D06": {
+   "since": "2019-01-01",
+   "must": [
+    [
+     "retriev"
+    ],
+    [
+     "code"
+    ]
+   ]
+  },
+  "D07": {
+   "since": "2021-01-01",
+   "must": [
+    [
+     "language model",
+     "llm"
+    ],
+    [
+     "electromagnetic",
+     "simulation"
+    ]
+   ]
+  },
+  "D08": {
+   "since": null,
+   "must": [
+    [
+     "fdtd",
+     "finite-difference time-domain"
+    ],
+    [
+     "mesh",
+     "convergence",
+     "grid",
+     "accuracy"
+    ]
+   ]
+  },
+  "D09": {
+   "since": "2021-01-01",
+   "must": [
+    [
+     "language model",
+     "llm"
+    ],
+    [
+     "code"
+    ]
+   ]
+  },
+  "D10": {
+   "since": "2021-01-01",
+   "must": [
+    [
+     "language model",
+     "llm"
+    ],
+    [
+     "engineering",
+     "design",
+     "cad",
+     "tool"
+    ]
+   ]
+  },
+  "D11": {
+   "since": "2021-01-01",
+   "must": [
+    [
+     "language model",
+     "llm"
+    ],
+    [
+     "electronic design automation",
+     "eda",
+     "hardware",
+     "verilog",
+     "circuit"
+    ]
+   ]
+  },
+  "C01": {
+   "since": null,
+   "must": [
+    [
+     "inverse design"
+    ],
+    [
+     "photonic"
+    ]
+   ]
+  },
+  "C02": {
+   "since": null,
+   "must": [
+    [
+     "surrogate",
+     "neural network",
+     "deep learning"
+    ],
+    [
+     "photonic",
+     "electromagnetic",
+     "nanophotonic"
+    ]
+   ]
+  },
+  "C03": {
+   "since": null,
+   "must": [
+    [
+     "photonic"
+    ],
+    [
+     "design flow",
+     "workflow",
+     "automation",
+     "automated",
+     "pdk",
+     "parametric"
+    ]
+   ]
+  },
+  "C04": {
+   "since": "2021-01-01",
+   "must": [
+    [
+     "language model",
+     "llm"
+    ],
+    [
+     "hallucinat"
+    ],
+    [
+     "code"
+    ]
+   ]
+  },
+  "C05": {
+   "since": "2021-01-01",
+   "must": [
+    [
+     "language model",
+     "llm"
+    ],
+    [
+     "planning",
+     "multi-step",
+     "reasoning"
+    ]
+   ]
+  },
+  "C06": {
+   "since": "2021-01-01",
+   "must": [
+    [
+     "language model",
+     "llm"
+    ],
+    [
+     "benchmark"
+    ],
+    [
+     "scientific",
+     "science"
+    ]
+   ]
+  },
+  "C07": {
+   "since": null,
+   "must": [
+    [
+     "verification",
+     "validation",
+     "convergence"
+    ],
+    [
+     "electromagnetic",
+     "fdtd",
+     "maxwell"
+    ]
+   ]
+  }
+ },
+ "superseded": "v1/ (rule v1: full-text relevance only; see the module docstring)",
+ "queries": [
+  {
+   "id": "D01",
+   "kind": "DERIVED",
+   "text": "large language model FDTD simulation script generation",
+   "reason": "Problem: turning intent into an executable FDTD simulation program.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Alarge+language+model+FDTD+simulation+script+generation%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:43:05+00:00",
+   "snapshot": "snapshots/openalex/D01.json.gz",
+   "sha256": "1a9b52c999f4caf4bc30494e2e52ae46fddc96cfa01f6011f370adb1e6ae0ba6",
+   "results": 0,
+   "selected": [],
+   "excluded": []
+  },
+  {
+   "id": "D02",
+   "kind": "DERIVED",
+   "text": "large language model photonic device simulation",
+   "reason": "Problem: photonic device simulation driven by a language model.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Alarge+language+model+photonic+device+simulation%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:45:43+00:00",
+   "snapshot": "snapshots/openalex/D02.json.gz",
+   "sha256": "d31c4cbd8324fb8080d6943a1f6051c1648dddf0f27c05670d43242eded66c08",
+   "results": 17,
+   "selected": [
+    "10.1109/jstqe.2024.3425456",
+    "10.1063/5.0300741",
+    "10.23919/date64628.2025.10992854",
+    "10.1039/d5nr02043c"
+   ],
+   "excluded": [
+    {
+     "work": "Bottom-up Verification for CMOS Photonic Linear Heterogeneous System (2011-11-08)",
+     "doi": "https://doi.org/10.1007/978-1-4614-1427-8_6",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Development of Numerical Optimization Techniques for Optimal Design of Nanophotonic and Nanoplasmonic Systems (2012-10-05)",
+     "doi": "https://doi.org/10.13021/mars/7759",
+     "why": "published 2012-10-05, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "The event generator SHERPA (2005-01-01)",
+     "doi": "https://doi.org/10.5170/cern-2005-014.590",
+     "why": "published 2005-01-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "None (2019-11-08)",
+     "doi": "https://doi.org/10.35940/ijeat.9",
+     "why": "published 2019-11-08, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "None (2021-03-27)",
+     "doi": "https://doi.org/10.35940/ijrte.8",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Focus on software, instrumentation, and data acquisition (2021-12-01)",
+     "doi": "https://doi.org/10.1063/pt.3.4906",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "New books (2011-05-01)",
+     "doi": "https://doi.org/10.1063/1.3592009",
+     "why": "published 2011-05-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "New Books (2002-05-01)",
+     "doi": "https://doi.org/10.1063/1.2408487",
+     "why": "published 2002-05-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "New Books (2006-06-01)",
+     "doi": "https://doi.org/10.1063/1.2405539",
+     "why": "published 2006-06-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "New books (2012-10-01)",
+     "doi": "https://doi.org/10.1063/pt.3.1756",
+     "why": "published 2012-10-01, before this query's window (2021-01-01)"
+    }
+   ]
+  },
+  {
+   "id": "D03",
+   "kind": "DERIVED",
+   "text": "large language models photonics design",
+   "reason": "Problem domain: language models applied to photonics design.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Alarge+language+models+photonics+design%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:45:48+00:00",
+   "snapshot": "snapshots/openalex/D03.json.gz",
+   "sha256": "19a535e44c329b55cbb1e04bb4a8b27dbd5a2178ab9228603470ea00f4478526",
+   "results": 50,
+   "selected": [
+    "10.1109/hpca57654.2024.00059",
+    "10.1145/3712255.3734288",
+    "10.23919/date58400.2024.10546653",
+    "10.1109/jstqe.2025.3539379"
+   ],
+   "excluded": [
+    {
+     "work": "Optical generative models (2025-08-27)",
+     "doi": "https://doi.org/10.1038/s41586-025-09446-5",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Near-Sensor Edge Computing System Enabled by a CMOS Compatible Photonic Integrated Circuit Platform Using Bilayer AlN/Si Waveguides (2025-05-19)",
+     "doi": "https://doi.org/10.1007/s40820-025-01743-y",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Documentation generator for VHDL and MatLab source codes for photonic and electronic systems (2011-02-12)",
+     "doi": "https://doi.org/10.1117/12.898392",
+     "why": "published 2011-02-12, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "An ultra-compact efficient silicon power beam splitter based on large language model by inverse design (2025-11-29)",
+     "doi": "https://doi.org/10.1016/j.optcom.2025.132733",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Optical Generative Models (2024-10-23)",
+     "doi": "https://doi.org/10.48550/arxiv.2410.17970",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Steady-state and transient analysis of electro-thermal microactuators using finite element methods (2003-01-01)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "PHOENIX – Paderborn highly optimized and energy efficient solver for two-dimensional nonlinear Schrödinger equations with integrated extensions (2025-05-29)",
+     "doi": "https://doi.org/10.1016/j.cpc.2025.109689",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Programmability and AI-Assisted Design of Silicon Photonic Circuits (2024-01-01)",
+     "doi": "https://doi.org/10.1364/iprsn.2024.im1b.2",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "RePhoSim: A Scalable, Modular, and Signal Flow Modeling Approach for Large Scale Integrated Photonic Circuits (2023-05-31)",
+     "doi": "https://doi.org/10.5281/zenodo.8162907",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Creating an AI-driven tool to automate photonic circuit design (2025-12-30)",
+     "doi": "https://doi.org/10.1063/10.0042200",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Hardware Implementation of Photonic Spiking Hash Retrieval (2026-03-03)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "Bottom-up Verification for CMOS Photonic Linear Heterogeneous System (2011-11-08)",
+     "doi": "https://doi.org/10.1007/978-1-4614-1427-8_6",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Focus on photonics, spectrometry, and spectroscopy (2019-01-01)",
+     "doi": "https://doi.org/10.1063/pt.3.4117",
+     "why": "published 2019-01-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Development of Numerical Optimization Techniques for Optimal Design of Nanophotonic and Nanoplasmonic Systems (2012-10-05)",
+     "doi": "https://doi.org/10.13021/mars/7759",
+     "why": "published 2012-10-05, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Chapter VIІ. Accelerating scientific hypothesis testing through multi-model ai reasoning: case studies in optics (2025-01-01)",
+     "doi": "https://doi.org/10.33407/lib.naes.id/748238",
+     "why": "language uk"
+    },
+    {
+     "work": "New books (2013-10-01)",
+     "doi": "https://doi.org/10.1063/pt.3.2153",
+     "why": "published 2013-10-01, before this query's window (2021-01-01)"
+    }
+   ]
+  },
+  {
+   "id": "D04",
+   "kind": "DERIVED",
+   "text": "natural language to scientific simulation code generation language model",
+   "reason": "Problem: natural-language intent to simulation code.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Anatural+language+to+scientific+simulation+code+generation+language+model%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:48:52+00:00",
+   "snapshot": "snapshots/openalex/D04.json.gz",
+   "sha256": "0f566fc7d0da775e9b88e29f34dbfcbfdaa2d1eab305e0734e8225912659c8ff",
+   "results": 47,
+   "selected": [
+    "10.1038/s44387-025-00057-z",
+    "10.1016/j.procs.2025.04.399",
+    "10.36227/techrxiv.176972175.53895025/v1",
+    "10.31224/4723"
+   ],
+   "excluded": [
+    {
+     "work": "Facilitating automated conversion of scientific knowledge into scientific simulation models with the Machine Assisted Generation, Calibration, and Comparison (MAGCC) Framework (2022-04-21)",
+     "doi": "https://doi.org/10.48550/arxiv.2204.10382",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "The Model Driven Architecture Approach: A Framework for Developing Complex Agricultural Systems (2008-09-15)",
+     "doi": "https://doi.org/10.1007/978-0-387-75181-8_1",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Enabling modeling framework with surrogate modeling capabilities and complex networks (2019-01-01)",
+     "doi": "https://doi.org/10.15168/11572_369029",
+     "why": "published 2019-01-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Incremental declaration handling in Open Source Modelica (2002-01-01)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "Validating the Need to Validate Code (2005-08-01)",
+     "doi": "https://doi.org/10.1063/1.4797197",
+     "why": "published 2005-08-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Three routes to protecting AI systems and their algorithms under IP law: The good, the bad and the ugly (2021-01-31)",
+     "doi": "https://doi.org/10.1093/jiplp/jpab033",
+     "why": "off the query's subject: mentions none of ['simulation', 'scientific']"
+    },
+    {
+     "work": "Computational neuroscience: a frontier of the 21st century (2020-06-11)",
+     "doi": "https://doi.org/10.1093/nsr/nwaa129",
+     "why": "published 2020-06-11, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "COTP: Coplanning and Coexecuting AIGC Agent Native Product for Predictive Maintenance and Operational Optimisation of Cross Border Transition Pipelines (2025-11-03)",
+     "doi": "https://doi.org/10.2118/229690-ms",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Human-Centred AI in the Post-Optimisation Regenerative Process for Climate Scenarios (2024-01-01)",
+     "doi": "https://doi.org/10.1007/978-3-031-74723-6_7",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "A Self-Correcting Multi-Agent LLM Framework for Language-Based Physics Simulation and Explanation (2025-08-14)",
+     "doi": "https://doi.org/10.21203/rs.3.rs-7313618/v1",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Special Issue: Design by Data: Cultivating Datasets for Engineering Design (2025-02-07)",
+     "doi": "https://doi.org/10.1115/1.4067871",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "What Is Artificial Life Today, and Where Should It Go? (2024-01-01)",
+     "doi": "https://doi.org/10.1162/artl_e_00435",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "CPT: Pharmacometrics & Systems Pharmacology – Inception, Maturation, and Future Vision (2021-07-01)",
+     "doi": "https://doi.org/10.1002/psp4.12680",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "The Evolution of Knowledge Management Generations with a Focus on the Fourth Generation: Revisiting the SECI Model (2025-11-25)",
+     "doi": "https://doi.org/10.47176/smok.2025.1938",
+     "why": "language fa"
+    },
+    {
+     "work": "World Models: A Survey (2026-01-01)",
+     "doi": "https://doi.org/10.2139/ssrn.6628518",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Foam-Agent 2.0: An End-to-End Composable Multi-Agent Framework for Automating CFD Simulation in OpenFOAM (2025-09-17)",
+     "doi": "https://doi.org/10.48550/arxiv.2509.18178",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Digital Libraries Initiative – Phase 2: Fiscal Year 1999 Awards (1999-10-01)",
+     "doi": "https://doi.org/10.1002/bult.137",
+     "why": "published 1999-10-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Are books a thing of the past for the development of addiction science? (2006-09-01)",
+     "doi": "https://doi.org/10.1111/j.1360-0443.2006.01622.x",
+     "why": "published 2006-09-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Проєктування LLM-керованої метасистеми для динамічного агентно-орієнтованого моделювання (2026-02-10)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "Shakespeare’s Animals: Is There Anything It Is Like To Be Adonis? (2022-07-01)",
+     "doi": "https://doi.org/10.1093/escrit/cgac022",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Advancing Practice, Instruction, and Innovation Through Informatics (APIII 2003): Scientific Session and E-Poster Abstracts (2004-10-01)",
+     "doi": "https://doi.org/10.5858/2004-128-1089-apiait",
+     "why": "published 2004-10-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Application opportunities of artificial intelligence technologies in military training (2025-01-01)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "Literary AI: Are We Ready for the Future We Imagine? (2023-03-17)",
+     "doi": "https://doi.org/10.1215/00029831-10575176",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Beings, beanbags, or bits: how should we look at life? (2024-08-27)",
+     "doi": "https://doi.org/10.1093/biosci/biae066",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Embodied Climate Knowledge in African Cli-Fi: Alistair Mackay’s It Doesn’t Have to Be This Way (2022) and Nnedi Okorafor’s Noor (2021) (2023-09-28)",
+     "doi": "https://doi.org/10.1093/isle/isad067",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "In this issue (2007-11-27)",
+     "doi": "https://doi.org/10.1002/asi.20783",
+     "why": "published 2007-11-27, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "None (2021-03-27)",
+     "doi": "https://doi.org/10.35940/ijrte.8",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "None (2019-11-08)",
+     "doi": "https://doi.org/10.35940/ijeat.9",
+     "why": "published 2019-11-08, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "None (2020-05-09)",
+     "doi": "https://doi.org/10.35940/ijsce.9",
+     "why": "published 2020-05-09, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "“How we live and how we might live”: Design and the spirit of critical utopianism (2023-07-04)",
+     "doi": "https://doi.org/10.1093/jdh/epad020",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Towards Sustainable Neuromorphic Computing: A Thesis on Organoid Intelligence (OI) as a Paradigm for Low-Power Biocomputing (2025-10-21)",
+     "doi": "https://doi.org/10.22541/au.176106005.57343367/v1",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    }
+   ]
+  },
+  {
+   "id": "D05",
+   "kind": "DERIVED",
+   "text": "language model code generation for low-resource proprietary library API",
+   "reason": "Motivation: the Lumerical interface is proprietary; little public data.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Alanguage+model+code+generation+for+low-resource+proprietary+library+API%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:48:56+00:00",
+   "snapshot": "snapshots/openalex/D05.json.gz",
+   "sha256": "f8b5b01e18d64b8f85ddea08d51f7102166930f4e2216439da6193f0d338202d",
+   "results": 0,
+   "selected": [],
+   "excluded": []
+  },
+  {
+   "id": "D06",
+   "kind": "DERIVED",
+   "text": "retrieval augmented code generation from API documentation",
+   "reason": "Motivation: the model lacks knowledge of a sparsely documented API.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Aretrieval+augmented+code+generation+from+API+documentation%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:50:50+00:00",
+   "snapshot": "snapshots/openalex/D06.json.gz",
+   "sha256": "5348776df2fc950c3ce39fb7b7014983d3959e5c0b61873eded51401fe2748c4",
+   "results": 17,
+   "selected": [
+    "10.59573/emsj.9(4).2025.94",
+    "10.48550/arxiv.2409.15228",
+    "10.48550/arxiv.2412.05587",
+    "10.48550/arxiv.2508.08228"
+   ],
+   "excluded": [
+    {
+     "work": "A Programming-Specific Retrieval-Augmented Generation (RAG) Model Using LangChain (2025-01-01)",
+     "doi": "https://doi.org/10.2139/ssrn.5987998",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Design and Evaluation of a Locally Hosted AI Assistant : A Design Science Research Study in Microservice-Based Software Development (2026-01-01)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    }
+   ]
+  },
+  {
+   "id": "D07",
+   "kind": "DERIVED",
+   "text": "large language model electromagnetic simulation automation",
+   "reason": "Problem: automating electromagnetic (FDTD) simulation.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Alarge+language+model+electromagnetic+simulation+automation%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:50:54+00:00",
+   "snapshot": "snapshots/openalex/D07.json.gz",
+   "sha256": "e575f1187f7376cb6b498085030c04a528108a948aa26b1846c71166712f955e",
+   "results": 4,
+   "selected": [
+    "10.1109/gtdasia60461.2025.11313242"
+   ],
+   "excluded": [
+    {
+     "work": "Essential Electronic Design Automation (Eda) (2003-10-11)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "RePhoSim: A Scalable, Modular, and Signal Flow Modeling Approach for Large Scale Integrated Photonic Circuits (2023-05-31)",
+     "doi": "https://doi.org/10.5281/zenodo.8162907",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Focus on Software (2005-08-01)",
+     "doi": "https://doi.org/10.1063/1.2405587",
+     "why": "published 2005-08-01, before this query's window (2021-01-01)"
+    }
+   ]
+  },
+  {
+   "id": "D08",
+   "kind": "DERIVED",
+   "text": "FDTD waveguide simulation mesh convergence accuracy setup",
+   "reason": "Constraint/success: a physically meaningful setup (mesh, sources, monitors).",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3AFDTD+waveguide+simulation+mesh+convergence+accuracy+setup%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:52:08+00:00",
+   "snapshot": "snapshots/openalex/D08.json.gz",
+   "sha256": "4c8f5b467cc6aea6dea216c37e8964c754228fdef0398db536c92d7c600d3403",
+   "results": 0,
+   "selected": [],
+   "excluded": []
+  },
+  {
+   "id": "D09",
+   "kind": "DERIVED",
+   "text": "executable correctness of code generated by large language models for scientific computing",
+   "reason": "Success criterion: the produced simulation actually executes.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Aexecutable+correctness+of+code+generated+by+large+language+models+for+scientific+computing%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:52:13+00:00",
+   "snapshot": "snapshots/openalex/D09.json.gz",
+   "sha256": "e492feb68781aa6a4b70fab7400d93b18b4c53b9e6ca31956caee46fbf624542",
+   "results": 17,
+   "selected": [
+    "10.1016/j.taml.2025.100594",
+    "10.1093/ije/dyaf210",
+    "10.1093/ejcts/ezaf167",
+    "10.3389/fhpcp.2026.1771927"
+   ],
+   "excluded": [
+    {
+     "work": "A new metric for ranking high-performance computing systems (2016-01-06)",
+     "doi": "https://doi.org/10.1093/nsr/nwv084",
+     "why": "published 2016-01-06, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Plants meet machines: Prospects in machine learning for plant biology (2020-06-01)",
+     "doi": "https://doi.org/10.1002/aps3.11371",
+     "why": "published 2020-06-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Improving the Rigor and Reproducibility of Flow Cytometry‐Based Clinical Research and Trials Through Automated Data Analysis (2019-09-13)",
+     "doi": "https://doi.org/10.1002/cyto.a.23883",
+     "why": "published 2019-09-13, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Machine Learning and Artificial Intelligence in Neurosurgery: Status, Prospects, and Challenges (2021-04-16)",
+     "doi": "https://doi.org/10.1093/neuros/nyab170",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Neurobiology of Language: Editorial (2020-03-01)",
+     "doi": "https://doi.org/10.1162/nol_e_00009",
+     "why": "published 2020-03-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "The 6-Bit Horizon: Recursive Harmonic Intelligence, Exact Basin Entropy, and the 4096-Bit Lattice within the Nexus Framework (2026-01-28)",
+     "doi": "https://doi.org/10.5281/zenodo.18407292",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "The 6-Bit Horizon: Recursive Harmonic Intelligence, Exact Basin Entropy, and the 4096-Bit Lattice within the Nexus Framework (2026-01-28)",
+     "doi": "https://doi.org/10.5281/zenodo.18407291",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "The Ladder of Abstraction (2025-09-03)",
+     "doi": "https://doi.org/10.22541/au.175693425.54828090/v1",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Focus on software (2007-09-01)",
+     "doi": "https://doi.org/10.1063/1.2784693",
+     "why": "published 2007-09-01, before this query's window (2021-01-01)"
+    }
+   ]
+  },
+  {
+   "id": "D10",
+   "kind": "DERIVED",
+   "text": "large language model engineering design tool scripting automation",
+   "reason": "Problem: generating programs for a commercial engineering tool.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Alarge+language+model+engineering+design+tool+scripting+automation%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:53:32+00:00",
+   "snapshot": "snapshots/openalex/D10.json.gz",
+   "sha256": "086da3458b6185b478b79df04b7fc048a35b77de4ae210fa48242e68afc94fd5",
+   "results": 24,
+   "selected": [
+    "10.48550/arxiv.2508.00843",
+    "10.5281/zenodo.18488801",
+    "10.5281/zenodo.18488802",
+    "10.56952/igs-2025-0391"
+   ],
+   "excluded": [
+    {
+     "work": "Migrating to object technology (1995-01-01)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "Experience with Marvel (1989-10-10)",
+     "doi": "https://doi.org/10.5555/317498.317715",
+     "why": "published 1989-10-10, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "A formal approach to test automation based on requirements, domain model, and test cases written in natural language (2022-09-26)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "A Domain-Specific Language for Automating Feature-Based Part Creation in Parametric CAD (2020-01-01)",
+     "doi": "https://doi.org/10.63282/3050-922x.ijeret-v1i3p105",
+     "why": "published 2020-01-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Industry Trends & Supporting Research — AI-Driven Selenium Test Automation for Enterprise Applications (2025-12-15)",
+     "doi": "https://doi.org/10.5281/zenodo.17941403",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Industry Trends & Supporting Research — AI-Driven Selenium Test Automation for Enterprise Applications (2025-12-15)",
+     "doi": "https://doi.org/10.5281/zenodo.17941402",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Model Context Protocol Servers for Automated UI-Based Testing: An echelon based Design Science Study on Multi Agent UI Testing Architectures (2026-01-01)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "Cyber-Fysikalisk Konstruktion av Distribuerade Automationssystem inom Energidomänen (2018-01-01)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "Editorial: Software testing is an elephant (2008-11-20)",
+     "doi": "https://doi.org/10.1002/stvr.403",
+     "why": "published 2008-11-20, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Focus on software and semiconductors (2012-07-01)",
+     "doi": "https://doi.org/10.1063/pt.3.1648",
+     "why": "published 2012-07-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Focus on software, instrumentation, and data acquisition (2021-12-01)",
+     "doi": "https://doi.org/10.1063/pt.3.4906",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Focus on semiconductors and software (2014-07-01)",
+     "doi": "https://doi.org/10.1063/pt.3.2455",
+     "why": "published 2014-07-01, before this query's window (2021-01-01)"
+    }
+   ]
+  },
+  {
+   "id": "D11",
+   "kind": "DERIVED",
+   "text": "large language models electronic design automation code generation",
+   "reason": "Adjacent field: generating programs for proprietary design-automation tools.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Alarge+language+models+electronic+design+automation+code+generation%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:53:37+00:00",
+   "snapshot": "snapshots/openalex/D11.json.gz",
+   "sha256": "06ede83fada8fd98c4cdf28802c9d9f414fefd125b9b8320a44a84a83a673b2b",
+   "results": 50,
+   "selected": [
+    "10.1145/3649329.3657356",
+    "10.1109/iseda65950.2025.11100410",
+    "10.1109/iseda62518.2024.10617643",
+    "10.1145/3736167"
+   ],
+   "excluded": [
+    {
+     "work": "The Potential Application of Large Language Models in Pharmaceutical Supply Chain Management (2024-04-01)",
+     "doi": "https://doi.org/10.5863/1551-6776-29.2.200",
+     "why": "off the query's subject: mentions none of ['electronic design automation', 'eda', 'hardware', 'verilog', 'circuit']"
+    },
+    {
+     "work": "Natural Language Processing Basics (2023-02-02)",
+     "doi": "https://doi.org/10.2215/cjn.0000000000000081",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Compiling code accelerators for FPGAs (2007-09-30)",
+     "doi": "https://doi.org/10.1145/1289881.1289882",
+     "why": "published 2007-09-30, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "ACCGen: An Automatic ArchC Compiler Generator (2012-10-01)",
+     "doi": "https://doi.org/10.1109/sbac-pad.2012.33",
+     "why": "published 2012-10-01, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Databases in Networked Information Systems: 4th International Workshop, DNIS 2005, Aizu-Wakamatsu, Japan, March 28-30, 2005, Proceedings (2005-04-29)",
+     "doi": "https://doi.org/10.1007/b106805",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "MedicalOS: An LLM Agent based Operating System for Digital Healthcare (2025-09-15)",
+     "doi": "https://doi.org/10.48550/arxiv.2509.11507",
+     "why": "off the query's subject: mentions none of ['electronic design automation', 'eda', 'hardware', 'verilog', 'circuit']"
+    },
+    {
+     "work": "Generative Artificial Intelligence: More of the Same or Off the Control Chart? (2023-08-31)",
+     "doi": "https://doi.org/10.1093/clinchem/hvad129",
+     "why": "off the query's subject: mentions none of ['electronic design automation', 'eda', 'hardware', 'verilog', 'circuit']"
+    },
+    {
+     "work": "Can Victorian Studies Reclaim the Means of Production? Saving the (Digital) Humanities (2019-07-01)",
+     "doi": "https://doi.org/10.1093/jvcult/vcz027",
+     "why": "published 2019-07-01, before this query's window (2021-01-01)"
+    }
+   ]
+  },
+  {
+   "id": "C01",
+   "kind": "CONTRAST",
+   "text": "photonic inverse design adjoint optimization FDTD",
+   "reason": "Alternative: optimisation-driven design instead of generating setups from text.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Aphotonic+inverse+design+adjoint+optimization+FDTD%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:53:41+00:00",
+   "snapshot": "snapshots/openalex/C01.json.gz",
+   "sha256": "fd980a57a05d8f8db424276f4eb0b4ef0d0f9898d6aa8b8e20c45511b5848224",
+   "results": 12,
+   "selected": [
+    "10.1021/acsphotonics.1c00260",
+    "10.1021/acsphotonics.3c00694",
+    "10.1002/lpor.202301199",
+    "10.1364/oe.530479"
+   ],
+   "excluded": [
+    {
+     "work": "GPU-Accelerated Full-3D Inverse Design Framework for Multilayer and Volumetric Photonic Devices (2026-01-01)",
+     "doi": "https://doi.org/10.1364/cleo_at.2026.jtu.23",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  },
+  {
+   "id": "C02",
+   "kind": "CONTRAST",
+   "text": "deep learning surrogate model nanophotonic simulation",
+   "reason": "Alternative: replace or reduce FDTD runs with learned surrogates.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Adeep+learning+surrogate+model+nanophotonic+simulation%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:54:28+00:00",
+   "snapshot": "snapshots/openalex/C02.json.gz",
+   "sha256": "d6418828f081723e5eed53198cf1e54e672c35f6c87fa5c5e2bcba295d3ac335",
+   "results": 8,
+   "selected": [
+    "10.1021/acs.nanolett.4c05120",
+    "10.1364/osac.420977",
+    "10.48550/arxiv.2410.16905",
+    "10.1038/s41598-025-23519-5"
+   ],
+   "excluded": []
+  },
+  {
+   "id": "C03",
+   "kind": "CONTRAST",
+   "text": "automated parametric simulation workflow photonic integrated circuit design",
+   "reason": "Alternative: conventional scripted/parametric automation without language models.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Aautomated+parametric+simulation+workflow+photonic+integrated+circuit+design%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:55:13+00:00",
+   "snapshot": "snapshots/openalex/C03.json.gz",
+   "sha256": "d16c9c316cb329c3ad02da9680adeaadc9c2f4f325ab835c6fe42030021a3cc2",
+   "results": 1,
+   "selected": [
+    "10.1063/pt.3.4906"
+   ],
+   "excluded": []
+  },
+  {
+   "id": "C04",
+   "kind": "CONTRAST",
+   "text": "hallucination in code generated by large language models",
+   "reason": "Contradicting: evidence that generated code is unreliable.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Ahallucination+in+code+generated+by+large+language+models%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:55:18+00:00",
+   "snapshot": "snapshots/openalex/C04.json.gz",
+   "sha256": "09ef975289baaf165c6a1d4695854f149b6de1b3f49244b3e61d147e0f712900",
+   "results": 50,
+   "selected": [
+    "10.48550/arxiv.2408.08333",
+    "10.1109/cvpr52733.2024.01274",
+    "10.1109/cvpr52733.2024.02553",
+    "10.1145/3728894"
+   ],
+   "excluded": [
+    {
+     "work": "Woodpecker: hallucination correction for multimodal large language models (2024-12-01)",
+     "doi": "https://doi.org/10.1007/s11432-024-4251-x",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Mitigating Fine-Grained Hallucination by Fine-Tuning Large Vision-Language Models with Caption Rewrites (2024-01-01)",
+     "doi": "https://doi.org/10.1007/978-3-031-53302-0_3",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Detecting Hallucinations in Large Language Model Generation: A Token Probability Approach (2025-01-01)",
+     "doi": "https://doi.org/10.1007/978-3-031-86623-4_13",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "A Survey on Uncertainty Quantification of Large Language Models: Taxonomy, Open Research Challenges, and Future Directions (2025-06-07)",
+     "doi": "https://doi.org/10.1145/3744238",
+     "why": "off the query's subject: mentions none of ['code']"
+    },
+    {
+     "work": "Mitigating Hallucination in Large Multi-Modal Models via Robust Instruction Tuning (2023-06-26)",
+     "doi": "https://doi.org/10.48550/arxiv.2306.14565",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Leveraging Prompt Engineering in Large Language Models for Accelerating Chemical Research (2025-04-02)",
+     "doi": "https://doi.org/10.1021/acscentsci.4c01935",
+     "why": "off the query's subject: mentions none of ['code']"
+    },
+    {
+     "work": "Large Language Models can Help with Biostatistics and Coding Needed in Radiology Research (2024-10-15)",
+     "doi": "https://doi.org/10.1016/j.acra.2024.09.042",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Evaluation of large language models within GenAI in qualitative research (2025-10-07)",
+     "doi": "https://doi.org/10.1038/s41598-025-18969-w",
+     "why": "off the query's subject: mentions none of ['code']"
+    }
+   ]
+  },
+  {
+   "id": "C05",
+   "kind": "CONTRAST",
+   "text": "limitations of large language models in multi-step planning and reasoning",
+   "reason": "Contradicting: evidence that multi-step automation by language models fails.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Alimitations+of+large+language+models+in+multi-step+planning+and+reasoning%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:55:57+00:00",
+   "snapshot": "snapshots/openalex/C05.json.gz",
+   "sha256": "cee36d0b9f429a146b12b2893454fcc972c675fc0d2739606e3e9df2079db6f9",
+   "results": 50,
+   "selected": [
+    "10.71465/ajainn473",
+    "10.48550/arxiv.2212.10561",
+    "10.1557/s43577-025-00953-4",
+    "10.1109/aitest66680.2025.00028"
+   ],
+   "excluded": [
+    {
+     "work": "LEGO-Puzzles: How Good Are MLLMs at Multi-step Spatial Reasoning? (2026-01-01)",
+     "doi": "https://doi.org/10.1007/978-3-032-37553-7_1",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Structured reflective reasoning for precise medical knowledge graph retrieval augmented generation (2025-11-15)",
+     "doi": "https://doi.org/10.1007/s13755-025-00390-2",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Towards a multi-function mapping of the cerebellar cortex (2016-12-14)",
+     "doi": "https://doi.org/10.1093/brain/aww348",
+     "why": "published 2016-12-14, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Recognizing Heuristics and Bias in Clinical Decision-making (2019-12-17)",
+     "doi": "https://doi.org/10.1097/sla.0000000000003699",
+     "why": "published 2019-12-17, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "Security of LLM-based agents regarding attacks, defenses, and applications: A comprehensive survey (2025-11-12)",
+     "doi": "https://doi.org/10.1016/j.inffus.2025.103941",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "TErouting: Traffic-aware energy routing for electric vehicle logistics fleets (2025-12-26)",
+     "doi": "https://doi.org/10.1016/j.energy.2025.139807",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Cognitive alignment in cardiovascular AI: designing predictive models that think with, not just for, clinicians (2025-09-02)",
+     "doi": "https://doi.org/10.3389/fcvm.2025.1651324",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Enhancing the planning capabilities of large language models by building external world models (2025-08-16)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    }
+   ]
+  },
+  {
+   "id": "C06",
+   "kind": "CONTRAST",
+   "text": "benchmark of language models on scientific code",
+   "reason": "Evaluation evidence: how well models actually write scientific code.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Abenchmark+of+language+models+on+scientific+code%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:56:40+00:00",
+   "snapshot": "snapshots/openalex/C06.json.gz",
+   "sha256": "350ee2b7224b6908404450b295181bedad6a5b65449545fbe4bb5c88b1652288",
+   "results": 50,
+   "selected": [
+    "10.18653/v1/2025.findings-naacl.164",
+    "10.1609/aaai.v38i17.29872",
+    "10.1145/3697010",
+    "10.1007/s10664-024-10594-x"
+   ],
+   "excluded": [
+    {
+     "work": "Large language models for scientific discovery in molecular property prediction (2025-02-25)",
+     "doi": "https://doi.org/10.1038/s42256-025-00994-z",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "RoBERTuito: a pre-trained language model for social media text in Spanish (2021-11-18)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "Bilingualism in the Community: Code-switching and Grammars in Contact (2018-02-28)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "Applied Parallel Computing. State of the Art in Scientific Computing (2007-01-01)",
+     "doi": "https://doi.org/10.1007/978-3-540-75755-9",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Principles of resilient coding for plant ecophysiologists (2021-09-15)",
+     "doi": "https://doi.org/10.1093/aobpla/plab059",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "GPT-5 and open-weight large language models: Advances in reasoning, transparency, and control (2025-09-22)",
+     "doi": "https://doi.org/10.1016/j.is.2025.102620",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Bilingualism in the Community (2018-02-23)",
+     "doi": "https://doi.org/10.1017/9781108235259",
+     "why": "published 2018-02-23, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "A Data Parallel Scientific Modeling Language (1994-04-01)",
+     "doi": "https://doi.org/10.1006/jpdc.1994.1041",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Industry-sensitive language modeling for business (2024-01-20)",
+     "doi": "https://doi.org/10.1016/j.ejor.2024.01.023",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "DECIMER.ai: an open platform for automated optical chemical structure identification, segmentation and recognition in scientific publications (2023-08-19)",
+     "doi": "https://doi.org/10.1038/s41467-023-40782-0",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    },
+    {
+     "work": "Open-Source, Python-Based Redevelopment of the ChemShell Multiscale QM/MM Environment (2018-12-04)",
+     "doi": "https://doi.org/10.1021/acs.jctc.8b01036",
+     "why": "published 2018-12-04, before this query's window (2021-01-01)"
+    },
+    {
+     "work": "FigMemes: A Dataset for Figurative Language Identification in Politically-Opinionated Memes (2022-01-01)",
+     "doi": "https://doi.org/10.18653/v1/2022.emnlp-main.476",
+     "why": "off the query's subject: mentions none of ['language model', 'llm']"
+    }
+   ]
+  },
+  {
+   "id": "C07",
+   "kind": "CONTRAST",
+   "text": "verification and validation of electromagnetic simulation results",
+   "reason": "Contrasting emphasis: checking simulations rather than generating them.",
+   "url": "https://api.openalex.org/works?per_page=50&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&sort=relevance_score%3Adesc&filter=title_and_abstract.search%3Averification+and+validation+of+electromagnetic+simulation+results%2Cto_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:56:45+00:00",
+   "snapshot": "snapshots/openalex/C07.json.gz",
+   "sha256": "0c91f552da880b506d1636fe53fd54c93b3d4ee4772c317e11ddf17b168cbeb5",
+   "results": 50,
+   "selected": [
+    "10.1109/temc.2005.850677",
+    "10.1088/0964-1726/25/5/055019",
+    "10.3389/fonc.2015.00150",
+    "10.1063/1.3132842"
+   ],
+   "excluded": [
+    {
+     "work": "Modeling of Grid-Forming and Grid-Following Inverters for Dynamic Simulation of Large-Scale Distribution Systems (2020-08-21)",
+     "doi": "https://doi.org/10.1109/tpwrd.2020.3018647",
+     "why": "off the query's subject: mentions none of ['verification', 'validation', 'convergence']"
+    },
+    {
+     "work": "Design, fabrication, simulation and testing of an ocean wave energy converter with mechanical motion rectifier (2017-03-18)",
+     "doi": "https://doi.org/10.1016/j.oceaneng.2017.03.024",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Petrov–Galerkin and discontinuous-Galerkin methods for time-domain and frequency-domain electromagnetic simulations (2011-08-27)",
+     "doi": "https://doi.org/10.1016/j.jcp.2011.06.025",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Electromagnetic Force and Vibration Study on Axial Flux Permanent Magnet Synchronous Machines With Dual Three-Phase Windings (2019-01-10)",
+     "doi": "https://doi.org/10.1109/tie.2018.2890494",
+     "why": "off the query's subject: mentions none of ['verification', 'validation', 'convergence']"
+    },
+    {
+     "work": "Model and experimental verification of a four degrees-of-freedom rotor considering combined eccentricity and electromagnetic effects (2021-12-30)",
+     "doi": "https://doi.org/10.1016/j.ymssp.2021.108740",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Numerical Modeling of Free Surface Dynamics of Melt in an Alternate Electromagnetic Field. Part II: Conventional Electromagnetic Levitation (2015-11-16)",
+     "doi": "https://doi.org/10.1007/s11663-015-0515-7",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "PSCAD/EMTDC Simulation of Unified Series-Shunt Compensator for Power Quality Improvement (2005-04-01)",
+     "doi": "https://doi.org/10.1109/tpwrd.2004.833875",
+     "why": "off the query's subject: mentions none of ['verification', 'validation', 'convergence']"
+    },
+    {
+     "work": "Noise Analysis, Calculation, and Reduction of External Rotor Permanent-Magnet Synchronous Motor (2015-04-27)",
+     "doi": "https://doi.org/10.1109/tie.2015.2426135",
+     "why": "off the query's subject: mentions none of ['verification', 'validation', 'convergence']"
+    },
+    {
+     "work": "A Study of Electromagnetic Vibration Energy Harvesters: Design Optimization and Experimental Validation (2019-07-19)",
+     "doi": "https://doi.org/10.1007/s40684-019-00130-4",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "SKA aperture array verification system: electromagnetic modeling and beam pattern measurements using a micro UAV (2017-01-01)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "Mutual Inductance Calculation of Circular Coils for an Arbitrary Position With Electromagnetic Shielding in Wireless Power Transfer Systems (2021-01-26)",
+     "doi": "https://doi.org/10.1109/tte.2021.3054762",
+     "why": "off the query's subject: mentions none of ['verification', 'validation', 'convergence']"
+    },
+    {
+     "work": "Development of a computer simulation model for processing food in a microwave assisted thermal sterilization (MATS) system (2013-05-02)",
+     "doi": "https://doi.org/10.1016/j.jfoodeng.2013.04.021",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Detection of Rotational Object in Arbitrary Position Using Vortex Electromagnetic Waves (2020-10-21)",
+     "doi": "https://doi.org/10.1109/jsen.2020.3032665",
+     "why": "off the query's subject: mentions none of ['verification', 'validation', 'convergence']"
+    },
+    {
+     "work": "Electromagnetic Power Harvester Using Wide-Angle and Polarization-Insensitive Metasurfaces (2018-03-26)",
+     "doi": "https://doi.org/10.3390/app8040497",
+     "why": "off the query's subject: mentions none of ['verification', 'validation', 'convergence']"
+    },
+    {
+     "work": "Carbon Nanotube versus Graphene Nanoribbon: Impact of Nanofiller Geometry on Electromagnetic Interference Shielding of Polyvinylidene Fluoride Nanocomposites (2019-06-20)",
+     "doi": "https://doi.org/10.3390/polym11061064",
+     "why": "off the query's subject: mentions none of ['verification', 'validation', 'convergence']"
+    },
+    {
+     "work": "Application of transient electromagnetic radar in quality evaluation of tunnel composite lining (2020-01-06)",
+     "doi": "https://doi.org/10.1016/j.conbuildmat.2019.117958",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Physic perspective fusion of electromagnetic acoustic transducer and pulsed eddy current testing in non-destructive testing system (2020-09-14)",
+     "doi": "https://doi.org/10.1098/rsta.2019.0608",
+     "why": "off the query's subject: mentions none of ['verification', 'validation', 'convergence']"
+    },
+    {
+     "work": "Simulation and experimental studies of a vibro-impact capsule system driven by an external magnetic field (2022-06-04)",
+     "doi": "https://doi.org/10.1007/s11071-022-07539-8",
+     "why": "off the query's subject: mentions none of ['verification', 'validation', 'convergence']"
+    },
+    {
+     "work": "Hyperloop Transportation System: Analysis, Design, Control, and Implementation (2017-11-24)",
+     "doi": "https://doi.org/10.1109/tie.2017.2777412",
+     "why": "off the query's subject: mentions none of ['verification', 'validation', 'convergence']"
+    },
+    {
+     "work": "Electro-mechanical modeling of electromagnetic levitation melting system driven by a series resonant inverter with experimental validation (2020-02-12)",
+     "doi": "https://doi.org/10.1016/j.enconman.2020.112578",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "A comparative study on biocomposites for electromagnetic interference shielding applications: A green initiative for environmental sustainability (2023-09-01)",
+     "doi": "https://doi.org/10.1016/j.jmrt.2023.08.290",
+     "why": "off the query's subject: mentions none of ['verification', 'validation', 'convergence']"
+    },
+    {
+     "work": "A new concept of speed amplified nonlinear electromagnetic vibration energy harvester through fixed pulley wheel mechanisms and magnetic springs (2019-02-22)",
+     "doi": "https://doi.org/10.1016/j.ymssp.2019.02.010",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Effect of Hall Errors on Electromagnetic Vibration and Noise of Integer-Slot Inset Permanent Magnet Synchronous Motors (2022-06-14)",
+     "doi": "https://doi.org/10.1109/tte.2022.3183132",
+     "why": "off the query's subject: mentions none of ['verification', 'validation', 'convergence']"
+    },
+    {
+     "work": "Antenna array design for enhanced oil recovery under oil reservoir constraints with experimental validation (2014-02-24)",
+     "doi": "https://doi.org/10.1016/j.energy.2014.01.002",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  }
+ ],
+ "github": [
+  {
+   "id": "G01",
+   "kind": "DERIVED",
+   "text": "lumerical language model",
+   "reason": "Technical prior art: language models used with Lumerical.",
+   "url": "https://api.github.com/search/repositories?q=lumerical+language+model+created%3A%3C2026-03-23&sort=stars&per_page=10",
+   "retrieved_at": "2026-09-28T14:56:48+00:00",
+   "snapshot": "snapshots/github/G01.json.gz",
+   "sha256": "4af480b8ee5b87b369a76c49bd22c9a783908272ebffbe97898f8ab0f0772a5f",
+   "results": 0,
+   "selected": [],
+   "excluded": []
+  },
+  {
+   "id": "G02",
+   "kind": "DERIVED",
+   "text": "lumerical python automation",
+   "reason": "Technical prior art: automating Lumerical from Python (with or without models).",
+   "url": "https://api.github.com/search/repositories?q=lumerical+python+automation+created%3A%3C2026-03-23&sort=stars&per_page=10",
+   "retrieved_at": "2026-09-28T14:56:56+00:00",
+   "snapshot": "snapshots/github/G02.json.gz",
+   "sha256": "47f6d5a345c3bd2c8f77f9a4cdbc5a6125043d3f6491cefd58e2a339b7feddc9",
+   "results": 2,
+   "selected": [
+    "gcharalampous/lumerical-py-scripts",
+    "DavidLange7/LumericalwPython"
+   ],
+   "excluded": []
+  },
+  {
+   "id": "G03",
+   "kind": "DERIVED",
+   "text": "fdtd llm",
+   "reason": "Technical prior art: language models with any FDTD solver.",
+   "url": "https://api.github.com/search/repositories?q=fdtd+llm+created%3A%3C2026-03-23&sort=stars&per_page=10",
+   "retrieved_at": "2026-09-28T14:57:03+00:00",
+   "snapshot": "snapshots/github/G03.json.gz",
+   "sha256": "4af480b8ee5b87b369a76c49bd22c9a783908272ebffbe97898f8ab0f0772a5f",
+   "results": 0,
+   "selected": [],
+   "excluded": []
+  }
+ ],
+ "corpus": {
+  "papers": 54,
+  "peer_reviewed": 43,
+  "preprints": 11,
+  "passages": 290
+ },
+ "technical_prior_art": 2,
+ "snapshot_encoding": "gzip; each sha256 is of the uncompressed provider response"
+}

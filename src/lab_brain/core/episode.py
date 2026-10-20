@@ -74,16 +74,20 @@ from lab_brain.core.models.belief_event import BeliefRevisionEvent, BeliefState
 from lab_brain.core.models.condition import ConditionMatch
 from lab_brain.core.models.conflict import Conflict, ConflictType
 from lab_brain.core.models.decision import BeliefTransitionDecision
+from lab_brain.core.models.enums import RelationType
 from lab_brain.core.models.relation import RelationJudgment
 from lab_brain.core.models.review import ReviewItem
 from lab_brain.core.models.transition import (
     HypothesisView,
     IndependenceSummary,
+    RelationEvidence,
     TransitionDecision,
     TransitionOutcome,
     TransitionPolicy,
     TransitionReason,
 )
+from lab_brain.core.repositories.protocols import RepositoryError
+from lab_brain.core.warrant import WarrantResolver
 
 
 class EpisodeRefused(RuntimeError):
@@ -162,6 +166,29 @@ class PolicySource(Protocol):
 
 
 @runtime_checkable
+class WarrantReviewSink(Protocol):
+    """Queues one DIAGNOSTIC_WARRANT review per unwarranted gated relation, idempotently.
+
+    Returns the authoritative review id: the existing one when the relation was already asked
+    about, whatever its status, so a retry neither queues twice nor re-asks a refused question.
+    """
+
+    def enqueue_warrant_review(
+        self,
+        *,
+        review_id: str,
+        project_id: str,
+        relation_id: str,
+        stakes: str,
+        reason: str,
+        trace_id: str,
+        episode_id: str | None,
+        created_at: dt.datetime,
+        estimated_minutes: int,
+    ) -> str: ...
+
+
+@runtime_checkable
 class IdSource(Protocol):
     """Supplies the ids this episode would otherwise invent.
 
@@ -203,6 +230,11 @@ class EpisodeResult:
     review: ReviewItem | None = None
     #: True when the escalation found an existing conflict/review rather than creating one.
     escalation_was_existing: bool = False
+    #: DIAGNOSTIC_WARRANT reviews this attempt asked for (existing ones included), by relation.
+    warrant_reviews: tuple[str, ...] = ()
+    #: Why a needed warrant review could not be queued, when it could not -- e.g. the project
+    #: has no active review queue policy. The belief stays where it was either way.
+    warrant_review_refusal: str | None = None
 
     @property
     def transitioned(self) -> bool:
@@ -210,7 +242,43 @@ class EpisodeResult:
 
     @property
     def escalated(self) -> bool:
-        return self.review is not None
+        return self.review is not None or bool(self.warrant_reviews)
+
+
+def superseded_versions(policies: Sequence[TransitionPolicy]) -> frozenset[tuple[str, str]]:
+    """The (policy id, version) pairs some registered policy declares it `supersedes`."""
+    found: set[tuple[str, str]] = set()
+    for policy in policies:
+        if policy.supersedes and "@" in policy.supersedes:
+            policy_id, version = policy.supersedes.rsplit("@", 1)
+            found.add((policy_id, version))
+    return frozenset(found)
+
+
+def counted_triggers(
+    policy: TransitionPolicy,
+    view: HypothesisView,
+    admitted: Sequence[RelationJudgment],
+    attestations: Sequence[Attestation],
+) -> tuple[tuple[RelationJudgment, ...], tuple[Attestation, ...]]:
+    """What an ALLOW's event cites: under a warrant-gated policy, only the warranted relations.
+
+    The event's triggering relations are what the root-cause trace and the heuristic miner read
+    as the evidence for a belief. Citing an unwarranted proxy observation there would put it into
+    a confirmed cause's evidence and a heuristic's suggested checks, though it counted for nothing.
+    """
+    gated = {t for t in policy.required_relation_types if t in _WARRANT_GATED}
+    if not (policy.diagnostic_warrant_required and gated):
+        return tuple(admitted), tuple(attestations)
+    warranted = {r.relation_id for r in view.relation_evidence if r.warranted}
+    relations = tuple(
+        r for r in admitted if r.relation_type in gated and r.relation_id in warranted
+    )
+    cited = {a for r in relations for a in r.supporting_attestation_ids}
+    return relations, tuple(a for a in attestations if a.attestation_id in cited)
+
+
+_WARRANT_GATED = frozenset({RelationType.SUPPORTS, RelationType.CONTRADICTS})
 
 
 # ---------------------------------------------------------------------------------------------
@@ -237,6 +305,9 @@ class BeliefEpisode:
         reviews: ReviewSink,
         ids: IdSource,
         authority_policies: Mapping[tuple[str, str], AuthorityPolicy] = MappingProxyType({}),
+        warrants: WarrantResolver | None = None,
+        warrant_reviews: WarrantReviewSink | None = None,
+        superseded: frozenset[tuple[str, str]] = frozenset(),
     ) -> None:
         self._policies = policies
         self._decisions = decisions
@@ -247,6 +318,13 @@ class BeliefEpisode:
         self._reviews = reviews
         self._ids = ids
         self._authority_policies = authority_policies
+        #: None resolves no warrant at all: every relation a warrant-requiring policy reads then
+        #: goes to a person, and a stored warrant cannot be re-checked, so it fails closed.
+        self._warrants = warrants
+        self._warrant_reviews = warrant_reviews
+        #: Policy versions a later version supersedes: kept registered so every decision recorded
+        #: under them re-derives, refused for any new attempt.
+        self._superseded = superseded
 
     # -- reads -------------------------------------------------------------------------------
 
@@ -274,6 +352,7 @@ class BeliefEpisode:
             decisions=self._decisions,
             policies=self._policies,
             authority_policies=self._authority_policies,
+            warrant_verifier=None if self._warrants is None else self._warrants.verify,
         )
         return replay(
             project_id,
@@ -318,6 +397,9 @@ class BeliefEpisode:
                 for attestation_id in relation.supporting_attestation_ids
             }
         )
+        evidence: tuple[RelationEvidence, ...] = ()
+        if self._warrants is not None:
+            evidence = self._warrants.resolve(project_id, hypothesis_id, admitted_relations).records
         return HypothesisView(
             hypothesis_id=hypothesis_id,
             project_id=project_id,
@@ -327,6 +409,7 @@ class BeliefEpisode:
             admitted_authority_classes=self._authority_classes.authority_classes_for(
                 project_id, supporting
             ),
+            relation_evidence=evidence,
         )
 
     # -- the attempt -------------------------------------------------------------------------
@@ -371,6 +454,15 @@ class BeliefEpisode:
                 f"{policy_id}@{policy_version} is not registered. §8.2.1 keys a policy on "
                 "(policy_id, version) and an unregistered one cannot be re-derived later, so the "
                 "transition it would authorise could never be audited"
+            )
+        successor = getattr(self._policies, "superseded_by", None)
+        if (policy_id, policy_version) in self._superseded or (
+            successor is not None and successor(policy_id, policy_version) is not None
+        ):
+            raise EpisodeRefused(
+                f"{policy_id}@{policy_version} is superseded. It stays registered so the decisions "
+                "recorded under it re-derive; a new transition is attempted under the version "
+                "that replaced it"
             )
         if policy.is_admission:
             raise EpisodeRefused(
@@ -419,6 +511,9 @@ class BeliefEpisode:
         decision = authorization.evaluated
 
         if decision.outcome is TransitionOutcome.ALLOW:
+            triggering_relations, triggering_attestations = counted_triggers(
+                policy, view, admitted, triggering_attestations
+            )
             event = self._commit(
                 policy=policy,
                 comparator=comparator,
@@ -429,7 +524,7 @@ class BeliefEpisode:
                 occurred_at=occurred_at,
                 trace_id=trace_id,
                 triggering_attestations=triggering_attestations,
-                triggering_relations=admitted,
+                triggering_relations=triggering_relations,
                 actor_id=actor_id,
                 inference_provenance_id=inference_provenance_id,
                 rationale_artifact_or_record_ref=rationale_artifact_or_record_ref,
@@ -446,8 +541,21 @@ class BeliefEpisode:
         conflict: Conflict | None = None
         review: ReviewItem | None = None
         existing = False
+        warrant_reviews: tuple[str, ...] = ()
+        refusal: str | None = None
         if decision.outcome is TransitionOutcome.NEED_HUMAN_REVIEW:
-            if decision.reason_code is TransitionReason.AUTHORITY_INCOMPARABLE:
+            if decision.reason_code is TransitionReason.DIAGNOSTIC_WARRANT_MISSING:
+                warrant_reviews, refusal = self._queue_warrant_reviews(
+                    view=view,
+                    admitted=admitted,
+                    gated=policy.required_relation_types,
+                    stakes=stakes,
+                    occurred_at=occurred_at,
+                    trace_id=trace_id,
+                    episode_id=episode_id,
+                    estimated_human_minutes=estimated_human_minutes,
+                )
+            elif decision.reason_code is TransitionReason.AUTHORITY_INCOMPARABLE:
                 conflict, review, existing = self._escalate(
                     decision=decision,
                     view=view,
@@ -482,6 +590,8 @@ class BeliefEpisode:
             conflict=conflict,
             review=review,
             escalation_was_existing=existing,
+            warrant_reviews=warrant_reviews,
+            warrant_review_refusal=refusal,
             projection=self.project(
                 project_id=project_id, hypothesis_id=hypothesis_id, projected_at=occurred_at
             ),
@@ -602,6 +712,53 @@ class BeliefEpisode:
             ),
         )
         return conflict, review, False
+
+    def _queue_warrant_reviews(
+        self,
+        *,
+        view: HypothesisView,
+        admitted: Sequence[RelationJudgment],
+        gated: Sequence[RelationType],
+        stakes: str,
+        occurred_at: dt.datetime,
+        trace_id: str,
+        episode_id: str | None,
+        estimated_human_minutes: int,
+    ) -> tuple[tuple[str, ...], str | None]:
+        """Ask a person about each gated relation nobody has warranted or refused yet.
+
+        One review per relation, not per hypothesis: a warrant is for one observed link, and a
+        reviewer who approved "this hypothesis" would be approving links they never saw. No
+        Conflict is raised -- nothing disagrees; the policy itself withholds until a warrant
+        exists, so there is no block that could outlive its reason.
+        """
+        if self._warrant_reviews is None:
+            return (), "no review queue is wired to this episode, so nobody can be asked"
+        settled = {r.relation_id for r in view.relation_evidence if r.warranted or r.refused}
+        pending = sorted(
+            r.relation_id
+            for r in admitted
+            if r.relation_type in gated and r.relation_id not in settled
+        )
+        queued: list[str] = []
+        for relation_id in pending:
+            try:
+                queued.append(
+                    self._warrant_reviews.enqueue_warrant_review(
+                        review_id=self._ids.review_id(),
+                        project_id=view.project_id,
+                        relation_id=relation_id,
+                        stakes=stakes,
+                        reason=TransitionReason.DIAGNOSTIC_WARRANT_MISSING.value,
+                        trace_id=trace_id,
+                        episode_id=episode_id,
+                        created_at=occurred_at,
+                        estimated_minutes=max(estimated_human_minutes, 1),
+                    )
+                )
+            except RepositoryError as refused:
+                return tuple(queued), str(refused)
+        return tuple(queued), None
 
     def _existing_block(
         self, project_id: str, blocking_conflict_ids: Sequence[str]

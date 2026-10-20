@@ -69,6 +69,7 @@ from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisio
 from lab_brain.core.repositories.conflicts import SqlConflictStore
 from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from tests.conftest_fixtures import make_artifact
+from tests.postgres_fixtures import admit_hypothesis_identity, place_artifact
 from tests.toy_authority import ToyAuthorityPolicy
 
 pytestmark = [
@@ -185,6 +186,9 @@ def _queue_policy(db, project_id: str, policy_id: str = "rqp:test") -> None:  # 
 @pytest.fixture
 def world(db):  # type: ignore[no-untyped-def]
     """An artifact, a claim, a condition schema and the four policies -- through the real stores."""
+    # M3 / R-12 (`011j`): a belief event names a hypothesis admitted through §8's gate in its own
+    # project, so the identity this fixture always meant is established first.
+    admit_hypothesis_identity(db, HYP)
     artifact = make_artifact(b"an episode fixture")
     db.execute(
         "INSERT INTO artifacts (artifact_id, content_hash, uri, media_type, source_origin,"
@@ -199,6 +203,7 @@ def world(db):  # type: ignore[no-untyped-def]
             artifact.lineage_revision,
         ),
     )
+    place_artifact(db, artifact.artifact_id, project_id=PROJECT)
     db.execute("INSERT INTO claims (claim_id, normalized_proposition) VALUES ('clm:1', 'rs')")
     db.execute(
         "INSERT INTO condition_schemas (domain, schema_id, version, json_schema,"
@@ -696,7 +701,26 @@ def test_cognition_cannot_write_a_projection_because_there_is_nothing_to_write_t
     #: `review_items.status` is §17.19.1's queue state, `execution_spans.status` is §17.19.1's
     #: observability state, `conflicts.resolution_status` is §17.19.3's -- none of them is what a
     #: hypothesis is believed to be, and all three change through their own governed paths.
-    declared_non_belief = {"review_items", "execution_spans"}
+    #:
+    #: `runs.status` joined them with OPS-001 (`006`). It is §17.4's execution outcome -- did this
+    #: backend invocation succeed -- and is write-once with the Run. What a Run *means* for belief
+    #: is decided downstream by AuthorityPolicy and TransitionPolicy over the attestations that
+    #: cite it, never by reading this column. `jobs.state` is deliberately not in this set because
+    #: it is not called `status`, and renaming it to match would make it look like one of these.
+    #: `ingestion_stage_results.status` joined with `012`. It is §17.22's StageResult outcome --
+    #: did this parse finish -- and UX-001 derives the ITEM's state from a precedence over these
+    #: rather than reading any one of them as a verdict. Nothing about belief is representable in
+    #: it; the vocabulary is SUCCEEDED/FAILED/SKIPPED/PENDING/DEGRADED.
+    #: `candidate_heuristics.status` joined with `011l` (M4). It is §17.11's review state of a mined
+    #: candidate, CHECK-constrained to PENDING_REVIEW and append-only -- a statement about whether a
+    #: person has reviewed a proposal, never about what any hypothesis is believed to be.
+    declared_non_belief = {
+        "review_items",
+        "execution_spans",
+        "runs",
+        "ingestion_stage_results",
+        "candidate_heuristics",
+    }
     bare_status = {
         table
         for table, _ in world.execute(

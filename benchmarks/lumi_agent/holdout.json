@@ -1,0 +1,52 @@
+{
+  "benchmark": "lumi-agent-blind-v1",
+  "status": "PREPARED -- Phase C (blind run) NOT performed; Phase D (reveal) NOT performed",
+  "recorded_at": "2026-09-28",
+  "target": {
+    "title": "Lumi Agent: Autonomous Lumerical FDTD Simulation for Photonic Waveguide Experiments",
+    "doi": "10.1145/3787109.3816402",
+    "venue": "Proceedings of the Great Lakes Symposium on VLSI 2026 (GLSVLSI '26), Canandaigua, NY, USA, pp. 253-258",
+    "published": "2026-06-22",
+    "licence": "CC BY 4.0 (per Crossref)",
+    "authors_per_crossref": [
+      "Winson Chen (University of Minnesota - Twin Cities)",
+      "Anna Capuano (North Carolina State University)",
+      "Qing Gu (North Carolina State University)",
+      "Caiwen Ding (University of Minnesota - Twin Cities)"
+    ],
+    "metadata_source": "https://api.crossref.org/works/10.1145/3787109.3816402 (retrieved 2026-09-28)",
+    "attribution_note": "The request attributed the paper to 鍾隆維. Crossref, the authoritative record, lists the four authors above and no author of that name; no source linking 鍾隆維 to this paper was found. The benchmark targets the paper by title and DOI. The requester should confirm this is the intended paper."
+  },
+  "holdout_rule": "Nothing of the target's proposed solution, implementation, architecture, experiments, results, conclusions, repository, or any derivative summary may enter the Laboratory Brain's inputs (goal, documents, literature corpus, public query) before its Phase C output is frozen. The ONLY target-derived text the system receives is problem_statement.md, which states the problem, motivation, constraints and success criteria and nothing else.",
+  "temporal_cutoff": {
+    "rule": "A source enters the reasoning corpus only if it was published (or, for a repository, created) before the target's submission deadline, so nothing reacting to the target can be in it.",
+    "cutoff_exclusive": "2026-03-23",
+    "basis": "GLSVLSI 2026 paper submission deadline, 'March 23, 2026 (11:59 pm EST) (no extension)', https://www.glsvlsi.org/ (retrieved 2026-09-28)"
+  },
+  "excluded": [
+    {"what": "the target paper, any version (ACM DL, preprint, author copy)", "match": "DOI 10.1145/3787109.3816402, or a title containing 'Lumi Agent'"},
+    {"what": "any page that quotes or summarises the target's abstract, method or results", "match": "search-engine summaries, blogs, social posts, slides, videos"},
+    {"what": "any repository or artefact of the target", "match": "code, data or benchmark released with the target"},
+    {"what": "any work by the target's authors published on or after the cutoff", "match": "author name + cutoff date"},
+    {"what": "any work citing the target", "match": "citation of DOI 10.1145/3787109.3816402 (none can precede the cutoff)"},
+    {"what": "anything published on or after the cutoff", "match": "publication / creation date >= 2026-03-23"}
+  ],
+  "preparer_exposure": {
+    "statement": "The holdout protects the SYSTEM's inputs. The agent that prepared this benchmark could not identify the target without seeing search-engine result summaries, and those summaries disclosed part of the answer. This is recorded so the comparison in Phase D can weigh it.",
+    "seen_by_the_preparer_before_phase_c": [
+      "the title, venue, DOI, authors and date (bibliographic metadata)",
+      "a one-sentence description of the approach in a search-engine summary of the abstract (a workflow combining domain guidance, constrained file/solver actions, simulator feedback and failure reflection)",
+      "a headline result in a search-engine summary (script executability of direct first-attempt generation by three commercial models versus the target's approach, on a 14-task waveguide benchmark)"
+    ],
+    "not_seen": [
+      "the full text, figures, tables, prompts, tools, repository, or detailed results of the target"
+    ],
+    "mitigations": [
+      "problem_statement.md contains no solution, method, experiment or result; each of its sentences names its basis",
+      "every Phase B query is derived from problem_statement.md or is an explicitly labelled search for a CONTRASTING approach, and all are logged verbatim in search_log.json before any result is read",
+      "no search after identification names the target, its title words or its authors",
+      "the preparer does not select, rank or write evidence text: the corpus holds the sources' own abstracts, selected by a fixed rule (bootstrap_corpus.py), and the product's own retrieval decides what a run admits",
+      "the preparer does not run Phase C's reasoning: the product does, with models the researcher binds"
+    ]
+  }
+}

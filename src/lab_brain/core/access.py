@@ -30,6 +30,14 @@ thing. Access is exact membership.
 This module is pure: no I/O, no clock, no ambient state. The caller loads the occurrence and the
 membership and passes them in, so the decision can be replayed from an audit record rather than
 re-derived against a database that has since changed.
+
+TWO ENTRY POINTS, ONE IMPLEMENTATION. ``can_access_project`` is the first half of
+``can_read_artifact`` -- resolved actor, active actor, membership, membership matches, active
+membership -- extracted because surfaces exist that are project-scoped and have no artifact to
+ask about: the Knowledge Inbox lists a project's items, and error disclosure resolves a
+project's error ids. Those needed the same four refusals, and the alternative was writing them a
+second time somewhere else. ``can_read_artifact`` calls it and adds the occurrence and the label,
+so there is still exactly one place each refusal is decided.
 """
 
 from __future__ import annotations
@@ -55,30 +63,27 @@ class AccessDecision:
         return self.allowed
 
 
-def can_read_artifact(
+def can_access_project(
     actor: Actor | None,
-    artifact_id: str,
     project_id: str,
-    occurrence: ArtifactOccurrence | None,
     membership: ProjectMembership | None,
 ) -> AccessDecision:
-    """Decide whether ``actor`` may read ``artifact_id`` as it exists in ``project_id``.
+    """May ``actor`` act inside ``project_id`` at all?
 
-    ``artifact_id`` is the identity the caller is *asking about*, and the occurrence must be an
-    occurrence of it. Without that binding the gate answers about whatever record it was handed: a
-    lookup keyed on the wrong id, or a cache returning a neighbouring row, would let a PUBLIC
-    seminar deck authorise reading a RESTRICTED_NDA document, with every individual check passing
-    honestly on the wrong record.
+    THE FIRST HALF OF `can_read_artifact`, extracted verbatim. Every refusal below was already
+    here and is unchanged in wording and in order; what changed is that a project-scoped surface
+    can now ask the same question without a second copy of it.
 
-    ``actor`` is a required parameter, not an optional one that defaults to skipping the identity
-    check. An optional identity check is not a check: the caller who forgets it gets a pass rather
-    than an error, which is the failure mode every other guard in this repository was built to
-    remove.
+    WHAT THIS IS NOT. It is not permission to read any particular thing. Membership says the
+    actor belongs here; the sensitivity label says whether this document is theirs to see, and
+    that is `can_read_artifact`'s remaining half. A surface that listed *document contents* on
+    the strength of this alone would be the R-7 defect again -- occurrence presence is not
+    clearance, and neither is membership.
 
-    Order matters for the message, not the verdict. The actor is resolved first, so a deactivated
-    credential is never told whether the project holds the artifact -- answering "no occurrence
-    here" to a disabled account leaks the contents of a project it has no standing in. Then
-    membership, so an outsider learns they are not a member rather than learning what is inside.
+    WHAT IT IS ENOUGH FOR. Surfaces whose unit of disclosure is the project itself: the Knowledge
+    Inbox lists items and their derived state, and error disclosure resolves an error reference.
+    Those carry no canonical evidence body and no sensitivity label of their own, so membership
+    is the whole question -- and answering it was previously skipped entirely.
     """
     if actor is None:
         return AccessDecision(
@@ -120,6 +125,41 @@ def can_read_artifact(
             f"{actor_id}'s membership of {project_id} is not active; access was revoked and the "
             "row is retained only so the audit trail survives",
         )
+    return AccessDecision(True, f"{actor_id} is an active member of {project_id}")
+
+
+def can_read_artifact(
+    actor: Actor | None,
+    artifact_id: str,
+    project_id: str,
+    occurrence: ArtifactOccurrence | None,
+    membership: ProjectMembership | None,
+) -> AccessDecision:
+    """Decide whether ``actor`` may read ``artifact_id`` as it exists in ``project_id``.
+
+    ``artifact_id`` is the identity the caller is *asking about*, and the occurrence must be an
+    occurrence of it. Without that binding the gate answers about whatever record it was handed: a
+    lookup keyed on the wrong id, or a cache returning a neighbouring row, would let a PUBLIC
+    seminar deck authorise reading a RESTRICTED_NDA document, with every individual check passing
+    honestly on the wrong record.
+
+    ``actor`` is a required parameter, not an optional one that defaults to skipping the identity
+    check. An optional identity check is not a check: the caller who forgets it gets a pass rather
+    than an error, which is the failure mode every other guard in this repository was built to
+    remove.
+
+    Order matters for the message, not the verdict. The actor is resolved first, so a deactivated
+    credential is never told whether the project holds the artifact -- answering "no occurrence
+    here" to a disabled account leaks the contents of a project it has no standing in. Then
+    membership, so an outsider learns they are not a member rather than learning what is inside.
+    """
+    admitted = can_access_project(actor, project_id, membership)
+    if not admitted.allowed:
+        return admitted
+    # Safe after the check above: `can_access_project` refuses an unresolved actor first.
+    assert actor is not None
+    assert membership is not None
+    actor_id = actor.actor_id
 
     if occurrence is None:
         return AccessDecision(
@@ -162,4 +202,4 @@ def can_read_artifact(
     )
 
 
-__all__ = ["AccessDecision", "can_read_artifact"]
+__all__ = ["AccessDecision", "can_access_project", "can_read_artifact"]

@@ -264,6 +264,122 @@ occurrences:
   quote: '`PriorArtSearchRecord`（§17.20）保存 novelty 判斷的搜尋覆蓋範圍。**沒有覆蓋率記錄的 novelty status 不可稽核。**'
   classification: REGISTERED
   target: novelty.coverage.record_required
+- occurrence_id: 6.22#1
+  section: '6.22'
+  keyword: MUST
+  quote_digest: 82caa2074079afa5
+  quote: 1. 切分 MUST 保留 Minimum Evidence Boundary。
+  classification: REGISTERED
+  target: evidence.segmentation.minimum_boundary
+  note: The rule itself. The smallest unit that can independently support a claim is the result together
+    with the conditions that make it interpretable.
+- occurrence_id: 6.22#2
+  section: '6.22'
+  keyword: MUST NOT
+  quote_digest: 5eb67228572364d9
+  quote: 結果離開其條件即無法被正確解讀時,兩者 MUST NOT 被切散。
+  classification: RESTATEMENT_OF
+  target: evidence.segmentation.minimum_boundary
+  note: The same obligation stated as its negative half. 6.22#1 says what segmentation must preserve;
+    this says what it therefore may not separate. One rule, two directions.
+- occurrence_id: 6.22#3
+  section: '6.22'
+  keyword: MUST
+  quote_digest: 83165c6b8104377d
+  quote: 2. 切分 MUST 是 structure-first:section / subsection / paragraph /
+  classification: REGISTERED
+  target: evidence.segmentation.structure_first
+  note: 'Distinct from the boundary rule: a segmenter could honour the boundary by accident while still
+    cutting on token count. This fixes the ordering -- document structure takes precedence over token
+    count.'
+- occurrence_id: 6.22#4
+  section: '6.22'
+  keyword: MUST NOT
+  quote_digest: aa2e9d341b97d55a
+  quote: '3. Fixed-token splitting MUST NOT 作為主要切分器。僅允許兩種用途:'
+  classification: REGISTERED
+  target: evidence.segmentation.fixed_token_not_primary
+  note: The prohibition, separate from 6.22#3's positive ordering. Structure-first states what the splitter
+    reads; this states what it may not be. Registered separately because the mutation battery kills them
+    independently.
+- occurrence_id: 6.22#5
+  section: '6.22'
+  keyword: MUST
+  quote_digest: 95d0ad0fa6bd9516
+  quote: 4. 依 3(a) 細分產生的 sub-unit MUST 保留 parent evidence unit 的 identity
+  classification: REGISTERED
+  target: evidence.segmentation.fallback_retains_parent
+  note: 'The condition attached to the 3(a) exception, and a checkable obligation in its own right: a
+    fallback subdivision that dropped the parent''s identity would satisfy 6.22#4 (fixed-token is not
+    primary) while losing exactly what the boundary rule protects. T-EVI-010 case (d) tests this and nothing
+    else.'
+- occurrence_id: 6.22#6
+  section: '6.22'
+  keyword: MUST
+  quote_digest: c2b0e33f2271fd6a
+  quote: 5. Table MUST 保留 headers、units、row/column context 與 locator。
+  classification: REGISTERED
+  target: evidence.segmentation.table_context
+  note: A table value without its header, unit and row/column context is a number. §17.22 already names
+    PARSE_TABLE as a distinct stage and constrains none of its output; this is the constraint.
+- occurrence_id: 6.22#7
+  section: '6.22'
+  keyword: MUST
+  quote_digest: 214e424e719c187e
+  quote: 6. Figure MUST 保留 figure identity、caption、相關周邊說明文字與 locator ——
+  classification: REGISTERED
+  target: evidence.segmentation.figure_context
+  note: 'Separate from the table rule because the failure differs: a table loses its header, a figure
+    loses the prose that explains it. The spec states the caption is not sufficient on its own, which
+    a table rule does not imply.'
+- occurrence_id: 6.22#8
+  section: '6.22'
+  keyword: MUST
+  quote_digest: c0b338589c62ea0d
+  quote: '7. 每個 canonical evidence unit MUST 保留足以解析回下列各項的資訊:'
+  classification: REGISTERED
+  target: evidence.unit.resolvable_provenance
+  note: 'What the unit must carry to be re-checkable by a human: occurrence, Artifact / SourceWork, locator,
+    parser provenance, conditions, units. Without it a correctly bounded unit is still unauditable.'
+- occurrence_id: 6.22#9
+  section: '6.22'
+  keyword: MUST
+  quote_digest: 893e9b1ae98171f4
+  quote: 8. scientific evidence admission 與最終 EvidenceBundle 構成 MUST 解析回
+  classification: REGISTERED
+  target: retrieval.admission.resolves_canonical
+  note: The seam between retrieval and admission. Candidate retrieval may use vectors; the final bundle
+    must be built from canonical records re-loaded by identity and must still pass the condition / source
+    / independence / authority filters.
+- occurrence_id: 6.22#10
+  section: '6.22'
+  keyword: MUST NOT
+  quote_digest: 68e643dd549ec1ba
+  quote: 9. 一個 embedding payload 或被取回的 vector chunk MUST NOT 僅因為它被取回
+  classification: REGISTERED
+  target: retrieval.payload.not_attestation
+  note: 'The specific abuse: treating ''it came back from the index'' as evidence of anything. Distinct
+    from 6.22#9, which governs where the body is loaded from -- this governs whether being retrieved confers
+    epistemic status at all.'
+- occurrence_id: 6.22#11
+  section: '6.22'
+  keyword: MUST NOT
+  quote_digest: dab7963bf439ebf1
+  quote: 與 token window strategy。刪除或重建 embedding index MUST NOT 改變科學 evidence identity；更換
+  classification: REGISTERED
+  target: evidence.unit.identity_independent_of_index
+  note: 'The stability clause that makes EVI-007''s future dual-index migration safe: rebuilding or deleting
+    an index must not disturb scientific evidence identity. Without it EVI-010 would be a style rule.'
+- occurrence_id: 6.22#12
+  section: '6.22'
+  keyword: MUST NOT
+  quote_digest: 7c1afa3cb25d95f6
+  quote: embedding model/version 亦 MUST NOT 改寫 Attestation 或 canonical evidence body。schema 見
+  classification: RESTATEMENT_OF
+  target: evidence.unit.identity_independent_of_index
+  note: The same independence stated for the other operation. 6.22#11 covers rebuilding the index; this
+    covers changing the model. Both are the one rule that evidence identity does not depend on the retrieval
+    layer.
 - occurrence_id: 7.1#1
   section: '7.1'
   keyword: 不得

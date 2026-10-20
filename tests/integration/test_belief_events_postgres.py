@@ -34,6 +34,7 @@ from lab_brain.core.repositories import (
 )
 from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
 from tests.conftest_fixtures import forged_authorization, make_artifact
+from tests.postgres_fixtures import admit_hypothesis_identity, place_artifact
 
 pytestmark = [
     pytest.mark.postgres,
@@ -56,6 +57,10 @@ def seeded(db):  # type: ignore[no-untyped-def]
     is the join "which events did this attestation trigger", and the point of the join table is
     that the reference resolves.
     """
+    # M3 / R-12 (`011j`): a belief event names a hypothesis admitted through §8's gate in its own
+    # project, so the identity this fixture always meant is established first.
+    admit_hypothesis_identity(db, TARGET)
+    admit_hypothesis_identity(db, "hyp:something-else")
     artifact = make_artifact(b"a belief-event fixture")
     db.execute(
         "INSERT INTO artifacts (artifact_id, content_hash, uri, media_type, source_origin,"
@@ -70,6 +75,7 @@ def seeded(db):  # type: ignore[no-untyped-def]
             artifact.lineage_revision,
         ),
     )
+    place_artifact(db, artifact.artifact_id, project_id=PROJECT)
     db.execute("INSERT INTO claims (claim_id, normalized_proposition) VALUES ('clm:1', 'rs high')")
     db.execute(
         "INSERT INTO condition_schemas (domain, schema_id, version, json_schema,"
@@ -472,7 +478,10 @@ def test_the_store_requires_a_durable_connection():
 
 def test_the_in_memory_store_also_refuses_unresolvable_triggers():
     """Parity. A fake that accepts what the database rejects makes a green suite meaningless."""
-    store = InMemoryBeliefEventStore(known_relation_ids={"rel:1"})
+    # M3 / R-12: the target is an admitted hypothesis, as `011j` requires of the database.
+    store = InMemoryBeliefEventStore(
+        known_relation_ids={"rel:1"}, known_hypotheses={(PROJECT, TARGET)}
+    )
     store.append(forged_authorization(event()))
     with pytest.raises(BeliefEventError, match="do not resolve"):
         store.append(
@@ -481,7 +490,9 @@ def test_the_in_memory_store_also_refuses_unresolvable_triggers():
 
 
 def test_the_in_memory_store_also_refuses_a_reused_event_id():
-    store = InMemoryBeliefEventStore(known_relation_ids={"rel:1"})
+    store = InMemoryBeliefEventStore(
+        known_relation_ids={"rel:1"}, known_hypotheses={(PROJECT, TARGET)}
+    )
     store.append(forged_authorization(event()))
     with pytest.raises(BeliefEventError, match="already recorded"):
         store.append(forged_authorization(event(to_state=BeliefState.CONTRADICTED)))
@@ -582,6 +593,12 @@ def test_the_database_refuses_a_cross_project_attestation_reference(seeded):
 
     # And an attestation from another project cannot be cited under this event's project.
     seeded.execute("INSERT INTO projects (project_id, name) VALUES ('prj:other', 'Other')")
+    # Its artifact is present there too: an attestation ingestion could have written (`012s`).
+    seeded.execute(
+        "INSERT INTO artifact_occurrences (artifact_id, project_id, sensitivity_label)"
+        " SELECT source_artifact_id, 'prj:other', 'INTERNAL' FROM attestations"
+        " WHERE attestation_id = 'att:1'"
+    )
     seeded.execute(
         "INSERT INTO attestations (attestation_id, claim_id, epistemic_type, source_artifact_id,"
         " locator, conditions, conditions_schema_version, project_id, extractor_version,"

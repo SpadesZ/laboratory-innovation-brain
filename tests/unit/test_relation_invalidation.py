@@ -61,7 +61,9 @@ def test_invalidate_preserves_every_other_field():
     assert closed.created_at == relation.created_at
 
     assert closed.invalidation_reason == "superseded"
-    assert closed.actor_id == "act:9"
+    # Who recorded it survives its withdrawal; who withdrew it is recorded beside it (`012r`).
+    assert closed.actor_id == relation.actor_id
+    assert closed.invalidated_by_actor_id == "act:9"
     assert closed.valid_to is not None
 
 
@@ -88,9 +90,10 @@ def test_invalidated_relation_is_excluded_from_as_of_after_the_close():
 def test_invalidate_re_runs_the_epistemic_provenance_rule():
     """Every validator re-runs, not only the interval one.
 
-    An epistemic relation may only exist with provenance. `invalidate` supplies `actor_id`, which
-    satisfies that rule -- but the rule must actually be evaluated rather than skipped, so a
-    future change that drops provenance during closure fails here.
+    An epistemic relation may only exist with provenance. The closed copy keeps the relation's
+    own provenance (its attestations; `invalidate` no longer overwrites `actor_id`) -- and the rule
+    must actually be evaluated rather than skipped, so a future change that drops provenance
+    during closure fails here.
     """
     relation = RelationJudgment(
         from_entity_id="att:a",
@@ -101,7 +104,7 @@ def test_invalidate_re_runs_the_epistemic_provenance_rule():
     )
     closed = relation.invalidate(reason="retracted", actor_id="act:1")
     assert closed.is_epistemic
-    assert closed.actor_id == "act:1"
+    assert closed.actor_id is None and closed.invalidated_by_actor_id == "act:1"
 
     # And the negative: constructing the same shape with no provenance at all is refused, which
     # is the rule `invalidate` now re-runs rather than bypasses.
@@ -121,4 +124,12 @@ def test_invalidating_an_already_closed_relation_keeps_the_interval_ordered():
     with pytest.raises(ValueError, match="precedes valid_from"):
         first.invalidate(
             reason="second", actor_id="act:2", at=relation.valid_from - dt.timedelta(hours=1)
+        )
+
+
+def test_an_invalidator_is_recorded_only_on_a_closed_relation():
+    """`012r`: who withdrew a relation is meaningful only once it is withdrawn."""
+    with pytest.raises(ValueError, match="invalidated_by_actor_id is only meaningful"):
+        RelationJudgment.model_validate(
+            make_relation().model_dump() | {"invalidated_by_actor_id": "act:1"}
         )

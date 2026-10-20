@@ -1,0 +1,27 @@
+BEGIN
+== every CONFIRMED FailureAnalysis
+           failure_analysis_id            |    project_id    |                episode_id                |        failure_class        |           confirmed_root_cause           |          root_cause_evidence_ids           |          created_at           
+------------------------------------------+------------------+------------------------------------------+-----------------------------+------------------------------------------+--------------------------------------------+-------------------------------
+ fan:30d9407f-f7ad-4b40-af4c-290edd5cc296 | prj:bench-gemini | epi:7b56877f-9287-4075-a3c6-9980abab8eef | missing correction artefact | hyp:7c899579-5702-4307-b92d-0215496ea6ff | {att:e6831355-0121-4842-bced-50f8c23b437b} | 2026-10-13 12:20:37.335364+00
+(1 row)
+
+== the SUPPORTS relations behind each CONFIRMED cause, with the author of the prediction
+           failure_analysis_id            |               relation_id                | relation_type |              prediction_id               |          capability           |                  run_id                  | provider |           model_id            |    model_version    
+------------------------------------------+------------------------------------------+---------------+------------------------------------------+-------------------------------+------------------------------------------+----------+-------------------------------+---------------------
+ fan:30d9407f-f7ad-4b40-af4c-290edd5cc296 | rel:51f1fdc4-e2cb-484f-b39b-fae90313d249 | SUPPORTS      | prd:1165a3f6-2b79-490f-961c-31da9037714c | cap:sp.extraction_consistency | run:28f7d82c-91da-4a37-b0f1-cf4b71794eee | a        | models/gemini-3.1-pro-preview | lk:2b48e377a4355cff
+(1 row)
+
+== verification plans whose rationale cites a CONFIRMED analysis as a precedent
+                 plan_id                  |    project_id    |                episode_id                |          created_at           |                  precedents                  
+------------------------------------------+------------------+------------------------------------------+-------------------------------+----------------------------------------------
+ vpl:1982d6cc-3759-4af9-b96e-6ec776c53050 | prj:bench-gemini | epi:12265cfd-ab34-4ba0-a329-cadc3d8894e6 | 2026-10-13 12:29:08.406429+00 | ["fan:30d9407f-f7ad-4b40-af4c-290edd5cc296"]
+ vpl:2fec8ce0-5221-4b84-bb8a-489dcbb8465c | prj:bench-gemini | epi:12265cfd-ab34-4ba0-a329-cadc3d8894e6 | 2026-10-13 12:29:08.687216+00 | ["fan:30d9407f-f7ad-4b40-af4c-290edd5cc296"]
+(2 rows)
+
+== heuristic candidates, review items, review resolutions
+ candidate_heuristics | review_items | review_resolutions 
+----------------------+--------------+--------------------
+                    0 |            0 |                  0
+(1 row)
+
+ROLLBACK

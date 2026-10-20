@@ -1,0 +1,132 @@
+Every 012p SQL entry of the mutation battery (31, three of them new) at fa9e982, after the
+project-scoping change to 012p. 2026-10-15, wall 1101 s. Each mutant is applied to a clone of
+a template database, never to the migration file.
+$ python scripts/mutation_battery.py --only <the 31 entries whose path is 012p>
+
+31 mutations
+
+[KILLED ] sql_the_author_check_reads_any_project
+           Causal Warrant Gate V1.1 (012p) -- the author check reads the grant's own project's hypothesis
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_the_author_check_reads_the_hypothesis_of
+
+[KILLED ] sql_a_class_binds_over_any_projects_predictions
+           Causal Warrant Gate V1.1 (012p) -- a hypothesis binds a class over its own project's predictions
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_another_projects_hypothesis_of_the_same_
+
+[KILLED ] sql_a_relation_reads_any_projects_episode
+           Causal Warrant Gate V1.1 (012p) -- a relation cites runs of its own project's hypothesis's episode
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_the_author_check_reads_the_hypothesis_of
+
+[KILLED ] sql_an_unsigned_answer_is_written
+           Causal Warrant Gate V1.1 (012p) -- every new answer carries an enrolment and a signature
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_an_answer_written_as_the_pi_without_the_
+
+[KILLED ] sql_another_persons_enrolment_signs
+           Causal Warrant Gate V1.1 (012p) -- an answer is signed under its reviewer's own enrolment
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_an_answer_is_signed_under_its_own_enrolm
+
+[KILLED ] sql_a_revoked_enrolment_answers
+           Causal Warrant Gate V1.1 (012p) -- a revoked enrolment answers nothing more
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_revoked_key_answers_nothing_more
+
+[KILLED ] sql_an_answer_predates_its_key
+           Causal Warrant Gate V1.1 (012p) -- an answer is dated after its key's enrolment
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_an_answer_is_signed_under_its_own_enrolm
+
+[KILLED ] sql_an_answer_predates_its_question
+           Causal Warrant Gate V1.1 (012p) -- an answer is dated after its question
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_an_answer_is_signed_under_its_own_enrolm
+
+[KILLED ] sql_a_non_member_is_enrolled
+           Causal Warrant Gate V1.1 (012p) -- only an active member of the project is enrolled
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_the_database_refuses_self_enrolment_shar
+
+[KILLED ] sql_a_key_is_shared
+           Causal Warrant Gate V1.1 (012p) -- one key belongs to one person
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_the_database_refuses_self_enrolment_shar
+
+[KILLED ] sql_a_revoked_key_is_enrolled_again
+           Causal Warrant Gate V1.1 (012p) -- a revoked key is never enrolled again
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_revoked_key_answers_nothing_more
+
+[KILLED ] sql_an_authority_key_is_a_reviewer_key
+           Causal Warrant Gate V1.1 (012p) -- an authority key is never a reviewer key
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_an_authority_key_is_never_a_reviewer_key
+
+[KILLED ] sql_self_authorization
+           Causal Warrant Gate V1.1 (012p) -- nobody enrols their own key
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_the_database_refuses_self_enrolment_shar
+
+[KILLED ] sql_a_key_id_names_another_key
+           Causal Warrant Gate V1.1 (012p) -- a key id is the key's own digest
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_the_database_refuses_self_enrolment_shar
+
+[KILLED ] sql_enrolments_are_editable
+           Causal Warrant Gate V1.1 (012p) -- enrolments and revocations are append-only
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_the_database_refuses_self_enrolment_shar
+
+[KILLED ] sql_the_rule_is_not_enforced
+           Causal Warrant Gate V1.1 (012p) -- a CONFIRMED row is refused unless the confirmation rule holds
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_direct_confirmation_of_one_of_two_obse
+
+[KILLED ] sql_another_classes_signature_is_ignored
+           Causal Warrant Gate V1.1 (012p) -- another declared class's observed signature blocks a unique confirmation
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_direct_confirmation_of_one_of_two_obse
+
+[KILLED ] sql_an_affirming_rival_is_ignored
+           Causal Warrant Gate V1.1 (012p) -- a rival affirming the supporting observation blocks it unless excluded
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_direct_confirmation_over_an_undischarg
+
+[KILLED ] sql_an_unsettled_question_is_ignored
+           Causal Warrant Gate V1.1 (012p) -- an unanswered question that could overturn the conclusion holds it
+           killed by FAILED tests/e2e/test_causal_warrant_counterexample_postgres.py::test_an_unwarranted_falsifier_neith
+
+[KILLED ] sql_a_partial_declaration_binds
+           Causal Warrant Gate V1.1 (012p) -- a class binds only over its whole declaration
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_class_binds_in_sql_only_over_its_whole
+
+[KILLED ] sql_an_identity_statement_is_ignored
+           Causal Warrant Gate V1.1 (012p) -- a person's identity statement puts a paraphrase in its class
+           killed by FAILED tests/e2e/test_causal_warrant_counterexample_postgres.py::test_a_person_can_warrant_an_uncata
+
+[KILLED ] sql_a_revoked_answer_counts
+           Causal Warrant Gate V1.1 (012p) -- an answer from a key revoked before it was given counts for nothing
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_revoking_a_key_after_its_answer_moved_a_
+
+[KILLED ] sql_rivals_may_be_omitted
+           Causal Warrant Gate V1.1 (012p) -- a confirmation names every member of its set
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_direct_confirmation_must_name_every_ri
+
+[KILLED ] sql_a_class_member_keeps_its_authors_words
+           Causal Warrant Gate V1.1 (012p) -- a declared class's member is recorded as the class
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_direct_confirmation_must_name_every_ri
+
+[KILLED ] sql_declarations_are_malformed
+           Causal Warrant Gate V1.1 (012p) -- a registered declaration set is well formed
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_declaration_set_must_be_well_formed_an
+
+[KILLED ] sql_a_supersession_names_nothing
+           Causal Warrant Gate V1.1 (012p) -- a version supersedes only an earlier version of its own set
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_declaration_set_must_be_well_formed_an
+
+[KILLED ] sql_a_flag_moves_to_other_content
+           Causal Warrant Gate V1.1 (012p) -- a flag names the exact content of the row it flags
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_flag_names_the_exact_confirmation_it_f
+
+[KILLED ] sql_an_open_analysis_is_flagged_false
+           Causal Warrant Gate V1.1 (012p) -- only a confirmation can be a false one
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_flag_names_the_exact_confirmation_it_f
+
+[KILLED ] sql_the_known_flag_ignores_content
+           Causal Warrant Gate V1.1 (012p) -- the recorded false confirmation is flagged only as recorded
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_row_that_is_not_the_recorded_one_is_no
+
+[KILLED ] sql_flags_are_editable
+           Causal Warrant Gate V1.1 (012p) -- flags are append-only
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_the_recorded_false_confirmation_is_flagg
+
+[KILLED ] sql_a_non_member_flags
+           Causal Warrant Gate V1.1 (012p) -- a person flags a conclusion only in a project they belong to
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_person_flags_a_conclusion_and_case_mem
+
+31/31 killed

@@ -107,6 +107,7 @@ from lab_brain.core.models.relation import RelationJudgment
 from lab_brain.core.models.transition import (
     HypothesisView,
     IndependenceSummary,
+    RelationEvidence,
     TransitionDecision,
     TransitionPolicy,
 )
@@ -271,6 +272,9 @@ class VerificationFailure(StrEnum):
     COMPARATOR_UNRESOLVED = "COMPARATOR_UNRESOLVED"
     NOT_REDERIVABLE = "NOT_REDERIVABLE"
     GENESIS_CLAIMS_AUTHORIZATION = "GENESIS_CLAIMS_AUTHORIZATION"
+    #: A support warrant in the snapshot does not re-check against its source, or nothing was
+    #: supplied to re-check it with.
+    WARRANT_UNVERIFIED = "WARRANT_UNVERIFIED"
 
 
 class UnverifiedBeliefRevision(RuntimeError):
@@ -336,6 +340,18 @@ class PolicyLookup(Protocol):
     def get(self, policy_id: str, version: str) -> TransitionPolicy | None: ...
 
 
+class WarrantVerifier(Protocol):
+    """Re-checks one recorded relation's facts and warrant against their sources; raises if not."""
+
+    def __call__(
+        self,
+        project_id: str,
+        hypothesis_id: str,
+        record: RelationEvidence,
+        relations: Sequence[RelationJudgment],
+    ) -> None: ...
+
+
 def _enforce_requested_scope(
     project_id: str,
     target_id: str,
@@ -377,6 +393,7 @@ def verify_stored_revision(
     decisions: DecisionLookup,
     policies: PolicyLookup,
     authority_policies: Mapping[tuple[str, str], AuthorityPolicy] = MappingProxyType({}),
+    warrant_verifier: WarrantVerifier | None = None,
 ) -> VerifiedBeliefRevision:
     """Re-derive a stored event's authorization, or refuse to let it change a belief.
 
@@ -498,6 +515,33 @@ def verify_stored_revision(
                 "refuses rather than re-deriving under a different one",
             )
 
+    # A snapshot records the per-relation facts and warrants it was given, and re-deriving it only
+    # proves the verdict follows from them. Whether they were true is asked of their sources
+    # again, so a writer who recorded a warrant nobody gave -- or an authority class or evidence
+    # line the attestations do not have -- has written a belief nobody authorised.
+    records = snapshot.hypothesis.relation_evidence
+    if records:
+        if warrant_verifier is None:
+            raise UnverifiedBeliefRevision(
+                VerificationFailure.WARRANT_UNVERIFIED,
+                f"authorization {authorization.decision_id} rests on diagnostic warrants and no "
+                "warrant source was supplied to re-check them",
+            )
+        for record in records:
+            try:
+                warrant_verifier(
+                    snapshot.hypothesis.project_id,
+                    snapshot.hypothesis.hypothesis_id,
+                    record,
+                    snapshot.admitted_relations,
+                )
+            except Exception as exc:  # any failure to re-check is a refusal, never a pass
+                raise UnverifiedBeliefRevision(
+                    VerificationFailure.WARRANT_UNVERIFIED,
+                    f"authorization {authorization.decision_id} records {record.relation_id} as "
+                    f"{record.warrant_ref or 'unwarranted'}, which does not re-check: {exc}",
+                ) from exc
+
     try:
         rederive_decision(
             authorization=authorization,
@@ -524,6 +568,7 @@ def verified_history(
     decisions: DecisionLookup,
     policies: PolicyLookup,
     authority_policies: Mapping[tuple[str, str], AuthorityPolicy] = MappingProxyType({}),
+    warrant_verifier: WarrantVerifier | None = None,
 ) -> tuple[VerifiedBeliefRevision, ...]:
     """Verify a whole stored history, in order, refusing the first revision that cannot be.
 
@@ -540,6 +585,7 @@ def verified_history(
             decisions=decisions,
             policies=policies,
             authority_policies=authority_policies,
+            warrant_verifier=warrant_verifier,
         )
         for event in sorted(events, key=lambda e: (e.occurred_at, e.event_id))
     )

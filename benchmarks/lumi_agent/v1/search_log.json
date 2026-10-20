@@ -1,0 +1,615 @@
+{
+ "benchmark": "lumi-agent-blind-v1",
+ "cutoff_exclusive": "2026-03-23",
+ "per_query": 4,
+ "min_abstract_chars": 400,
+ "queries": [
+  {
+   "id": "D01",
+   "kind": "DERIVED",
+   "text": "large language model FDTD simulation script generation",
+   "reason": "Problem: turning intent into an executable FDTD simulation program.",
+   "url": "https://api.openalex.org/works?search=large+language+model+FDTD+simulation+script+generation&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:27:23+00:00",
+   "snapshot": "snapshots/openalex/D01.json.gz",
+   "sha256": "298c430d8f60533f3fccf01940bee3b085b504a8a793e3f1f504b2f688fbdfc8",
+   "results": 25,
+   "selected": [
+    "10.1016/j.cpc.2016.08.020",
+    "10.3389/fninf.2013.00010",
+    "10.1002/lpor.201700237",
+    "10.3390/app11062445"
+   ],
+   "excluded": [
+    {
+     "work": "Efficient Implementation of Mesh Generation and FDTD Simulation of Electromagnetic Fields (1999-10-06)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "FDTD Simulation of Lightning Electromagnetic Fields : An approach with the software package MEEP (2020-01-01)",
+     "doi": "https://doi.org/10.34726/hss.2020.65348",
+     "why": "language de"
+    },
+    {
+     "work": "Electromagnetic and Heat Transfer Modeling of Microwave Heating in Domestic Ovens (2011-01-01)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "Integrated silicon photonic circuit simulation (2018-01-01)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    }
+   ]
+  },
+  {
+   "id": "D02",
+   "kind": "DERIVED",
+   "text": "large language model photonic device simulation",
+   "reason": "Problem: photonic device simulation driven by a language model.",
+   "url": "https://api.openalex.org/works?search=large+language+model+photonic+device+simulation&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:27:32+00:00",
+   "snapshot": "snapshots/openalex/D02.json.gz",
+   "sha256": "5bb21590bc8b393201035dd62e4f6b8413f809ec7217965d63c9516686be7045",
+   "results": 25,
+   "selected": [
+    "10.1103/revmodphys.91.015006",
+    "10.1038/s41467-024-44750-0",
+    "10.1038/s41586-020-2649-2",
+    "10.1002/lpor.201700237"
+   ],
+   "excluded": [
+    {
+     "work": "Programmable photonic circuits (2020-10-07)",
+     "doi": "https://doi.org/10.1038/s41586-020-2764-0",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Array programming with NumPy (2020-09-17)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "Variational quantum algorithms (2021-08-12)",
+     "doi": "https://doi.org/10.1038/s42254-021-00348-9",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  },
+  {
+   "id": "D03",
+   "kind": "DERIVED",
+   "text": "large language models photonics design",
+   "reason": "Problem domain: language models applied to photonics design.",
+   "url": "https://api.openalex.org/works?search=large+language+models+photonics+design&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:28:50+00:00",
+   "snapshot": "snapshots/openalex/D03.json.gz",
+   "sha256": "8a10e7e2a09cfcc4023db5bef77f75b976b3adc4d813f48e0e639775e894de9e",
+   "results": 25,
+   "selected": [
+    "10.1103/revmodphys.91.015006",
+    "10.1002/lpor.201700237",
+    "10.1364/prj.415960",
+    "10.1038/s41377-022-00717-8"
+   ],
+   "excluded": [
+    {
+     "work": "Programmable photonic circuits (2020-10-07)",
+     "doi": "https://doi.org/10.1038/s41586-020-2764-0",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Array programming with NumPy (2020-09-17)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    }
+   ]
+  },
+  {
+   "id": "D04",
+   "kind": "DERIVED",
+   "text": "natural language to scientific simulation code generation language model",
+   "reason": "Problem: natural-language intent to simulation code.",
+   "url": "https://api.openalex.org/works?search=natural+language+to+scientific+simulation+code+generation+language+model&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:28:57+00:00",
+   "snapshot": "snapshots/openalex/D04.json.gz",
+   "sha256": "47354de0b4ed57dacadb1dfdac14a9c27bf7204d3f436a91a11b6f525de03245",
+   "results": 25,
+   "selected": [
+    "10.1038/s41592-019-0686-2",
+    "10.1088/0953-8984/21/39/395502",
+    "10.1088/0953-8984/14/11/301",
+    "10.17863/cam.64134"
+   ],
+   "excluded": [
+    {
+     "work": "ChatGPT for good? On opportunities and challenges of large language models for education (2023-03-09)",
+     "doi": "https://doi.org/10.1016/j.lindif.2023.102274",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Array programming with NumPy (2020-09-17)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "Coordination Models and Languages (1998-01-01)",
+     "doi": "https://doi.org/10.1016/s0065-2458(08)60208-9",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Domain-specific languages (2000-06-01)",
+     "doi": "https://doi.org/10.1145/352029.352035",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Large language models generate functional protein sequences across diverse families (2023-01-26)",
+     "doi": "https://doi.org/10.1038/s41587-022-01618-2",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  },
+  {
+   "id": "D05",
+   "kind": "DERIVED",
+   "text": "language model code generation for low-resource proprietary library API",
+   "reason": "Motivation: the Lumerical interface is proprietary; little public data.",
+   "url": "https://api.openalex.org/works?search=language+model+code+generation+for+low-resource+proprietary+library+API&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:30:55+00:00",
+   "snapshot": "snapshots/openalex/D05.json.gz",
+   "sha256": "714ffa2033eb94c06059427836cadad97ad8f3b03a35ada1db65d81fd8cdd8ad",
+   "results": 25,
+   "selected": [
+    "10.48550/arxiv.2302.13971",
+    "10.1016/j.cpc.2021.108171",
+    "10.1088/0953-8984/21/39/395502",
+    "10.48550/arxiv.2204.02311"
+   ],
+   "excluded": [
+    {
+     "work": "Adapted large language models can outperform medical experts in clinical text summarization (2024-02-27)",
+     "doi": "https://doi.org/10.1038/s41591-024-02855-5",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  },
+  {
+   "id": "D06",
+   "kind": "DERIVED",
+   "text": "retrieval augmented code generation from API documentation",
+   "reason": "Motivation: the model lacks knowledge of a sparsely documented API.",
+   "url": "https://api.openalex.org/works?search=retrieval+augmented+code+generation+from+API+documentation&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:33:25+00:00",
+   "snapshot": "snapshots/openalex/D06.json.gz",
+   "sha256": "7a697fe90ea2677a182538969f7ec877ddb99f97bf49e461317fc3ee0b4a5d87",
+   "results": 25,
+   "selected": [
+    "10.1088/0953-8984/21/39/395502",
+    "10.1038/s41592-019-0686-2",
+    "10.1145/3637528.3671470",
+    "10.18653/v1/2021.findings-emnlp.232"
+   ],
+   "excluded": [
+    {
+     "work": "The Perseus computational platform for comprehensive analysis of (prote)omics data (2016-06-27)",
+     "doi": "https://doi.org/10.1038/nmeth.3901",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "ARES: An Automated Evaluation Framework for Retrieval-Augmented Generation Systems (2024-01-01)",
+     "doi": "https://doi.org/10.18653/v1/2024.naacl-long.20",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  },
+  {
+   "id": "D07",
+   "kind": "DERIVED",
+   "text": "large language model electromagnetic simulation automation",
+   "reason": "Problem: automating electromagnetic (FDTD) simulation.",
+   "url": "https://api.openalex.org/works?search=large+language+model+electromagnetic+simulation+automation&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:33:32+00:00",
+   "snapshot": "snapshots/openalex/D07.json.gz",
+   "sha256": "6a6368620ac7f05980b9445739f43636ebcb90c34b8c268e55c71e32e4568d30",
+   "results": 25,
+   "selected": [
+    "10.1016/0005-1098(94)90209-7",
+    "10.1109/access.2020.2970143",
+    "10.4173/mic.2020.4.1",
+    "10.1109/jpets.2015.2427370"
+   ],
+   "excluded": [
+    {
+     "work": "An introduction to PYTHIA 8.2 (2015-02-11)",
+     "doi": "https://doi.org/10.1016/j.cpc.2015.01.024",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Modeling and Control of Complex Physical Systems (2009-01-01)",
+     "doi": "https://doi.org/10.1007/978-3-642-03196-0",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  },
+  {
+   "id": "D08",
+   "kind": "DERIVED",
+   "text": "FDTD waveguide simulation mesh convergence accuracy setup",
+   "reason": "Constraint/success: a physically meaningful setup (mesh, sources, monitors).",
+   "url": "https://api.openalex.org/works?search=FDTD+waveguide+simulation+mesh+convergence+accuracy+setup&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:36:16+00:00",
+   "snapshot": "snapshots/openalex/D08.json.gz",
+   "sha256": "79aedf44ec9a3871972522841d63c0019b3941b49275c060c1e3c5ed34126764",
+   "results": 25,
+   "selected": [
+    "10.1109/tgrs.2018.2869027",
+    "10.1007/s11082-019-1838-4",
+    "10.1364/oe.22.00a589",
+    "10.1115/1.4026911"
+   ],
+   "excluded": [
+    {
+     "work": "Finite-difference time-domain methods (2023-10-05)",
+     "doi": "https://doi.org/10.1038/s43586-023-00257-4",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "On ultrasound propagation in composite laminates: advances in numerical simulation (2021-12-21)",
+     "doi": "https://doi.org/10.1016/j.paerosci.2021.100791",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Efficient Implementation of Mesh Generation and FDTD Simulation of Electromagnetic Fields (1999-10-06)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    },
+    {
+     "work": "SMUTHI: A python package for the simulation of light scattering by multiple particles near or between planar interfaces (2021-07-22)",
+     "doi": "https://doi.org/10.1016/j.jqsrt.2021.107846",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "FDTD Simulation of Lightning Electromagnetic Fields : An approach with the software package MEEP (2020-01-01)",
+     "doi": "https://doi.org/10.34726/hss.2020.65348",
+     "why": "language de"
+    },
+    {
+     "work": "Design, Simulation and Fabrication of Photonic Crystal Slab Waveguide Based Polarization Processors (2009-05-22)",
+     "doi": null,
+     "why": "no DOI (the product's literature connector locates passages by DOI)"
+    }
+   ]
+  },
+  {
+   "id": "D09",
+   "kind": "DERIVED",
+   "text": "executable correctness of code generated by large language models for scientific computing",
+   "reason": "Success criterion: the produced simulation actually executes.",
+   "url": "https://api.openalex.org/works?search=executable+correctness+of+code+generated+by+large+language+models+for+scientific+computing&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:36:21+00:00",
+   "snapshot": "snapshots/openalex/D09.json.gz",
+   "sha256": "5826bb303cfd15c205c419a9c9d28c9aa99ba5fe6c8a3efae240dd7fd40c8d5a",
+   "results": 25,
+   "selected": [
+    "10.1038/s41592-019-0686-2",
+    "10.17863/cam.64134",
+    "10.1016/j.cpc.2021.108171",
+    "10.1186/s12859-017-1934-z"
+   ],
+   "excluded": [
+    {
+     "work": "SPSS and SAS procedures for estimating indirect effects in simple mediation models (2004-11-01)",
+     "doi": "https://doi.org/10.3758/bf03206553",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Partial Least Squares Structural Equation Modeling (PLS-SEM) Using R (2021-01-01)",
+     "doi": "https://doi.org/10.1007/978-3-030-80519-7",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Coordination Models and Languages (1998-01-01)",
+     "doi": "https://doi.org/10.1016/s0065-2458(08)60208-9",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Best Practices for Scientific Computing (2014-01-07)",
+     "doi": "https://doi.org/10.1371/journal.pbio.1001745",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "DBpedia – A large-scale, multilingual knowledge base extracted from Wikipedia (2015-01-01)",
+     "doi": "https://doi.org/10.3233/sw-140134",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  },
+  {
+   "id": "D10",
+   "kind": "DERIVED",
+   "text": "large language model engineering design tool scripting automation",
+   "reason": "Problem: generating programs for a commercial engineering tool.",
+   "url": "https://api.openalex.org/works?search=large+language+model+engineering+design+tool+scripting+automation&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:37:40+00:00",
+   "snapshot": "snapshots/openalex/D10.json.gz",
+   "sha256": "2041665b83670f13ca629cd23fbd9c2c16e9739a383fd3aa3e24d69450a0fc7b",
+   "results": 25,
+   "selected": [
+    "10.1109/5.726791",
+    "10.1007/s11704-024-40231-1",
+    "10.48550/arxiv.2107.03374",
+    "10.1107/s0907444909052925"
+   ],
+   "excluded": [
+    {
+     "work": "CasADi: a software framework for nonlinear optimization and optimal control (2018-07-11)",
+     "doi": "https://doi.org/10.1007/s12532-018-0139-4",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Natural language processing: state of the art, current trends and challenges (2022-07-14)",
+     "doi": "https://doi.org/10.1007/s11042-022-13428-4",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Robotic Process Automation: Contemporary themes and challenges (2019-12-19)",
+     "doi": "https://doi.org/10.1016/j.compind.2019.103162",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  },
+  {
+   "id": "D11",
+   "kind": "DERIVED",
+   "text": "large language models electronic design automation code generation",
+   "reason": "Adjacent field: generating programs for proprietary design-automation tools.",
+   "url": "https://api.openalex.org/works?search=large+language+models+electronic+design+automation+code+generation&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:39:02+00:00",
+   "snapshot": "snapshots/openalex/D11.json.gz",
+   "sha256": "4ca473483c81c9cc3c35c5c58f570d334a83a53b384d4f98ac815f5ca2715672",
+   "results": 25,
+   "selected": [
+    "10.1088/1361-648x/aa8f79",
+    "10.1007/s11704-024-40231-1",
+    "10.1038/s41586-023-06792-0",
+    "10.1107/s0907444909052925"
+   ],
+   "excluded": [
+    {
+     "work": "Natural language processing: state of the art, current trends and challenges (2022-07-14)",
+     "doi": "https://doi.org/10.1007/s11042-022-13428-4",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "CasADi: a software framework for nonlinear optimization and optimal control (2018-07-11)",
+     "doi": "https://doi.org/10.1007/s12532-018-0139-4",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  },
+  {
+   "id": "C01",
+   "kind": "CONTRAST",
+   "text": "photonic inverse design adjoint optimization FDTD",
+   "reason": "Alternative: optimisation-driven design instead of generating setups from text.",
+   "url": "https://api.openalex.org/works?search=photonic+inverse+design+adjoint+optimization+FDTD&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:39:40+00:00",
+   "snapshot": "snapshots/openalex/C01.json.gz",
+   "sha256": "20c66d21fd9397d9e814d3260d59aae4be4c895414441db762ee47653e100e91",
+   "results": 25,
+   "selected": [
+    "10.1038/s41598-018-37952-2",
+    "10.1002/lpor.201700237",
+    "10.1002/advs.202002923",
+    "10.1515/nanoph-2019-0474"
+   ],
+   "excluded": []
+  },
+  {
+   "id": "C02",
+   "kind": "CONTRAST",
+   "text": "deep learning surrogate model nanophotonic simulation",
+   "reason": "Alternative: replace or reduce FDTD runs with learned surrogates.",
+   "url": "https://api.openalex.org/works?search=deep+learning+surrogate+model+nanophotonic+simulation&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:39:45+00:00",
+   "snapshot": "snapshots/openalex/C02.json.gz",
+   "sha256": "b30a1b22ee749394b2138bb432b00073df9df1eb966e8773a25f10252ec5b62b",
+   "results": 25,
+   "selected": [
+    "10.1007/s10915-022-01939-z",
+    "10.1364/prj.415960",
+    "10.1038/s41586-021-04223-6",
+    "10.1115/1.4053859"
+   ],
+   "excluded": []
+  },
+  {
+   "id": "C03",
+   "kind": "CONTRAST",
+   "text": "automated parametric simulation workflow photonic integrated circuit design",
+   "reason": "Alternative: conventional scripted/parametric automation without language models.",
+   "url": "https://api.openalex.org/works?search=automated+parametric+simulation+workflow+photonic+integrated+circuit+design&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:40:24+00:00",
+   "snapshot": "snapshots/openalex/C03.json.gz",
+   "sha256": "836f42772f5161ed54ceea42dece6497201a70c411768ec9b8f494f6e8a64fd9",
+   "results": 25,
+   "selected": [
+    "10.1002/lpor.201700237",
+    "10.1109/jstqe.2013.2295882",
+    "10.1109/jstqe.2019.2918949",
+    "10.1038/s41578-018-0005-z"
+   ],
+   "excluded": [
+    {
+     "work": "A review of machine learning methods applied to structural dynamics and vibroacoustic (2023-06-27)",
+     "doi": "https://doi.org/10.1016/j.ymssp.2023.110535",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  },
+  {
+   "id": "C04",
+   "kind": "CONTRAST",
+   "text": "hallucination in code generated by large language models",
+   "reason": "Contradicting: evidence that generated code is unreliable.",
+   "url": "https://api.openalex.org/works?search=hallucination+in+code+generated+by+large+language+models&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:40:30+00:00",
+   "snapshot": "snapshots/openalex/C04.json.gz",
+   "sha256": "8e8b32da0e0093113908d33a2b060289e0a277c6ee2696d696a4e0434c950c52",
+   "results": 25,
+   "selected": [
+    "10.1038/s41586-023-06291-2",
+    "10.1038/s41586-024-07421-0",
+    "10.1007/s11704-024-40231-1",
+    "10.48550/arxiv.2204.02311"
+   ],
+   "excluded": [
+    {
+     "work": "Large language models generate functional protein sequences across diverse families (2023-01-26)",
+     "doi": "https://doi.org/10.1038/s41587-022-01618-2",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Woodpecker: hallucination correction for multimodal large language models (2024-12-01)",
+     "doi": "https://doi.org/10.1007/s11432-024-4251-x",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  },
+  {
+   "id": "C05",
+   "kind": "CONTRAST",
+   "text": "limitations of large language models in multi-step planning and reasoning",
+   "reason": "Contradicting: evidence that multi-step automation by language models fails.",
+   "url": "https://api.openalex.org/works?search=limitations+of+large+language+models+in+multi-step+planning+and+reasoning&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:40:35+00:00",
+   "snapshot": "snapshots/openalex/C05.json.gz",
+   "sha256": "152059733811f44ddfd36218cba203444f7362a4ef85f9d4fcf86a85d7ac2df0",
+   "results": 25,
+   "selected": [
+    "10.1038/s41586-023-06291-2",
+    "10.1037/0033-295x.103.4.650",
+    "10.48550/arxiv.2204.02311",
+    "10.1007/s11704-024-40231-1"
+   ],
+   "excluded": [
+    {
+     "work": "ChatGPT for good? On opportunities and challenges of large language models for education (2023-03-09)",
+     "doi": "https://doi.org/10.1016/j.lindif.2023.102274",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "Plan-and-Solve Prompting: Improving Zero-Shot Chain-of-Thought Reasoning by Large Language Models (2023-01-01)",
+     "doi": "https://doi.org/10.18653/v1/2023.acl-long.147",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  },
+  {
+   "id": "C06",
+   "kind": "CONTRAST",
+   "text": "benchmark of language models on scientific code",
+   "reason": "Evaluation evidence: how well models actually write scientific code.",
+   "url": "https://api.openalex.org/works?search=benchmark+of+language+models+on+scientific+code&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:40:41+00:00",
+   "snapshot": "snapshots/openalex/C06.json.gz",
+   "sha256": "4726da17615c780c2af1c333741d23f72480016ffff2887036f86b24b8cfa2d7",
+   "results": 25,
+   "selected": [
+    "10.1038/s41592-019-0686-2",
+    "10.17863/cam.64134",
+    "10.48550/arxiv.2302.13971",
+    "10.1038/s41586-023-06291-2"
+   ],
+   "excluded": [
+    {
+     "work": "Partial Least Squares Structural Equation Modeling (PLS-SEM) Using R (2021-01-01)",
+     "doi": "https://doi.org/10.1007/978-3-030-80519-7",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  },
+  {
+   "id": "C07",
+   "kind": "CONTRAST",
+   "text": "verification and validation of electromagnetic simulation results",
+   "reason": "Contrasting emphasis: checking simulations rather than generating them.",
+   "url": "https://api.openalex.org/works?search=verification+and+validation+of+electromagnetic+simulation+results&per_page=25&select=id%2Cdoi%2Ctitle%2Cpublication_date%2Cpublication_year%2Ctype%2Clanguage%2Cprimary_location%2Cauthorships%2Cis_retracted%2Cabstract_inverted_index%2Crelevance_score&filter=to_publication_date%3A2026-03-23",
+   "retrieved_at": "2026-09-28T14:40:46+00:00",
+   "snapshot": "snapshots/openalex/C07.json.gz",
+   "sha256": "7c53f090dc5ede48108ef9bcc143efba82d242942da0e559899531463c3aa87d",
+   "results": 25,
+   "selected": [
+    "10.1002/advs.202105553",
+    "10.1103/physrevb.75.155410",
+    "10.1088/0031-9155/57/11/r99",
+    "10.1109/tpwrd.2020.3018647"
+   ],
+   "excluded": [
+    {
+     "work": "Experimenting with electromagnetism using augmented reality: Impact on flow student experience and educational effectiveness (2013-09-22)",
+     "doi": "https://doi.org/10.1016/j.compedu.2013.09.004",
+     "why": "no abstract of at least 400 characters"
+    },
+    {
+     "work": "The TOPAS tool for particle simulation, a Monte Carlo simulation tool for physics, biology and clinical research (2020-04-01)",
+     "doi": "https://doi.org/10.1016/j.ejmp.2020.03.019",
+     "why": "no abstract of at least 400 characters"
+    }
+   ]
+  }
+ ],
+ "github": [
+  {
+   "id": "G01",
+   "kind": "DERIVED",
+   "text": "lumerical language model",
+   "reason": "Technical prior art: language models used with Lumerical.",
+   "url": "https://api.github.com/search/repositories?q=lumerical+language+model+created%3A%3C2026-03-23&sort=stars&per_page=10",
+   "retrieved_at": "2026-09-28T14:40:50+00:00",
+   "snapshot": "snapshots/github/G01.json.gz",
+   "sha256": "4af480b8ee5b87b369a76c49bd22c9a783908272ebffbe97898f8ab0f0772a5f",
+   "results": 0,
+   "selected": [],
+   "excluded": []
+  },
+  {
+   "id": "G02",
+   "kind": "DERIVED",
+   "text": "lumerical python automation",
+   "reason": "Technical prior art: automating Lumerical from Python (with or without models).",
+   "url": "https://api.github.com/search/repositories?q=lumerical+python+automation+created%3A%3C2026-03-23&sort=stars&per_page=10",
+   "retrieved_at": "2026-09-28T14:40:57+00:00",
+   "snapshot": "snapshots/github/G02.json.gz",
+   "sha256": "47f6d5a345c3bd2c8f77f9a4cdbc5a6125043d3f6491cefd58e2a339b7feddc9",
+   "results": 2,
+   "selected": [
+    "gcharalampous/lumerical-py-scripts",
+    "DavidLange7/LumericalwPython"
+   ],
+   "excluded": []
+  },
+  {
+   "id": "G03",
+   "kind": "DERIVED",
+   "text": "fdtd llm",
+   "reason": "Technical prior art: language models with any FDTD solver.",
+   "url": "https://api.github.com/search/repositories?q=fdtd+llm+created%3A%3C2026-03-23&sort=stars&per_page=10",
+   "retrieved_at": "2026-09-28T14:41:05+00:00",
+   "snapshot": "snapshots/github/G03.json.gz",
+   "sha256": "4af480b8ee5b87b369a76c49bd22c9a783908272ebffbe97898f8ab0f0772a5f",
+   "results": 0,
+   "selected": [],
+   "excluded": []
+  }
+ ],
+ "corpus": {
+  "papers": 49,
+  "peer_reviewed": 45,
+  "preprints": 4,
+  "passages": 141
+ },
+ "technical_prior_art": 2,
+ "snapshot_encoding": "gzip; each sha256 is of the uncompressed provider response"
+}
