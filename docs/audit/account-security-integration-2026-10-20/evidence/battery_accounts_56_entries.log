@@ -1,0 +1,228 @@
+lab-accounts-v1 at bfde08b: 56 entries (46 earlier accounts entries still applying, sql_approval_by_a_non_administrator, 9 new, v2_locale_switch_leaves_the_workspace retargeted)
+56 mutations
+
+[KILLED ] v2_locale_switch_leaves_the_workspace
+           language -- the way back after switching is only ever this workspace
+           killed by FAILED tests/e2e/test_web_llm_runtime_postgres.py::test_the_interface_switches_language_and_the_rese
+
+[KILLED ] a_suspended_account_keeps_its_session
+           Accounts (012u) -- a session signs in only an ACTIVE account
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_a_session_follows_the_accounts_state_whoeve
+
+[KILLED ] a_session_never_goes_idle
+           Accounts (012u) -- a session unused for two hours ends
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_sessions_expire_go_idle_and_end
+
+[KILLED ] a_pending_account_signs_in
+           Accounts (012u) -- a pending account is told its state, not signed in
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_a_person_registers_verifies_is_approved_and
+
+[KILLED ] a_declined_registration_reads_as_suspended
+           Accounts (012u) -- a declined registration is told so
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_a_declined_registration_is_told_so_only_wit
+
+[KILLED ] a_member_administers
+           Accounts (012u) -- only an active administrator approves and manages
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_approval_is_an_active_administrators_and_ne
+
+[KILLED ] wrong_passwords_never_lock
+           Accounts (012u) -- five wrong passwords lock the account
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_five_wrong_passwords_lock_the_account_for_f
+
+[KILLED ] a_wrong_current_password_never_locks
+           Accounts (012u) -- a wrong current password counts toward the lockout
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_a_wrong_current_password_counts_toward_the_
+
+[KILLED ] a_locked_account_changes_its_password
+           Accounts (012u) -- a locked account cannot change its password
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_a_wrong_current_password_counts_toward_the_
+
+[KILLED ] a_reset_keeps_old_sessions
+           Accounts (012u) -- a password reset ends every session
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_a_reset_link_works_once_for_thirty_minutes_
+
+[KILLED ] a_suspension_keeps_the_actor_active
+           Accounts (012u) -- a suspended account's actor holds no grant
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_sessions_expire_go_idle_and_end
+
+[KILLED ] any_password_verifies
+           Accounts (012u) -- a wrong password never verifies
+           killed by FAILED tests/unit/test_account_passwords.py::test_the_production_cost_is_scrypt_at_owasps_minimum
+
+[KILLED ] an_unconfirmed_registration_holds_the_address
+           Accounts (012u) -- an unconfirmed registration does not hold an address against its holder
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_registering_again_before_confirming_sends_a
+
+[KILLED ] a_resent_link_leaves_the_old_one_working
+           Accounts (012u) -- a fresh verification link ends the earlier ones
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_registering_again_before_confirming_sends_a
+
+[KILLED ] mail_to_an_address_is_unthrottled
+           Accounts (012u) -- at most three messages to one account an hour
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_mail_to_one_address_and_new_registrations_a
+
+[KILLED ] registrations_are_unthrottled
+           Accounts (012u) -- new registrations an hour are capped
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_mail_to_one_address_and_new_registrations_a
+
+[KILLED ] a_failed_reset_mail_is_not_recorded
+           Accounts (012u) -- a reset mail that fails is recorded, not shown
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_a_reset_that_cannot_be_mailed_answers_as_an
+
+[KILLED ] sql_approval_by_a_non_administrator
+           Accounts (012u) -- the database accepts an approval only by an active administrator other than the holder
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_approval_is_an_active_administrators_and_ne
+
+[KILLED ] sql_the_last_admin_is_demoted
+           Accounts (012u) -- the database keeps the last active administrator
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_the_last_active_administrator_is_kept
+
+[KILLED ] sql_a_second_bootstrapped_admin
+           Accounts (012u) -- only the first administrator is bootstrapped active
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_approval_is_an_active_administrators_and_ne
+
+[KILLED ] sql_a_pending_administrator
+           Accounts (012u) -- an account is created PENDING as a MEMBER
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_a_session_or_a_token_cannot_be_deleted_and_
+
+[KILLED ] sql_a_token_is_used_twice
+           Accounts (012u) -- a token is used at most once, for any writer
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_a_reset_link_works_once_for_thirty_minutes_
+
+[KILLED ] sql_a_revoked_session_revives
+           Accounts (012u) -- a revoked session stays revoked
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_sessions_expire_go_idle_and_end
+
+[KILLED ] sql_a_session_is_deleted
+           Accounts (012u) -- a session is never deleted (and so never written again)
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_a_session_or_a_token_cannot_be_deleted_and_
+
+[KILLED ] sql_a_token_is_deleted
+           Accounts (012u) -- a token is never deleted (and so never written again)
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_a_session_or_a_token_cannot_be_deleted_and_
+
+[KILLED ] sql_anyone_records_oversight
+           Accounts (012u) -- only an active administrator appears in the access record
+           killed by FAILED tests/integration/test_lab_projects_postgres.py::test_an_administrator_oversees_every_project
+
+[KILLED ] one_grants_oneself_membership
+           Accounts (012u) -- nobody grants themself membership, an administrator included
+           killed by FAILED tests/integration/test_lab_projects_postgres.py::test_nobody_grants_themself_membership_or_ch
+
+[KILLED ] adding_rewrites_a_members_access
+           Accounts (012u) -- adding an existing member is refused, not a silent rewrite
+           killed by FAILED tests/integration/test_lab_projects_postgres.py::test_nobody_grants_themself_membership_or_ch
+
+[KILLED ] one_changes_ones_own_access
+           Accounts (012u) -- nobody changes their own access
+           killed by FAILED tests/integration/test_lab_projects_postgres.py::test_nobody_grants_themself_membership_or_ch
+
+[KILLED ] a_change_demotes_the_last_owner
+           Accounts (012u) -- a change keeps the project's last owner
+           killed by FAILED tests/integration/test_lab_projects_postgres.py::test_an_administrator_changes_access_and_a_p
+
+[KILLED ] oversight_is_not_recorded
+           Accounts (012u) -- an administrator's look at a project is recorded
+           killed by FAILED tests/integration/test_lab_projects_postgres.py::test_an_administrator_oversees_every_project
+
+[KILLED ] every_refresh_is_another_look
+           Accounts (012u) -- a look is recorded once an hour
+           killed by FAILED tests/integration/test_lab_projects_postgres.py::test_each_administrator_look_is_recorded_onc
+
+[KILLED ] a_members_research_is_viewed_unseen
+           Accounts (012u) -- viewing a person's research is shown in each of their projects
+           killed by ERROR tests/integration/test_lab_projects_postgres.py
+
+[KILLED ] every_start_rewrites_the_actor
+           Accounts (012u) -- the container's start leaves an existing actor alone
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_the_operators_first_start_settings_leave_la
+
+[KILLED ] every_start_rewrites_the_membership
+           Accounts (012u) -- the container's start leaves an existing membership alone
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_the_operators_first_start_settings_leave_la
+
+[KILLED ] every_start_regrants_model_administration
+           Accounts (012u) -- the container's start leaves a revoked model administration revoked
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_the_operators_first_start_settings_leave_la
+
+[KILLED ] the_web_skips_the_form_token
+           Accounts (012u) -- a form post needs its session's token
+           killed by FAILED tests/e2e/test_web_accounts_postgres.py::test_signed_out_every_page_but_the_sign_in_pages_ask
+
+[KILLED ] the_web_binds_tokens_to_nothing
+           Accounts (012u) -- a form token is bound to the session it was shown in
+           killed by FAILED tests/e2e/test_web_accounts_postgres.py::test_a_form_from_an_ended_session_asks_to_sign_in_ag
+
+[KILLED ] an_ended_session_returns_anywhere
+           Accounts (012u) -- after an ended session the browser returns only within this workspace
+           killed by FAILED tests/e2e/test_web_accounts_postgres.py::test_a_form_from_an_ended_session_asks_to_sign_in_ag
+
+[KILLED ] a_member_opens_the_laboratory
+           Accounts (012u) -- the laboratory pages are an administrator's
+           killed by FAILED tests/e2e/test_web_accounts_postgres.py::test_a_member_reaches_neither_the_laboratory_nor_the
+
+[KILLED ] a_signed_out_browser_reaches_the_workspace
+           Accounts (012u) -- signed out, only the sign-in pages answer
+           killed by FAILED tests/e2e/test_web_accounts_postgres.py::test_signed_out_every_page_but_the_sign_in_pages_ask
+
+[KILLED ] a_non_member_opens_a_project
+           Accounts (012u) -- a project's overview is its members'
+           killed by FAILED tests/e2e/test_web_accounts_postgres.py::test_projects_are_their_members_and_oversight_is_sho
+
+[KILLED ] a_redirect_leaves_by_a_control_character
+           Accounts (012u) -- a tab or line break never turns a path into another origin
+           killed by FAILED tests/e2e/test_web_accounts_postgres.py::test_after_sign_in_the_browser_stays_on_this_workspa
+
+[KILLED ] sign_in_redirects_anywhere
+           Accounts (012u) -- after sign-in the browser stays on this workspace
+           killed by FAILED tests/e2e/test_web_accounts_postgres.py::test_after_sign_in_the_browser_stays_on_this_workspa
+
+[KILLED ] members_see_technical_details
+           Accounts (012u) -- the status page's technical details are an administrator's
+           killed by FAILED tests/e2e/test_web_accounts_postgres.py::test_a_member_sees_the_systems_state_without_its_tec
+
+[KILLED ] the_inbox_ignores_classification
+           Accounts (012u) -- a warrant question is shown only within clearance
+           killed by FAILED tests/e2e/test_web_decisions_inbox_postgres.py::test_the_enrolled_reviewer_is_asked_in_words_
+
+[KILLED ] the_inbox_ignores_enrolment
+           Accounts (012u) -- a warrant question is shown to an enrolled reviewer only
+           killed by FAILED tests/e2e/test_web_decisions_inbox_postgres.py::test_others_are_told_a_question_waits_but_not
+
+[KILLED ] verification_takes_any_name
+           Accounts -- verify first: the link's holder names the account, and a name is required
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_a_refused_name_or_password_leaves_the_link_
+
+[KILLED ] verification_takes_any_password
+           Accounts -- verify first: the password chosen at confirmation meets the policy
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_a_refused_name_or_password_leaves_the_link_
+
+[KILLED ] sql_a_password_before_confirmation
+           Accounts -- 012v: the database refuses a password on an unconfirmed account
+           killed by FAILED tests/integration/test_accounts_postgres.py::test_the_database_refuses_a_password_before_the_
+
+[KILLED ] an_owner_manages_membership
+           Accounts -- only an active ADMIN changes project membership
+           killed by FAILED tests/integration/test_lab_projects_postgres.py::test_only_an_administrator_changes_membershi
+
+[KILLED ] an_owner_is_offered_membership_forms
+           Accounts -- membership forms are offered to an ADMIN only
+           killed by FAILED tests/e2e/test_web_accounts_postgres.py::test_projects_are_their_members_and_oversight_is_sho
+
+[KILLED ] an_admin_reads_withheld_excerpts
+           Accounts -- an ADMIN's oversight read is complete: nothing withheld
+           killed by FAILED tests/e2e/test_web_accounts_postgres.py::test_an_administrator_reads_everything_each_read_rec
+
+[KILLED ] an_artifact_read_is_not_recorded
+           Accounts -- an ADMIN's read of an artifact is recorded before it is returned
+           killed by FAILED tests/e2e/test_web_accounts_postgres.py::test_an_administrator_reads_everything_each_read_rec
+
+[KILLED ] an_export_read_is_not_recorded
+           Accounts -- an ADMIN's export of a report is recorded before it is returned
+           killed by FAILED tests/e2e/test_web_accounts_postgres.py::test_an_administrator_reads_everything_each_read_rec
+
+[KILLED ] a_report_read_is_not_recorded
+           Accounts -- an ADMIN's read of a research episode's reports is recorded before they are shown
+           killed by FAILED tests/security/test_web_access_matrix_postgres.py::test_every_read_is_its_authorized_peoples
+
+56/56 killed
