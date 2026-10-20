@@ -49,6 +49,7 @@ from lab_brain.research.report import (
     HypothesisLine,
     PendingAction,
     PlanLine,
+    StageStatus,
 )
 from tests.report_samples import full_report
 
@@ -770,3 +771,30 @@ def test_a_confirmation_tells_rivals_never_tested_from_rivals_tested_but_open():
         "限制：已檢驗但尚未被排除的對立假說：脊部摻雜補償（dopant compensation in the rib）" in why
     )
     assert "從未檢驗" not in why, "every rival here was observed"
+
+
+def test_a_debate_refused_before_verification_is_not_said_to_lack_an_input():
+    """The first live run (2026-10-21): the model's specialist output was refused, so no
+    hypothesis was admitted and verification was skipped -- with its device project given."""
+    report, _ = _insufficient()
+    report = dataclasses.replace(
+        report,
+        hypotheses=(),
+        debate=None,
+        completed=(),
+        pending=(),
+        plans=(),
+        stages=(
+            StageStatus("verification input", "DONE", "device PS-501"),
+            StageStatus("hypotheses", "FAILED", "RoleOutputRefused: the specialist favours ..."),
+            StageStatus(
+                "verification", "SKIPPED", "the debate did not produce admitted hypotheses"
+            ),
+        ),
+        conclusion=Conclusion(status="NOT_REACHED", statement="not reached"),
+    )
+    markup = _page(report, EpisodeView(), "zh-TW", reason="")
+    why = _section(markup, "why")
+    assert "研究停在「假說」步驟（失敗）；紀錄的原因見「證據與推理」中的步驟表" in why
+    assert "沒有提供驗證輸入" not in _l1(markup), "the input was given; the debate stopped first"
+    assert "RoleOutputRefused" not in _l1(markup)

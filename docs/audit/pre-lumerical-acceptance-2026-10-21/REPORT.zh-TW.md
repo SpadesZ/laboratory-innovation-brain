@@ -166,7 +166,7 @@ CI：見 §5.5。
 
 - 【事實】不需資料庫的完整測試（`dd14f42`）：1903 通過、1025 略過（需後端）、0 失敗；ruff、ruff format、mypy strict 通過；狀態檔為最新。
 - 【事實】受影響的 PostgreSQL 測試檔在本機新建資料庫上通過（研究頁、工作區、研究資料、驗收、存取矩陣）。
-- 完整 PostgreSQL 測試：由 CI 在新建資料庫上執行（§5.5）。本機一輪完整 PG 因與其他工作搶 CPU 而過慢，且跑的是修正前的程式，已中止，不列為結果。
+- 【事實】完整 PostgreSQL 測試：CI 在新建資料庫上執行，2922 通過、6 略過、0 失敗（§5.5）。本機一輪完整 PG 因與其他工作搶 CPU 而過慢，且跑的是修正前的程式，已中止，不列為結果。
 - 【事實】突變測試（`scripts/mutation_battery.py`，現有 683 項）：
   - 第一輪（`4bc1505` 之前）24 項中 23 項被抓到；存活的 `page_shows_every_declared_prediction_as_a_falsifier` 是因為改版後已無人呼叫該方法——方法已刪除，突變改指向新程式後被抓到（`evidence/mutation_battery_reading.log`）。
   - 最終程式：研究頁與語言相關 29 項全部被抓到（含審查修正的 5 項新突變）；其中 3 項依賴驗收測試，因當時驗收測試本身尚未配合新措辭，屬假擊殺，修正測試後重跑 3/3 被抓到（`evidence/mutation_battery_reading_final.log`）。
@@ -201,7 +201,12 @@ CI：見 §5.5。
 ### 5.5 CI
 
 - 3b472fe：https://github.com/SpadesZ/laboratory-innovation-brain/actions/runs/39460914261 —— 1 項失敗（test_web_workspace_postgres 仍比對舊文字），2915 通過；已在 d5327cf 修正。
-- dd14f42（程式最終版）：https://github.com/SpadesZ/laboratory-innovation-brain/actions/runs/39466025357 —— 撰寫本報告時，提交規範、規格一致性、Lint／型別／完整測試三項已通過；PostgreSQL 完整測試仍在執行，結果以該頁為準。
+- dd14f42：https://github.com/SpadesZ/laboratory-innovation-brain/actions/runs/39466025357 —— 推送下一個提交時被 CI 自動取消（PostgreSQL 工作未跑完），不列為結果。
+- 【事實】2d69ff2（程式與 dd14f42 相同，只多了本報告）：https://github.com/SpadesZ/laboratory-innovation-brain/actions/runs/39466614520 —— 四項工作全部通過：
+  - 提交規範（無 AI 署名）：通過；
+  - 規格一致性：204 通過、2 略過；
+  - Lint、型別與完整測試：1900 通過、1028 略過（需後端）；
+  - PostgreSQL 完整測試（新建資料庫、套用全部 migration）：**2922 通過、6 略過、0 失敗**。
 
 ---
 

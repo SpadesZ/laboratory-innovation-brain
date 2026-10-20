@@ -652,6 +652,11 @@ _M: dict[str, tuple[str, str]] = {
         "「{mechanism}」獲得支持，且沒有其他假說仍待判定，但治理程序沒有確認它",
     ),
     "v.why.waiting": ("what it waits for: {reason}", "目前等待：{reason}"),
+    "v.why.stopped": (
+        "the research stopped at the {stage} step ({status}); the reason it recorded is in the "
+        "step table under Evidence and reasoning",
+        "研究停在「{stage}」步驟（{status}）；紀錄的原因見「證據與推理」中的步驟表",
+    ),
     "v.why.challenged": (
         "{mechanism} is challenged: a result contradicts it, but it has not been ruled out",
         "「{mechanism}」受到挑戰：有牴觸它的結果，但它尚未被排除",

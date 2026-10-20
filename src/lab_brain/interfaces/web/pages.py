@@ -49,7 +49,13 @@ from lab_brain.research.episode_view import (
     ExecutedCheck,
     Relation,
 )
-from lab_brain.research.report import ActionLine, EpisodeReport, HypothesisLine, PendingAction
+from lab_brain.research.report import (
+    ActionLine,
+    EpisodeReport,
+    HypothesisLine,
+    PendingAction,
+    StageStatus,
+)
 
 _CSS = """
 body{font:15px/1.5 system-ui,-apple-system,"Segoe UI","Noto Sans TC","Microsoft JhengHei",
@@ -748,6 +754,25 @@ def _person_actions(report: EpisodeReport | None) -> list[str]:
     return chosen
 
 
+def _no_input(report: EpisodeReport) -> bool:
+    """Verification was skipped because no verification input was given -- not because, say,
+    the debate admitted no hypothesis (the service's own words for each)."""
+    return any(
+        s.stage == "verification"
+        and s.status == "SKIPPED"
+        and s.detail.startswith("no verification input")
+        for s in report.stages
+    )
+
+
+def _stopped(report: EpisodeReport) -> StageStatus | None:
+    """Where an unreached run stopped: its first failed or refused step, else its first skip."""
+    return next(
+        (s for s in report.stages if s.status in ("FAILED", "REFUSED")),
+        next((s for s in report.stages if s.status == "SKIPPED"), None),
+    )
+
+
 def _ran(action: ActionLine) -> bool:
     """Whether a check of this run executed (`WorkflowStatus.EXECUTED`). A budget refusal or a
     wait for a seat is in `completed` too, and nothing executed."""
@@ -905,10 +930,7 @@ def _result_html(
     if c.status != "CONFIRMED":
         lines.append(h("<p>{}</p>", m("v.no_root_cause")))
     if c.status == "NOT_REACHED":
-        stopped = next(
-            (s for s in report.stages if s.status in ("FAILED", "REFUSED")),
-            next((s for s in report.stages if s.status == "SKIPPED"), None),
-        )
+        stopped = _stopped(report)
         if stopped is not None:
             lines.append(
                 h(
@@ -1390,6 +1412,16 @@ def _why_html(
             reasons.append(mh(m, "v.why.waiting", reason=_waiting(suspend_reason, t)))
         if c.status == "INCONCLUSIVE":
             reasons.append(e(m("v.why.inconclusive")))
+        stopped = _stopped(report) if c.status == "NOT_REACHED" else None
+        if stopped is not None:
+            reasons.append(
+                mh(
+                    m,
+                    "v.why.stopped",
+                    stage=_words("stage", stopped.stage, m),
+                    status=status("ss", stopped.status, m),
+                )
+            )
     conflicting = [
         x
         for x in report.hypotheses
@@ -1402,7 +1434,7 @@ def _why_html(
         for x in report.hypotheses
         if x.final_state == "CHALLENGED" and x not in conflicting
     ]
-    if any(s.stage == "verification" and s.status == "SKIPPED" for s in report.stages):
+    if _no_input(report):
         reasons.append(e(m("v.why.no_input")))
     not_run = _not_run(report)
     if not_run:
@@ -1549,7 +1581,7 @@ def _next_html(
     if not parts:
         if report is None:
             parts.append(h("<p>{}</p>", m("ep.no_report")))
-        elif any(s.stage == "verification" and s.status == "SKIPPED" for s in report.stages):
+        elif _no_input(report):
             # Nothing was planned because nothing could be: no verification input was given.
             parts.append(h('<p class="box warn">{}</p>', m("v.no_verification_input")))
         else:

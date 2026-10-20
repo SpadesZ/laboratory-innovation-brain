@@ -46,6 +46,7 @@ from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.interfaces.config import Settings
 from lab_brain.interfaces.web import Workspace, allowed_hosts
 from lab_brain.llm_runtime.secrets import SecretStore
+from lab_brain.research.report_store import SqlResearchReportStore
 from lab_brain.research.vertical import load_vertical_factory
 from tests.e2e.test_research_episode_postgres import GOAL, PROJECT, REPORT, _member
 from tests.e2e.test_web_llm_credentials_postgres import _admin
@@ -209,12 +210,18 @@ def _episode(browser: Browser, tmp_path: Path, name: str) -> str:
     return unquote(found.group(1))
 
 
-def test_a_real_local_model_researches_three_cases_without_lumerical(db, tmp_path):
+def test_a_real_model_researches_three_cases_without_lumerical(db, tmp_path):
+    """Every case runs, whatever the one before it did; each is checked for what must hold of any
+    run -- whose inferences these are, no simulation, no confirmation the record does not carry,
+    a page that says what happened -- and the test then asks the acceptance question: did every
+    case get through the debate to verification? Each case's outcome is written to the evidence
+    either way."""
     _member(db)
     _admin(db)
     browser = _workspace(tmp_path)
     _qualified(db, browser)
     models = {PRIMARY, CRITIC, UTILITY}
+    outcomes: dict[str, dict[str, Any]] = {}
     for name in CASES:
         episode = _episode(browser, tmp_path, name)
         provenance = _rows(
@@ -233,7 +240,7 @@ def test_a_real_local_model_researches_three_cases_without_lumerical(db, tmp_pat
             "SELECT 1 FROM jobs WHERE project_id = %s AND capability_id = ANY(%s)",
             (PROJECT, SIMULATIONS),
         ).fetchone(), "no simulation is run, and none is emulated"
-        _, outcome = db.execute(
+        state, outcome = db.execute(
             "SELECT state, outcome_status FROM research_episodes WHERE episode_id = %s", (episode,)
         ).fetchone()
         if (outcome or "").startswith("CONFIRMED:"):
@@ -244,6 +251,8 @@ def test_a_real_local_model_researches_three_cases_without_lumerical(db, tmp_pat
                 (outcome.removeprefix("CONFIRMED:"),),
             ).fetchall()
             assert ("sp.contact_connectivity", "DISCONTINUOUS") in {tuple(r) for r in declared}
+        (recorded,) = SqlResearchReportStore(db).for_episode(project_id=PROJECT, episode_id=episode)
+        report = recorded.report
         browser.post("/locale", {"csrf": _token(browser.get("/")), "locale": "zh-TW", "next": "/"})
         page = browser.get(f"/episodes/{episode}").text
         _write(f"{name}.zh-TW.html", page)
@@ -251,6 +260,43 @@ def test_a_real_local_model_researches_three_cases_without_lumerical(db, tmp_pat
             f"{name}.summary.zh-TW.html",
             browser.get(f"/episodes/{episode}/runs/1/summary.html").text,
         )
-        assert "假說與反方審查由語言模型產生" in _text(page)
-        assert PRIMARY in _text(page)
         browser.post("/locale", {"csrf": _token(browser.get("/")), "locale": "en", "next": "/"})
+        # The page says what happened: who reasoned, once a debate exists; where it stopped, if
+        # it stopped before one.
+        if report.debate is not None:
+            assert "假說與反方審查由語言模型產生" in _text(page) and PRIMARY in _text(page)
+        else:
+            assert "研究停在" in _text(page)
+        outcomes[name] = {
+            "episode": episode,
+            "state": state,
+            "outcome": outcome,
+            "conclusion": report.conclusion.status,
+            "stages": [[x.stage, x.status, x.detail] for x in report.stages],
+            "hypotheses": [[x.mechanism, x.final_state] for x in report.hypotheses],
+            "inferences": [[p["role"], p["logical_slot"], p["model_id"]] for p in provenance],
+        }
+    _write("outcomes.json", json.dumps(outcomes, indent=1, ensure_ascii=False))
+    stopped = {
+        name: next(
+            (
+                f"{stage} {status}: {detail}"
+                for stage, status, detail in o["stages"]
+                if status in ("FAILED", "REFUSED")
+            ),
+            None,
+        )
+        for name, o in outcomes.items()
+    }
+    reached = {
+        name
+        for name, o in outcomes.items()
+        if any(
+            stage == "verification" and status in ("DONE", "PARTIAL")
+            for stage, status, _ in o["stages"]
+        )
+    }
+    assert reached == set(CASES), (
+        "the pipeline did not reach verification in every case: "
+        + json.dumps({n: stopped[n] for n in CASES if n not in reached}, ensure_ascii=False)
+    )
