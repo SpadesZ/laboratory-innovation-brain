@@ -1,6 +1,6 @@
 # SAI 3.4 Candidate — 架構契約與里程碑
 
-版本：`3.4.0-candidate.1`。候選設計，尚無新 runtime；`READY_FOR_REAL_RESEARCH = false`。
+版本：`3.4.0-candidate.2`。候選修正，尚無新 runtime；`READY_FOR_REAL_RESEARCH = false`。
 本文件細化 [主規格](../spec/SAI_3.4_Candidate.md) 的 ASM-001–018，不啟用新權限。
 
 ## 1. 分層與重用
@@ -107,15 +107,22 @@ OS、SDK、design environment/solver/HPC entitlement 組合逐一資格化。
 這是新增產品目標的候選 gate 序列，**不改 `docs/milestones.yaml` 的 M0a–M8 狀態**。
 不提供未量測的工期。每個階段完成仍需維護者接受證據，不能自己簽 DONE。
 
+C34-A0 是離線開發的限範圍架構核准，不是全面啟用 SAI 3.4。核准紀錄明列決策/ADR 版本、
+核准 actor/時間、允許 slice、資料/權限/副作用邊界與排除項；未取得明確核准的 slice 不開始。
+license、物理 benchmark 與 deployment/readiness 決策移至對應 gate，並非默認批准或撤銷。
+ADMIN/MEMBER 是僅有的人類帳號角色；project membership、獨立 reviewer 授權與 worker
+service identity 分屬不同治理範圍，不能互推權限；A3/A9/A12 未決行為不在離線授權範圍內。
+
 | ID | 目標/需求 | 相依與 exit evidence | 目前狀態 |
 |---|---|---|---|
-| C34-A0 | 規格啟用；ASM-014、018 | D-01–D-08 有裁決；ADR/active 規格與三件套同步、人工覆蓋審核 | SPECIFIED；Owner gate |
+| C34-A0 | 限範圍離線架構核准；ASM-014、018 | 明確核准 D-01 的架構/slice、D-03 既有 CWG 邊界、D-05 所用 fixture 權利與 D-06 無副作用邊界；active 3.3/鎖定仍有效；不要求 D-02/D-04/D-08 全部結案 | SPECIFIED；核准尚未提供；不啟用 3.4 |
 | C34-A1 | 首次 CHARGE 建構的離線契約；ASM-002–005、007、012、016、017 | A0；empty workspace、typed schema/lowering、readback double、惡意輸入、隔離/復原/報告；不碰 license | SPECIFIED |
-| C34-A2 | 授權前軟體資格；ASM-001、006、008–011、013、015 | A1；fake SDK contract、故障注入、封存 split/scorer、ToyDomain、開發基準；所有結果明示 synthetic | SPECIFIED |
-| C34-A3 | 真實 CHARGE 首次建構與 TST-001 replay | A2＋站點 entitlement/worker；G1–G3、G7、G8 的 licensed 部分；保留原 TST-001 案例 | REQUIRES_LICENSE；未執行 |
-| C34-A4 | CHARGE 獨立物理/自主產品驗收 | A3＋D-02/D-03；G4–G6、G9，專家比較與失敗案例；新問題不用 coding agent | REQUIRES_LICENSE；亦缺核准 holdout |
-| C34-A5 | MODE → FDTD → INTERCONNECT → 多物理 | A4；各 solver 重新過 G1–G9 及耦合誤差/收斂；與現有 M6 對齊但不替它簽核 | DEFERRED；依研究需求逐項啟用 |
+| C34-A2 | 授權前軟體資格與獨立 G0 研究驗收；ASM-001、002、006、008–016、018 的適用範圍 | A1；fake SDK/故障注入/ToyDomain 等明示 synthetic；另以已授權真實 LLM＋認證產品流程過 G0，涵蓋科學雙語內容/匯出及未執行模擬；只需相應來源/egress/budget/審查授權，不等待 license/物理精度/部署決策 | SPECIFIED；G0 未執行，不能用 mock 代替 |
+| C34-A3 | 真實 CHARGE 首次建構與 TST-001 replay | A2＋D-04 站點 entitlement/worker、D-05 實際材料權利、D-06 執行邊界及 D-02 本階段數值協定；G1–G3、G7-SITE、G8 的 licensed 部分；保留原 TST-001 案例 | REQUIRES_LICENSE；未執行；無第二 worker 不阻擋單站 |
+| C34-A4 | CHARGE 單站獨立物理/自主產品驗收 | A3＋D-02 獨立 holdout/物理門檻、D-03 適用 warrant、D-08 用途/最終接受；G4–G6、G9 與 G7-SITE，專家比較及失敗案例；部署另需明確授權 | REQUIRES_LICENSE；亦缺核准 holdout；不自稱跨 worker/站點 |
+| C34-A5 | MODE → FDTD → INTERCONNECT → 多物理與移植資格 | A4；各 solver 重過適用 G1–G9/coupling，G0 的 provider/內容變更則重驗適用部分；G7-WORKER/跨站在聲稱該範圍前另有目標環境資格與重播；與 M6 對齊而不替它簽核 | DEFERRED；不回頭阻擋合格的單站驗收 |
 
 可在取得 license 前完成 A1/A2 的設計、schema、確定性 compiler、fake worker、oracle isolation、
-fault injection 與封包驗證。這不包含 A3/A4。MODE/FDTD/INTERCONNECT 各有獨立資格與 budgets；
+fault injection 與封包驗證；A2 的 G0 另需真實受治理 LLM，不能把整個 A2 標成 synthetic。
+這不包含 A3/A4。MODE/FDTD/INTERCONNECT 各有獨立資格與 budgets；
 一個產品的通過不轉移到另一個。第二 DomainPack 的 removable-plugin 測試在 A2 先驗證核心通用性。

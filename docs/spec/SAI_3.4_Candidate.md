@@ -1,6 +1,8 @@
 # SAI 3.4 Candidate — 自主科學建模與驗證
 
-版本：`3.4.0-candidate.1`｜日期：2026-10-20｜狀態：**候選，待 Human Owner 核准**。
+版本：`3.4.0-candidate.2`｜日期：2026-10-21｜狀態：**候選，待 Human Owner 核准**。
+
+本版修正 `61f6beba0fb6898a9d18cca9bb7e8b4005a9f51c` 的 CONDITIONAL PASS 項目；保留架構與 ASM-001–018，未新增第 19 條需求。
 
 `READY_FOR_REAL_RESEARCH = false`
 
@@ -10,7 +12,8 @@
 它是一份「凍結基準＋本文件增補＋附屬驗收契約」的版本化候選，並非用摘錄取代 3.3。
 3.3 的規範、P1–P28、既有 Requirement/Test、事件與資料契約全部繼承；未提及部分原義保留。
 3.3 仍是現行權威規格；本候選沒有啟用權限，也不授權改動 HARD-LOCK 行為。
-若 Owner 接受本候選，仍須先完成 §11 的規格啟用程序，才成為實作依據。
+§11 的全面啟用與 C34-A0 的限範圍離線開發核准分開；後者可先行，但不啟用 SAI 3.4。
+未來離線 slice 須有具名、可追溯且明列範圍的架構核准，並遵守 active 3.3；不能由審查建議推定批准。
 
 | 基準 | 固定識別 |
 |---|---|
@@ -60,6 +63,13 @@ Research Question → Literature & Example Discovery → Competing Hypotheses
 保留不建模的選擇理由。建構前先凍結問題、競爭假說、必要參數與驗證目的；建構後可依實際
 資源細化 execution plan，但不能在看過評估答案後改評分規則。流程狀態與失敗分支見架構文件。
 
+另設 **G0 — Pre-Lumerical Research Acceptance Gate**：在沒有 Lumerical 的情況下，
+由通過身分驗證且有專案權限的研究者，經產品服務與真實、受治理的 LLM 完成問題→證據→
+競爭假說/預測→可用的英文及繁中科學報告，保存完整 provenance 並逐項明列未執行模擬。
+CatalogReasoner、mock/fake/canned responses 或只翻譯 UI 標籤都不能滿足 G0。
+G0 與免模型的離線契約測試、G1–G9 的建模/物理驗收各自出具證據，不互相代替。
+具體真實呼叫、科學可用性及負例條件見 [驗收契約](sai34/acceptance.md#21-g0--pre-lumerical-research-acceptance-gate)。
+
 ## 2. 文獻、範例與知識來源
 
 <!-- statement: sources.provenance -->
@@ -79,7 +89,7 @@ Research Question → Literature & Example Discovery → Competing Hypotheses
 安裝指令、檔案讀寫、網路呼叫、隱藏的 script object 或其他可執行 payload 不隨專案載入。
 人工核准來源授權與核准科學內容是兩個不同決定。
 
-官方工程參考（本次查閱 2026-10-20；未下載或執行範例，未判定附件散布權）：
+官方工程參考（原候選查閱 2026-10-20；本次未重新擷取，未下載或執行範例，未判定附件散布權）：
 
 - [CHARGE simulation object](https://optics.ansys.com/hc/en-us/articles/360034918633-CHARGE-solver-Simulation-object)：設定與 normalization 欄位參考；不能充當器件真實性的證據。
 - [Python API overview](https://optics.ansys.com/hc/en-us/articles/360037824513-Python-API-overview)：提供官方自動化與範例導覽；SDK 選用、版本與環境仍待相容性測試。
@@ -232,8 +242,11 @@ DISCRIMINATION、多原因與擴大 declaration 等未決事項仍交 Owner（D-
 先把可核准的模型族、參數範圍與風險 policy 一次核清，範圍內日常建構/重試不逐步詢問。
 必要簽核不得以「降低人工摩擦」取消。ReviewItem 包含確切缺口、最多兩個可選方案、
 證據、影響、需要誰決定及有效期；續跑重新驗證授權、分級、簽章、版本與剩餘預算。
-Owner、project OWNER、ADMIN、科研 reviewer、worker service identity 是不同權限角色。
-ADMIN 能監督讀取不代表能作科學簽核；worker 沒有 reviewer 私鑰。
+人類帳號角色只有 **ADMIN、MEMBER**。Human Owner 是本規格的決策責任人，並非第三種帳號角色。
+project membership/OWNER 是專案授權；independent scientific reviewer authorization 是另行驗證的
+科學審查授權；worker service identity 是非人類服務身分。三者都不是新增人類帳號角色，
+不從 ADMIN/MEMBER 或彼此自動推導。ADMIN 能監督讀取不代表能作科學簽核；worker 沒有 reviewer 私鑰。
+既有 A3、A9、A12 安全決策保持未決，不因這項分類或自主性而放行。
 
 每一 spec/build/attempt/patch/validation/report reference 受現有 project scope 與當前 clearance
 限制；含共享 artifact 時仍需 project occurrence。條件/問題敏感度在首次與續跑一致。
@@ -253,11 +266,17 @@ ADMIN 能監督讀取不代表能作科學簽核；worker 沒有 reviewer 私鑰
 單一 solver PASS 不傳遞為整個 coupling PASS。
 
 <!-- statement: interface.bilingual -->
-**ASM-016 MUST：英文/繁中研究介面與報告顯示相同的六層驗證狀態、證據範圍、版本、成本、停止原因與下一步；不得將未知、等待 license 或未經因果授權翻譯成成功。**
+**ASM-016 MUST：研究者所見的英文/繁中科學內容涵蓋假說、預測、觀察、解釋、不確定度、結論、限制及匯出；兩語保留相同的證據、可機器驗證狀態、數值、版本、成本與停止原因，原始 canonical records 不被翻譯覆寫，未知、未執行模擬或欠因果授權不得表達為成功。**
 
 沿用版本化 MessageCatalog 與既有五類 error taxonomy，不加第六類。
 新增 reason codes 是獨立分類，遵守 UX-001–007；一般介面不洩漏 secrets/stack trace。
 識別碼、數值、單位、原始引文與儲存資料不由語系切換改寫。
+科研敘述本身提供兩語，不僅翻譯導覽、按鈕或欄位標籤；適用於研究頁、報告、歷史檢視及
+所有提供的匯出格式。沒有對應 canonical 內容時保留缺漏/UNKNOWN，不為湊雙語捏造觀察。
+翻譯/解釋是衍生呈現，綁定 canonical record/hash、目標語系、翻譯產生者/版本與 provenance；
+可追溯至原文，不改其語言、內容 hash、證據身分、簽章、數值或事件狀態，也不新增科學 authority。
+兩語皆區分 observation 與 interpretation，保留否定、條件、機率/不確定度、claim strength、
+rivals 與未執行模擬。逐項 semantic coverage、雙語審查與 export parity 納入 G0/G9 及 T-ASM-016。
 標準輸出包含可讀摘要＋可機器驗證的證據清單、假說/rival、limitations、失敗與 blocked 項目；
 每個主張連到具分級授權的精確來源與 run，沒有通過的階段不顯示綠色「已驗證」。
 
@@ -266,6 +285,11 @@ ADMIN 能監督讀取不代表能作科學簽核；worker 沒有 reviewer 私鑰
 <!-- statement: replay.reproducible -->
 **ASM-017 MUST：從封存的 typed spec 與依賴可在乾淨、已資格化的環境重建、重跑、重抽取與重評分；數值相等性依預註冊容差判斷，原始 bytes/hash 不變性與浮點可重現性分開記錄。**
 
+G7 分開記錄 `G7-SITE`（單站同一已資格化安裝的乾淨 session 重現）及 `G7-WORKER`
+（第二個獨立合格 worker 的移植/重現）。單站可先接受其明列範圍，不以缺第二 worker
+阻擋合法單站驗證。只有第二 worker 的證據才能接受 G7-WORKER；同一安裝換 session/程序
+不算第二 worker，同站多 worker 也不能宣稱跨站資格。跨站主張另需目標站點資格與重播證據。
+
 Run extension 保存 spec/build/operation hashes、provider/SDK/solver/OS/硬體版本、材料庫、
 種子與執行緒、resource/lease/attempt refs、實際 checkout、輸入輸出陣列與單位、
 抽取器/驗證器/BenchmarkPolicy 版本、stdout/stderr/exit、UTC times、cost reconciliation。
@@ -273,7 +297,7 @@ Run extension 保存 spec/build/operation hashes、provider/SDK/solver/OS/硬體
 權利與到期風險；缺少時結果不可宣稱可重播。
 
 <!-- statement: readiness.external_gate -->
-**ASM-018 MUST：授權前測試只驗證軟體與安全契約，真實 solver 與獨立物理驗證仍是外部驗收；在 Owner 接受全部適用關卡之前 READY_FOR_REAL_RESEARCH 保持 false。**
+**ASM-018 MUST：授權前分開接受離線軟體/安全契約與真實受治理 LLM 的 G0 科研工作流程；兩者均不驗證未執行的 solver 或物理精度，真實 solver/獨立物理驗證仍需外部驗收，在 Owner 接受適用範圍的全部關卡之前 READY_FOR_REAL_RESEARCH 保持 false。**
 
 六層狀態採 `PASS / WARN / FAIL / UNKNOWN / BLOCKED`，每層各有證據與適用範圍。
 單一總分不能取代逐層結果；建立成功不推出求解成功，求解成功不推出數值收斂，收斂不推出
@@ -283,6 +307,14 @@ reference agreement，agreement 不推出物理有效，物理有效不推出因
 ## 11. 規格啟用與歷史相容
 
 本候選沒有 normative override。下列動作均未在本次執行：
+
+C34-A0 只收取離線 slice 所需的架構核准，至少包含 D-01 的設計範圍、D-03 的既有 CWG
+邊界、D-05 的 fixture/來源權利與 D-06 的無外部副作用限制。核准紀錄明列 actor、時間、
+決策/ADR 版本、允許動作、排除項目與適用 slice；缺它即不開始該 slice。
+D-02 的真實物理 benchmarks、D-04 的 license/worker 與 D-08 的部署/就緒不必在 A0 全數
+結案，而在各自 milestone 前核准。任何新的安全權限或未決 A3/A9/A12 行為不能被離線核准繞過。
+本次 Human Owner 已同意審查建議的方向、條件與文件修正；詳見決策紀錄。
+這次只修候選文件，正式決策仍 OPEN；具體離線 runtime slice 尚未獲准開始。
 
 1. Owner 審核 [決策清單](sai34/decisions-and-review.md) 與 ADR-0013；明確接受/修改新長期目標、能力範圍及 P0 科學/安全契約。
 2. 維護者凍結獲准的 3.4 全量版本，逐條對照 3.3 的章節、Appendix、Requirement/Test；消除直接衝突，不能用「3.4 優先」帶過。

@@ -1,26 +1,45 @@
 # SAI 3.4 Candidate — Owner 決策、風險與批判性自我審查
 
-版本：`3.4.0-candidate.1`。候選文件完成不等於規格獲准或研究平台驗收。
+版本：`3.4.0-candidate.2`。候選文件完成不等於規格獲准或研究平台驗收。
 `READY_FOR_REAL_RESEARCH = false`
 
 ## 1. 尚待 Owner 決策
 
-以下全部 **OPEN**；列出可審建議，不代表代替 Owner 裁決。review checkpoint：2026-11-20，
-或 C34-A0/受影響 gate 前，以先到者為準。日期到期不自動同意，也沒有建立排程。
+以下全部 **OPEN**。來源為 2026-10-21 使用者提供的
+「SAI 3.4 — Independent Chief Auditor D-01～D-08 Review」，審查基準
+`61f6beba0fb6898a9d18cca9bb7e8b4005a9f51c`，verdict 為 CONDITIONAL PASS。
+同一訊息末尾 Human Owner 明示「我human同意上述」，已記錄對八項方向、條件及文件修正要求的同意。
+該訊息同時明定只繼續文件修正、需要明確授權的決策仍 OPEN，不改為 APPROVED/ACCEPTED/CLOSED。
+因此本紀錄沒有授予 runtime 開發、規格啟用、權限修改、license 使用、部署或研究就緒簽核。
+review checkpoint：2026-11-20 或各項適用 milestone 前；不再一律要求所有後期決策在 A0 結案。
+日期到期不自動同意，也沒有建立排程。以下是審查建議的結構化轉錄，不擴張其界線。
 
-| ID | 需要決定的內容 | 建議與替代方案 | 阻擋 |
+| ID | 審查者提議處置 | 條件與未決事項 | 正式狀態/適用 gate |
 |---|---|---|---|
-| D-01 | 接受 ASM 長期必達目標、3.4 啟用程序、候選 namespace/ADR 與能力邊界 | 建議：以核准模型族逐步自主；替代：只保留人工建模/掃描能力，則不滿足本次目標 | C34-A0；不能啟用規格或重開 HARD-LOCK |
-| D-02 | CHARGE 模型族/權威參數/適用域、獨立 benchmark 與 observable 精度、n、成本與成功率門檻 | 建議：先選條件完整且有獨立量測的 PN 模型族；替代：先做解析/範例回歸，但只能接受軟體建構 | G3–G5/G9 正式驗收 |
-| D-03 | 因果辨識與人工授權範圍；CWG 的 DISCRIMINATION、多原因、擴大 declarations 與 SP 1.1.0 未決項 | 建議：沿用既有已准範圍，超出即 review；替代：另開獨立科學審查擴大，不能在此靜默決定 | 新模型族的 G6；不阻礙原邊界內離線設計 |
-| D-04 | 站點 Lumerical design/solve/HPC entitlement、OS/版本/worker、最大並行與費用 | 建議：先單一 CHARGE 合格 worker 與有限配額；替代：隔離遠端 license worker，先證網路/權限邊界 | C34-A3/A4；REQUIRES_LICENSE |
-| D-05 | 範例/材料庫/文獻/量測的取得、使用、修改、封存與散布權 | 建議：只採權利明確且可封存依賴；替代：權利未知者僅留書目，不納入建構或 benchmark | 相關來源准入、重播與 G4 |
-| D-06 | 容許自動改動範圍、不可逆動作、service/evaluator/reviewer 職責與強制簽核 | 建議：先核准狹窄數值/校準空間；替代：逐次核可較大物理變更，人工成本更高 | capability 啟用、G8/G9 |
-| D-07 | 既有帳號稽核 A3（第二地址/兩人規則）、A12（DB 寫入角色事件）、監督紀錄粒度 | 建議：維持未決與可見，服務無 reviewer 金鑰；替代：另以安全 ADR 強化兩人規則/DB gate | 若宣稱跨人職責可信或擴大自動授權，先裁決；不自行修 runtime |
-| D-08 | 研究就緒宣告的範圍、獨立 evaluator 與最終簽核人 | 建議：逐模型族/solver/條件接受且保留全部失敗；替代：只承認開發資格，持續 false | 任何 readiness 宣告；本次保持 false |
+| D-01 | 同意方向：自主首次建模、不依賴外部 Coding Agent | 正式啟用待規格修訂；離線開發另需明列範圍的架構/slice 核准 | OPEN；C34-A0 的限範圍核准與 §11 全面啟用分開 |
+| D-02 | 部分同意：首個模型族採 CHARGE／PN 接面 | 精度、樣本數、成功率等依獨立資料與用途再核准，不虛設門檻；權威參數與適用條件仍需確認 | OPEN；C34-A3 的數值協定、C34-A4 的 G4/G5/G9；不擋無關離線 slice |
+| D-03 | 暫緩擴大：保留 CWG V1.1 | 不啟用 SP 1.1.0，不自動擴張 DISCRIMINATION 或多原因確認 | OPEN；A0 明定保留邊界，擴張另審，新模型族 G6 依已准範圍 |
+| D-04 | 同意規劃：先支援單一合格 CHARGE worker | license、OS、HPC 額度到實驗室實查；第二 worker/站點另驗，不阻擋單站驗收 | OPEN；C34-A3 的站點資格與執行預算 |
+| D-05 | 原則同意：合法使用權的公開範例可作開發參考 | 每個來源分別核對修改/執行/散布權；獨立測試資料不得污染；材料/量測依賴仍逐項確認 | OPEN；A0/A1 用到的 fixture 權利、實際來源准入及 G4/G7 |
+| D-06 | 有條件同意：受控數值細化與核准範圍內參數變更 | 材料模型、物理假設及超出範圍修改另行審查；具體欄位/上限/權限 policy 尚待核准 | OPEN；A0 離線邊界，實際 capability/執行前另核准 |
+| D-07 | 部分保留：可由唯一 ADMIN 管理，另有獨立科研審查資格與完整不可竄改稽核 | A3 第二帳號、A9 稽核合併、A12 直接 SQL 權限仍須安全封口；不硬性要求所有成員核准都由兩位 ADMIN；同一自然人的第二帳號不算獨立科研 reviewer | OPEN；正式部署或任何聲稱身分隔離已成立前驗證；不改 runtime |
+| D-08 | 同意原則：依模型族、solver、有效條件分別驗收 | license 與物理驗證未完成前維持 false；獨立 evaluator、用途範圍與最終接受另需記錄 | OPEN；C34-A4 及任何部署/readiness 宣告 |
 
 Reviewer 的 signed warrant 與 Owner 的規格核准為不同證據，不能互代。
 提交/推送候選文件不構成這些決策的批准。
+
+### 1.1 分期授權與帳號界線
+
+C34-A0 的核准對象是具體離線 slice 的架構與無副作用範圍，不是把 D-01–D-08 全部結案。
+本次 Human Owner 的同意連同「只改文件」限制保留；不把它當成開始 runtime 開發的授權。
+後續核准需留下決策/ADR/policy 版本、actor、時間、範圍、允許動作、排除項與證據。
+物理 benchmark、站點 entitlement 及部署/readiness 各在 D-02/D-04/D-08 對應 gate 裁決。
+
+人類帳號角色只有 ADMIN、MEMBER。project membership/OWNER、獨立科學 reviewer 授權、
+非人類 worker service identity 是另外的治理概念，不增加帳號角色，也不相互授權。
+ADMIN 的最高管理權不能推出 DB 服務角色可無限制直接 SQL 改使用者角色；本修訂不替
+A12 選定實作。不能把同一自然人控制的兩帳號視為兩個獨立科學審查者；此身分隔離要在
+正式部署前驗證。A3/A9/A12 的 OPEN、具體限制與尚未完成證據不因方向同意而消失。
 
 ## 2. 候選風險登錄
 
@@ -48,7 +67,7 @@ Reviewer 的 signed warrant 與 Owner 的規格核准為不同證據，不能互
 
 | 發現 | 本候選的處置 | 剩餘狀態 |
 |---|---|---|
-| 「完全自主」可能取消 P12/P16、CWG signed review | ASM-001 限定已核准 envelope；ASM-013/014 保留必要簽核與人工歧義 gate | D-01/D-03/D-06 OPEN，不修改現行規範 |
+| 「完全自主」可能取消 P12/P16、CWG signed review | ASM-001 限定已核准 envelope；ASM-013/014 保留必要簽核與人工歧義 gate | D-01/D-03/D-06 方向/條件已收到 Human Owner 同意，但正式決策仍 OPEN，不修改現行規範 |
 | builder `build_*` 會違反 3.3 四類工具動詞 | 將 construct 設為 provider 私有 typed protocol；公開工具沿用四動詞與舊 ID | 未分配新公開工具 ID |
 | 歷史 VS-SP-001 以既有專案為輸入，不能證明首次建模 | 舊 replay 原封保留；新增 G1/G9 空白 workspace/未見案例 | licensed replay 與新能力各別未驗證 |
 | 任意 generated script 即使加 sandbox 仍違反 P19 | 固定 compiler/operations、無自由 code 欄位、外來 active content 隔離 | provider 尚未實作；不能宣稱已防住 |
@@ -57,13 +76,20 @@ Reviewer 的 signed warrant 與 Owner 的規格核准為不同證據，不能互
 | 調 mesh 同時改 mobility/geometry 造成科學假設漂移 | 規則分類的 patch、分支 lineage、物理變更重新驗證與 review | 未實作 bounded loop |
 | 以 license blocker 掩蓋 provider 還未寫 | gap 分開進度與環境軸，provider 為 SPECIFIED＋REQUIRES_LICENSE | 尚缺 compiler/provider/worker 與全真重播 |
 | 修改 active registry 會默默重開既有 conformance/鎖定 | 凍結三個 active 檔案的 hash、候選 registry 零已實作 tests、ADR Proposed | 啟用前另作完整三件套/散文覆蓋審核 |
-| 可重現性誤要求 binary 專案完全相同 | 固定 canonical inputs/operations；raw artifacts 各自 hash，數值依容差比較 | 真實跨 worker 尚未執行 |
+| 可重現性混合單站與跨 worker，過早阻擋單站驗收 | G7-SITE 與 G7-WORKER 各別記錄；跨站主張另需目標站點資格 | 單站、跨 worker、跨站都未在本次執行；缺第二 worker 不否定單站結果 |
 | 「移除 coding agents」被誤解為禁用正常模型推理 | 發展工具與 ScientificLLM runtime 明確分離；模型只可輸出 typed proposals | G9 需 deployment-equivalent 證據 |
 | 階段序列強迫先建模，破壞 cheap-first | 責任鏈可選擇不建模，凍結目的/比較後才執行 | 既有 planner 不變 |
+| 授權前只驗 mock，缺少有用的真實 LLM 研究接受 | 增加獨立 G0-A/L/S/B/P；真實模型、認證、科學 rubric、provenance 與未做模擬皆為必要條件 | G0 未執行，不由本次文件 CI 代替 |
+| ASM-016 只要求 UI/狀態語系，未保證科研正文 | 擴至八類科學內容及所有提供的匯出，要求 semantic coverage/雙語審查、canonical hash 不變 | 翻譯不是新 evidence，也不改 machine-verifiable state |
+| A0 以未定 license/精度/部署決策阻擋所有離線工作 | 改為範圍明確的架構核准，後期決策在適用 gate 前收取 | 沒有明確離線 slice 核准時仍不能開發；本次只改文件 |
+| 把 reviewer、project OWNER 或 worker 誤寫成帳號角色 | 明列 ADMIN/MEMBER；其他皆為分開的治理概念，不互推權限 | A3/A9/A12 保持 OPEN，獨立性不能靠第二帳號湊數 |
+| 把審查者建議或 Human Owner 同意方向擴大成所有決策已批准 | 逐項轉錄來源、方向同意與限制；八個正式狀態均 OPEN | 無規格啟用、runtime、部署或 readiness 授權 |
 
 ## 4. 驗證證據的讀法
 
 文件 checker 的成功只表示結構映射、基準保存與本地連結有效；不是 hard-MUST 散文完備證明。
+本修訂另用結構規則及破壞反例檢查 G0 不接受 mock、完整科學雙語範圍、分期 gate、
+單站/跨 worker 分離、僅兩種人類帳號角色與 OPEN 決策；仍由本節人工逐項檢查規範矛盾。
 既有 spec CI 證明 active 3.3 的 conformance/ratchet 沒被破壞；full suite/Backend profile
 針對同一 final SHA 的軟體測試，沒有 Ansys license 與物理 holdout。
 本次沒有新做正式研究、沒有 merge/deploy、沒有改 DB 或呼叫付費模型 API。

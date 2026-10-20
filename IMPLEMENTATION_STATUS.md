@@ -1,6 +1,7 @@
 # Laboratory Innovation Brain - Implementation Status
 
 **2026-10-20 文件候選**：[SAI 3.4](docs/spec/SAI_3.4_Candidate.md) 定義不依賴外部 coding agent 的首次物理建模與驗證目標；18 條新義務均為 `SPECIFIED`、待 Owner 核准，沒有新增 runtime。
+2026-10-21 修訂為 `3.4.0-candidate.2`：獨立 G0 真實 LLM 研究接受、科學內容雙語、分期架構核准、單站/跨 worker 重現及帳號治理界線；審查建議與 Owner 同意方向已記錄，八個正式決策仍 OPEN。本次不執行 G0 或任何新的研究/solver 驗收。
 [實作差距](docs/spec/sai34/implementation-gap.md) 分列現有契約、mock 與未完成 provider；
 真實 licensed replay、物理精度及自主建模仍未驗收。`READY_FOR_REAL_RESEARCH = false`。
 active SAI 3.3、registry、M0a–M8 狀態與以下產生區塊保持原狀。

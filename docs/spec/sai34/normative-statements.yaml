@@ -1,18 +1,20 @@
 # Candidate-only registry. The active SAI 3.3 registry and its coverage remain unchanged.
 # planned_tests are obligations, never implementation or executed-test evidence.
 schema_version: 1
-spec_version: 3.4.0-candidate.1
+spec_version: 3.4.0-candidate.2
 status: CANDIDATE
 owner_approval: PENDING
 ready_for_real_research: false
 source_revision: f3fadf6eaa7676d27b0129beeb40239cba2e1723
+audit_base_revision: 61f6beba0fb6898a9d18cca9bb7e8b4005a9f51c
+auditor_verdict: CONDITIONAL_PASS
 spec_document: docs/spec/SAI_3.4_Candidate.md
 active_baselines:
   docs/spec/SAI_3.3.md: d7576691ef846ef05d8a0036434402a6fb0317f3c28af97597d4fc5dc375c1aa
   docs/normative_statements.yaml: 0e49fdc7544c0cbf56821d7463f1d86e1ec2089484c454d4d0310813638bae29
   docs/milestones.yaml: e35f3455dd97c378058dcf8bfe57844129227b68c8504cb9a6e28739c4e9ea5d
 review_at: '2026-11-20'
-review_trigger: C34-A0 or affected acceptance gate, whichever is earlier
+review_trigger: Each decision at its applicable milestone; scoped offline approval at C34-A0 does not await license, physical benchmark or deployment decisions.
 deferred_rationale: Candidate only; activation requires Owner approval, active-spec migration and real implementation tests. No runtime delivery is claimed.
 documents:
   - docs/spec/SAI_3.4_Candidate.md
@@ -22,7 +24,57 @@ documents:
   - docs/spec/sai34/change-impact.md
   - docs/spec/sai34/decisions-and-review.md
   - docs/adr/ADR-0013-autonomous-scientific-modeling-candidate.md
-acceptance_gates: [G1, G2, G3, G4, G5, G6, G7, G8, G9]
+acceptance_gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8, G9]
+pre_lumerical_research_gate:
+  gate: G0
+  subconditions: [G0-A, G0-L, G0-S, G0-B, G0-P]
+  requires_authenticated_researcher: true
+  requires_genuine_governed_llm: true
+  catalog_or_mock_satisfies: false
+  requires_lumerical: false
+  executed_in_this_revision: false
+bilingual_scientific_content:
+  - hypotheses
+  - predictions
+  - observations
+  - interpretations
+  - uncertainty
+  - conclusions
+  - limitations
+  - exports
+human_account_roles: [ADMIN, MEMBER]
+separate_governance_concepts: [project_membership, independent_scientific_reviewer_authorization, worker_service_identity]
+offline_development_gate:
+  milestone: C34-A0
+  approval_status: PENDING
+  required_architecture_scopes: [D-01, D-03, D-05, D-06]
+  activates_sai34: false
+  later_decisions:
+    D-02: [C34-A3, C34-A4]
+    D-04: [C34-A3]
+    D-08: [C34-A4]
+reproducibility_scopes:
+  single_site: {gate: G7-SITE, baseline_required: true}
+  cross_worker: {gate: G7-WORKER, blocks_single_site: false, requires_second_qualified_worker: true}
+  cross_site: {requires_target_site_qualification_and_replay: true, implied_by_single_installation: false}
+unresolved_security_decisions: [A3, A9, A12]
+auditor_recommendations:
+  D-01: 同意自主首次建模方向及不依賴外部 coding agent；正式啟用待規格修訂。
+  D-02: 部分同意 CHARGE/PN 接面；精度、樣本數、成功率待獨立資料及用途確定後核准。
+  D-03: 暫緩擴大；保留 CWG V1.1，不啟用 SP 1.1.0 或擴大 DISCRIMINATION/多原因確認。
+  D-04: 同意單一合格 CHARGE worker 規劃；license、OS、HPC 額度到實驗室實查。
+  D-05: 原則同意合法公開範例作開發參考；逐來源核對修改/執行/散布權，獨立測試資料不得污染。
+  D-06: 有條件同意受控數值細化及核准範圍參數變更；材料模型、物理假設與越界修改另審。
+  D-07: 部分保留單一 ADMIN 管理規劃；不強制所有成員核准由兩位 ADMIN，獨立科研資格與不可竄改稽核仍需驗證；A3/A9/A12 未封口，同一自然人的第二帳號不具獨立性。
+  D-08: 同意按模型族/solver/有效條件分別驗收原則；license 與物理驗證未完成前維持 readiness false。
+human_confirmation:
+  date: '2026-10-21'
+  source: Human Owner reply to the request for the eight Auditor recommendations
+  quote: 我human同意上述
+  scope: Recommendations and their conditions plus documentation corrections only; formal decisions stay OPEN.
+  authorizes_runtime_development: false
+  authorizes_activation_or_deployment: false
+decision_statuses: {D-01: OPEN, D-02: OPEN, D-03: OPEN, D-04: OPEN, D-05: OPEN, D-06: OPEN, D-07: OPEN, D-08: OPEN}
 owner_decisions: [D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08]
 candidate_milestones: [C34-A0, C34-A1, C34-A2, C34-A3, C34-A4, C34-A5]
 normative_statements:
@@ -44,8 +96,8 @@ normative_statements:
     requirement_id: ASM-002
     tests: []
     planned_tests: [T-ASM-002]
-    pass_condition: Every stage persists scoped inputs, outputs and gate decisions; restart from each boundary neither loses lineage nor bypasses cheapest sufficient verification.
-    gates: [G8, G9]
+    pass_condition: Every stage persists scoped inputs, outputs and decisions; G0 separately completes an authenticated real governed LLM research workflow with useful bilingual science, provenance and explicit unperformed simulations; catalog or mock cannot pass it.
+    gates: [G0, G8, G9]
     milestone: C34-A1
     status: SPECIFIED
     review_at: '2026-11-20'
@@ -164,8 +216,8 @@ normative_statements:
     requirement_id: ASM-012
     tests: []
     planned_tests: [T-ASM-012]
-    pass_condition: Missing or mismatched spec, run, validity, conditions or scope prevents admission or authority upgrade; failed and unknown outputs remain traceable without becoming measured facts.
-    gates: [G5, G6, G8]
+    pass_condition: Missing or mismatched spec, run, validity, conditions or scope prevents admission or authority upgrade; G0 preserves canonical evidence and inference provenance without fabricating absent simulation Runs; failed or unperformed outputs never become measured facts.
+    gates: [G0, G5, G6, G8]
     milestone: C34-A1
     status: SPECIFIED
     review_at: '2026-11-20'
@@ -188,8 +240,8 @@ normative_statements:
     requirement_id: ASM-014
     tests: []
     planned_tests: [T-ASM-014]
-    pass_condition: Enumerated ambiguity, missing authority, authorization and irreversible cases enter ReviewQueue; expiry or worker identity never counts as approval; resume rechecks current permissions.
-    gates: [G6, G8, G9]
+    pass_condition: Enumerated ambiguity and irreversible cases enter ReviewQueue; scoped offline work requires recorded architectural approval, later license/benchmark/deployment approvals stay at their own gates; only ADMIN and MEMBER are human account roles, other governance authorizations remain separate; A3/A9/A12 stay unresolved.
+    gates: [G0, G6, G8, G9]
     milestone: C34-A0
     status: SPECIFIED
     review_at: '2026-11-20'
@@ -212,32 +264,32 @@ normative_statements:
     requirement_id: ASM-016
     tests: []
     planned_tests: [T-ASM-016]
-    pass_condition: English and Traditional Chinese render identical numeric and scientific states, costs and blockers under the same ACL; missing license and unknown validation cannot appear as success.
-    gates: [G6, G8, G9]
+    pass_condition: English and Traditional Chinese hypotheses, predictions, observations, interpretations, uncertainty, conclusions, limitations and exports have complete semantic coverage and matching values, conditions and machine-verifiable states; original canonical hashes and signatures remain unchanged, translations cannot invent evidence or hide unperformed simulations.
+    gates: [G0, G6, G8, G9]
     milestone: C34-A1
     status: SPECIFIED
     review_at: '2026-11-20'
-    deferred_rationale: Existing bilingual interface needs new six-layer validation and modeling reports.
+    deferred_rationale: Existing interface labels do not prove bilingual scientific content, semantic review, export parity or genuine-LLM G0 acceptance.
   - key: replay.reproducible
     section: '10'
     level: MUST
     requirement_id: ASM-017
     tests: []
     planned_tests: [T-ASM-017]
-    pass_condition: Pinned typed inputs reproduce lowering hashes; three clean licensed runs and a second qualified worker reproduce observables within frozen tolerances and preserve complete dependency records.
+    pass_condition: G7-SITE independently accepts three clean licensed runs at one qualified installation within frozen tolerances; G7-WORKER separately requires a second qualified worker and does not block single-site acceptance; cross-site claims additionally require target-site qualification and replay.
     gates: [G7, G8]
     milestone: C34-A1
     status: SPECIFIED
     review_at: '2026-11-20'
-    deferred_rationale: New build/dependency replay is unimplemented; real repeatability and cross-worker comparison require license.
+    deferred_rationale: New replay is unimplemented; single-site licensed repeatability and cross-worker or cross-site qualification remain separately unverified and are never inferred from one installation.
   - key: readiness.external_gate
     section: '10'
     level: MUST
     requirement_id: ASM-018
     tests: []
     planned_tests: [T-ASM-018]
-    pass_condition: Offline or mock success cannot sign licensed or physical gates; readiness remains false until every applicable gate and Owner acceptance are recorded for a qualified capability envelope.
-    gates: [G1, G2, G3, G4, G5, G6, G7, G8, G9]
+    pass_condition: Offline mocks cannot sign G0, licensed or physical gates; genuine governed LLM G0 research acceptance cannot sign unperformed simulations; readiness stays false until applicable scoped gates and formal Owner acceptance are recorded without requiring unclaimed cross-worker qualification for single-site validation.
+    gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8, G9]
     milestone: C34-A0
     status: SPECIFIED
     review_at: '2026-11-20'
