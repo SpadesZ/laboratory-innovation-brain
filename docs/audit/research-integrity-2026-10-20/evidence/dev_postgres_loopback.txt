@@ -1,0 +1,35 @@
+# Dev PostgreSQL rebind to loopback (2026-10-19 UTC)
+
+## Before
+2026-10-19T16:06:46Z
+== docker port
+5432/tcp -> 0.0.0.0:5433
+5432/tcp -> [::]:5433
+== container
+id=4ee8521ad4e50baf57f16b0f5c1a61a8faa321bdcca4d832fbb03c48852ebefa created=2026-09-12T05:57:29.772115501Z image=pgvector/pgvector:pg17 mounts=[{"Destination":"/var/lib/postgresql/data","Driver":"local","Mode":"rw","Name":"lab-brain_postgres_data","Propagation":"","RW":true,"Source":"/var/lib/docker/volumes/lab-brain_postgres_data/_data","Type":"volume"}] bindings={"5432/tcp":[{"HostIp":"","HostPort":"5433"}]}
+== volume
+lab-brain_postgres_data 2026-09-12T05:57:29Z {"com.docker.compose.config-hash":"5ed20cb57cc968c1fe1db1d19657af0b3e5ae90ba0d5576b11fa1909aee939d3","com.docker.compose.project":"lab-brain","com.docker.compose.version":"2.40.3","com.docker.compose.volume":"postgres_data"}
+== databases
+
+127.0.0.1:5433 REACHABLE
+::1:5433 REACHABLE
+<LAN address>:5433 REACHABLE
+<virtual adapter A>:5433 REACHABLE
+<virtual adapter B>:5433 REACHABLE
+
+## After
+2026-10-19T16:10:15Z
+== docker port
+5432/tcp -> 127.0.0.1:5433
+== container
+id=cc04e128491966c8cd4785e09bd84dcb04a00222531545e5c5e932c7077241c5 created=2026-10-19T16:08:44.056661189Z image=pgvector/pgvector:pg17 mounts=[{"Destination":"/var/lib/postgresql/data","Driver":"local","Mode":"rw","Name":"lab-brain_postgres_data","Propagation":"","RW":true,"Source":"/var/lib/docker/volumes/lab-brain_postgres_data/_data","Type":"volume"}] bindings={"5432/tcp":[{"HostIp":"127.0.0.1","HostPort":"5433"}]} config=<local path> Lab Brain\laboratory-innovation-brain\compose.dev.yaml
+
+127.0.0.1:5433 REACHABLE
+::1:5433 not reachable (connection refused)
+<LAN address>:5433 not reachable (connection refused)
+<virtual adapter A>:5433 not reachable (connection refused)
+<virtual adapter B>:5433 not reachable (connection refused)
+
+## Data: exact row counts of every table in every database, hashed per database
+before == after: identical
+TOTAL databases=119 rows=10476

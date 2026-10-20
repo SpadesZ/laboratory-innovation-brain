@@ -1,0 +1,38 @@
+Browser check of lab-accounts-v1, 2026-10-20
+Code: the working tree at 4fa98a1 (and 68ebe10's two message changes, checked after a restart).
+Server: `lab-brain web --accounts` on localhost:8799, file outbox for mail, disposable database
+lab_brain_acc_ui (freshly migrated). Browser: the desktop app's built-in browser.
+Test accounts: one bootstrapped administrator, members registered through the pages or through
+the accounts service. Test passwords are not recorded here.
+
+Flows done in the browser
+- Bootstrap link -> set password -> "Your password is set" -> sign in.
+- Register with a 5-character password -> "A password has at least 12 characters." (name and
+  address kept); register with a valid one -> "Check your email" (after the 1 s answer floor).
+- The mailed confirmation link: GET shows the "Confirm my address" form; its POST confirms.
+  The mail body carries no registrant name.
+- Administrator: dashboard lists the confirmed registration with the approval guidance; Approve
+  -> "Done."; unconfirmed registrations sit in a collapsed block; a declined registration
+  reads "Declined".
+- Administrator, project oversight page: members with Change access / Remove; Change access for
+  a member (tick Lab internal, Save access) -> "Access changed.", the member's row updated.
+- Administrator, a member's page: Suspend and Make administrator each with their consequence;
+  account history in words with who acted.
+- Member (owner), zh-TW: project page shows their own row without actions, the add form offers
+  only their own levels, and both administrator looks ("Lab PI 開啟了研究專案摘要",
+  "Lab PI 檢視了某位成員的研究清單").
+- Member, /status: no technical details block, no "schema_migrations", no server path;
+  administrator, /status: technical details present.
+- nav has aria-label (主要區塊 / Main sections); the current section has aria-current="page".
+
+Horizontal overflow at 375x812 (document scrollWidth == innerWidth == 375 on every page)
+- Member, zh-TW: /, /projects, /projects/<id>, /inbox, /account, /status, /data, /runs/new
+- Administrator, en: /admin, /admin/projects/<id> (all details open),
+  /admin/accounts/<id> (all details open), /status
+
+Not checked in the browser
+- An inbox with a warrant question (needs a full research run; covered by
+  tests/e2e/test_web_decisions_inbox_postgres.py).
+- A form posted after its session ended (covered by
+  tests/e2e/test_web_accounts_postgres.py::test_a_form_from_an_ended_session_asks_to_sign_in_again_and_returns).
+- Screen readers; only the markup was checked.
