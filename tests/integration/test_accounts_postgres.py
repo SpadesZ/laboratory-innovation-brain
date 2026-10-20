@@ -52,23 +52,28 @@ def _count(db: Any, table: str) -> int:
 def test_a_person_registers_verifies_is_approved_and_signs_in(lab):
     admin = lab.admin()
     accounts = lab.service()
-    accounts.register(email="  Ada@Uni.Example.EDU ", display_name="Ada", password=PASSWORD)
+    accounts.register(email="  Ada@Uni.Example.EDU ")
     (pending,) = [a for a in accounts.all() if a.email == "ada@uni.example.edu"]
     assert (pending.status, pending.awaiting, pending.system_role) == (
         "PENDING",
         "VERIFICATION",
         "MEMBER",
     )
-    actor = lab.connection.execute(
-        "SELECT actor_type, active FROM actors WHERE actor_id = %s", (pending.actor_id,)
+    actor, password = lab.connection.execute(
+        "SELECT (SELECT ROW(actor_type, active)::text FROM actors WHERE actor_id = %s),"
+        " password_hash FROM accounts WHERE account_id = %s",
+        (pending.actor_id, pending.account_id),
     ).fetchone()
-    assert tuple(actor) == ("HUMAN", False), "an actor that cannot act until approved"
-    with _refused("awaiting_verification"):
+    assert actor == "(HUMAN,f)", "an actor that cannot act until approved"
+    assert password is None, "verify first: no password before the address is confirmed"
+    with _refused("sign_in_refused"):
         accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
     with _refused("not_verified"):
         accounts.approve(pending.account_id, by=admin)
-    verified = accounts.verify_email(lab.link("/verify"))
-    assert verified.awaiting == "APPROVAL"
+    verified = accounts.verify_email(
+        lab.link("/verify"), display_name=" Ada  Lin ", password=PASSWORD
+    )
+    assert (verified.awaiting, verified.display_name) == ("APPROVAL", "Ada Lin")
     with _refused("awaiting_approval"):
         accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
     approved = accounts.approve(pending.account_id, by=admin)
@@ -77,7 +82,14 @@ def test_a_person_registers_verifies_is_approved_and_signs_in(lab):
     assert account.account_id == pending.account_id
     assert accounts.session(token) == approved
     kinds = [k for k, *_ in reversed(accounts.events(pending.account_id))]
-    assert kinds == ["REGISTERED", "EMAIL_VERIFIED", "APPROVED", "SIGNED_IN"]
+    assert kinds == [
+        "REGISTERED",
+        "SIGN_IN_REFUSED",
+        "EMAIL_VERIFIED",
+        "PASSWORD_SET",
+        "APPROVED",
+        "SIGNED_IN",
+    ]
     assert lab.connection.execute("SELECT session_hash FROM account_sessions").fetchone() == (
         token_hash(token),
     ), "only the token's hash is stored"
@@ -86,7 +98,7 @@ def test_a_person_registers_verifies_is_approved_and_signs_in(lab):
 def test_without_mail_nothing_that_needs_a_message_happens(lab):
     accounts = lab.service(mail=False)
     with _refused("mail_unavailable"):
-        accounts.register(email="ada@uni.example.edu", display_name="Ada", password=PASSWORD)
+        accounts.register(email="ada@uni.example.edu")
     with _refused("mail_unavailable"):
         accounts.request_password_reset(email="ada@uni.example.edu")
     assert _count(lab.connection, "accounts") == 0
@@ -96,7 +108,7 @@ def test_a_known_address_is_not_revealed(lab):
     admin = lab.admin()
     lab.member("ada@uni.example.edu", "Ada", admin=admin)
     before = _count(lab.connection, "accounts")
-    lab.service().register(email="ada@uni.example.edu", display_name="Mallory", password=PASSWORD)
+    lab.service().register(email="ada@uni.example.edu")
     assert _count(lab.connection, "accounts") == before
     assert "already has one" in lab.mail.sent[-1].body, "the holder is told, the caller is not"
     for email, password in (
@@ -111,14 +123,8 @@ def test_a_known_address_is_not_revealed(lab):
 
 
 def test_registration_refuses_a_bad_address_and_a_weak_password(lab):
-    for email, password, code in (
-        ("not-an-address", PASSWORD, "invalid_email"),
-        ("ada@uni.example.edu", "short", "weak_password"),
-        ("ada@uni.example.edu", "ada@uni.example.edu", "weak_password"),
-        ("ada@uni.example.edu", "aaaaaaaaaaaaaaaa", "weak_password"),
-    ):
-        with _refused(code):
-            lab.service().register(email=email, display_name="Ada", password=password)
+    with _refused("invalid_email"):
+        lab.service().register(email="not-an-address")
     assert _count(lab.connection, "accounts") == 0
 
 
@@ -156,7 +162,7 @@ def test_approval_is_an_active_administrators_and_never_ones_own(lab):
         )
     # Past every trigger, the table's own constraint: no approval before verification.
     unverified = lab.service()
-    unverified.register(email="dee@lab.example", display_name="Dee", password=PASSWORD)
+    unverified.register(email="dee@lab.example")
     (dee,) = [a for a in unverified.all() if a.email == "dee@lab.example"]
     db.execute("SET session_replication_role = replica")
     try:
@@ -350,33 +356,6 @@ def test_the_operator_bootstraps_from_the_command_line_and_only_once(lab):
     assert code == 2 and "active administrator exists" in printed
 
 
-def test_an_unconfirmed_registration_does_not_hold_the_address(lab):
-    """Anyone can type an address. Until its holder opens the link, a later registration with it
-    replaces the name and password and sends a fresh link; the earlier link stops working."""
-    admin = lab.admin()
-    accounts = lab.service()
-    accounts.register(email="ada@uni.example.edu", display_name="Mallory", password=PASSWORD)
-    squatter = lab.link("/verify")
-    accounts.register(
-        email="ada@uni.example.edu", display_name="Ada", password="ada's own passphrase"
-    )
-    with _refused("token_invalid"):
-        accounts.verify_email(squatter)
-    ada = accounts.verify_email(lab.link("/verify"))
-    assert ada.display_name == "Ada"
-    assert _count(lab.connection, "accounts") == 2, "the one account, renewed"
-    for message in lab.mail.sent[1:]:
-        assert "Mallory" not in message.body and "Ada" not in message.body, (
-            "nothing a registrant typed reaches the address"
-        )
-    accounts.approve(ada.account_id, by=admin)
-    with _refused("sign_in_refused"):
-        accounts.sign_in(email="ada@uni.example.edu", password=PASSWORD)
-    accounts.sign_in(email="ada@uni.example.edu", password="ada's own passphrase")
-    kinds = [k for k, *_ in reversed(accounts.events(ada.account_id))]
-    assert kinds[:3] == ["REGISTERED", "VERIFICATION_RESENT", "EMAIL_VERIFIED"]
-
-
 def test_mail_to_one_address_and_new_registrations_are_throttled(lab, monkeypatch):
     from lab_brain.accounts import service as service_module
 
@@ -385,36 +364,17 @@ def test_mail_to_one_address_and_new_registrations_are_throttled(lab, monkeypatc
     accounts = lab.service()
     sent = len(lab.mail.sent)
     for _ in range(5):
-        accounts.register(email="ada@uni.example.edu", display_name="X", password=PASSWORD)
+        accounts.register(email="ada@uni.example.edu")
         accounts.request_password_reset(email="ada@uni.example.edu")
     assert len(lab.mail.sent) - sent == 2, "with the registration's own, three an hour"
     lab.clock.advance(hours=1, minutes=1)
     accounts.request_password_reset(email="ada@uni.example.edu")
     assert len(lab.mail.sent) - sent == 3, "and again after the hour"
     monkeypatch.setattr(service_module, "MAX_REGISTRATIONS_PER_HOUR", 1)
-    accounts.register(email="bob@gmail.example", display_name="Bob", password=PASSWORD)
+    accounts.register(email="bob@gmail.example")
     with _refused("busy"):
-        accounts.register(email="cy@lab.example", display_name="Cy", password=PASSWORD)
+        accounts.register(email="cy@lab.example")
     assert not [a for a in accounts.all() if a.email == "cy@lab.example"]
-
-
-def test_registration_hashes_the_password_whether_or_not_the_address_is_known(lab, monkeypatch):
-    """The two answers are alike in their work too, so their timing does not tell them apart."""
-    from lab_brain.accounts import service as service_module
-
-    admin = lab.admin()
-    lab.member("ada@uni.example.edu", "Ada", admin=admin)
-    hashed: list[str] = []
-    real = service_module.hash_password
-
-    def counting(password: str, **kw: Any) -> str:
-        hashed.append(password)
-        return real(password, **kw)
-
-    monkeypatch.setattr(service_module, "hash_password", counting)
-    lab.service().register(email="ada@uni.example.edu", display_name="Ada", password=PASSWORD)
-    lab.service().register(email="new@uni.example.edu", display_name="New", password=PASSWORD)
-    assert hashed == [PASSWORD, PASSWORD]
 
 
 def test_a_reset_that_cannot_be_mailed_answers_as_any_other(lab):
@@ -559,3 +519,96 @@ def test_a_session_follows_the_accounts_state_whoever_changed_it(lab):
         "UPDATE accounts SET status = 'SUSPENDED' WHERE account_id = %s", (ada.account_id,)
     )
     assert lab.service().session(token) is None
+
+
+def test_a_refused_name_or_password_leaves_the_link_usable_and_it_works_once(lab):
+    accounts = lab.service()
+    accounts.register(email="ada@uni.example.edu")
+    token = lab.link("/verify")
+    for name, password, code in (
+        ("Ada", "short", "weak_password"),
+        ("Ada", "ada@uni.example.edu", "weak_password"),
+        ("Ada", "aaaaaaaaaaaaaaaa", "weak_password"),
+        ("   ", PASSWORD, "invalid_name"),
+        ("x" * 121, PASSWORD, "invalid_name"),
+    ):
+        with _refused(code):
+            accounts.verify_email(token, display_name=name, password=password)
+    assert accounts.token_purpose(token) == "VERIFY_EMAIL", "a retry needs no new link"
+    (still,) = accounts.all()
+    assert still.email_verified_at is None
+    ada = accounts.verify_email(token, display_name="Ada", password=PASSWORD)
+    assert ada.email_verified_at is not None
+    with _refused("token_invalid"):
+        accounts.verify_email(token, display_name="Mallory", password="another passphrase")
+    assert accounts.get(ada.account_id).display_name == "Ada"
+
+
+def test_a_stranger_who_registers_an_address_holds_nothing_against_its_owner(lab):
+    """F12b. Under 012u the stranger chose a password at registration, and when the address's
+    owner opened the confirmation link, the account they confirmed signed in with it. Now the
+    link's holder chooses the name and the password; the stranger never had either."""
+    admin = lab.admin()
+    accounts = lab.service()
+    accounts.register(email="ada@uni.example.edu")  # the stranger: an address, nothing more
+    ada = accounts.verify_email(
+        lab.link("/verify"), display_name="Ada", password="ada's own passphrase"
+    )
+    accounts.approve(ada.account_id, by=admin)
+    accounts.sign_in(email="ada@uni.example.edu", password="ada's own passphrase")
+    for message in lab.mail.sent[1:]:
+        assert "Ada" not in message.body, "nothing a registrant typed reaches the address"
+    accounts.register(email="ada@uni.example.edu")  # the stranger again, after confirmation
+    assert "already has one" in lab.mail.sent[-1].body
+    assert accounts.get(ada.account_id).display_name == "Ada"
+
+
+def test_registering_again_before_confirming_sends_a_new_link_and_ends_the_old(lab):
+    accounts = lab.service()
+    accounts.register(email="ada@uni.example.edu")
+    first = lab.link("/verify")
+    accounts.register(email="ada@uni.example.edu")
+    second = lab.link("/verify")
+    assert first != second and _count(lab.connection, "accounts") == 1
+    with _refused("token_invalid"):
+        accounts.verify_email(first, display_name="Ada", password=PASSWORD)
+    ada = accounts.verify_email(second, display_name="Ada", password=PASSWORD)
+    kinds = [k for k, *_ in reversed(accounts.events(ada.account_id))]
+    assert kinds[:3] == ["REGISTERED", "VERIFICATION_RESENT", "EMAIL_VERIFIED"]
+
+
+def test_registration_takes_no_password_whether_or_not_the_address_is_known(lab, monkeypatch):
+    """Nothing about a password happens at registration, on any path: the two answers do the
+    same work, and nobody chose a password before reading the address's mail."""
+    from lab_brain.accounts import service as service_module
+
+    admin = lab.admin()
+    lab.member("ada@uni.example.edu", "Ada", admin=admin)
+
+    def refuse(*_a: Any, **_k: Any) -> str:
+        raise AssertionError("registration hashed a password")
+
+    monkeypatch.setattr(service_module, "hash_password", refuse)
+    lab.service().register(email="ada@uni.example.edu")
+    lab.service().register(email="new@uni.example.edu")
+    assert lab.connection.execute(
+        "SELECT password_hash FROM accounts WHERE email = 'new@uni.example.edu'"
+    ).fetchone() == (None,)
+
+
+def test_the_database_refuses_a_password_before_the_address_is_confirmed(lab):
+    """012v, for every writer: a password only on a confirmed account."""
+    lab.service().register(email="ada@uni.example.edu")
+    db = lab.connection
+    with pytest.raises(psycopg.errors.CheckViolation):
+        db.execute(
+            "UPDATE accounts SET password_hash = 'scrypt$1024$8$1$c2FsdA$a2V5'"
+            " WHERE email = 'ada@uni.example.edu'"
+        )
+    with pytest.raises(psycopg.errors.CheckViolation):
+        db.execute(
+            "INSERT INTO actors (actor_id, actor_type) VALUES ('act:with-password', 'HUMAN');"
+            "INSERT INTO accounts (account_id, actor_id, email, display_name, password_hash)"
+            " VALUES ('acc:00000000-0000-0000-0000-000000000004', 'act:with-password',"
+            " 'w@y.example', 'W', 'scrypt$1024$8$1$c2FsdA$a2V5')"
+        )

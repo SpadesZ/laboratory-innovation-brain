@@ -13,6 +13,7 @@ from collections.abc import Sequence
 
 from lab_brain.accounts.oversight import (
     EpisodeSummary,
+    Material,
     MemberSummary,
     ProjectDetail,
     ProjectSummary,
@@ -102,10 +103,22 @@ Messages.extend(
             "這是你自己的帳號；你的角色或狀態需由其他管理員變更。",
         ),
         "admin.oversight_note": (
-            "Opening a project's research here is recorded and shown to its members. Evidence "
-            "excerpts stay under the project's clearance.",
-            "在此開啟研究專案的研究內容會被記錄，並顯示給該研究專案成員。證據摘錄仍依研究專案的"
-            "分級授權顯示。",
+            "An administrator reads every project here in full, classified material included. "
+            "Each look is recorded and shown to the project's members. Nothing here changes "
+            "research.",
+            "管理員可在此完整閱讀每個研究專案，包含機密分級的資料。每次檢視都會被記錄，並顯示給"
+            "該研究專案成員。這裡的任何操作都不會修改研究內容。",
+        ),
+        "admin.export": ("Download (Markdown)", "下載（Markdown）"),
+        "origin.UPLOAD": ("Uploaded file", "上傳的檔案"),
+        "origin.WATCHER_FILESYSTEM": ("Watched folder", "監看資料夾"),
+        "origin.WATCHER_GIT": ("Watched repository", "監看儲存庫"),
+        "origin.RUN_OUTPUT": ("Research run output", "研究執行的產出"),
+        "origin.EXTERNAL_CONNECTOR": ("External source", "外部來源"),
+        "origin.DERIVED": ("Derived by the system", "系統衍生"),
+        "admin.material.unreadable": (
+            "The file's stored content could not be read.",
+            "無法讀取此檔案的儲存內容。",
         ),
         "admin.goal": ("Question", "研究問題"),
         "admin.opened_by": ("Started by", "發起人"),
@@ -490,9 +503,14 @@ def project_oversight_page(
             [m("admin.file"), m("admin.kind"), m("admin.label"), m("admin.by"), m("admin.when")],
             [
                 (
-                    d.file_name,
-                    kind_name(d.kind, m),
-                    levels(m, (d.label,)),
+                    h(
+                        '<a href="/admin/projects/{}/artifacts/{}">{}</a>',
+                        s.project_id,
+                        d.artifact_id,
+                        d.file_name,
+                    ),
+                    (kind_name(d.kind, m) if d.kind else m(f"origin.{d.origin}")),
+                    levels(m, (d.label,) if d.label else ()),
                     d.submitted_by,
                     when(d.submitted_at),
                 )
@@ -529,7 +547,12 @@ def project_oversight_page(
 
 
 def episode_oversight_page(
-    chrome: Chrome, *, goal: str, project_name: str, reports: Sequence[tuple[int, str]]
+    chrome: Chrome,
+    *,
+    episode_id: str,
+    goal: str,
+    project_name: str,
+    reports: Sequence[tuple[int, str]],
 ) -> bytes:
     m = chrome.m
     body = cat(
@@ -542,7 +565,15 @@ def episode_oversight_page(
             ),
             h("<h2>{}</h2>", m("admin.reports")),
             cat(
-                h("<h3>{}</h3><pre>{}</pre>", m("admin.report.n", n=ordinal), text)
+                h(
+                    '<h3>{}</h3><p><a href="/admin/episodes/{}/runs/{}/report.md">{}</a></p>'
+                    "<pre>{}</pre>",
+                    m("admin.report.n", n=ordinal),
+                    episode_id,
+                    ordinal,
+                    m("admin.export"),
+                    text,
+                )
                 for ordinal, text in reports
             )
             if reports
@@ -550,3 +581,39 @@ def episode_oversight_page(
         ]
     )
     return page(goal, body, chrome=chrome)
+
+
+def material_page(
+    chrome: Chrome, *, project_id: str, project_name: str, material: Material, text: str | None
+) -> bytes:
+    m = chrome.m
+    d = material.summary
+    colon = "：" if m.locale == "zh-TW" else ": "
+    body = cat(
+        [
+            h(
+                '<h1>{}</h1><p class="muted"><a href="/admin/projects/{}">{}</a> · {}</p>',
+                d.file_name,
+                project_id,
+                project_name,
+                m("admin.oversight_note"),
+            ),
+            h(
+                "<p>{}{}{} · {}{}{} · {}{}{} {}</p>",
+                m("admin.kind"),
+                colon,
+                (kind_name(d.kind, m) if d.kind else m(f"origin.{d.origin}")),
+                m("admin.label"),
+                colon,
+                levels(m, (d.label,) if d.label else ()),
+                m("admin.by"),
+                colon,
+                d.submitted_by or "-",
+                when(d.submitted_at),
+            ),
+            h("<pre>{}</pre>", text)
+            if text is not None
+            else h('<p class="box error" role="alert">{}</p>', m("admin.material.unreadable")),
+        ]
+    )
+    return page(d.file_name, body, chrome=chrome)

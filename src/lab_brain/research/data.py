@@ -264,7 +264,7 @@ class ResearchData:
             out.append(
                 DataItem(
                     item_id=item.item_id,
-                    name=file_name or _upload_name(item.display_name),
+                    name=file_name or upload_name(item.display_name),
                     state=derive_state(
                         item,
                         jobs=jobs,
@@ -333,7 +333,7 @@ class ResearchData:
         return message.reason_code, message.summary
 
 
-def _upload_name(display_name: str) -> str:
+def upload_name(display_name: str) -> str:
     """The file name inside a workspace upload URI, for display. A `file:` URI (a file the
     command line ingested) shows its base name only: the full local path names the
     operator's account and folders, and overflows the page (product audit F28)."""

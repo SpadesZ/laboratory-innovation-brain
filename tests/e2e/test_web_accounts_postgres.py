@@ -20,6 +20,7 @@ fail closed    without mail, registration and reset are closed
 
 from __future__ import annotations
 
+import html
 import re
 from pathlib import Path
 from typing import Any
@@ -31,7 +32,7 @@ import pytest
 from lab_brain.accounts.mail import MemoryMailer
 from lab_brain.interfaces.config import Settings
 from lab_brain.interfaces.web import Workspace, allowed_hosts
-from lab_brain.interfaces.web.app import AccountsConfig
+from lab_brain.interfaces.web.app import WITHHELD, AccountsConfig
 from lab_brain.research.vertical import load_vertical_factory
 from tests.account_fixtures import BASE_URL, CHEAP, PASSWORD, Lab
 from tests.postgres_fixtures import database_url
@@ -108,41 +109,55 @@ def test_signed_out_every_page_but_the_sign_in_pages_asks_to_sign_in(lab, tmp_pa
 def test_a_person_registers_confirms_is_approved_and_signs_in(lab, tmp_path, people):
     browser = _browser(tmp_path, lab.mail)
     form = browser.get("/register")
-    refused = browser.post(
-        "/register",
-        {
-            "csrf": _csrf(form),
-            "name": "Cy",
-            "email": "cy@lab.example",
-            "password": PASSWORD,
-            "repeat": PASSWORD + "x",
-        },
-    )
-    assert refused.status == 409 and "differ" in refused.text
-    sent = browser.post(
-        "/register",
-        {
-            "csrf": _csrf(form),
-            "name": "Cy",
-            "email": "cy@lab.example",
-            "password": PASSWORD,
-            "repeat": PASSWORD,
-        },
-    )
+    assert 'name="password"' not in form.text, "registration takes no password: verify first"
+    sent = browser.post("/register", {"csrf": _csrf(form), "email": "cy@lab.example"})
     assert sent.status == 200 and "confirmation link is on its way" in sent.text
     token = lab.link("/verify")
     shown = browser.get(f"/verify?token={token}")
     assert shown.status == 200 and lab.service().token_purpose(token) == "VERIFY_EMAIL", (
         "a GET of the link -- a mail scanner's -- consumes nothing"
     )
-    confirmed = browser.post("/verify", {"csrf": _csrf(shown), "token": token})
+    assert 'name="password"' in shown.text and 'name="name"' in shown.text
+    for fields, expected in (
+        ({"name": "Cy", "password": PASSWORD, "repeat": PASSWORD + "x"}, "differ"),
+        ({"name": "Cy", "password": "short", "repeat": "short"}, "at least 12 characters"),
+        ({"name": " ", "password": PASSWORD, "repeat": PASSWORD}, "give your name"),
+    ):
+        refused = browser.post("/verify", {"csrf": _csrf(shown), "token": token, **fields})
+        assert refused.status == 409 and expected in refused.text, fields
+        assert lab.service().token_purpose(token) == "VERIFY_EMAIL", "the link still works"
+    confirmed = browser.post(
+        "/verify",
+        {
+            "csrf": _csrf(shown),
+            "token": token,
+            "name": "Cy",
+            "password": PASSWORD,
+            "repeat": PASSWORD,
+        },
+    )
     assert confirmed.status == 200 and "address is confirmed" in confirmed.text
+    again = browser.post(
+        "/verify",
+        {
+            "csrf": _csrf(shown),
+            "token": token,
+            "name": "Mallory",
+            "password": PASSWORD,
+            "repeat": PASSWORD,
+        },
+    )
+    assert again.status == 410, "the link works once"
     waiting = _sign_in(browser, "cy@lab.example")
     assert waiting.status == 401 and "has not approved" in waiting.text
     admin = _browser(tmp_path, lab.mail)
     assert _sign_in(admin, "owner@lab.example").status == 303
     dashboard = admin.get("/admin")
-    assert dashboard.status == 200 and "cy@lab.example" in dashboard.text
+    assert (
+        dashboard.status == 200
+        and "cy@lab.example" in dashboard.text
+        and "Mallory" not in dashboard.text
+    )
     (cy,) = [a for a in lab.service().all() if a.email == "cy@lab.example"]
     approved = admin.post(f"/admin/accounts/{cy.account_id}/approve", {"csrf": _csrf(dashboard)})
     assert approved.status == 303
@@ -232,6 +247,13 @@ def test_projects_are_their_members_and_oversight_is_shown_to_them(lab, tmp_path
         },
     )
     assert forged.status == 404
+    overview = ada.get(f"/projects/{project_id}")
+    assert "A laboratory administrator adds, changes and removes members." in overview.text
+    by_owner = ada.post(
+        f"/projects/{project_id}/members",
+        {"csrf": _csrf(overview), "email": "bob@gmail.example", "clearance": "INTERNAL"},
+    )
+    assert by_owner.status == 409 and "Only a laboratory administrator" in by_owner.text
     assert lab.connection.execute(
         "SELECT count(*) FROM project_memberships WHERE project_id = %s", (project_id,)
     ).fetchone() == (1,)
@@ -239,12 +261,12 @@ def test_projects_are_their_members_and_oversight_is_shown_to_them(lab, tmp_path
     assert (
         redirected.status == 303 and unquote(redirected.location) == f"/admin/projects/{project_id}"
     )
-    assert "Ring drift" in admin.get(f"/admin/projects/{project_id}").text
-    overview = ada.get(f"/projects/{project_id}")
-    assert "Lab Owner" in overview.text, "the project's members see who looked"
-    added = ada.post(
+    oversight = admin.get(f"/admin/projects/{project_id}")
+    assert "Ring drift" in oversight.text
+    assert "Lab Owner" in ada.get(f"/projects/{project_id}").text, "members see who looked"
+    added = admin.post(
         f"/projects/{project_id}/members",
-        {"csrf": _csrf(overview), "email": "bob@gmail.example", "clearance": "INTERNAL"},
+        {"csrf": _csrf(oversight), "email": "bob@gmail.example", "clearance": "INTERNAL"},
     )
     assert added.status == 303
     assert "Ring drift" in bob.get("/projects").text
@@ -404,67 +426,6 @@ def test_a_member_sees_the_systems_state_without_its_technical_details(lab, tmp_
     assert str(tmp_path) not in member_view.text, "no server path"
 
 
-def test_owners_change_access_and_an_administrator_manages_from_oversight(lab, tmp_path, people):
-    ada, admin = _browser(tmp_path, lab.mail), _browser(tmp_path, lab.mail)
-    _sign_in(ada, "ada@uni.example.edu")
-    _sign_in(admin, "owner@lab.example")
-    created = ada.post(
-        "/projects",
-        {"csrf": _csrf(ada.get("/projects")), "name": "Ring", "clearance": ["INTERNAL", "PUBLIC"]},
-    )
-    project_id = unquote(created.location.split("/projects/", 1)[1].split("?", 1)[0])
-    overview = ada.get(f"/projects/{project_id}")
-    added = ada.post(
-        f"/projects/{project_id}/members",
-        {"csrf": _csrf(overview), "email": "bob@gmail.example", "clearance": "PUBLIC"},
-    )
-    assert added.status == 303 and added.location.endswith("?done=added")
-    again = ada.post(
-        f"/projects/{project_id}/members",
-        {"csrf": _csrf(overview), "email": "bob@gmail.example", "clearance": "INTERNAL"},
-    )
-    assert again.status == 409 and "already a member" in again.text
-    changed = ada.post(
-        f"/projects/{project_id}/members/change",
-        {
-            "csrf": _csrf(overview),
-            "actor": people["bob"].actor_id,
-            "clearance": "INTERNAL",
-            "owner": "1",
-        },
-    )
-    assert changed.status == 303 and changed.location.endswith("?done=changed")
-    assert "Access changed." in ada.get(changed.location).text
-    own = ada.post(
-        f"/projects/{project_id}/members/change",
-        {"csrf": _csrf(overview), "actor": people["ada"].actor_id, "clearance": "PUBLIC"},
-    )
-    assert own.status == 409 and "another owner" in own.text
-    oversight = admin.get(f"/admin/projects/{project_id}")
-    assert oversight.status == 200 and "Change access" in oversight.text
-    self_grant = admin.post(
-        f"/projects/{project_id}/members",
-        {"csrf": _csrf(oversight), "email": "owner@lab.example", "clearance": "INTERNAL"},
-    )
-    assert self_grant.status == 409 and "another owner or a laboratory administrator" in (
-        self_grant.text
-    ), "an administrator does not join a project to read it"
-    removed = admin.post(
-        f"/projects/{project_id}/members/remove",
-        {"csrf": _csrf(oversight), "actor": people["ada"].actor_id},
-    )
-    assert removed.status == 303
-    assert unquote(removed.location) == f"/admin/projects/{project_id}?done=removed"
-    roles = lab.connection.execute(
-        "SELECT actor_id, role, active FROM project_memberships WHERE project_id = %s"
-        " ORDER BY actor_id",
-        (project_id,),
-    ).fetchall()
-    assert sorted(tuple(r) for r in roles) == sorted(
-        [(people["ada"].actor_id, "OWNER", False), (people["bob"].actor_id, "OWNER", True)]
-    )
-
-
 def test_registration_and_reset_take_as_long_for_a_known_address_as_for_any(lab, tmp_path, people):
     import time
 
@@ -479,3 +440,166 @@ def test_registration_and_reset_take_as_long_for_a_known_address_as_for_any(lab,
             reply = browser.post(path, {"csrf": _csrf(page), "email": email, **fields})
             assert reply.status == 200, (path, email)
             assert time.monotonic() - started >= 0.4, (path, email)
+
+
+def test_an_administrator_manages_membership_from_oversight_and_nobody_else(lab, tmp_path, people):
+    ada, admin = _browser(tmp_path, lab.mail), _browser(tmp_path, lab.mail)
+    _sign_in(ada, "ada@uni.example.edu")
+    _sign_in(admin, "owner@lab.example")
+    created = ada.post(
+        "/projects",
+        {"csrf": _csrf(ada.get("/projects")), "name": "Ring", "clearance": ["INTERNAL", "PUBLIC"]},
+    )
+    project_id = unquote(created.location.split("/projects/", 1)[1].split("?", 1)[0])
+    oversight = admin.get(f"/admin/projects/{project_id}")
+    added = admin.post(
+        f"/projects/{project_id}/members",
+        {"csrf": _csrf(oversight), "email": "bob@gmail.example", "clearance": "PUBLIC"},
+    )
+    assert unquote(added.location) == f"/admin/projects/{project_id}?done=added"
+    again = admin.post(
+        f"/projects/{project_id}/members",
+        {"csrf": _csrf(oversight), "email": "bob@gmail.example", "clearance": "INTERNAL"},
+    )
+    assert again.status == 409 and "already a member" in again.text
+    overview = ada.get(f"/projects/{project_id}")
+    assert "Change access" not in overview.text, "the owner is offered no membership change"
+    for path, fields in (
+        ("change", {"actor": people["bob"].actor_id, "clearance": "INTERNAL", "owner": "1"}),
+        ("remove", {"actor": people["bob"].actor_id}),
+    ):
+        refused = ada.post(
+            f"/projects/{project_id}/members/{path}", {"csrf": _csrf(overview), **fields}
+        )
+        assert refused.status == 409 and "Only a laboratory administrator" in refused.text, path
+    changed = admin.post(
+        f"/projects/{project_id}/members/change",
+        {
+            "csrf": _csrf(oversight),
+            "actor": people["bob"].actor_id,
+            "clearance": ["INTERNAL", "PUBLIC"],
+            "owner": "1",
+        },
+    )
+    assert unquote(changed.location) == f"/admin/projects/{project_id}?done=changed"
+    assert "Access changed." in admin.get(changed.location).text
+    self_grant = admin.post(
+        f"/projects/{project_id}/members",
+        {"csrf": _csrf(oversight), "email": "owner@lab.example", "clearance": "INTERNAL"},
+    )
+    assert self_grant.status == 409 and "another laboratory administrator" in self_grant.text
+    removed = admin.post(
+        f"/projects/{project_id}/members/remove",
+        {"csrf": _csrf(oversight), "actor": people["ada"].actor_id},
+    )
+    assert unquote(removed.location) == f"/admin/projects/{project_id}?done=removed"
+    roles = lab.connection.execute(
+        "SELECT actor_id, role, active FROM project_memberships WHERE project_id = %s",
+        (project_id,),
+    ).fetchall()
+    assert sorted(tuple(r) for r in roles) == sorted(
+        [(people["ada"].actor_id, "OWNER", False), (people["bob"].actor_id, "OWNER", True)]
+    )
+
+
+def test_an_administrator_reads_everything_each_read_recorded_and_writes_nothing(
+    lab, tmp_path, people
+):
+    """Complete laboratory-wide read for an ADMIN -- every report in full, classified excerpts
+    included, its export, the research file itself -- each recorded where the project's members
+    see it. The same administrator still cannot add data, start or continue research, or
+    declare egress in a project they are not a member of."""
+    from tests.e2e.test_research_episode_postgres import GOAL, REPORT, _device
+
+    ada, bob, admin = (_browser(tmp_path, lab.mail) for _ in range(3))
+    _sign_in(ada, "ada@uni.example.edu")
+    _sign_in(bob, "bob@gmail.example")
+    _sign_in(admin, "owner@lab.example")
+    created = ada.post(
+        "/projects",
+        {
+            "csrf": _csrf(ada.get("/projects")),
+            "name": "Rs anomaly",
+            "clearance": ["INTERNAL", "PUBLIC"],
+        },
+    )
+    project_id = unquote(created.location.split("/projects/", 1)[1].split("?", 1)[0])
+    device = _device(tmp_path, "mesh-coarse-access")
+    started = ada.post(
+        "/runs",
+        {
+            "csrf": _csrf(ada.get(f"/runs/new?project={project_id}")),
+            "project": project_id,
+            "goal": GOAL,
+            "sensitivity": "INTERNAL",
+        },
+        {
+            "measurement": [(REPORT.name, REPORT.read_bytes())],
+            "verification_input": [(device.name, device.read_bytes())],
+        },
+    )
+    assert started.status == 303, started.text[:1000]
+    episode = unquote(started.location.split("/episodes/", 1)[1])
+    own_export = ada.get(f"/episodes/{episode}/runs/1/report.md")
+    assert own_export.status == 200 and WITHHELD not in own_export.text
+
+    read = admin.get(f"/admin/episodes/{episode}")
+    assert read.status == 200 and WITHHELD not in read.text, "nothing withheld from an ADMIN"
+    export = admin.get(f"/admin/episodes/{episode}/runs/1/report.md")
+    assert export.status == 200 and export.text == own_export.text
+    oversight = admin.get(f"/admin/projects/{project_id}")
+    (item_id,) = lab.connection.execute(
+        "SELECT raw_artifact_id FROM ingestion_items WHERE project_id = %s AND display_name = %s",
+        (project_id, f"workspace-upload:{REPORT.name}"),
+    ).fetchone()
+    held = {
+        r[0]
+        for r in lab.connection.execute(
+            "SELECT artifact_id FROM artifact_occurrences WHERE project_id = %s", (project_id,)
+        ).fetchall()
+    }
+    assert len(held) > 1, "the run's own input and outputs are artifacts of the project too"
+    for artifact_id in held:
+        assert f"/admin/projects/{project_id}/artifacts/{artifact_id}" in oversight.text
+    material = admin.get(f"/admin/projects/{project_id}/artifacts/{item_id}")
+    first_line = REPORT.read_text(encoding="utf-8").splitlines()[0]
+    assert material.status == 200 and html.escape(first_line, quote=False) in material.text
+    subjects = {
+        row[0]
+        for row in lab.connection.execute(
+            "SELECT subject FROM admin_access_log WHERE project_id = %s", (project_id,)
+        ).fetchall()
+    }
+    assert {f"episode-reports:{episode}", f"material:{item_id}", "project-summary"} <= subjects
+    seen = ada.get(f"/projects/{project_id}").text
+    assert f"read the file “{REPORT.name}”" in seen and "read the reports of" in seen
+
+    # Reading is all an administrator's global authority gives.
+    token = _csrf(admin.get("/"))
+    assert admin.get(f"/episodes/{episode}").status == 404
+    assert admin.post(f"/episodes/{episode}/continue", {"csrf": token}).status == 404
+    assert (
+        admin.post(
+            "/data",
+            {"csrf": token, "project": project_id, "kind": "measurement", "sensitivity": "PUBLIC"},
+            {"files": [("x.csv", b"a,b\n1,2\n")]},
+        ).status
+        == 403
+    )
+    assert (
+        admin.post(
+            "/runs", {"csrf": token, "project": project_id, "goal": "x", "sensitivity": "PUBLIC"}
+        ).status
+        == 403
+    )
+    assert admin.post(f"/projects/{project_id}/egress", {"csrf": token}).status == 404
+    runs = lab.connection.execute(
+        "SELECT count(*) FROM research_runs WHERE project_id = %s", (project_id,)
+    ).fetchone()
+    assert runs == (1,), "nothing was written by the administrator"
+    for path in (
+        f"/admin/episodes/{episode}",
+        f"/admin/episodes/{episode}/runs/1/report.md",
+        f"/admin/projects/{project_id}/artifacts/{item_id}",
+    ):
+        assert bob.get(path).status == 403, f"a member does not reach {path}"

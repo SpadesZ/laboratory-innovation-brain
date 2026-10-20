@@ -1,17 +1,23 @@
-"""Projects a member owns, and who may work in them.
+"""Research projects, and who may work in them.
 
-A MEMBER creates a project and owns it: a membership with the role OWNER, the clearance they
-choose for it, and the LLM_EGRESS scope -- the authority to DECLARE whether the project's evidence
-may reach an external model, which stays a separate, explicit decision (`/projects/<id>/egress`).
-The project is created PRIVATE.
+TWO SYSTEM ROLES, NO THIRD. ADMIN and MEMBER are the only system roles. A project membership's
+role (OWNER or MEMBER) is not a system role and carries no authority over membership: OWNER
+only holds the project's LLM_EGRESS scope -- the authority to DECLARE whether its evidence may
+reach an external model, a separate and explicit decision (`/projects/<id>/egress`).
 
-Who may change a project's membership: an active administrator, or an active OWNER of that
-project. An owner grants at most the clearance they hold there themselves; an administrator may
-grant any. Nobody grants themself membership or changes their own access -- an administrator
-included: oversight is how an administrator reads a project, and it is recorded. Adding someone
-who is already a member is refused rather than silently rewriting their access; changing it is
-its own, explicit action. A project keeps at least one active owner. Every grant, change and
-revocation is an account event naming who made it. Memberships are deactivated, never deleted.
+MEMBERSHIP IS AN ADMINISTRATOR'S. Who belongs to a project, at which classification levels, and
+who holds its egress authority, is granted, changed and revoked by an active administrator
+only -- the laboratory's central approval. Nobody grants themself membership or changes their
+own access, an administrator included: an administrator reads every project through recorded
+oversight (`accounts.oversight`), and joining one is another administrator's decision. Adding
+someone who is already a member is refused rather than silently rewriting their access;
+changing it is its own, explicit action. A project keeps at least one active owner. Every
+grant, change and revocation is an account event naming who made it. Memberships are
+deactivated, never deleted.
+
+A MEMBER may open a new project for their own work: it is created PRIVATE, they are its owner
+with the clearance they choose for it, and it appears at once in the administrators' overview.
+Anyone else joins it only by an administrator.
 """
 
 from __future__ import annotations
@@ -122,7 +128,7 @@ class LabProjects:
         existing = self.membership(project_id, member.actor_id)
         if existing is not None and existing.active:
             raise AccountRefused("already_member", member.display_name)
-        labels = self._within(project_id, acting, clearance)
+        labels = self._required(clearance)
         with self._c.transaction():
             self._grant(
                 project_id,
@@ -158,7 +164,7 @@ class LabProjects:
         target = self.membership(project_id, actor_id)
         if target is None or not target.active:
             raise AccountRefused("not_found")
-        labels = self._within(project_id, acting, clearance)
+        labels = self._required(clearance)
         if target.role == OWNER and not owner and not self._other_owner(project_id, actor_id):
             raise AccountRefused("last_owner", "a project keeps at least one active owner")
         member = self._accounts.by_actor(actor_id)
@@ -217,10 +223,11 @@ class LabProjects:
     # -- internals --------------------------------------------------------------------------------
 
     def _authority(self, project_id: str, by: Account) -> Account:
-        """The acting account, re-read: an active administrator, or an active owner here."""
+        """The acting account, re-read: an active administrator -- nobody else changes
+        membership."""
         current = self._accounts.get(by.account_id)
-        if current is None or not current.is_active:
-            raise AccountRefused("not_permitted")
+        if current is None or not current.is_admin:
+            raise AccountRefused("not_permitted", "only an administrator changes membership")
         if (
             self._c.execute(
                 "SELECT 1 FROM projects WHERE project_id = %s", (project_id,)
@@ -228,11 +235,6 @@ class LabProjects:
             is None
         ):
             raise AccountRefused("not_found")
-        if current.is_admin:
-            return current
-        own = self.membership(project_id, current.actor_id)
-        if own is None or not own.active or own.role != OWNER:
-            raise AccountRefused("not_permitted", "only an owner or an administrator does this")
         return current
 
     def _other_owner(self, project_id: str, actor_id: str) -> bool:
@@ -241,22 +243,12 @@ class LabProjects:
             for m in self.memberships(project_id)
         )
 
-    def _within(
-        self, project_id: str, acting: Account, clearance: Sequence[str]
-    ) -> tuple[str, ...]:
-        """The labels asked for: at least one, known, and -- unless an administrator grants
-        them -- within what the acting owner holds in the project."""
+    def _required(self, clearance: Sequence[str]) -> tuple[str, ...]:
+        """The labels asked for: at least one, and known. The acting administrator may grant
+        any."""
         labels = self._labels(clearance)
         if not labels:
             raise AccountRefused("clearance_required")
-        if not acting.is_admin:
-            own = self.membership(project_id, acting.actor_id)
-            held = set(own.clearance if own else ())
-            if not set(labels) <= held:
-                raise AccountRefused(
-                    "clearance_exceeds_own",
-                    f"an owner grants at most their own clearance ({', '.join(sorted(held))})",
-                )
         return labels
 
     @staticmethod

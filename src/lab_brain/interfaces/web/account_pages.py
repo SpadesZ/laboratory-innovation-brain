@@ -53,21 +53,28 @@ Messages.extend(
             "密碼已設定。之前所有的登入都已結束，請用新密碼登入。",
         ),
         "acct.registered.title": ("Check your email", "請查看你的電子郵件"),
+        "acct.register.lead": (
+            "Enter your email address. We send a link there; in it you choose your name and "
+            "password.",
+            "請輸入你的電子郵件。我們會寄出連結；你在連結中設定姓名與密碼。",
+        ),
         "acct.registered": (
             "Thank you. If the address can be registered, a confirmation link is on its way "
-            "(look in the spam folder too); it works for 48 hours. After you confirm it, an "
-            "administrator reviews your account; you can sign in once it is approved. No link "
-            "came, or it expired? Register again with the same address: a new link is sent.",
+            "(look in the spam folder too); it works for 48 hours. In it you choose your name "
+            "and password; then an administrator reviews your account, and you can sign in "
+            "once it is approved. No link came, or it expired? Register again with the same "
+            "address: a new link is sent.",
             "謝謝。若此地址可以註冊，確認連結已寄出（也請查看垃圾郵件），48 小時內有效。"
-            "確認後由管理員審核帳號，核准後即可登入。沒收到或連結已過期？用同一個地址再註冊一次，"
-            "就會寄出新的連結。",
+            "你在連結中設定姓名與密碼，之後由管理員審核帳號，核准後即可登入。"
+            "沒收到或連結已過期？用同一個地址再註冊一次，就會寄出新的連結。",
         ),
         "acct.verify.title": ("Confirm your email address", "確認電子郵件"),
         "acct.verify.lead": (
-            "Confirm this address for your Lab Brain account.",
-            "確認此地址屬於你的 Lab Brain 帳號。",
+            "Confirm this address for your Lab Brain account, and choose the name others in the "
+            "laboratory will see and your password.",
+            "確認此地址屬於你的 Lab Brain 帳號，並設定實驗室成員會看到的姓名與你的密碼。",
         ),
-        "acct.verify.button": ("Confirm my address", "確認我的地址"),
+        "acct.verify.button": ("Confirm and save", "確認並儲存"),
         "acct.verify.done": (
             "Your address is confirmed. An administrator now reviews your account; you will "
             "be able to sign in once it is approved.",
@@ -293,7 +300,6 @@ def register_page(
     *,
     error: str | None = None,
     email: str = "",
-    name: str = "",
     closed: bool = False,
 ) -> bytes:
     m = chrome.m
@@ -304,33 +310,20 @@ def register_page(
         else _form(
             "/register",
             chrome.csrf,
-            cat(
-                [
-                    _field(m("acct.name"), "name", "text", value=name, autocomplete="name"),
-                    _field(
-                        m("acct.email"),
-                        "email",
-                        "email",
-                        value=email,
-                        hint=m("acct.email.hint"),
-                        autocomplete="email",
-                    ),
-                    _field(
-                        m("acct.password"),
-                        "password",
-                        "password",
-                        hint=m("acct.password.hint"),
-                        autocomplete="new-password",
-                    ),
-                    _field(m("acct.repeat"), "repeat", "password", autocomplete="new-password"),
-                ]
+            _field(
+                m("acct.email"),
+                "email",
+                "email",
+                value=email,
+                hint=m("acct.email.hint"),
+                autocomplete="email",
             ),
             m("acct.register"),
         )
     )
     body = cat(
         [
-            h("<h1>{}</h1>", m("acct.register")),
+            h("<h1>{}</h1><p>{}</p>", m("acct.register"), m("acct.register.lead")),
             _notice(error, "error"),
             form,
             h('<p>{} <a href="/login">{}</a></p>', m("acct.have_account"), m("acct.sign_in")),
@@ -352,16 +345,30 @@ def notice_page(
     return page(title, body, chrome=chrome)
 
 
-def verify_page(chrome: Chrome, *, token: str) -> bytes:
+def verify_page(chrome: Chrome, *, token: str, name: str = "", error: str | None = None) -> bytes:
     m = chrome.m
     assert chrome.csrf is not None
     body = cat(
         [
             h("<h1>{}</h1><p>{}</p>", m("acct.verify.title"), m("acct.verify.lead")),
+            _notice(error, "error"),
             _form(
                 "/verify",
                 chrome.csrf,
-                h('<input type="hidden" name="token" value="{}">', token),
+                cat(
+                    [
+                        h('<input type="hidden" name="token" value="{}">', token),
+                        _field(m("acct.name"), "name", "text", value=name, autocomplete="name"),
+                        _field(
+                            m("acct.password"),
+                            "password",
+                            "password",
+                            hint=m("acct.password.hint"),
+                            autocomplete="new-password",
+                        ),
+                        _field(m("acct.repeat"), "repeat", "password", autocomplete="new-password"),
+                    ]
+                ),
                 m("acct.verify.button"),
             ),
         ]

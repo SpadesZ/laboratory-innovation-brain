@@ -300,6 +300,8 @@ APPLY_ORDER: tuple[str, ...] = (
     # Accounts: sign-in, two system roles, states, sessions, single-use tokens and the
     # append-only account and administrator-access records. After 012s.
     "012u_accounts.sql",
+    # Verify first: a password only on an account whose address is confirmed. After 012u.
+    "012v_password_after_verification.sql",
 )
 
 _BOOTSTRAP = """

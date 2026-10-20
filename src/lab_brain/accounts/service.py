@@ -7,6 +7,10 @@ the stored account each time it is used. The database holds the same rules for e
 (`012u`): approval only by an active administrator other than the person approved, verification
 before approval, the last active administrator kept, tokens used once, events append-only.
 
+VERIFY FIRST. Registration takes an address only. The name and the password are chosen by whoever
+opens the emailed link, in the same step that confirms the address; the database refuses a
+password on an account whose address is not confirmed (`012v`).
+
 NO ACCOUNT ENUMERATION. Registration and password reset answer the same whether or not an address
 is registered; sign-in says only "not signed in" for an unknown address, a wrong password and a
 locked account, and tells an account's state (pending, suspended) only to someone who gave its
@@ -180,25 +184,18 @@ class AccountService:
 
     # -- registration -----------------------------------------------------------------------------
 
-    def register(self, *, email: str, display_name: str, password: str) -> None:
-        """A PENDING account and a verification link by mail. For an address already registered
-        but never confirmed: its name and password become this registration's and a fresh link is
-        sent (the earlier ones stop working) -- so an unconfirmed registration never holds an
-        address against the person who reads its mail. For a confirmed one: a notice to that
-        address. The caller is told the same either way, and the work is the same: the password
-        is hashed whichever branch is taken, so the answer's timing does not tell them apart."""
+    def register(self, *, email: str) -> None:
+        """A PENDING account with no name and no password, and a verification link by mail.
+
+        VERIFY FIRST. Whoever opens the link chooses the name and the password (`verify_email`), so
+        nothing is ever set by someone who has not shown they read the address's mail: a
+        registration of someone else's address holds nothing against its owner. For an address
+        registered but never confirmed: a fresh link, and the earlier ones stop working. For a
+        confirmed one: a notice to that address. The caller is told the same in every case."""
         mailer = self._require_mail()
         address = normalized_email(email)
         if address is None:
             raise AccountRefused("invalid_email")
-        name = " ".join(display_name.split())
-        if not name or len(name) > 120:
-            raise AccountRefused("invalid_name")
-        try:
-            check_password_policy(password, email=address)
-        except WeakPassword as weak:
-            raise AccountRefused("weak_password", weak.code) from None
-        hashed = hash_password(password, cost=self._cost)
         now = self._now()
         found = self._c.execute(
             f"SELECT {_COLUMNS} FROM accounts WHERE email = %s", (address,)
@@ -208,17 +205,7 @@ class AccountService:
             if self._mailed_recently(account.account_id, now):
                 return
             if account.awaiting == "VERIFICATION":
-                with self._c.transaction():
-                    self._c.execute(
-                        "UPDATE accounts SET display_name = %s, password_hash = %s,"
-                        " password_changed_at = %s WHERE account_id = %s",
-                        (name, hashed, now, account.account_id),
-                    )
-                    self._c.execute(
-                        "UPDATE actors SET display_name = %s WHERE actor_id = %s",
-                        (name, account.actor_id),
-                    )
-                    self._resend_verification(mailer, account)
+                self._resend_verification(mailer, account)
                 return
             with self._c.transaction():
                 self.record_event(account.account_id, "REGISTRATION_NOTICE", None, {})
@@ -245,34 +232,52 @@ class AccountService:
         actor_id = new_id("actor")
         account_id = new_id("account")
         token = new_token()
+        # Until its holder names it at verification, the account is labelled by its address.
+        label = address[:120]
         with self._c.transaction():
             self._c.execute(
                 "INSERT INTO actors (actor_id, actor_type, display_name, active)"
                 " VALUES (%s, 'HUMAN', %s, FALSE)",
-                (actor_id, name),
+                (actor_id, label),
             )
             self._c.execute(
-                "INSERT INTO accounts (account_id, actor_id, email, display_name, password_hash,"
-                " password_changed_at, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (account_id, actor_id, address, name, hashed, now, now),
+                "INSERT INTO accounts (account_id, actor_id, email, display_name, created_at)"
+                " VALUES (%s, %s, %s, %s, %s)",
+                (account_id, actor_id, address, label, now),
             )
             self.record_event(account_id, "REGISTERED", actor_id, {})
             self._token(account_id, "VERIFY_EMAIL", token, now + VERIFY_LIFETIME)
             # Inside the transaction: a link that could not be sent leaves no account behind.
             self._send(mailer, self._verification_message(address, token))
 
-    def verify_email(self, token: str) -> Account:
+    def verify_email(self, token: str, *, display_name: str, password: str) -> Account:
+        """The link's holder confirms the address and, in the same step, chooses the account's
+        name and password. A refused name or password changes nothing and leaves the link usable:
+        the token is used inside the transaction that a refusal rolls back."""
+        name = " ".join(display_name.split())
+        if not name or len(name) > 120:
+            raise AccountRefused("invalid_name")
         now = self._now()
         with self._c.transaction():
             account_id = self._use(token, ("VERIFY_EMAIL",), now)
             account = self._locked(account_id)
-            if account.email_verified_at is None:
-                self._c.execute(
-                    "UPDATE accounts SET email_verified_at = %s, email_verified_by = 'EMAIL_LINK'"
-                    " WHERE account_id = %s",
-                    (now, account_id),
-                )
-                self.record_event(account_id, "EMAIL_VERIFIED", account.actor_id, {})
+            if account.email_verified_at is not None:
+                raise AccountRefused("token_invalid")
+            try:
+                check_password_policy(password, email=account.email)
+            except WeakPassword as weak:
+                raise AccountRefused("weak_password", weak.code) from None
+            self._c.execute(
+                "UPDATE accounts SET email_verified_at = %s, email_verified_by = 'EMAIL_LINK',"
+                " display_name = %s WHERE account_id = %s",
+                (now, name, account_id),
+            )
+            self._c.execute(
+                "UPDATE actors SET display_name = %s WHERE actor_id = %s", (name, account.actor_id)
+            )
+            self._set_password(account, password, now)
+            self.record_event(account_id, "EMAIL_VERIFIED", account.actor_id, {})
+            self.record_event(account_id, "PASSWORD_SET", account.actor_id, {})
         verified = self.get(account_id)
         assert verified is not None
         return verified
@@ -718,11 +723,11 @@ class AccountService:
             to=address,
             subject="Lab Brain: confirm your email address",
             body=(
-                "Confirm this address for a Lab Brain account:\n\n"
-                f"{self._base}/verify?token={token}\n\n"
+                "Confirm this address for a Lab Brain account, and choose your name and password:"
+                f"\n\n{self._base}/verify?token={token}\n\n"
                 "The link works once, for 48 hours; any earlier link no longer works. After you "
                 "confirm, an administrator approves the account. If you did not register, "
-                "ignore this message.\n"
+                "ignore this message: without the link, nobody can use the account.\n"
             ),
         )
 

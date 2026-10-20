@@ -1,8 +1,9 @@
 """Projects a member owns, who may work in them, and what an administrator sees (`012u`).
 
 ownership   a member's new project is PRIVATE and theirs: OWNER, their clearance, LLM_EGRESS
-membership  an owner or an administrator grants it; an owner at most their own clearance; a
-            project keeps an owner; only active accounts join; every change is an event;
+membership  only an active administrator grants, changes and revokes it (an owner holds the
+            egress authority, not membership); a project keeps an owner; only active accounts
+            join; every change is an event;
             nobody grants or changes their own, an administrator included; adding a member
             is never a silent rewrite of their access -- changing it is its own action
 oversight   an administrator sees every project and person, private ones too, and each look
@@ -70,66 +71,6 @@ def test_a_member_owns_the_project_they_create(lab):
     )
 
 
-def test_membership_is_granted_by_an_owner_within_their_clearance_or_by_an_administrator(lab):
-    admin = lab.admin()
-    ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
-    bob = lab.member("bob@gmail.example", "Bob", admin=admin)
-    cy = lab.member("cy@lab.example", "Cy", admin=admin)
-    projects = LabProjects(lab.connection, now=lab.clock)
-    project_id = projects.create(ada, name="Ring", clearance=["INTERNAL"])
-    assert (
-        _code(
-            lambda: projects.add_member(
-                project_id, by=bob, member_account_id=cy.account_id, clearance=["INTERNAL"]
-            )
-        )
-        == "not_permitted"
-    ), "a non-member cannot add anyone"
-    assert (
-        _code(
-            lambda: projects.add_member(
-                project_id, by=ada, member_account_id=bob.account_id, clearance=["CONFIDENTIAL_LAB"]
-            )
-        )
-        == "clearance_exceeds_own"
-    )
-    granted = projects.add_member(
-        project_id, by=ada, member_account_id=bob.account_id, clearance=["INTERNAL"]
-    )
-    assert (granted.role, granted.clearance) == ("MEMBER", ("INTERNAL",))
-    assert (
-        _code(
-            lambda: projects.add_member(
-                project_id, by=bob, member_account_id=cy.account_id, clearance=["INTERNAL"]
-            )
-        )
-        == "not_permitted"
-    ), "a member is not an owner"
-    by_admin = projects.add_member(
-        project_id, by=admin, member_account_id=cy.account_id, clearance=["CONFIDENTIAL_LAB"]
-    )
-    assert by_admin.clearance == ("CONFIDENTIAL_LAB",), "an administrator grants any clearance"
-    assert (
-        _code(lambda: projects.remove_member(project_id, by=ada, actor_id=ada.actor_id))
-        == "last_owner"
-    )
-    projects.remove_member(project_id, by=ada, actor_id=bob.actor_id)
-    assert not projects.membership(project_id, bob.actor_id).active, "deactivated, never deleted"
-    lab.service().suspend(cy.account_id, by=admin, reason="left")
-    dee = lab.member("dee@lab.example", "Dee", admin=admin)
-    lab.service().suspend(dee.account_id, by=admin, reason="left")
-    assert (
-        _code(
-            lambda: projects.add_member(
-                project_id, by=ada, member_account_id=dee.account_id, clearance=["INTERNAL"]
-            )
-        )
-        == "not_found"
-    ), "a suspended account joins nothing"
-    kinds = [k for k, *_ in lab.service().events(bob.account_id)]
-    assert kinds[:2] == ["MEMBERSHIP_REVOKED", "MEMBERSHIP_GRANTED"]
-
-
 def test_an_administrator_oversees_every_project_and_each_look_is_recorded(lab):
     admin = lab.admin()
     ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
@@ -174,16 +115,18 @@ def test_nobody_grants_themself_membership_or_changes_their_own_access(lab):
         )
         == "own_membership"
     ), "an administrator reads a project through recorded oversight, not by joining it"
+    own = projects.create(admin, name="The administrator's own", clearance=["INTERNAL"])
+    projects.add_member(own, by=admin, member_account_id=bob.account_id, clearance=["INTERNAL"])
     assert (
         _code(
             lambda: projects.change_member(
-                project_id, by=ada, actor_id=ada.actor_id, clearance=["PUBLIC"], owner=True
+                own, by=admin, actor_id=admin.actor_id, clearance=["RESTRICTED_NDA"], owner=True
             )
         )
         == "own_membership"
-    )
+    ), "not in a project they created either"
     projects.add_member(
-        project_id, by=ada, member_account_id=bob.account_id, clearance=["INTERNAL"]
+        project_id, by=admin, member_account_id=bob.account_id, clearance=["PUBLIC"]
     )
     assert (
         _code(
@@ -197,72 +140,7 @@ def test_nobody_grants_themself_membership_or_changes_their_own_access(lab):
         )
         == "already_member"
     ), "adding again never silently rewrites an existing member's access"
-    assert projects.membership(project_id, bob.actor_id).clearance == ("INTERNAL",)
-
-
-def test_an_owner_changes_a_members_access_and_a_project_keeps_an_owner(lab):
-    admin = lab.admin()
-    ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
-    bob = lab.member("bob@gmail.example", "Bob", admin=admin)
-    projects = LabProjects(lab.connection, now=lab.clock)
-    project_id = projects.create(ada, name="Ring", clearance=["INTERNAL", "PUBLIC"])
-    projects.add_member(project_id, by=ada, member_account_id=bob.account_id, clearance=["PUBLIC"])
-    assert (
-        _code(
-            lambda: projects.change_member(
-                project_id,
-                by=ada,
-                actor_id=bob.actor_id,
-                clearance=["CONFIDENTIAL_LAB"],
-                owner=False,
-            )
-        )
-        == "clearance_exceeds_own"
-    )
-    assert (
-        _code(
-            lambda: projects.change_member(
-                project_id, by=bob, actor_id=ada.actor_id, clearance=["PUBLIC"], owner=False
-            )
-        )
-        == "not_permitted"
-    ), "a member changes nobody's access"
-    changed = projects.change_member(
-        project_id, by=ada, actor_id=bob.actor_id, clearance=["INTERNAL"], owner=True
-    )
-    assert (changed.role, changed.clearance, changed.scopes) == (
-        "OWNER",
-        ("INTERNAL",),
-        ("LLM_EGRESS",),
-    )
-    projects.change_member(
-        project_id, by=bob, actor_id=ada.actor_id, clearance=["INTERNAL"], owner=False
-    )
-    assert (
-        _code(
-            lambda: projects.change_member(
-                project_id, by=admin, actor_id=bob.actor_id, clearance=["INTERNAL"], owner=False
-            )
-        )
-        == "last_owner"
-    ), "an administrator too keeps the project's last owner"
-    by_admin = projects.change_member(
-        project_id, by=admin, actor_id=ada.actor_id, clearance=["RESTRICTED_NDA"], owner=False
-    )
-    assert by_admin.clearance == ("RESTRICTED_NDA",), "an administrator grants any clearance"
-    assert (
-        _code(
-            lambda: projects.change_member(
-                project_id, by=bob, actor_id="act:nobody", clearance=["INTERNAL"], owner=False
-            )
-        )
-        == "not_found"
-    )
-    events = lab.service().events(ada.account_id)
-    assert [(k, by) for k, by, _d, _at in events[:2]] == [
-        ("MEMBERSHIP_CHANGED", "Lab Owner"),
-        ("MEMBERSHIP_CHANGED", "Bob"),
-    ], "each change names who made it"
+    assert projects.membership(project_id, bob.actor_id).clearance == ("PUBLIC",)
 
 
 def test_each_administrator_look_is_recorded_once_an_hour_where_its_members_see_it(lab):
@@ -284,3 +162,114 @@ def test_each_administrator_look_is_recorded_once_an_hour_where_its_members_see_
         assert MEMBER_RESEARCH in kinds, (
             "viewing a person's research shows in each of their projects"
         )
+
+
+def test_only_an_administrator_changes_membership(lab):
+    """Central approval: an owner, a member and a non-member change nobody's membership; an
+    active administrator grants any clearance, and a demoted one's old Account grants nothing."""
+    admin = lab.admin()
+    ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    bob = lab.member("bob@gmail.example", "Bob", admin=admin)
+    cy = lab.member("cy@lab.example", "Cy", admin=admin)
+    projects = LabProjects(lab.connection, now=lab.clock)
+    project_id = projects.create(ada, name="Ring", clearance=["INTERNAL"])
+    for by in (ada, bob):
+        assert (
+            _code(
+                lambda by=by: projects.add_member(
+                    project_id, by=by, member_account_id=cy.account_id, clearance=["INTERNAL"]
+                )
+            )
+            == "not_permitted"
+        ), "the project's owner, and a non-member, add nobody"
+    granted = projects.add_member(
+        project_id, by=admin, member_account_id=bob.account_id, clearance=["CONFIDENTIAL_LAB"]
+    )
+    assert (granted.role, granted.clearance) == ("MEMBER", ("CONFIDENTIAL_LAB",))
+    for call in (
+        lambda: projects.change_member(
+            project_id, by=ada, actor_id=bob.actor_id, clearance=["PUBLIC"], owner=False
+        ),
+        lambda: projects.remove_member(project_id, by=ada, actor_id=bob.actor_id),
+        lambda: projects.remove_member(project_id, by=bob, actor_id=ada.actor_id),
+    ):
+        assert _code(call) == "not_permitted"
+    assert (
+        _code(lambda: projects.remove_member(project_id, by=admin, actor_id=ada.actor_id))
+        == "last_owner"
+    )
+    projects.remove_member(project_id, by=admin, actor_id=bob.actor_id)
+    assert not projects.membership(project_id, bob.actor_id).active, "deactivated, never deleted"
+    second = lab.service().set_role(cy.account_id, "ADMIN", by=admin)
+    lab.service().set_role(second.account_id, "MEMBER", by=admin)
+    assert (
+        _code(
+            lambda: projects.add_member(
+                project_id, by=second, member_account_id=bob.account_id, clearance=["INTERNAL"]
+            )
+        )
+        == "not_permitted"
+    ), "authority is the account as stored now"
+    dee = lab.member("dee@lab.example", "Dee", admin=admin)
+    lab.service().suspend(dee.account_id, by=admin, reason="left")
+    assert (
+        _code(
+            lambda: projects.add_member(
+                project_id, by=admin, member_account_id=dee.account_id, clearance=["INTERNAL"]
+            )
+        )
+        == "not_found"
+    ), "a suspended account joins nothing"
+    events = lab.service().events(bob.account_id)
+    assert [(k, by) for k, by, _d, _at in events[:2]] == [
+        ("MEMBERSHIP_REVOKED", "Lab Owner"),
+        ("MEMBERSHIP_GRANTED", "Lab Owner"),
+    ]
+
+
+def test_an_administrator_changes_access_and_a_project_keeps_an_owner(lab):
+    admin = lab.admin()
+    ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
+    bob = lab.member("bob@gmail.example", "Bob", admin=admin)
+    projects = LabProjects(lab.connection, now=lab.clock)
+    project_id = projects.create(ada, name="Ring", clearance=["INTERNAL", "PUBLIC"])
+    projects.add_member(
+        project_id, by=admin, member_account_id=bob.account_id, clearance=["PUBLIC"]
+    )
+    changed = projects.change_member(
+        project_id, by=admin, actor_id=bob.actor_id, clearance=["CONFIDENTIAL_LAB"], owner=True
+    )
+    assert (changed.role, changed.clearance, changed.scopes) == (
+        "OWNER",
+        ("CONFIDENTIAL_LAB",),
+        ("LLM_EGRESS",),
+    ), "an owner holds the project's egress authority, and nothing over its membership"
+    projects.change_member(
+        project_id, by=admin, actor_id=ada.actor_id, clearance=["INTERNAL"], owner=False
+    )
+    assert (
+        _code(
+            lambda: projects.change_member(
+                project_id, by=admin, actor_id=bob.actor_id, clearance=["INTERNAL"], owner=False
+            )
+        )
+        == "last_owner"
+    )
+    assert (
+        _code(
+            lambda: projects.change_member(
+                project_id, by=admin, actor_id="act:nobody", clearance=["INTERNAL"], owner=False
+            )
+        )
+        == "not_found"
+    )
+    assert (
+        _code(
+            lambda: projects.change_member(
+                project_id, by=admin, actor_id=bob.actor_id, clearance=[], owner=True
+            )
+        )
+        == "clearance_required"
+    )
+    events = lab.service().events(ada.account_id)
+    assert [(k, by) for k, by, _d, _at in events[:1]] == [("MEMBERSHIP_CHANGED", "Lab Owner")]

@@ -67,7 +67,7 @@ from lab_brain.accounts.passwords import (
     normalized_email,
     token_hash,
 )
-from lab_brain.accounts.projects import LABELS, OWNER, LabProjects
+from lab_brain.accounts.projects import LABELS, LabProjects
 from lab_brain.accounts.service import (
     SESSION_LIFETIME,
     Account,
@@ -156,6 +156,7 @@ from lab_brain.research.service import (
 )
 from lab_brain.research.vertical import VerticalFactory
 from lab_brain.security.reviewer_identity import ReviewerTrust
+from lab_brain.storage.artifacts.interface import ArtifactStoreError
 from lab_brain.storage.artifacts.local import LocalArtifactStore
 from lab_brain.surface.disclosure import ErrorNotFound
 
@@ -189,6 +190,8 @@ _ADMIN_ACTION_PATH = re.compile(
 )
 _ADMIN_PROJECT_PATH = re.compile(rf"^/admin/projects/{_ID}$")
 _ADMIN_EPISODE_PATH = re.compile(rf"^/admin/episodes/{_ID}$")
+_ADMIN_EXPORT_PATH = re.compile(rf"^/admin/episodes/{_ID}/runs/([0-9]{{1,6}})/report\.md$")
+_ADMIN_MATERIAL_PATH = re.compile(rf"^/admin/projects/{_ID}/artifacts/{_ID}$")
 
 #: Where a form posted to a collection path came from.
 _POSTED_FROM = {
@@ -2395,22 +2398,15 @@ class Workspace:
         )
 
     def _register(self, c: Any, req: _Req, form: Form) -> Response:
-        email, name = form.value("email"), form.value("name")
-        if form.raw("password") != form.raw("repeat"):
-            return self._register_form(
-                c, req, error=req.m("acct.refused.passwords_differ"), email=email, name=name
-            )
+        email = form.value("email")
         try:
-            self._account_service(c).register(
-                email=email, display_name=name, password=form.raw("password")
-            )
+            self._account_service(c).register(email=email)
         except AccountRefused as refused:
             return self._register_form(
                 c,
                 req,
                 error=account_pages.refusal(req.m, refused.code, refused.detail),
                 email=email,
-                name=name,
             )
         return Response(
             "200 OK",
@@ -2431,9 +2427,27 @@ class Workspace:
         )
 
     def _verify(self, c: Any, req: _Req, form: Form) -> Response:
+        token, name = form.value("token"), form.value("name")
+        service = self._account_service(c)
+        if service.token_purpose(token) != "VERIFY_EMAIL":
+            return self._link_invalid(req)
+
+        def again(error: str) -> Response:
+            # The link still works: nothing was consumed.
+            return Response(
+                "409 Conflict",
+                account_pages.verify_page(
+                    self._signed_out_chrome(req), token=token, name=name, error=error
+                ),
+            )
+
+        if form.raw("password") != form.raw("repeat"):
+            return again(req.m("acct.refused.passwords_differ"))
         try:
-            self._account_service(c).verify_email(form.value("token"))
-        except AccountRefused:
+            service.verify_email(token, display_name=name, password=form.raw("password"))
+        except AccountRefused as refused:
+            if refused.code in ("weak_password", "invalid_name"):
+                return again(account_pages.refusal(req.m, refused.code, refused.detail))
             return self._link_invalid(req)
         return Response(
             "200 OK",
@@ -2602,7 +2616,7 @@ class Workspace:
             created_at=row[2],
             memberships=projects.memberships(project_id),
             mine=mine,
-            can_manage=mine.role == OWNER or self._account.is_admin,
+            can_manage=self._account.is_admin,
             oversight=access_log(c, project_id),
             actor_id=self._actor,
         )
@@ -2771,6 +2785,10 @@ class Workspace:
             )
         if (m := _ADMIN_EPISODE_PATH.match(path)) and method == "GET":
             return self._admin_episode(c, req, oversight, m.group(1))
+        if (m := _ADMIN_EXPORT_PATH.match(path)) and method == "GET":
+            return self._admin_export(c, req, oversight, m.group(1), int(m.group(2)))
+        if (m := _ADMIN_MATERIAL_PATH.match(path)) and method == "GET":
+            return self._admin_material(c, req, oversight, m.group(1), m.group(2))
         return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
 
     def _project_oversight(
@@ -2870,6 +2888,8 @@ class Workspace:
         project_id = oversight.episode_project(episode_id)
         if project_id is None:
             return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
+        # Recorded first: an administrator reads every report in full, classified excerpts
+        # included, and the project's members are shown that they did.
         oversight.record(project_id, f"{EPISODE_REPORTS}{episode_id}")
         row = c.execute(
             "SELECT e.goal, p.name FROM research_episodes e JOIN projects p"
@@ -2877,18 +2897,77 @@ class Workspace:
             (episode_id,),
         ).fetchone()
         reports = [
-            (recorded.ordinal, render_markdown(self._authorized(c, recorded.report)))
-            for recorded in SqlResearchReportStore(c).for_episode(
-                project_id=project_id, episode_id=episode_id
-            )
+            (ordinal, text) for ordinal, text in self._full_reports(c, project_id, episode_id)
         ]
         return Response(
             "200 OK",
             admin_pages.episode_oversight_page(
                 self._chrome(req, "admin"),
+                episode_id=episode_id,
                 goal=str(row[0]),
                 project_name=str(row[1]),
                 reports=reports,
+            ),
+        )
+
+    def _full_reports(self, c: Any, project_id: str, episode_id: str) -> list[tuple[int, str]]:
+        """Each recorded report as its run wrote it -- nothing withheld -- then what the record
+        says about its conclusions now. For oversight only: the caller has recorded the
+        look."""
+        view = load_episode_view(
+            c, project_id=project_id, episode_id=episode_id, verify=self._confirmation_verifier(c)
+        )
+        since = render_recorded_since(view.conclusions)
+        return [
+            (recorded.ordinal, render_markdown(recorded.report) + since)
+            for recorded in SqlResearchReportStore(c).for_episode(
+                project_id=project_id, episode_id=episode_id
+            )
+        ]
+
+    def _admin_export(
+        self, c: Any, req: _Req, oversight: Oversight, episode_id: str, ordinal: int
+    ) -> Response:
+        project_id = oversight.episode_project(episode_id)
+        if project_id is None:
+            return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
+        oversight.record(project_id, f"{EPISODE_REPORTS}{episode_id}")
+        for number, text in self._full_reports(c, project_id, episode_id):
+            if number == ordinal:
+                name = re.sub(r"[^A-Za-z0-9._-]+", "-", episode_id).strip("-")
+                return Response(
+                    "200 OK",
+                    text.encode("utf-8"),
+                    content_type="text/markdown; charset=utf-8",
+                    headers=(
+                        ("Content-Disposition", f'inline; filename="{name}-run-{ordinal}.md"'),
+                    ),
+                )
+        return self._message(
+            req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_recorded_run")
+        )
+
+    def _admin_material(
+        self, c: Any, req: _Req, oversight: Oversight, project_id: str, artifact_id: str
+    ) -> Response:
+        material = oversight.material(project_id, artifact_id)
+        if material is None:
+            return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
+        name = c.execute(
+            "SELECT name FROM projects WHERE project_id = %s", (project_id,)
+        ).fetchone()
+        try:
+            text = self._artifacts.open(material.content_hash).decode("utf-8", errors="replace")
+        except ArtifactStoreError:
+            text = None
+        return Response(
+            "200 OK",
+            admin_pages.material_page(
+                self._chrome(req, "admin"),
+                project_id=project_id,
+                project_name=str(name[0]),
+                material=material,
+                text=text,
             ),
         )
 

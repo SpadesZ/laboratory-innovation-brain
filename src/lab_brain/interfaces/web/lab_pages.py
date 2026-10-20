@@ -11,7 +11,12 @@ import datetime as dt
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from lab_brain.accounts.oversight import EPISODE_REPORTS, MEMBER_RESEARCH, PROJECT_SUMMARY
+from lab_brain.accounts.oversight import (
+    EPISODE_REPORTS,
+    MATERIAL,
+    MEMBER_RESEARCH,
+    PROJECT_SUMMARY,
+)
 from lab_brain.accounts.projects import LABELS, OWNER, Membership
 from lab_brain.interfaces.web.i18n import Messages
 from lab_brain.interfaces.web.pages import Chrome, Html, cat, h, page, when
@@ -25,9 +30,9 @@ Messages.extend(
             "你擁有或被加入的研究專案。只有研究專案成員看得到其中的研究。",
         ),
         "proj.none": (
-            "You are not in any research project yet. Create one, or ask a project's owner to add "
-            "you.",
-            "你尚未參與任何研究專案。可以自行建立，或請研究專案擁有者把你加入。",
+            "You are not in any research project yet. Create one, or ask a laboratory "
+            "administrator to add you to one.",
+            "你尚未參與任何研究專案。可以自行建立，或請實驗室管理員把你加入。",
         ),
         "proj.role.OWNER": ("Owner", "擁有者"),
         "proj.role.MEMBER": ("Member", "成員"),
@@ -61,8 +66,12 @@ Messages.extend(
         "proj.add": ("Add a member", "加入成員"),
         "proj.add.email": ("Their account's email address", "對方帳號的電子郵件"),
         "proj.add.owner": (
-            "Also an owner (may add, change and remove members)",
-            "同時設為擁有者（可加入、變更、移除成員）",
+            "Owner: declares which AI models may read this project's evidence",
+            "擁有者：決定哪些 AI 模型可讀取此研究專案的證據",
+        ),
+        "proj.members.managed": (
+            "A laboratory administrator adds, changes and removes members.",
+            "成員由實驗室管理員加入、變更與移除。",
         ),
         "proj.change": ("Change access", "變更權限"),
         "proj.change.for": ("Change access for {name}", "變更 {name} 的權限"),
@@ -97,6 +106,10 @@ Messages.extend(
             "{who} read the reports of “{question}”",
             "{who} 閱讀了「{question}」的研究報告",
         ),
+        "proj.oversight.material": (
+            "{who} read the file “{name}”",
+            "{who} 閱讀了檔案「{name}」",
+        ),
         "proj.oversight.member": (
             "{who} viewed a member's list of research",
             "{who} 檢視了某位成員的研究清單",
@@ -106,12 +119,8 @@ Messages.extend(
             "找不到此研究專案，或你不是其成員。",
         ),
         "proj.refused.not_permitted": (
-            "Only an owner of this project or a laboratory administrator can do that.",
-            "只有此研究專案的擁有者或實驗室管理員可以這樣做。",
-        ),
-        "proj.refused.clearance_exceeds_own": (
-            "You can grant at most your own access in this project.",
-            "你能授予的分級不超過你在此研究專案的權限。",
+            "Only a laboratory administrator changes a research project's members.",
+            "只有實驗室管理員可以變更研究專案的成員。",
         ),
         "proj.refused.clearance_required": (
             "Choose at least one classification level.",
@@ -135,8 +144,8 @@ Messages.extend(
             "對方已是此研究專案成員。若要變更角色或分級，請使用該列的「變更權限」。",
         ),
         "proj.refused.own_membership": (
-            "Your own role and access are changed by another owner or a laboratory administrator.",
-            "你自己的角色與權限，需由其他擁有者或實驗室管理員變更。",
+            "Your own membership is changed by another laboratory administrator.",
+            "你自己的成員資格，需由另一位實驗室管理員變更。",
         ),
         "proj.refused.invalid_clearance": ("Unknown classification level.", "未知的分級。"),
         "inbox.title": ("Decisions waiting for you", "等你決定的事項"),
@@ -189,10 +198,10 @@ Messages.extend(
         "inbox.hidden": (
             "{n} question(s) in your research projects concern research classified above what "
             "you may read, or research whose classification was never recorded; they are not "
-            "shown. To see them, ask the project's owner to extend what you may read.",
+            "shown. To see them, ask a laboratory administrator to extend what you may read.",
             "你參與的研究專案中有 {n} 個問題涉及超出你可讀取分級的研究，"
             "或其分級從未記錄，因此未顯示。"
-            "若需查看，請研究專案擁有者擴充你的可讀取分級。",
+            "若需查看，請實驗室管理員擴充你的可讀取分級。",
         ),
         "inbox.not_enrolled": (
             "{n} question(s) wait for an enrolled reviewer in your research projects. You are not "
@@ -408,7 +417,7 @@ def members_section(
             m("proj.add"),
         )
         if manage
-        else Html("")
+        else h('<p class="muted">{}</p>', m("proj.members.managed"))
     )
     return h("<h2>{}</h2>{}{}", m("proj.members"), table, add)
 
@@ -432,6 +441,8 @@ def oversight_line(m: Messages, who: str, kind: str, question: str) -> str:
         return m("proj.oversight.summary", who=who)
     if kind == EPISODE_REPORTS:
         return m("proj.oversight.reports", who=who, question=question or "-")
+    if kind == MATERIAL:
+        return m("proj.oversight.material", who=who, name=question or "-")
     assert kind == MEMBER_RESEARCH
     return m("proj.oversight.member", who=who)
 

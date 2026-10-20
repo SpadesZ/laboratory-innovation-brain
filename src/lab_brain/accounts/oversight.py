@@ -23,6 +23,7 @@ from lab_brain.accounts.projects import LabProjects, Membership
 from lab_brain.accounts.service import Account, AccountRefused, AccountService
 from lab_brain.core.models.base import utc_now
 from lab_brain.core.models.identifiers import new_id
+from lab_brain.research.data import upload_name
 
 
 @dataclass(frozen=True)
@@ -64,12 +65,25 @@ class EpisodeSummary:
 
 @dataclass(frozen=True)
 class DataSummary:
-    item_id: str
+    artifact_id: str
     file_name: str
+    #: The trust class declared for it as research data, or "" (e.g. a research run's output).
     kind: str
     label: str
+    #: Who brought it into the project, or "" for the system (a run's output).
     submitted_by: str
     submitted_at: dt.datetime
+    #: What made it: UPLOAD, RUN_OUTPUT, DERIVED, ...
+    origin: str
+
+
+@dataclass(frozen=True)
+class Material:
+    """A research file as its project holds it: what it is, and where its bytes are."""
+
+    summary: DataSummary
+    content_hash: str
+    media_type: str
 
 
 @dataclass(frozen=True)
@@ -84,7 +98,8 @@ class ProjectDetail:
 PROJECT_SUMMARY = "project-summary"
 EPISODE_REPORTS = "episode-reports:"
 MEMBER_RESEARCH = "member-research:"
-_SUBJECTS = (PROJECT_SUMMARY, EPISODE_REPORTS, MEMBER_RESEARCH)
+MATERIAL = "material:"
+_SUBJECTS = (PROJECT_SUMMARY, EPISODE_REPORTS, MEMBER_RESEARCH, MATERIAL)
 
 _EPISODES = (
     "SELECT e.episode_id, e.project_id, e.goal, e.state, e.outcome_status,"
@@ -100,6 +115,16 @@ _EPISODES = (
     " JOIN actors x ON x.actor_id = r.actor_id"
     " LEFT JOIN accounts a ON a.actor_id = r.actor_id"
 )
+
+
+def _material(r: Any) -> Material:
+    return Material(
+        DataSummary(
+            str(r[0]), upload_name(str(r[1])), str(r[2]), str(r[3]), str(r[4]), r[5], str(r[6])
+        ),
+        str(r[7]),
+        str(r[8]),
+    )
 
 
 def _episode(r: Any) -> EpisodeSummary:
@@ -184,14 +209,25 @@ class Oversight:
                 _EPISODES + " WHERE e.project_id = %s ORDER BY e.start_time DESC", (project_id,)
             ).fetchall()
         ]
+        # Every artifact the project holds -- an upload, a research run's input or output, a
+        # derivation -- not only the files declared as research data.
         data = [
-            DataSummary(str(r[0]), str(r[1]), str(r[2]), str(r[3]), str(r[4]), r[5])
+            _material(r).summary
             for r in self._c.execute(
-                "SELECT d.item_id, d.file_name, d.declared_kind, d.declared_label,"
-                " coalesce(a.display_name, x.display_name, d.actor_id), d.declared_at"
-                " FROM research_data_declarations d JOIN actors x ON x.actor_id = d.actor_id"
-                " LEFT JOIN accounts a ON a.actor_id = d.actor_id"
-                " WHERE d.project_id = %s ORDER BY d.declared_at DESC, d.item_id",
+                "SELECT o.artifact_id,"
+                " coalesce((SELECT i.display_name FROM ingestion_items i"
+                "   WHERE i.raw_artifact_id = o.artifact_id AND i.project_id = o.project_id"
+                "   ORDER BY i.submitted_at LIMIT 1), f.uri),"
+                " coalesce((SELECT d.declared_kind FROM research_data_declarations d"
+                "   JOIN ingestion_items i ON i.item_id = d.item_id"
+                "   WHERE i.raw_artifact_id = o.artifact_id AND d.project_id = o.project_id"
+                "   LIMIT 1), ''),"
+                " o.sensitivity_label, coalesce(a.display_name, x.display_name, ''),"
+                " o.ingested_at, f.source_origin, f.content_hash, f.media_type"
+                " FROM artifact_occurrences o JOIN artifacts f ON f.artifact_id = o.artifact_id"
+                " LEFT JOIN actors x ON x.actor_id = o.ingested_by_actor_id"
+                " LEFT JOIN accounts a ON a.actor_id = o.ingested_by_actor_id"
+                " WHERE o.project_id = %s ORDER BY o.ingested_at DESC, o.artifact_id",
                 (project_id,),
             ).fetchall()
         ]
@@ -223,6 +259,31 @@ class Oversight:
             self.record(listed, f"{MEMBER_RESEARCH}{account_id}")
         return account, projects, episodes
 
+    def material(self, project_id: str, artifact_id: str) -> Material | None:
+        """One artifact of a project, whatever its classification -- recorded, and shown to the
+        project's members, before anything of it is returned."""
+        row = self._c.execute(
+            "SELECT o.artifact_id,"
+            " coalesce((SELECT i.display_name FROM ingestion_items i"
+            "   WHERE i.raw_artifact_id = o.artifact_id AND i.project_id = o.project_id"
+            "   ORDER BY i.submitted_at LIMIT 1), f.uri),"
+            " coalesce((SELECT d.declared_kind FROM research_data_declarations d"
+            "   JOIN ingestion_items i ON i.item_id = d.item_id"
+            "   WHERE i.raw_artifact_id = o.artifact_id AND d.project_id = o.project_id"
+            "   LIMIT 1), ''),"
+            " o.sensitivity_label, coalesce(a.display_name, x.display_name, ''),"
+            " o.ingested_at, f.source_origin, f.content_hash, f.media_type"
+            " FROM artifact_occurrences o JOIN artifacts f ON f.artifact_id = o.artifact_id"
+            " LEFT JOIN actors x ON x.actor_id = o.ingested_by_actor_id"
+            " LEFT JOIN accounts a ON a.actor_id = o.ingested_by_actor_id"
+            " WHERE o.project_id = %s AND o.artifact_id = %s",
+            (project_id, artifact_id),
+        ).fetchone()
+        if row is None:
+            return None
+        self.record(project_id, f"{MATERIAL}{artifact_id}")
+        return _material(row)
+
     def episode_project(self, episode_id: str) -> str | None:
         row = self._c.execute(
             "SELECT project_id FROM research_episodes WHERE episode_id = %s", (episode_id,)
@@ -246,18 +307,27 @@ class Oversight:
 
 
 def access_log(connection: Any, project_id: str) -> list[tuple[str, str, str, dt.datetime]]:
-    """The administrator accesses to a project, for its members: (who, what -- PROJECT_SUMMARY,
-    EPISODE_REPORTS or MEMBER_RESEARCH --, the research question it concerns or "", when)."""
+    """The administrator accesses to a project, for its members, newest 50: (who, what --
+    PROJECT_SUMMARY, EPISODE_REPORTS, MEMBER_RESEARCH or MATERIAL --, the research question or
+    the file it concerns, or "", when). Every access stays in `admin_access_log`."""
     rows = connection.execute(
         "SELECT coalesce(a.display_name, l.admin_actor_id), l.subject,"
-        " coalesce(e.goal, ''), l.accessed_at"
+        " coalesce(e.goal, (SELECT i.display_name FROM ingestion_items i"
+        "   WHERE i.raw_artifact_id = f.artifact_id AND i.project_id = l.project_id"
+        "   ORDER BY i.submitted_at LIMIT 1), f.uri, ''), l.accessed_at"
         " FROM admin_access_log l LEFT JOIN accounts a ON a.actor_id = l.admin_actor_id"
         " LEFT JOIN research_episodes e ON l.subject = %s || e.episode_id"
+        " LEFT JOIN artifacts f ON l.subject = %s || f.artifact_id"
         " WHERE l.project_id = %s ORDER BY l.accessed_at DESC LIMIT 50",
-        (EPISODE_REPORTS, project_id),
+        (EPISODE_REPORTS, MATERIAL, project_id),
     ).fetchall()
     return [
-        (str(r[0]), next(k for k in _SUBJECTS if str(r[1]).startswith(k)), str(r[2]), r[3])
+        (
+            str(r[0]),
+            next(k for k in _SUBJECTS if str(r[1]).startswith(k)),
+            upload_name(str(r[2])),
+            r[3],
+        )
         for r in rows
         if any(str(r[1]).startswith(k) for k in _SUBJECTS)
     ]
@@ -265,10 +335,12 @@ def access_log(connection: Any, project_id: str) -> list[tuple[str, str, str, dt
 
 __all__ = [
     "EPISODE_REPORTS",
+    "MATERIAL",
     "MEMBER_RESEARCH",
     "PROJECT_SUMMARY",
     "DataSummary",
     "EpisodeSummary",
+    "Material",
     "MemberSummary",
     "Oversight",
     "ProjectDetail",

@@ -68,10 +68,12 @@ class Lab:
         self, email: str, name: str, *, admin: Account, verify: bool = True, approve: bool = True
     ) -> Account:
         accounts = self.service()
-        accounts.register(email=email, display_name=name, password=PASSWORD)
+        accounts.register(email=email)
         account = next(a for a in accounts.all() if a.email == email)
         if verify:
-            account = accounts.verify_email(self.link("/verify"))
+            account = accounts.verify_email(
+                self.link("/verify"), display_name=name, password=PASSWORD
+            )
         if verify and approve:
             account = accounts.approve(account.account_id, by=admin)
         return account
