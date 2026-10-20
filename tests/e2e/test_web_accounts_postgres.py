@@ -217,12 +217,24 @@ def test_projects_are_their_members_and_oversight_is_shown_to_them(lab, tmp_path
     _sign_in(bob, "bob@gmail.example")
     _sign_in(admin, "owner@lab.example")
     page = ada.get("/projects")
-    created = ada.post(
+    assert 'action="/projects"' not in page.text, "a member is offered no project to open"
+    by_member = ada.post(
         "/projects",
-        # A forged owner in the form changes nothing: the owner is the session's person.
         {
             "csrf": _csrf(page),
             "name": "Ring drift",
+            "owner": "ada@uni.example.edu",
+            "clearance": ["RESTRICTED_NDA"],
+        },
+    )
+    assert by_member.status == 409 and "Only a laboratory administrator opens" in by_member.text
+    created = admin.post(
+        "/projects",
+        # A forged actor in the form changes nothing: the owner is the address named.
+        {
+            "csrf": _csrf(admin.get("/projects")),
+            "name": "Ring drift",
+            "owner": "ada@uni.example.edu",
             "clearance": ["INTERNAL", "PUBLIC"],
             "actor": people["bob"].actor_id,
             "actor_id": people["bob"].actor_id,
@@ -435,11 +447,12 @@ def test_registration_and_reset_take_as_long_for_a_known_address_as_for_any(lab,
     for path, fields in (
         ("/register", {"name": "X", "password": PASSWORD, "repeat": PASSWORD}),
         ("/password/forgot", {}),
+        ("/login", {"password": "a wrong password!", "next": "/"}),  # audit A13
     ):
         for email in ("ada@uni.example.edu", "nobody@new.example"):
             started = time.monotonic()
             reply = browser.post(path, {"csrf": _csrf(page), "email": email, **fields})
-            assert reply.status == 200, (path, email)
+            assert reply.status in (200, 401), (path, email)
             assert time.monotonic() - started >= 0.4, (path, email)
 
 
@@ -447,9 +460,14 @@ def test_an_administrator_manages_membership_from_oversight_and_nobody_else(lab,
     ada, admin = _browser(tmp_path, lab.mail), _browser(tmp_path, lab.mail)
     _sign_in(ada, "ada@uni.example.edu")
     _sign_in(admin, "owner@lab.example")
-    created = ada.post(
+    created = admin.post(
         "/projects",
-        {"csrf": _csrf(ada.get("/projects")), "name": "Ring", "clearance": ["INTERNAL", "PUBLIC"]},
+        {
+            "csrf": _csrf(admin.get("/projects")),
+            "name": "Ring",
+            "owner": "ada@uni.example.edu",
+            "clearance": ["INTERNAL", "PUBLIC"],
+        },
     )
     project_id = unquote(created.location.split("/projects/", 1)[1].split("?", 1)[0])
     oversight = admin.get(f"/admin/projects/{project_id}")
@@ -516,11 +534,12 @@ def test_an_administrator_reads_everything_each_read_recorded_and_writes_nothing
     _sign_in(ada, "ada@uni.example.edu")
     _sign_in(bob, "bob@gmail.example")
     _sign_in(admin, "owner@lab.example")
-    created = ada.post(
+    created = admin.post(
         "/projects",
         {
-            "csrf": _csrf(ada.get("/projects")),
+            "csrf": _csrf(admin.get("/projects")),
             "name": "Rs anomaly",
+            "owner": "ada@uni.example.edu",
             "clearance": ["INTERNAL", "PUBLIC"],
         },
     )

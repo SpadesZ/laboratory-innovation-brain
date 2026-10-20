@@ -30,9 +30,9 @@ Messages.extend(
             "你擁有或被加入的研究專案。只有研究專案成員看得到其中的研究。",
         ),
         "proj.none": (
-            "You are not in any research project yet. Create one, or ask a laboratory "
-            "administrator to add you to one.",
-            "你尚未參與任何研究專案。可以自行建立，或請實驗室管理員把你加入。",
+            "You are not in any research project yet. Ask a laboratory administrator to open "
+            "one for you or to add you to one.",
+            "你尚未參與任何研究專案。請實驗室管理員為你開啟研究專案，或把你加入。",
         ),
         "proj.role.OWNER": ("Owner", "擁有者"),
         "proj.role.MEMBER": ("Member", "成員"),
@@ -40,13 +40,22 @@ Messages.extend(
         "proj.create": ("Create a research project", "建立研究專案"),
         "proj.name": ("Research project name", "研究專案名稱"),
         "proj.clearance": (
-            "Your access in this project — also the most you can give anyone in it",
-            "你在此研究專案的可讀取分級（也是你能授予他人的上限）",
+            "What the owner may read in this project",
+            "擁有者在此研究專案的可讀取分級",
         ),
         "proj.clearance.hint": (
-            "Tick every level this project's material may need. You cannot raise your own access "
-            "later yourself; a laboratory administrator can.",
-            "請勾選此研究專案資料可能需要的所有分級。之後你無法自行提高自己的權限；實驗室管理員可以。",
+            "Tick every level this project's material may need. Others join, and access changes, "
+            "only by a laboratory administrator.",
+            "請勾選此研究專案資料可能需要的所有分級。其他人的加入與權限變更，只能由實驗室管理員進行。",
+        ),
+        "proj.owner": (
+            "The owner's email address (not your own)",
+            "擁有者的電子郵件（不能是你自己）",
+        ),
+        "proj.opened_by_admin": (
+            "A laboratory administrator opens new research projects and names their owner. Ask "
+            "one to open a project for you.",
+            "新的研究專案由實驗室管理員開啟並指定擁有者。如需新專案，請洽實驗室管理員。",
         ),
         "proj.private": (
             "A new project is Private: its evidence is processed only on the laboratory's Lab "
@@ -110,6 +119,14 @@ Messages.extend(
             "{who} read the file “{name}”",
             "{who} 閱讀了檔案「{name}」",
         ),
+        "proj.oversight.reports.above": (
+            "{who} read the reports of a research question classified above what you may read",
+            "{who} 閱讀了某個超出你可讀取分級之研究問題的報告",
+        ),
+        "proj.oversight.material.above": (
+            "{who} read a file classified above what you may read",
+            "{who} 閱讀了某個超出你可讀取分級的檔案",
+        ),
         "proj.oversight.material.unnamed": (
             "{who} read a file the research stored (an input or output of a run)",
             "{who} 閱讀了研究過程儲存的檔案（研究執行的輸入或產出）",
@@ -125,6 +142,10 @@ Messages.extend(
         "proj.refused.not_permitted": (
             "Only a laboratory administrator changes a research project's members.",
             "只有實驗室管理員可以變更研究專案的成員。",
+        ),
+        "proj.refused.admin_only": (
+            "Only a laboratory administrator opens research projects.",
+            "只有實驗室管理員可以開啟研究專案。",
         ),
         "proj.refused.clearance_required": (
             "Choose at least one classification level.",
@@ -306,16 +327,20 @@ def projects_page(
                 '<input type="hidden" name="csrf" value="{}">'
                 '<p><label>{}<br><input type="text" name="name" required maxlength="120">'
                 "</label></p>"
+                '<p><label>{}<br><input type="email" name="owner" required></label></p>'
                 '<fieldset><legend>{}</legend>{}<p class="muted">{}</p></fieldset>'
                 '<p class="muted">{}</p><p><button type="submit">{}</button></p></form>',
                 chrome.csrf,
                 m("proj.name"),
+                m("proj.owner"),
                 m("proj.clearance"),
                 clearance_boxes(m, hints=True),
                 m("proj.clearance.hint"),
                 m("proj.private"),
                 m("proj.create"),
-            ),
+            )
+            if chrome.admin
+            else h('<p class="muted">{}</p>', m("proj.opened_by_admin")),
         ]
     )
     return page(m("proj.title"), body, chrome=chrome)
@@ -438,13 +463,21 @@ class ProjectOverview:
     mine: Membership | None
     can_manage: bool
     #: (administrator, what they opened, the research question it concerns, when).
-    oversight: Sequence[tuple[str, str, str, dt.datetime]]
+    oversight: Sequence[tuple[str, str, str | None, dt.datetime]]
     actor_id: str = ""
 
 
-def oversight_line(m: Messages, who: str, kind: str, question: str) -> str:
+def oversight_line(m: Messages, who: str, kind: str, question: str | None) -> str:
+    """`question` None: classified above what the reader may read -- named only as that."""
     if kind == PROJECT_SUMMARY:
         return m("proj.oversight.summary", who=who)
+    if question is None:
+        return m(
+            "proj.oversight.reports.above"
+            if kind == EPISODE_REPORTS
+            else "proj.oversight.material.above",
+            who=who,
+        )
     if kind == EPISODE_REPORTS:
         return m("proj.oversight.reports", who=who, question=question or "-")
     if kind == MATERIAL:

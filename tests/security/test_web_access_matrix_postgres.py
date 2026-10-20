@@ -91,6 +91,14 @@ GETS: list[Entry] = [
 #: Refused writes: every person here must be refused, and nothing may change.
 POSTS: list[Entry] = [
     (
+        '"/projects"',
+        "POST",
+        "/projects",
+        {"name": "Forged project", "owner": "bob@gmail.example", "clearance": "RESTRICTED_NDA"},
+        {"outsider": 409, "member": 409, "owner": 409},
+        (),
+    ),
+    (
         '"/data"',
         "POST",
         "/data",
@@ -220,7 +228,6 @@ ELSEWHERE = {
     '"/locale"': "tests/e2e/test_web_accounts_postgres.py::test_the_language_switch_stays_on_this_workspace",
     '"/logout"': "tests/e2e/test_web_accounts_postgres.py::test_sign_out_suspension_and_reset_end_sessions",
     '"/account/password"': "tests/integration/test_accounts_postgres.py (lockout, sessions)",
-    '"/projects" POST': "tests/e2e/test_web_accounts_postgres.py::test_projects_are_their_members_and_oversight_is_shown_to_them",
     '"/login"': "test_signed_out_only_the_sign_in_pages_and_the_health_check_answer (below)",
     '"/register"': "test_signed_out_only_the_sign_in_pages_and_the_health_check_answer (below)",
     '"/verify"': "test_signed_out_only_the_sign_in_pages_and_the_health_check_answer (below)",
@@ -232,6 +239,7 @@ ELSEWHERE = {
 _WRITTEN = (
     "SELECT count(*) FROM research_runs",
     "SELECT count(*) FROM research_episodes",
+    "SELECT count(*) FROM projects",
     "SELECT count(*) FROM ingestion_items",
     "SELECT count(*) FROM artifact_occurrences",
     "SELECT count(*) FROM project_llm_egress_policies",
@@ -261,9 +269,13 @@ def world(db: Any, tmp_path: Path) -> World:
     cy = lab.member("cy@lab.example", "Cy", admin=admin)
     projects = LabProjects(db, now=lab.clock)
     name = "Matrix project"
-    project_id = projects.create(ada, name=name, clearance=["INTERNAL", "PUBLIC"])
+    project_id = projects.create(
+        admin, name=name, owner_account_id=ada.account_id, clearance=["INTERNAL", "PUBLIC"]
+    )
     projects.add_member(project_id, by=admin, member_account_id=cy.account_id, clearance=["PUBLIC"])
-    projects.create(bob, name="Bob's own", clearance=["INTERNAL"])
+    projects.create(
+        admin, name="Bob's own", owner_account_id=bob.account_id, clearance=["INTERNAL"]
+    )
     browsers = {person: _browser(tmp_path, lab.mail) for person in PEOPLE}
     for person, email in (
         ("outsider", "bob@gmail.example"),

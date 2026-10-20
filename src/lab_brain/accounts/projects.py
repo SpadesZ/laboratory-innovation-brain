@@ -15,9 +15,10 @@ changing it is its own, explicit action. A project keeps at least one active own
 grant, change and revocation is an account event naming who made it. Memberships are
 deactivated, never deleted.
 
-A MEMBER may open a new project for their own work: it is created PRIVATE, they are its owner
-with the clearance they choose for it, and it appears at once in the administrators' overview.
-Anyone else joins it only by an administrator.
+A NEW PROJECT IS AN ADMINISTRATOR'S DECISION TOO. An active administrator opens it -- PRIVATE --
+and names its first owner and their clearance; the owner is never the administrator who opens
+it. So nobody, by creating a project, grants themself a membership, a clearance or the egress
+authority (adversarial audit A6).
 """
 
 from __future__ import annotations
@@ -82,17 +83,23 @@ class LabProjects:
     def membership(self, project_id: str, actor_id: str) -> Membership | None:
         return next((m for m in self.memberships(project_id) if m.actor_id == actor_id), None)
 
-    def create(self, owner: Account, *, name: str, clearance: Sequence[str]) -> str:
-        """A new PRIVATE project, owned by `owner` with exactly this clearance in it."""
-        current = self._accounts.get(owner.account_id)
-        if current is None or not current.is_active:
-            raise AccountRefused("not_permitted", "only an active account creates projects")
+    def create(
+        self, by: Account, *, name: str, owner_account_id: str, clearance: Sequence[str]
+    ) -> str:
+        """A new PRIVATE project, opened by an active administrator for its first owner -- who
+        holds exactly this clearance in it, and is not the administrator."""
+        acting = self._accounts.get(by.account_id)
+        if acting is None or not acting.is_admin:
+            raise AccountRefused("admin_only", "only an administrator opens a project")
         title = " ".join(name.split())
         if not title or len(title) > 120:
             raise AccountRefused("invalid_project_name")
-        labels = self._labels(clearance)
-        if not labels:
-            raise AccountRefused("clearance_required")
+        labels = self._required(clearance)
+        owner = self._accounts.get(owner_account_id)
+        if owner is None or not owner.is_active:
+            raise AccountRefused("not_found", "only an active account owns a project")
+        if owner.actor_id == acting.actor_id:
+            raise AccountRefused("own_membership", "nobody grants themself membership")
         project_id = new_id("project")
         now = self._now()
         with self._c.transaction():
@@ -101,12 +108,12 @@ class LabProjects:
                 " VALUES (%s, %s, 'PRIVATE', %s)",
                 (project_id, title, now),
             )
-            self._grant(project_id, current.actor_id, OWNER, labels, (LLM_EGRESS_SCOPE,), current)
+            self._grant(project_id, owner.actor_id, OWNER, labels, (LLM_EGRESS_SCOPE,), acting)
             self._accounts.record_event(
-                current.account_id,
+                owner.account_id,
                 "PROJECT_CREATED",
-                current.actor_id,
-                {"project_id": project_id},
+                acting.actor_id,
+                {"project_id": project_id, "clearance": list(labels)},
             )
         return project_id
 
@@ -190,6 +197,8 @@ class LabProjects:
 
     def remove_member(self, project_id: str, *, by: Account, actor_id: str) -> None:
         acting = self._authority(project_id, by)
+        if actor_id == acting.actor_id:
+            raise AccountRefused("own_membership", "nobody changes their own membership")
         target = self.membership(project_id, actor_id)
         if target is None or not target.active:
             raise AccountRefused("not_found")

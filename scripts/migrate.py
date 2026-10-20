@@ -302,6 +302,8 @@ APPLY_ORDER: tuple[str, ...] = (
     "012u_accounts.sql",
     # Verify first: a password only on an account whose address is confirmed. After 012u.
     "012v_password_after_verification.sql",
+    # The last active administrator under concurrency; a session's bounds for every writer.
+    "012w_account_races_and_sessions.sql",
 )
 
 _BOOTSTRAP = """
