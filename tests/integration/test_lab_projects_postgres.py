@@ -23,11 +23,13 @@ from lab_brain.accounts.oversight import (
     Oversight,
     access_log,
 )
-from lab_brain.accounts.projects import LabProjects
+from lab_brain.accounts.projects import LABELS, LabProjects
 from lab_brain.accounts.service import AccountRefused
 from tests.account_fixtures import Lab
 
 pytestmark = pytest.mark.postgres
+
+ALL_LEVELS = frozenset(LABELS)
 
 
 @pytest.fixture
@@ -41,12 +43,34 @@ def _code(call: Any) -> str:
     return refused.value.code
 
 
-def test_a_member_owns_the_project_they_create(lab):
+def test_an_administrator_opens_a_project_for_its_owner_and_nobody_for_themself(lab):
+    """Adversarial audit A6: creating a project granted its creator OWNER, any clearance and the
+    egress authority -- a self-grant. Now an active administrator opens it, PRIVATE, for an owner
+    who is not themself; a member opens none."""
     admin = lab.admin()
     ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
     projects = LabProjects(lab.connection, now=lab.clock)
+    assert (
+        _code(
+            lambda: projects.create(
+                ada, name="Mine", owner_account_id=ada.account_id, clearance=["RESTRICTED_NDA"]
+            )
+        )
+        == "admin_only"
+    ), "a member opens no project, so grants themself nothing"
+    assert (
+        _code(
+            lambda: projects.create(
+                admin, name="Mine", owner_account_id=admin.account_id, clearance=["INTERNAL"]
+            )
+        )
+        == "own_membership"
+    ), "nor does an administrator, by opening one"
     project_id = projects.create(
-        ada, name="  Ring  resonator   drift ", clearance=["INTERNAL", "PUBLIC"]
+        admin,
+        name="  Ring  resonator   drift ",
+        owner_account_id=ada.account_id,
+        clearance=["INTERNAL", "PUBLIC"],
     )
     row = lab.connection.execute(
         "SELECT name, privacy_mode FROM projects WHERE project_id = %s", (project_id,)
@@ -60,22 +84,32 @@ def test_a_member_owns_the_project_they_create(lab):
         ("LLM_EGRESS",),
         True,
     )
-    assert (
-        _code(lambda: projects.create(ada, name=" ", clearance=["INTERNAL"]))
-        == "invalid_project_name"
-    )
-    assert _code(lambda: projects.create(ada, name="x", clearance=[])) == "clearance_required"
-    assert (
-        _code(lambda: projects.create(ada, name="x", clearance=["TOP_SECRET"]))
-        == "invalid_clearance"
-    )
+    granted_by = lab.connection.execute(
+        "SELECT granted_by_actor_id FROM project_memberships WHERE project_id = %s", (project_id,)
+    ).fetchone()
+    assert granted_by == (admin.actor_id,), "the grant is the administrator's, not a self-grant"
+    for name, clearance, code in (
+        (" ", ["INTERNAL"], "invalid_project_name"),
+        ("x", [], "clearance_required"),
+        ("x", ["TOP_SECRET"], "invalid_clearance"),
+    ):
+        assert (
+            _code(
+                lambda name=name, clearance=clearance: projects.create(
+                    admin, name=name, owner_account_id=ada.account_id, clearance=clearance
+                )
+            )
+            == code
+        )
 
 
 def test_an_administrator_oversees_every_project_and_each_look_is_recorded(lab):
     admin = lab.admin()
     ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
     projects = LabProjects(lab.connection, now=lab.clock)
-    private = projects.create(ada, name="Private work", clearance=["CONFIDENTIAL_LAB"])
+    private = projects.create(
+        admin, name="Private work", owner_account_id=ada.account_id, clearance=["CONFIDENTIAL_LAB"]
+    )
     assert _code(lambda: Oversight(lab.connection, ada, now=lab.clock)) == "not_permitted"
     oversight = Oversight(lab.connection, admin, now=lab.clock)
     listed = {p.project_id: p for p in oversight.projects()}
@@ -85,7 +119,7 @@ def test_an_administrator_oversees_every_project_and_each_look_is_recorded(lab):
     detail = oversight.project(private)
     assert detail is not None and [m.actor_id for m in detail.memberships] == [ada.actor_id]
     assert oversight.project("prj:nowhere") is None
-    looked = access_log(lab.connection, private)
+    looked = access_log(lab.connection, private, readable=ALL_LEVELS)
     assert [(who, kind) for who, kind, _q, _at in looked] == [("Lab Owner", PROJECT_SUMMARY)]
     with pytest.raises(psycopg.errors.RaiseException, match="not an active administrator"):
         lab.connection.execute(
@@ -102,7 +136,9 @@ def test_nobody_grants_themself_membership_or_changes_their_own_access(lab):
     ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
     bob = lab.member("bob@gmail.example", "Bob", admin=admin)
     projects = LabProjects(lab.connection, now=lab.clock)
-    project_id = projects.create(ada, name="Ring", clearance=["INTERNAL"])
+    project_id = projects.create(
+        admin, name="Ring", owner_account_id=ada.account_id, clearance=["INTERNAL"]
+    )
     assert (
         _code(
             lambda: projects.add_member(
@@ -115,16 +151,23 @@ def test_nobody_grants_themself_membership_or_changes_their_own_access(lab):
         )
         == "own_membership"
     ), "an administrator reads a project through recorded oversight, not by joining it"
-    own = projects.create(admin, name="The administrator's own", clearance=["INTERNAL"])
-    projects.add_member(own, by=admin, member_account_id=bob.account_id, clearance=["INTERNAL"])
-    assert (
-        _code(
-            lambda: projects.change_member(
-                own, by=admin, actor_id=admin.actor_id, clearance=["RESTRICTED_NDA"], owner=True
-            )
-        )
-        == "own_membership"
-    ), "not in a project they created either"
+    # An administrator who is an owner -- another administrator opened the project for them --
+    # changes and removes nothing of their own membership there either.
+    second = lab.service().set_role(bob.account_id, "ADMIN", by=admin)
+    own = projects.create(
+        second,
+        name="The administrator's own",
+        owner_account_id=admin.account_id,
+        clearance=["INTERNAL"],
+    )
+    for call in (
+        lambda: projects.change_member(
+            own, by=admin, actor_id=admin.actor_id, clearance=["RESTRICTED_NDA"], owner=True
+        ),
+        lambda: projects.remove_member(own, by=admin, actor_id=admin.actor_id),
+    ):
+        assert _code(call) == "own_membership", "audit A7: removing it is a change too"
+    lab.service().set_role(bob.account_id, "MEMBER", by=admin)
     projects.add_member(
         project_id, by=admin, member_account_id=bob.account_id, clearance=["PUBLIC"]
     )
@@ -147,18 +190,27 @@ def test_each_administrator_look_is_recorded_once_an_hour_where_its_members_see_
     admin = lab.admin()
     ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
     projects = LabProjects(lab.connection, now=lab.clock)
-    ring = projects.create(ada, name="Ring", clearance=["INTERNAL"])
-    laser = projects.create(ada, name="Laser", clearance=["INTERNAL"])
+    ring = projects.create(
+        admin, name="Ring", owner_account_id=ada.account_id, clearance=["INTERNAL"]
+    )
+    laser = projects.create(
+        admin, name="Laser", owner_account_id=ada.account_id, clearance=["INTERNAL"]
+    )
     oversight = Oversight(lab.connection, admin, now=lab.clock)
     oversight.project(ring)
     oversight.project(ring)
-    assert len(access_log(lab.connection, ring)) == 1, "a refresh is not another look"
+    assert len(access_log(lab.connection, ring, readable=ALL_LEVELS)) == 1, (
+        "a refresh is not another look"
+    )
     lab.clock.advance(hours=1, minutes=1)
     oversight.project(ring)
-    assert len(access_log(lab.connection, ring)) == 2
+    assert len(access_log(lab.connection, ring, readable=ALL_LEVELS)) == 2
     oversight.member(ada.account_id)
     for project_id in (ring, laser):
-        kinds = [kind for _w, kind, _q, _at in access_log(lab.connection, project_id)]
+        kinds = [
+            kind
+            for _w, kind, _q, _at in access_log(lab.connection, project_id, readable=ALL_LEVELS)
+        ]
         assert MEMBER_RESEARCH in kinds, (
             "viewing a person's research shows in each of their projects"
         )
@@ -172,7 +224,9 @@ def test_only_an_administrator_changes_membership(lab):
     bob = lab.member("bob@gmail.example", "Bob", admin=admin)
     cy = lab.member("cy@lab.example", "Cy", admin=admin)
     projects = LabProjects(lab.connection, now=lab.clock)
-    project_id = projects.create(ada, name="Ring", clearance=["INTERNAL"])
+    project_id = projects.create(
+        admin, name="Ring", owner_account_id=ada.account_id, clearance=["INTERNAL"]
+    )
     for by in (ada, bob):
         assert (
             _code(
@@ -232,7 +286,9 @@ def test_an_administrator_changes_access_and_a_project_keeps_an_owner(lab):
     ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
     bob = lab.member("bob@gmail.example", "Bob", admin=admin)
     projects = LabProjects(lab.connection, now=lab.clock)
-    project_id = projects.create(ada, name="Ring", clearance=["INTERNAL", "PUBLIC"])
+    project_id = projects.create(
+        admin, name="Ring", owner_account_id=ada.account_id, clearance=["INTERNAL", "PUBLIC"]
+    )
     projects.add_member(
         project_id, by=admin, member_account_id=bob.account_id, clearance=["PUBLIC"]
     )

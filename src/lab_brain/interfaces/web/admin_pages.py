@@ -53,9 +53,11 @@ Messages.extend(
             "已註冊、尚未確認電子郵件（{n}）",
         ),
         "admin.unconfirmed.lead": (
-            "They cannot be approved until they open the link sent to their address. Decline a "
-            "registration you do not recognise.",
-            "對方須先開啟寄到信箱的連結才能核准。若不認得此註冊，可以婉拒。",
+            "They cannot be approved until they open the link sent to their address. An "
+            "unconfirmed registration holds nothing -- no name, no password -- and its link "
+            "expires after 48 hours; nothing needs to be done about one you do not recognise.",
+            "對方須先開啟寄到信箱的連結才能核准。未確認的註冊沒有姓名也沒有密碼，"
+            "連結 48 小時後失效；不認得的註冊不需要處理。",
         ),
         "admin.approve": ("Approve", "核准"),
         "admin.reject": ("Decline", "婉拒"),
@@ -242,12 +244,10 @@ def dashboard_page(
     confirmed = [a for a in pending if a.email_verified_at is not None]
     unconfirmed = [a for a in pending if a.email_verified_at is None]
 
-    def decide(a: Account, approve: bool) -> Html:
+    def decide(a: Account) -> Html:
         return cat(
             [
-                _post(f"/admin/accounts/{a.account_id}/approve", csrf, m("admin.approve"))
-                if approve
-                else Html(""),
+                _post(f"/admin/accounts/{a.account_id}/approve", csrf, m("admin.approve")),
                 _post(
                     f"/admin/accounts/{a.account_id}/reject",
                     csrf,
@@ -263,10 +263,7 @@ def dashboard_page(
                 h('<p class="muted">{}</p>', m("admin.pending.lead")),
                 _table(
                     [m("admin.name"), m("admin.email"), m("admin.since"), ""],
-                    [
-                        (a.display_name, a.email, when(a.created_at), decide(a, True))
-                        for a in confirmed
-                    ],
+                    [(a.display_name, a.email, when(a.created_at), decide(a)) for a in confirmed],
                 ),
             ]
         )
@@ -279,11 +276,8 @@ def dashboard_page(
             m("admin.unconfirmed", n=len(unconfirmed)),
             m("admin.unconfirmed.lead"),
             _table(
-                [m("admin.name"), m("admin.email"), m("admin.since"), ""],
-                [
-                    (a.display_name, a.email, when(a.created_at), decide(a, False))
-                    for a in unconfirmed
-                ],
+                [m("admin.email"), m("admin.since")],
+                [(a.email, when(a.created_at)) for a in unconfirmed],
             ),
         )
         if unconfirmed

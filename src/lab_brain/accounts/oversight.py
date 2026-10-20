@@ -100,6 +100,7 @@ PROJECT_SUMMARY = "project-summary"
 EPISODE_REPORTS = "episode-reports:"
 MEMBER_RESEARCH = "member-research:"
 MATERIAL = "material:"
+LABORATORY_OVERVIEW = "laboratory-overview"
 _SUBJECTS = (PROJECT_SUMMARY, EPISODE_REPORTS, MEMBER_RESEARCH, MATERIAL)
 
 _EPISODES = (
@@ -179,6 +180,12 @@ class Oversight:
                 MemberSummary(account, int(row[0]), int(row[1]), int(activity[0] or 0), activity[1])
             )
         return out
+
+    def overview(self) -> tuple[list[MemberSummary], list[ProjectSummary]]:
+        """Everyone and every project, as the laboratory overview lists them -- recorded, once
+        an hour, laboratory-wide (no project's members are shown a look at the overview)."""
+        self.record(None, LABORATORY_OVERVIEW)
+        return self.members(), self.projects()
 
     def projects(self) -> list[ProjectSummary]:
         rows = self._c.execute(
@@ -320,31 +327,46 @@ class Oversight:
         )
 
 
-def access_log(connection: Any, project_id: str) -> list[tuple[str, str, str, dt.datetime]]:
-    """The administrator accesses to a project, for its members, newest 50: (who, what --
-    PROJECT_SUMMARY, EPISODE_REPORTS, MEMBER_RESEARCH or MATERIAL --, the research question or
-    the file it concerns, or "", when). Every access stays in `admin_access_log`."""
+#: What an unrecorded classification is treated as: the strictest (P28).
+_STRICTEST = "RESTRICTED_NDA"
+
+
+def access_log(
+    connection: Any, project_id: str, *, readable: frozenset[str]
+) -> list[tuple[str, str, str | None, dt.datetime]]:
+    """Every administrator access to a project, for a member who may read `readable`:
+    (who, what -- PROJECT_SUMMARY, EPISODE_REPORTS, MEMBER_RESEARCH or MATERIAL --, the research
+    question or the file it concerns, when). The question or file is "" when there is none to
+    name, and None when it is classified above what the reader may read -- or not classified
+    at all, which counts as the strictest: an administrator's look must not show a member a
+    question or a file name the member could not open themself (adversarial audit A1)."""
     rows = connection.execute(
         "SELECT coalesce(a.display_name, l.admin_actor_id), l.subject,"
         " coalesce(e.goal, (SELECT i.display_name FROM ingestion_items i"
         "   WHERE i.raw_artifact_id = f.artifact_id AND i.project_id = l.project_id"
-        "   ORDER BY i.submitted_at LIMIT 1), f.uri, ''), l.accessed_at"
+        "   ORDER BY i.submitted_at LIMIT 1), f.uri, ''), l.accessed_at,"
+        " coalesce((SELECT q.question_label FROM research_runs q"
+        "   WHERE q.episode_id = e.episode_id AND q.question_label IS NOT NULL"
+        "   ORDER BY q.ordinal DESC LIMIT 1),"
+        " (SELECT o.sensitivity_label FROM artifact_occurrences o"
+        "   WHERE o.artifact_id = f.artifact_id AND o.project_id = l.project_id)),"
+        " e.episode_id IS NOT NULL OR f.artifact_id IS NOT NULL"
         " FROM admin_access_log l LEFT JOIN accounts a ON a.actor_id = l.admin_actor_id"
         " LEFT JOIN research_episodes e ON l.subject = %s || e.episode_id"
         " LEFT JOIN artifacts f ON l.subject = %s || f.artifact_id"
-        " WHERE l.project_id = %s ORDER BY l.accessed_at DESC LIMIT 50",
+        " WHERE l.project_id = %s ORDER BY l.accessed_at DESC",
         (EPISODE_REPORTS, MATERIAL, project_id),
     ).fetchall()
-    return [
-        (
-            str(r[0]),
-            next(k for k in _SUBJECTS if str(r[1]).startswith(k)),
-            shown_name(str(r[2])),
-            r[3],
-        )
-        for r in rows
-        if any(str(r[1]).startswith(k) for k in _SUBJECTS)
-    ]
+    shown: list[tuple[str, str, str | None, dt.datetime]] = []
+    for r in rows:
+        kind = next((k for k in _SUBJECTS if str(r[1]).startswith(k)), None)
+        if kind is None:
+            continue
+        names_something = bool(r[5])
+        classified_above = names_something and (r[4] or _STRICTEST) not in readable
+        name = None if classified_above else shown_name(str(r[2]))
+        shown.append((str(r[0]), kind, name, r[3]))
+    return shown
 
 
 __all__ = [

@@ -197,6 +197,24 @@ class AccountService:
         if address is None:
             raise AccountRefused("invalid_email")
         now = self._now()
+        # The cap on registrations an hour is checked for EVERY address, known or not: one
+        # that answered differently once the cap was reached would tell which addresses have
+        # accounts (adversarial audit A4).
+        recent = self._c.execute(
+            "SELECT count(*) FROM accounts WHERE created_at > %s", (now - THROTTLE_WINDOW,)
+        ).fetchone()
+        if recent is not None and int(recent[0]) >= MAX_REGISTRATIONS_PER_HOUR:
+            raise AccountRefused("busy")
+        try:
+            self._register(mailer, address, now)
+        except AccountRefused as refused:
+            # A message that could not be sent is not told either: whether one was due at
+            # all -- it is not, to a throttled known address -- would tell. Nothing was
+            # kept: the new account's transaction is undone with it.
+            if refused.code != "mail_failed":
+                raise
+
+    def _register(self, mailer: Mailer, address: str, now: dt.datetime) -> None:
         found = self._c.execute(
             f"SELECT {_COLUMNS} FROM accounts WHERE email = %s", (address,)
         ).fetchone()
@@ -222,13 +240,6 @@ class AccountService:
                     ),
                 )
             return
-        # A cap on new registrations an hour: verification mail is sent to any address typed, so
-        # an anonymous form must not become a way to send mail at volume.
-        recent = self._c.execute(
-            "SELECT count(*) FROM accounts WHERE created_at > %s", (now - THROTTLE_WINDOW,)
-        ).fetchone()
-        if recent is not None and int(recent[0]) >= MAX_REGISTRATIONS_PER_HOUR:
-            raise AccountRefused("busy")
         actor_id = new_id("actor")
         account_id = new_id("account")
         token = new_token()
@@ -314,11 +325,16 @@ class AccountService:
         return approved
 
     def reject(self, account_id: str, *, by: Account) -> Account:
+        """Decline a confirmed registration. An unconfirmed one is not declined: it holds
+        nothing (no name, no password), its link expires, and its address can be registered
+        again -- a declined one could never be (adversarial audit A8)."""
         admin = self._admin(by)
         with self._c.transaction():
             account = self._locked(account_id)
             if account.status != "PENDING":
                 raise AccountRefused("state", f"{account.email} is not awaiting approval")
+            if account.email_verified_at is None:
+                raise AccountRefused("not_verified", f"{account.email} has not confirmed it")
             self._c.execute(
                 "UPDATE accounts SET status = 'SUSPENDED' WHERE account_id = %s", (account_id,)
             )
@@ -697,6 +713,13 @@ class AccountService:
                 "UPDATE account_sessions SET revoked_at = %s WHERE account_id = %s"
                 " AND revoked_at IS NULL AND session_hash <> %s",
                 (now, account.account_id, token_hash(keep_session) if keep_session else ""),
+            )
+            # A reset link asked for before the change would otherwise still set a password
+            # for 30 minutes (adversarial audit A11).
+            self._c.execute(
+                "UPDATE account_tokens SET used_at = %s WHERE account_id = %s"
+                " AND purpose = 'RESET_PASSWORD' AND used_at IS NULL",
+                (now, account.account_id),
             )
             self.record_event(account.account_id, "PASSWORD_CHANGED", account.actor_id, {})
 

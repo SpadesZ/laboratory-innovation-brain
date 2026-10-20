@@ -2118,15 +2118,31 @@ class Workspace:
         ]
 
     def _opened_episodes(self, c: Any) -> list[pages.EpisodeRow]:
+        """The episodes this actor opened whose question they may still read: one whose
+        recorded classification (012q) is above their clearance in its project is not listed,
+        as it is not shown (`_opened`, adversarial audit A2). One from before 012q has none and
+        stays listed for its opener, who declares it."""
         rows = c.execute(
             "SELECT e.episode_id, e.project_id, e.trace_id, e.goal, e.state, e.outcome_status,"
             " e.suspend_reason, e.start_time, e.end_time,"
-            " (SELECT count(*) FROM research_runs x WHERE x.episode_id = e.episode_id)"
+            " (SELECT count(*) FROM research_runs x WHERE x.episode_id = e.episode_id),"
+            " (SELECT q.question_label FROM research_runs q WHERE q.episode_id = e.episode_id"
+            "   AND q.question_label IS NOT NULL ORDER BY q.ordinal DESC LIMIT 1)"
             " FROM research_runs r JOIN research_episodes e ON e.episode_id = r.episode_id"
             " WHERE r.ordinal = 1 AND r.actor_id = %s ORDER BY e.start_time DESC",
             (self._actor,),
         ).fetchall()
-        return [_episode_row(r) for r in rows]
+        cleared: dict[str, frozenset[str]] = {}
+        listed = []
+        for r in rows:
+            project_id, label = str(r[1]), r[10]
+            if label is not None:
+                if project_id not in cleared:
+                    cleared[project_id] = self._cleared(c, project_id)
+                if str(label) not in cleared[project_id]:
+                    continue
+            listed.append(_episode_row(r))
+        return listed
 
     def _opened(self, c: Any, episode_id: str) -> _Opened | None:
         """The episode, if THIS actor opened it and may still act in its project. One scoped read;
@@ -2147,6 +2163,17 @@ class Workspace:
             .authorize_project(actor_id=self._actor, project_id=episode.project_id)
             .allowed
         ):
+            return None
+        # The question's classification, as its runs recorded it (012q): someone whose
+        # clearance no longer covers it reads neither the episode nor its export, as the
+        # service already refuses to continue it (adversarial audit A2). An episode from
+        # before 012q has none, and stays its opener's -- they are the one who declares it.
+        label = c.execute(
+            "SELECT question_label FROM research_runs WHERE episode_id = %s"
+            " AND question_label IS NOT NULL ORDER BY ordinal DESC LIMIT 1",
+            (episode_id,),
+        ).fetchone()
+        if label is not None and str(label[0]) not in self._cleared(c, episode.project_id):
             return None
         return _Opened(episode.project_id, episode)
 
@@ -2312,7 +2339,7 @@ class Workspace:
             if form is not None:
                 started = time.monotonic()
                 response = act(c, req, form)
-                if path in ("/register", "/password/forgot"):
+                if path in ("/register", "/password/forgot", "/login"):
                     assert self._accounts_config is not None
                     floor = self._accounts_config.answer_floor
                     # ponytail: a blocking sleep holds a server thread; fine at a lab's volume.
@@ -2571,14 +2598,26 @@ class Workspace:
         )
 
     def _create_project(self, c: Any, req: _Req, form: Form) -> Response:
+        """An administrator opens a project for its first owner, named by their address."""
         assert self._account is not None
+        address = normalized_email(form.value("owner"))
+        found = (
+            None
+            if address is None
+            else c.execute(
+                "SELECT account_id FROM accounts WHERE email = %s", (address,)
+            ).fetchone()
+        )
         try:
             project_id = LabProjects(c).create(
-                self._account, name=form.value("name"), clearance=form.values("clearance")
+                self._account,
+                name=form.value("name"),
+                owner_account_id=str(found[0]) if found else "",
+                clearance=form.values("clearance"),
             )
         except AccountRefused as refused:
             return self._lab_projects(c, req, error=_project_refusal(req.m, refused))
-        return _redirect(f"/projects/{quote(project_id)}?created=1")
+        return _redirect(f"/admin/projects/{quote(project_id)}?done=created")
 
     def _project_overview(
         self,
@@ -2621,7 +2660,7 @@ class Workspace:
             memberships=projects.memberships(project_id),
             mine=mine,
             can_manage=self._account.is_admin,
-            oversight=access_log(c, project_id),
+            oversight=access_log(c, project_id, readable=self._cleared(c, project_id)),
             actor_id=self._actor,
         )
         if req.query.get("created"):
@@ -2823,12 +2862,13 @@ class Workspace:
     def _admin_dashboard(
         self, c: Any, req: _Req, oversight: Oversight, *, error: str | None = None
     ) -> Response:
+        members, projects = oversight.overview()
         return Response(
             "200 OK" if error is None else "409 Conflict",
             admin_pages.dashboard_page(
                 self._chrome(req, "admin"),
-                members=oversight.members(),
-                projects=oversight.projects(),
+                members=members,
+                projects=projects,
                 notice=req.m("admin.done") if req.query.get("done") else None,
                 error=error,
             ),
@@ -3121,7 +3161,12 @@ def _local_path(target: str) -> str:
 
 
 #: The notice after a change of membership, by the `done` it redirects with.
-_MEMBER_DONE = {"added": "proj.added", "changed": "proj.changed", "removed": "proj.removed"}
+_MEMBER_DONE = {
+    "added": "proj.added",
+    "changed": "proj.changed",
+    "removed": "proj.removed",
+    "created": "proj.created",
+}
 
 
 def _project_refusal(m: Messages, refused: AccountRefused) -> str:
