@@ -5325,7 +5325,9 @@ MUTATIONS: tuple[Mutation, ...] = (
         guards="Accounts (012u) -- viewing a person's research is shown in each of their projects",
         path="src/lab_brain/accounts/oversight.py",
         old='            self.record(listed, f"{MEMBER_RESEARCH}{account_id}")\n',
-        new="",
+        # The loop's only statement: `pass` keeps the mutant valid Python, so a failing test,
+        # not an import error, is what kills it.
+        new="            pass\n",
         tests=("tests/integration/test_lab_projects_postgres.py",),
     ),
     Mutation(

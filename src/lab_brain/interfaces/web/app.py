@@ -2421,7 +2421,7 @@ class Workspace:
     def _verify_form(self, c: Any, req: _Req) -> Response:
         token = (req.query.get("token") or [""])[0]
         if self._account_service(c).token_purpose(token) != "VERIFY_EMAIL":
-            return self._link_invalid(req)
+            return self._link_invalid(req, register=True)
         return Response(
             "200 OK", account_pages.verify_page(self._signed_out_chrome(req), token=token)
         )
@@ -2430,7 +2430,7 @@ class Workspace:
         token, name = form.value("token"), form.value("name")
         service = self._account_service(c)
         if service.token_purpose(token) != "VERIFY_EMAIL":
-            return self._link_invalid(req)
+            return self._link_invalid(req, register=True)
 
         def again(error: str) -> Response:
             # The link still works: nothing was consumed.
@@ -2448,7 +2448,7 @@ class Workspace:
         except AccountRefused as refused:
             if refused.code in ("weak_password", "invalid_name"):
                 return again(account_pages.refusal(req.m, refused.code, refused.detail))
-            return self._link_invalid(req)
+            return self._link_invalid(req, register=True)
         return Response(
             "200 OK",
             account_pages.notice_page(
@@ -2501,14 +2501,18 @@ class Workspace:
             return self._link_invalid(req)
         return _redirect("/login?reset=1", self._cookie(SESSION_COOKIE, "", 0))
 
-    def _link_invalid(self, req: _Req) -> Response:
+    def _link_invalid(self, req: _Req, *, register: bool = False) -> Response:
+        """A link that no longer works, and the way to a new one: a confirmation link is
+        renewed by registering again, a password link by asking for a reset."""
         return Response(
             "410 Gone",
             account_pages.notice_page(
                 self._signed_out_chrome(req),
                 title=req.m("acct.link_invalid.title"),
-                text=req.m("acct.link_invalid"),
-                link=("/password/forgot", req.m("acct.forgot")),
+                text=req.m("acct.link_invalid.verify" if register else "acct.link_invalid"),
+                link=("/register", req.m("acct.register.again"))
+                if register
+                else ("/password/forgot", req.m("acct.forgot")),
             ),
         )
 

@@ -75,6 +75,7 @@ class DataSummary:
     submitted_at: dt.datetime
     #: What made it: UPLOAD, RUN_OUTPUT, DERIVED, ...
     origin: str
+    media_type: str = ""
 
 
 @dataclass(frozen=True)
@@ -117,10 +118,23 @@ _EPISODES = (
 )
 
 
+def shown_name(stored: str) -> str:
+    """An artifact's name for a person: the file name it arrived with, or "" for one the
+    system stored under its content address only (a research run's input or output)."""
+    return "" if stored.startswith("cas://") else upload_name(stored)
+
+
 def _material(r: Any) -> Material:
     return Material(
         DataSummary(
-            str(r[0]), upload_name(str(r[1])), str(r[2]), str(r[3]), str(r[4]), r[5], str(r[6])
+            str(r[0]),
+            shown_name(str(r[1])),
+            str(r[2]),
+            str(r[3]),
+            str(r[4]),
+            r[5],
+            str(r[6]),
+            str(r[8]),
         ),
         str(r[7]),
         str(r[8]),
@@ -325,7 +339,7 @@ def access_log(connection: Any, project_id: str) -> list[tuple[str, str, str, dt
         (
             str(r[0]),
             next(k for k in _SUBJECTS if str(r[1]).startswith(k)),
-            upload_name(str(r[2])),
+            shown_name(str(r[2])),
             r[3],
         )
         for r in rows

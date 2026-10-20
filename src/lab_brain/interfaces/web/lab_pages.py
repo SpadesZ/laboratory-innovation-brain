@@ -110,6 +110,10 @@ Messages.extend(
             "{who} read the file “{name}”",
             "{who} 閱讀了檔案「{name}」",
         ),
+        "proj.oversight.material.unnamed": (
+            "{who} read a file the research stored (an input or output of a run)",
+            "{who} 閱讀了研究過程儲存的檔案（研究執行的輸入或產出）",
+        ),
         "proj.oversight.member": (
             "{who} viewed a member's list of research",
             "{who} 檢視了某位成員的研究清單",
@@ -389,15 +393,17 @@ def members_section(
                 actions,
             )
         )
+    # An actions column only for someone who may act: an empty one reads as missing buttons.
+    heads = [m("proj.member"), m("proj.role"), m("proj.readable")] + (
+        [m("proj.actions")] if manage else []
+    )
     table = h(
-        '<div class="scroll"><table><thead><tr><th scope="col">{}</th><th scope="col">{}</th>'
-        '<th scope="col">{}</th><th scope="col">{}</th></tr></thead><tbody>{}</tbody></table>'
-        "</div>",
-        m("proj.member"),
-        m("proj.role"),
-        m("proj.readable"),
-        m("proj.actions"),
-        cat(h("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>", *r) for r in rows),
+        '<div class="scroll"><table><thead><tr>{}</tr></thead><tbody>{}</tbody></table></div>',
+        cat(h('<th scope="col">{}</th>', x) for x in heads),
+        cat(
+            h("<tr>{}</tr>", cat(h("<td>{}</td>", x) for x in (r if manage else r[:3])))
+            for r in rows
+        ),
     )
     add = (
         h(
@@ -442,7 +448,9 @@ def oversight_line(m: Messages, who: str, kind: str, question: str) -> str:
     if kind == EPISODE_REPORTS:
         return m("proj.oversight.reports", who=who, question=question or "-")
     if kind == MATERIAL:
-        return m("proj.oversight.material", who=who, name=question or "-")
+        if not question:
+            return m("proj.oversight.material.unnamed", who=who)
+        return m("proj.oversight.material", who=who, name=question)
     assert kind == MEMBER_RESEARCH
     return m("proj.oversight.member", who=who)
 
