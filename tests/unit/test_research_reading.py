@@ -36,6 +36,7 @@ from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.interfaces.web import pages
 from lab_brain.research.episode_view import (
     CheckResult,
+    Decision,
     DeclaredPrediction,
     EpisodeView,
     ExecutedCheck,
@@ -506,11 +507,12 @@ def test_the_language_models_that_reasoned_are_named_from_inference_provenance()
     )
     zh = _section(_page(report, view, "zh-TW"), "why")
     assert (
-        "假說與反方審查由語言模型產生（依推論來源紀錄）：獨立批判：qwen2.5:7b@845dbda0 via ollama、"
-        "主要推理：qwen2.5:14b@7cdf5a0 via ollama。" in zh
+        "假說與反方審查由語言模型產生（依推論來源紀錄）：獨立批判：qwen2.5:7b、主要推理：qwen2.5:14b。"
+        in zh
     )
     en = _section(_page(report, view, "en"), "why")
-    assert "Primary reasoning: qwen2.5:14b@7cdf5a0 via ollama" in en
+    assert "Primary reasoning: qwen2.5:14b" in en
+    assert "7cdf5a0" not in en, "the model's lock is a record, kept for the full report"
 
 
 def test_what_an_unrun_check_would_decide_comes_from_the_declared_predictions():
@@ -798,3 +800,78 @@ def test_a_debate_refused_before_verification_is_not_said_to_lack_an_input():
     assert "研究停在「假說」步驟（失敗）；紀錄的原因見「證據與推理」中的步驟表" in why
     assert "沒有提供驗證輸入" not in _l1(markup), "the input was given; the debate stopped first"
     assert "RoleOutputRefused" not in _l1(markup)
+
+
+def test_a_model_written_hypothesis_reads_through_the_packs_own_checks_and_words():
+    """The second live run (2026-10-21): the model named the observable its test reads as the
+    minimal test, and declared a PREDICTS effect."""
+    report, view = _insufficient()
+    model = HypothesisLine(
+        hypothesis_id="hyp:model",
+        mechanism="carrier_profile_compensation",
+        statement="Compensation in the epitaxial layers changes the series resistance.",
+        falsifier="the carrier profile is nominal",
+        minimal_test=sp.OBS_CARRIER,
+        predictions=(),
+        final_state="ACTIVE",
+    )
+    predicts = DeclaredPrediction(
+        hypothesis_id="hyp:model",
+        mechanism=model.mechanism,
+        prediction_id="prd:model.1",
+        observable=sp.OBS_CARRIER,
+        outcome_space=f"{sp.SPACE_CARRIER}@{sp.SPACE_VERSION}",
+        expected_outcome=diagnosis.COMPENSATED,
+        effects=("PREDICTS",),
+        designated_falsifier=False,
+    )
+    report = dataclasses.replace(report, hypotheses=(*report.hypotheses, model))
+    view = dataclasses.replace(view, predictions={**view.predictions, "hyp:model": (predicts,)})
+    markup = _page(report, view, "zh-TW")
+    row = _section(markup, "hypotheses")
+    row = row[row.index("carrier_profile_compensation（未翻譯，顯示英文原文）") :]
+    assert (
+        "尚未檢驗。能檢驗它的是CHARGE 直流掃描模擬（DC sweep）（模擬）——沒有在這裡執行，結果未知（未驗證）"
+        in row
+    )
+    assert "未記錄類型" not in row
+    support = _section(markup, "support")
+    assert "若 載子濃度分布（carrier profile） = 出現摻雜補償（compensated）：符合此假說" in support
+    assert "PREDICTS" not in _l1(markup)
+
+
+def test_an_observation_held_for_a_persons_review_is_said_to_wait_for_one():
+    """The second live run: a model's hypothesis matched, and the policy sent it to a person."""
+    report, view = _insufficient()
+    held = _observed("probe_artifact", "run:probe", diagnosis.ELEVATED, "SUPPORTS", to_state=None)
+    held = dataclasses.replace(
+        held,
+        relations=tuple(
+            dataclasses.replace(
+                r,
+                decisions=(
+                    Decision(
+                        "dec:held",
+                        "hyp:probe_artifact",
+                        "NEED_HUMAN_REVIEW",
+                        "tp@1",
+                        "ACTIVE",
+                        "SUPPORTED",
+                    ),
+                ),
+            )
+            for r in held.relations
+        ),
+    )
+    report, view = _with(
+        report,
+        view,
+        "probe_artifact",
+        "ACTIVE",
+        held,
+        actions=(_ran(sp.CAP_FOURPOINT_PROBE, "run:probe", "MEASUREMENT"),),
+    )
+    why = _section(_page(report, view, "zh-TW"), "why")
+    assert (
+        "有 1 項與假說相關的觀察等待人員審查：轉移政策決定須先由人員判斷，因此信念沒有改變" in why
+    )

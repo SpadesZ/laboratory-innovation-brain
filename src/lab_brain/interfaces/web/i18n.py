@@ -652,6 +652,11 @@ _M: dict[str, tuple[str, str]] = {
         "「{mechanism}」獲得支持，且沒有其他假說仍待判定，但治理程序沒有確認它",
     ),
     "v.why.waiting": ("what it waits for: {reason}", "目前等待：{reason}"),
+    "v.why.held": (
+        "{n} observation(s) bearing on a hypothesis wait for a person's review: the transition "
+        "policy decided a person must look first, so no belief changed",
+        "有 {n} 項與假說相關的觀察等待人員審查：轉移政策決定須先由人員判斷，因此信念沒有改變",
+    ),
     "v.why.stopped": (
         "the research stopped at the {stage} step ({status}); the reason it recorded is in the "
         "step table under Evidence and reasoning",
@@ -828,6 +833,7 @@ _M: dict[str, tuple[str, str]] = {
     "ws.BLOCKED": ("cannot run here", "無法在此執行"),
     "rt.SUPPORTS": ("supports", "支持"),
     "rt.CONTRADICTS": ("contradicts", "牴觸"),
+    "rt.PREDICTS": ("is predicted by", "符合"),
     "td.ALLOW": ("allowed", "核准"),
     "td.DENY": ("denied", "否決"),
     "td.NEED_MORE_EVIDENCE": ("needs more evidence", "需要更多證據"),

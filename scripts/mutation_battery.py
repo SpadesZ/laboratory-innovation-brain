@@ -5774,6 +5774,30 @@ MUTATIONS: tuple[Mutation, ...] = (
         new="        untested = rivals\n",
         tests=("tests/unit/test_research_reading.py",),
     ),
+    Mutation(
+        name="r17_a_refused_debate_read_as_a_missing_input",
+        guards="Reading -- verification skipped after a refused debate is not said to lack an input",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old='        and s.detail.startswith("no verification input")\n',
+        new="        and True\n",
+        tests=("tests/unit/test_research_reading.py",),
+    ),
+    Mutation(
+        name="r18_an_observable_named_as_the_test_left_unresolved",
+        guards="Reading -- a model's minimal test named by its observable reads as the pack's check",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old="    if test not in t.kinds:\n",
+        new="    if False:\n",
+        tests=("tests/unit/test_research_reading.py",),
+    ),
+    Mutation(
+        name="r19_an_observation_held_for_review_unremarked",
+        guards="Reading -- an observation a policy sent to a person is said to wait for that review",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old="    if held:\n",
+        new="    if False:\n",
+        tests=("tests/unit/test_research_reading.py",),
+    ),
 )
 
 

@@ -1006,6 +1006,12 @@ def _evidence_status(
         return e(m("v.ev.untested_unknown"))
     test = x.minimal_test
     ran = {s.capability_id for s in seen} | {a.capability_id for a in report.completed if _ran(a)}
+    if test not in t.kinds:
+        # A model may name the observable its test reads instead of the check: the pack's own
+        # checks that observe it -- one this run did something with, if any.
+        observing = sorted(c for c, observed in t.observes.items() if test in observed)
+        touched = {c for c, _, _ in _not_run(report)} | set(_person_actions(report)) | ran
+        test = next((c for c in observing if c in touched), observing[0] if observing else test)
     if test in {c for c, _, _ in _not_run(report)}:
         where = m("v.ev.blocked")
     elif test in {a.capability_id for a in _failed(report)}:
@@ -1341,7 +1347,8 @@ def _reasoner_line(report: EpisodeReport, t: Terms) -> Html:
                     m,
                     "v.why.model_item",
                     role=names[LOCALES.index(m.locale)] if names else slot,
-                    model=model,
+                    # The model's name; its lock and connection stay in the full report.
+                    model=model.split("@", 1)[0].strip(),
                 )
             )
         return mh(m, "v.why.models", models=_joined(named, m))
@@ -1434,6 +1441,14 @@ def _why_html(
         for x in report.hypotheses
         if x.final_state == "CHALLENGED" and x not in conflicting
     ]
+    held = [
+        rel
+        for s in seen
+        for rel in s.result.relations
+        if not rel.transitions and any(d.result == "NEED_HUMAN_REVIEW" for d in rel.decisions)
+    ]
+    if held:
+        reasons.append(e(m("v.why.held", n=len(held))))
     if _no_input(report):
         reasons.append(e(m("v.why.no_input")))
     not_run = _not_run(report)
