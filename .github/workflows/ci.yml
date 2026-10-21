@@ -78,6 +78,9 @@ jobs:
       - name: Spec conformance
         run: python -m pytest tests/spec -q
 
+      - name: SAI 3.4 candidate documentation (not runtime acceptance)
+        run: python docs/spec/sai34/check_candidate.py --self-test
+
       # §23.5 (2) occurrence inventory. The tests above already recompute the audit's arithmetic
       # against the inventory on disk; this proves the inventory itself is still in sync with the
       # document. An amendment that adds a hard obligation, deletes one, or rewords one fails here
