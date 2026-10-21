@@ -1,5 +1,11 @@
 # Laboratory Innovation Brain - Implementation Status
 
+**2026-10-21 分期架構啟用**：[SAI 3.4.0-phased.1](docs/spec/SAI_3.4.md) 與 [activation mapping](docs/spec/sai34/activation.yaml)
+收錄本次 Owner 對文件整合、啟用準備及 G0 可靠度／授權前建模準備的範圍授權；同 SHA 完整 CI 通過並發布至整合線後生效。
+兩條工作線可各自前進。現有 60 條需求／測試與 3.3 executable conformance 保留；18 條 ASM 全部仍為 SPECIFIED，完整 runtime profile 遷移具名 DEFERRED。
+Agent A 的 `pre-lumerical-acceptance` 未合併，沒有把其新測試或證據算進本線的 G0 接受。D-01–D-08、A3/A9/A12 仍 OPEN，`READY_FOR_REAL_RESEARCH = false`。
+以下 Candidate.2 文字是原候選的歷史狀態；本次新增範圍授權與生效條件見上方 profile，不回寫歷史批准紀錄。generated blocks 與原里程碑不變。
+
 **2026-10-20 文件候選**：[SAI 3.4](docs/spec/SAI_3.4_Candidate.md) 定義不依賴外部 coding agent 的首次物理建模與驗證目標；18 條新義務均為 `SPECIFIED`、待 Owner 核准，沒有新增 runtime。
 2026-10-21 修訂為 `3.4.0-candidate.2`：獨立 G0 真實 LLM 研究接受、科學內容雙語、分期架構核准、單站/跨 worker 重現及帳號治理界線；審查建議與 Owner 同意方向已記錄，八個正式決策仍 OPEN。本次不執行 G0 或任何新的研究/solver 驗收。
 [實作差距](docs/spec/sai34/implementation-gap.md) 分列現有契約、mock 與未完成 provider；

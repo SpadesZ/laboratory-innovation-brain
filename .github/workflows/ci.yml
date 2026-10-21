@@ -63,6 +63,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v6
         with:
@@ -80,6 +82,9 @@ jobs:
 
       - name: SAI 3.4 candidate documentation (not runtime acceptance)
         run: python docs/spec/sai34/check_candidate.py --self-test
+
+      - name: SAI 3.4 phased activation mapping and documentation-only boundary
+        run: python docs/spec/sai34/check_activation.py --self-test
 
       # §23.5 (2) occurrence inventory. The tests above already recompute the audit's arithmetic
       # against the inventory on disk; this proves the inventory itself is still in sync with the

@@ -7,12 +7,17 @@ that evidence permits a change. An accepted revision records the previous and
 new state, evidence links, time and the rule used. The history can be replayed
 to trace how the claim reached its current state.
 
-**Core evidence and revision logic is implemented; lab applications are planned.**
-Paper ingestion, the Silicon Photonics
-DomainPack, Lumerical integration and a dashboard are not available yet.
+**The integration line implements evidence ingestion, the Silicon Photonics typed-tool contracts,
+governed research workflows and a researcher workspace.**
+Licensed Lumerical execution, autonomous first-time physical modeling and scientific product acceptance
+remain unverified. The unmerged `pre-lumerical-acceptance` development is a separate review scope.
 See [implementation status](IMPLEMENTATION_STATUS.md) for the current limits.
 
-[Inspect a small fixture](tests/contract/test_belief_transition.py) · [Run core checks](#quick-start-core-checks) · [Read the specification](docs/spec/SAI_3.3.md)
+[Inspect a small fixture](tests/contract/test_belief_transition.py) · [Run core checks](#quick-start-core-checks) · [Read the phased SAI 3.4 architecture](docs/spec/SAI_3.4.md)
+
+2026-10-21 規格入口：[SAI 3.4 分期架構基準](docs/spec/SAI_3.4.md)／[activation mapping](docs/spec/sai34/activation.yaml)。
+同 SHA CI 通過並整入整合線後，G0 可靠度與授權前建模準備可各自前進；現有執行契約仍完整繼承 SAI 3.3。
+文件啟用不等於 G0／物理驗收。D-01–D-08、A3/A9/A12 保持未決；`READY_FOR_REAL_RESEARCH = false`。
 
 <img src="docs/assets/claim-revision.svg" alt="Toy evidence policies allow, hold or refer a claim revision" width="480">
 
@@ -52,14 +57,13 @@ application or a scientific finding.
 
 ## 技術細節與原始設計說明（繁體中文）
 
-依 `docs/milestones.yaml`，M0a 與 M0b 均為 DONE；M0b 於 2026-09-20 完成 maintainer sign-off。
-下一里程碑 M1（Research Memory）為 NOT_STARTED。已實作的核心證據與修訂邏輯，
-不代表 lab applications 或整個後續研究流程已完成。
+依 `docs/milestones.yaml` 與 `IMPLEMENTATION_STATUS.md`，M0a–M3 的既有簽核保留；M4/M5 為 IN_PROGRESS。
+SAI 3.4 的新架構義務仍為 SPECIFIED，不將原 milestone、整個研究流程或物理接受宣稱完成。
 
 實驗室的科研信念狀態，作為可追溯、可反駁、可繼承的結構化記憶。
 
-- **規格**：[SAI 3.3](docs/spec/SAI_3.3.md)（`SAI` 是規格文件名稱，不是產品名稱）
-- **候選修訂**：[SAI 3.4 自主科學建模](docs/spec/SAI_3.4_Candidate.md)（待 Owner 核准；無新增 runtime，`READY_FOR_REAL_RESEARCH = false`）
+- **架構規格**：[SAI 3.4 分期啟用](docs/spec/SAI_3.4.md)（`SAI` 是規格文件名稱，不是產品名稱）
+- **繼承執行契約**：[SAI 3.3](docs/spec/SAI_3.3.md)；**批准來源與歷史狀態**：[Candidate.2](docs/spec/SAI_3.4_Candidate.md)（固定於 eaea2c0，原文保留）
 - **目標系統**：Laboratory Innovation Brain
 - **第一個 DomainPack**：Silicon Photonics（**不是** core hard-code）
 
