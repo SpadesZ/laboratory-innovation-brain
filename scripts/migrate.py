@@ -304,6 +304,9 @@ APPLY_ORDER: tuple[str, ...] = (
     "012v_password_after_verification.sql",
     # The last active administrator under concurrency; a session's bounds for every writer.
     "012w_account_races_and_sessions.sql",
+    # A debate record's reliability: its policy, every reply attempt, the coverage review. After
+    # 005e (debate_records).
+    "012x_debate_reliability.sql",
 )
 
 _BOOTSTRAP = """

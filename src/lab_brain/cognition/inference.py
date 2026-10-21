@@ -102,6 +102,8 @@ class DurableInference:
     text: str
     #: Reloaded from the store, not the object `invoke` built. See the module docstring.
     provenance: InferenceProvenance
+    #: The provider's own token counts for the call, when it gave them (`ScientificOutput.usage`).
+    usage: Mapping[str, int] | None = None
 
     @property
     def inference_id(self) -> str:
@@ -191,6 +193,7 @@ class ScientificInferenceService:
         escalate: frozenset[SensitivityLabel] = frozenset(),
         now: dt.datetime | None = None,
         context: Mapping[str, object] | None = None,
+        parameters: dict[str, object] | None = None,
     ) -> DurableInference:
         """§7.6's independent critique, durable on the same terms as any other inference.
 
@@ -217,6 +220,7 @@ class ScientificInferenceService:
             slot=slot,
             now=now,
             context=context,
+            parameters=parameters,
         )
         return self._persist(output, project_id=project_id, trace_id=trace_id)
 
@@ -251,7 +255,7 @@ class ScientificInferenceService:
                 f"the stored record differs from what was submitted (stored model "
                 f"{stored.model_ref}, submitted {output.provenance.model_ref})",
             )
-        return DurableInference(text=output.text, provenance=stored)
+        return DurableInference(text=output.text, provenance=stored, usage=output.usage)
 
 
 __all__ = [

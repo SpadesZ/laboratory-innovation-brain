@@ -25,7 +25,12 @@ import pytest
 
 import lab_brain.llm_runtime as llm_runtime_package
 import lab_brain.llm_runtime.probes as probes_module
-from lab_brain.cognition.roles import ADVERSARIAL_CRITIC, HYPOTHESIS_ENGINE, QUERY_REWRITER
+from lab_brain.cognition.roles import (
+    ADVERSARIAL_CRITIC,
+    COVERAGE_REVIEW,
+    HYPOTHESIS_ENGINE,
+    QUERY_REWRITER,
+)
 from lab_brain.domains.silicon_photonics.product import mechanism_catalog
 from lab_brain.llm_runtime.capabilities import Capability
 from lab_brain.llm_runtime.contracts import CONTRACT_DIGEST, HYPOTHESIS_CONTRACT
@@ -116,7 +121,21 @@ class _Model:
 
     def chat(self, model: str, prompt: str, **_: object) -> ChatReply:
         self.prompts.append(prompt)
-        first = json.loads(prompt.split("\n\nCONTEXT:\n", 1)[1])["prediction_bindings"][0]
+        context = json.loads(prompt.split("\n\nCONTEXT:\n", 1)[1])
+        if "unaddressed_checks" in context:  # the suite's coverage-review case: decline them all
+            return ChatReply(
+                text=json.dumps(
+                    {
+                        "hypotheses": [],
+                        "declined": [
+                            {"observable_ref": c["observable_ref"], "reason": "not indicated"}
+                            for c in context["unaddressed_checks"]
+                        ],
+                    }
+                ),
+                latency_ms=7,
+            )
+        first = context["prediction_bindings"][0]
         binding = (
             first["observable_ref"],
             first["outcome_space_id"],
@@ -154,7 +173,9 @@ def test_the_probe_runs_at_the_minimum_asked_for_and_records_it():
     assert at_five.parameters["minimum_hypotheses"] == 5
     assert "expected at least 5 hypotheses, got 2" in at_five.detail
     # Only synthetic material: the probe's evidence is the module's own, never a project's.
-    assert all("att:probe-" in p for p in two.prompts)
+    # Its ids have production's shape but are the module's own, fixed (`production_id`).
+    assert all(probes_module.production_id("att", "probe-1") in p for p in two.prompts[:1])
+    assert all("PROBE:" in p and "prj:" not in p for p in two.prompts)
     # Other capabilities have nothing to record; the generic floor is §7.4's 2.
     assert GENERIC_HYPOTHESIS_MINIMUM == 2
     assert Capability.ROLE_HYPOTHESIS not in PROBES, "its probe is the suite"
@@ -199,7 +220,7 @@ def test_the_qualification_semantics_are_one_digest_of_probes_prompts_and_contra
         },
         prompts={
             r.prompt.prompt_id: [r.prompt.prompt_version, r.prompt.template]
-            for r in (QUERY_REWRITER, HYPOTHESIS_ENGINE, ADVERSARIAL_CRITIC)
+            for r in (QUERY_REWRITER, HYPOTHESIS_ENGINE, ADVERSARIAL_CRITIC, COVERAGE_REVIEW)
         }
         | {"probe:specialist": ["-", probes_module._SPECIALIST_TEMPLATE]},
     )

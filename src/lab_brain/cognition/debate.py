@@ -53,13 +53,16 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import Any, TypeVar
 
+from lab_brain.cognition.aliases import AliasTable, aliased
 from lab_brain.cognition.budgeted import (
     BudgetedInference,
     BudgetedInferenceDispatcher,
     InferenceBudgetBlocked,
     InferenceCall,
 )
+from lab_brain.cognition.coverage import CoverageGap, discriminated, unaddressed_checks
 from lab_brain.cognition.debate_metrics import (
     CRITIC_BUNDLE_DIVERGENCE,
     DebateGate,
@@ -72,11 +75,16 @@ from lab_brain.cognition.evidence import EvidenceResearcher
 from lab_brain.cognition.llm import PromptTemplate
 from lab_brain.cognition.roles import (
     ADVERSARIAL_CRITIC,
+    COVERAGE_REVIEW,
     HYPOTHESIS_ENGINE,
     QUERY_REWRITER,
     SPECIALIST_REQUIRES,
+    CoverageDraft,
     HypothesisProposal,
+    RoleOutputRefused,
     binding_context,
+    normalize_reply,
+    parse_coverage_review,
     parse_critique,
     parse_hypothesis_engine,
     parse_query_terms,
@@ -85,7 +93,11 @@ from lab_brain.cognition.roles import (
 )
 from lab_brain.cognition.routing import CognitiveRole, ModelRouter
 from lab_brain.core.budget import BudgetPolicy
-from lab_brain.core.hypothesis_admission import HypothesisAdmissionService, mechanism_key
+from lab_brain.core.hypothesis_admission import (
+    HypothesisAdmissionRefused,
+    HypothesisAdmissionService,
+    mechanism_key,
+)
 from lab_brain.core.models.cost import CostVector
 from lab_brain.core.models.debate import (
     CritiqueReport,
@@ -152,10 +164,24 @@ class DebatePolicy:
     critic_enabled: bool = True
     specialists_enabled: bool = True
     minimum_hypotheses: int = 2
+    #: Replies asked per role call. 1: a refused reply ends the call, as M3 did. 2: a refused
+    #: reply is asked for once more, with the parser's reason -- a new, separately recorded
+    #: inference that must pass the same parser. Never more than 3: a model that cannot meet a
+    #: contract in three tries is not one research should keep paying.
+    max_attempts: int = 1
+    #: After Stage A, ask the Hypothesis Engine once about the low-cost executable checks no
+    #: hypothesis discriminates on (`cognition.coverage`, `roles.COVERAGE_REVIEW`).
+    coverage_review: bool = False
 
     def __post_init__(self) -> None:
         if self.max_rounds < 1 or self.minimum_hypotheses < 1:
             raise ValueError("a debate policy needs at least one round and one hypothesis")
+        if not 1 <= self.max_attempts <= 3:
+            raise ValueError("a debate policy asks for a reply between one and three times")
+
+    @property
+    def ref(self) -> str:
+        return f"{self.policy_id}@{self.version}"
 
 
 @dataclass(frozen=True)
@@ -312,16 +338,14 @@ class StructuredDebate:
             project_id=request.project_id,
             trace_id=request.trace_id,
         )
-        rewrite = self._call(
+        _, terms = self._ask(
             state,
             role=CognitiveRole.EVIDENCE_RESEARCHER,
             prompt=QUERY_REWRITER.prompt,
             requires=QUERY_REWRITER.requires,
             bundle=seed,
             context={"question": request.question, "mode": "PRIMARY"},
-        )
-        terms = parse_query_terms(
-            rewrite.inference.text, inference_id=rewrite.inference.inference_id
+            parse=lambda text, iid: parse_query_terms(text, inference_id=iid),
         )
         primary = self._researcher.retrieve(
             query_text=" ".join((request.question, *terms)),
@@ -368,24 +392,32 @@ class StructuredDebate:
             trace_id=request.trace_id,
             actor_id=request.actor_id,
         )
-        initial_ids = admitted.hypothesis_ids
+        for certificate in admitted.certificates:
+            state.hypotheses.add(certificate.hypothesis_id)
         positions: list[Position] = [
             self._position(
                 request,
                 CognitiveRole.HYPOTHESIS_ENGINE.value,
                 engine[2],
-                initial_ids,
+                admitted.hypothesis_ids,
                 primary,
                 engine[0],
             )
         ]
+        # Still Stage A: what the review certifies is a rival every later role sees, and is
+        # counted among the initial set -- the Critic did not add it.
+        covered = (
+            self._coverage_review(state, primary, bindings, hypothesis_set)
+            if self._policy.coverage_review
+            else ()
+        )
+        initial_ids = (*admitted.hypothesis_ids, *covered)
         stage_a_positions = list(positions)
         specialist_bundles: list[EvidenceBundle] = []
         if self._policy.specialists_enabled:
+            stage_a = self._hypotheses.certificates_in_set(hypothesis_set.set_id)
             for role in self._selected_specialists(request):
-                position, bundle = self._specialist(
-                    state, role, source_policy, admitted.certificates
-                )
+                position, bundle = self._specialist(state, role, source_policy, stage_a)
                 positions.append(position)
                 stage_a_positions.append(position)
                 specialist_bundles.append(bundle)
@@ -504,6 +536,7 @@ class StructuredDebate:
                     )
                     existing.add(mechanism_key(certificate))
                     admitted_now.append(certificate.hypothesis_id)
+                    state.hypotheses.add(certificate.hypothesis_id)
                 if admitted_now:
                     positions.append(
                         self._position(
@@ -570,6 +603,12 @@ class StructuredDebate:
             gate_evaluations=tuple(gate_verdicts),
             per_round=tuple(per_round),
             created_at=self._now(),
+            reliability={
+                "debate_policy": self._policy.ref,
+                "max_attempts": self._policy.max_attempts,
+                "reply_attempts": list(state.attempts),
+                "coverage_review": state.coverage,
+            },
         )
         stored = self._debates.add_debate_record(record)
         return DebateOutcome(
@@ -606,25 +645,153 @@ class StructuredDebate:
             "alternatives_to_certify": list(alternatives),
             "existing_mechanisms": list(existing),
         }
-        call = self._call(
+        call, (proposals, draft) = self._ask(
             state,
             role=CognitiveRole.HYPOTHESIS_ENGINE,
             prompt=HYPOTHESIS_ENGINE.prompt,
             requires=HYPOTHESIS_ENGINE.requires,
             bundle=bundle,
             context=context,
-        )
-        proposals, draft = parse_hypothesis_engine(
-            call.inference.text,
-            bindings=bindings,
-            minimum=minimum,
-            inference_id=call.inference.inference_id,
+            parse=lambda text, iid: parse_hypothesis_engine(
+                text, bindings=bindings, minimum=minimum, inference_id=iid
+            ),
         )
         return (
             call,
             proposals,
             _Draft(draft.mechanism_view, draft.uncertainties, draft.confounders, ()),
         )
+
+    def _coverage_review(
+        self,
+        state: _RunState,
+        primary: EvidenceBundle,
+        bindings: Mapping[str, OutcomeSpace],
+        hypothesis_set: HypothesisSet,
+    ) -> tuple[str, ...]:
+        """Stage A's coverage review: the cheap executable checks no hypothesis discriminates on,
+        put once to the Hypothesis Engine. Returns the ids of the rivals it certified and §8
+        admitted; records everything in `state.coverage`.
+
+        A review that cannot be completed -- refused after its attempts, or stopped by the budget
+        -- costs the debate nothing it already had: the Stage A set stands, and the record says the
+        checks stayed unaddressed and why. A rival the admission gate refuses is recorded as
+        refused, never admitted another way.
+        """
+        request = state.request
+        certificates = self._hypotheses.certificates_in_set(hypothesis_set.set_id)
+        gaps = unaddressed_checks(
+            certificates, bindings, self._capabilities, request.available_inputs
+        )
+        state.coverage = {
+            "status": "NOT_NEEDED",
+            "prompt": f"{COVERAGE_REVIEW.prompt.prompt_id}@{COVERAGE_REVIEW.prompt.prompt_version}",
+            "gaps": [_gap_record(g) for g in gaps],
+            "certified": [],
+            "declined": [],
+            "refused": [],
+        }
+        if not gaps:
+            return ()
+        unaddressed = [g.observable_ref for g in gaps]
+        existing = sorted(c.hypothesis.mechanism for c in certificates)
+        context, shown_h, shown_e = coverage_context(
+            question=request.question,
+            hypotheses=[
+                {
+                    "hypothesis_id": c.hypothesis_id,
+                    "statement": c.hypothesis.statement,
+                    "mechanism": c.hypothesis.mechanism,
+                    "discriminates_on": sorted(discriminated((c,))),
+                }
+                for c in certificates
+            ],
+            evidence=self._researcher.evidence_context(primary),
+            bindings=bindings,
+            unaddressed_checks=[g.as_context(bindings[g.observable_ref]) for g in gaps],
+            hypothesis_aliases=state.hypotheses,
+            evidence_aliases=state.evidence,
+        )
+        try:
+            call, draft = self._ask(
+                state,
+                role=CognitiveRole.HYPOTHESIS_ENGINE,
+                prompt=COVERAGE_REVIEW.prompt,
+                requires=COVERAGE_REVIEW.requires,
+                bundle=primary,
+                context=context,
+                parse=lambda text, iid: parse_coverage_review(
+                    text,
+                    bindings=bindings,
+                    unaddressed=unaddressed,
+                    existing_mechanisms=existing,
+                    evidence_refs=shown_e,
+                    shown_attestation_ids=primary.ordered_attestation_ids,
+                    inference_id=iid,
+                ),
+                parameters={"aliases": {**shown_h, **shown_e}},
+            )
+        except RoleOutputRefused as refused:
+            state.coverage.update(status="FAILED", detail=refused.detail)
+            return ()
+        except _Blocked:
+            state.coverage.update(status="BUDGET_BLOCKED")
+            return ()
+        return self._admit_coverage(state, call, draft, hypothesis_set)
+
+    def _admit_coverage(
+        self,
+        state: _RunState,
+        call: BudgetedInference,
+        draft: CoverageDraft,
+        hypothesis_set: HypothesisSet,
+    ) -> tuple[str, ...]:
+        request = state.request
+        state.coverage["status"] = "DONE"
+        state.coverage["inference_id"] = call.inference.inference_id
+        state.coverage["declined"] = [
+            {"observable_ref": d.observable_ref, "reason": d.reason, "evidence": list(d.evidence)}
+            for d in draft.declined
+        ]
+        admitted: list[str] = []
+        for proposal in draft.proposals:
+            certificate = self._certificate(proposal, hypothesis_set, call.inference.inference_id)
+            addresses = sorted(
+                {g["observable_ref"] for g in state.coverage["gaps"]}
+                & discriminated((certificate,))
+            )
+            try:
+                self._admission.admit_alternative(
+                    hypothesis_set,
+                    certificate,
+                    # What the rival rests on: the evidence it cited, never the whole bundle.
+                    basis=draft.grounding[proposal.key],
+                    policy=request.admission_policy,
+                    event_id=self._mint("belief_revision_event"),
+                    occurred_at=self._now(),
+                    trace_id=request.trace_id,
+                    actor_id=request.actor_id,
+                )
+            except HypothesisAdmissionRefused as refused:
+                state.coverage["refused"].append(
+                    {
+                        "mechanism": proposal.mechanism,
+                        "addresses": addresses,
+                        "detail": str(refused),
+                    }
+                )
+                continue
+            state.hypotheses.add(certificate.hypothesis_id)
+            admitted.append(certificate.hypothesis_id)
+            state.coverage["certified"].append(
+                {
+                    "hypothesis_id": certificate.hypothesis_id,
+                    "mechanism": proposal.mechanism,
+                    "addresses": addresses,
+                    "grounding": list(draft.grounding[proposal.key]),
+                }
+            )
+        return tuple(admitted)
 
     def _specialist(
         self,
@@ -643,10 +810,10 @@ class StructuredDebate:
             domains=role.evidence_domains,
         )
         ids = [c.hypothesis_id for c in certificates]
-        context = {
-            "question": request.question,
-            "specialist": role.role_id,
-            "hypotheses": [
+        context, shown_h, shown_e = specialist_context(
+            question=request.question,
+            specialist=role.role_id,
+            hypotheses=[
                 {
                     "hypothesis_id": c.hypothesis_id,
                     "statement": c.hypothesis.statement,
@@ -654,9 +821,11 @@ class StructuredDebate:
                 }
                 for c in certificates
             ],
-            "evidence": self._researcher.evidence_context(bundle),
-        }
-        call = self._call(
+            evidence=self._researcher.evidence_context(bundle),
+            hypothesis_aliases=state.hypotheses,
+            evidence_aliases=state.evidence,
+        )
+        call, draft = self._ask(
             state,
             role=CognitiveRole.DOMAIN_SPECIALIST,
             prompt=PromptTemplate(role.prompt_id, role.prompt_version, role.prompt_template),
@@ -664,12 +833,10 @@ class StructuredDebate:
             bundle=bundle,
             context=context,
             role_label=role.role_id,
-        )
-        draft = parse_specialist(
-            call.inference.text,
-            role_id=role.role_id,
-            hypothesis_ids=ids,
-            inference_id=call.inference.inference_id,
+            parse=lambda text, iid: parse_specialist(
+                text, role_id=role.role_id, hypothesis_ids=ids, shown=shown_h, inference_id=iid
+            ),
+            parameters={"aliases": {**shown_h, **shown_e}},
         )
         position = self._position(
             request,
@@ -699,16 +866,14 @@ class StructuredDebate:
         falsifiers = [
             typed_falsifier_text(p) for c in in_contention for p in c.falsifier_predictions
         ]
-        rewrite = self._call(
+        _, terms = self._ask(
             state,
             role=CognitiveRole.EVIDENCE_RESEARCHER,
             prompt=QUERY_REWRITER.prompt,
             requires=QUERY_REWRITER.requires,
             bundle=primary,
             context={"question": request.question, "mode": "INVERTED", "falsifiers": falsifiers},
-        )
-        terms = parse_query_terms(
-            rewrite.inference.text, inference_id=rewrite.inference.inference_id
+            parse=lambda text, iid: parse_query_terms(text, inference_id=iid),
         )
         return self._researcher.retrieve(
             query_text=" ".join((*falsifiers, *terms)),
@@ -732,22 +897,23 @@ class StructuredDebate:
     ) -> tuple[CritiqueReport, tuple[str, ...]]:
         request = state.request
         targets = [c.hypothesis_id for c in in_contention]
-        context = {
-            "question": request.question,
-            "hypotheses": [
+        context, shown_h, shown_e = critique_context(
+            question=request.question,
+            hypotheses=[
                 {
                     "hypothesis_id": c.hypothesis_id,
                     "statement": c.hypothesis.statement,
                     "mechanism": c.hypothesis.mechanism,
                     # The designation, rendered -- the prose is the author's explanation only.
                     "falsifier": "; ".join(
-                        typed_falsifier_text(p) for p in c.falsifier_predictions
+                        shown_falsifier(p, state.hypotheses.add(c.hypothesis_id))
+                        for p in c.falsifier_predictions
                     ),
                     "assumptions": list(c.hypothesis.assumptions),
                 }
                 for c in in_contention
             ],
-            "positions": [
+            positions=[
                 {
                     "role_id": p.role_id,
                     "mechanism_view": p.mechanism_view,
@@ -755,12 +921,12 @@ class StructuredDebate:
                 }
                 for p in positions
             ],
-            "evidence": self._researcher.evidence_context(cross),
-            "inverted_attestation_ids": []
-            if inverted is None
-            else list(inverted.ordered_attestation_ids),
-        }
-        call = self._call(
+            evidence=self._researcher.evidence_context(cross),
+            inverted_attestation_ids=[] if inverted is None else inverted.ordered_attestation_ids,
+            hypothesis_aliases=state.hypotheses,
+            evidence_aliases=state.evidence,
+        )
+        call, draft = self._ask(
             state,
             role=CognitiveRole.ADVERSARIAL_CRITIC,
             prompt=ADVERSARIAL_CRITIC.prompt,
@@ -768,12 +934,15 @@ class StructuredDebate:
             bundle=cross,
             context=context,
             critique_of=original,
-        )
-        draft = parse_critique(
-            call.inference.text,
-            targets=targets,
-            shown_attestation_ids=cross.ordered_attestation_ids,
-            inference_id=call.inference.inference_id,
+            parse=lambda text, iid: parse_critique(
+                text,
+                targets=targets,
+                shown_attestation_ids=cross.ordered_attestation_ids,
+                hypothesis_refs=shown_h,
+                evidence_refs=shown_e,
+                inference_id=iid,
+            ),
+            parameters={"aliases": {**shown_h, **shown_e}},
         )
         critique = CritiqueReport(
             critique_id=self._mint("critique"),
@@ -791,6 +960,81 @@ class StructuredDebate:
             created_at=self._now(),
         )
         return self._debates.add_critique(critique), draft.alternative_mechanisms
+
+    # -- asking -------------------------------------------------------------------------------
+
+    def _ask(
+        self,
+        state: _RunState,
+        *,
+        role: CognitiveRole,
+        prompt: PromptTemplate,
+        requires: frozenset[str],
+        bundle: EvidenceBundle,
+        context: Mapping[str, object],
+        parse: Callable[[str, str], _T],
+        critique_of: InferenceProvenance | None = None,
+        role_label: str | None = None,
+        parameters: Mapping[str, object] | None = None,
+    ) -> tuple[BudgetedInference, _T]:
+        """One role call, read by its parser -- asked again, at most `max_attempts` in all, when
+        the parser refuses the reply.
+
+        Each attempt is its own budgeted, durable inference: a refused reply is kept verbatim, and
+        the next one is told the parser's reason (`previous_reply_refused`) and names the one it
+        replaces (`retry_of`). The only change made to a reply before parsing is
+        `normalize_reply`'s envelope repair, and it is recorded. Nothing is taken from a refused
+        reply, and the last refusal is raised with every earlier reason.
+        """
+        label = role_label or role.value
+        refusals: list[RoleOutputRefused] = []
+        previous: str | None = None
+        for attempt in range(1, self._policy.max_attempts + 1):
+            asked = dict(context)
+            recorded: dict[str, object] = {**dict(parameters or {}), "attempt": attempt}
+            if refusals and previous is not None:
+                asked["previous_reply_refused"] = {
+                    "reason": refusals[-1].detail,
+                    "instruction": "Reply again, meeting the contract; change nothing else.",
+                }
+                recorded["retry_of"] = previous
+            call = self._call(
+                state,
+                role=role,
+                prompt=prompt,
+                requires=requires,
+                bundle=bundle,
+                context=asked,
+                critique_of=critique_of,
+                role_label=role_label,
+                parameters=recorded,
+            )
+            text, repair = normalize_reply(call.inference.text)
+            entry: dict[str, Any] = {
+                "role": label,
+                "prompt_id": prompt.prompt_id,
+                "inference_id": call.inference.inference_id,
+                "attempt": attempt,
+                "repair": repair,
+            }
+            try:
+                result = parse(text, call.inference.inference_id)
+            except RoleOutputRefused as refused:
+                state.attempts.append({**entry, "outcome": "REFUSED", "detail": refused.detail})
+                refusals.append(refused)
+                previous = call.inference.inference_id
+                continue
+            state.attempts.append({**entry, "outcome": "ACCEPTED"})
+            return call, result
+        last = refusals[-1]
+        if len(refusals) == 1:
+            raise last
+        raise RoleOutputRefused(
+            last.role,
+            f"{last.detail} -- refused on all {len(refusals)} attempts; earlier: "
+            + "; ".join(r.detail for r in refusals[:-1]),
+            inference_id=last.inference_id,
+        )
 
     # -- helpers --------------------------------------------------------------------------------
 
@@ -839,6 +1083,7 @@ class StructuredDebate:
         context: Mapping[str, object],
         critique_of: InferenceProvenance | None = None,
         role_label: str | None = None,
+        parameters: Mapping[str, object] | None = None,
     ) -> BudgetedInference:
         label = role_label or role.value
         require_input(label, requires, context)
@@ -862,6 +1107,7 @@ class StructuredDebate:
             inference_id=self._mint("inference"),
             escalate=frozenset({request.question_label}),
             critique_of=critique_of,
+            parameters=dict(parameters or {}),
         )
         try:
             result = self._dispatcher.infer(
@@ -1002,6 +1248,120 @@ class _RunState:
     debate_id: str
     calls: list[BudgetedInference] = field(default_factory=list)
     consumed: CostVector = field(default_factory=CostVector)
+    #: One alias table per kind for the whole debate, so a hypothesis is H3 in every call.
+    hypotheses: AliasTable = field(default_factory=lambda: AliasTable("H"))
+    evidence: AliasTable = field(default_factory=lambda: AliasTable("E"))
+    #: Every reply attempt (`StructuredDebate._ask`), in order.
+    attempts: list[dict[str, Any]] = field(default_factory=list)
+    #: The coverage review's record; `DISABLED` unless the policy asks for one.
+    coverage: dict[str, Any] = field(default_factory=lambda: {"status": "DISABLED"})
+
+
+_T = TypeVar("_T")
+
+
+def specialist_context(
+    *,
+    question: str,
+    specialist: str,
+    hypotheses: Sequence[Mapping[str, Any]],
+    evidence: Sequence[Mapping[str, Any]],
+    hypothesis_aliases: AliasTable,
+    evidence_aliases: AliasTable,
+) -> tuple[dict[str, object], dict[str, str], dict[str, str]]:
+    """A Domain Specialist's context as research builds it -- and as its capability probe does,
+    by calling this -- with the aliases each id was shown as (hypotheses, evidence)."""
+    shown_hypotheses, shown_h = aliased(hypotheses, "hypothesis_id", hypothesis_aliases)
+    shown_evidence, shown_e = aliased(evidence, "attestation_id", evidence_aliases)
+    return (
+        {
+            "question": question,
+            "specialist": specialist,
+            "hypotheses": shown_hypotheses,
+            "evidence": shown_evidence,
+        },
+        shown_h,
+        shown_e,
+    )
+
+
+def coverage_context(
+    *,
+    question: str,
+    hypotheses: Sequence[Mapping[str, Any]],
+    evidence: Sequence[Mapping[str, Any]],
+    bindings: Mapping[str, OutcomeSpace],
+    unaddressed_checks: Sequence[Mapping[str, Any]],
+    hypothesis_aliases: AliasTable,
+    evidence_aliases: AliasTable,
+) -> tuple[dict[str, object], dict[str, str], dict[str, str]]:
+    """The coverage review's context as research builds it -- and as its capability probe does."""
+    shown_hypotheses, shown_h = aliased(hypotheses, "hypothesis_id", hypothesis_aliases)
+    shown_evidence, shown_e = aliased(evidence, "attestation_id", evidence_aliases)
+    return (
+        {
+            "question": question,
+            "evidence": shown_evidence,
+            "prediction_bindings": binding_context(bindings),
+            "hypotheses": shown_hypotheses,
+            "existing_mechanisms": sorted(str(h["mechanism"]) for h in hypotheses),
+            "unaddressed_checks": [dict(u) for u in unaddressed_checks],
+        },
+        shown_h,
+        shown_e,
+    )
+
+
+def critique_context(
+    *,
+    question: str,
+    hypotheses: Sequence[Mapping[str, Any]],
+    positions: Sequence[Mapping[str, Any]],
+    evidence: Sequence[Mapping[str, Any]],
+    inverted_attestation_ids: Sequence[str],
+    hypothesis_aliases: AliasTable,
+    evidence_aliases: AliasTable,
+) -> tuple[dict[str, object], dict[str, str], dict[str, str]]:
+    """The Adversarial Critic's context as research builds it -- and as its capability probe
+    does -- with every hypothesis and attestation id shown as its alias."""
+    shown_hypotheses, shown_h = aliased(hypotheses, "hypothesis_id", hypothesis_aliases)
+    shown_evidence, shown_e = aliased(evidence, "attestation_id", evidence_aliases)
+    for p in positions:
+        for ref in p["hypothesis_refs"]:
+            shown_h[hypothesis_aliases.add(ref)] = ref
+    return (
+        {
+            "question": question,
+            "hypotheses": shown_hypotheses,
+            "positions": [
+                {
+                    **p,
+                    "hypothesis_refs": [hypothesis_aliases.alias(r) for r in p["hypothesis_refs"]],
+                }
+                for p in positions
+            ],
+            "evidence": shown_evidence,
+            "inverted_attestation_ids": [evidence_aliases.add(a) for a in inverted_attestation_ids],
+        },
+        shown_h,
+        shown_e,
+    )
+
+
+def shown_falsifier(prediction: Prediction, alias: str) -> str:
+    """`typed_falsifier_text` as a model is shown it: the hypothesis by its alias, and no
+    prediction id -- nothing a role would have to copy back is ever a canonical id."""
+    text = typed_falsifier_text(prediction).replace(prediction.hypothesis_id, alias)
+    return text.rsplit(" (", 1)[0]
+
+
+def _gap_record(gap: CoverageGap) -> dict[str, object]:
+    return {
+        "observable_ref": gap.observable_ref,
+        "check": gap.capability_id,
+        "action_type": gap.action_type,
+        "estimated_wall_clock_s": gap.cost.wall_clock_s,
+    }
 
 
 __all__ = [
@@ -1011,4 +1371,8 @@ __all__ = [
     "StopReason",
     "StructuredDebate",
     "Trigger",
+    "coverage_context",
+    "critique_context",
+    "shown_falsifier",
+    "specialist_context",
 ]

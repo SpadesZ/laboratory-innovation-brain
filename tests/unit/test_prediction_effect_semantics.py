@@ -122,7 +122,7 @@ def test_every_prediction_effect_has_exactly_one_meaning_and_the_prompt_renders_
 
 
 def test_the_contract_says_which_effects_are_support_and_refutation_and_that_support_is_optional():
-    assert RESPONSE_CONTRACT_VERSION == "rc-4.0.0"
+    assert RESPONSE_CONTRACT_VERSION == "rc-5.0.0"
     assert HYPOTHESIS_ENGINE.prompt.prompt_version == "5.0.0"
     assert (
         "SUPPORTS is the only effect counted as support and CONTRADICTS the only one counted as "
@@ -277,8 +277,10 @@ def _suite_reply(entries: list[dict[str, Any]], shape: str) -> str:
 
 
 def test_the_suite_passes_falsifiers_alone_and_a_predicts_forecast_and_fails_an_incoherent_one():
-    assert (PROBE_VERSION, HYPOTHESIS_SUITE) == ("probe-6.0.0", "hypothesis-conformance@4.0.0")
+    assert (PROBE_VERSION, HYPOTHESIS_SUITE) == ("probe-7.0.0", "hypothesis-conformance@5.0.0")
     for name, case in hypothesis_suite(5):
+        if name == "coverage-review":  # its own contract; its certificates are checked alike
+            continue
         entries = json.loads(case.prompt.split(_MARKER, 1)[1])["prediction_bindings"]
         assert case.judge(_suite_reply(entries, "falsifiers-only")) is None, name
         assert case.judge(_suite_reply(entries, "forecast-predicts")) is None, name

@@ -79,6 +79,8 @@ class Call:
     system: str | None
     prompt: str
     image: bool
+    #: The `response_format` the call carried, if any.
+    response_format: Any = None
 
 
 @dataclass
@@ -96,6 +98,11 @@ class FakeProvider:
     inverted_falsifier: bool = False
     forecast_effect: str | None = None
     falsifiers_only: bool = False
+    #: Answer any call that carries `response_format` with HTTP 400, as a provider that does not
+    #: implement structured output does.
+    refuse_schema: bool = False
+    #: (prompt, answer) -> the answer to send instead, for a test that scripts one reply.
+    rewrite: Callable[[str, str], str] | None = None
     _server: ThreadingHTTPServer | None = None
 
     @property
@@ -166,7 +173,12 @@ class FakeProvider:
                 user = next(m["content"] for m in body["messages"] if m["role"] == "user")
                 image = isinstance(user, list)
                 prompt = user[0]["text"] if image else user
-                provider.calls.append(Call(model, system, prompt, image))
+                provider.calls.append(
+                    Call(model, system, prompt, image, body.get("response_format"))
+                )
+                if provider.refuse_schema and "response_format" in body:
+                    self._send(400, {"error": {"message": "response_format is not supported"}})
+                    return
                 if provider.delay is not None and (wait := provider.delay(prompt, system)) > 0:
                     time.sleep(wait)
                 text = _answer(
@@ -182,9 +194,19 @@ class FakeProvider:
                     provider.forecast_effect,
                     provider.falsifiers_only,
                 )
+                if provider.rewrite is not None:
+                    text = provider.rewrite(prompt, text)
+                # Deterministic metering, as a provider reports it: whitespace tokens in, out.
+                used = {
+                    "prompt_tokens": len(prompt.split()),
+                    "completion_tokens": len(text.split()),
+                }
                 self._send(
                     200,
-                    {"choices": [{"message": {"role": "assistant", "content": text}}]},
+                    {
+                        "choices": [{"message": {"role": "assistant", "content": text}}],
+                        "usage": {**used, "total_tokens": sum(used.values())},
+                    },
                 )
 
         self._server = ThreadingHTTPServer(("127.0.0.1", self.port), Handler)
@@ -317,6 +339,19 @@ def _probe_answer(
     a CONTRADICTS prediction it declares over the binding's last."""
     if "mode" in ctx:
         return {"terms": ["contact resistance", "oxidation"]}
+    if "unaddressed_checks" in ctx:
+        # The coverage review: every check declined, with a reason that cites what it was shown.
+        return {
+            "hypotheses": [],
+            "declined": [
+                {
+                    "observable_ref": check["observable_ref"],
+                    "reason": "the evidence names no mechanism whose outcome there would differ",
+                    "evidence_ids": [ctx["evidence"][0]["attestation_id"]],
+                }
+                for check in ctx["unaddressed_checks"]
+            ],
+        }
     if "prediction_bindings" in ctx:
         binding = ctx["prediction_bindings"][0]
         observable = (

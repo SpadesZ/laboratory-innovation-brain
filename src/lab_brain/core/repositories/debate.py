@@ -281,6 +281,7 @@ _RECORD_COLUMNS = (
     "gate_evaluations",
     "per_round",
     "created_at",
+    "reliability",
 )
 
 
@@ -410,6 +411,7 @@ class SqlDebateStore:
                 json.dumps(list(r.gate_evaluations), default=_json_default),
                 json.dumps(list(r.per_round), default=_json_default),
                 r.created_at,
+                json.dumps(r.reliability, default=_json_default),
             ),
         )
         stored = self.get_debate_record(r.debate_id)

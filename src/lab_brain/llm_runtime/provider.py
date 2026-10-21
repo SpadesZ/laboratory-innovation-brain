@@ -36,7 +36,7 @@ import json
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from http.client import HTTPMessage
@@ -66,10 +66,23 @@ class ProviderError(RuntimeError):
         self.detail = detail
 
 
+#: How a reply's form was constrained (`ChatReply.output_mode`).
+JSON_SCHEMA = "JSON_SCHEMA"
+#: The provider refused `response_format`; the reply was asked for by the prompt alone.
+PROMPT_ONLY = "PROMPT_ONLY"
+
+
 @dataclass(frozen=True)
 class ChatReply:
     text: str
     latency_ms: int
+    #: What the PROVIDER reports it metered (`usage` of the reply): prompt_tokens,
+    #: completion_tokens, total_tokens -- the integers it gave, nothing estimated. `None` when the
+    #: reply carried no usage.
+    usage: Mapping[str, int] | None = None
+    #: `JSON_SCHEMA` when a schema was sent and accepted, `PROMPT_ONLY: <why>` when it was sent and
+    #: the provider refused it, `None` when none was sent.
+    output_mode: str | None = None
 
 
 #: The name Docker gives a container for the machine it runs on. It is this machine only for a
@@ -191,7 +204,15 @@ class OpenAICompatibleClient:
         *,
         system: str | None = None,
         image_png: bytes | None = None,
+        response_schema: tuple[str, Mapping[str, Any]] | None = None,
     ) -> ChatReply:
+        """`response_schema`: (name, JSON schema) to send as `response_format`.
+
+        A provider that does not implement it answers HTTP 400 (or 422); the call is then made
+        ONCE more without it, and the reply says so (`output_mode` PROMPT_ONLY with the refusal).
+        Any other failure, and any failure of the second call, is raised as it is. A 400 costs
+        nothing to ask: it is the provider refusing the request, not answering it.
+        """
         content: Any = prompt
         if image_png is not None:
             encoded = base64.b64encode(image_png).decode("ascii")
@@ -203,10 +224,36 @@ class OpenAICompatibleClient:
         if system is not None:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": content})
+        payload: dict[str, Any] = {"model": model, "messages": messages, "temperature": 0}
+        mode: str | None = None
         started = time.monotonic()
-        body = self._request(
-            "POST", "/chat/completions", {"model": model, "messages": messages, "temperature": 0}
-        )
+        if response_schema is not None:
+            name, schema = response_schema
+            try:
+                body = self._request(
+                    "POST",
+                    "/chat/completions",
+                    {
+                        **payload,
+                        "response_format": {
+                            "type": "json_schema",
+                            "json_schema": {"name": name, "schema": dict(schema)},
+                        },
+                    },
+                )
+                mode = JSON_SCHEMA
+            except ProviderError as refused:
+                if refused.failure is not ProviderFailure.PROTOCOL_ERROR or not (
+                    refused.detail.startswith(("HTTP 400", "HTTP 422"))
+                ):
+                    raise
+                mode = f"{PROMPT_ONLY}: the provider refused response_format ({refused.detail})"[
+                    :_DETAIL
+                ]
+                started = time.monotonic()
+                body = self._request("POST", "/chat/completions", payload)
+        else:
+            body = self._request("POST", "/chat/completions", payload)
         latency = int((time.monotonic() - started) * 1000)
         try:
             message = body["choices"][0]["message"]["content"]
@@ -218,7 +265,7 @@ class OpenAICompatibleClient:
             message = "".join(str(p.get("text", "")) for p in message if isinstance(p, dict))
         if not isinstance(message, str):
             raise ProviderError(ProviderFailure.PROTOCOL_ERROR, "the reply content is not text")
-        return ChatReply(text=message, latency_ms=latency)
+        return ChatReply(text=message, latency_ms=latency, usage=_usage(body), output_mode=mode)
 
     def _request(self, method: str, path: str, payload: dict[str, Any] | None) -> Any:
         if self._refused is not None:
@@ -280,8 +327,27 @@ class OpenAICompatibleClient:
         return redact(" ".join(text.split()), [self._key or ""])[:_DETAIL]
 
 
+_USAGE_FIELDS = ("prompt_tokens", "completion_tokens", "total_tokens")
+
+
+def _usage(body: Any) -> dict[str, int] | None:
+    """The provider's own token counts, exactly as given: only non-negative integers are kept,
+    and nothing is derived -- a missing total is not computed from its parts."""
+    usage = body.get("usage") if isinstance(body, dict) else None
+    if not isinstance(usage, dict):
+        return None
+    kept = {
+        k: v
+        for k in _USAGE_FIELDS
+        if isinstance(v := usage.get(k), int) and not isinstance(v, bool) and v >= 0
+    }
+    return kept or None
+
+
 __all__ = [
     "DOCKER_HOST_GATEWAY",
+    "JSON_SCHEMA",
+    "PROMPT_ONLY",
     "ChatReply",
     "OpenAICompatibleClient",
     "ProviderError",

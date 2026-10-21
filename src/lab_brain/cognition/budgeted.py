@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from lab_brain.cognition.inference import DurableInference, ScientificInferenceService
 from lab_brain.core.budget import BudgetApprovalClaims, BudgetDecision, BudgetPolicy, BudgetRequest
@@ -98,6 +98,9 @@ class InferenceCall:
     escalate: frozenset[SensitivityLabel] = frozenset()
     #: Set for §7.6's critique path: the inference being critiqued.
     critique_of: InferenceProvenance | None = None
+    #: Recorded in the inference's provenance parameters (the aliases the call showed, which
+    #: attempt it is): how this call was made, never anything the model said.
+    parameters: Mapping[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -187,6 +190,7 @@ class BudgetedInferenceDispatcher:
                     escalate=call.escalate,
                     now=started,
                     context=call.context,
+                    parameters=dict(call.parameters),
                 )
             else:
                 result = self._service.infer(
@@ -199,6 +203,7 @@ class BudgetedInferenceDispatcher:
                     actor_id=call.actor_id,
                     inference_id=call.inference_id,
                     escalate=call.escalate,
+                    parameters=dict(call.parameters),
                     now=started,
                     context=call.context,
                 )
@@ -209,7 +214,14 @@ class BudgetedInferenceDispatcher:
                     token_count=_prompt_tokens(call) + token_count(result.text),
                     wall_clock_s=elapsed,
                 ),
-                metadata={"role": call.role, "slot": call.slot.value, "prompt_id": call.prompt_id},
+                metadata={
+                    "role": call.role,
+                    "slot": call.slot.value,
+                    "prompt_id": call.prompt_id,
+                    # What the provider metered, beside the declared whitespace count above: the
+                    # ledger stays comparable with its estimate, and the span says what was spent.
+                    **{f"provider_{k}": v for k, v in (result.usage or {}).items()},
+                },
             )
 
         outcome = dispatch_action(

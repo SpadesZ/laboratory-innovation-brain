@@ -423,6 +423,90 @@ _M: dict[str, tuple[str, str]] = {
         " -- the observation does not record its outcome space, so not comparable",
         "——此觀察沒有記錄其結果空間，無法比較",
     ),
+    # G0: support, kept apart from authorization and from belief.
+    "v.stage.diagnosis": (
+        "Diagnosis: the check observed the outcome this hypothesis declared in advance as support.",
+        "診斷：檢查觀察到的結果，正是這個假說事先宣告為支持的結果。",
+    ),
+    "v.stage.evidence": (
+        "Evidence: recorded, and traceable to the check's run.",
+        "證據：已記錄，可追溯到該檢查的執行紀錄。",
+    ),
+    "v.stage.auth.ALLOW": (
+        "Authorization: given by the transition policy.",
+        "授權：轉移政策已核可。",
+    ),
+    "v.stage.auth.NEED_HUMAN_REVIEW": (
+        "Authorization: pending -- a person must say whether this outcome diagnoses this "
+        "mechanism before it may count.",
+        "授權：尚待決定——須由人員判斷這個結果是否足以診斷此機制，之後才能計入。",
+    ),
+    "v.stage.auth.other": (
+        "Authorization: not given (decision: {result}).",
+        "授權：未獲核可（決定：{result}）。",
+    ),
+    "v.stage.auth.none": ("Authorization: not decided.", "授權：尚未決定。"),
+    "v.stage.belief.changed": (
+        "Belief: changed, {from_state} -> {to_state}.",
+        "信念：已改變，{from_state} → {to_state}。",
+    ),
+    "v.stage.belief.unchanged": ("Belief: unchanged.", "信念：沒有改變。"),
+    "v.coverage": (
+        "Cheap checks the first hypotheses left unaddressed",
+        "最初的假說沒有涵蓋的低成本檢查",
+    ),
+    "v.coverage.lead": (
+        "These checks can run here at low cost, and none of the hypotheses first proposed said "
+        "what their outcome would mean -- so verification would never have planned them. The "
+        "Hypothesis Engine was asked about each, once:",
+        "以下檢查在這裡就能以低成本執行，但最初提出的假說沒有一個說明其結果代表什麼——"
+        "驗證因此不會規劃它們。系統就每一項詢問假說引擎一次：",
+    ),
+    "v.coverage.CERTIFIED": (
+        "{check}: a new competing hypothesis now predicts its outcome -- {mechanism}.",
+        "{check}：新增了一個對立假說，事先預測它的結果——{mechanism}。",
+    ),
+    "v.coverage.DECLINED": (
+        "{check}: no hypothesis was added; the model's reason: {reason}",
+        "{check}：沒有新增假說；模型的理由：{reason}",
+    ),
+    "v.coverage.REFUSED": (
+        "{check}: a hypothesis was proposed and the admission gate refused it: {reason}",
+        "{check}：模型提出了假說，但被假說准入關卡拒絕：{reason}",
+    ),
+    "v.coverage.UNADDRESSED": (
+        "{check}: still unaddressed -- the review did not complete ({reason}).",
+        "{check}：仍未涵蓋——這次檢查沒有完成（{reason}）。",
+    ),
+    "v.why.unaddressed": (
+        "{n} cheap check(s) can run here, but no hypothesis says what the outcome would mean, so "
+        "none was planned: {checks}.",
+        "有 {n} 項低成本檢查可以在這裡執行，但沒有任何假說說明其結果代表什麼，"
+        "因此沒有被規劃：{checks}。",
+    ),
+    "v.l2.reliability": ("How the model replies were checked", "模型回覆如何被檢查"),
+    "v.l2.replies": (
+        "{n} model replies under {policy}: {refused} refused by a typed parser and asked for "
+        "again with the reason; {repaired} unwrapped from a code fence before parsing. Nothing "
+        "was taken from a refused reply.",
+        "依 {policy}，模型共回覆 {n} 次：{refused} 次被型別化解析器拒絕，並附上原因重問；"
+        "{repaired} 次在解析前去除外層程式碼區塊。被拒絕的回覆內容一律不採用。",
+    ),
+    "v.l2.refusal": ("Refused: {detail}", "被拒絕：{detail}"),
+    "v.l2.usage": (
+        "Model use in this run, as the provider reported it",
+        "本次執行的模型用量（依服務商回報）",
+    ),
+    "v.l2.usage_note": (
+        "Token counts are the provider's own, summed over the calls that reported them. No cost "
+        "in money is computed: no route declares a price.",
+        "token 數為服務商自行回報，只加總有回報的呼叫。沒有計算金額：沒有任何路由宣告單價。",
+    ),
+    "col.calls": ("Calls", "呼叫次數"),
+    "col.metered": ("Metered", "有回報用量"),
+    "col.prompt_tokens": ("Prompt tokens", "輸入 token"),
+    "col.completion_tokens": ("Completion tokens", "輸出 token"),
+    "col.total_tokens": ("Total tokens", "合計 token"),
     "v.moved": (
         "{mechanism}: {from_state} -> {to_state}, a governed belief change (decision: {decision}).",
         "「{mechanism}」：{from_state} → {to_state}，經治理程序的信念改變（決定：{decision}）。",

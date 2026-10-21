@@ -27,11 +27,25 @@ page first, as a real one must. The critic and utility slots stay local unless n
     reading        the zh-TW page names the models from provenance; their own text is shown as
                    written and marked untranslated
     evidence       with `LAB_BRAIN_LIVE_EVIDENCE=<dir>`, the probes, the provenance rows with the
-                   models' outputs, and each episode's zh-TW page and summary are written there
+                   models' outputs (and each call's parameters: attempt, retry_of, aliases, output
+                   mode), and each episode's zh-TW page and summary are written there; outcomes.json
+                   also holds what each case executed, every admitted prediction, the debate's
+                   reliability record (reply attempts, coverage review) and the provider's usage --
+                   what `scripts/g0_live_compare.py` scores against the earlier runs
+
+G0 RETEST (owner-authorized only; an external primary is billable). From the repository root:
+
+    LAB_BRAIN_TEST_POSTGRES=1 LAB_BRAIN_DATABASE_URL=<a fresh, migrated database>
+    LAB_BRAIN_LIVE_PRIMARY=models/gemini-3.1-pro-preview LAB_BRAIN_LIVE_PRIMARY_PROVIDER=gemini
+    LAB_BRAIN_LIVE_PRIMARY_KEY_ENV=GEMINI_API_KEY LAB_BRAIN_LIVE_CRITIC=qwen2.5:7b
+    LAB_BRAIN_LIVE_UTILITY=qwen2.5:7b LAB_BRAIN_LIVE_EVIDENCE=<new evidence dir>
+    pytest tests/e2e/test_research_live_model_postgres.py
+    python scripts/g0_live_compare.py <earlier run dirs> -- <new evidence dir>
 """
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import re
@@ -227,7 +241,8 @@ def test_a_real_model_researches_three_cases_without_lumerical(db, tmp_path):
         provenance = _rows(
             db,
             "SELECT inference_id, role, logical_slot, provider, model_id, model_version,"
-            " prompt_id, prompt_version, created_at::text, output_text FROM inference_provenance"
+            " prompt_id, prompt_version, created_at::text, parameters, output_text"
+            " FROM inference_provenance"
             " WHERE project_id = %s AND trace_id = (SELECT trace_id FROM research_episodes"
             " WHERE episode_id = %s) ORDER BY created_at",
             PROJECT,
@@ -275,6 +290,31 @@ def test_a_real_model_researches_three_cases_without_lumerical(db, tmp_path):
             "stages": [[x.stage, x.status, x.detail] for x in report.stages],
             "hypotheses": [[x.mechanism, x.final_state] for x in report.hypotheses],
             "inferences": [[p["role"], p["logical_slot"], p["model_id"]] for p in provenance],
+            "executed": sorted(
+                r[0]
+                for r in db.execute(
+                    "SELECT DISTINCT j.capability_id FROM jobs j JOIN runs u ON u.job_id = j.job_id"
+                    " WHERE j.episode_id = %s AND u.status = 'SUCCEEDED'",
+                    (episode,),
+                ).fetchall()
+            ),
+            "predictions": [
+                list(r)
+                for r in db.execute(
+                    "SELECT h.mechanism, p.observable_ref, p.expected_outcome,"
+                    " p.relation_effect_if_observed -> 0 ->> 'relation_type'"
+                    " FROM predictions p JOIN hypotheses h USING (hypothesis_id)"
+                    " WHERE h.created_in_episode = %s ORDER BY 1, 2, 3",
+                    (episode,),
+                ).fetchall()
+            ],
+            "confirmed": (outcome or "").removeprefix("CONFIRMED:")
+            if (outcome or "").startswith("CONFIRMED:")
+            else None,
+            "reliability": dataclasses.asdict(report.debate.reliability)
+            if report.debate is not None and report.debate.reliability is not None
+            else None,
+            "usage": [dataclasses.asdict(u) for u in report.usage],
         }
     _write("outcomes.json", json.dumps(outcomes, indent=1, ensure_ascii=False))
     stopped = {

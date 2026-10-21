@@ -19,6 +19,9 @@ an answer:
 
     Hypothesis Engine   every catalog mechanism up to the requested minimum, ranked by how often
                         the evidence shown mentions its cues; certificates are the catalog's
+    coverage review     for each unaddressed check, the catalog mechanisms not yet proposed that
+                        discriminate on it and that the evidence shown mentions, grounded on the
+                        attestations naming a cue; otherwise declined, saying which of those held
     Critic              a COUNTEREXAMPLE only where evidence it was shown (the inverted retrieval)
                         contains a mechanism's counter-cue, citing that attestation; alternative
                         mechanisms the evidence points at that no hypothesis covers
@@ -41,6 +44,7 @@ from typing import Any
 from lab_brain.cognition.llm import ModelSlot
 from lab_brain.cognition.roles import (
     ADVERSARIAL_CRITIC,
+    COVERAGE_REVIEW,
     HYPOTHESIS_ENGINE,
     NOVELTY_AUDITOR,
     QUERY_REWRITER,
@@ -218,6 +222,8 @@ class CatalogReasoner:
             return json.dumps(self._engine(ctx))
         if material.startswith(ADVERSARIAL_CRITIC.prompt.template):
             return json.dumps(self._critic(ctx))
+        if material.startswith(COVERAGE_REVIEW.prompt.template):
+            return json.dumps(self._coverage(ctx))
         if material.startswith(QUERY_REWRITER.prompt.template):
             return json.dumps(self._rewrite(ctx))
         if material.startswith(NOVELTY_AUDITOR.prompt.template):
@@ -304,6 +310,43 @@ class CatalogReasoner:
                 "confounders": [],
             },
         }
+
+    def _coverage(self, ctx: Mapping[str, Any]) -> dict[str, Any]:
+        existing = {" ".join(m.lower().split()) for m in ctx.get("existing_mechanisms", [])}
+        evidence = ctx.get("evidence", [])
+        certified: list[dict[str, Any]] = []
+        declined: list[dict[str, Any]] = []
+        for check in ctx.get("unaddressed_checks", []):
+            observable = check["observable_ref"]
+            covered = False
+            for m in self.catalog.mechanisms:
+                discriminates = any(
+                    p.observable_ref == observable
+                    and p.relation_effect in ("SUPPORTS", "CONTRADICTS")
+                    for p in m.predictions
+                )
+                taken = " ".join(m.mechanism.lower().split()) in existing
+                grounds = [
+                    e["attestation_id"]
+                    for e in evidence
+                    if any(c in e["text"].lower() for c in m.cues)
+                ]
+                if discriminates and not taken and grounds:
+                    certified.append({**self._certificate(m), "grounding_evidence_ids": grounds})
+                    existing.add(" ".join(m.mechanism.lower().split()))
+                    covered = True
+            if not covered:
+                declined.append(
+                    {
+                        "observable_ref": observable,
+                        "reason": (
+                            "no catalog mechanism that predicts this outcome is both new to the "
+                            "set and named by the evidence shown"
+                        ),
+                        "evidence_ids": [],
+                    }
+                )
+        return {"hypotheses": certified, "declined": declined}
 
     def _specialist(self, ctx: Mapping[str, Any]) -> dict[str, Any]:
         scores = self._scores([e["text"] for e in ctx.get("evidence", [])])

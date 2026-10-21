@@ -51,6 +51,7 @@ from lab_brain.research.episode_view import (
 )
 from lab_brain.research.report import (
     ActionLine,
+    CoverageLine,
     EpisodeReport,
     HypothesisLine,
     PendingAction,
@@ -829,7 +830,57 @@ def _observation(s: _Seen, t: Terms) -> Html:
 
 
 def _moves(relation: Relation, t: Terms) -> Html:
-    """What the governed path did with one relation: its transitions, or why there were none."""
+    """What the governed path did with one relation: its transitions, or why there were none --
+    and, for support, the four things a reader must not run together (`_stages`)."""
+    said = _moved(relation, t)
+    if relation.relation_type != "SUPPORTS":
+        return said
+    return cat([said, _stages(relation, t.m)])
+
+
+def _stages(relation: Relation, m: Messages) -> Html:
+    """Diagnosis, evidence, authorization, belief: each its own line, from the record alone.
+
+    A SUPPORTS relation exists only because a check observed the outcome a hypothesis declared
+    BEFORE it ran, and was admitted as evidence -- so the first two always hold for one. Whether
+    that observation may move belief is the transition policy's (and, for a model's mechanism, a
+    person's) to say, and only a recorded transition is a belief change.
+    """
+    results = [d.result for d in relation.decisions]
+    if relation.transitions:
+        authorization = m("v.stage.auth.ALLOW")
+    elif "NEED_HUMAN_REVIEW" in results:
+        authorization = m("v.stage.auth.NEED_HUMAN_REVIEW")
+    elif results:
+        authorization = m("v.stage.auth.other", result=_words("td", results[-1], m))
+    else:
+        authorization = m("v.stage.auth.none")
+    belief = (
+        cat(
+            (
+                mh(
+                    m,
+                    "v.stage.belief.changed",
+                    from_state=status("bs", x.from_state, m),
+                    to_state=status("bs", x.to_state, m),
+                )
+                for x in relation.transitions
+            ),
+            " ",
+        )
+        if relation.transitions
+        else e(m("v.stage.belief.unchanged"))
+    )
+    return h(
+        '<ul class="stages"><li>{}</li><li>{}</li><li>{}</li><li>{}</li></ul>',
+        m("v.stage.diagnosis"),
+        m("v.stage.evidence"),
+        authorization,
+        belief,
+    )
+
+
+def _moved(relation: Relation, t: Terms) -> Html:
     m = t.m
     if relation.transitions:
         return cat(
@@ -981,7 +1032,8 @@ def _evidence_status(
                 _observation(s, t),
                 mh(m, "v.ev.effect", effect=_words("rt", rel.relation_type, m)),
                 # A relation the governed path did not act on leaves the state where it was.
-                h(" {}", _moves(rel, t)) if not rel.transitions else Html(""),
+                # One or two lines here: the four-part account is in the sections below.
+                h(" {}", _moved(rel, t)) if not rel.transitions else Html(""),
             )
             for s, rel in found
         )
@@ -1472,6 +1524,16 @@ def _why_html(
     person = _person_actions(report)
     if person:
         reasons.append(mh(m, "v.why.person", checks=_joined([t.name(x) for x in person], m)))
+    unaddressed = _unaddressed(report)
+    if unaddressed:
+        reasons.append(
+            mh(
+                m,
+                "v.why.unaddressed",
+                n=len(unaddressed),
+                checks=_joined([t.name(x) for x in unaddressed], m),
+            )
+        )
     reasons.append(_reasoner_line(report, t))
     return h(
         '<p><strong>{}</strong></p><ul>{}</ul><p class="muted">{}</p>',
@@ -1749,6 +1811,55 @@ def _reasoning_html(
                 m("v.l2.critique_stage"),
             )
         )
+    reliability = report.debate.reliability if report.debate is not None else None
+    if reliability is not None:
+        parts.append(
+            h(
+                "<h3>{}</h3><p>{}</p>{}",
+                m("v.l2.reliability"),
+                m(
+                    "v.l2.replies",
+                    n=reliability.replies,
+                    policy=reliability.policy,
+                    refused=reliability.refused,
+                    repaired=reliability.repaired,
+                ),
+                _list([h("{}", m("v.l2.refusal", detail=r)) for r in reliability.refusals])
+                if reliability.refusals
+                else Html(""),
+            )
+        )
+    if report.usage:
+        parts.append(
+            h(
+                '<h3>{}</h3>{}<p class="muted">{}</p>',
+                m("v.l2.usage"),
+                _table(
+                    (
+                        m("col.model"),
+                        m("col.slot"),
+                        m("col.calls"),
+                        m("col.metered"),
+                        m("col.prompt_tokens"),
+                        m("col.completion_tokens"),
+                        m("col.total_tokens"),
+                    ),
+                    (
+                        (
+                            u.model,
+                            u.slot,
+                            u.calls,
+                            u.metered_calls,
+                            u.prompt_tokens,
+                            u.completion_tokens,
+                            u.total_tokens,
+                        )
+                        for u in report.usage
+                    ),
+                ),
+                m("v.l2.usage_note"),
+            )
+        )
     if report.plans:
         parts.append(
             h(
@@ -1972,6 +2083,9 @@ def _l1_html(
             else Html(""),
             _section("hypotheses", m("v.hypotheses"), _hypotheses_html(report, view, seen, t)),
             _section("tested", m("v.tested"), _tested_html(report, view, runs, ordinal, t)),
+            _section("coverage", m("v.coverage"), _coverage_html(report, t))
+            if _coverage_lines(report)
+            else Html(""),
             _section("support", m("v.support"), _support_html(report, view, seen, t)),
             _section("why", m("v.why"), _why_html(report, seen, t, view, episode.suspend_reason)),
             _section(
@@ -1981,6 +2095,34 @@ def _l1_html(
             ),
         ]
     )
+
+
+def _coverage_lines(report: EpisodeReport | None) -> tuple[CoverageLine, ...]:
+    if report is None or report.debate is None or report.debate.reliability is None:
+        return ()
+    return report.debate.reliability.coverage
+
+
+def _coverage_html(report: EpisodeReport | None, t: Terms) -> Html:
+    """The cheap checks the first hypotheses left unaddressed, and what the review made of each:
+    a new rival (named), a decline (the model's own reason, shown as written), or still open."""
+    m = t.m
+    items = [
+        mh(
+            m,
+            f"v.coverage.{line.disposition}",
+            check=t.name(line.check),
+            mechanism=t.text(line.detail),
+            reason=t.text(line.detail),
+        )
+        for line in _coverage_lines(report)
+    ]
+    return cat([h("<p>{}</p>", m("v.coverage.lead")), _list(items)])
+
+
+def _unaddressed(report: EpisodeReport) -> list[str]:
+    """Checks a review could not settle: still cheap, still unplanned, still unexplained."""
+    return [x.check for x in _coverage_lines(report) if x.disposition in ("UNADDRESSED", "REFUSED")]
 
 
 def _translation_notes(t: Terms) -> Html:

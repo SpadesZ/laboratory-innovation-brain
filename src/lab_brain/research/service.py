@@ -46,6 +46,7 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 import hashlib
+import re
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -133,6 +134,7 @@ from lab_brain.research.report import (
     BeliefLine,
     Conclusion,
     ContinuationSection,
+    CoverageLine,
     DebateSection,
     EpisodeReport,
     EvidenceLine,
@@ -142,7 +144,9 @@ from lab_brain.research.report import (
     LiteratureSection,
     PendingAction,
     PlanLine,
+    ReliabilitySection,
     StageStatus,
+    UsageLine,
 )
 from lab_brain.research.vertical import (
     BlockedCapability,
@@ -1235,10 +1239,15 @@ class ResearchEpisodeService:
             gate=gate,
             embed=hashing_embedder(EMBEDDING_SPACE),
             embedding_space=EMBEDDING_SPACE,
+            # 1.1.0: a refused reply is asked for once more, with the parser's reason; and the
+            # Hypothesis Engine reviews the cheap executable checks no hypothesis addressed.
             policy=DebatePolicy(
                 policy_id="debate:research-run",
+                version="1.1.0",
                 minimum_hypotheses=debate_minimum(vertical),
                 max_rounds=2,
+                max_attempts=2,
+                coverage_review=True,
             ),
             mint=self._mint,
             now=self._clock,
@@ -1637,10 +1646,12 @@ class ResearchEpisodeService:
         episode_store = SqlEpisodeStore(c)
         if run.debate is not None:
             outcome = run.debate
+            names = {c.hypothesis_id: c.hypothesis.mechanism for c in outcome.certificates}
             for critique in outcome.critiques:
+                shown = self._aliases(request.project_id, critique.inference_provenance_id)
                 for o in critique.objections:
                     objections.setdefault(o.target_id, []).append(
-                        f"{o.kind.value} ({o.severity.value}): {o.text}"
+                        f"{o.kind.value} ({o.severity.value}): {_dealias(o.text, shown, names)}"
                     )
             belief_reader = BeliefEpisode(
                 policies=SqlTransitionPolicyStore(c),
@@ -1712,6 +1723,7 @@ class ResearchEpisodeService:
                 surviving=tuple(sorted(mechanisms.get(i, i) for i in outcome.surviving_ids)),
                 contradicted=tuple(sorted(mechanisms.get(i, i) for i in outcome.contradicted_ids)),
                 gate=_gate(record.gate_evaluations),
+                reliability=_reliability(record.reliability, mechanisms),
             )
 
         plans: list[PlanLine] = []
@@ -1928,6 +1940,42 @@ class ResearchEpisodeService:
             not_performed=self._not_performed(run, vertical, self._reasoning is not None),
             notes=tuple(run.notes) + (tuple(loop.notes) if loop is not None else ()),
             continuation=self._continuation_section(run),
+            usage=self._usage(request.project_id, trace_id, started),
+        )
+
+    def _aliases(self, project_id: str, inference_id: str) -> dict[str, str]:
+        """alias -> canonical id, as the inference's own provenance recorded what it was shown --
+        read in this project only, as every scientific lookup is."""
+        row = self._connection.execute(
+            "SELECT parameters -> 'aliases' FROM inference_provenance"
+            " WHERE inference_id = %s AND project_id = %s",
+            (inference_id, project_id),
+        ).fetchone()
+        aliases = row[0] if row is not None else None
+        return dict(aliases) if isinstance(aliases, dict) else {}
+
+    def _usage(self, project_id: str, trace_id: str, since: dt.datetime) -> tuple[UsageLine, ...]:
+        """This run's model calls (its LLM_CALL spans since it started), per model and slot, with
+        the token counts the provider reported -- summed only over the calls that carried them."""
+        rows = self._connection.execute(
+            "SELECT ip.model_id, ip.logical_slot, s.metadata FROM execution_spans s"
+            " JOIN inference_provenance ip ON ip.inference_id = s.model_call_id"
+            " WHERE s.trace_id = %s AND s.span_type = 'LLM_CALL' AND s.start_time >= %s"
+            " AND ip.project_id = %s ORDER BY ip.model_id, ip.logical_slot",
+            (trace_id, since, project_id),
+        ).fetchall()
+        totals: dict[tuple[str, str], list[int]] = {}
+        for model, slot, metadata in rows:
+            t = totals.setdefault((str(model), str(slot)), [0, 0, 0, 0, 0])
+            t[0] += 1
+            meta = metadata if isinstance(metadata, dict) else {}
+            if any(k.startswith("provider_") for k in meta):
+                t[1] += 1
+                t[2] += int(meta.get("provider_prompt_tokens", 0))
+                t[3] += int(meta.get("provider_completion_tokens", 0))
+                t[4] += int(meta.get("provider_total_tokens", 0))
+        return tuple(
+            UsageLine(model, slot, *counts) for (model, slot), counts in sorted(totals.items())
         )
 
     def _conclude(
@@ -2215,6 +2263,69 @@ class ResearchEpisodeService:
                 "provider was contacted unless that description says so"
             )
         return tuple(lines)
+
+
+def _dealias(text: str, shown: Mapping[str, str], names: Mapping[str, str]) -> str:
+    """A model's text, each alias it was shown followed by what it names: a hypothesis (`H3`) by
+    its mechanism, an attestation (`E2`) by its canonical id -- the reference the text would have
+    carried before aliases.
+
+    For READING only: the stored text is unchanged, and an alias the call was not shown (or that
+    names nothing here) is left exactly as written.
+    """
+
+    def named(match: re.Match[str]) -> str:
+        alias = match.group(0)
+        canonical = shown.get(alias)
+        if canonical is None:
+            return alias
+        meaning = names.get(canonical) if alias.startswith("H") else canonical
+        return alias if meaning is None else f"{alias} [{meaning}]"
+
+    return re.sub(r"\b[HE][0-9]+\b", named, text)
+
+
+def _reliability(
+    recorded: Mapping[str, Any], mechanisms: Mapping[str, str]
+) -> ReliabilitySection | None:
+    """The debate record's reliability (`012x`), as the report states it. `None` for a record
+    written before it existed."""
+    if not recorded:
+        return None
+    attempts = [a for a in recorded.get("reply_attempts", []) if isinstance(a, dict)]
+    coverage = recorded.get("coverage_review") or {}
+    status = str(coverage.get("status", "DISABLED"))
+    lines: list[CoverageLine] = []
+    certified = {o: c for c in coverage.get("certified", []) for o in c.get("addresses", [])}
+    declined = {d["observable_ref"]: d for d in coverage.get("declined", [])}
+    refused = {o: r for r in coverage.get("refused", []) for o in r.get("addresses", [])}
+    for gap in coverage.get("gaps", []):
+        observable = str(gap["observable_ref"])
+        if observable in certified:
+            disposition = "CERTIFIED"
+            hid = certified[observable]["hypothesis_id"]
+            detail = mechanisms.get(hid, str(certified[observable]["mechanism"]))
+        elif observable in declined:
+            disposition, detail = "DECLINED", str(declined[observable]["reason"])
+        elif observable in refused:
+            disposition, detail = "REFUSED", str(refused[observable]["detail"])
+        else:
+            disposition = "UNADDRESSED"
+            detail = str(coverage.get("detail") or status)
+        lines.append(CoverageLine(observable, str(gap["check"]), disposition, detail))
+    return ReliabilitySection(
+        policy=str(recorded.get("debate_policy", "-")),
+        replies=len(attempts),
+        refused=sum(1 for a in attempts if a.get("outcome") == "REFUSED"),
+        repaired=sum(1 for a in attempts if a.get("repair")),
+        coverage_status=status,
+        coverage=tuple(lines),
+        refusals=tuple(
+            f"{a['role']}, attempt {a['attempt']}: {a.get('detail', '')}"
+            for a in attempts
+            if a.get("outcome") == "REFUSED"
+        ),
+    )
 
 
 def _would_decide(discriminating: Sequence[tuple[str, str, str]], run: _Run) -> tuple[str, ...]:

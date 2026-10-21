@@ -18,7 +18,12 @@ from typing import Any
 
 import pytest
 
-from lab_brain.cognition.roles import ADVERSARIAL_CRITIC, HYPOTHESIS_ENGINE, QUERY_REWRITER
+from lab_brain.cognition.roles import (
+    ADVERSARIAL_CRITIC,
+    COVERAGE_REVIEW,
+    HYPOTHESIS_ENGINE,
+    QUERY_REWRITER,
+)
 from lab_brain.cognition.routing import CognitiveRole, ModelRouter
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.interfaces.web import pages
@@ -92,8 +97,12 @@ def _role_probes(capability: Capability) -> list[Any]:
 )
 def test_a_role_probe_is_passed_only_by_what_the_real_parser_accepts(capability):
     assert run_probe(_Canned(_valid), "m", capability).outcome is ProbeOutcome.PASSED  # type: ignore[arg-type]
+    # One whole-reply code fence is the envelope research repairs (and records); the probe
+    # judges the reply the same way. Prose around the JSON is not an envelope, and fails.
     fenced = run_probe(_Canned(lambda p: f"```json\n{_valid(p)}\n```"), "m", capability)  # type: ignore[arg-type]
-    assert fenced.outcome is ProbeOutcome.FAILED and "typed role parser refused" in fenced.detail
+    assert fenced.outcome is ProbeOutcome.PASSED
+    wrapped = run_probe(_Canned(lambda p: f"Here it is:\n{_valid(p)}"), "m", capability)  # type: ignore[arg-type]
+    assert wrapped.outcome is ProbeOutcome.FAILED and "typed role parser refused" in wrapped.detail
     prose = run_probe(_Canned("Sure! Here are some thoughts."), "m", capability)  # type: ignore[arg-type]
     assert prose.outcome is ProbeOutcome.FAILED
     assert all(p.system in contracts.CONTRACTS.values() for p in _role_probes(capability))
@@ -114,8 +123,9 @@ def test_the_basic_probes_judge_by_code_and_never_run_it(tmp_path):
 
 def test_probes_carry_no_project_data_and_use_the_real_role_templates():
     assert PROBES[Capability.ROLE_QUERY].prompt.startswith(QUERY_REWRITER.prompt.template)
-    for case in _role_probes(Capability.ROLE_HYPOTHESIS):
-        assert case.prompt.startswith(HYPOTHESIS_ENGINE.prompt.template)
+    for name, case in hypothesis_suite(2):
+        template = (COVERAGE_REVIEW if name == "coverage-review" else HYPOTHESIS_ENGINE).prompt
+        assert case.prompt.startswith(template.template)
     assert PROBES[Capability.ROLE_CRITIQUE].prompt.startswith(ADVERSARIAL_CRITIC.prompt.template)
     for probe in [*PROBES.values(), *_role_probes(Capability.ROLE_HYPOTHESIS)]:
         assert "prj:" not in probe.prompt and "epi:" not in probe.prompt

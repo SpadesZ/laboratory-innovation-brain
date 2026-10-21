@@ -28,13 +28,13 @@ from dataclasses import dataclass
 from typing import Any, TypeVar
 from urllib.parse import urlsplit
 
-from lab_brain.cognition.llm import ModelSlot
+from lab_brain.cognition.llm import CompletionReply, ModelSlot
 from lab_brain.core.models.base import utc_now
 from lab_brain.core.models.enums import SensitivityLabel
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.llm_runtime.authority import ProjectEgressPolicies, is_administrator
 from lab_brain.llm_runtime.capabilities import BUILTIN_EMBEDDING, Capability, roles_on
-from lab_brain.llm_runtime.contracts import contract_for
+from lab_brain.llm_runtime.contracts import contract_for, schema_for
 from lab_brain.llm_runtime.probes import GENERIC_HYPOTHESIS_MINIMUM, PROBE_ORDER, run_probe
 from lab_brain.llm_runtime.provider import (
     OpenAICompatibleClient,
@@ -612,14 +612,20 @@ class _Route:
 class RouteCompletion:
     """The `Completion` transport of an active runtime: `ScientificLLM` calls it, after the gates,
     with the prompt it digested; it sends that prompt to the slot's model with the role's
-    response contract."""
+    response contract and JSON schema, and hands back the provider's usage and output mode."""
 
     def __init__(self, routes: dict[LogicalSlot, _Route]) -> None:
         self._routes = routes
 
-    def __call__(self, material: str, slot: ModelSlot) -> str:
+    def __call__(self, material: str, slot: ModelSlot) -> CompletionReply:
         route = self._routes[slot.logical_slot]
-        return route.client.chat(route.model, material, system=contract_for(material)).text
+        reply = route.client.chat(
+            route.model,
+            material,
+            system=contract_for(material),
+            response_schema=schema_for(material),
+        )
+        return CompletionReply(reply.text, usage=reply.usage, output_mode=reply.output_mode)
 
 
 def load_active_runtime(

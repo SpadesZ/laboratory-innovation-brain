@@ -41,6 +41,21 @@ least one of its own predictions with relation_effect CONTRADICTS. A prose-only 
 designation of a SUPPORTS, PREDICTS or TESTS prediction, a key that names no prediction of the
 same hypothesis -- each fails the case, because research would refuse that certificate.
 
+ROLE_SPECIALIST AND ROLE_CRITIQUE ARE ASKED AS RESEARCH ASKS (probe-7.0.0). A live run failed where
+the probe had passed: the probe showed short synthetic ids (`hyp:probe-contact`), research showed
+`hyp:<uuid>`, and a model shortened one. So every id in a probe payload now has production's shape
+(`hyp:` / `att:` + a UUID, fixed so the payload is), the context is built by the SAME function
+research uses (`cognition.debate.specialist_context`, `critique_context`), which shows each id as
+its alias, and the reply is judged by the same parser with the same alias resolution -- after the
+same envelope repair (`roles.normalize_reply`), and with the same JSON schema sent. Five rivals over
+five observations, as a domain's Stage A produces. A model qualified on the old short-id probes is
+not qualified now: the probe version is part of every lock, and those locks are stale.
+
+ROLE_HYPOTHESIS's suite includes the COVERAGE REVIEW (`coverage-review`): the review research runs
+after Stage A, asked over synthetic hypotheses and one unaddressed synthetic check, judged by its
+parser (every check certified by a grounded new rival, or declined with a reason). A route serves
+it on the same slot, so a model must demonstrate it to be bound there.
+
 WHAT QUALIFIES A MODEL is fixed by `QUALIFICATION_DIGEST`: the probe version and payloads, the role
 prompts they carry (id, version, text) and the response contracts. It is part of every lock
 fingerprint, so a lock made before any of them changed no longer matches, and is refused as stale.
@@ -52,18 +67,25 @@ import ast
 import hashlib
 import json
 import struct
+import uuid
 import zlib
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
+from lab_brain.cognition.aliases import AliasTable
+from lab_brain.cognition.debate import coverage_context, critique_context, specialist_context
 from lab_brain.cognition.llm import _render
 from lab_brain.cognition.roles import (
     ADVERSARIAL_CRITIC,
+    COVERAGE_REVIEW,
     HYPOTHESIS_ENGINE,
     QUERY_REWRITER,
     RoleOutputRefused,
     binding_context,
+    normalize_reply,
+    parse_coverage_review,
     parse_critique,
     parse_hypothesis_engine,
     parse_query_terms,
@@ -73,10 +95,12 @@ from lab_brain.core.models.prediction import OutcomeSpace
 from lab_brain.llm_runtime.capabilities import Capability
 from lab_brain.llm_runtime.contracts import (
     CONTRACT_DIGEST,
+    COVERAGE_CONTRACT,
     CRITIQUE_CONTRACT,
     HYPOTHESIS_CONTRACT,
     QUERY_CONTRACT,
     SPECIALIST_CONTRACT,
+    schema_for,
 )
 from lab_brain.llm_runtime.provider import OpenAICompatibleClient, ProviderError
 
@@ -87,7 +111,10 @@ from lab_brain.llm_runtime.provider import OpenAICompatibleClient, ProviderError
 #: 5.0.0: every certificate designates a typed falsifier (prompt 4.0.0, rc-3.0.0).
 #: 6.0.0: the relation effects are defined and one outcome takes one effect (prompt 5.0.0,
 #: rc-4.0.0).
-PROBE_VERSION = "probe-6.0.0"
+#: 7.0.0: production-shaped ids shown as aliases, through research's own context builders, five
+#: rivals; every role reply judged after the same envelope repair, with the role's JSON schema
+#: sent; ROLE_HYPOTHESIS includes the coverage review (rc-5.0.0).
+PROBE_VERSION = "probe-7.0.0"
 
 #: The ROLE_HYPOTHESIS conformance suite and its version, recorded with every result. 1.0.0: the
 #: cases `contextual-minimum` and `multi-space`. 2.0.0: the same cases, each over declared
@@ -96,7 +123,8 @@ PROBE_VERSION = "probe-6.0.0"
 #: 4.0.0: the same cases, under prompt 5.0.0's defined effects; a case also fails if a hypothesis
 #: gives one outcome of an observable two different effects. Support is never required: a
 #: falsification-only certificate passes, as research admits it.
-HYPOTHESIS_SUITE = "hypothesis-conformance@4.0.0"
+#: 5.0.0: the same cases, plus `coverage-review`; evidence ids have production's shape.
+HYPOTHESIS_SUITE = "hypothesis-conformance@5.0.0"
 
 #: §7.4 / EPI-001: Stage A returns at least two COMPETING certificates. What a deployment's research
 #: asks for may be more; it is never less.
@@ -128,15 +156,23 @@ class ProbeResult:
 
 # -- the fixed payloads ----------------------------------------------------------------------------
 
+
+def production_id(prefix: str, label: str) -> str:
+    """A canonical id of production's shape, `<prefix>:<uuid4>` -- fixed by `label`, so the
+    payload (and the qualification digest) is the same on every machine."""
+    digest = hashlib.sha256(f"lab-brain-probe:{prefix}:{label}".encode()).digest()
+    return f"{prefix}:{uuid.UUID(bytes=digest[:16], version=4)}"
+
+
 _QUESTION = "PROBE: why does the synthetic test resistor read high?"
 _EVIDENCE = [
     {
-        "attestation_id": "att:probe-1",
+        "attestation_id": production_id("att", "probe-1"),
         "trust_class": "INTERNAL_MEASUREMENT",
         "text": "The synthetic test resistor reads 30 percent above its nominal value at 25 C.",
     },
     {
-        "attestation_id": "att:probe-2",
+        "attestation_id": production_id("att", "probe-2"),
         "trust_class": "INTERNAL_MEASUREMENT",
         "text": "Its contact pads show visible oxidation; the substrate temperature was stable.",
     },
@@ -147,17 +183,17 @@ _EVIDENCE = [
 _HYPOTHESIS_EVIDENCE = [
     *_EVIDENCE,
     {
-        "attestation_id": "att:probe-3",
+        "attestation_id": production_id("att", "probe-3"),
         "trust_class": "INTERNAL_MEASUREMENT",
         "text": "At constant current the reading drifts upward by 4 percent over ten minutes.",
     },
     {
-        "attestation_id": "att:probe-4",
+        "attestation_id": production_id("att", "probe-4"),
         "trust_class": "INTERNAL_MEASUREMENT",
         "text": "Six of the eight resistors on the die read high; the six sit near the die edge.",
     },
     {
-        "attestation_id": "att:probe-5",
+        "attestation_id": production_id("att", "probe-5"),
         "trust_class": "INTERNAL_MEASUREMENT",
         "text": "The die was annealed at 450 C after metallisation; the probe needles are new.",
     },
@@ -180,33 +216,33 @@ _MULTI_QUESTION = (
 )
 _MULTI_EVIDENCE = [
     {
-        "attestation_id": "att:probe-m1",
+        "attestation_id": production_id("att", "probe-m1"),
         "trust_class": "INTERNAL_MEASUREMENT",
         "text": "Channel A of the synthetic bench sensor reads 25 percent above its reference.",
     },
     {
-        "attestation_id": "att:probe-m2",
+        "attestation_id": production_id("att", "probe-m2"),
         "trust_class": "INTERNAL_MEASUREMENT",
         "text": "After power-on the channel A reading rises for about twenty minutes, then holds.",
     },
     {
-        "attestation_id": "att:probe-m3",
+        "attestation_id": production_id("att", "probe-m3"),
         "trust_class": "INTERNAL_MEASUREMENT",
         "text": "Readings near the edge of the fixture plate are higher than at its centre.",
     },
     {
-        "attestation_id": "att:probe-m4",
+        "attestation_id": production_id("att", "probe-m4"),
         "trust_class": "INTERNAL_MEASUREMENT",
         "text": "Ten repeated readings on the same bench agree to within 1 percent.",
     },
     {
-        "attestation_id": "att:probe-m5",
+        "attestation_id": production_id("att", "probe-m5"),
         "trust_class": "INTERNAL_MEASUREMENT",
         "text": "The bench log also records the noise floor per hertz (logged as noise_per_hz) and "
         "a room humidity of 62 percent.",
     },
     {
-        "attestation_id": "att:probe-m6",
+        "attestation_id": production_id("att", "probe-m6"),
         "trust_class": "INTERNAL_MEASUREMENT",
         "text": "The bench reference was replaced last week, and the channel A cable is new.",
     },
@@ -258,22 +294,57 @@ _MULTI_BINDINGS: Mapping[str, OutcomeSpace] = dict(
         strict=True,
     )
 )
+#: Five rivals, as a domain's Stage A produces, each under a production-shaped id.
 _HYPOTHESES = [
     {
-        "hypothesis_id": "hyp:probe-contact",
+        "hypothesis_id": production_id("hyp", "contact"),
         "statement": "Oxidised contacts add series resistance.",
         "mechanism": "contact oxidation",
         "falsifier": "a four point measurement reads nominal",
         "assumptions": ["the pads carry the current"],
     },
     {
-        "hypothesis_id": "hyp:probe-thermal",
+        "hypothesis_id": production_id("hyp", "thermal"),
         "statement": "Self heating raises the resistance.",
         "mechanism": "self heating",
         "falsifier": "the reading does not change with current",
         "assumptions": ["the current is high enough to heat"],
     },
+    {
+        "hypothesis_id": production_id("hyp", "edge"),
+        "statement": "A process gradient toward the die edge raises sheet resistance there.",
+        "mechanism": "die edge process gradient",
+        "falsifier": "resistors at the die centre read as high as those at the edge",
+        "assumptions": ["the high readings cluster by position"],
+    },
+    {
+        "hypothesis_id": production_id("hyp", "anneal"),
+        "statement": "The 450 C anneal degraded the metal-to-resistor interface.",
+        "mechanism": "anneal interface degradation",
+        "falsifier": "an unannealed die reads the same",
+        "assumptions": ["the anneal followed metallisation"],
+    },
+    {
+        "hypothesis_id": production_id("hyp", "meter"),
+        "statement": "The meter's calibration has drifted high.",
+        "mechanism": "meter calibration drift",
+        "falsifier": "a reference resistor reads nominal on the same meter",
+        "assumptions": ["the meter was last calibrated long ago"],
+    },
 ]
+
+#: The `coverage-review` case: one synthetic check no rival above discriminates on.
+_COVERAGE_BINDINGS: Mapping[str, OutcomeSpace] = {
+    "bench.resistor_reading": _SPACE,
+    "bench.repeat_spread": OutcomeSpace(
+        outcome_space_id="os:probe.repeatability",
+        version="1.0.0",
+        domain="probe",
+        action_type="ANALYTICAL_RULE_CHECK",
+        outcomes=("REPEATABLE", "SCATTERED"),
+    ),
+}
+_UNADDRESSED = ("bench.repeat_spread",)
 _SPECIALIST_TEMPLATE = (
     "You are a domain specialist. State your independent position on the hypotheses given, over "
     "the evidence given only. Reply with JSON."
@@ -345,9 +416,11 @@ def _vision(text: str) -> str | None:
 
 
 def _role(parse: Callable[[str], object]) -> Callable[[str], str | None]:
+    """Judged as research reads a reply: `normalize_reply`'s envelope repair, then the parser."""
+
     def judge(text: str) -> str | None:
         try:
-            parse(text)
+            parse(normalize_reply(text)[0])
         except RoleOutputRefused as refused:
             return f"the typed role parser refused it: {refused}"
         return None
@@ -396,11 +469,122 @@ def multi_space_probe(minimum: int) -> _Probe:
     return _hypothesis_case(_MULTI_QUESTION, _MULTI_EVIDENCE, _MULTI_BINDINGS, minimum)
 
 
+def specialist_probe() -> _Probe:
+    """ROLE_SPECIALIST as research asks it: `specialist_context` over five production-shaped
+    rivals and the observations, each id shown as its alias; judged by `parse_specialist` with the
+    aliases that call showed."""
+    context, shown_h, _ = specialist_context(
+        question=_QUESTION,
+        specialist="probe.specialist",
+        hypotheses=[
+            {k: h[k] for k in ("hypothesis_id", "statement", "mechanism")} for h in _HYPOTHESES
+        ],
+        evidence=_HYPOTHESIS_EVIDENCE,
+        hypothesis_aliases=AliasTable("H"),
+        evidence_aliases=AliasTable("E"),
+    )
+    ids = [str(h["hypothesis_id"]) for h in _HYPOTHESES]
+    return _Probe(
+        _material(_SPECIALIST_TEMPLATE, context),
+        SPECIALIST_CONTRACT,
+        _role(
+            lambda text: parse_specialist(
+                text, role_id="probe.specialist", hypothesis_ids=ids, shown=shown_h
+            )
+        ),
+    )
+
+
+def critique_probe() -> _Probe:
+    """ROLE_CRITIQUE as research asks it: `critique_context` over five production-shaped rivals,
+    the engine's position and the observations (one from the inverted retrieval), each id shown as
+    its alias; judged by `parse_critique` with those aliases."""
+    context, shown_h, shown_e = critique_context(
+        question=_QUESTION,
+        hypotheses=_HYPOTHESES,
+        positions=[
+            {
+                "role_id": "HYPOTHESIS_ENGINE",
+                "mechanism_view": "contact oxidation is the likelier mechanism",
+                "hypothesis_refs": [str(_HYPOTHESES[0]["hypothesis_id"])],
+            }
+        ],
+        evidence=_HYPOTHESIS_EVIDENCE,
+        inverted_attestation_ids=[str(_HYPOTHESIS_EVIDENCE[1]["attestation_id"])],
+        hypothesis_aliases=AliasTable("H"),
+        evidence_aliases=AliasTable("E"),
+    )
+    targets = [str(h["hypothesis_id"]) for h in _HYPOTHESES]
+    shown = [str(e["attestation_id"]) for e in _HYPOTHESIS_EVIDENCE]
+    return _Probe(
+        _material(ADVERSARIAL_CRITIC.prompt.template, context),
+        CRITIQUE_CONTRACT,
+        _role(
+            lambda text: parse_critique(
+                text,
+                targets=targets,
+                shown_attestation_ids=shown,
+                hypothesis_refs=shown_h,
+                evidence_refs=shown_e,
+            )
+        ),
+    )
+
+
+def coverage_probe() -> _Probe:
+    """The `coverage-review` case: `coverage_context` over rivals that all predict the reading
+    and one synthetic check none of them discriminates on; judged by `parse_coverage_review`."""
+    rivals = [
+        {
+            **{k: h[k] for k in ("hypothesis_id", "statement", "mechanism")},
+            "discriminates_on": ["bench.resistor_reading"],
+        }
+        for h in _HYPOTHESES[:3]
+    ]
+    checks: list[dict[str, Any]] = [
+        {
+            "observable_ref": "bench.repeat_spread",
+            "outcome_space_id": "os:probe.repeatability",
+            "outcome_space_version": "1.0.0",
+            "outcomes": ["REPEATABLE", "SCATTERED"],
+            "check": "cap:probe.repeat_readings",
+            "action_type": "ANALYTICAL_RULE_CHECK",
+        }
+    ]
+    context, _, shown_e = coverage_context(
+        question=_QUESTION,
+        hypotheses=rivals,
+        evidence=_HYPOTHESIS_EVIDENCE,
+        bindings=_COVERAGE_BINDINGS,
+        unaddressed_checks=checks,
+        hypothesis_aliases=AliasTable("H"),
+        evidence_aliases=AliasTable("E"),
+    )
+    existing = [str(h["mechanism"]) for h in rivals]
+    shown = [str(e["attestation_id"]) for e in _HYPOTHESIS_EVIDENCE]
+    return _Probe(
+        _material(COVERAGE_REVIEW.prompt.template, context),
+        COVERAGE_CONTRACT,
+        _role(
+            lambda text: parse_coverage_review(
+                text,
+                bindings=_COVERAGE_BINDINGS,
+                unaddressed=_UNADDRESSED,
+                existing_mechanisms=existing,
+                evidence_refs=shown_e,
+                shown_attestation_ids=shown,
+            )
+        ),
+    )
+
+
 def hypothesis_suite(minimum: int) -> tuple[tuple[str, _Probe], ...]:
-    """ROLE_HYPOTHESIS at `minimum`: every case, in order, at the same minimum."""
+    """ROLE_HYPOTHESIS at `minimum`: every case, in order, at the same minimum. The coverage
+    review takes no minimum: it may certify none."""
     return (
         ("contextual-minimum", hypothesis_probe(minimum)),
         ("multi-space", multi_space_probe(minimum)),
+        ("coverage-review", coverage_probe()),
     )
 
 
@@ -418,54 +602,8 @@ PROBES: dict[Capability, _Probe] = {
         QUERY_CONTRACT,
         _role(parse_query_terms),
     ),
-    Capability.ROLE_SPECIALIST: _Probe(
-        _material(
-            _SPECIALIST_TEMPLATE,
-            {
-                "question": _QUESTION,
-                "specialist": "probe.specialist",
-                "hypotheses": [
-                    {k: h[k] for k in ("hypothesis_id", "statement", "mechanism")}
-                    for h in _HYPOTHESES
-                ],
-                "evidence": _EVIDENCE,
-            },
-        ),
-        SPECIALIST_CONTRACT,
-        _role(
-            lambda text: parse_specialist(
-                text,
-                role_id="probe.specialist",
-                hypothesis_ids=[str(h["hypothesis_id"]) for h in _HYPOTHESES],
-            )
-        ),
-    ),
-    Capability.ROLE_CRITIQUE: _Probe(
-        _material(
-            ADVERSARIAL_CRITIC.prompt.template,
-            {
-                "question": _QUESTION,
-                "hypotheses": _HYPOTHESES,
-                "positions": [
-                    {
-                        "role_id": "HYPOTHESIS_ENGINE",
-                        "mechanism_view": "contact oxidation is the likelier mechanism",
-                        "hypothesis_refs": ["hyp:probe-contact"],
-                    }
-                ],
-                "evidence": _EVIDENCE,
-                "inverted_attestation_ids": ["att:probe-2"],
-            },
-        ),
-        CRITIQUE_CONTRACT,
-        _role(
-            lambda text: parse_critique(
-                text,
-                targets=[str(h["hypothesis_id"]) for h in _HYPOTHESES],
-                shown_attestation_ids=[e["attestation_id"] for e in _EVIDENCE],
-            )
-        ),
-    ),
+    Capability.ROLE_SPECIALIST: specialist_probe(),
+    Capability.ROLE_CRITIQUE: critique_probe(),
     Capability.CODE: _Probe(
         "Write only a Python function named add that returns the sum of its two arguments. "
         "No prose, no code fences.",
@@ -520,7 +658,7 @@ def qualification_inputs() -> dict[str, object]:
         },
         "prompts": {
             role.prompt.prompt_id: [role.prompt.prompt_version, role.prompt.template]
-            for role in (QUERY_REWRITER, HYPOTHESIS_ENGINE, ADVERSARIAL_CRITIC)
+            for role in (QUERY_REWRITER, HYPOTHESIS_ENGINE, ADVERSARIAL_CRITIC, COVERAGE_REVIEW)
         }
         | {"probe:specialist": ["-", _SPECIALIST_TEMPLATE]},
     }
@@ -549,6 +687,7 @@ def run_probe(
             probe.prompt,
             system=probe.system,
             image_png=PROBE_IMAGE_PNG if probe.image else None,
+            response_schema=schema_for(probe.prompt) if probe.system is not None else None,
         )
     except ProviderError as failed:
         return ProbeResult(
@@ -579,7 +718,9 @@ def _run_suite(client: OpenAICompatibleClient, model: str, minimum: int) -> Prob
 
     for name, probe in cases:
         try:
-            reply = client.chat(model, probe.prompt, system=probe.system)
+            reply = client.chat(
+                model, probe.prompt, system=probe.system, response_schema=schema_for(probe.prompt)
+            )
         except ProviderError as failed:
             return ProbeResult(
                 Capability.ROLE_HYPOTHESIS,
@@ -615,10 +756,14 @@ __all__ = [
     "TEMPTING_QUANTITIES",
     "ProbeOutcome",
     "ProbeResult",
+    "coverage_probe",
+    "critique_probe",
     "hypothesis_probe",
     "hypothesis_suite",
     "multi_space_probe",
+    "production_id",
     "qualification_digest",
     "qualification_inputs",
     "run_probe",
+    "specialist_probe",
 ]

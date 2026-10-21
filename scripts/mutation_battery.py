@@ -5798,6 +5798,136 @@ MUTATIONS: tuple[Mutation, ...] = (
         new="    if False:\n",
         tests=("tests/unit/test_research_reading.py",),
     ),
+    # -- G0 research reliability -------------------------------------------------------------
+    Mutation(
+        name="g0_an_alias_prefix_resolves",
+        guards="G0 -- a reference resolves only exactly; a prefix of a canonical id never does",
+        path="src/lab_brain/cognition/aliases.py",
+        old="    if ref in shown.values():\n        return ref\n    return None\n",
+        new=(
+            "    if ref in shown.values():\n        return ref\n"
+            "    return next((c for c in shown.values() if c.startswith(ref)), None)\n"
+        ),
+        tests=("tests/unit/test_g0_reliability.py",),
+    ),
+    Mutation(
+        name="g0_an_ambiguous_canonical_id_is_aliased",
+        guards="G0 -- a canonical id that reads as an alias is refused, so no reference is ambiguous",
+        path="src/lab_brain/cognition/aliases.py",
+        old="        if not canonical.strip() or ALIAS_SHAPE.match(canonical):\n",
+        new="        if False:\n",
+        tests=("tests/unit/test_g0_reliability.py",),
+    ),
+    Mutation(
+        name="g0_a_repeated_reference_is_merged",
+        guards="G0 -- two references to one hypothesis or attestation are refused, not merged",
+        path="src/lab_brain/cognition/roles.py",
+        old="        if canonical in out:\n",
+        new="        if False:\n",
+        tests=("tests/unit/test_g0_reliability.py",),
+    ),
+    Mutation(
+        name="g0_a_fence_repair_goes_unrecorded",
+        guards="G0 -- the one envelope repair is recorded beside the reply it was made to",
+        path="src/lab_brain/cognition/roles.py",
+        old="        return fenced.group(1).strip(), STRIPPED_CODE_FENCE\n",
+        new="        return fenced.group(1).strip(), None\n",
+        tests=("tests/unit/test_g0_reliability.py",),
+    ),
+    Mutation(
+        name="g0_a_refused_reply_is_never_asked_again",
+        guards="G0 -- a refused reply is asked for again, up to the policy's attempts",
+        path="src/lab_brain/cognition/debate.py",
+        old="        for attempt in range(1, self._policy.max_attempts + 1):\n",
+        new="        for attempt in range(1, 2):\n",
+        tests=("tests/unit/test_g0_reliability.py",),
+    ),
+    Mutation(
+        name="g0_coverage_counts_a_check_that_needs_a_seat",
+        guards="G0 -- the coverage review asks only about checks a run can just do (low cost)",
+        path="src/lab_brain/cognition/coverage.py",
+        old="        if not is_low_cost(action.cost):\n",
+        new="        if False:\n",
+        tests=("tests/unit/test_g0_reliability.py",),
+    ),
+    Mutation(
+        name="g0_coverage_asks_about_an_addressed_check",
+        guards="G0 -- a check some rival already discriminates on is not a gap",
+        path="src/lab_brain/cognition/coverage.py",
+        old="            if observable in covered:\n",
+        new="            if False:\n",
+        tests=("tests/unit/test_g0_reliability.py",),
+    ),
+    Mutation(
+        name="g0_an_ungrounded_coverage_rival_is_admitted",
+        guards="G0 -- a rival added to cover a check must cite the evidence it rests on",
+        path="src/lab_brain/cognition/roles.py",
+        old="        if not isinstance(cited, list) or not cited:\n",
+        new="        if not isinstance(cited, list):\n",
+        tests=("tests/unit/test_g0_reliability.py",),
+    ),
+    Mutation(
+        name="g0_an_unanswered_check_passes_review",
+        guards="G0 -- every unaddressed check is certified or declined, never left out",
+        path="src/lab_brain/cognition/roles.py",
+        old=(
+            "    missing = [g for g in gaps if g not in covered and all(x.observable_ref != g for x"
+            " in declined)]\n    if missing:\n"
+        ),
+        new=(
+            "    missing = [g for g in gaps if g not in covered and all(x.observable_ref != g for x"
+            " in declined)]\n    if False:\n"
+        ),
+        tests=("tests/unit/test_g0_reliability.py",),
+    ),
+    Mutation(
+        name="g0_the_critic_sees_canonical_ids_in_falsifiers",
+        guards="G0 -- nothing a role is shown is a canonical id it could copy back shortened",
+        path="src/lab_brain/cognition/debate.py",
+        old="                        shown_falsifier(p, state.hypotheses.add(c.hypothesis_id))\n",
+        new="                        typed_falsifier_text(p)\n",
+        tests=("tests/unit/test_g0_reliability.py",),
+    ),
+    Mutation(
+        name="g0_the_specialist_probe_ignores_aliases",
+        guards="G0 -- the specialist probe resolves aliases exactly as research does",
+        path="src/lab_brain/llm_runtime/probes.py",
+        old='                text, role_id="probe.specialist", hypothesis_ids=ids, shown=shown_h\n',
+        new='                text, role_id="probe.specialist", hypothesis_ids=ids, shown={}\n',
+        tests=("tests/unit/test_g0_transport_and_qualification.py",),
+    ),
+    Mutation(
+        name="g0_a_refused_schema_is_never_retried",
+        guards="G0 -- a provider that refuses response_format is asked once without it, recorded",
+        path="src/lab_brain/llm_runtime/provider.py",
+        old='                    refused.detail.startswith(("HTTP 400", "HTTP 422"))\n',
+        new='                    refused.detail.startswith(("HTTP 999",))\n',
+        tests=("tests/unit/test_g0_transport_and_qualification.py",),
+    ),
+    Mutation(
+        name="g0_provider_usage_is_dropped",
+        guards="G0 -- the provider's own token counts come back with the reply",
+        path="src/lab_brain/llm_runtime/provider.py",
+        old="        if isinstance(v := usage.get(k), int) and not isinstance(v, bool) and v >= 0\n",
+        new="        if False\n",
+        tests=("tests/unit/test_g0_transport_and_qualification.py",),
+    ),
+    Mutation(
+        name="g0_review_pending_reads_as_refused",
+        guards="G0 -- a page says a person's warrant review is pending, apart from belief",
+        path="src/lab_brain/interfaces/web/pages.py",
+        old='    elif "NEED_HUMAN_REVIEW" in results:\n',
+        new="    elif False:\n",
+        tests=("tests/e2e/test_g0_coverage_review_postgres.py",),
+    ),
+    Mutation(
+        name="g0_research_runs_without_coverage_review",
+        guards="G0 -- research reviews the cheap checks its first rivals left unaddressed",
+        path="src/lab_brain/research/service.py",
+        old="                coverage_review=True,\n",
+        new="                coverage_review=False,\n",
+        tests=("tests/e2e/test_g0_coverage_review_postgres.py",),
+    ),
 )
 
 

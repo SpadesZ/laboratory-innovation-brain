@@ -23,10 +23,12 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from lab_brain.cognition.debate import shown_falsifier
 from lab_brain.cognition.roles import ADVERSARIAL_CRITIC, QUERY_REWRITER
 from lab_brain.core.models.enums import EpistemicType, RelationType
 from lab_brain.core.models.hypothesis_set import HypothesisCertificate, typed_falsifier_text
@@ -150,16 +152,23 @@ def test_inverted_retrieval_searches_the_typed_falsifier_never_the_prose():
 
 def test_the_critic_is_shown_the_typed_falsifier_never_the_prose():
     world, outcome = _split_world()
-    by_id = {c.hypothesis_id: c for c in outcome.certificates}
+    # The critic is shown each hypothesis by its alias (`H1`, ...); its mechanism names it here.
+    by_mechanism = {c.hypothesis.mechanism: c for c in outcome.certificates}
     critiques = _contexts(world, ADVERSARIAL_CRITIC.prompt.template)
     assert critiques
     for context in critiques:
         assert PROSE_MARK not in json.dumps(context)
         for entry in context["hypotheses"]:
-            certificate = by_id[entry["hypothesis_id"]]
+            assert re.fullmatch(r"H[0-9]+", entry["hypothesis_id"])
+            certificate = by_mechanism[entry["mechanism"]]
             assert entry["falsifier"] == "; ".join(
-                typed_falsifier_text(p) for p in certificate.falsifier_predictions
+                shown_falsifier(p, entry["hypothesis_id"])
+                for p in certificate.falsifier_predictions
             )
+            assert all(
+                typed_falsifier_text(p).startswith(shown_falsifier(p, certificate.hypothesis_id))
+                for p in certificate.falsifier_predictions
+            ), "the same typed facts, the hypothesis named by its alias"
 
 
 def _observe(certificate: HypothesisCertificate, outcome: str):  # type: ignore[no-untyped-def]

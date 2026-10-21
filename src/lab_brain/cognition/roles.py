@@ -37,10 +37,14 @@ output whose absence of a citation meant nothing.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from pydantic import ValidationError
+
+from lab_brain.cognition.aliases import resolve
 from lab_brain.cognition.llm import PromptTemplate
 from lab_brain.cognition.routing import CognitiveRole
 from lab_brain.core.models.debate import (
@@ -202,7 +206,7 @@ SPECIALIST_REQUIRES = frozenset({"question", "hypotheses", "evidence", "speciali
 
 
 def core_prompts() -> tuple[PromptTemplate, ...]:
-    return tuple(contract.prompt for contract in CORE_CONTRACTS)
+    return (*(contract.prompt for contract in CORE_CONTRACTS), COVERAGE_REVIEW.prompt)
 
 
 def require_input(role: str, requires: frozenset[str], context: Mapping[str, object]) -> None:
@@ -213,6 +217,27 @@ def require_input(role: str, requires: frozenset[str], context: Mapping[str, obj
             f"the input is missing {missing}; §7.4 fixes what a role receives, and a role given "
             "less than its contract says would produce output whose omissions mean nothing",
         )
+
+
+#: The one envelope `normalize_reply` removes: the whole reply is ONE fenced block.
+_FENCED = re.compile(r"\A```[A-Za-z]*[ \t]*\r?\n(.*)\r?\n```\Z", re.DOTALL)
+STRIPPED_CODE_FENCE = "STRIPPED_CODE_FENCE"
+
+
+def normalize_reply(text: str) -> tuple[str, str | None]:
+    """The reply a parser reads, and the name of the repair made to get it (`None`: none).
+
+    ONE DETERMINISTIC REPAIR, AND ONLY OF THE ENVELOPE. A reply that is entirely one Markdown code
+    block (```json ... ```) is read as the block's content -- a real model sent exactly that and its
+    hypotheses were otherwise well formed. Nothing inside the JSON is ever touched: no field is
+    renamed, defaulted, truncated or completed, so a parser still refuses everything it refused. The
+    raw reply stays the durable record; the caller records the repair beside it.
+    """
+    stripped = text.strip().lstrip("﻿").strip()
+    fenced = _FENCED.match(stripped)
+    if fenced is not None:
+        return fenced.group(1).strip(), STRIPPED_CODE_FENCE
+    return stripped, None
 
 
 def _object(role: str, text: str, inference_id: str | None) -> dict[str, Any]:
@@ -335,6 +360,29 @@ def parse_hypothesis_engine(
             "2+ COMPETING certificates, and EPI-001 counts them",
             inference_id=inference_id,
         )
+    proposals = _proposals(role, raw, bindings, inference_id)
+    position_raw = obj.get("position")
+    if not isinstance(position_raw, dict):
+        raise RoleOutputRefused(role, "the engine states no position", inference_id=inference_id)
+    position = PositionDraft(
+        mechanism_view=_text(role, position_raw, "mechanism_view", inference_id),
+        uncertainties=_strings(
+            role, position_raw.get("uncertainties", []), "uncertainties", inference_id
+        ),
+        confounders=_strings(
+            role, position_raw.get("confounders", []), "confounders", inference_id
+        ),
+    )
+    return proposals, position
+
+
+def _proposals(
+    role: str,
+    raw: Sequence[Any],
+    bindings: Mapping[str, OutcomeSpace],
+    inference_id: str | None,
+) -> tuple[HypothesisProposal, ...]:
+    """Certificates, each checked as `parse_hypothesis_engine` documents. Keys are unique."""
     proposals: list[HypothesisProposal] = []
     keys: set[str] = set()
     for item in raw:
@@ -473,19 +521,7 @@ def parse_hypothesis_engine(
                 falsifier_prediction_keys=falsifiers,
             )
         )
-    position_raw = obj.get("position")
-    if not isinstance(position_raw, dict):
-        raise RoleOutputRefused(role, "the engine states no position", inference_id=inference_id)
-    position = PositionDraft(
-        mechanism_view=_text(role, position_raw, "mechanism_view", inference_id),
-        uncertainties=_strings(
-            role, position_raw.get("uncertainties", []), "uncertainties", inference_id
-        ),
-        confounders=_strings(
-            role, position_raw.get("confounders", []), "confounders", inference_id
-        ),
-    )
-    return tuple(proposals), position
+    return tuple(proposals)
 
 
 def _typed_falsifier(
@@ -530,7 +566,225 @@ def _typed_falsifier(
     return designated
 
 
+# -- Hypothesis coverage review -----------------------------------------------------------------
+
+#: 1.0.0: one call after Stage A, only when a cheap executable check is left that no hypothesis
+#: discriminates on (`cognition.coverage`). It names the GAP, never an answer: the same entries are
+#: shown whatever the device turns out to be, and declining is a first-class reply.
+COVERAGE_REVIEW = RoleContract(
+    role=CognitiveRole.HYPOTHESIS_ENGINE,
+    prompt=PromptTemplate(
+        "prm:hypothesis-coverage-review",
+        "1.0.0",
+        "You are the Hypothesis Engine, reviewing the coverage of the competing hypotheses "
+        "already proposed (CONTEXT.hypotheses). Each entry of CONTEXT.unaddressed_checks is a "
+        "check that can run here at low cost -- no person, no licence seat, no money -- and "
+        "whose outcome no current hypothesis makes a SUPPORTS or CONTRADICTS prediction about. "
+        "Address every entry, from ONLY the evidence given. Either certify a NEW competing "
+        "hypothesis -- a mechanism the evidence makes plausible, distinct from "
+        "CONTEXT.existing_mechanisms -- as a complete certificate whose typed predictions are "
+        "bound to entries of CONTEXT.prediction_bindings exactly as the Hypothesis Engine binds "
+        "them, at least one of them SUPPORTS or CONTRADICTS over that entry's observable_ref, "
+        "with a typed CONTRADICTS falsifier, citing in grounding_evidence_ids the evidence ids "
+        "that make the mechanism plausible; or decline the entry, giving the reason the evidence "
+        "motivates no mechanism whose outcome there would differ. A check being cheap or "
+        "available is not evidence for any mechanism: never propose a mechanism only because a "
+        "check exists, and never restate or change an existing hypothesis. "
+        f"{effect_meanings()} Reply with JSON.",
+    ),
+    requires=frozenset(
+        {
+            "question",
+            "evidence",
+            "prediction_bindings",
+            "hypotheses",
+            "existing_mechanisms",
+            "unaddressed_checks",
+        }
+    ),
+)
+
+#: The effects that make a prediction discriminate: the outcome moves belief one way or the other.
+DISCRIMINATING_EFFECTS = frozenset({RelationType.SUPPORTS, RelationType.CONTRADICTS})
+
+
+@dataclass(frozen=True)
+class CoverageDecline:
+    observable_ref: str
+    reason: str
+    #: Canonical attestation ids the reason cites, if any.
+    evidence: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class CoverageDraft:
+    proposals: tuple[HypothesisProposal, ...]
+    #: Proposal key -> the canonical attestation ids that ground it (at least one each).
+    grounding: Mapping[str, tuple[str, ...]]
+    declined: tuple[CoverageDecline, ...]
+
+
+def parse_coverage_review(
+    text: str,
+    *,
+    bindings: Mapping[str, OutcomeSpace],
+    unaddressed: Sequence[str],
+    existing_mechanisms: Sequence[str],
+    evidence_refs: Mapping[str, str],
+    shown_attestation_ids: Sequence[str],
+    inference_id: str | None = None,
+) -> CoverageDraft:
+    """Every unaddressed observable answered exactly once: certified by a new, grounded rival
+    that discriminates on it, or declined with a reason. Anything else is refused.
+
+    The certificates are checked as `parse_hypothesis_engine` checks them. On top: each one is a
+    mechanism no hypothesis already proposes, discriminates (SUPPORTS or CONTRADICTS) on at least
+    one unaddressed observable, and cites the evidence it rests on -- resolved exactly against what
+    the review was shown, never invented. No hypothesis is ever required: declining every entry is
+    a complete reply.
+    """
+    role = HYPOTHESIS_ENGINE.role.value
+    obj = _object(role, text, inference_id)
+    raw = obj.get("hypotheses") or []
+    declined_raw = obj.get("declined") or []
+    if not isinstance(raw, list) or not isinstance(declined_raw, list):
+        raise RoleOutputRefused(
+            role, "hypotheses and declined must be lists", inference_id=inference_id
+        )
+    proposals = _proposals(role, raw, bindings, inference_id)
+    gaps = tuple(dict.fromkeys(unaddressed))
+    taken = {" ".join(m.lower().split()) for m in existing_mechanisms}
+    covered: dict[str, str] = {}
+    grounding: dict[str, tuple[str, ...]] = {}
+    for proposal, item in zip(proposals, raw, strict=True):
+        name = " ".join(proposal.mechanism.lower().split())
+        if name in taken:
+            raise RoleOutputRefused(
+                role,
+                f"hypothesis {proposal.key!r} proposes {proposal.mechanism!r}, which is already "
+                "under consideration; a coverage review adds rivals, it does not restate them",
+                inference_id=inference_id,
+            )
+        taken.add(name)
+        addresses = sorted(
+            {
+                p.observable_ref
+                for p in proposal.predictions
+                if p.relation_effect in DISCRIMINATING_EFFECTS and p.observable_ref in gaps
+            }
+        )
+        if not addresses:
+            raise RoleOutputRefused(
+                role,
+                f"hypothesis {proposal.key!r} makes no SUPPORTS or CONTRADICTS prediction over an "
+                f"unaddressed check ({', '.join(gaps)}); a coverage review certifies only rivals "
+                "that the unaddressed checks would discriminate",
+                inference_id=inference_id,
+            )
+        for observable in addresses:
+            covered.setdefault(observable, proposal.key)
+        cited = item.get("grounding_evidence_ids")
+        if not isinstance(cited, list) or not cited:
+            raise RoleOutputRefused(
+                role,
+                f"hypothesis {proposal.key!r} cites no evidence in grounding_evidence_ids; a rival "
+                "proposed to cover a check must rest on evidence, never on the check existing",
+                inference_id=inference_id,
+            )
+        grounding[proposal.key] = resolve_refs(
+            role,
+            _strings(role, cited, "grounding_evidence_ids", inference_id),
+            shown=evidence_refs,
+            allowed=shown_attestation_ids,
+            what="evidence items",
+            inference_id=inference_id,
+        )
+    declined: list[CoverageDecline] = []
+    for d in declined_raw:
+        if not isinstance(d, dict):
+            raise RoleOutputRefused(role, "a decline is not an object", inference_id=inference_id)
+        observable = _text(role, d, "observable_ref", inference_id)
+        if observable not in gaps:
+            raise RoleOutputRefused(
+                role,
+                f"declines {observable!r}, which is not an unaddressed check ({', '.join(gaps)})",
+                inference_id=inference_id,
+            )
+        if observable in covered or any(x.observable_ref == observable for x in declined):
+            raise RoleOutputRefused(
+                role,
+                f"answers {observable!r} twice; each unaddressed check is either covered by a new "
+                "hypothesis or declined, once",
+                inference_id=inference_id,
+            )
+        cited = d.get("evidence_ids") or []
+        declined.append(
+            CoverageDecline(
+                observable_ref=observable,
+                reason=_text(role, d, "reason", inference_id),
+                evidence=resolve_refs(
+                    role,
+                    _strings(role, cited, "evidence_ids", inference_id),
+                    shown=evidence_refs,
+                    allowed=shown_attestation_ids,
+                    what="evidence items",
+                    inference_id=inference_id,
+                ),
+            )
+        )
+    missing = [g for g in gaps if g not in covered and all(x.observable_ref != g for x in declined)]
+    if missing:
+        raise RoleOutputRefused(
+            role,
+            f"leaves {missing} unanswered; every unaddressed check is covered by a new hypothesis "
+            "or declined with a reason",
+            inference_id=inference_id,
+        )
+    return CoverageDraft(proposals=proposals, grounding=grounding, declined=tuple(declined))
+
+
 # -- Domain Specialist ------------------------------------------------------------------------
+
+
+def resolve_refs(
+    role: str,
+    refs: Sequence[str],
+    *,
+    shown: Mapping[str, str],
+    allowed: Sequence[str],
+    what: str,
+    inference_id: str | None,
+) -> tuple[str, ...]:
+    """Each reference a reply makes, as the canonical id it names -- or the reply is refused.
+
+    `shown` is alias -> canonical id for what the call showed (`cognition.aliases`); `allowed` the
+    canonical ids a reference may name here. A reference resolves only exactly (an alias, or a
+    canonical id in full); two references to one item are refused rather than merged, because a
+    reply that lists the same rival twice is not saying what its author meant.
+    """
+    usable = {alias: canonical for alias, canonical in shown.items() if canonical in allowed}
+    usable.update({c: c for c in allowed})
+    out: list[str] = []
+    for ref in refs:
+        canonical = resolve(ref, usable)
+        if canonical is None:
+            names = sorted(a for a in shown if shown[a] in allowed) or sorted(allowed)
+            raise RoleOutputRefused(
+                role,
+                f"{ref!r} is not under consideration: it is none of the {what} this call showed "
+                f"({', '.join(names)}). A reference is copied exactly as given -- never shortened, "
+                "re-cased or made up -- and a specialist or critic adds no rivals of its own",
+                inference_id=inference_id,
+            )
+        if canonical in out:
+            raise RoleOutputRefused(
+                role,
+                f"{ref!r} names {what[:-1] if what.endswith('s') else what} already listed; each "
+                "is listed once",
+                inference_id=inference_id,
+            )
+        out.append(canonical)
+    return tuple(out)
 
 
 def parse_specialist(
@@ -538,30 +792,50 @@ def parse_specialist(
     *,
     role_id: str,
     hypothesis_ids: Sequence[str],
+    shown: Mapping[str, str] | None = None,
     inference_id: str | None = None,
 ) -> PositionDraft:
-    """§7.4: independent Position + predictions/confounders, over the hypotheses it was SHOWN."""
+    """§7.4: independent Position + predictions/confounders, over the hypotheses it was SHOWN.
+
+    `shown` maps the aliases the specialist saw (`H1`, ...) to canonical hypothesis ids; the
+    position records the canonical ids. Favouring anything not under consideration -- a hypothesis
+    it was not shown, an id it shortened -- is refused: adding rivals is the Hypothesis Engine's
+    role, and a shortened id names nothing.
+    """
     obj = _object(role_id, text, inference_id)
-    favoured = _strings(
-        role_id, obj.get("favoured_hypothesis_ids", []), "favoured_hypothesis_ids", inference_id
-    )
-    unknown = sorted(set(favoured) - set(hypothesis_ids))
-    if unknown:
-        raise RoleOutputRefused(
+    favoured = resolve_refs(
+        role_id,
+        _strings(
             role_id,
-            f"the specialist favours {unknown}, which are not under consideration "
-            f"({sorted(hypothesis_ids)}); a specialist states a position on the rivals it is "
-            "shown, "
-            "and adding rivals is the Hypothesis Engine's role",
-            inference_id=inference_id,
-        )
+            obj.get("favoured_hypothesis_ids", []),
+            "favoured_hypothesis_ids",
+            inference_id,
+        ),
+        shown=shown or {},
+        allowed=hypothesis_ids,
+        what="hypotheses under consideration",
+        inference_id=inference_id,
+    )
     proposals = []
-    for p in obj.get("proposed_predictions", []) or []:
+    raw_proposals = obj.get("proposed_predictions") or []
+    if not isinstance(raw_proposals, list):
+        raise RoleOutputRefused(
+            role_id, "proposed_predictions must be a list", inference_id=inference_id
+        )
+    for p in raw_proposals:
         if not isinstance(p, dict):
             raise RoleOutputRefused(
                 role_id, "a proposed prediction is not an object", inference_id=inference_id
             )
-        proposals.append(ProposedPrediction.model_validate(p))
+        try:
+            proposals.append(ProposedPrediction.model_validate(p))
+        except ValidationError as bad:
+            raise RoleOutputRefused(
+                role_id,
+                f"a proposed prediction is malformed ({bad.error_count()} error(s): "
+                f"{bad.errors()[0]['loc']} {bad.errors()[0]['msg']})",
+                inference_id=inference_id,
+            ) from None
     return PositionDraft(
         mechanism_view=_text(role_id, obj, "mechanism_view", inference_id),
         favoured=favoured,
@@ -588,27 +862,43 @@ def parse_critique(
     *,
     targets: Sequence[str],
     shown_attestation_ids: Sequence[str],
+    hypothesis_refs: Mapping[str, str] | None = None,
+    evidence_refs: Mapping[str, str] | None = None,
     inference_id: str | None = None,
 ) -> CritiqueDraft:
-    """§7.4: CritiqueReport, falsifiers, missing controls -- read-only on evidence, and cited."""
+    """§7.4: CritiqueReport, falsifiers, missing controls -- read-only on evidence, and cited.
+
+    `hypothesis_refs` / `evidence_refs` map the aliases the critic saw (`H1`, `E1`, ...) to
+    canonical ids; the draft carries canonical ids only. A target or a citation that does not
+    resolve exactly to something the critic was shown is refused.
+    """
     role = ADVERSARIAL_CRITIC.role.value
     obj = _object(role, text, inference_id)
-    shown = frozenset(shown_attestation_ids)
+    shown = tuple(shown_attestation_ids)
     objections: list[Objection] = []
-    for o in obj.get("objections", []) or []:
+    raw_objections = obj.get("objections") or []
+    if not isinstance(raw_objections, list):
+        raise RoleOutputRefused(role, "objections must be a list", inference_id=inference_id)
+    for o in raw_objections:
         if not isinstance(o, dict):
             raise RoleOutputRefused(
                 role, "an objection is not an object", inference_id=inference_id
             )
-        target = _text(role, o, "target_id", inference_id)
-        if target not in targets:
-            raise RoleOutputRefused(
-                role, f"objects to {target!r}, which is not a target", inference_id=inference_id
-            )
-        cited = _strings(
+        (target,) = resolve_refs(
+            role,
+            (_text(role, o, "target_id", inference_id),),
+            shown=hypothesis_refs or {},
+            allowed=targets,
+            what="target hypotheses",
+            inference_id=inference_id,
+        )
+        raw_cited = _strings(
             role, o.get("evidence_attestation_ids", []), "evidence_attestation_ids", inference_id
         )
-        invented = sorted(set(cited) - shown)
+        refs = {a: c for a, c in (evidence_refs or {}).items() if c in shown}
+        invented = sorted(
+            r for r in raw_cited if resolve(r, {**refs, **{s: s for s in shown}}) is None
+        )
         if invented:
             raise RoleOutputRefused(
                 role,
@@ -617,6 +907,14 @@ def parse_critique(
                 "exactly that",
                 inference_id=inference_id,
             )
+        cited = resolve_refs(
+            role,
+            raw_cited,
+            shown=refs,
+            allowed=shown,
+            what="evidence items",
+            inference_id=inference_id,
+        )
         try:
             objections.append(
                 Objection(
@@ -630,13 +928,26 @@ def parse_critique(
         except ValueError as exc:
             raise RoleOutputRefused(role, str(exc), inference_id=inference_id) from exc
     challenges = []
-    for c in obj.get("falsifier_challenges", []) or []:
-        if not isinstance(c, dict) or c.get("target_id") not in targets:
+    raw_challenges = obj.get("falsifier_challenges") or []
+    if not isinstance(raw_challenges, list):
+        raise RoleOutputRefused(
+            role, "falsifier_challenges must be a list", inference_id=inference_id
+        )
+    for c in raw_challenges:
+        if not isinstance(c, dict) or not isinstance(c.get("target_id"), str):
             raise RoleOutputRefused(
                 role, "a falsifier challenge names no target", inference_id=inference_id
             )
+        (target,) = resolve_refs(
+            role,
+            (c["target_id"],),
+            shown=hypothesis_refs or {},
+            allowed=targets,
+            what="target hypotheses",
+            inference_id=inference_id,
+        )
         challenges.append(
-            FalsifierChallenge(target_id=c["target_id"], text=_text(role, c, "text", inference_id))
+            FalsifierChallenge(target_id=target, text=_text(role, c, "text", inference_id))
         )
     return CritiqueDraft(
         objections=tuple(objections),
@@ -689,10 +1000,15 @@ def parse_novelty(
 __all__ = [
     "ADVERSARIAL_CRITIC",
     "CORE_CONTRACTS",
+    "COVERAGE_REVIEW",
+    "DISCRIMINATING_EFFECTS",
     "HYPOTHESIS_ENGINE",
     "NOVELTY_AUDITOR",
     "QUERY_REWRITER",
     "SPECIALIST_REQUIRES",
+    "STRIPPED_CODE_FENCE",
+    "CoverageDecline",
+    "CoverageDraft",
     "CritiqueDraft",
     "HypothesisProposal",
     "NoveltyDraft",
@@ -702,10 +1018,13 @@ __all__ = [
     "RoleOutputRefused",
     "binding_context",
     "core_prompts",
+    "normalize_reply",
+    "parse_coverage_review",
     "parse_critique",
     "parse_hypothesis_engine",
     "parse_novelty",
     "parse_query_terms",
     "parse_specialist",
     "require_input",
+    "resolve_refs",
 ]

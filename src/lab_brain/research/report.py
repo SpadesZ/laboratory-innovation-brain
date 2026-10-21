@@ -89,6 +89,48 @@ class HypothesisLine:
 
 
 @dataclass(frozen=True)
+class CoverageLine:
+    """A low-cost executable check no Stage A hypothesis discriminated on, and what became of it."""
+
+    observable: str
+    check: str
+    #: CERTIFIED (a new rival now predicts it) | DECLINED (with a reason) | REFUSED (a rival was
+    #: proposed and the admission gate refused it) | UNADDRESSED (the review did not complete)
+    disposition: str
+    #: The certified mechanism, or the reason given, or why it stayed unaddressed.
+    detail: str
+
+
+@dataclass(frozen=True)
+class ReliabilitySection:
+    """How the debate's model replies were kept honest, from its durable record (`012x`)."""
+
+    policy: str
+    replies: int
+    refused: int
+    repaired: int
+    #: NOT_NEEDED | DONE | FAILED | BUDGET_BLOCKED | DISABLED
+    coverage_status: str
+    coverage: tuple[CoverageLine, ...] = ()
+    #: "role, attempt n: the parser's reason", for every refused reply.
+    refusals: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class UsageLine:
+    """What one model's calls in this run were metered at, as the PROVIDER reported it."""
+
+    model: str
+    slot: str
+    calls: int
+    #: Calls whose reply carried the provider's usage; the token sums cover exactly these.
+    metered_calls: int
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+
+@dataclass(frozen=True)
 class DebateSection:
     debate_id: str
     reasoner: str
@@ -101,6 +143,8 @@ class DebateSection:
     surviving: tuple[str, ...]
     contradicted: tuple[str, ...]
     gate: str
+    #: `None` in a report of a debate recorded before `012x`.
+    reliability: ReliabilitySection | None = None
 
 
 @dataclass(frozen=True)
@@ -202,6 +246,9 @@ class EpisodeReport:
     notes: tuple[str, ...] = field(default_factory=tuple)
     #: Set when this run CONTINUED an episode (`research.continuation`); `None` for an opening run.
     continuation: ContinuationSection | None = None
+    #: This run's model calls by model, with the provider-reported token counts (`execution_spans`).
+    #: Empty when the run called no model or the report predates it.
+    usage: tuple[UsageLine, ...] = ()
 
 
 __all__ = [
@@ -209,6 +256,7 @@ __all__ = [
     "BeliefLine",
     "Conclusion",
     "ContinuationSection",
+    "CoverageLine",
     "DebateSection",
     "EpisodeReport",
     "EvidenceLine",
@@ -218,5 +266,7 @@ __all__ = [
     "LiteratureSection",
     "PendingAction",
     "PlanLine",
+    "ReliabilitySection",
     "StageStatus",
+    "UsageLine",
 ]

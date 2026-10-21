@@ -114,15 +114,31 @@ class ScientificOutput:
 
     text: str
     provenance: InferenceProvenance
+    #: The provider's own token counts for the call (`CompletionReply.usage`), when it gave them.
+    #: Cost accounting, not provenance: it says what was spent, not what produced the text.
+    usage: Mapping[str, int] | None = None
 
     @property
     def inference_id(self) -> str:
         return self.provenance.inference_id
 
 
+@dataclass(frozen=True)
+class CompletionReply:
+    """What a transport may return in place of bare text: the text, and what the PROVIDER said
+    about the call -- its metered tokens and how the reply's form was constrained. Neither is read
+    from the model's words."""
+
+    text: str
+    usage: Mapping[str, int] | None = None
+    #: e.g. `JSON_SCHEMA`, or `PROMPT_ONLY: <why>` (`llm_runtime.provider`). Recorded in the
+    #: inference's provenance parameters: it is part of how the call was made.
+    output_mode: str | None = None
+
+
 #: The transport: (prompt text, slot) -> completion. Injected, so core imports no provider SDK
 #: (§24.2, SRC-001's boundary applied to models).
-Completion = Callable[[str, ModelSlot], str]
+Completion = Callable[[str, ModelSlot], "str | CompletionReply"]
 
 
 class ScientificLLM:
@@ -255,10 +271,17 @@ class ScientificLLM:
             material=material,
             reach=configured.reach,
         )
-        text = self._runner.execute(effect, lambda: self._complete(material, configured))
+        reply = self._runner.execute(effect, lambda: self._complete(material, configured))
+        text, usage, mode = (
+            (reply, None, None)
+            if isinstance(reply, str)
+            else (reply.text, reply.usage, reply.output_mode)
+        )
         recorded = dict(parameters or {})
         if context_hash is not None:
             recorded["context_hash"] = context_hash
+        if mode is not None:
+            recorded["output_mode"] = mode
 
         # Built from the CALL's inputs, never from the model's reply. A model asked to describe
         # its own provenance is being asked to be its own witness.
@@ -277,7 +300,7 @@ class ScientificLLM:
             created_at=now or utc_now(),
             trace_id=trace_id,
         )
-        return ScientificOutput(text=text, provenance=provenance)
+        return ScientificOutput(text=text, provenance=provenance, usage=usage)
 
     def _critique(
         self,
@@ -293,6 +316,7 @@ class ScientificLLM:
         slot: LogicalSlot = LogicalSlot.CRITIQUE,
         now: dt.datetime | None = None,
         context: Mapping[str, object] | None = None,
+        parameters: dict[str, object] | None = None,
     ) -> ScientificOutput:
         """§7.6's independent critique path.
 
@@ -311,6 +335,7 @@ class ScientificLLM:
             project_id=project_id,
             actor_id=actor_id,
             escalate=escalate,
+            parameters=parameters,
             now=now,
             context=context,
         )
@@ -430,6 +455,7 @@ __all__ = [
     "BasisDecision",
     "BeliefBasisGate",
     "Completion",
+    "CompletionReply",
     "LLMRefusal",
     "LLMRefusalReason",
     "ModelSlot",

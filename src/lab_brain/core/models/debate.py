@@ -290,6 +290,11 @@ class DebateRecord(CoreModel):
     #: One entry per round: what triggered it and what it changed.
     per_round: tuple[dict[str, Any], ...] = ()
     created_at: dt.datetime = Field(default_factory=utc_now)
+    #: How the debate kept its model replies honest (`012x`): the debate policy it ran under, every
+    #: reply attempt (accepted, refused and why, any envelope repair), and the hypothesis coverage
+    #: review (the cheap checks no hypothesis addressed, and what was certified or declined). Empty
+    #: for a record written before it existed.
+    reliability: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _rounds_are_bounded_and_metrics_are_fractions(self) -> Self:

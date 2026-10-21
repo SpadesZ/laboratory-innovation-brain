@@ -165,7 +165,7 @@ def _objection(**changes: object) -> dict[str, object]:
 @pytest.mark.parametrize(
     ("objection", "match"),
     [
-        (_objection(target_id="hyp:not-a-target"), "not a target"),
+        (_objection(target_id="hyp:not-a-target"), "not under consideration"),
         (_objection(evidence_attestation_ids=["att:never-shown"]), "was not shown"),
         (_objection(evidence_attestation_ids=[]), "CONTRADICTS"),
         (_objection(kind="VIBES"), "VIBES"),
