@@ -38,6 +38,7 @@ python scripts/check_commit_messages.py --tip HEAD
 
 ## 給下一個工作階段
 
-- 完整 mutation battery 的範圍與時間見報告 §5。
+- 完整 mutation battery:756/756 killed(47 分鐘)。完整 PostgreSQL:3187 passed, 4 skipped, 1 xfailed。
+- CI:`a682e9d` run 40540676295 四個 job 全部 success。
 - 這個環境的代理擋住 CI log;CI 負向控制的結果用 annotation 讀:
   `gh api repos/SpadesZ/laboratory-innovation-brain/check-runs/<job id>/annotations`。

@@ -163,7 +163,16 @@ CI 負向控制 annotation:「negative control: AI-authored history refused as e
 
 ### 5.2 CI
 
-CI_SECTION
+| SHA | Run | 結果 |
+|---|---|---|
+| `b6f7e64` | 40526442886 | Spec 失敗:狀態檔未更新(預期;下一個 commit 修正) |
+| `9b889c0` | 40527445648 | 4 個 job 全部 success |
+| `e2f0768` | 40532073651 | Suite 與 backend 失敗:測試清單過期(本機變異測試覆寫了測試報告);負向控制 annotation 確認舊分支被拒絕 |
+| `a682e9d` | 40540676295 | **4 個 job 全部 success**;負向控制:「AI-authored history refused as expected」 |
+
+記錄本表的 commit 本身也有 CI run;它的結果在交接文件與最終回報中。
+
+Commit 祖先:`21cef3e` → `b6f7e64` → `9b889c0` → `e2f0768` → `a682e9d` → 記錄 commit。
 
 
 ## 6. 剩餘 Owner Gates
