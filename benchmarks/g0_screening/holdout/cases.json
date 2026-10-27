@@ -1,0 +1,202 @@
+{
+  "suite": "g0-screening-holdout",
+  "version": "1.0.0",
+  "author_role": "independent holdout author",
+  "nominal_device": {
+    "format": "sp.device_project@1",
+    "device_id": "PS-500",
+    "drawn_length_um": "500",
+    "contacts": [
+      {
+        "contact_id": "anode",
+        "region": "p_plus",
+        "via_to_metal": true,
+        "overlap_nm": "400"
+      },
+      {
+        "contact_id": "cathode",
+        "region": "n_plus",
+        "via_to_metal": true,
+        "overlap_nm": "400"
+      }
+    ],
+    "extraction_normalization_length_um": "500",
+    "access_mesh_max_edge_nm": "5",
+    "rib_doping_cm3": "5E17",
+    "counterdoping_cm3": "0",
+    "solver_converges": true
+  },
+  "cases": [
+    {
+      "case_id": "ho-01",
+      "device": {
+        "device_id": "PS-917",
+        "contacts": [
+          {
+            "contact_id": "anode",
+            "region": "p_plus",
+            "via_to_metal": true,
+            "overlap_nm": "400"
+          },
+          {
+            "contact_id": "cathode",
+            "region": "n_plus",
+            "via_to_metal": true,
+            "overlap_nm": "400"
+          },
+          {
+            "contact_id": "body_tap",
+            "region": "p_plus",
+            "via_to_metal": false,
+            "overlap_nm": "350"
+          }
+        ]
+      },
+      "evidence": "default"
+    },
+    {
+      "case_id": "ho-02",
+      "device": {
+        "device_id": "PS-904",
+        "contacts": [
+          {
+            "contact_id": "anode",
+            "region": "p_plus",
+            "via_to_metal": true,
+            "overlap_nm": "400"
+          },
+          {
+            "contact_id": "cathode",
+            "region": "n_plus",
+            "via_to_metal": true,
+            "overlap_nm": "99"
+          }
+        ]
+      },
+      "evidence": "plain_summary"
+    },
+    {
+      "case_id": "ho-03",
+      "device": {
+        "device_id": "PS-931",
+        "contacts": [
+          {
+            "contact_id": "anode",
+            "region": "p_plus",
+            "via_to_metal": true,
+            "overlap_nm": "101"
+          },
+          {
+            "contact_id": "cathode",
+            "region": "n_plus",
+            "via_to_metal": true,
+            "overlap_nm": "400"
+          }
+        ]
+      },
+      "evidence": "default"
+    },
+    {
+      "case_id": "ho-04",
+      "device": {
+        "device_id": "PS-922",
+        "extraction_normalization_length_um": "750"
+      },
+      "evidence": "plain_summary"
+    },
+    {
+      "case_id": "ho-05",
+      "device": {
+        "device_id": "PS-908",
+        "drawn_length_um": "800",
+        "extraction_normalization_length_um": "804"
+      },
+      "evidence": "reviewer_wording"
+    },
+    {
+      "case_id": "ho-06",
+      "device": {
+        "device_id": "PS-946",
+        "drawn_length_um": "400",
+        "extraction_normalization_length_um": "600",
+        "contacts": [
+          {
+            "contact_id": "anode",
+            "region": "p_plus",
+            "via_to_metal": false,
+            "overlap_nm": "400"
+          },
+          {
+            "contact_id": "cathode",
+            "region": "n_plus",
+            "via_to_metal": true,
+            "overlap_nm": "400"
+          }
+        ]
+      },
+      "evidence": "reviewer_wording"
+    },
+    {
+      "case_id": "ho-07",
+      "device": {
+        "device_id": "PS-915"
+      },
+      "evidence": "default"
+    },
+    {
+      "case_id": "ho-08",
+      "device": {
+        "device_id": "PS-927",
+        "access_mesh_max_edge_nm": "30"
+      },
+      "evidence": "default"
+    },
+    {
+      "case_id": "ho-09",
+      "device": {
+        "device_id": "PS-939",
+        "contacts": [
+          {
+            "contact_id": "anode",
+            "region": "p_plus",
+            "via_to_metal": true,
+            "overlap_nm": "400"
+          },
+          {
+            "contact_id": "cathode",
+            "region": "n_plus",
+            "via_to_metal": false,
+            "overlap_nm": "400"
+          }
+        ]
+      },
+      "evidence": "default",
+      "deployment": {
+        "unavailable": [
+          "cap:sp.inspect_contact_connectivity"
+        ]
+      }
+    },
+    {
+      "case_id": "ho-10",
+      "device": {
+        "device_id": "PS-952",
+        "contacts": [
+          {
+            "contact_id": "anode",
+            "region": "p_plus",
+            "via_to_metal": false,
+            "overlap_nm": "400"
+          },
+          {
+            "contact_id": "cathode",
+            "region": "n_plus",
+            "via_to_metal": true,
+            "overlap_nm": "400"
+          }
+        ]
+      },
+      "evidence": "bench_notes_verified"
+    }
+  ]
+}
