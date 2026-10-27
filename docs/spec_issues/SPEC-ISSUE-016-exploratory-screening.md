@@ -2,7 +2,7 @@
 
 Severity: GATE
 Status: OPEN
-Blocks gate:
+Blocks gate: M4
 Raised: 2026-10-27
 Raised by: G0 exploratory screening slice (`g0-exploratory-screening`), Auditor decision "Option A"
 Affected: §9.1, §25.4, `VER-001`, `VER-002`, `VER-006`, `011k`, SAI 3.4 G0-S, `012y`
@@ -49,5 +49,5 @@ operation distinct from VerificationPlan; it MUST NOT instantiate a relation, an
 proposed after viewing it MUST NOT gain support from it or from a deterministic repeat of it.* If A,
 the feature flag `ResearchFeatures.exploratory_screening` is turned off and the stage removed.
 
-No milestone is named under "Blocks gate" because SAI 3.3's milestones do not include G0; under
+M4 is named because `VER-001` and VS-SP-001 are M4's; SAI 3.3's milestones do not include G0, and under
 SAI 3.4 this decision must be made before any G0 acceptance that relies on screening.
