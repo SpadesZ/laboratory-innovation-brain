@@ -1644,14 +1644,22 @@ def _next_html(
                     )
                 )
             else:
+                # Every check that cannot run says why and what it needs -- not only the best
+                # next one: the summary is an export, and an unexplained absence is a hidden one.
                 parts.append(
                     h(
-                        "<p>{}</p>",
+                        '<div class="also-blocked"><p>{}</p><p>{}</p></div>',
                         mh(
                             m,
                             "v.also_blocked",
                             check=t.name(p.capability_id),
                             kind=_kind(p.action_type, m),
+                        ),
+                        mh(
+                            m,
+                            "v.blocked_because",
+                            reason=t.text(p.blocked_because),
+                            requires=t.text(p.requires) if p.requires else m("none"),
                         ),
                     )
                 )
