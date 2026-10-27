@@ -479,6 +479,81 @@ _M: dict[str, tuple[str, str]] = {
         "{check}: still unaddressed -- the review did not complete ({reason}).",
         "{check}：仍未涵蓋——這次審查沒有完成（{reason}）。",
     ),
+    "v.screening": (
+        "Exploratory screening: low-cost readings where no hypothesis looked",
+        "探索性篩檢（exploratory screening）：在沒有假說預測之處的低成本讀取",
+    ),
+    "v.screening.lead": (
+        "No hypothesis predicted what these checks observe, so verification would never have "
+        "chosen them. Under {policy} the system took each low-cost local reading anyway -- chosen "
+        "by cost and coverage, never by what the device holds -- and compared it with the "
+        "reference outcome a sound design shows. These readings are exploratory evidence: they "
+        "are kept, normal or not, and they support no hypothesis.",
+        "沒有任何假說預測這些檢查的觀測項目，所以驗證流程本來永遠不會選它們。依 {policy}，"
+        "系統仍執行了每一項低成本的本機讀取——依成本與涵蓋選擇，從不依裝置內容——並與健全設計"
+        "應有的參考結果比較。這些讀取是探索性證據（exploratory evidence）：不論正常與否都保留，"
+        "且不支持任何假說。",
+    ),
+    "v.screening.read": (
+        "{check}: read {observable} = {outcome} (a sound design shows {reference}) -- {finding}",
+        "{check}：讀到 {observable} = {outcome}（健全設計應為 {reference}）——{finding}",
+    ),
+    "v.screening.finding.NORMAL": ("normal", "正常"),
+    "v.screening.finding.ABNORMAL": ("abnormal", "異常"),
+    "v.screening.not_read": (
+        "{check}: not read ({status}). {detail}",
+        "{check}：沒有讀取（{status}）。{detail}",
+    ),
+    "v.screening.not_taken": (
+        "{n} other check(s) were considered and not taken: a hypothesis already predicts them, "
+        "or they need a licence seat, a person, money or an irreversible step, or the policy's "
+        "limits were reached. The full report lists each with its reason.",
+        "另有 {n} 項檢查經考慮後未執行：已有假說預測、或需要授權席位、人員、金錢或不可逆的步驟，"
+        "或已達政策上限。完整報告逐項列出原因。",
+    ),
+    "v.screening.CERTIFIED": (
+        "After the abnormal reading ({readings}), a new competing hypothesis was proposed: "
+        "{mechanism}. It was proposed after its author saw that reading, so the reading cannot "
+        "support it; it needs a prospective, independent check or an authorized reviewer.",
+        "看到異常讀取（{readings}）之後，新增了一個對立假說：{mechanism}。它是在作者看過該讀取"
+        "之後才提出的，所以該讀取不能作為它的支持；必須有事先宣告、獨立的檢查，或經授權的審查者"
+        "判斷。",
+    ),
+    "v.screening.DECLINED": (
+        "The abnormal reading ({readings}) prompted no new hypothesis; the model's reason: "
+        "{reason}",
+        "異常讀取（{readings}）沒有促成新的假說；模型的理由：{reason}",
+    ),
+    "v.screening.REFUSED": (
+        "A hypothesis proposed for the abnormal reading ({readings}) was refused by the "
+        "admission gate: {reason}",
+        "針對異常讀取（{readings}）提出的假說被假說准入關卡拒絕：{reason}",
+    ),
+    "v.screening.review": (
+        "The review after the abnormal reading did not complete ({status}).",
+        "異常讀取之後的審查沒有完成（{status}）。",
+    ),
+    "v.screening.not_repeated": (
+        "Verification did not run these checks again on the same input -- repeating the same "
+        "reading is not independent evidence: {checks}.",
+        "驗證流程沒有對同一輸入重跑這些檢查——重複同一個讀取不是獨立的證據：{checks}。",
+    ),
+    "v.screening.failed": (
+        "The screening stage did not complete: {detail}",
+        "篩檢階段沒有完成：{detail}",
+    ),
+    "v.screening.status.AWAITING_RESOURCE": ("no free resource", "沒有可用資源"),
+    "v.screening.status.BUDGET_BLOCKED": ("refused by the budget", "被預算拒絕"),
+    "v.screening.status.FAILED": ("failed", "失敗"),
+    "v.screening.status.NOT_RUN": ("not run: the stage stopped first", "未執行：篩檢階段已先停止"),
+    "v.screening.status.FAILED_REVIEW": ("the reply was refused", "回覆被拒絕"),
+    "v.screening.status.BUDGET_BLOCKED_REVIEW": ("refused by the budget", "被預算拒絕"),
+    "v.screening.status.RESERVED_FOR_CRITIC": (
+        "not asked: the tokens were reserved for the adversarial critic",
+        "未詢問：token 預留給反方審查（adversarial critic）",
+    ),
+    "v.post_screening": ("proposed after screening", "篩檢後提出"),
+    "r.origin": ("Provenance:", "提出時點："),
     "v.why.unaddressed": (
         "{n} cheap check(s) can run here, but no hypothesis declares what the outcome would "
         "support or contradict, so whatever they observe can move no belief: {checks}.",

@@ -5,7 +5,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from lab_brain.research.episode_view import Conclusion
-from lab_brain.research.report import EpisodeReport, ReliabilitySection, UsageLine
+from lab_brain.research.report import (
+    EpisodeReport,
+    ReliabilitySection,
+    ScreeningSection,
+    UsageLine,
+)
 
 _EXCERPT = 220
 
@@ -175,6 +180,8 @@ def render_markdown(report: EpisodeReport) -> str:
         add(f"- Debate gate: {d.gate}")
         for line in reliability_lines(d.reliability):
             add(f"- {line}")
+    for line in screening_lines(r.screening):
+        add(f"- {line}")
     add("")
 
     add("## Belief state")
@@ -279,7 +286,61 @@ def reliability_lines(reliability: ReliabilitySection | None) -> list[str]:
             f"Unaddressed check {c.check} ({c.observable}): {c.disposition} -- {c.detail}"
             for c in reliability.coverage
         ),
+        *(f"Withheld to keep the Critic's reserve: {w}" for w in reliability.withheld_for_critic),
+        *(f"Overlapping rivals (kept, not merged): {o}" for o in reliability.overlap),
+        *(
+            (
+                "Device structure summary shown to the Hypothesis Engine: "
+                + reliability.structure_summary,
+            )
+            if reliability.structure_summary
+            else ()
+        ),
     ]
+    return lines
+
+
+def screening_lines(screening: ScreeningSection | None) -> list[str]:
+    """The exploratory screening stage, as the full report states it: every candidate and why,
+    every reading with its provenance, the review, and what verification did not repeat."""
+    if screening is None:
+        return []
+    lines = [
+        f"Exploratory screening under {screening.policy}: {screening.status}"
+        + (f" (plan `{screening.plan_id}`)" if screening.plan_id else "")
+        + (f" -- {screening.detail}" if screening.detail else ""),
+        "Unaddressed observables (no hypothesis predicted them): "
+        + (", ".join(screening.unaddressed) or "none"),
+        *(f"Candidate {c.check}: {c.disposition} -- {c.detail}" for c in screening.candidates),
+    ]
+    for check in screening.checks:
+        lines.append(
+            f"Screening check {check.rank}: {check.check} {check.status}, estimated "
+            f"{check.estimated_cost}"
+            + (f", job `{check.job_id}`" if check.job_id else "")
+            + (f", run `{check.run_id}`" if check.run_id else "")
+            + (f" -- {check.detail}" if check.detail else "")
+        )
+        lines.extend(
+            f"  read {r.observable} = {r.outcome} (reference {r.reference}): {r.finding}, "
+            f"observation `{r.observation_id}`"
+            for r in check.readings
+        )
+    lines.append(f"Review after abnormal readings: {screening.review_status}")
+    lines.extend(
+        f"  {x.disposition}: {'; '.join(x.readings)} -- {x.detail}"
+        + (f" (`{x.hypothesis_id}`, proposed after screening)" if x.hypothesis_id else "")
+        for x in screening.review
+    )
+    if screening.not_repeated:
+        lines.append(
+            "Not repeated by verification on the same input (a repeat is not independent): "
+            + ", ".join(screening.not_repeated)
+        )
+    lines.append(
+        "Screening readings are exploratory evidence: they relate to no hypothesis, and a "
+        "hypothesis proposed after them cannot be supported by them (012y)."
+    )
     return lines
 
 

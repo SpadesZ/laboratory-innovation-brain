@@ -99,12 +99,30 @@ SCREENING_WORDING: dict[str, tuple[str, str]] = {
 }
 
 
+def _predicting(binding: dict[str, Any]) -> Any:
+    """A prediction builder bound to one prediction binding."""
+
+    def prediction(key: str, outcome: str, effect: str) -> dict[str, str]:
+        return {
+            "key": key,
+            "observable_ref": binding["observable_ref"],
+            "outcome_space_id": binding["outcome_space_id"],
+            "outcome_space_version": binding["outcome_space_version"],
+            "expected_outcome": outcome,
+            "relation_effect": effect,
+        }
+
+    return prediction
+
+
 def context(prompt: str) -> dict[str, Any]:
     return dict(json.loads(prompt.split(MARKER, 1)[1]))
 
 
 def _words(text: str) -> set[str]:
-    return {w for w in "".join(c if c.isalnum() else " " for c in text.lower()).split() if len(w) > 3}
+    return {
+        w for w in "".join(c if c.isalnum() else " " for c in text.lower()).split() if len(w) > 3
+    }
 
 
 @dataclass
@@ -163,7 +181,9 @@ class StandIn:
                 mechanism, statement = SCREENING_WORDING[observable]
                 mechanism = mechanism.replace("after screening", "from the design summary")
                 if observable in bindings and all(r["mechanism"] != mechanism for r in rivals):
-                    rivals.append(self._rival(bindings[observable], mechanism, statement, len(rivals)))
+                    rivals.append(
+                        self._rival(bindings[observable], mechanism, statement, len(rivals))
+                    )
         impedance = bindings.get("sp.small_signal_impedance")
         while len(rivals) < int(ctx["minimum_hypotheses"]) and impedance is not None:
             n = len(rivals)
@@ -199,7 +219,11 @@ class StandIn:
                 "relation_effect": effect,
             }
 
-        supports = outcomes[-1] if binding["observable_ref"] != "sp.small_signal_impedance" else outcomes[1]
+        supports = (
+            outcomes[-1]
+            if binding["observable_ref"] != "sp.small_signal_impedance"
+            else outcomes[1]
+        )
         refutes = outcomes[0]
         return {
             "key": f"h{n}",
@@ -241,17 +265,7 @@ class StandIn:
                 )
                 continue
             binding = bindings[observable]
-
-            def prediction(key: str, outcome: str, effect: str) -> dict[str, str]:
-                return {
-                    "key": key,
-                    "observable_ref": observable,
-                    "outcome_space_id": binding["outcome_space_id"],
-                    "outcome_space_version": binding["outcome_space_version"],
-                    "expected_outcome": outcome,
-                    "relation_effect": effect,
-                }
-
+            prediction = _predicting(binding)
             certified.append(
                 {
                     "key": f"s{len(certified)}",
