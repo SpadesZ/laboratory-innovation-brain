@@ -49,4 +49,7 @@ A local PostgreSQL must use password authentication on host connections, or
 2. Run the full 732-entry mutation battery before Owner acceptance (only the 52 screening entries
    ran in V2: 52/52 killed).
 3. This environment's proxy blocks the CI log host, so read failing-test names in the GitHub UI.
-4. V2 verification evidence and CI SHA: see the V2 report §3.
+4. V2 verification evidence and CI SHA: see the V2 report §3. CI run 40506215320 on `fcf7a74`:
+   suite, backend and spec jobs pass; **Commit hygiene fails** because `fcf7a74`'s message carries
+   AI attribution trailers. Fix: strip the trailers from that commit and force-push this branch
+   (blocked in this environment; Owner action, command in the V2 report §5 item 9).

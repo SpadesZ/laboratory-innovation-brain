@@ -24,7 +24,8 @@
 | SHA | 內容 |
 |---|---|
 | `67f6cd0` | Reading B 決策、預設關閉、資格探針、fail-closed、故障注入、holdout 重新分類 |
-| (見 §3.5) | 補強未宣告工具測試、V2 報告、handoff |
+| `fcf7a74` | 補強未宣告工具測試、V2 報告、handoff(commit 訊息誤帶 AI 署名 trailer,見 §3.5) |
+| 本 commit | 記錄 CI 結果與阻擋原因 |
 
 ## 3. 驗證證據
 
@@ -77,7 +78,20 @@ LAB_BRAIN_TEST_POSTGRES=1 LAB_BRAIN_DATABASE_URL=postgresql://lab_brain:lab_brai
 
 ### 3.5 CI
 
-CI_RESULT
+CI run `40506215320`,SHA `fcf7a7497c602f73d50e908005be672615510c7f`:
+
+| Job | 結果 |
+|---|---|
+| Lint, types and full suite | success |
+| Backend profile (postgres) | success |
+| Spec conformance (T-SPEC-001 / T-SPEC-002) | success |
+| Commit hygiene (no AI authorship attribution) | **failure** |
+
+失敗原因:`fcf7a74` 的 commit 訊息帶了 `Co-Authored-By` / `Claude-Session` trailer。這是本次執行的錯誤,
+違反 repo 規則。程式與測試本身全部通過。修正要改寫該 commit 訊息並 force push 到本分支;這個環境的
+安全機制擋下 force push,所以要 Owner 執行或授權(見 §5 第 9 項)。
+
+前一個 SHA `fecf642` 的 CI run `40492814298` 四個 job 都 success。
 
 ## 4. 風險與限制
 
@@ -99,4 +113,6 @@ CI_RESULT
 5. 刪除舊分支 `g0-exploratory-screening`。
 6. commit 身分設定確認。
 7. 建立新的獨立盲測 holdout。
+9. 修正 `fcf7a74` 的 commit 訊息(移除 trailer)並 force push 本分支,讓 Commit hygiene 通過。指令:
+   `git rebase -x 'git commit --amend -m "$(git log -1 --format=%B | grep -v -e ^Co-Authored-By -e ^Claude-Session)"' fecf642 && git push --force-with-lease origin g0-exploratory-screening-v2`
 8. G0 是否通過:只能由 Owner 決定。本報告**不**宣稱 G0 PASS。
