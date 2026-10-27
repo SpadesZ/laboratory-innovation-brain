@@ -45,6 +45,11 @@ _TABLES = (
     # hypothesis set and its verification input, and are append-only: child of all three.
     # Research workspace (`012d`): a run's recorded report references the run.
     "research_run_reports",
+    # Exploratory screening (`012y`): conditioned hypotheses reference readings, readings their
+    # plan; all append-only, children first.
+    "screening_conditioned_hypotheses",
+    "screening_observations",
+    "screening_plans",
     # Research data intake (`012g`): a declaration references its ingestion item.
     "research_data_declarations",
     # Research workspace V2 (`012e`). Bindings reference runtimes and models, probes and health

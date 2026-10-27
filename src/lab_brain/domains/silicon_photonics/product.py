@@ -39,7 +39,7 @@ from lab_brain.cognition.catalog_reasoner import (
 from lab_brain.core.models.capability import ActionType, Availability
 from lab_brain.core.models.warrant import DiagnosticDeclarationSet
 from lab_brain.domains.registry import DomainPackRegistry
-from lab_brain.domains.silicon_photonics import diagnosis, presentation
+from lab_brain.domains.silicon_photonics import diagnosis, presentation, structure
 from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.domains.silicon_photonics.authority_policy import (
     SiliconPhotonicsAuthorityPolicy,
@@ -324,6 +324,8 @@ def product_vertical(
         active_declarations=declarations.ref,
         presentation=presentation.presentation(),
         presentation_ref=presentation.PRESENTATION_REF,
+        screening_norms=structure.screening_norms(),
+        structure_summary=structure.structure_summary,
     )
 
 

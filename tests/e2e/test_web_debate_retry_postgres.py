@@ -20,6 +20,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 from urllib.parse import unquote
 
 import psycopg
@@ -61,7 +62,9 @@ def fake() -> Iterator[FakeProvider]:
     provider.stop()
 
 
-def _deployment(tmp_path: Path, *, inference_deadline: float) -> Browser:
+def _deployment(
+    tmp_path: Path, *, inference_deadline: float, research_features: Any = None
+) -> Browser:
     """The workspace as `lab-brain web --inference-deadline N` builds it."""
     return Browser(
         Workspace(
@@ -78,6 +81,7 @@ def _deployment(tmp_path: Path, *, inference_deadline: float) -> Browser:
             default_locale="en",
             ollama_url="http://127.0.0.1:9/v1",
             inference_deadline=inference_deadline,
+            research_features=research_features,
         )
     )
 

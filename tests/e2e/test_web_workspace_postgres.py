@@ -323,6 +323,61 @@ def test_another_actor_or_project_sees_nothing_and_writes_nothing(db, tmp_path):
     assert _census(db) == before
 
 
+def test_the_opener_reads_their_episode_only_while_the_gate_admits_them(db, tmp_path):
+    """Having opened an episode is not a standing grant: its page, its export and its summary are
+    the opener's only while the read gate admits them to its project. Asked where nothing else
+    stands in for the gate -- a classification check refuses a lapsed member an episode whose
+    question is classified, so neither case below may rely on one:
+
+    - an account disabled globally keeps its project membership and that membership's
+      clearance, so the question's classification still reads as cleared;
+    - an episode from before 012q records no classification at all, so once the membership
+      lapses there is no classification left to refuse it on.
+    """
+    _member(db)
+    browser = _workspace(tmp_path)
+    sent = _start(browser, tmp_path, case=None)
+    episode_id = sent.location.rsplit("/", 1)[1]
+    paths = (
+        f"/episodes/{episode_id}",
+        f"/episodes/{episode_id}/runs/1/report.md",
+        f"/episodes/{episode_id}/runs/1/summary.html",
+    )
+    assert [browser.get(p).status for p in paths] == [200, 200, 200]
+    before = _census(db)
+
+    def refused(why: str) -> None:
+        opener = _workspace(tmp_path)
+        for path in paths:
+            seen = opener.get(path)
+            assert seen.status == 404, f"{why}: {path} answered {seen.status}"
+            assert GOAL not in seen.text, f"{why}: {path} shows the research question"
+        seen = opener.get(f"/episodes/{episode_id}")
+        assert f"No research {episode_id} for {ACTOR}." in _text(seen)
+
+    db.execute("UPDATE actors SET active = FALSE WHERE actor_id = %s", (ACTOR,))
+    refused("a disabled account")
+    db.execute("UPDATE actors SET active = TRUE WHERE actor_id = %s", (ACTOR,))
+    assert browser.get(paths[0]).status == 200, "re-enabled, the opener reads it again"
+
+    # The same episode as one from before 012q, written past the triggers as only history can be
+    # (012q keeps a recorded label immutable); then the opener's membership lapses.
+    db.execute("SET session_replication_role = replica")
+    try:
+        db.execute(
+            "UPDATE research_runs SET question_label = NULL WHERE episode_id = %s", (episode_id,)
+        )
+    finally:
+        db.execute("SET session_replication_role = origin")
+    assert browser.get(paths[0]).status == 200
+    db.execute(
+        "UPDATE project_memberships SET active = FALSE WHERE actor_id = %s AND project_id = %s",
+        (ACTOR, PROJECT),
+    )
+    refused("a lapsed membership")
+    assert _census(db) == before
+
+
 def test_an_excerpt_is_withheld_once_the_actor_may_no_longer_read_it(db, tmp_path):
     """A report is kept; a clearance is not. Once the actor may no longer read the research's
     question (its classification is recorded, 012q), neither its page nor its export is theirs

@@ -120,6 +120,9 @@ _ID_PREFIXES: Final[dict[str, str]] = {
     "llm_runtime": "lrt",
     # `012f`: a project's own, versioned external-model egress declaration.
     "llm_egress_policy": "lep",
+    # `012y`: an exploratory screening stage's plan and each of its readings.
+    "screening_plan": "spl",
+    "screening_observation": "sob",
 }
 
 

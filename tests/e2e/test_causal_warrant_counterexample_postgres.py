@@ -369,13 +369,28 @@ def test_the_review_packet_reads_only_its_own_projects_records(db):
     """A hypothesis id is unique within a project, not across projects (`hypotheses` is keyed
     by both), so another project may hold the same ids. The packet a reviewer reads is built
     from the relation's own project: its hypothesis, prediction and rivals -- never a twin's
-    mechanism, and never a lookup that two projects' rows make ambiguous."""
+    mechanism, and never a lookup that two projects' rows make ambiguous.
+
+    A rival declares something about the observed observable, so the packet has rivals to read:
+    with none, PostgreSQL never evaluates the hypothesis-set lookup at all, and whether an
+    ambiguous lookup is noticed would depend on the plan it happens to choose."""
     fx = _proxy()
+    contact = fx["mechanisms"]["contact_discontinuity"]
+    refuted = next(
+        p
+        for p in fx["mechanisms"]["normalization_error"]["predictions"]
+        if p["relation_effect"] == "CONTRADICTS"
+    )
+    contact["predictions"] = [*contact["predictions"], refuted]
     _queue(db)
     run_case(db, fx, case_by_id(fx, CASE))
     (review,) = SqlDiagnosticWarrantStore(db).outstanding(PROJECT)
     alone = _packet(db, PROJECT, review.subject_id)
     assert any(PROXY_MECHANISM in line for line in alone), "\n".join(alone)
+    assert any(
+        line.startswith("  rival ") and "contact discontinuity): AGREES CONTRADICTS" in line
+        for line in alone
+    ), "\n".join(alone)
     held = db.execute(
         "SELECT hypothesis_id FROM hypotheses WHERE project_id = %s", (PROJECT,)
     ).fetchall()

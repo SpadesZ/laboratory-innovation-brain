@@ -39,7 +39,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from pydantic import ValidationError
@@ -206,7 +206,11 @@ SPECIALIST_REQUIRES = frozenset({"question", "hypotheses", "evidence", "speciali
 
 
 def core_prompts() -> tuple[PromptTemplate, ...]:
-    return (*(contract.prompt for contract in CORE_CONTRACTS), COVERAGE_REVIEW.prompt)
+    return (
+        *(contract.prompt for contract in CORE_CONTRACTS),
+        COVERAGE_REVIEW.prompt,
+        SCREENING_REVIEW.prompt,
+    )
 
 
 def require_input(role: str, requires: frozenset[str], context: Mapping[str, object]) -> None:
@@ -638,6 +642,8 @@ class CoverageDraft:
     #: Proposal key -> the canonical attestation ids that ground it (at least one each).
     grounding: Mapping[str, tuple[str, ...]]
     declined: tuple[CoverageDecline, ...]
+    #: Proposal key -> cited attestation id -> the content words they share (when checked).
+    relevance: Mapping[str, Mapping[str, tuple[str, ...]]] = field(default_factory=dict)
 
 
 def parse_coverage_review(
@@ -648,6 +654,7 @@ def parse_coverage_review(
     existing_mechanisms: Sequence[str],
     evidence_refs: Mapping[str, str],
     shown_attestation_ids: Sequence[str],
+    evidence_texts: Mapping[str, str] | None = None,
     inference_id: str | None = None,
 ) -> CoverageDraft:
     """Every unaddressed observable answered exactly once: certified by a new, grounded rival
@@ -668,6 +675,7 @@ def parse_coverage_review(
     taken = {" ".join(m.lower().split()) for m in existing_mechanisms}
     covered: dict[str, str] = {}
     grounding: dict[str, tuple[str, ...]] = {}
+    relevance: dict[str, Mapping[str, tuple[str, ...]]] = {}
     for proposal, item in zip(proposals, raw, strict=True):
         name = " ".join(proposal.mechanism.lower().split())
         if name in taken:
@@ -711,6 +719,9 @@ def parse_coverage_review(
             what="evidence items",
             inference_id=inference_id,
         )
+        relevance[proposal.key] = require_relevant_grounding(
+            role, proposal, grounding[proposal.key], evidence_texts, inference_id
+        )
     declined: list[CoverageDecline] = []
     for d in declined_raw:
         if not isinstance(d, dict):
@@ -752,7 +763,272 @@ def parse_coverage_review(
             "or declined with a reason",
             inference_id=inference_id,
         )
-    return CoverageDraft(proposals=proposals, grounding=grounding, declined=tuple(declined))
+    return CoverageDraft(
+        proposals=proposals, grounding=grounding, declined=tuple(declined), relevance=relevance
+    )
+
+
+# -- Grounding relevance ---------------------------------------------------------------------
+
+#: Words that carry no mechanism: a citation sharing only these with a hypothesis is not about it.
+_FUNCTION_WORD_TEXT = (
+    "a an and are as at be been being but by can could did do does each for from had has have "
+    "how if in into is it its may might more most no nor not of on or other our out over same "
+    "shall should so some such than that the their them then there these they this those "
+    "through to too under until up upon very was we were what when where which while who whom "
+    "why will with would yet also both only own any all"
+)
+_FUNCTION_WORDS = frozenset(_FUNCTION_WORD_TEXT.split())
+
+
+def content_terms(text: str) -> frozenset[str]:
+    """The words of `text` that could name a mechanism: lower-cased, alphanumeric, three letters
+    or more, not a function word, a plural `s` folded. Declared and deterministic; a lexical rule,
+    not a judgment of meaning."""
+    words = "".join(c if c.isalnum() else " " for c in text.lower()).split()
+    return frozenset(
+        w[:-1] if len(w) > 3 and w.endswith("s") and not w.endswith("ss") else w
+        for w in words
+        if len(w) >= 3 and w not in _FUNCTION_WORDS
+    )
+
+
+def shared_terms(proposal: HypothesisProposal, evidence_text: str) -> tuple[str, ...]:
+    """What a cited evidence item and a proposed hypothesis have in common, word for word."""
+    said = content_terms(
+        " ".join(
+            (
+                proposal.statement,
+                proposal.mechanism,
+                proposal.falsifier,
+                *proposal.assumptions,
+                *proposal.confounders,
+            )
+        )
+    )
+    return tuple(sorted(said & content_terms(evidence_text)))
+
+
+def require_relevant_grounding(
+    role: str,
+    proposal: HypothesisProposal,
+    cited: Sequence[str],
+    evidence_texts: Mapping[str, str] | None,
+    inference_id: str | None,
+) -> dict[str, tuple[str, ...]]:
+    """Each cited evidence item -> the content terms it shares with the proposal; refused when
+    NONE of them shares any. A valid evidence id that says nothing about the mechanism is a
+    citation in form only. `evidence_texts` None skips the check (a caller with no texts)."""
+    if evidence_texts is None:
+        return {}
+    overlap = {c: shared_terms(proposal, evidence_texts.get(c, "")) for c in cited}
+    if not any(overlap.values()):
+        raise RoleOutputRefused(
+            role,
+            f"hypothesis {proposal.key!r} cites {len(cited)} evidence item(s), none of which "
+            "shares a single content word with its statement, mechanism, assumptions, confounders "
+            "or falsifier; grounding must be evidence about the mechanism, not any valid id",
+            inference_id=inference_id,
+        )
+    return overlap
+
+
+# -- Post-screening hypothesis review ---------------------------------------------------------
+
+#: 1.0.0: one call after a screening stage that found an ABNORMAL reading -- an outcome that differs
+#: from the domain's declared reference outcome on a check no hypothesis predicted. The model is
+#: shown every reading, normal and abnormal; it may propose rivals that account for the abnormal
+#: ones, or decline. Whatever it proposes is recorded as conditioned on what it saw, and the
+#: readings themselves can never support it.
+SCREENING_REVIEW = RoleContract(
+    role=CognitiveRole.HYPOTHESIS_ENGINE,
+    prompt=PromptTemplate(
+        "prm:hypothesis-screening-review",
+        "1.0.0",
+        "You are the Hypothesis Engine. Low-cost exploratory readings were taken on checks no "
+        "current hypothesis (CONTEXT.hypotheses) predicted. CONTEXT.screening_observations lists "
+        "every reading with the domain's reference outcome; a reading whose finding is ABNORMAL "
+        "differs from that reference. For EACH abnormal reading, either propose a NEW competing "
+        "hypothesis -- a mechanism distinct from CONTEXT.existing_mechanisms that would account "
+        "for it -- as a complete certificate bound to CONTEXT.prediction_bindings exactly as the "
+        "Hypothesis Engine binds them, with a typed CONTRADICTS falsifier and a SUPPORTS or "
+        "CONTRADICTS prediction over the abnormal reading's observable_ref, listing in "
+        "responds_to the observation refs it accounts for and in grounding_evidence_ids the ids "
+        "of CONTEXT.evidence that make the mechanism plausible; or decline the reading with a "
+        "reason. A reading you were shown can never count as support for a hypothesis proposed "
+        "after it: prefer predictions over checks that have NOT been read yet, so a later, "
+        "independent check can test the mechanism. Never restate an existing hypothesis, and "
+        "never propose a mechanism only because a reading is unusual without evidence that makes "
+        f"it plausible. {effect_meanings()} Reply with JSON.",
+    ),
+    requires=frozenset(
+        {
+            "question",
+            "evidence",
+            "prediction_bindings",
+            "hypotheses",
+            "existing_mechanisms",
+            "screening_observations",
+        }
+    ),
+)
+
+
+@dataclass(frozen=True)
+class ScreeningDecline:
+    observation: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class ScreeningDraft:
+    proposals: tuple[HypothesisProposal, ...]
+    #: Proposal key -> canonical attestation ids that ground it.
+    grounding: Mapping[str, tuple[str, ...]]
+    #: Proposal key -> the canonical screened observation ids it accounts for.
+    responds_to: Mapping[str, tuple[str, ...]]
+    #: Proposal key -> cited attestation id -> the content words they share.
+    relevance: Mapping[str, Mapping[str, tuple[str, ...]]]
+    declined: tuple[ScreeningDecline, ...]
+
+
+def parse_screening_review(
+    text: str,
+    *,
+    bindings: Mapping[str, OutcomeSpace],
+    abnormal: Mapping[str, str],
+    existing_mechanisms: Sequence[str],
+    evidence_refs: Mapping[str, str],
+    observation_refs: Mapping[str, str],
+    shown_attestation_ids: Sequence[str],
+    evidence_texts: Mapping[str, str] | None = None,
+    inference_id: str | None = None,
+) -> ScreeningDraft:
+    """Every abnormal reading answered exactly once: accounted for by a new, grounded rival that
+    predicts over its observable, or declined with a reason.
+
+    `abnormal` is canonical observation id -> observable_ref, for the abnormal readings only;
+    `observation_refs` is alias -> canonical id for every reading shown. A proposal may respond to
+    an abnormal reading only; its grounding must be shown evidence with substantive overlap
+    (`require_relevant_grounding`), never the reading itself.
+    """
+    role = HYPOTHESIS_ENGINE.role.value
+    obj = _object(role, text, inference_id)
+    raw = _list_field(role, obj, "hypotheses", inference_id)
+    declined_raw = _list_field(role, obj, "declined", inference_id)
+    proposals = _proposals(role, raw, bindings, inference_id)
+    taken = {" ".join(m.lower().split()) for m in existing_mechanisms}
+    answered: dict[str, str] = {}
+    grounding: dict[str, tuple[str, ...]] = {}
+    responds: dict[str, tuple[str, ...]] = {}
+    relevance: dict[str, Mapping[str, tuple[str, ...]]] = {}
+    for proposal, item in zip(proposals, raw, strict=True):
+        name = " ".join(proposal.mechanism.lower().split())
+        if name in taken:
+            raise RoleOutputRefused(
+                role,
+                f"hypothesis {proposal.key!r} proposes {proposal.mechanism!r}, which is already "
+                "under consideration; a screening review adds rivals, it does not restate them",
+                inference_id=inference_id,
+            )
+        taken.add(name)
+        refs = item.get("responds_to")
+        if not isinstance(refs, list) or not refs:
+            raise RoleOutputRefused(
+                role,
+                f"hypothesis {proposal.key!r} names no abnormal reading in responds_to",
+                inference_id=inference_id,
+            )
+        observations = resolve_refs(
+            role,
+            _strings(role, refs, "responds_to", inference_id),
+            shown=observation_refs,
+            allowed=list(abnormal),
+            what="abnormal readings",
+            inference_id=inference_id,
+        )
+        predicted = {
+            p.observable_ref
+            for p in proposal.predictions
+            if p.relation_effect in DISCRIMINATING_EFFECTS
+        }
+        for observation in observations:
+            if abnormal[observation] not in predicted:
+                raise RoleOutputRefused(
+                    role,
+                    f"hypothesis {proposal.key!r} responds to a reading of "
+                    f"{abnormal[observation]} but makes no SUPPORTS or CONTRADICTS prediction "
+                    "over it; a rival that accounts for a reading says what that reading means",
+                    inference_id=inference_id,
+                )
+            if observation in answered:
+                raise RoleOutputRefused(
+                    role,
+                    f"two hypotheses respond to the same reading ({answered[observation]!r} and "
+                    f"{proposal.key!r}); propose one rival per abnormal reading",
+                    inference_id=inference_id,
+                )
+            answered[observation] = proposal.key
+        cited = item.get("grounding_evidence_ids")
+        if not isinstance(cited, list) or not cited:
+            raise RoleOutputRefused(
+                role,
+                f"hypothesis {proposal.key!r} cites no evidence in grounding_evidence_ids; an "
+                "unusual reading alone is not a reason for any particular mechanism",
+                inference_id=inference_id,
+            )
+        grounds = resolve_refs(
+            role,
+            _strings(role, cited, "grounding_evidence_ids", inference_id),
+            shown=evidence_refs,
+            allowed=shown_attestation_ids,
+            what="evidence items",
+            inference_id=inference_id,
+        )
+        relevance[proposal.key] = require_relevant_grounding(
+            role, proposal, grounds, evidence_texts, inference_id
+        )
+        grounding[proposal.key] = grounds
+        responds[proposal.key] = observations
+    declined: list[ScreeningDecline] = []
+    for d in declined_raw:
+        if not isinstance(d, dict):
+            raise RoleOutputRefused(role, "a decline is not an object", inference_id=inference_id)
+        (observation,) = resolve_refs(
+            role,
+            (_text(role, d, "observation_ref", inference_id),),
+            shown=observation_refs,
+            allowed=list(abnormal),
+            what="abnormal readings",
+            inference_id=inference_id,
+        )
+        if observation in answered or any(x.observation == observation for x in declined):
+            raise RoleOutputRefused(
+                role,
+                "answers an abnormal reading twice; each is accounted for or declined, once",
+                inference_id=inference_id,
+            )
+        declined.append(
+            ScreeningDecline(observation=observation, reason=_text(role, d, "reason", inference_id))
+        )
+    missing = [
+        o for o in abnormal if o not in answered and all(x.observation != o for x in declined)
+    ]
+    if missing:
+        names = {c: a for a, c in observation_refs.items()}
+        raise RoleOutputRefused(
+            role,
+            f"leaves {[names.get(m, m) for m in missing]} unanswered; every abnormal reading is "
+            "accounted for by a new hypothesis or declined with a reason",
+            inference_id=inference_id,
+        )
+    return ScreeningDraft(
+        proposals=proposals,
+        grounding=grounding,
+        responds_to=responds,
+        relevance=relevance,
+        declined=tuple(declined),
+    )
 
 
 # -- Domain Specialist ------------------------------------------------------------------------
@@ -1007,6 +1283,7 @@ __all__ = [
     "HYPOTHESIS_ENGINE",
     "NOVELTY_AUDITOR",
     "QUERY_REWRITER",
+    "SCREENING_REVIEW",
     "SPECIALIST_REQUIRES",
     "STRIPPED_BYTE_ORDER_MARK",
     "STRIPPED_CODE_FENCE",
@@ -1019,7 +1296,10 @@ __all__ = [
     "PredictionProposal",
     "RoleContract",
     "RoleOutputRefused",
+    "ScreeningDecline",
+    "ScreeningDraft",
     "binding_context",
+    "content_terms",
     "core_prompts",
     "normalize_reply",
     "parse_coverage_review",
@@ -1027,7 +1307,10 @@ __all__ = [
     "parse_hypothesis_engine",
     "parse_novelty",
     "parse_query_terms",
+    "parse_screening_review",
     "parse_specialist",
     "require_input",
+    "require_relevant_grounding",
     "resolve_refs",
+    "shared_terms",
 ]

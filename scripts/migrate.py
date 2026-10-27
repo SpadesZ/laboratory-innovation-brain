@@ -307,6 +307,7 @@ APPLY_ORDER: tuple[str, ...] = (
     # A debate record's reliability: its policy, every reply attempt, the coverage review. After
     # 005e (debate_records).
     "012x_debate_reliability.sql",
+    "012y_exploratory_screening.sql",
 )
 
 _BOOTSTRAP = """
