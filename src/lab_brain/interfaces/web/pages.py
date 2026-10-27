@@ -49,7 +49,7 @@ from lab_brain.research.episode_view import (
     ExecutedCheck,
     Relation,
 )
-from lab_brain.research.render import reliability_lines, usage_lines
+from lab_brain.research.render import reliability_lines, screening_lines, usage_lines
 from lab_brain.research.report import (
     ActionLine,
     CoverageLine,
@@ -1100,7 +1100,13 @@ def _hypotheses_html(
         (m("col.hypothesis"), m("col.standing"), m("col.evidence_status")),
         (
             (
-                h("<strong>{}</strong>", t.text(x.mechanism)),
+                h("<strong>{}</strong>", t.text(x.mechanism))
+                if x.origin != "POST_SCREENING"
+                else h(
+                    '<strong>{}</strong> <span class="muted">({})</span>',
+                    t.text(x.mechanism),
+                    m("v.post_screening"),
+                ),
                 status("bs", x.final_state, m),
                 _evidence_status(x, report, view, seen, t),
             )
@@ -2089,6 +2095,11 @@ def _l1_html(
             _section("coverage", m("v.coverage"), _coverage_html(report, t))
             if _coverage_lines(report)
             else Html(""),
+            _section("screening", m("v.screening"), _screening_html(report, t))
+            if report is not None
+            and report.screening is not None
+            and report.screening.status != "DISABLED"
+            else Html(""),
             _section("support", m("v.support"), _support_html(report, view, seen, t)),
             _section("why", m("v.why"), _why_html(report, seen, t, view, episode.suspend_reason)),
             _section(
@@ -2121,6 +2132,110 @@ def _coverage_html(report: EpisodeReport | None, t: Terms) -> Html:
         for line in _coverage_lines(report)
     ]
     return cat([h("<p>{}</p>", m("v.coverage.lead")), _list(items)])
+
+
+def _screening_html(report: EpisodeReport, t: Terms) -> Html:
+    """The exploratory screening stage: what was read where nobody looked, how each reading
+    compares with a sound design, what the review after an abnormal one did, and what
+    verification did not repeat. Exploratory evidence, said so first."""
+    m = t.m
+    section = report.screening
+    assert section is not None
+    if section.status == "FAILED":
+        return h("<p>{}</p>", m("v.screening.failed", detail=t.text(section.detail)))
+    reads: list[Html] = []
+    for check in section.checks:
+        if not check.readings:
+            reads.append(
+                mh(
+                    m,
+                    "v.screening.not_read",
+                    check=t.name(check.check),
+                    status=_screening_status(check.status, m),
+                    detail=t.text(check.detail),
+                )
+            )
+        for reading in check.readings:
+            reads.append(
+                mh(
+                    m,
+                    "v.screening.read",
+                    check=t.name(check.check),
+                    observable=t.name(reading.observable),
+                    outcome=t.name(reading.outcome),
+                    reference=t.name(reading.reference),
+                    finding=m(f"v.screening.finding.{reading.finding}")
+                    if reading.finding in ("NORMAL", "ABNORMAL")
+                    else reading.finding,
+                )
+            )
+    taken = {c.check for c in section.checks}
+    others = [c for c in section.candidates if c.check not in taken]
+    review: list[Html] = [
+        mh(
+            m,
+            f"v.screening.{line.disposition}"
+            if line.disposition in ("CERTIFIED", "DECLINED", "REFUSED")
+            else "v.screening.REFUSED",
+            readings="; ".join(line.readings),
+            mechanism=t.text(line.detail),
+            reason=t.text(line.detail),
+        )
+        for line in section.review
+    ]
+    if section.review_status not in ("DONE", "NOT_NEEDED"):
+        review.append(
+            mh(
+                m,
+                "v.screening.review",
+                status=_screening_status(
+                    section.review_status
+                    + ("_REVIEW" if section.review_status in ("FAILED", "BUDGET_BLOCKED") else ""),
+                    m,
+                ),
+            )
+        )
+    return cat(
+        [
+            h("<p>{}</p>", m("v.screening.lead", policy=section.policy)),
+            _list(reads),
+            h('<p class="muted">{}</p>', m("v.screening.not_taken", n=len(others)))
+            if others
+            else Html(""),
+            _list(review),
+            h(
+                "<p>{}</p>",
+                mh(
+                    m,
+                    "v.screening.not_repeated",
+                    checks=cat(
+                        h("{}{}", Html(", ") if i else Html(""), t.name(c))
+                        for i, c in enumerate(section.not_repeated)
+                    ),
+                ),
+            )
+            if section.not_repeated
+            else Html(""),
+        ]
+    )
+
+
+_SCREENING_STATUSES = frozenset(
+    {
+        "AWAITING_RESOURCE",
+        "BUDGET_BLOCKED",
+        "FAILED",
+        "NOT_RUN",
+        "FAILED_REVIEW",
+        "BUDGET_BLOCKED_REVIEW",
+        "RESERVED_FOR_CRITIC",
+    }
+)
+
+
+def _screening_status(value: str, m: Messages) -> str:
+    """A screening status in the reader's words; an unknown one as recorded."""
+    return m(f"v.screening.status.{value}") if value in _SCREENING_STATUSES else value
 
 
 def _unaddressed(report: EpisodeReport, view: EpisodeView) -> list[str]:
@@ -2565,6 +2680,7 @@ def report_html(r: EpisodeReport, *, locale: str = "en") -> Html:
                     h("{} {}", m("r.falsifier"), x.falsifier),
                     h("{} <code>{}</code>", m("r.cheapest"), x.minimal_test),
                     h("{} {}", m("r.predictions"), "; ".join(x.predictions)),
+                    h("{} {}", m("r.origin"), x.origin),
                     *(h("{} {}", m("r.critique"), o) for o in x.objections),
                 ]
             ),
@@ -2617,6 +2733,14 @@ def report_html(r: EpisodeReport, *, locale: str = "en") -> Html:
                         *(h("{}", line) for line in reliability_lines(d.reliability)),
                     ]
                 ),
+            )
+        )
+    if r.screening is not None:
+        add(
+            h(
+                "<h2>{}</h2>{}",
+                m("v.screening"),
+                _list([h("{}", line) for line in screening_lines(r.screening)]),
             )
         )
 

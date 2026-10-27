@@ -75,8 +75,12 @@ def research(browser: Browser, data: bytes) -> str:
     """One research run through the workspace; returns the episode it opened."""
     sent = browser.post(
         "/runs",
-        {"csrf": _token(browser.get("/runs/new")), "project": PROJECT, "goal": GOAL,
-         "sensitivity": "INTERNAL"},
+        {
+            "csrf": _token(browser.get("/runs/new")),
+            "project": PROJECT,
+            "goal": GOAL,
+            "sensitivity": "INTERNAL",
+        },
         {
             "measurement": [(REPORT.name, REPORT.read_bytes())],
             "verification_input": [("device.json", data)],
@@ -102,9 +106,7 @@ def readings(db: Any, episode: str) -> dict[str, str]:
     }
 
 
-def test_screening_finds_the_open_via_nobody_predicted_and_supports_nothing(
-    db, tmp_path, standin
-):
+def test_screening_finds_the_open_via_nobody_predicted_and_supports_nothing(db, tmp_path, standin):
     fake, model = standin
     _setup(db)
     browser = _deployment(tmp_path, inference_deadline=60)
@@ -184,12 +186,15 @@ def test_screening_finds_the_open_via_nobody_predicted_and_supports_nothing(
         hypothesis,
     )
     ((outcome,),) = rows(
-        db, "SELECT coalesce(outcome_status, '') FROM research_episodes WHERE episode_id = %s",
+        db,
+        "SELECT coalesce(outcome_status, '') FROM research_episodes WHERE episode_id = %s",
         open_via,
     )
     assert "CONFIRMED" not in outcome
     assert not rows(
-        db, "SELECT 1 FROM jobs WHERE project_id = %s AND capability_id = ANY(%s)", PROJECT,
+        db,
+        "SELECT 1 FROM jobs WHERE project_id = %s AND capability_id = ANY(%s)",
+        PROJECT,
         SIMULATIONS,
     )
 
@@ -214,6 +219,21 @@ def test_screening_finds_the_open_via_nobody_predicted_and_supports_nothing(
         db, "SELECT parameters FROM inference_provenance WHERE inference_id = %s", inference
     )
     assert any(v in json.dumps(parameters) for v in ("O1", "O2"))
+
+    # The page says it in Traditional Chinese, with the English term beside it, and names no
+    # raw identifier for the checks or outcomes.
+    browser.post("/locale", {"csrf": _token(browser.get("/")), "locale": "zh-TW", "next": "/"})
+    page = _text(browser.get(f"/episodes/{open_via}").text)
+    for said in (
+        "探索性篩檢（exploratory screening）",
+        "接點連通性檢查（connectivity inspection）：讀到 接點連通性（contact connectivity） = "
+        "不連續（discontinuous）",
+        "——異常",
+        "該讀取不能作為它的支持",
+        "篩檢後提出",
+        "重複同一個讀取不是獨立的證據",
+    ):
+        assert said in page, said
 
     # SQL refuses the shortcut for any writer (012y).
     _sql_guard_refuses_post_hoc_support(db, open_via, hypothesis, conditioned_on[0])
@@ -259,9 +279,13 @@ def _sql_guard_refuses_post_hoc_support(
             job.job_id,
             job.idempotency_key,
             screened.model_copy(
-                update={"run_id": f"run:guard-{name}", "job_id": job.job_id,
-                        "input_parameters": parameters, "start_time": later,
-                        "end_time": later}
+                update={
+                    "run_id": f"run:guard-{name}",
+                    "job_id": job.job_id,
+                    "input_parameters": parameters,
+                    "start_time": later,
+                    "end_time": later,
+                }
             ),
         )
         return run.run_id
@@ -282,9 +306,17 @@ def _sql_guard_refuses_post_hoc_support(
             "INSERT INTO observations (observation_id, run_id, metric_or_event, value_text,"
             " conditions, conditions_schema_version, method_ref, project_id, created_at)"
             " VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s)",
-            (observation.observation_id, run, observation.metric_or_event, observation.value,
-             json.dumps(observation.conditions), observation.conditions_schema_version,
-             observation.method_ref, PROJECT, at),
+            (
+                observation.observation_id,
+                run,
+                observation.metric_or_event,
+                observation.value,
+                json.dumps(observation.conditions),
+                observation.conditions_schema_version,
+                observation.method_ref,
+                PROJECT,
+                at,
+            ),
         )
         return observation.observation_id
 
@@ -297,8 +329,9 @@ def _sql_guard_refuses_post_hoc_support(
         )
 
     def refused(source: str, why: str) -> None:
-        with pytest.raises(psycopg.errors.RaiseException, match=why), db.transaction(
-            force_rollback=True
+        with (
+            pytest.raises(psycopg.errors.RaiseException, match=why),
+            db.transaction(force_rollback=True),
         ):
             relate(source)
 
@@ -334,16 +367,12 @@ def test_a_sound_device_reads_normal_and_keeps_every_reading(db, tmp_path, stand
     assert {c.status for c in recorded.report.screening.checks} == {"EXECUTED"}
 
 
-def test_two_faults_two_readings_two_conditioned_rivals_and_the_same_plan(
-    db, tmp_path, standin
-):
+def test_two_faults_two_readings_two_conditioned_rivals_and_the_same_plan(db, tmp_path, standin):
     fake, _model = standin
     _setup(db)
     browser = _deployment(tmp_path, inference_deadline=60)
     _activated(db, browser, fake)
-    both = research(
-        browser, device("contact-open-via", extraction_normalization_length_um="1000")
-    )
+    both = research(browser, device("contact-open-via", extraction_normalization_length_um="1000"))
     sound = research(browser, device("probe-artifact"))
     assert readings(db, both) == {
         sp.OBS_CONNECTIVITY: "DISCONTINUOUS:ABNORMAL",
@@ -356,8 +385,10 @@ def test_two_faults_two_readings_two_conditioned_rivals_and_the_same_plan(
         " c.screening_observation_ids[1] WHERE c.episode_id = %s ORDER BY 2",
         both,
     )
-    assert [c[1] for c in conditioned] == [sp.CAP_EXTRACTION_CONSISTENCY,
-                                           sp.CAP_INSPECT_CONNECTIVITY]
+    assert [c[1] for c in conditioned] == [
+        sp.CAP_EXTRACTION_CONSISTENCY,
+        sp.CAP_INSPECT_CONNECTIVITY,
+    ]
     # Same rivals, same deployment -> the same plan, whatever the device holds.
     plans = rows(
         db,
@@ -384,6 +415,8 @@ def test_screening_switched_off_takes_no_reading(db, tmp_path, standin):
     assert stage.status == "SKIPPED"
     # The baseline the live runs had: the via was never read.
     assert not rows(
-        db, "SELECT 1 FROM jobs WHERE episode_id = %s AND capability_id = %s", episode,
+        db,
+        "SELECT 1 FROM jobs WHERE episode_id = %s AND capability_id = %s",
+        episode,
         sp.CAP_INSPECT_CONNECTIVITY,
     )

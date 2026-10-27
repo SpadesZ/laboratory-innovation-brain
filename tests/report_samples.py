@@ -26,6 +26,11 @@ from lab_brain.research.report import (
     LiteratureSection,
     PendingAction,
     PlanLine,
+    PostScreeningLine,
+    ScreeningCandidateLine,
+    ScreeningCheckLine,
+    ScreeningReadingLine,
+    ScreeningSection,
     StageStatus,
 )
 
@@ -104,6 +109,7 @@ def full_report(inject: str = "") -> EpisodeReport:
                 t("CONTRADICTED"),
                 (t("CONFOUNDER (MAJOR): probe contact"),),
                 (t("sp.contact = CLOSED in os:sp.contact@1.0.0 -> CONTRADICTS hyp:1 (prd:1)"),),
+                origin=t("POST_SCREENING"),
             ),
         ),
         debate=DebateSection(
@@ -176,6 +182,50 @@ def full_report(inject: str = "") -> EpisodeReport:
         deployment=(t("Reasoner: rules"),),
         not_performed=(t("no simulation was run"),),
         notes=(t("a loop note"),),
+        screening=ScreeningSection(
+            policy=t("screening:research-run@1.0.0"),
+            status=t("DONE"),
+            plan_id=t("spl:1"),
+            unaddressed=(t("sp.contact_connectivity"),),
+            candidates=(
+                ScreeningCandidateLine(
+                    t("cap:sp.inspect_contact_connectivity"), t("SELECTED"), t("nobody predicts")
+                ),
+                ScreeningCandidateLine(t("cap:sp.mesh_sensitivity"), t("LICENSED"), t("a seat")),
+            ),
+            checks=(
+                ScreeningCheckLine(
+                    rank=1,
+                    check=t("cap:sp.inspect_contact_connectivity"),
+                    status=t("EXECUTED"),
+                    estimated_cost=t("wall clock s 2"),
+                    readings=(
+                        ScreeningReadingLine(
+                            t("sp.contact_connectivity"),
+                            t("DISCONTINUOUS"),
+                            t("CONTINUOUS"),
+                            t("ABNORMAL"),
+                            t("obs:s1"),
+                        ),
+                    ),
+                    job_id=t("job:s1"),
+                    run_id=t("run:s1"),
+                    detail=t("read the stored output"),
+                ),
+            ),
+            review_status=t("DONE"),
+            review=(
+                PostScreeningLine(
+                    t("CERTIFIED"),
+                    (t("cap:sp.inspect_contact_connectivity: sp.contact_connectivity = OPEN"),),
+                    t("hyp:1"),
+                    t("broken via (model wording)"),
+                    (t("att:1"),),
+                ),
+            ),
+            not_repeated=(t("cap:sp.inspect_contact_connectivity"),),
+            detail=t("screening detail"),
+        ),
         continuation=ContinuationSection(
             run_ordinal=2,
             resumed_from=t("SUSPENDED (awaiting simulator)"),
