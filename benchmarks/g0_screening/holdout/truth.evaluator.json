@@ -1,0 +1,119 @@
+{
+  "suite": "g0-screening-holdout",
+  "version": "1.0.0",
+  "cases": {
+    "ho-01": {
+      "true_causes": [
+        "contact_discontinuity"
+      ],
+      "design_sound": false,
+      "decisive_cheap_checks": [
+        "cap:sp.inspect_contact_connectivity"
+      ],
+      "expected_abnormal_observables": [
+        "sp.contact_connectivity"
+      ],
+      "rationale": "A third body-tap contact has no via to metal while anode and cathode are intact, so connectivity is DISCONTINUOUS."
+    },
+    "ho-02": {
+      "true_causes": [
+        "contact_discontinuity"
+      ],
+      "design_sound": false,
+      "decisive_cheap_checks": [
+        "cap:sp.inspect_contact_connectivity"
+      ],
+      "expected_abnormal_observables": [
+        "sp.contact_connectivity"
+      ],
+      "rationale": "Cathode overlap of 99 nm is just below the 100 nm rule so connectivity is DISCONTINUOUS; normalization agrees."
+    },
+    "ho-03": {
+      "true_causes": [],
+      "design_sound": true,
+      "decisive_cheap_checks": [],
+      "expected_abnormal_observables": [],
+      "rationale": "Anode overlap of 101 nm is just above the 100 nm rule and normalization matches, so both cheap checks pass and the design is sound; no catalog mechanism is established."
+    },
+    "ho-04": {
+      "true_causes": [
+        "normalization_error"
+      ],
+      "design_sound": false,
+      "decisive_cheap_checks": [
+        "cap:sp.extraction_consistency"
+      ],
+      "expected_abnormal_observables": [
+        "sp.normalization_basis"
+      ],
+      "rationale": "Extraction divides by 750 um against a drawn 500 um (50% mismatch) so normalization DISAGREES; contacts are intact."
+    },
+    "ho-05": {
+      "true_causes": [],
+      "design_sound": true,
+      "decisive_cheap_checks": [],
+      "expected_abnormal_observables": [],
+      "rationale": "Extraction length 804 um vs drawn 800 um is a 0.5% mismatch, within the 1% tolerance, so normalization AGREES and contacts are intact; the design is sound."
+    },
+    "ho-06": {
+      "true_causes": [
+        "contact_discontinuity",
+        "normalization_error"
+      ],
+      "design_sound": false,
+      "decisive_cheap_checks": [
+        "cap:sp.inspect_contact_connectivity",
+        "cap:sp.extraction_consistency"
+      ],
+      "expected_abnormal_observables": [
+        "sp.contact_connectivity",
+        "sp.normalization_basis"
+      ],
+      "rationale": "Anode via is open and the extraction divides by 600 um against a drawn 400 um (50%), so both cheap checks flag a fault."
+    },
+    "ho-07": {
+      "true_causes": [
+        "probe_artifact"
+      ],
+      "design_sound": true,
+      "decisive_cheap_checks": [],
+      "expected_abnormal_observables": [],
+      "rationale": "Contacts are intact and normalization matches, so the design is sound and the remaining catalog explanation is the measurement probe."
+    },
+    "ho-08": {
+      "true_causes": [
+        "mesh_artifact"
+      ],
+      "design_sound": false,
+      "decisive_cheap_checks": [],
+      "expected_abnormal_observables": [],
+      "rationale": "Contacts and normalization pass the cheap checks; the 30 nm access mesh edge (nominal 5 nm) is a numerical fault only a mesh sensitivity solve can expose."
+    },
+    "ho-09": {
+      "true_causes": [
+        "contact_discontinuity"
+      ],
+      "design_sound": false,
+      "decisive_cheap_checks": [
+        "cap:sp.inspect_contact_connectivity"
+      ],
+      "expected_abnormal_observables": [
+        "sp.contact_connectivity"
+      ],
+      "rationale": "Cathode via is open so connectivity would be DISCONTINUOUS, but the deployment cannot run the connectivity inspection."
+    },
+    "ho-10": {
+      "true_causes": [
+        "contact_discontinuity"
+      ],
+      "design_sound": false,
+      "decisive_cheap_checks": [
+        "cap:sp.inspect_contact_connectivity"
+      ],
+      "expected_abnormal_observables": [
+        "sp.contact_connectivity"
+      ],
+      "rationale": "Anode via is open so connectivity is DISCONTINUOUS, contradicting the evidence text that claims continuity was verified."
+    }
+  }
+}
