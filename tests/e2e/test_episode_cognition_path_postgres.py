@@ -724,6 +724,9 @@ def test_cognition_cannot_write_a_projection_because_there_is_nothing_to_write_t
         "ingestion_stage_results",
         "candidate_heuristics",
         "accounts",
+        # `012y`: whether a screening check executed (EXECUTED / FAILED / NOT_RUN ...), an
+        # execution lifecycle like `runs.status` -- never a belief.
+        "screening_observations",
     }
     bare_status = {
         table
