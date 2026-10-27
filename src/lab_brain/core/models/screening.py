@@ -216,6 +216,8 @@ class ScreeningStatus(StrEnum):
     FAILED = "FAILED"
     #: Selected, then not run because the stage stopped first (a failure before it).
     NOT_RUN = "NOT_RUN"
+    #: Refused by a fail-closed check before (or during) execution: nothing was admitted.
+    REFUSED = "REFUSED"
 
 
 class ScreeningFinding(StrEnum):

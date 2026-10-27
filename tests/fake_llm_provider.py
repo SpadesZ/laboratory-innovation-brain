@@ -346,6 +346,19 @@ def _probe_answer(
     a CONTRADICTS prediction it declares over the binding's last."""
     if "mode" in ctx:
         return {"terms": ["contact resistance", "oxidation"]}
+    if "screening_observations" in ctx:
+        # The screening review: every abnormal reading declined, with a reason.
+        return {
+            "hypotheses": [],
+            "declined": [
+                {
+                    "observation_ref": r["observation_ref"],
+                    "reason": "the evidence names no mechanism that would account for it",
+                }
+                for r in ctx["screening_observations"]
+                if r["finding"] == "ABNORMAL"
+            ],
+        }
     if "unaddressed_checks" in ctx:
         # The coverage review: every check declined, with a reason that cites what it was shown.
         return {

@@ -946,9 +946,17 @@ class StructuredDebate:
             "hypothesis_id",
             state.hypotheses,
         )
-        evidence, shown_e = aliased(shown_evidence, "attestation_id", state.evidence)
-        observations, shown_o = aliased(
-            [
+        existing = sorted(
+            c.hypothesis.mechanism
+            for c in self._hypotheses.certificates_in_set(hypothesis_set.set_id)
+        )
+        context, shown_e, shown_o = screening_context(
+            question=request.question,
+            shown_hypotheses=shown_hypotheses,
+            existing_mechanisms=existing,
+            evidence=shown_evidence,
+            bindings=bindings,
+            readings=[
                 {
                     "observation_ref": r.observation_id,
                     "check": o.capability_id,
@@ -961,22 +969,10 @@ class StructuredDebate:
                 }
                 for o, r in readings
             ],
-            "observation_ref",
-            state.observations,
+            evidence_aliases=state.evidence,
+            observation_aliases=state.observations,
         )
-        existing = sorted(
-            c.hypothesis.mechanism
-            for c in self._hypotheses.certificates_in_set(hypothesis_set.set_id)
-        )
-        context: dict[str, object] = {
-            "question": request.question,
-            "evidence": evidence,
-            "prediction_bindings": binding_context(bindings),
-            "hypotheses": shown_hypotheses,
-            "existing_mechanisms": existing,
-            "screening_observations": observations,
-            **self._structure(state),
-        }
+        context.update(self._structure(state))
         if self._withheld(state, SCREENING_REVIEW.prompt, context, "screening review"):
             review["status"] = "RESERVED_FOR_CRITIC"
             return ()
@@ -1618,6 +1614,36 @@ def coverage_context(
     )
 
 
+def screening_context(
+    *,
+    question: str,
+    shown_hypotheses: Sequence[Mapping[str, Any]],
+    existing_mechanisms: Sequence[str],
+    evidence: Sequence[Mapping[str, Any]],
+    bindings: Mapping[str, OutcomeSpace],
+    readings: Sequence[Mapping[str, Any]],
+    evidence_aliases: AliasTable,
+    observation_aliases: AliasTable,
+) -> tuple[dict[str, object], dict[str, str], dict[str, str]]:
+    """The screening review's context as research builds it -- and as its capability probe does:
+    hypotheses (already aliased), evidence and readings by alias. Returns (context, evidence
+    aliases shown, observation aliases shown)."""
+    shown_evidence, shown_e = aliased(evidence, "attestation_id", evidence_aliases)
+    observations, shown_o = aliased(readings, "observation_ref", observation_aliases)
+    return (
+        {
+            "question": question,
+            "evidence": shown_evidence,
+            "prediction_bindings": binding_context(bindings),
+            "hypotheses": list(shown_hypotheses),
+            "existing_mechanisms": list(existing_mechanisms),
+            "screening_observations": observations,
+        },
+        shown_e,
+        shown_o,
+    )
+
+
 def critique_context(
     *,
     question: str,
@@ -1679,6 +1705,7 @@ __all__ = [
     "Trigger",
     "coverage_context",
     "critique_context",
+    "screening_context",
     "shown_falsifier",
     "specialist_context",
 ]

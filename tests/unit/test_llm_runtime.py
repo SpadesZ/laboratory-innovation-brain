@@ -23,6 +23,7 @@ from lab_brain.cognition.roles import (
     COVERAGE_REVIEW,
     HYPOTHESIS_ENGINE,
     QUERY_REWRITER,
+    SCREENING_REVIEW,
 )
 from lab_brain.cognition.routing import CognitiveRole, ModelRouter
 from lab_brain.core.models.inference import LogicalSlot
@@ -124,7 +125,10 @@ def test_the_basic_probes_judge_by_code_and_never_run_it(tmp_path):
 def test_probes_carry_no_project_data_and_use_the_real_role_templates():
     assert PROBES[Capability.ROLE_QUERY].prompt.startswith(QUERY_REWRITER.prompt.template)
     for name, case in hypothesis_suite(2):
-        template = (COVERAGE_REVIEW if name == "coverage-review" else HYPOTHESIS_ENGINE).prompt
+        template = {
+            "coverage-review": COVERAGE_REVIEW,
+            "screening-review": SCREENING_REVIEW,
+        }.get(name, HYPOTHESIS_ENGINE).prompt
         assert case.prompt.startswith(template.template)
     assert PROBES[Capability.ROLE_CRITIQUE].prompt.startswith(ADVERSARIAL_CRITIC.prompt.template)
     for probe in [*PROBES.values(), *_role_probes(Capability.ROLE_HYPOTHESIS)]:

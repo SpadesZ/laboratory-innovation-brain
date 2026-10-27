@@ -56,6 +56,12 @@ after Stage A, asked over synthetic hypotheses and one unaddressed synthetic che
 parser (every check certified by a grounded new rival, or declined with a reason). A route serves
 it on the same slot, so a model must demonstrate it to be bound there.
 
+ROLE_HYPOTHESIS's suite includes the SCREENING REVIEW (`screening-review`, probe-8.0.0): the review
+research runs after an ABNORMAL exploratory reading, built by research's own `screening_context`
+over synthetic rivals, evidence and one abnormal and one normal reading, judged by
+`parse_screening_review` (the abnormal reading accounted for by a grounded new rival that predicts
+over it, or declined; never a response to the normal one).
+
 WHAT QUALIFIES A MODEL is fixed by `QUALIFICATION_DIGEST`: the probe version and payloads, the role
 prompts they carry (id, version, text) and the response contracts. It is part of every lock
 fingerprint, so a lock made before any of them changed no longer matches, and is refused as stale.
@@ -75,13 +81,19 @@ from enum import StrEnum
 from typing import Any
 
 from lab_brain.cognition.aliases import AliasTable
-from lab_brain.cognition.debate import coverage_context, critique_context, specialist_context
+from lab_brain.cognition.debate import (
+    coverage_context,
+    critique_context,
+    screening_context,
+    specialist_context,
+)
 from lab_brain.cognition.llm import _render
 from lab_brain.cognition.roles import (
     ADVERSARIAL_CRITIC,
     COVERAGE_REVIEW,
     HYPOTHESIS_ENGINE,
     QUERY_REWRITER,
+    SCREENING_REVIEW,
     RoleOutputRefused,
     binding_context,
     normalize_reply,
@@ -89,6 +101,7 @@ from lab_brain.cognition.roles import (
     parse_critique,
     parse_hypothesis_engine,
     parse_query_terms,
+    parse_screening_review,
     parse_specialist,
 )
 from lab_brain.core.models.prediction import OutcomeSpace
@@ -99,6 +112,7 @@ from lab_brain.llm_runtime.contracts import (
     CRITIQUE_CONTRACT,
     HYPOTHESIS_CONTRACT,
     QUERY_CONTRACT,
+    SCREENING_CONTRACT,
     SPECIALIST_CONTRACT,
     schema_for,
 )
@@ -114,7 +128,8 @@ from lab_brain.llm_runtime.provider import OpenAICompatibleClient, ProviderError
 #: 7.0.0: production-shaped ids shown as aliases, through research's own context builders, five
 #: rivals; every role reply judged after the same envelope repair, with the role's JSON schema
 #: sent; ROLE_HYPOTHESIS includes the coverage review (rc-5.0.0).
-PROBE_VERSION = "probe-7.0.0"
+#: 8.0.0: ROLE_HYPOTHESIS includes the screening review (rc-6.0.0); every 7.0.0 lock is stale.
+PROBE_VERSION = "probe-8.0.0"
 
 #: The ROLE_HYPOTHESIS conformance suite and its version, recorded with every result. 1.0.0: the
 #: cases `contextual-minimum` and `multi-space`. 2.0.0: the same cases, each over declared
@@ -124,7 +139,8 @@ PROBE_VERSION = "probe-7.0.0"
 #: gives one outcome of an observable two different effects. Support is never required: a
 #: falsification-only certificate passes, as research admits it.
 #: 5.0.0: the same cases, plus `coverage-review`; evidence ids have production's shape.
-HYPOTHESIS_SUITE = "hypothesis-conformance@5.0.0"
+#: 6.0.0: the same cases, plus `screening-review`.
+HYPOTHESIS_SUITE = "hypothesis-conformance@6.0.0"
 
 #: §7.4 / EPI-001: Stage A returns at least two COMPETING certificates. What a deployment's research
 #: asks for may be more; it is never less.
@@ -578,6 +594,83 @@ def coverage_probe() -> _Probe:
     )
 
 
+#: The `screening-review` case: one abnormal and one normal synthetic reading nobody predicted.
+_SCREENING_READINGS: tuple[dict[str, str], ...] = (
+    {
+        "observation_ref": production_id("obs", "repeat"),
+        "check": "cap:probe.repeat_readings",
+        "observable_ref": "bench.repeat_spread",
+        "outcome_space_id": "os:probe.repeatability",
+        "outcome_space_version": "1.0.0",
+        "outcome": "SCATTERED",
+        "reference_outcome": "REPEATABLE",
+        "finding": "ABNORMAL",
+    },
+    {
+        "observation_ref": production_id("obs", "level"),
+        "check": "cap:probe.level_reading",
+        "observable_ref": "bench.resistor_reading",
+        "outcome_space_id": _SPACE.outcome_space_id,
+        "outcome_space_version": _SPACE.version,
+        "outcome": _SPACE.outcomes[0],
+        "reference_outcome": _SPACE.outcomes[0],
+        "finding": "NORMAL",
+    },
+)
+
+
+def screening_probe() -> _Probe:
+    """The `screening-review` case: `screening_context` over rivals, evidence and one abnormal and
+    one normal reading; judged by `parse_screening_review`, relevance of grounding included."""
+    rivals, shown_h = [], {}
+    hypotheses = AliasTable("H")
+    for h in _HYPOTHESES[:3]:
+        alias = hypotheses.add(str(h["hypothesis_id"]))
+        shown_h[alias] = h["hypothesis_id"]
+        rivals.append(
+            {
+                "hypothesis_id": alias,
+                "statement": h["statement"],
+                "mechanism": h["mechanism"],
+                "discriminates_on": ["bench.resistor_reading"],
+            }
+        )
+    existing = sorted(str(h["mechanism"]) for h in rivals)
+    context, shown_e, shown_o = screening_context(
+        question=_QUESTION,
+        shown_hypotheses=rivals,
+        existing_mechanisms=existing,
+        evidence=_HYPOTHESIS_EVIDENCE,
+        bindings=_COVERAGE_BINDINGS,
+        readings=list(_SCREENING_READINGS),
+        evidence_aliases=AliasTable("E"),
+        observation_aliases=AliasTable("O"),
+    )
+    abnormal = {
+        r["observation_ref"]: r["observable_ref"]
+        for r in _SCREENING_READINGS
+        if r["finding"] == "ABNORMAL"
+    }
+    shown = [str(e["attestation_id"]) for e in _HYPOTHESIS_EVIDENCE]
+    texts = {str(e["attestation_id"]): str(e["text"]) for e in _HYPOTHESIS_EVIDENCE}
+    return _Probe(
+        _material(SCREENING_REVIEW.prompt.template, context),
+        SCREENING_CONTRACT,
+        _role(
+            lambda text: parse_screening_review(
+                text,
+                bindings=_COVERAGE_BINDINGS,
+                abnormal=abnormal,
+                existing_mechanisms=existing,
+                evidence_refs=shown_e,
+                observation_refs=shown_o,
+                shown_attestation_ids=shown,
+                evidence_texts=texts,
+            )
+        ),
+    )
+
+
 def hypothesis_suite(minimum: int) -> tuple[tuple[str, _Probe], ...]:
     """ROLE_HYPOTHESIS at `minimum`: every case, in order, at the same minimum. The coverage
     review takes no minimum: it may certify none."""
@@ -585,6 +678,7 @@ def hypothesis_suite(minimum: int) -> tuple[tuple[str, _Probe], ...]:
         ("contextual-minimum", hypothesis_probe(minimum)),
         ("multi-space", multi_space_probe(minimum)),
         ("coverage-review", coverage_probe()),
+        ("screening-review", screening_probe()),
     )
 
 
@@ -658,7 +752,13 @@ def qualification_inputs() -> dict[str, object]:
         },
         "prompts": {
             role.prompt.prompt_id: [role.prompt.prompt_version, role.prompt.template]
-            for role in (QUERY_REWRITER, HYPOTHESIS_ENGINE, ADVERSARIAL_CRITIC, COVERAGE_REVIEW)
+            for role in (
+                QUERY_REWRITER,
+                HYPOTHESIS_ENGINE,
+                ADVERSARIAL_CRITIC,
+                COVERAGE_REVIEW,
+                SCREENING_REVIEW,
+            )
         }
         | {"probe:specialist": ["-", _SPECIALIST_TEMPLATE]},
     }
@@ -768,5 +868,6 @@ __all__ = [
     "qualification_digest",
     "qualification_inputs",
     "run_probe",
+    "screening_probe",
     "specialist_probe",
 ]

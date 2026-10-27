@@ -532,7 +532,7 @@ def _suite_reply(entries: list[dict[str, Any]], shape: str) -> str:
 
 def test_the_suite_passes_only_hypotheses_that_designate_a_typed_falsifier():
     for name, case in hypothesis_suite(5):
-        if name == "coverage-review":  # its own contract; its certificates are checked alike
+        if name in ("coverage-review", "screening-review"):  # own contracts; checked alike
             continue
         entries = json.loads(case.prompt.split(_MARKER, 1)[1])["prediction_bindings"]
         assert case.judge(_suite_reply(entries, "typed")) is None, name
@@ -558,9 +558,9 @@ def test_the_suite_passes_only_hypotheses_that_designate_a_typed_falsifier():
 def test_the_routes_locked_under_the_vocabulary_semantics_are_no_longer_current(monkeypatch):
     assert (HYPOTHESIS_ENGINE.prompt.prompt_version, RESPONSE_CONTRACT_VERSION) == (
         "5.0.0",
-        "rc-5.0.0",
+        "rc-6.0.0",
     )
-    assert (PROBE_VERSION, HYPOTHESIS_SUITE) == ("probe-7.0.0", "hypothesis-conformance@5.0.0")
+    assert (PROBE_VERSION, HYPOTHESIS_SUITE) == ("probe-8.0.0", "hypothesis-conformance@6.0.0")
     assert QUALIFICATION_DIGEST != VOCABULARY_DIGEST
     # The two locks the LOCAL deployment holds, recomputed from their public parts.
     ollama = ConnectionRow(

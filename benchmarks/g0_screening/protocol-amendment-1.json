@@ -1,0 +1,14 @@
+{
+ "amends": "AcceptanceProtocol-g0-screening-offline@1.0.0",
+ "amendment": 1,
+ "date": "2026-10-27",
+ "authority": "Owner instruction, G0 Exploratory Screening V2 closure: 'Treat the existing exposed holdout as development/regression evidence, not an independent blind evaluation.'",
+ "changes": {
+  "splits.holdout": {
+   "reclassified_as": "exposed-regression",
+   "reason": "The holdout author's hand-back summarised every case's truth to the implementer before the stand-in rules and thresholds were frozen. The cases are kept, unchanged and hashed, as development/regression evidence. They support no claim of independent, blind or unseen evaluation."
+  }
+ },
+ "unchanged": "Metric definitions, thresholds, configurations and file hashes of protocol.json 1.0.0.",
+ "independent_blind_evaluation": "NONE EXISTS. A new holdout must be authored and sealed by someone who does not report its contents to the implementer, before any further tuning, to support such a claim."
+}

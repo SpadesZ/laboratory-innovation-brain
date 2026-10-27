@@ -1,10 +1,12 @@
 # SPEC-ISSUE-016: an outcome-independent screening reading is neither permitted nor forbidden
 
 Severity: GATE
-Status: OPEN
+Status: RESOLVED
 Blocks gate: M4
 Raised: 2026-10-27
 Raised by: G0 exploratory screening slice (`g0-exploratory-screening`), Auditor decision "Option A"
+Resolved: 2026-10-27
+Resolved by: Owner decision, Reading B -- [ADR-0015](../adr/ADR-0015-exploratory-screening-is-not-a-verification-action.md); SAI 3.3 registry not amended
 Affected: §9.1, §25.4, `VER-001`, `VER-002`, `VER-006`, `011k`, SAI 3.4 G0-S, `012y`
 
 ## The gap
@@ -51,3 +53,7 @@ the feature flag `ResearchFeatures.exploratory_screening` is turned off and the 
 
 M4 is named because `VER-001` and VS-SP-001 are M4's; SAI 3.3's milestones do not include G0, and under
 SAI 3.4 this decision must be made before any G0 acceptance that relies on screening.
+
+## Resolution
+
+The Owner ruled Reading B on 2026-10-27 ([ADR-0015](../adr/ADR-0015-exploratory-screening-is-not-a-verification-action.md)). The SAI 3.3 registry, requirement count and Test IDs are unchanged; `VER-009` is recorded in the ADR as the contract wording, for a later registry action under the SAI 3.4 profile. Screening stays off by default until the Owner enables it after its tests pass.

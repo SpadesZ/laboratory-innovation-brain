@@ -29,7 +29,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import lab_brain.llm_runtime.registry as registry_module
-from lab_brain.cognition.roles import COVERAGE_REVIEW, HYPOTHESIS_ENGINE
+from lab_brain.cognition.roles import COVERAGE_REVIEW, HYPOTHESIS_ENGINE, SCREENING_REVIEW
 from lab_brain.domains.silicon_photonics.product import mechanism_catalog
 from lab_brain.llm_runtime.capabilities import Capability
 from lab_brain.llm_runtime.contracts import (
@@ -152,7 +152,9 @@ class _Model:
         self.cases: list[str] = []
 
     def chat(self, model: str, prompt: str, **_: object) -> ChatReply:
-        if prompt.startswith(COVERAGE_REVIEW.prompt.template):
+        if prompt.startswith(SCREENING_REVIEW.prompt.template):
+            case = "screening-review"
+        elif prompt.startswith(COVERAGE_REVIEW.prompt.template):
             case = "coverage-review"
         elif "os:probe.bench_level" in prompt:
             case = "multi-space"
@@ -161,7 +163,13 @@ class _Model:
         self.cases.append(case)
         if case == self.fail_on:
             raise ProviderError(ProviderFailure.TIMEOUT, "no answer within 9 s")
-        text = _declined(prompt) if case == "coverage-review" else self.answer(case, prompt)
+        text = (
+            _declined(prompt)
+            if case == "coverage-review"
+            else _screen_declined(prompt)
+            if case == "screening-review"
+            else self.answer(case, prompt)
+        )
         return ChatReply(text=text, latency_ms=self.latency.get(case, 7))
 
 
@@ -181,17 +189,34 @@ def _declined(prompt: str) -> str:
     )
 
 
+def _screen_declined(prompt: str) -> str:
+    """A valid screening review: the abnormal reading declined, with a reason."""
+    readings = _context(prompt)["screening_observations"]
+    assert isinstance(readings, list)
+    return json.dumps(
+        {
+            "hypotheses": [],
+            "declined": [
+                {"observation_ref": r["observation_ref"], "reason": "nothing points there"}
+                for r in readings
+                if r["finding"] == "ABNORMAL"
+            ],
+        }
+    )
+
+
 def _suite(model: _Model, minimum: int = 5):  # type: ignore[no-untyped-def]
     return run_probe(model, "m", Capability.ROLE_HYPOTHESIS, hypothesis_minimum=minimum)  # type: ignore[arg-type]
 
 
 def test_the_single_space_qualification_is_no_longer_current(monkeypatch):
     assert QUALIFICATION_DIGEST != SINGLE_SPACE_DIGEST
-    assert PROBE_VERSION == "probe-7.0.0"
+    assert PROBE_VERSION == "probe-8.0.0"
     assert [name for name, _ in hypothesis_suite(5)] == [
         "contextual-minimum",
         "multi-space",
         "coverage-review",
+        "screening-review",
     ]
     # The route the LOCAL deployment locked qwen2.5:7b under the single-space probe, recomputed
     # from its public parts: it is that route under the old semantics, and not under the current.
@@ -337,7 +362,7 @@ def test_the_suite_records_what_it_ran_and_its_slowest_call():
     assert dict(result.parameters) == {
         "minimum_hypotheses": 5,
         "suite": HYPOTHESIS_SUITE,
-        "cases": ["contextual-minimum", "multi-space", "coverage-review"],
+        "cases": ["contextual-minimum", "multi-space", "coverage-review", "screening-review"],
     }
     assert result.latency_ms == 40, "each call must fit the deadline: the slowest is recorded"
     assert str(result.response_digest).startswith("sha256:")
@@ -354,7 +379,7 @@ def test_the_suite_the_prompt_and_the_contract_are_the_semantics_locks_are_made_
     assert "copy that entry's observable_ref, outcome_space_id and" in template
     assert "expected_outcome verbatim from that entry's outcomes" in template
     assert "Never invent or infer an observable or an outcome space from the evidence" in template
-    assert RESPONSE_CONTRACT_VERSION == "rc-5.0.0"
+    assert RESPONSE_CONTRACT_VERSION == "rc-6.0.0"
     assert "Never make up an observable or an outcome space" in HYPOTHESIS_CONTRACT
     base = {
         "probe_version": PROBE_VERSION,

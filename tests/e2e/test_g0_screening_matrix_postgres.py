@@ -1,4 +1,7 @@
-"""The offline G0 screening matrix: four configurations x the dev and sealed holdout cases.
+"""The offline G0 screening matrix: four configurations x the dev and exposed-regression cases.
+
+The `holdout/` directory is development/regression evidence since protocol amendment 1: its truth
+was reported to the implementer before the stand-in was frozen, so it is not a blind split.
 
     baseline    no screening, no structure summary -- the recorded live behaviour
     screening   exploratory screening only (G0 option A)

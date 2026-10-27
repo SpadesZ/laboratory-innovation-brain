@@ -37,7 +37,8 @@ page first, as a real one must. The critic and utility slots stay local unless n
                    protocol.json` the runs use -- baseline, screening (the default, as deployed),
                    structure or combined -- and the outcomes record which
     matrix         `LAB_BRAIN_LIVE_CASES=dev|holdout|matrix` also runs the protocol's dev and/or
-                   sealed holdout cases (each with its own evidence document and deployment), and
+                   exposed-regression (former holdout) cases -- development evidence, not a blind
+                   split (protocol amendment 1) -- each with its own evidence and deployment, and
                    writes `matrix.outputs.json` in the form `benchmarks/g0_screening/score.py`
                    scores -- truth is read by the scorer only, after the runs
 

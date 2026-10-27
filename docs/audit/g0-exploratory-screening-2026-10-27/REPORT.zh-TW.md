@@ -1,5 +1,7 @@
 # SiPh Lab — G0 探索性篩檢（Exploratory Screening）：稽核報告
 
+> 修訂（2026-10-27，V2 收尾）：依 Owner 指示，本報告中的「封存保留案例（holdout）」一律改列為**已曝光的開發／回歸證據**（`benchmarks/g0_screening/protocol-amendment-1.json`），不構成獨立盲測；「SPEC-ISSUE-016」已依 Reading B 解決（ADR-0015）；篩檢預設關閉。詳見 `docs/audit/g0-screening-v2-closure-2026-10-27/REPORT.zh-TW.md`。
+
 分支：`g0-exploratory-screening-v2`（自 `g0-research-reliability` `d14c1cd` 分出）
 程式與證據的最後提交：`f18360e`；本報告在其後的提交中（只有文件）。
 參考規格：SAI 3.4 分期基準 `a38ad63`（唯讀；未改、未合併）。

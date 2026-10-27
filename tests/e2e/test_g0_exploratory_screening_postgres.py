@@ -54,6 +54,8 @@ ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = json.loads(
     (ROOT / "fixtures/vertical/sp_rs_root_cause_benchmark.json").read_text(encoding="utf-8")
 )
+#: Screening is off by default (ADR-0015); these tests switch it on, as a deployment would have to.
+SCREENING = ResearchFeatures(exploratory_screening=True)
 SIMULATIONS = [sp.CAP_MESH_SENSITIVITY, sp.CAP_CHARGE_DC, "cap:sp.charge_ac_sweep"]
 
 
@@ -109,7 +111,7 @@ def readings(db: Any, episode: str) -> dict[str, str]:
 def test_screening_finds_the_open_via_nobody_predicted_and_supports_nothing(db, tmp_path, standin):
     fake, model = standin
     _setup(db)
-    browser = _deployment(tmp_path, inference_deadline=60)
+    browser = _deployment(tmp_path, inference_deadline=60, research_features=SCREENING)
     _activated(db, browser, fake)
     open_via = research(browser, device("contact-open-via"))
 
@@ -352,7 +354,7 @@ def _sql_guard_refuses_post_hoc_support(
 def test_a_sound_device_reads_normal_and_keeps_every_reading(db, tmp_path, standin):
     fake, model = standin
     _setup(db)
-    browser = _deployment(tmp_path, inference_deadline=60)
+    browser = _deployment(tmp_path, inference_deadline=60, research_features=SCREENING)
     _activated(db, browser, fake)
     sound = research(browser, device("probe-artifact"))
     assert readings(db, sound) == {
@@ -370,7 +372,7 @@ def test_a_sound_device_reads_normal_and_keeps_every_reading(db, tmp_path, stand
 def test_two_faults_two_readings_two_conditioned_rivals_and_the_same_plan(db, tmp_path, standin):
     fake, _model = standin
     _setup(db)
-    browser = _deployment(tmp_path, inference_deadline=60)
+    browser = _deployment(tmp_path, inference_deadline=60, research_features=SCREENING)
     _activated(db, browser, fake)
     both = research(browser, device("contact-open-via", extraction_normalization_length_um="1000"))
     sound = research(browser, device("probe-artifact"))
@@ -428,7 +430,7 @@ def test_a_continuation_neither_screens_again_nor_repeats_the_reading(db, tmp_pa
     support the post-screening rival."""
     fake, _model = standin
     _setup(db)
-    browser = _deployment(tmp_path, inference_deadline=60)
+    browser = _deployment(tmp_path, inference_deadline=60, research_features=SCREENING)
     _activated(db, browser, fake)
     episode = research(browser, device("contact-open-via"))
     ((state,),) = rows(db, "SELECT state FROM research_episodes WHERE episode_id = %s", episode)
@@ -469,7 +471,7 @@ def test_a_continuation_neither_screens_again_nor_repeats_the_reading(db, tmp_pa
 def test_screening_records_are_project_scoped_and_append_only(db, tmp_path, standin):
     fake, _model = standin
     _setup(db)
-    browser = _deployment(tmp_path, inference_deadline=60)
+    browser = _deployment(tmp_path, inference_deadline=60, research_features=SCREENING)
     _activated(db, browser, fake)
     episode = research(browser, device("contact-open-via"))
     from lab_brain.core.repositories.screening import SqlScreeningStore

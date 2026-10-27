@@ -301,8 +301,8 @@ def test_the_route_qualified_without_the_vocabulary_is_no_longer_current(monkeyp
     assert lock_fingerprint(ollama, "qwen2.5-coder:7b", caps, shown) != "lk:963d70828be54b8e"
     monkeypatch.setattr(registry_module, "QUALIFICATION_DIGEST", OUTCOME_SPACE_ONLY_DIGEST)
     assert lock_fingerprint(ollama, "qwen2.5-coder:7b", caps, shown) == "lk:963d70828be54b8e"
-    assert (HYPOTHESIS_ENGINE.prompt.prompt_version, PROBE_VERSION) == ("5.0.0", "probe-7.0.0")
-    assert HYPOTHESIS_SUITE == "hypothesis-conformance@5.0.0"
+    assert (HYPOTHESIS_ENGINE.prompt.prompt_version, PROBE_VERSION) == ("5.0.0", "probe-8.0.0")
+    assert HYPOTHESIS_SUITE == "hypothesis-conformance@6.0.0"
 
 
 def test_the_qualification_suite_declares_observables_that_are_not_their_spaces():

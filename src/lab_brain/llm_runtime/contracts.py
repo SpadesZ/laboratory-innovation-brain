@@ -43,6 +43,7 @@ from lab_brain.cognition.roles import (
     COVERAGE_REVIEW,
     HYPOTHESIS_ENGINE,
     QUERY_REWRITER,
+    SCREENING_REVIEW,
 )
 from lab_brain.core.models.debate import ObjectionKind, ObjectionSeverity
 from lab_brain.core.models.prediction import PREDICTION_EFFECT_TYPES
@@ -59,7 +60,9 @@ from lab_brain.core.models.prediction import PREDICTION_EFFECT_TYPES
 #: rc-5.0.0: the specialist and the critic name hypotheses and evidence by the short aliases they
 #: are shown (`H1`, `E1`, ...), never by canonical ids they would have to copy; the coverage review
 #: has a contract; every contract has a JSON schema, sent as `response_format` (`SCHEMAS`).
-RESPONSE_CONTRACT_VERSION = "rc-5.0.0"
+#: rc-6.0.0: the screening review has a contract and a schema (`ROLE_SCREENING_REVIEW`); before it,
+#: a screening review call carried neither -- no system contract, no response_format.
+RESPONSE_CONTRACT_VERSION = "rc-6.0.0"
 
 #: Where a rendered context block begins (`cognition.llm._render`).
 CONTEXT_MARKER = "\n\nCONTEXT:\n"
@@ -175,6 +178,29 @@ COVERAGE_CONTRACT = (
     )
 )
 
+SCREENING_CONTRACT = (
+    _BARE
+    + _REFS
+    + (
+        'Shape: {"hypotheses": [<a complete hypothesis certificate exactly as the Hypothesis '
+        "Engine writes one -- key, statement, mechanism, assumptions, falsifier, "
+        "falsifier_prediction_keys, confounders, minimal_test_ref, predictions -- plus "
+        '"responds_to": ["<observation_ref values of ABNORMAL entries of '
+        'CONTEXT.screening_observations, e.g. O1>", ...], "grounding_evidence_ids": '
+        '["<attestation_id values from CONTEXT.evidence, e.g. E1>", ...]>], "declined": '
+        '[{"observation_ref": "<an ABNORMAL entry\'s observation_ref>", "reason": "<why no new '
+        'mechanism is proposed for it>"}]}. Answer every ABNORMAL reading exactly once: either '
+        "one new hypothesis lists it in responds_to and makes a SUPPORTS or CONTRADICTS "
+        "prediction over its observable_ref, or it is declined. Never respond to a NORMAL "
+        "reading. A new hypothesis's mechanism differs from every one in "
+        "CONTEXT.existing_mechanisms; its grounding_evidence_ids cite CONTEXT.evidence items that "
+        "share words with what it states, never an observation ref; its predictions copy "
+        "observable_ref, outcome_space_id and outcome_space_version together from one entry of "
+        "CONTEXT.prediction_bindings, and it designates at least one of its own CONTRADICTS "
+        "predictions in falsifier_prediction_keys."
+    )
+)
+
 #: Every contract, by the role it serves. Its digest is part of every locked route's fingerprint.
 CONTRACTS: Mapping[str, str] = {
     "ROLE_QUERY": QUERY_CONTRACT,
@@ -182,6 +208,7 @@ CONTRACTS: Mapping[str, str] = {
     "ROLE_SPECIALIST": SPECIALIST_CONTRACT,
     "ROLE_CRITIQUE": CRITIQUE_CONTRACT,
     "ROLE_COVERAGE_REVIEW": COVERAGE_CONTRACT,
+    "ROLE_SCREENING_REVIEW": SCREENING_CONTRACT,
 }
 
 # -- the schemas -------------------------------------------------------------------------------
@@ -304,6 +331,22 @@ SCHEMAS: Mapping[str, Mapping[str, Any]] = {
         },
         ("hypotheses", "declined"),
     ),
+    "ROLE_SCREENING_REVIEW": _object(
+        {
+            "hypotheses": _array(
+                _object(
+                    {**_CERTIFICATE, "responds_to": _strs(), "grounding_evidence_ids": _strs()},
+                    (*_CERTIFICATE, "responds_to", "grounding_evidence_ids"),
+                )
+            ),
+            "declined": _array(
+                _object(
+                    {"observation_ref": _str(), "reason": _str()}, ("observation_ref", "reason")
+                )
+            ),
+        },
+        ("hypotheses", "declined"),
+    ),
 }
 
 
@@ -341,6 +384,7 @@ def role_of(material: str) -> str | None:
         (HYPOTHESIS_ENGINE.prompt.template, "ROLE_HYPOTHESIS"),
         (ADVERSARIAL_CRITIC.prompt.template, "ROLE_CRITIQUE"),
         (COVERAGE_REVIEW.prompt.template, "ROLE_COVERAGE_REVIEW"),
+        (SCREENING_REVIEW.prompt.template, "ROLE_SCREENING_REVIEW"),
     ):
         if material.startswith(template):
             return key
@@ -376,6 +420,7 @@ __all__ = [
     "QUERY_CONTRACT",
     "RESPONSE_CONTRACT_VERSION",
     "SCHEMAS",
+    "SCREENING_CONTRACT",
     "SPECIALIST_CONTRACT",
     "contract_digest",
     "contract_for",

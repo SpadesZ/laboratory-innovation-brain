@@ -308,6 +308,8 @@ APPLY_ORDER: tuple[str, ...] = (
     # 005e (debate_records).
     "012x_debate_reliability.sql",
     "012y_exploratory_screening.sql",
+    # A fail-closed refusal is recorded as REFUSED (ADR-0015). After 012y.
+    "012z_screening_fail_closed.sql",
 )
 
 _BOOTSTRAP = """

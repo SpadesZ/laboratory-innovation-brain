@@ -21,6 +21,15 @@ capability id (deterministic), and cut by `max_checks` and the stage's wall-cloc
 already taken in this episode on the same input is not taken again (`ALREADY_SCREENED`): a repeat of
 a deterministic reading is not a second piece of evidence.
 
+FAIL CLOSED, TWICE. Immediately before a check's Job is submitted, `preflight` re-reads the
+capability, its fresh cost estimate, its declaration and its workflow's typed tools, and refuses --
+REFUSED, no Job, the stage stops -- on anything that could reach outside this machine, cost money,
+take a person or a licence seat, be irreversible, carry privacy constraints, read an input from
+another project, or drift from the plan. During the check, every tool call is checked again: only
+the workflow's declared tools, none bound to a seat or to another capability; anything else is
+refused before it is dispatched. Each check's evidence and its screening record commit together,
+or neither does.
+
 STOPPING. The stage ends when every selected check has run, or -- under `stop_on_failure` -- at the
 first check that failed, found no seat or was refused by the budget gate; the checks after it are
 recorded NOT_RUN. An abnormal reading does not stop the stage: two faults in one device must not be
@@ -31,6 +40,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Callable, Collection, Mapping, Sequence
+from contextlib import AbstractContextManager, nullcontext, suppress
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -41,7 +51,7 @@ from lab_brain.core.models.condition import ConditionMatch
 from lab_brain.core.models.cost import CostVector
 from lab_brain.core.models.enums import RelationType
 from lab_brain.core.models.hypothesis_set import HypothesisCertificate
-from lab_brain.core.models.job import Job
+from lab_brain.core.models.job import TERMINAL_JOB_STATES, Job, JobState
 from lab_brain.core.models.observation import Observation
 from lab_brain.core.models.prediction import OutcomeSpace
 from lab_brain.core.models.screening import (
@@ -293,6 +303,83 @@ def _order(candidate: ScreeningCandidate) -> tuple[int, int, str]:
     )
 
 
+class ScreeningRefused(RuntimeError):
+    """A screening check failed a fail-closed check; nothing (more) was executed for it."""
+
+
+def preflight(
+    *,
+    capability_id: str,
+    plan: ScreeningPlan,
+    capabilities: CapabilityRegistry,
+    workflows: WorkflowRegistry,
+    tools: Any,
+    norms: Mapping[str, ScreeningNorm],
+    policy: ScreeningPolicy,
+    input_artifacts: Sequence[str],
+    in_project: Callable[[str, str], bool],
+) -> list[str]:
+    """Every reason this check may NOT be executed now -- empty means go. Read fresh, never from
+    the plan: availability, cost, declaration or tools may have changed since it was made."""
+    reasons: list[str] = []
+    if capability_id not in {c.capability_id for c in plan.selected}:
+        reasons.append("its plan did not select it")
+    capability = capabilities.get(capability_id)
+    if capability is None:
+        return [*reasons, "it is no longer registered"]
+    if capability.availability is not Availability.AVAILABLE:
+        reasons.append(f"it is {capability.availability.value}")
+    if capability.action_type not in SCREENING_ACTION_TYPES:
+        reasons.append(f"{capability.action_type.value} is not a reading of what is there")
+    if capability.license_constraints:
+        reasons.append(f"it declares licence constraints {list(capability.license_constraints)}")
+    if capability.privacy_constraints:
+        reasons.append(f"it declares privacy constraints {list(capability.privacy_constraints)}")
+    if capability.irreversible:
+        reasons.append("it is irreversible")
+    try:
+        cost = capabilities.estimate(capability_id, {})
+    except Exception as unpriced:  # a check nobody can price is not run
+        reasons.append(f"its cost cannot be estimated: {unpriced}")
+    else:
+        if cost.money_estimate:
+            reasons.append(f"it is estimated to cost money ({cost.money_estimate})")
+        if cost.human_minutes:
+            reasons.append("it needs a person's time")
+        if cost.license_seat_s:
+            reasons.append("it needs a licence seat")
+        if cost.irreversible:
+            reasons.append("its estimate is irreversible")
+        if cost.wall_clock_s > policy.max_check_wall_clock_s:
+            reasons.append(f"it is estimated at {cost.wall_clock_s}s, over the ceiling")
+    norm = norms.get(capability_id)
+    if norm is None or norm.execution != "LOCAL_NO_EGRESS":
+        reasons.append("the pack does not declare it a local reading that sends nothing out")
+    workflow = workflows.resolve(capability_id)
+    if workflow is None:
+        reasons.append("no workflow executes it")
+    else:
+        for tool_id in workflow.tool_ids:
+            reasons.extend(_tool_problems(tool_id, capability_id, tools))
+    for artifact_id in input_artifacts:
+        if not in_project(artifact_id, plan.project_id):
+            reasons.append(f"input {artifact_id} is not this project's")
+    return reasons
+
+
+def _tool_problems(tool_id: str, capability_id: str, tools: Any) -> list[str]:
+    try:
+        descriptor = tools.descriptor(tool_id)
+    except Exception:
+        return [f"tool {tool_id} is not a registered typed tool"]
+    problems = []
+    if descriptor.resource_id is not None:
+        problems.append(f"tool {tool_id} contends for resource {descriptor.resource_id}")
+    if descriptor.capability_id not in (None, capability_id):
+        problems.append(f"tool {tool_id} executes another capability ({descriptor.capability_id})")
+    return problems
+
+
 # -- persistence seam ---------------------------------------------------------------------------
 
 
@@ -367,7 +454,16 @@ class ScreeningExecutor:
         policy: ScreeningPolicy,
         mint: Callable[[str], str],
         now: Callable[[], dt.datetime],
+        tools: Any,
+        in_project: Callable[[str, str], bool],
+        atomic: Callable[[], AbstractContextManager[Any]] = nullcontext,
     ) -> None:
+        """`tools` is the ToolRegistry the workflows dispatch through; `in_project` says whether
+        an artifact is a project's; `atomic` opens the unit each check's evidence and screening
+        record commit in."""
+        self._tools = tools
+        self._in_project = in_project
+        self._atomic = atomic
         self._capabilities = capabilities
         self._workflows = workflows
         self._conditions = conditions
@@ -431,7 +527,34 @@ class ScreeningExecutor:
                     )
                 )
                 continue
-            observation = self._store.add_observation(self._run(context, plan, candidate))
+            refused = preflight(
+                capability_id=candidate.capability_id,
+                plan=plan,
+                capabilities=self._capabilities,
+                workflows=self._workflows,
+                tools=self._tools,
+                norms=self._norms,
+                policy=self._policy,
+                input_artifacts=context.input_artifacts,
+                in_project=self._in_project,
+            )
+            if refused:
+                observation = self._store.add_observation(
+                    ScreeningObservation(
+                        screening_observation_id=self._mint("screening_observation"),
+                        plan_id=plan.plan_id,
+                        project_id=plan.project_id,
+                        episode_id=plan.episode_id,
+                        rank=candidate.rank or 0,
+                        capability_id=candidate.capability_id,
+                        status=ScreeningStatus.REFUSED,
+                        estimated_cost=candidate.estimated_cost,
+                        detail="refused before execution: " + "; ".join(refused),
+                        recorded_at=self._now(),
+                    )
+                )
+            else:
+                observation = self._run(context, plan, candidate)
             observations.append(observation)
             if observation.status is not ScreeningStatus.EXECUTED and self._policy.stop_on_failure:
                 stopped = f"{candidate.capability_id} {observation.status.value}"
@@ -458,7 +581,6 @@ class ScreeningExecutor:
             demand=None,
             capability=capability,
         )
-        result = workflow.execute(self._context(context, capability, job))
         base: dict[str, Any] = {
             "screening_observation_id": self._mint("screening_observation"),
             "plan_id": plan.plan_id,
@@ -467,15 +589,32 @@ class ScreeningExecutor:
             "rank": candidate.rank or 0,
             "capability_id": candidate.capability_id,
             "job_id": job.job_id,
-            "run_id": result.run_id,
             "estimated_cost": candidate.estimated_cost,
             "recorded_at": self._now(),
         }
+        try:
+            result = workflow.execute(self._context(context, capability, job, workflow.tool_ids))
+        except Exception as interrupted:
+            # The check did not finish: its Job is closed FAILED (if still open), nothing it may
+            # have produced is admitted, and the stage stops here.
+            self._close(job.job_id, interrupted)
+            return self._store.add_observation(
+                ScreeningObservation(
+                    **base,
+                    status=ScreeningStatus.REFUSED
+                    if isinstance(interrupted, ScreeningRefused)
+                    else ScreeningStatus.FAILED,
+                    detail=f"interrupted: {type(interrupted).__name__}: {interrupted}",
+                )
+            )
+        base["run_id"] = result.run_id
         if result.status is not WorkflowStatus.EXECUTED:
-            return ScreeningObservation(
-                **base,
-                status=ScreeningStatus(result.status.value),
-                detail=result.detail or f"the check ended {result.status.value}",
+            return self._store.add_observation(
+                ScreeningObservation(
+                    **base,
+                    status=ScreeningStatus(result.status.value),
+                    detail=result.detail or f"the check ended {result.status.value}",
+                )
             )
         assert result.run_id is not None
         run = self._jobs.get_run(result.run_id)
@@ -483,14 +622,48 @@ class ScreeningExecutor:
         if str(run.environment.get("execution", "")) != "local":
             # The pack declared a local reading; a Run that says otherwise is not screened
             # evidence, whatever it observed.
-            return ScreeningObservation(
-                **{**base, "run_id": run.run_id},
-                status=ScreeningStatus.FAILED,
-                detail=(
-                    f"the Run records execution {run.environment.get('execution')!r}; a screening "
-                    "check must be a local reading that sends nothing out"
-                ),
+            return self._store.add_observation(
+                ScreeningObservation(
+                    **{**base, "run_id": run.run_id},
+                    status=ScreeningStatus.FAILED,
+                    detail=(
+                        f"the Run records execution {run.environment.get('execution')!r}; a "
+                        "screening check must be a local reading that sends nothing out"
+                    ),
+                )
             )
+        # Evidence and its screening record: one unit. A failure part-way leaves neither -- no
+        # Observation the screening record does not account for, no record without its evidence.
+        with self._atomic():
+            return self._store.add_observation(
+                self._admit(context, candidate, capability, run, result, base)
+            )
+
+    def _close(self, job_id: str, why: BaseException) -> None:
+        with_job = self._jobs.get(job_id)
+        if with_job is None or with_job.state in TERMINAL_JOB_STATES:
+            return
+        # If even this fails, a continuation closes the Job (`research.service`).
+        with suppress(Exception):
+            self._jobs.transition(
+                job_id,
+                JobState.FAILED,
+                self._now(),
+                structured_error={
+                    "code": "SCREENING_INTERRUPTED",
+                    "detail": f"{type(why).__name__}: {why}"[:500],
+                },
+            )
+
+    def _admit(
+        self,
+        context: ScreeningContext,
+        candidate: ScreeningCandidate,
+        capability: Any,
+        run: Any,
+        result: Any,
+        base: dict[str, Any],
+    ) -> ScreeningObservation:
         match = self._conditions.compare(
             dict(run.conditions), dict(context.conditions), context.conditions_schema_version
         )
@@ -553,8 +726,20 @@ class ScreeningExecutor:
             detail=result.detail,
         )
 
-    def _context(self, context: ScreeningContext, capability: Any, job: Job) -> WorkflowContext:
+    def _context(
+        self, context: ScreeningContext, capability: Any, job: Job, declared: Sequence[str]
+    ) -> WorkflowContext:
         def dispatch(tool_id: str, tool_request: ToolRequest) -> ToolDispatchResult:
+            # In flight, fail closed: only the workflow's declared tools, none bound to a seat or
+            # to another capability -- refused before the call is dispatched.
+            if tool_id not in declared:
+                raise ScreeningRefused(
+                    f"{capability.capability_id}'s workflow called {tool_id}, which it does not "
+                    "declare"
+                )
+            problems = _tool_problems(tool_id, capability.capability_id, self._tools)
+            if problems:
+                raise ScreeningRefused("; ".join(problems))
             key = f"{job.job_id.split(':', 1)[-1]}-{tool_id.lower()}"
             return self._dispatcher.dispatch(
                 ToolAction(
@@ -620,8 +805,10 @@ __all__ = [
     "ScreeningContext",
     "ScreeningExecutor",
     "ScreeningOutcome",
+    "ScreeningRefused",
     "ScreeningStore",
     "discriminated_observables",
     "inputs_key",
+    "preflight",
     "select_screening",
 ]

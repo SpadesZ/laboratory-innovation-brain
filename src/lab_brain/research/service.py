@@ -185,6 +185,7 @@ from lab_brain.verification.loop import (
 )
 from lab_brain.verification.screening import (
     RESEARCH_SCREENING_POLICY,
+    SCREENING_KEY_PREFIX,
     ScreeningContext,
     ScreeningExecutor,
     ScreeningOutcome,
@@ -219,15 +220,16 @@ CRITIC_RESERVE_TOKENS = 12_000
 class ResearchFeatures:
     """What a deployment switches on for its research runs. Declared, recorded, never inferred.
 
-    `exploratory_screening`: the governed screening stage (`verification.screening`). On by
-    default: it runs only where no hypothesis predicts, only low-cost local readings, and supports
-    nothing -- the Owner's decision for G0 option A.
+    `exploratory_screening`: the governed screening stage (`verification.screening`) -- a reading,
+    not a verification action (ADR-0015, Reading B). OFF by default: the Owner keeps it out of
+    production research until its contract and tests pass; a deployment or a test that wants it
+    says so explicitly.
     `structure_context`: the device structure summary in Hypothesis Engine contexts
     (`research.structure`). Off by default: a prototype evaluated separately (G0 option B), pending
     the Owner's decision.
     """
 
-    exploratory_screening: bool = True
+    exploratory_screening: bool = False
     structure_context: bool = False
 
     @property
@@ -704,6 +706,36 @@ class ResearchEpisodeService:
                         ),
                     },
                 )
+            # A screening check a dead run left open: closed FAILED, never resumed -- its outcome is
+            # unknown, and nothing it may have read was admitted (each check commits atomically).
+            stale_screening = [
+                str(r[0])
+                for r in c.execute(
+                    "SELECT job_id FROM jobs WHERE project_id = %s AND episode_id = %s"
+                    " AND left(idempotency_key, %s) = %s"
+                    " AND state IN ('QUEUED', 'RUNNING', 'WAITING_RESOURCE') ORDER BY job_id",
+                    (
+                        request.project_id,
+                        episode_id,
+                        len(SCREENING_KEY_PREFIX),
+                        SCREENING_KEY_PREFIX,
+                    ),
+                ).fetchall()
+            ]
+            for stale in stale_screening:
+                jobs.transition(
+                    stale,
+                    JobState.FAILED,
+                    started,
+                    structured_error={
+                        "code": "SCREENING_INTERRUPTED",
+                        "detail": (
+                            f"the research run executing this screening check on episode "
+                            f"{episode_id} ended before recording it; a continuation does not "
+                            "resume a reading whose outcome it cannot know"
+                        ),
+                    },
+                )
             resumed_from, resumed_reason = episode.state.value, episode.suspend_reason
             # THE AUTHORITATIVE LIFECYCLE: `episode_resume` locks the row and refuses a finished
             # episode; `012c` refuses the run below unless the episode is now gathering evidence.
@@ -751,6 +783,11 @@ class ResearchEpisodeService:
             )
             vertical, _outputs = self._vertical()
             budget = self._budget(effective)
+            if stale_screening:
+                run.notes.append(
+                    "screening check(s) left open by an interrupted run closed FAILED: "
+                    + ", ".join(stale_screening)
+                )
             run.stage(
                 "episode",
                 "RESUMED",
@@ -1407,6 +1444,9 @@ class ResearchEpisodeService:
             policy=RESEARCH_SCREENING_POLICY,
             mint=self._mint,
             now=self._clock,
+            tools=regs.tools,
+            in_project=evidence.artifact_in_project,
+            atomic=c.transaction,
         )
         return _ScreeningStage(
             executor=executor,

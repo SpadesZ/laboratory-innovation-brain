@@ -192,6 +192,10 @@ def acceptance(result: Mapping[str, Any], protocol: Mapping[str, Any]) -> dict[s
     return verdicts
 
 
+#: Protocol amendment 1: the former holdout is development/regression evidence, not a blind split.
+SPLIT_LABELS = {"dev": "dev", "holdout": "exposed-regression (former holdout)"}
+
+
 def markdown(result: Mapping[str, Any]) -> str:
     keys = [
         "considered_rate",
@@ -216,7 +220,7 @@ def markdown(result: Mapping[str, Any]) -> str:
             s = block["summary"]
             verdict = result["acceptance"][f"{config}/{split}"]
             lines.append(
-                f"| {config} / {split} | "
+                f"| {config} / {SPLIT_LABELS.get(split, split)} | "
                 + " | ".join(str(s[k]) for k in keys)
                 + f" | {'PASS' if verdict == 'PASS' else 'FAIL: ' + '; '.join(verdict)} |"
             )

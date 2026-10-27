@@ -30,6 +30,7 @@ from lab_brain.cognition.roles import (
     COVERAGE_REVIEW,
     HYPOTHESIS_ENGINE,
     QUERY_REWRITER,
+    SCREENING_REVIEW,
 )
 from lab_brain.domains.silicon_photonics.product import mechanism_catalog
 from lab_brain.llm_runtime.capabilities import Capability
@@ -122,6 +123,20 @@ class _Model:
     def chat(self, model: str, prompt: str, **_: object) -> ChatReply:
         self.prompts.append(prompt)
         context = json.loads(prompt.split("\n\nCONTEXT:\n", 1)[1])
+        if "screening_observations" in context:  # the screening-review case: decline it
+            return ChatReply(
+                text=json.dumps(
+                    {
+                        "hypotheses": [],
+                        "declined": [
+                            {"observation_ref": r["observation_ref"], "reason": "not indicated"}
+                            for r in context["screening_observations"]
+                            if r["finding"] == "ABNORMAL"
+                        ],
+                    }
+                ),
+                latency_ms=7,
+            )
         if "unaddressed_checks" in context:  # the suite's coverage-review case: decline them all
             return ChatReply(
                 text=json.dumps(
@@ -220,7 +235,13 @@ def test_the_qualification_semantics_are_one_digest_of_probes_prompts_and_contra
         },
         prompts={
             r.prompt.prompt_id: [r.prompt.prompt_version, r.prompt.template]
-            for r in (QUERY_REWRITER, HYPOTHESIS_ENGINE, ADVERSARIAL_CRITIC, COVERAGE_REVIEW)
+            for r in (
+                QUERY_REWRITER,
+                HYPOTHESIS_ENGINE,
+                ADVERSARIAL_CRITIC,
+                COVERAGE_REVIEW,
+                SCREENING_REVIEW,
+            )
         }
         | {"probe:specialist": ["-", probes_module._SPECIALIST_TEMPLATE]},
     )
