@@ -145,6 +145,14 @@ def test_a_pair_that_agrees_passes_every_check_and_counts_each_category():
             {"STATUS"},
         ),
         (
+            # Only the stored status moves; the words are the original's. The word check alone
+            # reads the English status and would pass this -- the status comparison must not.
+            "a stored status raised under unchanged words",
+            'cs-PROVISIONAL" title="PROVISIONAL">尚未確認',
+            'cs-CONFIRMED" title="CONFIRMED">尚未確認',
+            {"STATUS"},
+        ),
+        (
             "a refuted hypothesis shown as supported",
             'bs-CONTRADICTED" title="CONTRADICTED">已被否證（排除）',
             'bs-SUPPORTED" title="SUPPORTED">獲得支持',

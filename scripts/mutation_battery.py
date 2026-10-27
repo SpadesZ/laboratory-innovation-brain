@@ -6130,8 +6130,8 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="screening_preflight_ignores_privacy",
         guards="WP2 drift -- a privacy-bound check is refused before its Job",
         path="src/lab_brain/verification/screening.py",
-        old="    if capability.privacy_constraints:\n",
-        new="    if False:\n",
+        old="    if capability.privacy_constraints:\n        reasons.append(",
+        new="    if False:\n        reasons.append(",
         tests=(
             "tests/unit/test_g0_screening_closure.py",
             "tests/e2e/test_g0_screening_adversarial_postgres.py",
@@ -6457,7 +6457,13 @@ def _template(base_url: str, migration: str) -> str:
     sys.path.insert(0, str(ROOT / "scripts"))
     from migrate import APPLY_ORDER  # type: ignore[import-not-found]
 
-    name = f"{urlsplit(base_url).path.lstrip('/')}_battery_tpl"
+    # One template per migration. A single shared name was rebuilt for each new migration while
+    # the cache still pointed earlier entries at it, so an entry for a migration applied AFTER
+    # another entry's migration (011m after 012y) ran against a template missing its tables.
+    name = (
+        f"{urlsplit(base_url).path.lstrip('/')}_battery_tpl_"
+        f"{APPLY_ORDER.index(Path(migration).name):03d}"
+    )
     with psycopg.connect(base_url, autocommit=True) as admin:
         admin.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
         admin.execute(f'CREATE DATABASE "{name}"')

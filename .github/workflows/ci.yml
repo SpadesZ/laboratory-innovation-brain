@@ -71,14 +71,14 @@ jobs:
         run: |
           ref=refs/remotes/origin/g0-exploratory-screening
           if ! git rev-parse --verify -q "$ref" >/dev/null; then
-            echo "negative-control branch absent; frozen fixture in tests/spec covers it"
+            echo "::notice title=negative control::branch absent; frozen fixture in tests/spec covers it"
             exit 0
           fi
           if python scripts/check_commit_messages.py --tip "$ref"; then
             echo "::error::the gate passed an AI-authored history; expected a refusal"
             exit 1
           fi
-          echo "refused as expected"
+          echo "::notice title=negative control::AI-authored history refused as expected"
 
   spec-conformance:
     # A normative conflict or a traceability break BLOCKS the slice (AGT-015), so there is no value

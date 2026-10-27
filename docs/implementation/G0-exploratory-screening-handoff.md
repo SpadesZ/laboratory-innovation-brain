@@ -52,3 +52,9 @@ A local PostgreSQL must use password authentication on host connections, or
 4. V2 verification evidence and CI SHA: see the V2 report §3.5. Commit hygiene was fixed by
    stripping AI attribution trailers from the V2 commits and force-pushing (Owner authorized).
    CI run 40516645153 on `3928fc8`: all four jobs pass.
+
+## Continued in
+
+`g0-offline-integrity-closure`: commit identity gate, the 011m screening independence fix,
+adversarial screening tests, the sealed evaluation workflow and bilingual parity checks. See
+`docs/implementation/G0-offline-integrity-handoff.zh-TW.md`.
