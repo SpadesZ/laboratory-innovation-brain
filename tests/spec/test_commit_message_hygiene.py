@@ -264,9 +264,22 @@ def scratch_repo(tmp_path: Path) -> Path:
     return repo
 
 
+#: The scratch repository's own identity policy: these tests are about the message rule, and the
+#: committing person is listed so the identity rule (tested in `test_commit_identity_policy.py`)
+#: does not decide them.
+SCRATCH_POLICY = """version = 1
+[[humans]]
+id = "test-person"
+names = ["Test Person"]
+emails = ["test.person@example.com"]
+"""
+
+
 def _run_gate(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    policy = repo.parent / "policy.toml"
+    policy.write_text(SCRATCH_POLICY, encoding="utf-8")
     return subprocess.run(
-        [sys.executable, str(repo_root() / GATE), *args],
+        [sys.executable, str(repo_root() / GATE), "--policy", str(policy), *args],
         cwd=repo,
         capture_output=True,
         text=True,

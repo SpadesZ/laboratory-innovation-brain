@@ -53,8 +53,32 @@ jobs:
 
       # No install step, deliberately: the checker imports only the standard library so it stays
       # runnable from a git hook on a machine where the project is not installed.
-      - name: Commit messages carry no AI authorship attribution
-        run: python scripts/check_commit_messages.py
+      # Messages from ENFORCED_FROM, and every commit's author and committer over the WHOLE history
+      # the tip reaches, against `.github/commit-identity-policy.toml`. On a pull request the tip
+      # is the PR's own head, not the synthetic merge GitHub checks out; the real merge is checked
+      # on its push to the target branch. Recomputed from the tip on every run, so a force-push
+      # cannot hide a commit below an already-checked one.
+      - name: Commits carry no AI authorship (messages, authors, committers)
+        env:
+          TIP: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python scripts/check_commit_messages.py --tip "$TIP"
+
+      # Negative control: a gate that passed everything would look identical to a clean history.
+      # The old `g0-exploratory-screening` branch is AI-authored (identity, not message), so the
+      # gate must refuse it. Skipped only when that branch no longer exists (the Owner may delete
+      # it); the frozen copy of its metadata in tests/spec still holds the case.
+      - name: The gate refuses a known AI-authored history (expected failure)
+        run: |
+          ref=refs/remotes/origin/g0-exploratory-screening
+          if ! git rev-parse --verify -q "$ref" >/dev/null; then
+            echo "negative-control branch absent; frozen fixture in tests/spec covers it"
+            exit 0
+          fi
+          if python scripts/check_commit_messages.py --tip "$ref"; then
+            echo "::error::the gate passed an AI-authored history; expected a refusal"
+            exit 1
+          fi
+          echo "refused as expected"
 
   spec-conformance:
     # A normative conflict or a traceability break BLOCKS the slice (AGT-015), so there is no value

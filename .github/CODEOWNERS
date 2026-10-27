@@ -1,0 +1,8 @@
+# The commit-integrity gate and the identity policy it reads are Owner-controlled. This file only
+# takes effect when the branch rule for `main` requires review from code owners (an Owner setting;
+# see docs/implementation/commit-integrity-gate.md).
+/.github/commit-identity-policy.toml  @SpadesZ
+/.github/CODEOWNERS                   @SpadesZ
+/.github/workflows/                   @SpadesZ
+/scripts/check_commit_messages.py     @SpadesZ
+/.githooks/                           @SpadesZ

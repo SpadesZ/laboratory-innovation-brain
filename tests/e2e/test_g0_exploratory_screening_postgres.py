@@ -24,6 +24,7 @@ because "the evidence does not point there". Through the web workspace, on a fre
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import re
 from collections.abc import Iterator
@@ -33,6 +34,7 @@ from urllib.parse import unquote
 
 import psycopg
 import pytest
+from psycopg.types.json import Jsonb
 
 from lab_brain.core.models.job import Job, JobState
 from lab_brain.core.models.observation import Observation
@@ -264,7 +266,30 @@ def _sql_guard_refuses_post_hoc_support(
     later = dt.datetime.now(dt.UTC) + dt.timedelta(hours=1)
     earlier = dt.datetime(2020, 1, 1, tzinfo=dt.UTC)
 
-    def run_like(name: str, parameters: dict[str, str]) -> str:
+    def fresh_output(name: str) -> str:
+        # A genuinely different reading has different output content. Before 011m this fixture
+        # reused the screened output artifact, and the guard let those very bytes SUPPORT.
+        (source,) = screened.output_artifacts
+        with db.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute("SELECT * FROM artifacts WHERE artifact_id = %s", (source,))
+            row = cur.fetchone()
+        assert row is not None
+        digest = "sha256:" + hashlib.sha256(f"guard {name}".encode()).hexdigest()
+        row.update(
+            artifact_id=f"art:{digest}",
+            content_hash=digest,
+            uri=f"{row['uri']}#{name}",
+            lineage_id=f"{row['lineage_id']}-{name}",
+            previous_artifact_id=None,
+        )
+        row.pop("created_at", None)
+        db.execute(
+            f"INSERT INTO artifacts ({', '.join(row)}) VALUES ({', '.join(['%s'] * len(row))})",
+            [Jsonb(v) if isinstance(v, dict) else v for v in row.values()],
+        )
+        return str(row["artifact_id"])
+
+    def run_like(name: str, parameters: dict[str, str], outputs: tuple[str, ...] = ()) -> str:
         job = jobs.submit(
             Job(
                 job_id=f"job:guard-{name}",
@@ -285,6 +310,7 @@ def _sql_guard_refuses_post_hoc_support(
                     "run_id": f"run:guard-{name}",
                     "job_id": job.job_id,
                     "input_parameters": parameters,
+                    "output_artifacts": outputs or screened.output_artifacts,
                     "start_time": later,
                     "end_time": later,
                 }
@@ -339,7 +365,9 @@ def _sql_guard_refuses_post_hoc_support(
 
     with db.transaction(force_rollback=True):
         repeat = run_like("repeat", dict(screened.input_parameters))
-        different = run_like("different", {"variant": "independent reading"})
+        different = run_like(
+            "different", {"variant": "independent reading"}, (fresh_output("different"),)
+        )
         # (a) the screened observation itself
         refused(observation_ids[0], "cannot SUPPORT it")
         # (b) an observation older than the hypothesis

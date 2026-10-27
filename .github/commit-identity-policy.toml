@@ -1,0 +1,24 @@
+# Owner-controlled commit identity policy, read by scripts/check_commit_messages.py.
+#
+# Every commit reachable from the checked tip must be AUTHORED by a listed human and COMMITTED by a
+# listed human or a listed platform committer. An identity that is not listed is refused (fail
+# closed): the Owner adds a legitimate contributor here, in a reviewed commit, before their work can
+# pass. An identity that names an AI is refused even if someone lists it -- the loader rejects such a
+# policy outright, so editing this file cannot authorise AI authorship.
+#
+# Matching is exact on the email (case-insensitive) AND on one of the listed names. Historical
+# metadata is never rewritten to fit this file; it is checked as recorded.
+
+version = 1
+
+[[humans]]
+id = "owner"
+names = ["SpadesZ"]
+emails = ["rickiekuo1203@gmail.com"]
+
+# A platform committer may COMMIT (web-UI merge, squash or edit, where the platform records itself
+# as committer and the person as author) but may never AUTHOR a commit.
+[[platform_committers]]
+id = "github-web-flow"
+names = ["GitHub"]
+emails = ["noreply@github.com"]

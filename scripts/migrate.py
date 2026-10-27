@@ -310,6 +310,8 @@ APPLY_ORDER: tuple[str, ...] = (
     "012y_exploratory_screening.sql",
     # A fail-closed refusal is recorded as REFUSED (ADR-0015). After 012y.
     "012z_screening_fail_closed.sql",
+    # Screened bytes cannot SUPPORT under another backend, parameter or capability. After 012z.
+    "011m_screening_repeat_by_content.sql",
 )
 
 _BOOTSTRAP = """

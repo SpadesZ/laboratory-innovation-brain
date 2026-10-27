@@ -1,0 +1,17 @@
+{
+ "protocol": "AcceptanceProtocol-g0-independent-holdout",
+ "version": "0.0.0-example",
+ "status": "EXAMPLE ONLY. No genuine independent holdout exists. An independent evaluator copies this file next to the sealed package they author, fixes every value, and freezes it with scripts/g0_eval_freeze.py BEFORE any run.",
+ "contamination_policy": "exclude",
+ "contamination_params": {"min_chars": 20, "ngram": 8, "near_threshold_permille": 500},
+ "statistics": {"bootstrap_seed": 20261027, "bootstrap_resamples": 2000},
+ "rubric": {
+  "observable_of": {
+   "contact_discontinuity": "sp.contact_connectivity",
+   "normalization_error": "sp.normalization_basis",
+   "mesh_artifact": "sp.mesh_stability",
+   "dopant_compensation": "sp.carrier_profile",
+   "probe_artifact": "sp.probe_contact_resistance"
+  }
+ }
+}
