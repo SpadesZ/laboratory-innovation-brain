@@ -255,7 +255,7 @@ def test_the_review_finds_the_cheap_check_and_the_warrant_gate_still_decides(db,
     browser.post("/locale", {"csrf": _token(browser.get("/")), "locale": "zh-TW", "next": "/"})
     page = _text(browser.get(f"/episodes/{open_via}").text)
     for said in (
-        "診斷：檢查觀察到的結果，正是這個假說事先宣告為支持的結果。",
+        "診斷檢查：已執行，觀察到的結果正是這個假說事先宣告為支持的結果。",
         "證據：已記錄，可追溯到該檢查的執行紀錄。",
         "授權：尚待決定",
         "信念：沒有改變。",
