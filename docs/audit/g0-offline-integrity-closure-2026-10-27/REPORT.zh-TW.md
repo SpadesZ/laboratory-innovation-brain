@@ -127,7 +127,44 @@
 
 ## 5. 驗證
 
-VERIFICATION_SECTION
+全部在本機免費資源執行。證據檔在 `evidence/`。
+
+| # | 項目 | 指令 | 結果 |
+|---|---|---|---|
+| 1 | 靜態檢查(CI 範圍) | `ruff check src tests scripts`、`ruff format --check src tests scripts`、`mypy src` | 全部通過(272 檔) |
+| 1 | 規格一致性 | `pytest -q tests/spec` | 245 passed |
+| 2 | 不需資料庫的完整回歸 | `pytest -q` | 2122 passed, 1071 skipped(skip 的是需要 PostgreSQL 的測試) |
+| 3 | 新建 DB(73 個 migration 到 011m)完整回歸 | `LAB_BRAIN_TEST_POSTGRES=1 ... pytest -q` | **3187 passed, 4 skipped, 1 xfailed**(13 分 22 秒);skip:本機 live 模型、Lumerical、網路、Windows;xfail:§4 的單語 `report.md`。`evidence/full-postgres-suite.log` |
+| 4 | WP1 目標測試 | `tests/spec/test_commit_identity_policy.py`、`test_commit_message_hygiene.py` | 95 passed(含實際舊分支 ref) |
+| 4 | WP2/WP3/WP4 PostgreSQL 目標測試 | 獨立性、對抗、故障、篩檢、盲跑、雙語 e2e | 37 passed, 1 xfailed |
+| 4 | WP3/WP4 單元測試 | `test_g0_evaluation_*`、`test_g0_bilingual_parity.py` | 19 passed、29 passed |
+| 4 | 011m 之前的負向測試 | 獨立性測試在 012y 上 | 5 failed(證明缺陷)、2 passed(對照)。`evidence/independence-before-011m.txt` |
+| 5 | 篩檢與新項目變異測試 | `mutation_battery.py --only <76 項>` | 第一輪 72/76。4 個存活全部處理(見下),重跑 6/6 killed。`evidence/mutation-targeted-76-first-run.log` |
+| 6 | **完整變異測試** | `mutation_battery.py`(全部 756 項,本機上限 2 小時) | **756/756 killed**,47 分鐘(15:33–16:20 UTC)。`evidence/mutation-full-756.log` |
+| 7 | 瀏覽器與雙語匯出 | `test_g0_bilingual_parity_postgres.py`(本機 Chromium + Playwright) | 通過(在 3 與 4 內) |
+| 8 | GitHub CI | 最終 SHA | 見 §5.2 |
+
+第一輪 4 個存活的處理:
+- 2 個 011m 項目「MUTANT DID NOT APPLY」:**battery 本身的缺陷**。所有 SQL 模板共用一個資料庫名稱,
+  換 migration 時被重建,但快取仍指向它;排在 012y 項目之後的 011m 項目因此跑在缺表的模板上。
+  已改為每個 migration 一個模板。
+- `screening_preflight_ignores_privacy`:錨點先命中計畫階段的同一行(該檢查被 preflight 重複覆蓋,
+  不是漏洞)。錨點改指 preflight。
+- `parity_ignores_status`:**測試缺口**。沒有測試只改繁中的儲存狀態而保留文字。已新增此案例。
+
+沒有弱化任何斷言;沒有修改凍結的 benchmark 答案;沒有靜默跳過失敗。唯一改動的既有測試 fixture
+(§2.1)保留原斷言。
+
+### 5.1 Git 歷史沒有 AI 署名
+
+`python scripts/check_commit_messages.py --tip HEAD`:113 個訊息、147 個 commit 身分,沒有 AI 作者。
+本分支新 commit 的 author 與 committer 都是 `SpadesZ <rickiekuo1203@gmail.com>`,訊息沒有 trailer。
+CI 負向控制 annotation:「negative control: AI-authored history refused as expected」。
+
+### 5.2 CI
+
+CI_SECTION
+
 
 ## 6. 剩餘 Owner Gates
 
