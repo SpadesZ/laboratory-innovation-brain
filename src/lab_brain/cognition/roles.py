@@ -222,6 +222,7 @@ def require_input(role: str, requires: frozenset[str], context: Mapping[str, obj
 #: The one envelope `normalize_reply` removes: the whole reply is ONE fenced block.
 _FENCED = re.compile(r"\A```[A-Za-z]*[ \t]*\r?\n(.*)\r?\n```\Z", re.DOTALL)
 STRIPPED_CODE_FENCE = "STRIPPED_CODE_FENCE"
+STRIPPED_BYTE_ORDER_MARK = "STRIPPED_BYTE_ORDER_MARK"
 
 
 def normalize_reply(text: str) -> tuple[str, str | None]:
@@ -233,11 +234,26 @@ def normalize_reply(text: str) -> tuple[str, str | None]:
     renamed, defaulted, truncated or completed, so a parser still refuses everything it refused. The
     raw reply stays the durable record; the caller records the repair beside it.
     """
-    stripped = text.strip().lstrip("﻿").strip()
+    stripped = text.strip()
+    marked = stripped.startswith("\ufeff")
+    stripped = stripped.lstrip("\ufeff").strip()
     fenced = _FENCED.match(stripped)
     if fenced is not None:
         return fenced.group(1).strip(), STRIPPED_CODE_FENCE
-    return stripped, None
+    return stripped, STRIPPED_BYTE_ORDER_MARK if marked else None
+
+
+def _list_field(
+    role: str, obj: Mapping[str, Any], name: str, inference_id: str | None
+) -> list[Any]:
+    """A list field: absent or null reads as empty, anything that is not a list is refused --
+    an empty string, a number or `false` is not "none" said another way."""
+    value = obj.get(name)
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise RoleOutputRefused(role, f"{name} must be a list", inference_id=inference_id)
+    return value
 
 
 def _object(role: str, text: str, inference_id: str | None) -> dict[str, Any]:
@@ -645,12 +661,8 @@ def parse_coverage_review(
     """
     role = HYPOTHESIS_ENGINE.role.value
     obj = _object(role, text, inference_id)
-    raw = obj.get("hypotheses") or []
-    declined_raw = obj.get("declined") or []
-    if not isinstance(raw, list) or not isinstance(declined_raw, list):
-        raise RoleOutputRefused(
-            role, "hypotheses and declined must be lists", inference_id=inference_id
-        )
+    raw = _list_field(role, obj, "hypotheses", inference_id)
+    declined_raw = _list_field(role, obj, "declined", inference_id)
     proposals = _proposals(role, raw, bindings, inference_id)
     gaps = tuple(dict.fromkeys(unaddressed))
     taken = {" ".join(m.lower().split()) for m in existing_mechanisms}
@@ -817,11 +829,7 @@ def parse_specialist(
         inference_id=inference_id,
     )
     proposals = []
-    raw_proposals = obj.get("proposed_predictions") or []
-    if not isinstance(raw_proposals, list):
-        raise RoleOutputRefused(
-            role_id, "proposed_predictions must be a list", inference_id=inference_id
-        )
+    raw_proposals = _list_field(role_id, obj, "proposed_predictions", inference_id)
     for p in raw_proposals:
         if not isinstance(p, dict):
             raise RoleOutputRefused(
@@ -876,9 +884,7 @@ def parse_critique(
     obj = _object(role, text, inference_id)
     shown = tuple(shown_attestation_ids)
     objections: list[Objection] = []
-    raw_objections = obj.get("objections") or []
-    if not isinstance(raw_objections, list):
-        raise RoleOutputRefused(role, "objections must be a list", inference_id=inference_id)
+    raw_objections = _list_field(role, obj, "objections", inference_id)
     for o in raw_objections:
         if not isinstance(o, dict):
             raise RoleOutputRefused(
@@ -928,11 +934,7 @@ def parse_critique(
         except ValueError as exc:
             raise RoleOutputRefused(role, str(exc), inference_id=inference_id) from exc
     challenges = []
-    raw_challenges = obj.get("falsifier_challenges") or []
-    if not isinstance(raw_challenges, list):
-        raise RoleOutputRefused(
-            role, "falsifier_challenges must be a list", inference_id=inference_id
-        )
+    raw_challenges = _list_field(role, obj, "falsifier_challenges", inference_id)
     for c in raw_challenges:
         if not isinstance(c, dict) or not isinstance(c.get("target_id"), str):
             raise RoleOutputRefused(
@@ -1006,6 +1008,7 @@ __all__ = [
     "NOVELTY_AUDITOR",
     "QUERY_REWRITER",
     "SPECIALIST_REQUIRES",
+    "STRIPPED_BYTE_ORDER_MARK",
     "STRIPPED_CODE_FENCE",
     "CoverageDecline",
     "CoverageDraft",

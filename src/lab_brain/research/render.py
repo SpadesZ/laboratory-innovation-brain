@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from lab_brain.research.episode_view import Conclusion
-from lab_brain.research.report import EpisodeReport
+from lab_brain.research.report import EpisodeReport, ReliabilitySection, UsageLine
 
 _EXCERPT = 220
 
@@ -173,6 +173,8 @@ def render_markdown(report: EpisodeReport) -> str:
         add("- Surviving after critique: " + (", ".join(d.surviving) or "none"))
         add("- Contradicted by critique: " + (", ".join(d.contradicted) or "none"))
         add(f"- Debate gate: {d.gate}")
+        for line in reliability_lines(d.reliability):
+            add(f"- {line}")
     add("")
 
     add("## Belief state")
@@ -257,8 +259,38 @@ def render_markdown(report: EpisodeReport) -> str:
         add(f"- Not performed: {line}")
     for note in r.notes:
         add(f"- Note: {note}")
+    for line in usage_lines(r.usage):
+        add(f"- {line}")
     add("")
     return "\n".join(out)
+
+
+def reliability_lines(reliability: ReliabilitySection | None) -> list[str]:
+    """The debate's reply checks and coverage review, as the full report states them."""
+    if reliability is None:
+        return []
+    lines = [
+        f"Reply checks under {reliability.policy}: {reliability.replies} model replies, "
+        f"{reliability.refused} refused by a typed parser, {reliability.repaired} repaired before "
+        "parsing",
+        *(f"Refused reply: {x}" for x in reliability.refusals),
+        f"Coverage review: {reliability.coverage_status}",
+        *(
+            f"Unaddressed check {c.check} ({c.observable}): {c.disposition} -- {c.detail}"
+            for c in reliability.coverage
+        ),
+    ]
+    return lines
+
+
+def usage_lines(usage: Sequence[UsageLine]) -> list[str]:
+    """This run's model calls, with the token counts the provider reported."""
+    return [
+        f"Model use: {u.model} on {u.slot}: {u.calls} call(s), {u.metered_calls} with "
+        f"provider-reported usage; tokens prompt {u.prompt_tokens}, completion "
+        f"{u.completion_tokens}, total {u.total_tokens}"
+        for u in usage
+    ]
 
 
 def render_recorded_since(conclusions: Sequence[Conclusion]) -> str:

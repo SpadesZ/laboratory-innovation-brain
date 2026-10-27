@@ -2423,8 +2423,8 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="v2_route_sends_no_response_contract",
         guards="active runtime -- a route is told the output contract of the role it serves",
         path="src/lab_brain/llm_runtime/runtime.py",
-        old="system=contract_for(material)).text",
-        new="system=None).text",
+        old="            system=contract_for(material),\n",
+        new="            system=None,\n",
         tests=("tests/e2e/test_web_llm_runtime_postgres.py",),
     ),
     Mutation(
@@ -3146,8 +3146,8 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="semantics_ignore_the_role_prompts",
         guards="stale lock -- a changed role prompt changes the qualification semantics",
         path="src/lab_brain/llm_runtime/probes.py",
-        old="        for role in (QUERY_REWRITER, HYPOTHESIS_ENGINE, ADVERSARIAL_CRITIC)",
-        new="        for role in (QUERY_REWRITER, ADVERSARIAL_CRITIC)",
+        old="for role in (QUERY_REWRITER, HYPOTHESIS_ENGINE, ADVERSARIAL_CRITIC, COVERAGE_REVIEW)",
+        new="for role in (QUERY_REWRITER, ADVERSARIAL_CRITIC, COVERAGE_REVIEW)",
         tests=("tests/unit/test_llm_qualification.py",),
     ),
     Mutation(
@@ -3630,7 +3630,12 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="critic_reads_the_prose_falsifier",
         guards="falsifier authority -- the Critic is shown the designated typed falsifier",
         path="src/lab_brain/cognition/debate.py",
-        old='                    "falsifier": "; ".join(\n                        typed_falsifier_text(p) for p in c.falsifier_predictions\n                    ),\n',
+        old=(
+            '                    "falsifier": "; ".join(\n'
+            "                        shown_falsifier(p, state.hypotheses.add(c.hypothesis_id))\n"
+            "                        for p in c.falsifier_predictions\n"
+            "                    ),\n"
+        ),
         new='                    "falsifier": c.hypothesis.falsifier,\n',
         tests=("tests/unit/test_falsifier_authority.py",),
     ),
@@ -3638,7 +3643,12 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="critic_omits_the_typed_falsifier",
         guards="falsifier authority -- the Critic is shown a falsifier at all",
         path="src/lab_brain/cognition/debate.py",
-        old='                    "falsifier": "; ".join(\n                        typed_falsifier_text(p) for p in c.falsifier_predictions\n                    ),\n',
+        old=(
+            '                    "falsifier": "; ".join(\n'
+            "                        shown_falsifier(p, state.hypotheses.add(c.hypothesis_id))\n"
+            "                        for p in c.falsifier_predictions\n"
+            "                    ),\n"
+        ),
         new='                    "falsifier": "",\n',
         tests=("tests/unit/test_falsifier_authority.py",),
     ),
@@ -5900,8 +5910,8 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="g0_a_refused_schema_is_never_retried",
         guards="G0 -- a provider that refuses response_format is asked once without it, recorded",
         path="src/lab_brain/llm_runtime/provider.py",
-        old='                    refused.detail.startswith(("HTTP 400", "HTTP 422"))\n',
-        new='                    refused.detail.startswith(("HTTP 999",))\n',
+        old='    return detail.startswith(("http 400", "http 422")) and any(\n',
+        new='    return detail.startswith(("http 999",)) and any(\n',
         tests=("tests/unit/test_g0_transport_and_qualification.py",),
     ),
     Mutation(
@@ -5916,7 +5926,7 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="g0_review_pending_reads_as_refused",
         guards="G0 -- a page says a person's warrant review is pending, apart from belief",
         path="src/lab_brain/interfaces/web/pages.py",
-        old='    elif "NEED_HUMAN_REVIEW" in results:\n',
+        old='    elif latest == "NEED_HUMAN_REVIEW":\n',
         new="    elif False:\n",
         tests=("tests/e2e/test_g0_coverage_review_postgres.py",),
     ),

@@ -425,8 +425,9 @@ _M: dict[str, tuple[str, str]] = {
     ),
     # G0: support, kept apart from authorization and from belief.
     "v.stage.diagnosis": (
-        "Diagnosis: the check observed the outcome this hypothesis declared in advance as support.",
-        "診斷：檢查觀察到的結果，正是這個假說事先宣告為支持的結果。",
+        "Diagnostic check: it ran, and observed the outcome this hypothesis declared in advance "
+        "as support.",
+        "診斷檢查：已執行，觀察到的結果正是這個假說事先宣告為支持的結果。",
     ),
     "v.stage.evidence": (
         "Evidence: recorded, and traceable to the check's run.",
@@ -456,11 +457,11 @@ _M: dict[str, tuple[str, str]] = {
         "最初的假說沒有涵蓋的低成本檢查",
     ),
     "v.coverage.lead": (
-        "These checks can run here at low cost, and none of the hypotheses first proposed said "
-        "what their outcome would mean -- so verification would never have planned them. The "
-        "Hypothesis Engine was asked about each, once:",
-        "以下檢查在這裡就能以低成本執行，但最初提出的假說沒有一個說明其結果代表什麼——"
-        "驗證因此不會規劃它們。系統就每一項詢問假說引擎一次：",
+        "These checks can run here at low cost, and none of the hypotheses first proposed "
+        "declared what their outcome would support or contradict -- so whatever they observed "
+        "could move no belief. The Hypothesis Engine was asked about each, once:",
+        "以下檢查在這裡就能以低成本執行，但最初提出的假說沒有一個宣告其結果會支持或牴觸什麼——"
+        "因此無論觀察到什麼，都不會改變任何信念。系統就每一項詢問假說引擎一次：",
     ),
     "v.coverage.CERTIFIED": (
         "{check}: a new competing hypothesis now predicts its outcome -- {mechanism}.",
@@ -476,21 +477,23 @@ _M: dict[str, tuple[str, str]] = {
     ),
     "v.coverage.UNADDRESSED": (
         "{check}: still unaddressed -- the review did not complete ({reason}).",
-        "{check}：仍未涵蓋——這次檢查沒有完成（{reason}）。",
+        "{check}：仍未涵蓋——這次審查沒有完成（{reason}）。",
     ),
     "v.why.unaddressed": (
-        "{n} cheap check(s) can run here, but no hypothesis says what the outcome would mean, so "
-        "none was planned: {checks}.",
-        "有 {n} 項低成本檢查可以在這裡執行，但沒有任何假說說明其結果代表什麼，"
-        "因此沒有被規劃：{checks}。",
+        "{n} cheap check(s) can run here, but no hypothesis declares what the outcome would "
+        "support or contradict, so whatever they observe can move no belief: {checks}.",
+        "有 {n} 項低成本檢查可以在這裡執行，但沒有任何假說宣告其結果會支持或牴觸什麼，"
+        "因此無論觀察到什麼，都不會改變任何信念：{checks}。",
     ),
     "v.l2.reliability": ("How the model replies were checked", "模型回覆如何被檢查"),
     "v.l2.replies": (
-        "{n} model replies under {policy}: {refused} refused by a typed parser and asked for "
-        "again with the reason; {repaired} unwrapped from a code fence before parsing. Nothing "
-        "was taken from a refused reply.",
-        "依 {policy}，模型共回覆 {n} 次：{refused} 次被型別化解析器拒絕，並附上原因重問；"
-        "{repaired} 次在解析前去除外層程式碼區塊。被拒絕的回覆內容一律不採用。",
+        "{n} model replies under {policy}: {refused} refused by a typed parser (a refused reply "
+        "is asked for again, with the reason, while the policy allows another attempt); "
+        "{repaired} repaired before parsing (only an outer code fence or byte-order mark is "
+        "removed). Nothing was taken from a refused reply.",
+        "依 {policy}，模型共回覆 {n} 次：{refused} 次被型別化解析器拒絕（政策仍允許再試時，"
+        "會附上原因重問）；{repaired} 次在解析前修復（只去除外層程式碼區塊或位元組順序標記）。"
+        "被拒絕的回覆內容一律不採用。",
     ),
     "v.l2.refusal": ("Refused: {detail}", "被拒絕：{detail}"),
     "v.l2.usage": (

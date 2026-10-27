@@ -49,6 +49,7 @@ from lab_brain.research.episode_view import (
     ExecutedCheck,
     Relation,
 )
+from lab_brain.research.render import reliability_lines, usage_lines
 from lab_brain.research.report import (
     ActionLine,
     CoverageLine,
@@ -846,13 +847,15 @@ def _stages(relation: Relation, m: Messages) -> Html:
     that observation may move belief is the transition policy's (and, for a model's mechanism, a
     person's) to say, and only a recorded transition is a belief change.
     """
-    results = [d.result for d in relation.decisions]
+    # The latest decision says where authorization stands now: a review once asked for and since
+    # answered is not still pending.
+    latest = relation.decisions[-1].result if relation.decisions else None
     if relation.transitions:
         authorization = m("v.stage.auth.ALLOW")
-    elif "NEED_HUMAN_REVIEW" in results:
+    elif latest == "NEED_HUMAN_REVIEW":
         authorization = m("v.stage.auth.NEED_HUMAN_REVIEW")
-    elif results:
-        authorization = m("v.stage.auth.other", result=_words("td", results[-1], m))
+    elif latest is not None:
+        authorization = m("v.stage.auth.other", result=_words("td", latest, m))
     else:
         authorization = m("v.stage.auth.none")
     belief = (
@@ -1524,7 +1527,7 @@ def _why_html(
     person = _person_actions(report)
     if person:
         reasons.append(mh(m, "v.why.person", checks=_joined([t.name(x) for x in person], m)))
-    unaddressed = _unaddressed(report)
+    unaddressed = _unaddressed(report, view)
     if unaddressed:
         reasons.append(
             mh(
@@ -2120,9 +2123,20 @@ def _coverage_html(report: EpisodeReport | None, t: Terms) -> Html:
     return cat([h("<p>{}</p>", m("v.coverage.lead")), _list(items)])
 
 
-def _unaddressed(report: EpisodeReport) -> list[str]:
-    """Checks a review could not settle: still cheap, still unplanned, still unexplained."""
-    return [x.check for x in _coverage_lines(report) if x.disposition in ("UNADDRESSED", "REFUSED")]
+def _unaddressed(report: EpisodeReport, view: EpisodeView) -> list[str]:
+    """Checks a review could not settle and that no hypothesis -- one a later round added
+    included -- yet makes a SUPPORTS or CONTRADICTS prediction about, read now from the record."""
+    discriminated = {
+        p.observable
+        for typed in view.predictions.values()
+        for p in typed
+        if {"SUPPORTS", "CONTRADICTS"} & set(p.effects)
+    }
+    return [
+        x.check
+        for x in _coverage_lines(report)
+        if x.disposition in ("UNADDRESSED", "REFUSED") and x.observable not in discriminated
+    ]
 
 
 def _translation_notes(t: Terms) -> Html:
@@ -2600,6 +2614,7 @@ def report_html(r: EpisodeReport, *, locale: str = "en") -> Html:
                         h("{} {}", m("r.surviving"), ", ".join(d.surviving) or m("none")),
                         h("{} {}", m("r.contradicted"), ", ".join(d.contradicted) or m("none")),
                         h("{} {}", m("r.gate"), d.gate),
+                        *(h("{}", line) for line in reliability_lines(d.reliability)),
                     ]
                 ),
             )
@@ -2728,6 +2743,7 @@ def report_html(r: EpisodeReport, *, locale: str = "en") -> Html:
                 [rich(x) for x in r.deployment]
                 + [h("{} {}", m("r.not_performed"), rich(x)) for x in r.not_performed]
                 + [h("{} {}", m("r.note"), rich(x)) for x in r.notes]
+                + [h("{}", line) for line in usage_lines(r.usage)]
             ),
         )
     )

@@ -101,6 +101,9 @@ class FakeProvider:
     #: Answer any call that carries `response_format` with HTTP 400, as a provider that does not
     #: implement structured output does.
     refuse_schema: bool = False
+    #: (status, message): answer every call that carries `response_format` with that error --
+    #: a provider refusing for a reason that may or may not be the schema.
+    fail_with: tuple[int, str] | None = None
     #: (prompt, answer) -> the answer to send instead, for a test that scripts one reply.
     rewrite: Callable[[str, str], str] | None = None
     _server: ThreadingHTTPServer | None = None
@@ -176,6 +179,10 @@ class FakeProvider:
                 provider.calls.append(
                     Call(model, system, prompt, image, body.get("response_format"))
                 )
+                if provider.fail_with is not None and "response_format" in body:
+                    status, message = provider.fail_with
+                    self._send(status, {"error": {"message": message}})
+                    return
                 if provider.refuse_schema and "response_format" in body:
                     self._send(400, {"error": {"message": "response_format is not supported"}})
                     return

@@ -696,7 +696,10 @@ def run_probe(
     digest = "sha256:" + hashlib.sha256(reply.text.encode("utf-8")).hexdigest()
     reason = probe.judge(reply.text.strip())
     if reason is None:
-        return ProbeResult(capability, ProbeOutcome.PASSED, "", reply.latency_ms, digest)
+        # Passed -- and if the provider refused the schema, the record says it passed without one.
+        return ProbeResult(
+            capability, ProbeOutcome.PASSED, reply.output_mode or "", reply.latency_ms, digest
+        )
     return ProbeResult(capability, ProbeOutcome.FAILED, reason[:300], reply.latency_ms, digest)
 
 

@@ -138,12 +138,32 @@ def test_a_provider_that_refuses_the_schema_is_asked_once_without_it_and_the_rep
     assert len(provider.calls) == 1 and plain.output_mode is None
 
 
-def test_any_other_failure_is_raised_as_before_and_not_retried(provider):
-    provider.api_key = "sk-right"
-    client = OpenAICompatibleClient(provider.base_url, "sk-wrong", timeout=10, local_hosts=())
-    with pytest.raises(ProviderError, match="AUTH_FAILED"):
-        client.chat("fake-reasoner", "hello", response_schema=("x", {"type": "object"}))
-    assert len(provider.calls) == 0 or all(c.response_format for c in provider.calls)
+@pytest.mark.parametrize(
+    ("status", "message"),
+    [
+        (400, "API key not valid. Please pass a valid API key."),
+        (400, "This model's maximum context length is 8192 tokens."),
+        (500, "internal error while applying the schema"),
+        (503, "overloaded"),
+    ],
+)
+def test_any_other_failure_is_raised_as_before_and_not_retried(provider, status, message):
+    """Only a 400/422 that names the structured-output parameter is retried without it: a bad
+    key, an over-long prompt or a server error is raised after ONE call, as it always was."""
+    provider.fail_with = (status, message)
+    with pytest.raises(ProviderError, match=f"HTTP {status}"):
+        _client(provider).chat("fake-reasoner", "hello", response_schema=("x", {"type": "object"}))
+    assert len(provider.calls) == 1 and provider.calls[0].response_format is not None
+
+
+def test_the_fallback_records_the_status_and_never_the_providers_words(provider):
+    provider.fail_with = (422, "Invalid JSON payload: unknown field response_format.secret-ish")
+    reply = _client(provider).chat(
+        "fake-reasoner", "hello", response_schema=("x", {"type": "object"})
+    )
+    assert len(provider.calls) == 2 and provider.calls[1].response_format is None
+    assert reply.output_mode == f"{PROMPT_ONLY}: HTTP 422 refused response_format"
+    assert "secret-ish" not in str(reply.output_mode)
 
 
 def test_the_route_hands_back_the_reply_its_usage_and_its_mode(provider):

@@ -60,7 +60,7 @@ def test_a_route_from_an_earlier_suite_is_refused_and_history_stays_byte_for_byt
     ).fetchone()[0] == {
         "minimum_hypotheses": 5,
         "suite": HYPOTHESIS_SUITE,
-        "cases": ["contextual-minimum", "multi-space"],
+        "cases": ["contextual-minimum", "multi-space", "coverage-review"],
     }
     assert f"conformance suite {HYPOTHESIS_SUITE}" in _text(
         browser.get(f"/settings/llm/models/{reasoner}")

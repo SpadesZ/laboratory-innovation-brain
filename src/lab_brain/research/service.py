@@ -2266,23 +2266,22 @@ class ResearchEpisodeService:
 
 
 def _dealias(text: str, shown: Mapping[str, str], names: Mapping[str, str]) -> str:
-    """A model's text, each alias it was shown followed by what it names: a hypothesis (`H3`) by
-    its mechanism, an attestation (`E2`) by its canonical id -- the reference the text would have
-    carried before aliases.
+    """A model's text exactly as written, followed by a legend of the aliases it mentions: a
+    hypothesis (`H3`) by its mechanism, an attestation (`E2`) by its canonical id.
 
-    For READING only: the stored text is unchanged, and an alias the call was not shown (or that
-    names nothing here) is left exactly as written.
+    For READING only. The text is never rewritten -- "H2" may be hydrogen, not hypothesis 2 -- so
+    the legend only says what each alias the call was shown names; one it was not shown, or that
+    names nothing here, is not listed.
     """
-
-    def named(match: re.Match[str]) -> str:
-        alias = match.group(0)
+    legend: list[str] = []
+    for alias in dict.fromkeys(re.findall(r"\b[HE][0-9]+\b", text)):
         canonical = shown.get(alias)
         if canonical is None:
-            return alias
+            continue
         meaning = names.get(canonical) if alias.startswith("H") else canonical
-        return alias if meaning is None else f"{alias} [{meaning}]"
-
-    return re.sub(r"\b[HE][0-9]+\b", named, text)
+        if meaning is not None:
+            legend.append(f"{alias} = {meaning}")
+    return text if not legend else f"{text} [{'; '.join(legend)}]"
 
 
 def _reliability(

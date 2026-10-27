@@ -801,8 +801,93 @@ def test_the_unaddressed_checks_depend_on_the_rivals_and_the_capabilities_never_
 def test_a_report_reads_aliases_back_and_leaves_the_rest_as_written():
     from lab_brain.research.service import _dealias
 
-    shown = {"H1": "hyp:a", "E2": "att:b"}
-    said = "H1 ignores E2; H9, E7 and H10x stay"
-    assert _dealias(said, shown, {"hyp:a": "contact discontinuity"}) == (
-        "H1 [contact discontinuity] ignores E2 [att:b]; H9, E7 and H10x stay"
+    shown = {"H1": "hyp:a", "E2": "att:b", "H2": "hyp:c"}
+    said = "H1 ignores E2 and the H2 anneal; H9, E7 and H10x stay"
+    names = {"hyp:a": "contact discontinuity", "hyp:c": "anneal damage"}
+    # Never rewritten ("H2" here is hydrogen): a legend of what each shown alias names follows.
+    assert _dealias(said, shown, names) == (
+        f"{said} [H1 = contact discontinuity; E2 = att:b; H2 = anneal damage]"
     )
+    assert _dealias("no aliases here", shown, names) == "no aliases here"
+
+
+@pytest.mark.parametrize("empty", ['""', "0", "false", "{}"])
+def test_a_list_field_that_is_not_a_list_is_refused_and_null_reads_as_none(empty):
+    declined = [{"observable_ref": sp.OBS_CONNECTIVITY, "reason": "r"}]
+    with pytest.raises(RoleOutputRefused, match="hypotheses must be a list"):
+        _review({"hypotheses": json.loads(empty), "declined": declined})
+    assert _review({"hypotheses": None, "declined": declined}).proposals == ()
+
+
+def test_a_byte_order_mark_is_removed_and_recorded():
+    from lab_brain.cognition.roles import STRIPPED_BYTE_ORDER_MARK
+
+    assert normalize_reply('\ufeff{"a": 1}') == ('{"a": 1}', STRIPPED_BYTE_ORDER_MARK)
+
+
+def _relation(*results: str, moved: bool = False) -> Any:
+    from lab_brain.research.episode_view import Decision, Relation, Transition
+
+    return Relation(
+        relation_id="rel:1",
+        relation_type="SUPPORTS",
+        hypothesis_id="hyp:a",
+        mechanism="m",
+        prediction_id="prd:1",
+        transitions=(
+            (Transition("evt:1", "hyp:a", "m", "ACTIVE", "SUPPORTED", "p@2", "dec:2", "ALLOW"),)
+            if moved
+            else ()
+        ),
+        decisions=tuple(
+            Decision(f"dec:{n}", "hyp:a", r, "p@2", "ACTIVE", "SUPPORTED")
+            for n, r in enumerate(results)
+        ),
+    )
+
+
+def test_the_four_stages_follow_the_latest_decision():
+    from lab_brain.interfaces.web.i18n import Messages
+    from lab_brain.interfaces.web.pages import _stages
+
+    m = Messages("en")
+    pending = str(_stages(_relation("NEED_HUMAN_REVIEW"), m))
+    assert "Authorization: pending" in pending and "Belief: unchanged." in pending
+    assert "Diagnostic check:" in pending and "Evidence: recorded" in pending
+    answered = str(_stages(_relation("NEED_HUMAN_REVIEW", "DENY"), m))
+    assert "Authorization: not given" in answered and "pending" not in answered
+    moved = str(_stages(_relation("NEED_HUMAN_REVIEW", "ALLOW", moved=True), m))
+    assert "Authorization: given" in moved and "Belief: changed" in moved
+
+
+def test_a_check_a_later_rival_now_predicts_is_no_longer_called_unaddressed():
+    from lab_brain.interfaces.web.pages import _unaddressed
+    from lab_brain.research.episode_view import DeclaredPrediction, EpisodeView
+    from lab_brain.research.report import CoverageLine, DebateSection, ReliabilitySection
+    from tests.report_samples import full_report
+
+    gap = CoverageLine(sp.OBS_CONNECTIVITY, sp.CAP_INSPECT_CONNECTIVITY, "UNADDRESSED", "FAILED")
+    base = full_report()
+    assert base.debate is not None
+    report = base.__class__(
+        **{
+            **base.__dict__,
+            "debate": DebateSection(
+                **{
+                    **base.debate.__dict__,
+                    "reliability": ReliabilitySection("p@1", 3, 2, 0, "FAILED", (gap,)),
+                }
+            ),
+        }
+    )
+    assert _unaddressed(report, EpisodeView()) == [sp.CAP_INSPECT_CONNECTIVITY]
+    later = DeclaredPrediction(
+        "hyp:z", "m", "prd:z", sp.OBS_CONNECTIVITY, "os@1", "CONTINUOUS", ("CONTRADICTS",), True
+    )
+    assert _unaddressed(report, EpisodeView(predictions={"hyp:z": (later,)})) == []
+    forecast = DeclaredPrediction(
+        "hyp:y", "m", "prd:y", sp.OBS_CONNECTIVITY, "os@1", "DISCONTINUOUS", ("PREDICTS",), False
+    )
+    assert _unaddressed(report, EpisodeView(predictions={"hyp:y": (forecast,)})) == [
+        sp.CAP_INSPECT_CONNECTIVITY
+    ], "a PREDICTS forecast moves no belief: the check is still unaddressed"

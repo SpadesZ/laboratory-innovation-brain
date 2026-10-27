@@ -160,7 +160,7 @@ def test_a_single_space_route_is_stale_and_only_testing_requalifies_it(
     assert dict(hypothesis.parameters) == {
         "minimum_hypotheses": 5,
         "suite": HYPOTHESIS_SUITE,
-        "cases": ["contextual-minimum", "multi-space"],
+        "cases": ["contextual-minimum", "multi-space", "coverage-review"],
     }
     new = llm.lock(model_id)
     assert new.lock_fingerprint not in (None, old.lock_fingerprint)

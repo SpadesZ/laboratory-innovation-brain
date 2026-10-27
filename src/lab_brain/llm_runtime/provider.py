@@ -208,10 +208,12 @@ class OpenAICompatibleClient:
     ) -> ChatReply:
         """`response_schema`: (name, JSON schema) to send as `response_format`.
 
-        A provider that does not implement it answers HTTP 400 (or 422); the call is then made
-        ONCE more without it, and the reply says so (`output_mode` PROMPT_ONLY with the refusal).
-        Any other failure, and any failure of the second call, is raised as it is. A 400 costs
-        nothing to ask: it is the provider refusing the request, not answering it.
+        A provider that does not implement it answers HTTP 400 (or 422) naming the parameter; the
+        call is then made ONCE more without it, and the reply says so (`output_mode` PROMPT_ONLY
+        and the status -- never the provider's words, which stay out of the record). Any other
+        failure -- a 400 about the key, the context length or anything that does not name the
+        schema -- and any failure of the second call is raised as it is. A 400 costs nothing to
+        ask: it is the provider refusing the request, not answering it.
         """
         content: Any = prompt
         if image_png is not None:
@@ -243,13 +245,9 @@ class OpenAICompatibleClient:
                 )
                 mode = JSON_SCHEMA
             except ProviderError as refused:
-                if refused.failure is not ProviderFailure.PROTOCOL_ERROR or not (
-                    refused.detail.startswith(("HTTP 400", "HTTP 422"))
-                ):
+                if not _refuses_schema(refused):
                     raise
-                mode = f"{PROMPT_ONLY}: the provider refused response_format ({refused.detail})"[
-                    :_DETAIL
-                ]
+                mode = f"{PROMPT_ONLY}: {refused.detail[:8]} refused response_format"
                 started = time.monotonic()
                 body = self._request("POST", "/chat/completions", payload)
         else:
@@ -325,6 +323,16 @@ class OpenAICompatibleClient:
 
     def _clean(self, text: str) -> str:
         return redact(" ".join(text.split()), [self._key or ""])[:_DETAIL]
+
+
+def _refuses_schema(failure: ProviderError) -> bool:
+    """A 400/422 whose (redacted) body names the structured-output parameter it refused."""
+    if failure.failure is not ProviderFailure.PROTOCOL_ERROR:
+        return False
+    detail = failure.detail.lower()
+    return detail.startswith(("http 400", "http 422")) and any(
+        word in detail for word in ("response_format", "json_schema", "schema", "structured")
+    )
 
 
 _USAGE_FIELDS = ("prompt_tokens", "completion_tokens", "total_tokens")
