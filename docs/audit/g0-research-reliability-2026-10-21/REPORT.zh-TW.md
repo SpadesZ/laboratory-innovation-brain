@@ -55,7 +55,7 @@
 - 【事實】清單欄位：`null` 視為空，其餘非清單（`""`、`0`、`false`）一律拒絕。
 - 【事實】提供者回報的 token 數（prompt／completion／total）寫入 LLM_CALL span，研究報告逐模型列出。
 - 【事實】驗證 schema 傳輸的範圍：本機 Ollama 接受（qwen2.5:7b 實測，見 §5）；替身伺服器測試回退路徑。Gemini 是否接受這些 schema **未實測**（需計費呼叫）；若拒絕，會依上述規則回退並記錄。
-  - 【勘誤 2026-10-27】上句寫於 Gemini 重測之前，已過時：§5.1 的擁有者授權重測中，Gemini 3.1 Pro 的 26 次回覆**全部在 JSON schema 模式下被接受**（0 次 400/422 回退、0 次重問、0 次修復；證據 `evidence/live_gemini_g0/*.provenance.json` 的 `parameters` 輸出模式欄）。仍未實測的是：其他 Gemini 版本、其他 schema 形狀，以及 Gemini 在拒絕時的實際錯誤格式。
+  - 【勘誤 2026-10-27】上句寫於 Gemini 重測之前，已過時：§5.1 的擁有者授權重測中，Gemini 3.1 Pro 的 15 次回覆**全部在 JSON schema 模式下被接受**（同次執行全部 26 次回覆，含本機 qwen2.5:7b 的 11 次，亦然；0 次 400/422 回退、0 次重問、0 次修復；證據 `evidence/live_gemini_g0/*.provenance.json` 的 `parameters` 輸出模式欄）。仍未實測的是：其他 Gemini 版本、其他 schema 形狀，以及 Gemini 在拒絕時的實際錯誤格式。
 
 ### 2.3 假說涵蓋與驗證缺口（目標 3）
 
@@ -226,7 +226,7 @@ python scripts/g0_live_compare.py <先前 run1 run2 目錄> -- <新證據目錄>
 2. 本機 7B 模型仍無法擔任主要推理（ROLE_HYPOTHESIS）。
 3. 模型自寫的機制，即使觀察相符，也一定要人員回答診斷依據才會改變信念——這是 Causal Warrant Gate 的設計；G0 要得到「確認」，需要人員審查流程或擁有者決定的機制對應設計。
 4. 模型文字不翻譯（§2.6）；策展中文尚待領域專家審閱。
-5. ~~Gemini 對這些 JSON schema 的接受度未實測；拒絕時會回退並記錄。~~【勘誤 2026-10-27】已由 §5.1 實測：26/26 次在 JSON schema 模式下被接受；此項不再是阻礙。
+5. ~~Gemini 對這些 JSON schema 的接受度未實測；拒絕時會回退並記錄。~~【勘誤 2026-10-27】已由 §5.1 實測：Gemini 15/15 次（全部 26/26 次）在 JSON schema 模式下被接受；此項不再是阻礙。
 6. 涵蓋審查的依據是引用、不是內容驗證；涵蓋與重問可能在預算偏緊時排擠反方。
 7. 既有突變存活 `workspace_episode_ignores_membership`（基準即存在）與一條順序相依的結果——候選，未在本輪處理。
 8. Lumerical 仍無；所有模擬維持「未執行、未驗證」。
