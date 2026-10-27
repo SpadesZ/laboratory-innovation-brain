@@ -33,6 +33,14 @@ page first, as a real one must. The critic and utility slots stay local unless n
                    reliability record (reply attempts, coverage review) and the provider's usage --
                    what `scripts/g0_live_compare.py` scores against the earlier runs
 
+    features       `LAB_BRAIN_LIVE_FEATURES` names the configuration of `benchmarks/g0_screening/
+                   protocol.json` the runs use -- baseline, screening (the default, as deployed),
+                   structure or combined -- and the outcomes record which
+    matrix         `LAB_BRAIN_LIVE_CASES=dev|holdout|matrix` also runs the protocol's dev and/or
+                   sealed holdout cases (each with its own evidence document and deployment), and
+                   writes `matrix.outputs.json` in the form `benchmarks/g0_screening/score.py`
+                   scores -- truth is read by the scorer only, after the runs
+
 G0 RETEST (owner-authorized only; an external primary is billable). From the repository root:
 
     LAB_BRAIN_TEST_POSTGRES=1 LAB_BRAIN_DATABASE_URL=<a fresh, migrated database>
@@ -41,6 +49,10 @@ G0 RETEST (owner-authorized only; an external primary is billable). From the rep
     LAB_BRAIN_LIVE_UTILITY=qwen2.5:7b LAB_BRAIN_LIVE_EVIDENCE=<new evidence dir>
     pytest tests/e2e/test_research_live_model_postgres.py
     python scripts/g0_live_compare.py <earlier run dirs> -- <new evidence dir>
+
+  For the screening evaluation, repeat with LAB_BRAIN_LIVE_FEATURES=baseline|screening|structure|
+  combined and LAB_BRAIN_LIVE_CASES=matrix (a fresh database each time), then
+    python benchmarks/g0_screening/score.py <evidence dir>/matrix.outputs.json
 """
 
 from __future__ import annotations
@@ -61,6 +73,7 @@ from lab_brain.interfaces.config import Settings
 from lab_brain.interfaces.web import Workspace, allowed_hosts
 from lab_brain.llm_runtime.secrets import SecretStore
 from lab_brain.research.report_store import SqlResearchReportStore
+from lab_brain.research.service import ResearchFeatures
 from lab_brain.research.vertical import load_vertical_factory
 from tests.e2e.test_research_episode_postgres import GOAL, PROJECT, REPORT, _member
 from tests.e2e.test_web_llm_credentials_postgres import _admin
@@ -84,6 +97,13 @@ DEADLINE = float(os.environ.get("LAB_BRAIN_LIVE_DEADLINE", "1800"))
 EVIDENCE = os.environ.get("LAB_BRAIN_LIVE_EVIDENCE", "")
 EXTERNAL = os.environ.get("LAB_BRAIN_LIVE_PRIMARY_PROVIDER", "")
 KEY_ENV = os.environ.get("LAB_BRAIN_LIVE_PRIMARY_KEY_ENV", "")
+FEATURES = os.environ.get("LAB_BRAIN_LIVE_FEATURES", "screening")
+MATRIX_CASES = os.environ.get("LAB_BRAIN_LIVE_CASES", "")
+PROTOCOL = json.loads(
+    (Path(__file__).resolve().parents[2] / "benchmarks/g0_screening/protocol.json").read_text(
+        encoding="utf-8"
+    )
+)
 
 pytestmark = [
     pytest.mark.postgres,
@@ -103,14 +123,19 @@ CASES = {
 }
 
 
-def _workspace(tmp_path: Path) -> Browser:
+def _workspace(tmp_path: Path, deployment: Any = None) -> Browser:
+    config = PROTOCOL["configurations"][FEATURES]
     return Browser(
         Workspace(
             actor_id="act:rkuo",
             settings=Settings(dsn=database_url()),
             connect=lambda s: psycopg.connect(s.dsn),
             artifact_root=tmp_path / "artifacts",
-            vertical_factory=load_vertical_factory("silicon_photonics"),
+            vertical_factory=deployment or load_vertical_factory("silicon_photonics"),
+            research_features=ResearchFeatures(
+                exploratory_screening=config["exploratory_screening"],
+                structure_context=config["structure_context"],
+            ),
             allowed_hosts=allowed_hosts("127.0.0.1", 8765),
             secrets=SecretStore(environ={KEY_ENV: os.environ[KEY_ENV]} if KEY_ENV else {}),
             ollama_url=OLLAMA,
@@ -232,7 +257,10 @@ def test_a_real_model_researches_three_cases_without_lumerical(db, tmp_path):
     either way."""
     _member(db)
     _admin(db)
-    browser = _workspace(tmp_path)
+    from tests.e2e.test_g0_screening_matrix_postgres import _Deployment, _run_splits, collect
+
+    deployment = _Deployment()
+    browser = _workspace(tmp_path, deployment)
     _qualified(db, browser)
     models = {PRIMARY, CRITIC, UTILITY}
     outcomes: dict[str, dict[str, Any]] = {}
@@ -315,8 +343,20 @@ def test_a_real_model_researches_three_cases_without_lumerical(db, tmp_path):
             if report.debate is not None and report.debate.reliability is not None
             else None,
             "usage": [dataclasses.asdict(u) for u in report.usage],
+            "features": FEATURES,
+            "screening": dataclasses.asdict(report.screening)
+            if report.screening is not None
+            else None,
+            "record": collect(db, episode),
         }
     _write("outcomes.json", json.dumps(outcomes, indent=1, ensure_ascii=False))
+    if MATRIX_CASES:
+        splits = ("dev", "holdout") if MATRIX_CASES == "matrix" else (MATRIX_CASES,)
+        records = _run_splits(db, browser, deployment, None, splits)
+        _write(
+            "matrix.outputs.json",
+            json.dumps({"configurations": {FEATURES: records}}, indent=1, ensure_ascii=False),
+        )
     stopped = {
         name: next(
             (

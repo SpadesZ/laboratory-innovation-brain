@@ -300,10 +300,16 @@ def _browser(tmp_path: Path, deployment: _Deployment, settings: dict[str, Any]) 
 
 
 def _run_splits(
-    db: Any, browser: Browser, deployment: _Deployment, fake: FakeProvider, splits: tuple[str, ...]
+    db: Any,
+    browser: Browser,
+    deployment: _Deployment,
+    fake: FakeProvider | None,
+    splits: tuple[str, ...],
 ) -> dict[str, dict[str, Any]]:
+    """Every case of `splits`, one episode each. `fake`, when given, is the provider whose
+    prompts are kept with each record for the leak check; a live model's run passes None."""
     outputs: dict[str, dict[str, Any]] = {}
-    calls_before = len(fake.calls)
+    calls_before = len(fake.calls) if fake is not None else 0
     for split in splits:
         data = _split(split)
         outputs[split] = {}
@@ -312,8 +318,9 @@ def _run_splits(
             episode = _run(browser, split, data["nominal_device"], case)
             record = collect(db, episode)
             record["unavailable"] = list(deployment.unavailable)
-            record["prompts"] = [c.prompt for c in fake.calls[calls_before:]]
-            calls_before = len(fake.calls)
+            if fake is not None:
+                record["prompts"] = [c.prompt for c in fake.calls[calls_before:]]
+                calls_before = len(fake.calls)
             outputs[split][case["case_id"]] = record
     deployment.unavailable = ()
     return outputs
