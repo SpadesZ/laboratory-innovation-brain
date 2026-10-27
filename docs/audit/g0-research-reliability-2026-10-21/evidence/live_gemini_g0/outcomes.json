@@ -1,0 +1,740 @@
+{
+ "sufficient": {
+  "episode": "epi:2b52d1b0-3211-4c0f-8e81-e9d18038b0e0",
+  "state": "SUSPENDED",
+  "outcome": null,
+  "conclusion": "PROVISIONAL",
+  "stages": [
+   [
+    "ingestion",
+    "DONE",
+    "1 of 1 document(s) stored, parsed and segmented"
+   ],
+   [
+    "evidence",
+    "DONE",
+    "19 verbatim statement(s) admitted as REPORTED evidence through the admission gate"
+   ],
+   [
+    "verification input",
+    "DONE",
+    "device PS-501, drawn length 500 um, 2 contacts"
+   ],
+   [
+    "external evidence",
+    "SKIPPED",
+    "no literature provider and public query were given; no external source was contacted"
+   ],
+   [
+    "hypotheses",
+    "DONE",
+    "5 competing hypotheses admitted after 1 debate round(s) and an independent critique"
+   ],
+   [
+    "verification",
+    "DONE",
+    "2 plan(s), 1 check(s) executed; stopped: HUMAN_ACTION_REQUIRED"
+   ],
+   [
+    "pending simulation",
+    "BLOCKED",
+    "best next action cap:sp.charge_ac_sweep requires an unavailable simulator"
+   ]
+  ],
+  "hypotheses": [
+   [
+    "Because the contact resistance term was unavailable, the uncorrected extraction script applied an incorrect normalization basis that artificially inflated the reported Rs for split B.",
+    "ACTIVE"
+   ],
+   [
+    "Coarse or unstable meshing in the simulation introduces a numerical resistance artefact that appears as a constant series resistance, independent of the physical depletion region.",
+    "ACTIVE"
+   ],
+   [
+    "Inconsistent probe pressure or pad contamination during the measurement of split B introduced an external, bias-independent resistance, mimicking a process difference.",
+    "ACTIVE"
+   ],
+   [
+    "Process variations during contact formation resulted in a higher specific contact resistivity for split B, adding a constant series resistance that does not vary with depletion width.",
+    "ACTIVE"
+   ],
+   [
+    "Process variations introduced compensating impurities in the neutral region of split B, increasing its bulk resistivity. This adds a series resistance that does not vary with the reverse bias.",
+    "ACTIVE"
+   ]
+  ],
+  "inferences": [
+   [
+    "EVIDENCE_RESEARCHER",
+    "FAST_UTILITY",
+    "qwen2.5:7b"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "sp.specialist.semiconductor_device",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "sp.specialist.simulation_numerics",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "EVIDENCE_RESEARCHER",
+    "FAST_UTILITY",
+    "qwen2.5:7b"
+   ],
+   [
+    "critic",
+    "REASONING_ADVERSARIAL",
+    "qwen2.5:7b"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ]
+  ],
+  "executed": [
+   "cap:ingest_document",
+   "cap:sp.extraction_consistency"
+  ],
+  "predictions": [
+   [
+    "Because the contact resistance term was unavailable, the uncorrected extraction script applied an incorrect normalization basis that artificially inflated the reported Rs for split B.",
+    "sp.normalization_basis",
+    "AGREES",
+    "CONTRADICTS"
+   ],
+   [
+    "Because the contact resistance term was unavailable, the uncorrected extraction script applied an incorrect normalization basis that artificially inflated the reported Rs for split B.",
+    "sp.normalization_basis",
+    "DISAGREES",
+    "SUPPORTS"
+   ],
+   [
+    "Coarse or unstable meshing in the simulation introduces a numerical resistance artefact that appears as a constant series resistance, independent of the physical depletion region.",
+    "sp.mesh_stability",
+    "STABLE",
+    "CONTRADICTS"
+   ],
+   [
+    "Coarse or unstable meshing in the simulation introduces a numerical resistance artefact that appears as a constant series resistance, independent of the physical depletion region.",
+    "sp.mesh_stability",
+    "UNSTABLE",
+    "SUPPORTS"
+   ],
+   [
+    "Inconsistent probe pressure or pad contamination during the measurement of split B introduced an external, bias-independent resistance, mimicking a process difference.",
+    "sp.probe_contact_resistance",
+    "ELEVATED",
+    "SUPPORTS"
+   ],
+   [
+    "Inconsistent probe pressure or pad contamination during the measurement of split B introduced an external, bias-independent resistance, mimicking a process difference.",
+    "sp.probe_contact_resistance",
+    "NOMINAL",
+    "CONTRADICTS"
+   ],
+   [
+    "Process variations during contact formation resulted in a higher specific contact resistivity for split B, adding a constant series resistance that does not vary with depletion width.",
+    "sp.small_signal_impedance",
+    "RS_BIAS_INSENSITIVE",
+    "PREDICTS"
+   ],
+   [
+    "Process variations during contact formation resulted in a higher specific contact resistivity for split B, adding a constant series resistance that does not vary with depletion width.",
+    "sp.small_signal_impedance",
+    "RS_FALLS_WITH_REVERSE_BIAS",
+    "CONTRADICTS"
+   ],
+   [
+    "Process variations introduced compensating impurities in the neutral region of split B, increasing its bulk resistivity. This adds a series resistance that does not vary with the reverse bias.",
+    "sp.carrier_profile",
+    "COMPENSATED",
+    "SUPPORTS"
+   ],
+   [
+    "Process variations introduced compensating impurities in the neutral region of split B, increasing its bulk resistivity. This adds a series resistance that does not vary with the reverse bias.",
+    "sp.carrier_profile",
+    "NOMINAL",
+    "CONTRADICTS"
+   ]
+  ],
+  "confirmed": null,
+  "reliability": {
+   "policy": "debate:research-run@1.1.0",
+   "replies": 8,
+   "refused": 0,
+   "repaired": 0,
+   "coverage_status": "DONE",
+   "coverage": [
+    {
+     "observable": "sp.contact_connectivity",
+     "check": "cap:sp.inspect_contact_connectivity",
+     "disposition": "DECLINED",
+     "detail": "The evidence discusses process-dependent contact resistance, mesh artefacts, and missing correction terms, but does not motivate a mechanism involving discontinuous contact connectivity."
+    }
+   ],
+   "refusals": []
+  },
+  "usage": [
+   {
+    "model": "models/gemini-3.1-pro-preview",
+    "slot": "REASONING_PRIMARY",
+    "calls": 5,
+    "metered_calls": 5,
+    "prompt_tokens": 10142,
+    "completion_tokens": 4145,
+    "total_tokens": 27699
+   },
+   {
+    "model": "qwen2.5:7b",
+    "slot": "FAST_UTILITY",
+    "calls": 2,
+    "metered_calls": 2,
+    "prompt_tokens": 814,
+    "completion_tokens": 93,
+    "total_tokens": 907
+   },
+   {
+    "model": "qwen2.5:7b",
+    "slot": "REASONING_ADVERSARIAL",
+    "calls": 1,
+    "metered_calls": 1,
+    "prompt_tokens": 2057,
+    "completion_tokens": 530,
+    "total_tokens": 2587
+   }
+  ]
+ },
+ "insufficient": {
+  "episode": "epi:57d975ff-e7c9-47ea-85dc-e948e6e85496",
+  "state": "SUSPENDED",
+  "outcome": null,
+  "conclusion": "PROVISIONAL",
+  "stages": [
+   [
+    "ingestion",
+    "DONE",
+    "1 of 1 document(s) stored, parsed and segmented"
+   ],
+   [
+    "evidence",
+    "DONE",
+    "19 verbatim statement(s) admitted as REPORTED evidence through the admission gate"
+   ],
+   [
+    "verification input",
+    "DONE",
+    "device PS-508, drawn length 500 um, 2 contacts"
+   ],
+   [
+    "external evidence",
+    "SKIPPED",
+    "no literature provider and public query were given; no external source was contacted"
+   ],
+   [
+    "hypotheses",
+    "DONE",
+    "8 competing hypotheses admitted after 2 debate round(s) and an independent critique"
+   ],
+   [
+    "verification",
+    "DONE",
+    "2 plan(s), 1 check(s) executed; stopped: HUMAN_ACTION_REQUIRED"
+   ],
+   [
+    "pending simulation",
+    "BLOCKED",
+    "best next action cap:sp.charge_ac_sweep requires an unavailable simulator"
+   ]
+  ],
+  "hypotheses": [
+   [
+    "A specific mesh instability in the simulated comparison structure erroneously inflates the extracted series resistance uniformly, leading to the observed anomaly.",
+    "ACTIVE"
+   ],
+   [
+    "Although typically expected to perturb Cj where the depletion edge moves fastest, a specific mesh instability in the simulated comparison structure could erroneously inflate the extracted series resistance uniformly, leading to the observed anomaly.",
+    "ACTIVE"
+   ],
+   [
+    "Inconsistent physical contact between the measurement probes and the device pads adds a variable, bias-independent series resistance. This external resistance masks the true device Rs and creates the 50% difference between the measurements of splits A and B.",
+    "ACTIVE"
+   ],
+   [
+    "Physical variations in the ohmic contact formation between splits A and B result in different contact resistances. Since contact resistance is in series with the depletion region and does not modulate with reverse bias, it increases Rs uniformly across the sweep without affecting Cj.",
+    "ACTIVE"
+   ],
+   [
+    "Process variations between splits A and B caused different levels of carrier compensation in the highly doped contact regions. This increases the parasitic series resistance without affecting the depletion region capacitance, resulting in a bias-independent Rs shift.",
+    "ACTIVE"
+   ],
+   [
+    "The extraction script reports uncorrected rs_per_mm because the contact_resistance_term is unavailable. This missing baseline correction manifests as an apparent 50% difference in Rs between splits, which is purely an artefact of the normalization or correction basis rather than a physical device difference.",
+    "ACTIVE"
+   ],
+   [
+    "This external resistance masks the true device Rs and creates the 50% difference between the measurements of splits A and B.",
+    "ACTIVE"
+   ],
+   [
+    "This missing baseline correction manifests as an apparent 50% difference in Rs between splits, which is purely an artefact of the normalization or correction basis rather than a physical device difference.",
+    "ACTIVE"
+   ]
+  ],
+  "inferences": [
+   [
+    "EVIDENCE_RESEARCHER",
+    "FAST_UTILITY",
+    "qwen2.5:7b"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "sp.specialist.semiconductor_device",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "sp.specialist.simulation_numerics",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "EVIDENCE_RESEARCHER",
+    "FAST_UTILITY",
+    "qwen2.5:7b"
+   ],
+   [
+    "critic",
+    "REASONING_ADVERSARIAL",
+    "qwen2.5:7b"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "EVIDENCE_RESEARCHER",
+    "FAST_UTILITY",
+    "qwen2.5:7b"
+   ],
+   [
+    "critic",
+    "REASONING_ADVERSARIAL",
+    "qwen2.5:7b"
+   ]
+  ],
+  "executed": [
+   "cap:ingest_document",
+   "cap:sp.extraction_consistency"
+  ],
+  "predictions": [
+   [
+    "Although typically expected to perturb Cj where the depletion edge moves fastest, a specific mesh instability in the simulated comparison structure could erroneously inflate the extracted series resistance uniformly, leading to the observed anomaly.",
+    "sp.mesh_stability",
+    "STABLE",
+    "CONTRADICTS"
+   ],
+   [
+    "Although typically expected to perturb Cj where the depletion edge moves fastest, a specific mesh instability in the simulated comparison structure could erroneously inflate the extracted series resistance uniformly, leading to the observed anomaly.",
+    "sp.mesh_stability",
+    "UNSTABLE",
+    "SUPPORTS"
+   ],
+   [
+    "A specific mesh instability in the simulated comparison structure erroneously inflates the extracted series resistance uniformly, leading to the observed anomaly.",
+    "sp.mesh_stability",
+    "STABLE",
+    "CONTRADICTS"
+   ],
+   [
+    "A specific mesh instability in the simulated comparison structure erroneously inflates the extracted series resistance uniformly, leading to the observed anomaly.",
+    "sp.mesh_stability",
+    "UNSTABLE",
+    "SUPPORTS"
+   ],
+   [
+    "A specific mesh instability in the simulated comparison structure erroneously inflates the extracted series resistance uniformly, leading to the observed anomaly.",
+    "sp.small_signal_impedance",
+    "RS_BIAS_INSENSITIVE",
+    "PREDICTS"
+   ],
+   [
+    "Inconsistent physical contact between the measurement probes and the device pads adds a variable, bias-independent series resistance. This external resistance masks the true device Rs and creates the 50% difference between the measurements of splits A and B.",
+    "sp.probe_contact_resistance",
+    "ELEVATED",
+    "SUPPORTS"
+   ],
+   [
+    "Inconsistent physical contact between the measurement probes and the device pads adds a variable, bias-independent series resistance. This external resistance masks the true device Rs and creates the 50% difference between the measurements of splits A and B.",
+    "sp.probe_contact_resistance",
+    "NOMINAL",
+    "CONTRADICTS"
+   ],
+   [
+    "Physical variations in the ohmic contact formation between splits A and B result in different contact resistances. Since contact resistance is in series with the depletion region and does not modulate with reverse bias, it increases Rs uniformly across the sweep without affecting Cj.",
+    "sp.small_signal_impedance",
+    "RS_BIAS_INSENSITIVE",
+    "PREDICTS"
+   ],
+   [
+    "Physical variations in the ohmic contact formation between splits A and B result in different contact resistances. Since contact resistance is in series with the depletion region and does not modulate with reverse bias, it increases Rs uniformly across the sweep without affecting Cj.",
+    "sp.small_signal_impedance",
+    "RS_FALLS_WITH_REVERSE_BIAS",
+    "CONTRADICTS"
+   ],
+   [
+    "Process variations between splits A and B caused different levels of carrier compensation in the highly doped contact regions. This increases the parasitic series resistance without affecting the depletion region capacitance, resulting in a bias-independent Rs shift.",
+    "sp.carrier_profile",
+    "COMPENSATED",
+    "SUPPORTS"
+   ],
+   [
+    "Process variations between splits A and B caused different levels of carrier compensation in the highly doped contact regions. This increases the parasitic series resistance without affecting the depletion region capacitance, resulting in a bias-independent Rs shift.",
+    "sp.carrier_profile",
+    "NOMINAL",
+    "CONTRADICTS"
+   ],
+   [
+    "The extraction script reports uncorrected rs_per_mm because the contact_resistance_term is unavailable. This missing baseline correction manifests as an apparent 50% difference in Rs between splits, which is purely an artefact of the normalization or correction basis rather than a physical device difference.",
+    "sp.normalization_basis",
+    "AGREES",
+    "CONTRADICTS"
+   ],
+   [
+    "The extraction script reports uncorrected rs_per_mm because the contact_resistance_term is unavailable. This missing baseline correction manifests as an apparent 50% difference in Rs between splits, which is purely an artefact of the normalization or correction basis rather than a physical device difference.",
+    "sp.normalization_basis",
+    "DISAGREES",
+    "SUPPORTS"
+   ],
+   [
+    "This external resistance masks the true device Rs and creates the 50% difference between the measurements of splits A and B.",
+    "sp.probe_contact_resistance",
+    "ELEVATED",
+    "SUPPORTS"
+   ],
+   [
+    "This external resistance masks the true device Rs and creates the 50% difference between the measurements of splits A and B.",
+    "sp.probe_contact_resistance",
+    "NOMINAL",
+    "CONTRADICTS"
+   ],
+   [
+    "This external resistance masks the true device Rs and creates the 50% difference between the measurements of splits A and B.",
+    "sp.small_signal_impedance",
+    "RS_BIAS_INSENSITIVE",
+    "PREDICTS"
+   ],
+   [
+    "This missing baseline correction manifests as an apparent 50% difference in Rs between splits, which is purely an artefact of the normalization or correction basis rather than a physical device difference.",
+    "sp.normalization_basis",
+    "AGREES",
+    "CONTRADICTS"
+   ],
+   [
+    "This missing baseline correction manifests as an apparent 50% difference in Rs between splits, which is purely an artefact of the normalization or correction basis rather than a physical device difference.",
+    "sp.normalization_basis",
+    "DISAGREES",
+    "SUPPORTS"
+   ],
+   [
+    "This missing baseline correction manifests as an apparent 50% difference in Rs between splits, which is purely an artefact of the normalization or correction basis rather than a physical device difference.",
+    "sp.small_signal_impedance",
+    "RS_BIAS_INSENSITIVE",
+    "PREDICTS"
+   ]
+  ],
+  "confirmed": null,
+  "reliability": {
+   "policy": "debate:research-run@1.1.0",
+   "replies": 10,
+   "refused": 0,
+   "repaired": 0,
+   "coverage_status": "DONE",
+   "coverage": [
+    {
+     "observable": "sp.contact_connectivity",
+     "check": "cap:sp.inspect_contact_connectivity",
+     "disposition": "DECLINED",
+     "detail": "The evidence discusses physical contact resistance, probe contact, mesh artefacts, and extraction script issues, but does not motivate a mechanism involving a layout or schematic contact connectivity discontinuity."
+    }
+   ],
+   "refusals": []
+  },
+  "usage": [
+   {
+    "model": "models/gemini-3.1-pro-preview",
+    "slot": "REASONING_PRIMARY",
+    "calls": 5,
+    "metered_calls": 5,
+    "prompt_tokens": 10587,
+    "completion_tokens": 4561,
+    "total_tokens": 27919
+   },
+   {
+    "model": "qwen2.5:7b",
+    "slot": "FAST_UTILITY",
+    "calls": 3,
+    "metered_calls": 3,
+    "prompt_tokens": 1748,
+    "completion_tokens": 161,
+    "total_tokens": 1909
+   },
+   {
+    "model": "qwen2.5:7b",
+    "slot": "REASONING_ADVERSARIAL",
+    "calls": 2,
+    "metered_calls": 2,
+    "prompt_tokens": 4771,
+    "completion_tokens": 1429,
+    "total_tokens": 6200
+   }
+  ]
+ },
+ "competing": {
+  "episode": "epi:81e9f381-0e49-4352-9fc0-985453a67ac3",
+  "state": "SUSPENDED",
+  "outcome": null,
+  "conclusion": "PROVISIONAL",
+  "stages": [
+   [
+    "ingestion",
+    "DONE",
+    "1 of 1 document(s) stored, parsed and segmented"
+   ],
+   [
+    "evidence",
+    "DONE",
+    "19 verbatim statement(s) admitted as REPORTED evidence through the admission gate"
+   ],
+   [
+    "verification input",
+    "DONE",
+    "device PS-501, drawn length 500 um, 2 contacts"
+   ],
+   [
+    "external evidence",
+    "SKIPPED",
+    "no literature provider and public query were given; no external source was contacted"
+   ],
+   [
+    "hypotheses",
+    "DONE",
+    "5 competing hypotheses admitted after 1 debate round(s) and an independent critique"
+   ],
+   [
+    "verification",
+    "DONE",
+    "1 plan(s), 0 check(s) executed; stopped: HUMAN_ACTION_REQUIRED"
+   ],
+   [
+    "pending simulation",
+    "BLOCKED",
+    "best next action cap:sp.charge_ac_sweep requires an unavailable simulator"
+   ]
+  ],
+  "hypotheses": [
+   [
+    "High resistance between the measurement probes and the device pads adds a constant, bias-independent series resistance to all measurements, masking the true device behavior.",
+    "ACTIVE"
+   ],
+   [
+    "Impurities or defects in the epitaxial layer compensate the intentional doping, drastically increasing the bulk resistance. This bulk resistance acts as a large, weakly bias-dependent series resistance.",
+    "ACTIVE"
+   ],
+   [
+    "Poor mesh quality in the regions where current flows causes numerical errors that manifest as a high, bias-independent series resistance, while the capacitance remains relatively unperturbed.",
+    "ACTIVE"
+   ],
+   [
+    "Process variations alter the metal-semiconductor interface, creating a large ohmic contact resistance that dominates the total series resistance and masks the depletion region's bias dependence.",
+    "ACTIVE"
+   ],
+   [
+    "The extraction script logs that the contact_resistance_term is unavailable, so it reports the uncorrected Rs. This uncorrected value includes large parasitic components that are bias-independent.",
+    "ACTIVE"
+   ]
+  ],
+  "inferences": [
+   [
+    "EVIDENCE_RESEARCHER",
+    "FAST_UTILITY",
+    "qwen2.5:7b"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "sp.specialist.semiconductor_device",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "sp.specialist.simulation_numerics",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ],
+   [
+    "EVIDENCE_RESEARCHER",
+    "FAST_UTILITY",
+    "qwen2.5:7b"
+   ],
+   [
+    "critic",
+    "REASONING_ADVERSARIAL",
+    "qwen2.5:7b"
+   ],
+   [
+    "HYPOTHESIS_ENGINE",
+    "REASONING_PRIMARY",
+    "models/gemini-3.1-pro-preview"
+   ]
+  ],
+  "executed": [
+   "cap:ingest_document"
+  ],
+  "predictions": [
+   [
+    "High resistance between the measurement probes and the device pads adds a constant, bias-independent series resistance to all measurements, masking the true device behavior.",
+    "sp.probe_contact_resistance",
+    "ELEVATED",
+    "SUPPORTS"
+   ],
+   [
+    "High resistance between the measurement probes and the device pads adds a constant, bias-independent series resistance to all measurements, masking the true device behavior.",
+    "sp.probe_contact_resistance",
+    "NOMINAL",
+    "CONTRADICTS"
+   ],
+   [
+    "Impurities or defects in the epitaxial layer compensate the intentional doping, drastically increasing the bulk resistance. This bulk resistance acts as a large, weakly bias-dependent series resistance.",
+    "sp.carrier_profile",
+    "COMPENSATED",
+    "SUPPORTS"
+   ],
+   [
+    "Impurities or defects in the epitaxial layer compensate the intentional doping, drastically increasing the bulk resistance. This bulk resistance acts as a large, weakly bias-dependent series resistance.",
+    "sp.carrier_profile",
+    "NOMINAL",
+    "CONTRADICTS"
+   ],
+   [
+    "Poor mesh quality in the regions where current flows causes numerical errors that manifest as a high, bias-independent series resistance, while the capacitance remains relatively unperturbed.",
+    "sp.mesh_stability",
+    "STABLE",
+    "CONTRADICTS"
+   ],
+   [
+    "Poor mesh quality in the regions where current flows causes numerical errors that manifest as a high, bias-independent series resistance, while the capacitance remains relatively unperturbed.",
+    "sp.mesh_stability",
+    "UNSTABLE",
+    "SUPPORTS"
+   ],
+   [
+    "Process variations alter the metal-semiconductor interface, creating a large ohmic contact resistance that dominates the total series resistance and masks the depletion region's bias dependence.",
+    "sp.probe_contact_resistance",
+    "ELEVATED",
+    "CONTRADICTS"
+   ],
+   [
+    "Process variations alter the metal-semiconductor interface, creating a large ohmic contact resistance that dominates the total series resistance and masks the depletion region's bias dependence.",
+    "sp.small_signal_impedance",
+    "RS_FALLS_WITH_REVERSE_BIAS",
+    "CONTRADICTS"
+   ],
+   [
+    "The extraction script logs that the contact_resistance_term is unavailable, so it reports the uncorrected Rs. This uncorrected value includes large parasitic components that are bias-independent.",
+    "sp.small_signal_impedance",
+    "RS_BIAS_INSENSITIVE",
+    "CONTRADICTS"
+   ],
+   [
+    "The extraction script logs that the contact_resistance_term is unavailable, so it reports the uncorrected Rs. This uncorrected value includes large parasitic components that are bias-independent.",
+    "sp.small_signal_impedance",
+    "RS_FALLS_WITH_REVERSE_BIAS",
+    "PREDICTS"
+   ]
+  ],
+  "confirmed": null,
+  "reliability": {
+   "policy": "debate:research-run@1.1.0",
+   "replies": 8,
+   "refused": 0,
+   "repaired": 0,
+   "coverage_status": "DONE",
+   "coverage": [
+    {
+     "observable": "sp.normalization_basis",
+     "check": "cap:sp.extraction_consistency",
+     "disposition": "DECLINED",
+     "detail": "The evidence shows capacitance is indistinguishable between splits while resistance differs by 50%. An incorrect normalization basis would scale both quantities, so it cannot explain the observed combination where only one quantity differs."
+    },
+    {
+     "observable": "sp.contact_connectivity",
+     "check": "cap:sp.inspect_contact_connectivity",
+     "disposition": "DECLINED",
+     "detail": "The evidence discusses a constant contact resistance or a missing correction term, but does not suggest the contacts are physically discontinuous."
+    }
+   ],
+   "refusals": []
+  },
+  "usage": [
+   {
+    "model": "models/gemini-3.1-pro-preview",
+    "slot": "REASONING_PRIMARY",
+    "calls": 5,
+    "metered_calls": 5,
+    "prompt_tokens": 10298,
+    "completion_tokens": 3434,
+    "total_tokens": 28562
+   },
+   {
+    "model": "qwen2.5:7b",
+    "slot": "FAST_UTILITY",
+    "calls": 2,
+    "metered_calls": 2,
+    "prompt_tokens": 815,
+    "completion_tokens": 68,
+    "total_tokens": 883
+   },
+   {
+    "model": "qwen2.5:7b",
+    "slot": "REASONING_ADVERSARIAL",
+    "calls": 1,
+    "metered_calls": 1,
+    "prompt_tokens": 2094,
+    "completion_tokens": 202,
+    "total_tokens": 2296
+   }
+  ]
+ }
+}

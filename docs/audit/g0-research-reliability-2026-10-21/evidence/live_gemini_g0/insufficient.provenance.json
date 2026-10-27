@@ -1,0 +1,252 @@
+[
+ {
+  "inference_id": "inf:26b93cdc-7bf7-4f02-98b0-48230c494ee0",
+  "role": "EVIDENCE_RESEARCHER",
+  "logical_slot": "FAST_UTILITY",
+  "provider": "local",
+  "model_id": "qwen2.5:7b",
+  "model_version": "lk:2b1d527792de5bf8",
+  "prompt_id": "prm:evidence-query-rewrite",
+  "prompt_version": "1.0.0",
+  "created_at": "2026-10-27 06:20:57.244932+00",
+  "parameters": {
+   "attempt": 1,
+   "output_mode": "JSON_SCHEMA",
+   "context_hash": "sha256:577404c3a0056af2cbf73efb18590c87fc6d934ad3813c481ac6376cb9296c6c"
+  },
+  "output_text": "{\"terms\": [\"Rs high weakly bias dependent\", \"Cj trends normally\", \"Rs statistical significance\", \"Cj statistical behavior\"]}"
+ },
+ {
+  "inference_id": "inf:1ef5b08c-5993-4db9-b626-1b315b1f5d88",
+  "role": "HYPOTHESIS_ENGINE",
+  "logical_slot": "REASONING_PRIMARY",
+  "provider": "external",
+  "model_id": "models/gemini-3.1-pro-preview",
+  "model_version": "lk:daab3932dc08fd0d",
+  "prompt_id": "prm:hypothesis-engine",
+  "prompt_version": "5.0.0",
+  "created_at": "2026-10-27 06:21:08.262492+00",
+  "parameters": {
+   "attempt": 1,
+   "output_mode": "JSON_SCHEMA",
+   "context_hash": "sha256:aa5d5c61e17f1bb299ebb3bbfdb9623623ca44a3d0dd07d8116561092800b655"
+  },
+  "output_text": "{\n  \"hypotheses\": [\n    {\n      \"key\": \"h1_process_rc\",\n      \"statement\": \"A process-dependent contact resistance adds a constant, bias-independent term to the series resistance, differing between splits.\",\n      \"mechanism\": \"Physical variations in the ohmic contact formation between splits A and B result in different contact resistances. Since contact resistance is in series with the depletion region and does not modulate with reverse bias, it increases Rs uniformly across the sweep without affecting Cj.\",\n      \"assumptions\": [\n        \"Contact resistance dominates the series resistance difference.\",\n        \"Depletion capacitance is unaffected by contact resistance.\"\n      ],\n      \"falsifier\": \"Observation of Rs falling with reverse bias, indicating a depletion-dominated or bias-dependent mechanism.\",\n      \"falsifier_prediction_keys\": [\n        \"h1_p1\"\n      ],\n      \"confounders\": [\n        \"Probe contact resistance variations during measurement.\",\n        \"Missing contact resistance correction in extraction.\"\n      ],\n      \"minimal_test_ref\": \"sp.small_signal_impedance\",\n      \"predictions\": [\n        {\n          \"key\": \"h1_p1\",\n          \"observable_ref\": \"sp.small_signal_impedance\",\n          \"outcome_space_id\": \"os:sp.rs_bias_response\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"RS_FALLS_WITH_REVERSE_BIAS\",\n          \"relation_effect\": \"CONTRADICTS\"\n        },\n        {\n          \"key\": \"h1_p2\",\n          \"observable_ref\": \"sp.small_signal_impedance\",\n          \"outcome_space_id\": \"os:sp.rs_bias_response\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"RS_BIAS_INSENSITIVE\",\n          \"relation_effect\": \"PREDICTS\"\n        }\n      ]\n    },\n    {\n      \"key\": \"h2_extraction_artefact\",\n      \"statement\": \"The observed difference in Rs is an artefact of the extraction script missing the contact resistance correction term.\",\n      \"mechanism\": \"The extraction script reports uncorrected rs_per_mm because the contact_resistance_term is unavailable. This missing baseline correction manifests as an apparent 50% difference in Rs between splits, which is purely an artefact of the normalization or correction basis rather than a physical device difference.\",\n      \"assumptions\": [\n        \"The extraction script failed to apply the necessary correction.\",\n        \"The underlying devices have similar physical Rs.\"\n      ],\n      \"falsifier\": \"The normalization basis agrees with the expected corrected extraction.\",\n      \"falsifier_prediction_keys\": [\n        \"h2_p1\"\n      ],\n      \"confounders\": [\n        \"Actual physical differences in contact resistance.\"\n      ],\n      \"minimal_test_ref\": \"sp.normalization_basis\",\n      \"predictions\": [\n        {\n          \"key\": \"h2_p1\",\n          \"observable_ref\": \"sp.normalization_basis\",\n          \"outcome_space_id\": \"os:sp.normalization_basis\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"AGREES\",\n          \"relation_effect\": \"CONTRADICTS\"\n        },\n        {\n          \"key\": \"h2_p2\",\n          \"observable_ref\": \"sp.normalization_basis\",\n          \"outcome_space_id\": \"os:sp.normalization_basis\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"DISAGREES\",\n          \"relation_effect\": \"SUPPORTS\"\n        }\n      ]\n    },\n    {\n      \"key\": \"h3_probe_rc\",\n      \"statement\": \"Variations in probe contact resistance during measurement caused the bias-independent Rs difference.\",\n      \"mechanism\": \"Inconsistent physical contact between the measurement probes and the device pads adds a variable, bias-independent series resistance. This external resistance masks the true device Rs and creates the 50% difference between the measurements of splits A and B.\",\n      \"assumptions\": [\n        \"Probing was inconsistent between splits.\",\n        \"Probe resistance is on the same order of magnitude as the observed Rs difference.\"\n      ],\n      \"falsifier\": \"Probe contact resistance is measured as nominal.\",\n      \"falsifier_prediction_keys\": [\n        \"h3_p1\"\n      ],\n      \"confounders\": [\n        \"Process-dependent contact resistance.\",\n        \"Extraction script artefacts.\"\n      ],\n      \"minimal_test_ref\": \"sp.probe_contact_resistance\",\n      \"predictions\": [\n        {\n          \"key\": \"h3_p1\",\n          \"observable_ref\": \"sp.probe_contact_resistance\",\n          \"outcome_space_id\": \"os:sp.probe_contact_resistance\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"NOMINAL\",\n          \"relation_effect\": \"CONTRADICTS\"\n        },\n        {\n          \"key\": \"h3_p2\",\n          \"observable_ref\": \"sp.probe_contact_resistance\",\n          \"outcome_space_id\": \"os:sp.probe_contact_resistance\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"ELEVATED\",\n          \"relation_effect\": \"SUPPORTS\"\n        }\n      ]\n    },\n    {\n      \"key\": \"h4_mesh_artefact\",\n      \"statement\": \"A mesh artefact in the simulated structure causes the anomalous Rs extraction.\",\n      \"mechanism\": \"Although typically expected to perturb Cj where the depletion edge moves fastest, a specific mesh instability in the simulated comparison structure could erroneously inflate the extracted series resistance uniformly, leading to the observed anomaly.\",\n      \"assumptions\": [\n        \"The simulation mesh is unstable.\",\n        \"The mesh instability affects Rs extraction more uniformly than Cj.\"\n      ],\n      \"falsifier\": \"The simulation mesh is proven to be stable.\",\n      \"falsifier_prediction_keys\": [\n        \"h4_p1\"\n      ],\n      \"confounders\": [\n        \"Physical contact resistance differences.\"\n      ],\n      \"minimal_test_ref\": \"sp.mesh_stability\",\n      \"predictions\": [\n        {\n          \"key\": \"h4_p1\",\n          \"observable_ref\": \"sp.mesh_stability\",\n          \"outcome_space_id\": \"os:sp.mesh_stability\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"STABLE\",\n          \"relation_effect\": \"CONTRADICTS\"\n        },\n        {\n          \"key\": \"h4_p2\",\n          \"observable_ref\": \"sp.mesh_stability\",\n          \"outcome_space_id\": \"os:sp.mesh_stability\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"UNSTABLE\",\n          \"relation_effect\": \"SUPPORTS\"\n        }\n      ]\n    },\n    {\n      \"key\": \"h5_carrier_compensation\",\n      \"statement\": \"Unintentional carrier compensation near the contacts increases the bulk resistance, appearing as a bias-independent Rs.\",\n      \"mechanism\": \"Process variations between splits A and B caused different levels of carrier compensation in the highly doped contact regions. This increases the parasitic series resistance without affecting the depletion region capacitance, resulting in a bias-independent Rs shift.\",\n      \"assumptions\": [\n        \"Carrier compensation occurred during processing.\",\n        \"The compensated region is outside the depletion zone.\"\n      ],\n      \"falsifier\": \"The carrier profile is nominal, showing no compensation.\",\n      \"falsifier_prediction_keys\": [\n        \"h5_p1\"\n      ],\n      \"confounders\": [\n        \"Process-dependent contact resistance at the metal-semiconductor interface.\"\n      ],\n      \"minimal_test_ref\": \"sp.carrier_profile\",\n      \"predictions\": [\n        {\n          \"key\": \"h5_p1\",\n          \"observable_ref\": \"sp.carrier_profile\",\n          \"outcome_space_id\": \"os:sp.carrier_profile\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"NOMINAL\",\n          \"relation_effect\": \"CONTRADICTS\"\n        },\n        {\n          \"key\": \"h5_p2\",\n          \"observable_ref\": \"sp.carrier_profile\",\n          \"outcome_space_id\": \"os:sp.carrier_profile\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"COMPENSATED\",\n          \"relation_effect\": \"SUPPORTS\"\n        }\n      ]\n    }\n  ],\n  \"position\": {\n    \"mechanism_view\": \"The evidence strongly points to a bias-independent series resistance addition, which could be physical (process-dependent contact resistance) or an artefact (missing correction term in extraction). The extraction log explicitly warns about the missing contact_resistance_term, making the artefact hypothesis highly plausible.\",\n    \"uncertainties\": [\n      \"Whether the 50% difference in Rs is a true physical variation between splits or purely an extraction artefact.\",\n      \"The exact contribution of probe contact resistance during the measurements.\"\n    ],\n    \"confounders\": [\n      \"Missing contact resistance correction in the extraction script.\",\n      \"Probe contact variations.\"\n    ]\n  }\n}"
+ },
+ {
+  "inference_id": "inf:e77409b1-17f9-4803-ad90-d7756bf8796c",
+  "role": "HYPOTHESIS_ENGINE",
+  "logical_slot": "REASONING_PRIMARY",
+  "provider": "external",
+  "model_id": "models/gemini-3.1-pro-preview",
+  "model_version": "lk:daab3932dc08fd0d",
+  "prompt_id": "prm:hypothesis-coverage-review",
+  "prompt_version": "1.0.0",
+  "created_at": "2026-10-27 06:22:40.776911+00",
+  "parameters": {
+   "aliases": {
+    "E1": "att:9594ec21-bddb-45e1-b9b2-2e8966fdc693",
+    "E2": "att:11f61a5c-9e1f-434a-a8e4-dfac0c11e0bd",
+    "E3": "att:1916d6aa-d4bd-4d7a-8a31-b804c27f2e32",
+    "E4": "att:6d54a1ae-d206-441a-877d-8af07967d1ef",
+    "E5": "att:a4619fe6-efc0-4c0e-ad7a-2ce0a7865585",
+    "E6": "att:b2bf20a2-ae5c-4bea-840b-96b7f644d85c",
+    "E7": "att:f2ec490a-30cc-47b3-9e4a-e0fdb0e7bd93",
+    "E8": "att:1bb181ab-de78-4dd9-914c-d017c4a94605",
+    "H1": "hyp:74ca0e2f-d53a-45be-bdb1-a1816acce446",
+    "H2": "hyp:fa2f1196-b07e-4d67-8807-c1343c8d6767",
+    "H3": "hyp:685bd493-a15c-4b72-b93a-4559631907d9",
+    "H4": "hyp:09bb0ab7-5752-4d9b-afb8-cf45e978a01e",
+    "H5": "hyp:db736405-235e-4d77-9da9-d029932b3964"
+   },
+   "attempt": 1,
+   "output_mode": "JSON_SCHEMA",
+   "context_hash": "sha256:ba370cc5e84de3a908d03cfb67416d60c95e6714df8ad72d98b10b5d2d0225df"
+  },
+  "output_text": "{\n  \"hypotheses\": [],\n  \"declined\": [\n    {\n      \"observable_ref\": \"sp.contact_connectivity\",\n      \"reason\": \"The evidence discusses physical contact resistance, probe contact, mesh artefacts, and extraction script issues, but does not motivate a mechanism involving a layout or schematic contact connectivity discontinuity.\",\n      \"evidence_ids\": [\n        \"E3\",\n        \"E4\"\n      ]\n    }\n  ]\n}"
+ },
+ {
+  "inference_id": "inf:55263f53-22e3-4a6e-87d5-7c400732cb4c",
+  "role": "sp.specialist.semiconductor_device",
+  "logical_slot": "REASONING_PRIMARY",
+  "provider": "external",
+  "model_id": "models/gemini-3.1-pro-preview",
+  "model_version": "lk:daab3932dc08fd0d",
+  "prompt_id": "prm:sp.specialist.semiconductor_device",
+  "prompt_version": "1.0.0",
+  "created_at": "2026-10-27 06:23:46.51866+00",
+  "parameters": {
+   "aliases": {
+    "E1": "att:9594ec21-bddb-45e1-b9b2-2e8966fdc693",
+    "E2": "att:11f61a5c-9e1f-434a-a8e4-dfac0c11e0bd",
+    "E3": "att:1916d6aa-d4bd-4d7a-8a31-b804c27f2e32",
+    "E4": "att:6d54a1ae-d206-441a-877d-8af07967d1ef",
+    "E5": "att:a4619fe6-efc0-4c0e-ad7a-2ce0a7865585",
+    "E6": "att:b2bf20a2-ae5c-4bea-840b-96b7f644d85c",
+    "E8": "att:1bb181ab-de78-4dd9-914c-d017c4a94605",
+    "E9": "att:0d51adca-3c7f-4349-a5b8-0f2a81117528",
+    "H1": "hyp:74ca0e2f-d53a-45be-bdb1-a1816acce446",
+    "H2": "hyp:fa2f1196-b07e-4d67-8807-c1343c8d6767",
+    "H3": "hyp:685bd493-a15c-4b72-b93a-4559631907d9",
+    "H4": "hyp:09bb0ab7-5752-4d9b-afb8-cf45e978a01e",
+    "H5": "hyp:db736405-235e-4d77-9da9-d029932b3964"
+   },
+   "attempt": 1,
+   "output_mode": "JSON_SCHEMA",
+   "context_hash": "sha256:cb6f633f5baaf5d642ec9dc57ea12ff5362d1ac8e45f257035ea63ad8d35c5fc"
+  },
+  "output_text": "{\"mechanism_view\": \"The identical and normally trending junction capacitance (Cj) across splits A and B indicates that the depletion region is physically similar and behaving as expected. The 50% difference in series resistance (Rs) is bias-independent, which rules out depletion effects. This constant offset in Rs is characteristic of a series parasitic component, such as contact resistance. The evidence points to either a genuine physical variation in contact resistance between the splits or an extraction artefact due to the missing contact resistance correction term in the script. A mesh artefact is unlikely as it would perturb Cj.\", \"favoured_hypothesis_ids\": [\"H1\", \"H2\"], \"uncertainties\": [\"Lack of transmission-line measurements (TLM) to isolate physical contact resistance.\", \"Inability to confirm if the Rs difference is purely an extraction artefact due to the missing correction term.\"], \"confounders\": [\"The extraction script's failure to apply the contact_resistance_term, leaving Rs uncorrected.\"], \"proposed_predictions\": [{\"observable_ref\": \"Transmission-line measurement (TLM)\", \"expected_outcome\": \"Extraction of true contact resistance to verify if a physical difference exists between splits A and B.\"}, {\"observable_ref\": \"Corrected extraction script output\", \"expected_outcome\": \"Applying the missing contact_resistance_term will reveal whether the 50% Rs difference persists.\"}]}"
+ },
+ {
+  "inference_id": "inf:3894fa0d-5212-49da-bc0c-571bfd43962b",
+  "role": "sp.specialist.simulation_numerics",
+  "logical_slot": "REASONING_PRIMARY",
+  "provider": "external",
+  "model_id": "models/gemini-3.1-pro-preview",
+  "model_version": "lk:daab3932dc08fd0d",
+  "prompt_id": "prm:sp.specialist.simulation_numerics",
+  "prompt_version": "1.0.0",
+  "created_at": "2026-10-27 06:24:02.005903+00",
+  "parameters": {
+   "aliases": {
+    "E1": "att:9594ec21-bddb-45e1-b9b2-2e8966fdc693",
+    "E2": "att:11f61a5c-9e1f-434a-a8e4-dfac0c11e0bd",
+    "E3": "att:1916d6aa-d4bd-4d7a-8a31-b804c27f2e32",
+    "E4": "att:6d54a1ae-d206-441a-877d-8af07967d1ef",
+    "E5": "att:a4619fe6-efc0-4c0e-ad7a-2ce0a7865585",
+    "E6": "att:b2bf20a2-ae5c-4bea-840b-96b7f644d85c",
+    "E7": "att:f2ec490a-30cc-47b3-9e4a-e0fdb0e7bd93",
+    "E8": "att:1bb181ab-de78-4dd9-914c-d017c4a94605",
+    "H1": "hyp:74ca0e2f-d53a-45be-bdb1-a1816acce446",
+    "H2": "hyp:fa2f1196-b07e-4d67-8807-c1343c8d6767",
+    "H3": "hyp:685bd493-a15c-4b72-b93a-4559631907d9",
+    "H4": "hyp:09bb0ab7-5752-4d9b-afb8-cf45e978a01e",
+    "H5": "hyp:db736405-235e-4d77-9da9-d029932b3964"
+   },
+   "attempt": 1,
+   "output_mode": "JSON_SCHEMA",
+   "context_hash": "sha256:efd67c5425c83452f60fd3676cb1a6e2e164d263cd2e8f8acde359f36fae2ca1"
+  },
+  "output_text": "{\n  \"mechanism_view\": \"The anomaly is highly likely to be an extraction artefact rather than a mesh artefact. Evidence indicates that the extraction script lacked the contact_resistance_term, leaving the reported series resistance uncorrected and potentially creating an artificial 50% difference between the splits. A mesh artefact is contraindicated because it would perturb the capacitance non-uniformly at bias points where the depletion edge moves fastest, rather than producing the observed uniform shift across the sweep.\",\n  \"favoured_hypothesis_ids\": [\n    \"H2\"\n  ],\n  \"uncertainties\": [\n    \"Whether the observed Rs difference is entirely due to the missing baseline correction in the extraction script or if a genuine physical difference in contact resistance also exists.\",\n    \"Whether a mesh artefact could theoretically manifest as a uniform Rs shift under specific, untested simulation conditions.\"\n  ],\n  \"confounders\": [\n    \"The unavailability of the contact_resistance_term in the extraction script, which leaves the rs_per_mm uncorrected.\"\n  ],\n  \"proposed_predictions\": [\n    {\n      \"observable_ref\": \"Re-run extraction script with contact_resistance_term provided\",\n      \"expected_outcome\": \"The 50% difference in Rs between splits A and B disappears, confirming it was an extraction artefact.\"\n    },\n    {\n      \"observable_ref\": \"Mesh-sensitivity sweep on the simulated structure\",\n      \"expected_outcome\": \"The extracted Rs and Cj remain consistent across different mesh densities, definitively ruling out a mesh artefact.\"\n    }\n  ]\n}"
+ },
+ {
+  "inference_id": "inf:7d0d21f7-fc83-490a-958e-c33ab879acf7",
+  "role": "EVIDENCE_RESEARCHER",
+  "logical_slot": "FAST_UTILITY",
+  "provider": "local",
+  "model_id": "qwen2.5:7b",
+  "model_version": "lk:2b1d527792de5bf8",
+  "prompt_id": "prm:evidence-query-rewrite",
+  "prompt_version": "1.0.0",
+  "created_at": "2026-10-27 06:24:17.293722+00",
+  "parameters": {
+   "attempt": 1,
+   "output_mode": "JSON_SCHEMA",
+   "context_hash": "sha256:e4057ae8da71c80795c9c77ba25125014af3913a0b89bbb04055adf6ed414f49"
+  },
+  "output_text": "{\"terms\": [\"sp.small_signal_impedance = HIGH\", \"sp.small_signal_impedance = DEPENDENT_ON_BIAS\", \"sp.normalization_basis = NOT_AGREES\", \"sp.mesh_stability = UNSTABLE\", \"sp.probe_contact_resistance = ABNORMAL\", \"sp.carrier_profile = ABNORMAL\"]}"
+ },
+ {
+  "inference_id": "inf:5277c3a9-dbc3-46c7-aa13-90c3667bb41b",
+  "role": "critic",
+  "logical_slot": "REASONING_ADVERSARIAL",
+  "provider": "local",
+  "model_id": "qwen2.5:7b",
+  "model_version": "lk:2b1d527792de5bf8",
+  "prompt_id": "prm:adversarial-critic",
+  "prompt_version": "1.0.0",
+  "created_at": "2026-10-27 06:24:55.076498+00",
+  "parameters": {
+   "aliases": {
+    "E1": "att:9594ec21-bddb-45e1-b9b2-2e8966fdc693",
+    "E2": "att:11f61a5c-9e1f-434a-a8e4-dfac0c11e0bd",
+    "E3": "att:1916d6aa-d4bd-4d7a-8a31-b804c27f2e32",
+    "E4": "att:6d54a1ae-d206-441a-877d-8af07967d1ef",
+    "E5": "att:a4619fe6-efc0-4c0e-ad7a-2ce0a7865585",
+    "E6": "att:b2bf20a2-ae5c-4bea-840b-96b7f644d85c",
+    "E7": "att:f2ec490a-30cc-47b3-9e4a-e0fdb0e7bd93",
+    "E8": "att:1bb181ab-de78-4dd9-914c-d017c4a94605",
+    "E9": "att:0d51adca-3c7f-4349-a5b8-0f2a81117528",
+    "H1": "hyp:74ca0e2f-d53a-45be-bdb1-a1816acce446",
+    "H2": "hyp:fa2f1196-b07e-4d67-8807-c1343c8d6767",
+    "H3": "hyp:685bd493-a15c-4b72-b93a-4559631907d9",
+    "H4": "hyp:09bb0ab7-5752-4d9b-afb8-cf45e978a01e",
+    "H5": "hyp:db736405-235e-4d77-9da9-d029932b3964"
+   },
+   "attempt": 1,
+   "output_mode": "JSON_SCHEMA",
+   "context_hash": "sha256:4cc536d22a31c4f3c6c0a2adb3a9b65807d2afe40ac82f38d089b182f0eb285f"
+  },
+  "output_text": "{\"objections\": [{\"target_id\": \"H1\", \"kind\": \"MISSING_CONTROL\", \"severity\": \"CHALLENGES\", \"text\": \"The evidence does not control for the possibility that the mesh artefact could have caused the observed Rs difference, as it would not affect Cj uniformly.\", \"evidence_attestation_ids\": [\"E8\", \"E7\"]}, {\"target_id\": \"H2\", \"kind\": \"MISSING_CONTROL\", \"severity\": \"CHALLENGES\", \"text\": \"The evidence does not rule out the possibility that the mesh artefact could have caused the observed Rs difference, as it would not affect Cj uniformly.\", \"evidence_attestation_ids\": [\"E8\", \"E7\"]}], \"alternative_mechanisms\": [\"A mesh artefact in the simulated structure causes the anomalous Rs extraction.\"], \"falsifier_challenges\": [{\"target_id\": \"H1\", \"text\": \"The 50% difference in Rs between splits A and B is consistent with a mesh artefact, which would perturb the capacitance non-uniformly at bias points where the depletion edge moves fastest, rather than producing the observed uniform shift across the sweep.\"}]}"
+ },
+ {
+  "inference_id": "inf:fb07c02f-cd53-4925-9826-de9b998fba29",
+  "role": "HYPOTHESIS_ENGINE",
+  "logical_slot": "REASONING_PRIMARY",
+  "provider": "external",
+  "model_id": "models/gemini-3.1-pro-preview",
+  "model_version": "lk:daab3932dc08fd0d",
+  "prompt_id": "prm:hypothesis-engine",
+  "prompt_version": "5.0.0",
+  "created_at": "2026-10-27 06:27:14.295951+00",
+  "parameters": {
+   "attempt": 1,
+   "output_mode": "JSON_SCHEMA",
+   "context_hash": "sha256:55a46d21b4a24ecc42b915b668ed9c8575427d0006177c49fc49e7bcddfb5be5"
+  },
+  "output_text": "{\n  \"hypotheses\": [\n    {\n      \"key\": \"mesh_artefact\",\n      \"statement\": \"A mesh artefact in the simulated structure causes the anomalous Rs extraction.\",\n      \"mechanism\": \"A specific mesh instability in the simulated comparison structure erroneously inflates the extracted series resistance uniformly, leading to the observed anomaly.\",\n      \"assumptions\": [\n        \"The mesh used in the simulation is unstable or insufficiently refined.\",\n        \"The mesh artefact affects Rs extraction without perturbing Cj at the measured bias points.\"\n      ],\n      \"falsifier\": \"Observing a stable mesh would refute the mesh artefact hypothesis.\",\n      \"falsifier_prediction_keys\": [\n        \"pred_mesh_stable\"\n      ],\n      \"confounders\": [\n        \"Missing baseline correction\",\n        \"Inconsistent probe contact\"\n      ],\n      \"minimal_test_ref\": \"sp.mesh_stability\",\n      \"predictions\": [\n        {\n          \"key\": \"pred_mesh_stable\",\n          \"observable_ref\": \"sp.mesh_stability\",\n          \"outcome_space_id\": \"os:sp.mesh_stability\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"STABLE\",\n          \"relation_effect\": \"CONTRADICTS\"\n        },\n        {\n          \"key\": \"pred_mesh_unstable\",\n          \"observable_ref\": \"sp.mesh_stability\",\n          \"outcome_space_id\": \"os:sp.mesh_stability\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"UNSTABLE\",\n          \"relation_effect\": \"SUPPORTS\"\n        },\n        {\n          \"key\": \"pred_rs_bias_insensitive_1\",\n          \"observable_ref\": \"sp.small_signal_impedance\",\n          \"outcome_space_id\": \"os:sp.rs_bias_response\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"RS_BIAS_INSENSITIVE\",\n          \"relation_effect\": \"PREDICTS\"\n        }\n      ]\n    },\n    {\n      \"key\": \"missing_correction\",\n      \"statement\": \"The extraction script reports uncorrected rs_per_mm because the contact_resistance_term is unavailable.\",\n      \"mechanism\": \"This missing baseline correction manifests as an apparent 50% difference in Rs between splits, which is purely an artefact of the normalization or correction basis rather than a physical device difference.\",\n      \"assumptions\": [\n        \"The contact_resistance_term is required for accurate Rs comparison.\",\n        \"The script's failure to apply the correction causes the observed difference.\"\n      ],\n      \"falsifier\": \"The normalization basis agrees with the expected corrected values.\",\n      \"falsifier_prediction_keys\": [\n        \"pred_norm_agrees\"\n      ],\n      \"confounders\": [\n        \"Mesh artefact\",\n        \"Inconsistent probe contact\"\n      ],\n      \"minimal_test_ref\": \"sp.normalization_basis\",\n      \"predictions\": [\n        {\n          \"key\": \"pred_norm_agrees\",\n          \"observable_ref\": \"sp.normalization_basis\",\n          \"outcome_space_id\": \"os:sp.normalization_basis\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"AGREES\",\n          \"relation_effect\": \"CONTRADICTS\"\n        },\n        {\n          \"key\": \"pred_norm_disagrees\",\n          \"observable_ref\": \"sp.normalization_basis\",\n          \"outcome_space_id\": \"os:sp.normalization_basis\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"DISAGREES\",\n          \"relation_effect\": \"SUPPORTS\"\n        },\n        {\n          \"key\": \"pred_rs_bias_insensitive_2\",\n          \"observable_ref\": \"sp.small_signal_impedance\",\n          \"outcome_space_id\": \"os:sp.rs_bias_response\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"RS_BIAS_INSENSITIVE\",\n          \"relation_effect\": \"PREDICTS\"\n        }\n      ]\n    },\n    {\n      \"key\": \"probe_contact\",\n      \"statement\": \"Inconsistent physical contact between the measurement probes and the device pads adds a variable, bias-independent series resistance.\",\n      \"mechanism\": \"This external resistance masks the true device Rs and creates the 50% difference between the measurements of splits A and B.\",\n      \"assumptions\": [\n        \"Probe contact was inconsistent between measurements of split A and B.\"\n      ],\n      \"falsifier\": \"Probe contact resistance is nominal.\",\n      \"falsifier_prediction_keys\": [\n        \"pred_probe_nominal\"\n      ],\n      \"confounders\": [\n        \"Missing baseline correction\",\n        \"Mesh artefact\"\n      ],\n      \"minimal_test_ref\": \"sp.probe_contact_resistance\",\n      \"predictions\": [\n        {\n          \"key\": \"pred_probe_nominal\",\n          \"observable_ref\": \"sp.probe_contact_resistance\",\n          \"outcome_space_id\": \"os:sp.probe_contact_resistance\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"NOMINAL\",\n          \"relation_effect\": \"CONTRADICTS\"\n        },\n        {\n          \"key\": \"pred_probe_elevated\",\n          \"observable_ref\": \"sp.probe_contact_resistance\",\n          \"outcome_space_id\": \"os:sp.probe_contact_resistance\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"ELEVATED\",\n          \"relation_effect\": \"SUPPORTS\"\n        },\n        {\n          \"key\": \"pred_rs_bias_insensitive_3\",\n          \"observable_ref\": \"sp.small_signal_impedance\",\n          \"outcome_space_id\": \"os:sp.rs_bias_response\",\n          \"outcome_space_version\": \"1.0.0\",\n          \"expected_outcome\": \"RS_BIAS_INSENSITIVE\",\n          \"relation_effect\": \"PREDICTS\"\n        }\n      ]\n    }\n  ],\n  \"position\": {\n    \"mechanism_view\": \"The anomaly in Rs extraction is likely due to a missing baseline correction in the extraction script, as indicated by the warning log, though a mesh artefact or inconsistent probe contact remain viable alternatives.\",\n    \"uncertainties\": [\n      \"Whether the mesh in the simulated structure is stable.\",\n      \"Whether the probe contact was consistent during measurements.\"\n    ],\n    \"confounders\": [\n      \"Process-dependent contact resistance variations\",\n      \"Missing contact_resistance_term in extraction script\"\n    ]\n  }\n}"
+ },
+ {
+  "inference_id": "inf:c52740a6-fab9-4849-861e-3f1fa1edae6f",
+  "role": "EVIDENCE_RESEARCHER",
+  "logical_slot": "FAST_UTILITY",
+  "provider": "local",
+  "model_id": "qwen2.5:7b",
+  "model_version": "lk:2b1d527792de5bf8",
+  "prompt_id": "prm:evidence-query-rewrite",
+  "prompt_version": "1.0.0",
+  "created_at": "2026-10-27 06:27:53.887634+00",
+  "parameters": {
+   "attempt": 1,
+   "output_mode": "JSON_SCHEMA",
+   "context_hash": "sha256:d199b7dd33861dec8af549f72464ad9c4c64afb9397749e4f323dc63f7d8455e"
+  },
+  "output_text": "{\"terms\": [\"sp.small_signal_impedance RS_RISES_WITH_REVERSE_BIAS\", \"sp.normalization_basis DISAGREES\", \"sp.mesh_stability UNSTABLE\", \"sp.probe_contact_resistance ANOMALOUS\", \"sp.carrier_profile ANOMALOUS\"]}"
+ },
+ {
+  "inference_id": "inf:18fbb273-fdc1-4d8b-a20c-a929bb76b8b3",
+  "role": "critic",
+  "logical_slot": "REASONING_ADVERSARIAL",
+  "provider": "local",
+  "model_id": "qwen2.5:7b",
+  "model_version": "lk:2b1d527792de5bf8",
+  "prompt_id": "prm:adversarial-critic",
+  "prompt_version": "1.0.0",
+  "created_at": "2026-10-27 06:28:23.419171+00",
+  "parameters": {
+   "aliases": {
+    "E1": "att:9594ec21-bddb-45e1-b9b2-2e8966fdc693",
+    "E2": "att:11f61a5c-9e1f-434a-a8e4-dfac0c11e0bd",
+    "E3": "att:1916d6aa-d4bd-4d7a-8a31-b804c27f2e32",
+    "E4": "att:6d54a1ae-d206-441a-877d-8af07967d1ef",
+    "E5": "att:a4619fe6-efc0-4c0e-ad7a-2ce0a7865585",
+    "E6": "att:b2bf20a2-ae5c-4bea-840b-96b7f644d85c",
+    "E7": "att:f2ec490a-30cc-47b3-9e4a-e0fdb0e7bd93",
+    "E8": "att:1bb181ab-de78-4dd9-914c-d017c4a94605",
+    "E9": "att:0d51adca-3c7f-4349-a5b8-0f2a81117528",
+    "H1": "hyp:74ca0e2f-d53a-45be-bdb1-a1816acce446",
+    "H2": "hyp:fa2f1196-b07e-4d67-8807-c1343c8d6767",
+    "H3": "hyp:685bd493-a15c-4b72-b93a-4559631907d9",
+    "H4": "hyp:09bb0ab7-5752-4d9b-afb8-cf45e978a01e",
+    "H5": "hyp:db736405-235e-4d77-9da9-d029932b3964",
+    "H6": "hyp:ac67e5f1-5248-4b13-bb04-886e9240bb90",
+    "H7": "hyp:7ca6436c-309e-4bbd-a9ab-3935661afa59",
+    "H8": "hyp:d41fc38f-a2d9-4158-aaa3-5e0114d8c706"
+   },
+   "attempt": 1,
+   "output_mode": "JSON_SCHEMA",
+   "context_hash": "sha256:4e79071b5dfa4fbc19ace963900735a14a274351ac9ae284d97cf7bfae488b98"
+  },
+  "output_text": "{\n  \"objections\": [\n    {\n      \"target_id\": \"H1\",\n      \"kind\": \"MISSING_CONTROL\",\n      \"severity\": \"CHALLENGES\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the contact resistance is the dominant factor. The 50% difference in Rs could be an artefact of the missing contact_resistance_term in the extraction script.\",\n      \"evidence_attestation_ids\": [\"E6\"]\n    },\n    {\n      \"target_id\": \"H2\",\n      \"kind\": \"MISSING_CONTROL\",\n      \"severity\": \"CHALLENGES\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the extraction artefact is the dominant factor. The 50% difference in Rs could be due to a physical variation in contact resistance between the splits.\",\n      \"evidence_attestation_ids\": [\"E6\"]\n    },\n    {\n      \"target_id\": \"H4\",\n      \"kind\": \"MISSING_CONTROL\",\n      \"severity\": \"CHALLENGES\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the mesh artefact is the dominant factor. The 50% difference in Rs could be an artefact of the missing contact_resistance_term in the extraction script.\",\n      \"evidence_attestation_ids\": [\"E6\"]\n    },\n    {\n      \"target_id\": \"H5\",\n      \"kind\": \"MISSING_CONTROL\",\n      \"severity\": \"CHALLENGES\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the carrier compensation is the dominant factor. The 50% difference in Rs could be an artefact of the missing contact_resistance_term in the extraction script.\",\n      \"evidence_attestation_ids\": [\"E6\"]\n    },\n    {\n      \"target_id\": \"H6\",\n      \"kind\": \"MISSING_CONTROL\",\n      \"severity\": \"CHALLENGES\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the mesh artefact is the dominant factor. The 50% difference in Rs could be an artefact of the missing contact_resistance_term in the extraction script.\",\n      \"evidence_attestation_ids\": [\"E6\"]\n    },\n    {\n      \"target_id\": \"H7\",\n      \"kind\": \"MISSING_CONTROL\",\n      \"severity\": \"CHALLENGES\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the extraction artefact is the dominant factor. The 50% difference in Rs could be due to a physical variation in contact resistance between the splits.\",\n      \"evidence_attestation_ids\": [\"E6\"]\n    },\n    {\n      \"target_id\": \"H8\",\n      \"kind\": \"MISSING_CONTROL\",\n      \"severity\": \"CHALLENGES\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the probe contact is the dominant factor. The 50% difference in Rs could be an artefact of the missing contact_resistance_term in the extraction script.\",\n      \"evidence_attestation_ids\": [\"E6\"]\n    }\n  ],\n  \"alternative_mechanisms\": [\n    \"A process-dependent contact resistance adds a constant, bias-independent term to the series resistance, differing between splits.\",\n    \"The observed difference in Rs is an artefact of the extraction script missing the contact resistance correction term.\",\n    \"A mesh artefact in the simulated structure causes the anomalous Rs extraction.\",\n    \"Inconsistent physical contact between the measurement probes and the device pads adds a variable, bias-independent series resistance.\"\n  ],\n  \"falsifier_challenges\": [\n    {\n      \"target_id\": \"H1\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the contact resistance is the dominant factor. The 50% difference in Rs could be an artefact of the missing contact_resistance_term in the extraction script.\"\n    },\n    {\n      \"target_id\": \"H2\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the extraction artefact is the dominant factor. The 50% difference in Rs could be due to a physical variation in contact resistance between the splits.\"\n    },\n    {\n      \"target_id\": \"H4\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the mesh artefact is the dominant factor. The 50% difference in Rs could be an artefact of the missing contact_resistance_term in the extraction script.\"\n    },\n    {\n      \"target_id\": \"H5\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the carrier compensation is the dominant factor. The 50% difference in Rs could be an artefact of the missing contact_resistance_term in the extraction script.\"\n    },\n    {\n      \"target_id\": \"H6\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the mesh artefact is the dominant factor. The 50% difference in Rs could be an artefact of the missing contact_resistance_term in the extraction script.\"\n    },\n    {\n      \"target_id\": \"H7\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the extraction artefact is the dominant factor. The 50% difference in Rs could be due to a physical variation in contact resistance between the splits.\"\n    },\n    {\n      \"target_id\": \"H8\",\n      \"text\": \"The evidence does not provide a control measurement to confirm the probe contact is the dominant factor. The 50% difference in Rs could be an artefact of the missing contact_resistance_term in the extraction script.\"\n    }\n  ]\n}"
+ }
+]

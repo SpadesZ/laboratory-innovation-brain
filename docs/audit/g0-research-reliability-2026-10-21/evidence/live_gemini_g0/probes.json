@@ -1,0 +1,130 @@
+[
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "CHAT",
+  "outcome": "PASSED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 3765,
+  "detail": ""
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "CODE",
+  "outcome": "PASSED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 2594,
+  "detail": ""
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "ROLE_CRITIQUE",
+  "outcome": "PASSED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 22859,
+  "detail": "JSON_SCHEMA"
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "ROLE_HYPOTHESIS",
+  "outcome": "PASSED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 55452,
+  "detail": ""
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "ROLE_QUERY",
+  "outcome": "PASSED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 5188,
+  "detail": "JSON_SCHEMA"
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "ROLE_SPECIALIST",
+  "outcome": "PASSED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 13266,
+  "detail": "JSON_SCHEMA"
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "STRUCTURED_JSON",
+  "outcome": "PASSED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 3344,
+  "detail": ""
+ },
+ {
+  "model_name": "models/gemini-3.1-pro-preview",
+  "capability": "VISION",
+  "outcome": "PASSED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 2780,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "CHAT",
+  "outcome": "PASSED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 22234,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "CODE",
+  "outcome": "FAILED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 4390,
+  "detail": "the reply does not parse as Python"
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "ROLE_CRITIQUE",
+  "outcome": "PASSED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 102280,
+  "detail": "JSON_SCHEMA"
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "ROLE_HYPOTHESIS",
+  "outcome": "FAILED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 263750,
+  "detail": "multi-space: the typed role parser refused it: HYPOTHESIS_ENGINE: hypothesis 'h1' designates falsifier prediction 'h1p1', whose relation_effect is SUPPORTS; a falsifier is a declared outcome that would CONTRADICT the hypothesis"
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "ROLE_QUERY",
+  "outcome": "PASSED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 11718,
+  "detail": "JSON_SCHEMA"
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "ROLE_SPECIALIST",
+  "outcome": "PASSED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 67797,
+  "detail": "JSON_SCHEMA"
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "STRUCTURED_JSON",
+  "outcome": "PASSED",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": 3812,
+  "detail": ""
+ },
+ {
+  "model_name": "qwen2.5:7b",
+  "capability": "VISION",
+  "outcome": "ERROR",
+  "probe_version": "probe-7.0.0",
+  "latency_ms": null,
+  "detail": "PROTOCOL_ERROR: HTTP 400: {\"error\":{\"message\":\"Multimodal data provided, but model does not support multimodal requests.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":null}}"
+ }
+]
