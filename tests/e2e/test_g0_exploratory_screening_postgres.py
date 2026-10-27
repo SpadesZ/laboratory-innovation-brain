@@ -420,3 +420,104 @@ def test_screening_switched_off_takes_no_reading(db, tmp_path, standin):
         episode,
         sp.CAP_INSPECT_CONNECTIVITY,
     )
+
+
+def test_a_continuation_neither_screens_again_nor_repeats_the_reading(db, tmp_path, standin):
+    """Resume: the episode keeps its screening record and its conditioned rival; the run that
+    continues it takes no new reading, never runs the screened inspection, and still cannot
+    support the post-screening rival."""
+    fake, _model = standin
+    _setup(db)
+    browser = _deployment(tmp_path, inference_deadline=60)
+    _activated(db, browser, fake)
+    episode = research(browser, device("contact-open-via"))
+    ((state,),) = rows(db, "SELECT state FROM research_episodes WHERE episode_id = %s", episode)
+    assert state == "SUSPENDED", state
+    before = rows(db, "SELECT plan_id FROM screening_plans WHERE episode_id = %s", episode)
+    continued = browser.post(
+        f"/episodes/{episode}/continue", {"csrf": _token(browser.get(f"/episodes/{episode}"))}
+    )
+    assert continued.status == 303, _text(continued)[:600]
+    assert rows(db, "SELECT plan_id FROM screening_plans WHERE episode_id = %s", episode) == before
+    assert not rows(
+        db,
+        "SELECT 1 FROM jobs WHERE episode_id = %s AND capability_id = %s"
+        " AND idempotency_key NOT LIKE 'scr:%%'",
+        episode,
+        sp.CAP_INSPECT_CONNECTIVITY,
+    )
+    ((hypothesis,),) = rows(
+        db,
+        "SELECT hypothesis_id FROM screening_conditioned_hypotheses WHERE episode_id = %s",
+        episode,
+    )
+    assert not rows(
+        db,
+        "SELECT 1 FROM relation_judgments WHERE to_entity_id = %s AND relation_type = 'SUPPORTS'",
+        hypothesis,
+    )
+    reports = SqlResearchReportStore(db).for_episode(project_id=PROJECT, episode_id=episode)
+    assert [r.ordinal for r in reports] == [1, 2]
+    second = reports[1].report
+    assert {h.hypothesis_id: h.origin for h in second.hypotheses}[hypothesis] == "POST_SCREENING"
+    assert any(
+        n.startswith("not repeated by verification") and sp.CAP_INSPECT_CONNECTIVITY in n
+        for n in second.notes
+    )
+
+
+def test_screening_records_are_project_scoped_and_append_only(db, tmp_path, standin):
+    fake, _model = standin
+    _setup(db)
+    browser = _deployment(tmp_path, inference_deadline=60)
+    _activated(db, browser, fake)
+    episode = research(browser, device("contact-open-via"))
+    from lab_brain.core.repositories.screening import SqlScreeningStore
+
+    store = SqlScreeningStore(db)
+    assert store.screened_keys(PROJECT, episode)
+    assert not store.screened_keys("prj:another", episode)
+    assert not store.observations_for_episode("prj:another", episode)
+    ((plan_id, set_id),) = rows(
+        db, "SELECT plan_id, hypothesis_set_id FROM screening_plans WHERE episode_id = %s", episode
+    )
+    with (
+        pytest.raises(psycopg.errors.RaiseException, match="append-only"),
+        db.transaction(force_rollback=True),
+    ):
+        db.execute(
+            "UPDATE screening_observations SET detail = 'rewritten' WHERE plan_id = %s", (plan_id,)
+        )
+    with (
+        pytest.raises(psycopg.errors.RaiseException, match="append-only"),
+        db.transaction(force_rollback=True),
+    ):
+        db.execute("DELETE FROM screening_plans WHERE plan_id = %s", (plan_id,))
+    # A plan in another project's name for this episode is refused.
+    db.execute(
+        "INSERT INTO projects (project_id, name) VALUES ('prj:another', 'another')"
+        " ON CONFLICT DO NOTHING"
+    )
+    with pytest.raises(psycopg.Error, match=r"episode|project"), db.transaction(force_rollback=True):
+        db.execute(
+            "INSERT INTO screening_plans (plan_id, project_id, episode_id, trace_id, actor_id,"
+            " hypothesis_set_id, policy_id, policy_version, considered_hypothesis_ids,"
+            " unaddressed_observables, input_artifacts, candidates, selected_capability_ids,"
+            " created_at) SELECT 'spl:forged', 'prj:another', episode_id, trace_id, actor_id,"
+            " hypothesis_set_id, policy_id, policy_version, considered_hypothesis_ids,"
+            " unaddressed_observables, input_artifacts, candidates, selected_capability_ids,"
+            " created_at FROM screening_plans WHERE plan_id = %s",
+            (plan_id,),
+        )
+    # A reading of a check the plan never selected is refused.
+    with (
+        pytest.raises(psycopg.errors.RaiseException, match="not a check its plan"),
+        db.transaction(force_rollback=True),
+    ):
+        db.execute(
+            "INSERT INTO screening_observations (screening_observation_id, plan_id, project_id,"
+            " episode_id, rank, capability_id, status, estimated_cost, recorded_at)"
+            " VALUES ('sob:forged', %s, %s, %s, 9, %s, 'NOT_RUN', '{}'::jsonb, now())",
+            (plan_id, PROJECT, episode, sp.CAP_MESH_SENSITIVITY),
+        )
+    del set_id
