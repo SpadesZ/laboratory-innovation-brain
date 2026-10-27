@@ -38,5 +38,5 @@ A local PostgreSQL must use password authentication on host connections, or
    `g0-exploratory-screening` (AI-authored commits; the force operation was not permitted here).
 2. Add a capability probe case for `prm:hypothesis-screening-review@1.0.0` before real use.
 3. Run the full 719-entry mutation battery before Owner acceptance.
-4. Read the CI result of the latest `-v2` push (this environment's proxy blocks the CI log host;
-   use the GitHub UI for failing-test names).
+4. CI on `baabcf4` (run 40491804674) passed all four jobs. This environment's proxy blocks the CI
+   log host, so read failing-test names in the GitHub UI if a later run fails.

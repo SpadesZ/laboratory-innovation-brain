@@ -108,7 +108,7 @@
 | 新的篩檢 e2e（6 項）與矩陣（5 項） | 全部通過 |
 | 新的單元測試 | 31 通過 |
 | 突變 | 20/20 被抓到（§7） |
-| GitHub Actions | 見 §6.1 |
+| GitHub Actions（run 40491804674） | 四項全部通過（§6.1） |
 
 - 【事實】PG 兩項失敗：
   1. `test_episode_cognition_path_postgres`：既有守衛要求每個 `status` 欄都要宣告為非信念的生命週期。這是**真缺口**；已宣告 `screening_observations.status`（執行生命週期）。
@@ -117,7 +117,7 @@
 ### 6.1 CI
 
 - 【事實】舊分支 `g0-exploratory-screening` 的第一次 CI（run 40475940923）：提交規範、規格一致性、lint／型別／完整測試通過；**PostgreSQL 工作失敗**。這個雲端環境的代理擋住了 CI 日誌主機，無法讀出失敗的測試名稱；【推論】是上述第 1 項（之後才修）。
-- 【事實】新分支 `g0-exploratory-screening-v2` 的 CI：run 40491425160，結果寫在本報告提交之後的聊天回覆中（本報告撰寫時仍在執行）。
+- 【事實】新分支 `g0-exploratory-screening-v2`，提交 `baabcf4`（程式同 `f18360e`，加本報告）：https://github.com/SpadesZ/laboratory-innovation-brain/actions/runs/40491804674 —— **四項工作全部通過**：提交規範（無 AI 署名）、規格一致性、lint／型別／完整測試、**PostgreSQL 完整測試（新建資料庫、套用全部 71 個 migration）**。
 
 ---
 
