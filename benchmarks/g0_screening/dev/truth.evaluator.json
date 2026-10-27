@@ -1,0 +1,18 @@
+{
+ "suite": "g0-screening-dev",
+ "version": "1.0.0",
+ "cases": {
+  "dv-01": {"true_causes": ["contact_discontinuity"], "design_sound": false, "decisive_cheap_checks": ["cap:sp.inspect_contact_connectivity"], "expected_abnormal_observables": ["sp.contact_connectivity"], "rationale": "historical contact-open-via: cathode via not drawn to metal"},
+  "dv-02": {"true_causes": ["contact_discontinuity"], "design_sound": false, "decisive_cheap_checks": ["cap:sp.inspect_contact_connectivity"], "expected_abnormal_observables": ["sp.contact_connectivity"], "rationale": "historical contact-thin-overlap: anode overlap 40 nm below the 100 nm rule"},
+  "dv-03": {"true_causes": ["contact_discontinuity"], "design_sound": false, "decisive_cheap_checks": ["cap:sp.inspect_contact_connectivity"], "expected_abnormal_observables": ["sp.contact_connectivity"], "rationale": "historical outage-contact device: anode via open (seat contention not reproduced)"},
+  "dv-04": {"true_causes": ["normalization_error"], "design_sound": false, "decisive_cheap_checks": ["cap:sp.extraction_consistency"], "expected_abnormal_observables": ["sp.normalization_basis"], "rationale": "historical normalization-taper: 1000 um basis for a 500 um device"},
+  "dv-05": {"true_causes": ["mesh_artifact"], "design_sound": false, "decisive_cheap_checks": [], "expected_abnormal_observables": [], "rationale": "mesh fault: no cheap check can see it"},
+  "dv-06": {"true_causes": ["dopant_compensation"], "design_sound": false, "decisive_cheap_checks": [], "expected_abnormal_observables": [], "rationale": "counter-doping: no cheap check can see it"},
+  "dv-07": {"true_causes": ["probe_artifact"], "design_sound": true, "decisive_cheap_checks": [], "expected_abnormal_observables": [], "rationale": "sound design; probe artefact"},
+  "dv-08": {"true_causes": ["probe_artifact"], "design_sound": true, "decisive_cheap_checks": [], "expected_abnormal_observables": [], "rationale": "sound design; probe station unavailable"},
+  "dv-09": {"true_causes": ["contact_discontinuity", "normalization_error"], "design_sound": false, "decisive_cheap_checks": ["cap:sp.inspect_contact_connectivity", "cap:sp.extraction_consistency"], "expected_abnormal_observables": ["sp.contact_connectivity", "sp.normalization_basis"], "rationale": "competing causes: open via plus 1000 um basis (the live 'competing' case)"},
+  "dv-10": {"true_causes": ["contact_discontinuity"], "design_sound": false, "decisive_cheap_checks": ["cap:sp.inspect_contact_connectivity"], "expected_abnormal_observables": ["sp.contact_connectivity"], "rationale": "open via with the connectivity reader unavailable: nothing may read it"},
+  "dv-11": {"true_causes": ["contact_discontinuity"], "design_sound": false, "decisive_cheap_checks": ["cap:sp.inspect_contact_connectivity"], "expected_abnormal_observables": ["sp.contact_connectivity"], "rationale": "contradictory evidence: report claims continuity verified while the via is open"},
+  "dv-12": {"true_causes": ["probe_artifact"], "design_sound": true, "decisive_cheap_checks": [], "expected_abnormal_observables": [], "rationale": "contradictory-evidence report on a sound design"}
+ }
+}
