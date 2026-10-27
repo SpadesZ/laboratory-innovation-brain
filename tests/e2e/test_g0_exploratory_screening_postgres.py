@@ -498,7 +498,10 @@ def test_screening_records_are_project_scoped_and_append_only(db, tmp_path, stan
         "INSERT INTO projects (project_id, name) VALUES ('prj:another', 'another')"
         " ON CONFLICT DO NOTHING"
     )
-    with pytest.raises(psycopg.Error, match=r"episode|project"), db.transaction(force_rollback=True):
+    with (
+        pytest.raises(psycopg.Error, match=r"episode|project"),
+        db.transaction(force_rollback=True),
+    ):
         db.execute(
             "INSERT INTO screening_plans (plan_id, project_id, episode_id, trace_id, actor_id,"
             " hypothesis_set_id, policy_id, policy_version, considered_hypothesis_ids,"
