@@ -1,0 +1,2526 @@
+{
+ "configurations": {
+  "combined": {
+   "dev": {
+    "dv-01": {
+     "episode": "epi:9a4dff61-97ca-460e-98f8-b37bce2cc6ec",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (broken contact via in the access path, probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:204fcb0c-bdb8-475a-a625-fcde09eb1c06",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:362dcad3-89f6-47bc-8c5a-703e79c8a7a5",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:91218604-225d-454c-9ce0-500f681378bb",
+       "mechanism": "broken contact via in the access path (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.contact_connectivity"
+       ],
+       "supports": 1
+      },
+      {
+       "hypothesis_id": "hyp:984c4c32-6388-4dba-b4b0-81e154cd540f",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:d376bceb-d51b-486e-91d0-fb6397af42a1",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency"
+     ],
+     "verification_executed": [
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "dv-02": {
+     "episode": "epi:1556b592-e6d5-4fc3-ab7f-d4d20be13f56",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (broken contact via in the access path, probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:6261511a-1f75-4885-9c38-1e0155ae5fec",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:7cf764a0-145a-4af4-8fc2-693ac3c8394e",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:a5ddabd8-2d60-4f12-9ba6-c2c010e9554d",
+       "mechanism": "broken contact via in the access path (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.contact_connectivity"
+       ],
+       "supports": 1
+      },
+      {
+       "hypothesis_id": "hyp:c3c8f1d0-b323-40ea-a966-d1ed8c035d2f",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:d4676f77-8ddd-446d-bba0-f17eca069210",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency"
+     ],
+     "verification_executed": [
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "dv-03": {
+     "episode": "epi:4b6c8462-9a33-4bcb-837c-94db9d214eeb",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (broken contact via in the access path, probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:2d9f4965-fb8d-448a-9b83-ea05655088b9",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:337a5ad3-6854-4f0e-b2bc-38e1dad99443",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:56022204-1146-4e0f-a14a-6c35898fd5da",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:6987492e-ded2-4fc8-9935-2839d808ed09",
+       "mechanism": "broken contact via in the access path (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.contact_connectivity"
+       ],
+       "supports": 1
+      },
+      {
+       "hypothesis_id": "hyp:bd85a05f-9f07-4f94-94d2-4aa0195c321d",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency"
+     ],
+     "verification_executed": [
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "dv-04": {
+     "episode": "epi:efe179c8-0005-4f0d-80c0-fa304ca1cead",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction, wrong extraction length basis). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:26a42dae-4b72-4839-bac3-d3cbda6098db",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:4b561ff9-f11e-4f88-9e66-8ac750421dd4",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:4eeedeb6-0981-4832-a0a4-fff8f4ea1a44",
+       "mechanism": "wrong extraction length basis (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.normalization_basis"
+       ],
+       "supports": 1
+      },
+      {
+       "hypothesis_id": "hyp:a7d05839-25dd-4958-839c-37ca556e5a25",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:d85c2ab6-9eed-4cb6-8383-49b21825c241",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "verification_executed": [
+      "cap:sp.extraction_consistency"
+     ],
+     "screening_kinds": {
+      "cap:sp.inspect_contact_connectivity": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.inspect_contact_connectivity",
+       "observable": "sp.contact_connectivity",
+       "outcome": "CONTINUOUS",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "dv-05": {
+     "episode": "epi:ee8e92f9-9e08-4c14-ba1c-73f8f6699cb7",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:0ea14247-2949-4cf4-be2b-f9fec318e9e4",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:246e0172-f22d-461a-aa54-655b7266cc33",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:38e8b41f-4c30-4632-9a45-b2895502fb94",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 3",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:b16f9c84-e67a-4aff-b150-4939f9f632a2",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:c4dd4fbe-eaf7-4724-9b7f-08c2ba1271a9",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency",
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "verification_executed": [],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK",
+      "cap:sp.inspect_contact_connectivity": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      },
+      {
+       "check": "cap:sp.inspect_contact_connectivity",
+       "observable": "sp.contact_connectivity",
+       "outcome": "CONTINUOUS",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "dv-06": {
+     "episode": "epi:ace078cb-7f2c-462c-ac8d-7c252bcde213",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:47cab630-158d-4ac7-91e3-d0b4697ca8a2",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:4c281383-1900-499b-9403-88aaae8c4fab",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 3",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:7a47bf18-8599-4db9-a27c-3fbe49b05f7e",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:89d6be0e-68af-46fc-ad25-6e0006eface1",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:dd5b0447-b0e2-4934-b8f7-d8f3661d3854",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency",
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "verification_executed": [],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK",
+      "cap:sp.inspect_contact_connectivity": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      },
+      {
+       "check": "cap:sp.inspect_contact_connectivity",
+       "observable": "sp.contact_connectivity",
+       "outcome": "CONTINUOUS",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "dv-07": {
+     "episode": "epi:b5e8e051-d534-4839-9126-60f897640b16",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:391df1c5-f109-4383-aa11-831137ff68ab",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:a929e9e2-6012-4823-ab01-2a403acb29d1",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:ccf0f2fc-531c-41ea-a7f0-611056c12646",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:e73338e0-401a-4f4c-8ac0-bac1ebf8f41b",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 3",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:e883bd0a-e37e-4691-a122-a2820f7a300e",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency",
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "verification_executed": [],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK",
+      "cap:sp.inspect_contact_connectivity": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      },
+      {
+       "check": "cap:sp.inspect_contact_connectivity",
+       "observable": "sp.contact_connectivity",
+       "outcome": "CONTINUOUS",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "dv-08": {
+     "episode": "epi:a88bc7f8-0839-4d11-afa4-2cab004715b0",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:2613828f-03ee-4fef-8deb-dce95a6a720b",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:648e0f47-a92e-44c8-9dfb-8969bf557b7e",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:87fbbb35-e730-42e7-a213-9977cbadd32f",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 3",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:ebd089a5-2b72-4933-8703-9dc887121edc",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:ecac2334-05d3-43a1-be82-00d552356185",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency",
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "verification_executed": [],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK",
+      "cap:sp.inspect_contact_connectivity": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      },
+      {
+       "check": "cap:sp.inspect_contact_connectivity",
+       "observable": "sp.contact_connectivity",
+       "outcome": "CONTINUOUS",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [
+      "cap:sp.fourpoint_probe"
+     ],
+     "leaks": []
+    },
+    "dv-09": {
+     "episode": "epi:f6c43f47-ecae-4d52-ad71-3edbac0b2468",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (broken contact via in the access path, probe contact resistance during the two-point measurement, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction, wrong extraction length basis). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:106d578b-3a9d-4611-ade2-b59ed0ba862f",
+       "mechanism": "wrong extraction length basis (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.normalization_basis"
+       ],
+       "supports": 1
+      },
+      {
+       "hypothesis_id": "hyp:7a7f491e-09b7-493d-a7a0-60eadfe7bf02",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:b31b18b6-554e-471c-b646-a474df3de437",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:e6a41fa4-da61-464f-98d0-fcb26532be3b",
+       "mechanism": "broken contact via in the access path (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.contact_connectivity"
+       ],
+       "supports": 1
+      },
+      {
+       "hypothesis_id": "hyp:f57ce925-c763-4750-a682-f833f2c07470",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [],
+     "verification_executed": [
+      "cap:sp.extraction_consistency",
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "screening_kinds": {},
+     "readings": [],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "dv-10": {
+     "episode": "epi:9271b96e-47b7-4e8f-bf01-01f46afb9b3c",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (broken contact via in the access path, probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction). No further check available here would change a decision.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:08f518f6-8a54-47cd-acfd-c3eb828bf0d7",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:1e1623ad-1af2-4d20-ac50-a232e885ff37",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:67fde1a0-f62d-4703-9b31-e6c1a7c941ef",
+       "mechanism": "broken contact via in the access path (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.contact_connectivity"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:9789d312-79e6-46b1-b566-a7c96eff236a",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:a876f470-3dba-486e-9a65-5627e31aa70e",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency"
+     ],
+     "verification_executed": [],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "leaks": []
+    },
+    "dv-11": {
+     "episode": "epi:b515f06c-b9cc-4d45-9f9b-9e9286912ebf",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (broken contact via in the access path, probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, process-dependent contact resistance between splits, uncorrected contact resistance term in the extraction). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:74ad9a50-16f5-4dca-b3a6-fe948cf38d0b",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:d7783814-9bee-465e-bb53-46600362873c",
+       "mechanism": "broken contact via in the access path (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.contact_connectivity"
+       ],
+       "supports": 1
+      },
+      {
+       "hypothesis_id": "hyp:f75cfdf9-e3dd-4bdd-b67b-850fc698cafa",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 3",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:f96b0da5-7359-46ae-a412-8b16bd1e215b",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:fb8bab10-1919-41d7-9e52-7ea66434a533",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency"
+     ],
+     "verification_executed": [
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "dv-12": {
+     "episode": "epi:05865a83-d297-4e9e-83df-a088d49797db",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, process-dependent contact resistance between splits, process-dependent contact resistance between splits, uncorrected contact resistance term in the extraction). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:00d3b59a-25ed-4436-9c31-b59f4207ae89",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:64b0f4c5-2a46-4f91-8c3c-276ff604e933",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:96c71e86-e5f5-4108-b11a-52a36f7aa971",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 2",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:a5598f96-0b2d-45a0-a566-e0e110d0910d",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:fb7143af-b14b-4f0d-bada-86a3eecd1613",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 3",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency",
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "verification_executed": [],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK",
+      "cap:sp.inspect_contact_connectivity": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      },
+      {
+       "check": "cap:sp.inspect_contact_connectivity",
+       "observable": "sp.contact_connectivity",
+       "outcome": "CONTINUOUS",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    }
+   },
+   "holdout": {
+    "ho-01": {
+     "episode": "epi:ce2d5951-64ec-424b-9622-292dcc2f6862",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (broken contact via in the access path, probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:38175952-ba0f-4afb-b574-13feca75cff2",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:3b78abe0-089c-4c31-8dce-838314f0b5f6",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:436340a4-0649-41be-ab41-de43758eefcf",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:49da6c9e-d342-4e91-a70e-f7013f7395b2",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:5bc81d58-bf53-4a90-a37a-ba1348f32967",
+       "mechanism": "broken contact via in the access path (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.contact_connectivity"
+       ],
+       "supports": 1
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency"
+     ],
+     "verification_executed": [
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "ho-02": {
+     "episode": "epi:dbd8c530-8ef0-488d-be27-7d39887a2d7e",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (broken contact via in the access path, process-dependent contact resistance between splits, process-dependent contact resistance between splits, process-dependent contact resistance between splits, process-dependent contact resistance between splits). Support was observed for a mechanism, but nobody accountable has yet said the observed outcome diagnoses that mechanism; a person's answer is pending. The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:69575948-1a2e-46cc-99bd-e7b90d5ee0d0",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 2",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:736af8ea-a458-420b-849c-e06eb115c2f6",
+       "mechanism": "broken contact via in the access path (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.contact_connectivity"
+       ],
+       "supports": 1
+      },
+      {
+       "hypothesis_id": "hyp:7cdf2161-3534-41df-b041-90d9dcaf4c39",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 3",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:81733a47-3cfa-40da-8153-d3261c2272c1",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 1",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:fc4c3ebd-dfcc-4f3e-abcf-31067f1ba8a7",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency"
+     ],
+     "verification_executed": [
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "ho-03": {
+     "episode": "epi:3114b1b1-4a94-463c-b9a8-bfeef4cf9d85",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (broken contact via in the access path, probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:10bdc4d3-605b-45a2-a76d-a349dc21bfeb",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:425fc000-ea7e-455a-807d-7c5a01ddbd5f",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:6c0ed325-6c3f-4913-92e9-2638a7e2ed90",
+       "mechanism": "broken contact via in the access path (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.contact_connectivity"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:8d098250-0696-4a30-9a79-9c1dc6668ced",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:9d02c44b-021f-4907-8be4-b2cf1ad5f63e",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency"
+     ],
+     "verification_executed": [
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "ho-04": {
+     "episode": "epi:ef7e32e1-7ea7-4153-b4d4-18e758290a6e",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (process-dependent contact resistance between splits, process-dependent contact resistance between splits, process-dependent contact resistance between splits, process-dependent contact resistance between splits, wrong extraction length basis). Support was observed for a mechanism, but nobody accountable has yet said the observed outcome diagnoses that mechanism; a person's answer is pending. The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:28b504e8-fc13-4984-b9d9-0b6628b68e64",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 3",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:885ce3a4-0650-46ab-b0c8-1c8be291dd03",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 1",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:8abc8980-6c2e-4c97-ad69-d2654e676de6",
+       "mechanism": "wrong extraction length basis (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.normalization_basis"
+       ],
+       "supports": 1
+      },
+      {
+       "hypothesis_id": "hyp:a48682fe-e450-497c-875d-dcaedb89d81f",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 2",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:b5b2989e-c88a-4ed1-80ef-dd1b602a6312",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "verification_executed": [
+      "cap:sp.extraction_consistency"
+     ],
+     "screening_kinds": {
+      "cap:sp.inspect_contact_connectivity": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.inspect_contact_connectivity",
+       "observable": "sp.contact_connectivity",
+       "outcome": "CONTINUOUS",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "ho-05": {
+     "episode": "epi:7536563d-52bb-4ede-b7d7-931bff0c6100",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (doping profile difference between splits, process-dependent contact resistance between splits, process-dependent contact resistance between splits, process-dependent contact resistance between splits, process-dependent contact resistance between splits). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:092af9de-56a2-4f79-96a3-edfcb54282a5",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:7222e4a1-a6f5-4d46-8373-20cd45076dc1",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 3",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:8aaff730-8a12-4f2f-ae55-f3fa6f4defeb",
+       "mechanism": "doping profile difference between splits (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.carrier_profile"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:98233bf7-6267-42c9-a79d-7d9ae424dc68",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 2",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:a554784c-092a-4e84-baf5-50e2e79cf553",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 1",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency",
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "verification_executed": [],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK",
+      "cap:sp.inspect_contact_connectivity": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      },
+      {
+       "check": "cap:sp.inspect_contact_connectivity",
+       "observable": "sp.contact_connectivity",
+       "outcome": "CONTINUOUS",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "ho-06": {
+     "episode": "epi:b06e8db8-6983-47ba-854b-ecb7d869e6e7",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (broken contact via in the access path, doping profile difference between splits, process-dependent contact resistance between splits, process-dependent contact resistance between splits, wrong extraction length basis). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:1100573d-3cc7-4e49-8682-1b5b84187165",
+       "mechanism": "broken contact via in the access path (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.contact_connectivity"
+       ],
+       "supports": 1
+      },
+      {
+       "hypothesis_id": "hyp:30b1683e-386b-499b-81f4-41f291daba2d",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:7fe653a1-4725-46e5-b5f6-bf9f97b01d3f",
+       "mechanism": "wrong extraction length basis (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.normalization_basis"
+       ],
+       "supports": 1
+      },
+      {
+       "hypothesis_id": "hyp:c3c12e2b-4bf2-4c83-849b-5dde699a8665",
+       "mechanism": "doping profile difference between splits (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.carrier_profile"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:f9fd1fea-f5cf-47c5-995b-63600f8234e7",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 3",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [],
+     "verification_executed": [
+      "cap:sp.extraction_consistency",
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "screening_kinds": {},
+     "readings": [],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "ho-07": {
+     "episode": "epi:fbe37898-b71b-410c-a8a1-c50b2d8f3c9e",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:7021cef5-40ea-4517-8792-bc96240c82a4",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:925c3079-7db8-4da4-9787-20091166d97d",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:9e3d85f6-6119-4ae2-ac2b-7bae912e8569",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:a44b231f-5218-4e6e-b5ae-a6adf7ce6410",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 3",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:e6438c7f-3110-44f5-8f52-02cea150239e",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency",
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "verification_executed": [],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK",
+      "cap:sp.inspect_contact_connectivity": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      },
+      {
+       "check": "cap:sp.inspect_contact_connectivity",
+       "observable": "sp.contact_connectivity",
+       "outcome": "CONTINUOUS",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "ho-08": {
+     "episode": "epi:ec9f753c-6f62-4b56-aac6-1dd2e3c52d59",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:2a910542-2933-45d7-a27e-895dafce20f0",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:33e7f013-8071-4b71-be27-d47fecd0d5e5",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:35d482da-df64-4046-9eca-55b6a00a9ff6",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 3",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:589b9896-9c55-47bc-8bb9-4d2531cd6943",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:d6a49703-87b6-4c9d-ac88-8fe05c8ba738",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency",
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "verification_executed": [],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK",
+      "cap:sp.inspect_contact_connectivity": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      },
+      {
+       "check": "cap:sp.inspect_contact_connectivity",
+       "observable": "sp.contact_connectivity",
+       "outcome": "CONTINUOUS",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    },
+    "ho-09": {
+     "episode": "epi:762388bd-37d7-4edc-8a94-b75923e17c1a",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (broken contact via in the access path, probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, simulation mesh artefact in the access region, uncorrected contact resistance term in the extraction). No further check available here would change a decision.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:9e2a489e-fc9e-42e0-9d43-f65544f83ee9",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:b3cd6096-998d-4d28-affc-4cbad0aa564b",
+       "mechanism": "simulation mesh artefact in the access region (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.mesh_stability"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:bca96ebf-bedb-4dd4-8626-b851e830c226",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:be69d17e-77d7-4370-a2ae-e98f2de75e74",
+       "mechanism": "uncorrected contact resistance term in the extraction (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:ef4c36a7-7cfa-47e8-9fbf-960496caa88a",
+       "mechanism": "broken contact via in the access path (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.contact_connectivity"
+       ],
+       "supports": 0
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency"
+     ],
+     "verification_executed": [],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "leaks": []
+    },
+    "ho-10": {
+     "episode": "epi:123280e3-3920-4075-9d35-f457ee9f1d85",
+     "episode_state": "SUSPENDED",
+     "outcome": "",
+     "confirmed": null,
+     "conclusion": "PROVISIONAL",
+     "conclusion_statement": "not confirmed. The executed checks ruled out 0 of 5 competing mechanisms; 5 remain (broken contact via in the access path, probe contact resistance during the two-point measurement, process-dependent contact resistance between splits, process-dependent contact resistance between splits, process-dependent contact resistance between splits). The check that would discriminate next is `cap:sp.charge_ac_sweep`, a simulation this deployment cannot run; it is pending, not assumed.",
+     "hypotheses": [
+      {
+       "hypothesis_id": "hyp:3be16190-df40-4ab1-8797-7803ab7ec97a",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 3",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:616f0f22-5cb9-4729-be6b-99b3d88a168e",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 4",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:94355891-bb70-4cef-a37c-3d7f49165353",
+       "mechanism": "probe contact resistance during the two-point measurement (stand-in wording)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.probe_contact_resistance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:da592867-0c99-4a42-acf6-72ff20343f70",
+       "mechanism": "process-dependent contact resistance between splits (stand-in wording) 2",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.small_signal_impedance"
+       ],
+       "supports": 0
+      },
+      {
+       "hypothesis_id": "hyp:eb9224ae-ff69-4a02-b778-b3941222237c",
+       "mechanism": "broken contact via in the access path (stand-in, from the design summary)",
+       "origin": "PRE_OBSERVATION",
+       "discriminates_on": [
+        "sp.contact_connectivity"
+       ],
+       "supports": 1
+      }
+     ],
+     "screening_executed": [
+      "cap:sp.extraction_consistency"
+     ],
+     "verification_executed": [
+      "cap:sp.inspect_contact_connectivity"
+     ],
+     "screening_kinds": {
+      "cap:sp.extraction_consistency": "ANALYTICAL_RULE_CHECK"
+     },
+     "readings": [
+      {
+       "check": "cap:sp.extraction_consistency",
+       "observable": "sp.normalization_basis",
+       "outcome": "AGREES",
+       "finding": "NORMAL"
+      }
+     ],
+     "screening_enabled": true,
+     "stages": [
+      [
+       "ingestion",
+       "DONE"
+      ],
+      [
+       "evidence",
+       "DONE"
+      ],
+      [
+       "verification input",
+       "DONE"
+      ],
+      [
+       "external evidence",
+       "SKIPPED"
+      ],
+      [
+       "structure summary",
+       "DONE"
+      ],
+      [
+       "screening",
+       "DONE"
+      ],
+      [
+       "hypotheses",
+       "DONE"
+      ],
+      [
+       "verification",
+       "DONE"
+      ],
+      [
+       "pending simulation",
+       "BLOCKED"
+      ]
+     ],
+     "unavailable": [],
+     "leaks": []
+    }
+   }
+  }
+ }
+}
