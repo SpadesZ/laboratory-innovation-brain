@@ -1,0 +1,83 @@
+20 mutations
+
+[KILLED ] workspace_episode_ignores_membership
+           research workspace -- a lapsed member sees their episode no more
+           killed by ERROR tests/e2e/test_web_workspace_postgres.py::test_a_researcher_runs_the_vertical_in_the_workspace
+
+[KILLED ] the_review_rivals_cross_projects
+           Research integrity F-02 (012r) -- the review packet's rivals lookup is the relation's own project's (no disclosure without it: the outer filter scopes rows; the lookup would turn ambiguous)
+           killed by ERROR tests/e2e/test_causal_warrant_counterexample_postgres.py::test_the_review_packet_reads_only_it
+
+[KILLED ] screening_reads_what_a_rival_predicts
+           G0 screening -- only observables no rival discriminates on are screened
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_an_observable_some_rival_discriminates_on_i
+
+[KILLED ] screening_takes_an_unavailable_reader
+           G0 screening -- an UNAVAILABLE or DEGRADED capability is never screened
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_an_unavailable_reader_is_never_screened
+
+[KILLED ] screening_ignores_its_check_count
+           G0 screening -- the policy's max_checks cuts the list
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_the_count_and_the_stage_budget_cut_the_chea
+
+[KILLED ] screening_ignores_its_stage_budget
+           G0 screening -- the stage's wall-clock budget cuts the list
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_the_count_and_the_stage_budget_cut_the_chea
+
+[KILLED ] screening_repeats_a_reading
+           G0 screening -- a reading already taken on the same input is not taken again
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_a_reading_already_taken_on_the_same_input_i
+
+[KILLED ] screening_ignores_the_check_ceiling
+           G0 screening -- a check above the per-check ceiling is ineligible
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_the_count_and_the_stage_budget_cut_the_chea
+
+[KILLED ] screening_finding_not_derived
+           G0 screening -- a reading's finding follows from outcome vs reference
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_a_readings_finding_follows_from_its_outcome
+
+[KILLED ] screening_rival_not_conditioned
+           G0 screening -- a post-screening rival is recorded as conditioned on what it saw
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_an_abnormal_reading_adds_one_conditioned_ri
+
+[KILLED ] screening_review_accepts_irrelevant_grounding
+           G0 audit -- cited grounding must share content with the hypothesis
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_a_screening_reply_outside_its_contract_is_r
+
+[KILLED ] screening_review_accepts_an_unexplained_reading
+           G0 screening -- a rival says what the reading it answers means
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_a_rival_must_say_what_the_reading_it_answer
+
+[KILLED ] critic_reserve_ignored
+           G0 audit -- optional calls never leave the Critic short
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_an_optional_call_that_would_leave_the_criti
+
+[KILLED ] verification_repeats_the_screened_reading
+           G0 screening -- verification does not re-run a screened reading of the same input
+           killed by ERROR tests/e2e/test_g0_exploratory_screening_postgres.py::test_screening_finds_the_open_via_nobody_
+
+[KILLED ] structure_summary_admits_an_answer
+           G0 structure -- an answer-like field is refused
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_an_answer_like_field_is_refused_and_an_unkn
+
+[KILLED ] sql_screened_observation_supports_its_rival
+           012y (a) -- the screened observation cannot SUPPORT a rival conditioned on it
+           killed by FAILED tests/e2e/test_g0_exploratory_screening_postgres.py::test_screening_finds_the_open_via_nobody
+
+[KILLED ] sql_an_older_observation_supports_a_post_screening_rival
+           012y (b) -- an observation older than the rival cannot SUPPORT it
+           killed by FAILED tests/e2e/test_g0_exploratory_screening_postgres.py::test_screening_finds_the_open_via_nobody
+
+[KILLED ] sql_a_repeat_supports_a_post_screening_rival
+           012y (c) -- a deterministic repeat cannot SUPPORT a rival conditioned on the reading
+           killed by FAILED tests/e2e/test_g0_exploratory_screening_postgres.py::test_screening_finds_the_open_via_nobody
+
+[KILLED ] sql_screening_rows_are_editable
+           012y -- screening records are append-only
+           killed by FAILED tests/e2e/test_g0_exploratory_screening_postgres.py::test_screening_records_are_project_scope
+
+[KILLED ] sql_a_reading_of_an_unselected_check
+           012y -- a reading belongs to a check its plan selected
+           killed by FAILED tests/e2e/test_g0_exploratory_screening_postgres.py::test_screening_records_are_project_scope
+
+20/20 killed
