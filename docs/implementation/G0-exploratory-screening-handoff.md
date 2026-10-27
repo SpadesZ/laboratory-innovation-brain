@@ -51,3 +51,4 @@ A local PostgreSQL must use password authentication on host connections, or
 3. This environment's proxy blocks the CI log host, so read failing-test names in the GitHub UI.
 4. V2 verification evidence and CI SHA: see the V2 report §3.5. Commit hygiene was fixed by
    stripping AI attribution trailers from the V2 commits and force-pushing (Owner authorized).
+   CI run 40516645153 on `3928fc8`: all four jobs pass.

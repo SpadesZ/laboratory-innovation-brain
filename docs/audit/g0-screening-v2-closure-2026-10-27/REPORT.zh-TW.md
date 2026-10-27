@@ -95,7 +95,8 @@ CI run `40506215320`,SHA `fcf7a7497c602f73d50e908005be672615510c7f`:
 再 `git push --force-with-lease` 到本分支。檔案內容不變,只有 commit 訊息與 SHA 改變:
 `67f6cd0`→`6224bcc`、`fcf7a74`→`6e27244`、`3b5d4d1`→`0463be3`。修正後的 CI 見下方。
 
-CI_FIXED
+修正後 CI run `40516645153`,SHA `3928fc8e306797ed5ab5e2e05c78e881d691c2f9`:**四個 job 全部 success**
+(Lint, types and full suite;Backend profile (postgres);Spec conformance;Commit hygiene)。
 
 前一個 SHA `fecf642` 的 CI run `40492814298` 四個 job 都 success。
 
