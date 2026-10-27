@@ -1,0 +1,71 @@
+{
+ "earlier:live_model_gemini_run1:sufficient": {
+  "reached_verification": false,
+  "replies": 3,
+  "refused_replies": 1,
+  "true_signature": "sp.contact_connectivity = DISCONTINUOUS",
+  "true_cause_covered": false,
+  "coverage_source": "proposed, parsed as recorded",
+  "replay": {
+   "covered_if_parsed_strictly": false,
+   "covered_if_envelope_repaired": false
+  },
+  "executed": null,
+  "cheap_discriminating_check_ran": null,
+  "confirmed": null,
+  "false_confirmation": null,
+  "coverage_review": null
+ },
+ "earlier:live_model_gemini_run2:sufficient": {
+  "reached_verification": true,
+  "replies": 7,
+  "refused_replies": 0,
+  "true_signature": "sp.contact_connectivity = DISCONTINUOUS",
+  "true_cause_covered": false,
+  "coverage_source": "proposed, parsed as recorded",
+  "replay": {
+   "covered_if_parsed_strictly": false,
+   "covered_if_envelope_repaired": false
+  },
+  "executed": null,
+  "cheap_discriminating_check_ran": null,
+  "confirmed": null,
+  "false_confirmation": null,
+  "coverage_review": null
+ },
+ "earlier:live_model_gemini_run2:insufficient": {
+  "reached_verification": false,
+  "replies": 2,
+  "refused_replies": 1,
+  "true_signature": "sp.probe_contact_resistance = ELEVATED",
+  "true_cause_covered": false,
+  "coverage_source": "proposed, parsed as recorded",
+  "replay": {
+   "covered_if_parsed_strictly": false,
+   "covered_if_envelope_repaired": true
+  },
+  "executed": null,
+  "cheap_discriminating_check_ran": null,
+  "confirmed": null,
+  "false_confirmation": null,
+  "coverage_review": null
+ },
+ "earlier:live_model_gemini_run2:competing": {
+  "reached_verification": true,
+  "replies": 7,
+  "refused_replies": 0,
+  "true_signature": "sp.contact_connectivity = DISCONTINUOUS",
+  "true_cause_covered": false,
+  "coverage_source": "proposed, parsed as recorded",
+  "replay": {
+   "covered_if_parsed_strictly": false,
+   "covered_if_envelope_repaired": false
+  },
+  "executed": null,
+  "cheap_discriminating_check_ran": null,
+  "confirmed": null,
+  "false_confirmation": null,
+  "coverage_review": null
+ }
+}
+earlier: 4 case run(s); reached verification 2; refused replies 2/19; true cause covered 0; confirmations 0; false confirmations 0
