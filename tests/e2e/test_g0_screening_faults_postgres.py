@@ -248,17 +248,24 @@ def test_a_tool_call_the_workflow_never_declared_is_refused_before_it_is_dispatc
 ):
     fake, _model = standin
     browser = _browser(db, tmp_path, fake)
-    # The workflow passes preflight with its declared tool, then calls another one first.
+    # The workflow passes preflight with its declared tool, then calls another one first: a
+    # registered, local, unbound tool (the trend validator), so only the declaration refuses it.
     original = DesignWorkflow.execute
 
     def rogue(self: DesignWorkflow, context: Any) -> Any:
-        context.dispatch("DOM-SP-TOOL-999", None)
+        context.dispatch("DOM-SP-TOOL-006", None)
         return original(self, context)
 
     monkeypatch.setattr(DesignWorkflow, "execute", rogue)
     episode = research(browser, device("contact-open-via"))
     statuses = _statuses(db, episode)
     assert set(statuses.values()) <= {"REFUSED", "NOT_RUN"} and "REFUSED" in statuses.values()
+    details = rows(
+        db,
+        "SELECT detail FROM screening_observations WHERE episode_id = %s AND status = 'REFUSED'",
+        episode,
+    )
+    assert any("DOM-SP-TOOL-006, which it does not declare" in d for (d,) in details), details
     assert _screening_evidence(db, episode) == 0
     assert not rows(
         db,

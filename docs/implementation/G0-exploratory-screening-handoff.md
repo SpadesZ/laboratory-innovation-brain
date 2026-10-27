@@ -1,8 +1,11 @@
 # G0 exploratory screening — handoff
 
 Branch: `g0-exploratory-screening-v2` (from `g0-research-reliability` `d14c1cd`).
-Report: `docs/audit/g0-exploratory-screening-2026-10-27/REPORT.zh-TW.md`.
+Reports: `docs/audit/g0-exploratory-screening-2026-10-27/REPORT.zh-TW.md` (V1),
+`docs/audit/g0-screening-v2-closure-2026-10-27/REPORT.zh-TW.md` (V2 closure).
 Status: candidate for review. G0 NOT PASSED. No merge, deploy, paid call or Lumerical run.
+Screening is OFF by default in production (ADR-0015); a deployment must pass
+`ResearchFeatures(exploratory_screening=True)`.
 
 ## What exists now
 
@@ -16,7 +19,13 @@ Status: candidate for review. G0 NOT PASSED. No merge, deploy, paid call or Lume
 | Device structure summary (flag, default off) | `src/lab_brain/research/structure.py`, `src/lab_brain/domains/silicon_photonics/structure.py` |
 | Page rendering zh-TW / en | `src/lab_brain/interfaces/web/pages.py`, `i18n.py` |
 | Offline matrix, frozen protocol, evaluator scorer | `benchmarks/g0_screening/`, `tests/e2e/test_g0_screening_matrix_postgres.py`, `tests/g0_standin.py` |
-| Spec question | `docs/spec_issues/SPEC-ISSUE-016-exploratory-screening.md` (OPEN, M4) |
+| Spec question | `docs/spec_issues/SPEC-ISSUE-016-exploratory-screening.md` (RESOLVED, Reading B) |
+| Owner decision record | `docs/adr/ADR-0015-exploratory-screening-is-not-a-verification-action.md` |
+| Screening review contract and probe (rc-6.0.0, probe-8.0.0) | `src/lab_brain/llm_runtime/contracts.py`, `probes.py` |
+| Fail-closed preflight, in-flight tool guard, atomic evidence, REFUSED status | `src/lab_brain/verification/screening.py`, `migrations/012z_screening_fail_closed.sql` |
+| Interrupted-run close-out (`SCREENING_INTERRUPTED`) | `src/lab_brain/research/service.py` |
+| Fault injection | `tests/e2e/test_g0_screening_faults_postgres.py` |
+| Holdout reclassified as exposed regression | `benchmarks/g0_screening/protocol-amendment-1.json` |
 
 ## How to verify
 
@@ -33,10 +42,11 @@ A local PostgreSQL must use password authentication on host connections, or
 
 ## Open items for the next session
 
-1. Owner decisions: SPEC-ISSUE-016 reading; structure summary on/off; a review-only promotion path;
-   authorize the live Gemini retest (commands in the report §13); delete the old branch
-   `g0-exploratory-screening` (AI-authored commits; the force operation was not permitted here).
-2. Add a capability probe case for `prm:hypothesis-screening-review@1.0.0` before real use.
-3. Run the full 719-entry mutation battery before Owner acceptance.
-4. CI on `baabcf4` (run 40491804674) passed all four jobs. This environment's proxy blocks the CI
-   log host, so read failing-test names in the GitHub UI if a later run fails.
+1. Owner gates: enable screening in production; structure summary on/off; a review-only promotion
+   path; authorize a live Gemini qualification retest (probe-8.0.0 makes every earlier lock stale;
+   give a maximum cost first); delete the old branch `g0-exploratory-screening` (AI-authored
+   commits); confirm commit identity; build a new blind holdout (the old one is exposed).
+2. Run the full 732-entry mutation battery before Owner acceptance (only the 52 screening entries
+   ran in V2: 52/52 killed).
+3. This environment's proxy blocks the CI log host, so read failing-test names in the GitHub UI.
+4. V2 verification evidence and CI SHA: see the V2 report §3.

@@ -1,0 +1,211 @@
+52 mutations
+
+[KILLED ] continuation_leaves_parked_jobs_queued
+           episode continuation -- a job an earlier run parked is superseded, not left queued
+           killed by FAILED tests/e2e/test_research_continuation_postgres.py::test_a_parked_check_is_superseded_and_the_c
+
+[KILLED ] workspace_episode_ignores_membership
+           research workspace -- a lapsed member sees their episode no more
+           killed by FAILED tests/e2e/test_web_workspace_postgres.py::test_the_opener_reads_their_episode_only_while_the_
+
+[KILLED ] semantics_ignore_the_role_prompts
+           stale lock -- a changed role prompt changes the qualification semantics
+           killed by FAILED tests/unit/test_llm_qualification.py::test_the_qualification_semantics_are_one_digest_of_prob
+
+[KILLED ] semantics_ignore_the_contracts
+           stale lock -- a changed response contract changes the qualification semantics
+           killed by FAILED tests/unit/test_llm_qualification.py::test_the_qualification_semantics_are_one_digest_of_prob
+
+[KILLED ] semantics_ignore_the_multi_space_case
+           stale lock -- every case of the suite is part of the qualification semantics
+           killed by FAILED tests/unit/test_llm_qualification.py::test_the_qualification_semantics_are_one_digest_of_prob
+
+[KILLED ] semantics_ignore_the_suite_version
+           stale lock -- the suite's version is part of the qualification semantics
+           killed by FAILED tests/unit/test_llm_qualification.py::test_the_qualification_semantics_are_one_digest_of_prob
+
+[KILLED ] the_review_rivals_cross_projects
+           Research integrity F-02 (012r) -- the review packet's rivals lookup is the relation's own project's (no disclosure without it: the outer filter scopes rows; the lookup would turn ambiguous)
+           killed by FAILED tests/e2e/test_causal_warrant_counterexample_postgres.py::test_the_review_packet_reads_only_i
+
+[KILLED ] g0_an_alias_prefix_resolves
+           G0 -- a reference resolves only exactly; a prefix of a canonical id never does
+           killed by FAILED tests/unit/test_g0_reliability.py::test_a_reference_resolves_only_exactly
+
+[KILLED ] g0_an_ambiguous_canonical_id_is_aliased
+           G0 -- a canonical id that reads as an alias is refused, so no reference is ambiguous
+           killed by FAILED tests/unit/test_g0_reliability.py::test_a_canonical_id_that_could_be_read_as_an_alias_is_refu
+
+[KILLED ] g0_a_repeated_reference_is_merged
+           G0 -- two references to one hypothesis or attestation are refused, not merged
+           killed by FAILED tests/unit/test_g0_reliability.py::test_a_specialist_reference_that_names_nothing_exactly_is_
+
+[KILLED ] g0_a_fence_repair_goes_unrecorded
+           G0 -- the one envelope repair is recorded beside the reply it was made to
+           killed by FAILED tests/unit/test_g0_reliability.py::test_only_a_whole_reply_code_fence_is_removed_and_the_json
+
+[KILLED ] g0_a_refused_reply_is_never_asked_again
+           G0 -- a refused reply is asked for again, up to the policy's attempts
+           killed by FAILED tests/unit/test_g0_reliability.py::test_a_shortened_id_is_asked_for_again_and_only_the_valid_
+
+[KILLED ] g0_coverage_counts_a_check_that_needs_a_seat
+           G0 -- the coverage review asks only about checks a run can just do (low cost)
+           killed by FAILED tests/unit/test_g0_reliability.py::test_the_review_is_asked_only_about_cheap_checks_no_rival_
+
+[KILLED ] g0_coverage_asks_about_an_addressed_check
+           G0 -- a check some rival already discriminates on is not a gap
+           killed by FAILED tests/unit/test_g0_reliability.py::test_the_review_is_asked_only_about_cheap_checks_no_rival_
+
+[KILLED ] g0_an_ungrounded_coverage_rival_is_admitted
+           G0 -- a rival added to cover a check must cite the evidence it rests on
+           killed by FAILED tests/unit/test_g0_reliability.py::test_a_coverage_reply_outside_its_contract_is_refused[repl
+
+[KILLED ] g0_an_unanswered_check_passes_review
+           G0 -- every unaddressed check is certified or declined, never left out
+           killed by FAILED tests/unit/test_g0_reliability.py::test_a_coverage_reply_outside_its_contract_is_refused[repl
+
+[KILLED ] g0_the_critic_sees_canonical_ids_in_falsifiers
+           G0 -- nothing a role is shown is a canonical id it could copy back shortened
+           killed by FAILED tests/unit/test_g0_reliability.py::test_specialists_and_critic_are_shown_aliases_and_the_same
+
+[KILLED ] g0_the_specialist_probe_ignores_aliases
+           G0 -- the specialist probe resolves aliases exactly as research does
+           killed by FAILED tests/unit/test_g0_transport_and_qualification.py::test_the_specialist_probe_fails_what_resea
+
+[KILLED ] g0_a_refused_schema_is_never_retried
+           G0 -- a provider that refuses response_format is asked once without it, recorded
+           killed by FAILED tests/unit/test_g0_transport_and_qualification.py::test_a_provider_that_refuses_the_schema_is
+
+[KILLED ] g0_provider_usage_is_dropped
+           G0 -- the provider's own token counts come back with the reply
+           killed by FAILED tests/unit/test_g0_transport_and_qualification.py::test_a_role_call_carries_its_schema_and_re
+
+[KILLED ] g0_review_pending_reads_as_refused
+           G0 -- a page says a person's warrant review is pending, apart from belief
+           killed by FAILED tests/e2e/test_g0_coverage_review_postgres.py::test_the_review_finds_the_cheap_check_and_the_
+
+[KILLED ] g0_research_runs_without_coverage_review
+           G0 -- research reviews the cheap checks its first rivals left unaddressed
+           killed by FAILED tests/e2e/test_g0_coverage_review_postgres.py::test_the_review_finds_the_cheap_check_and_the_
+
+[KILLED ] screening_reads_what_a_rival_predicts
+           G0 screening -- only observables no rival discriminates on are screened
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_an_observable_some_rival_discriminates_on_i
+
+[KILLED ] screening_takes_an_unavailable_reader
+           G0 screening -- an UNAVAILABLE or DEGRADED capability is never screened
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_an_unavailable_reader_is_never_screened
+
+[KILLED ] screening_ignores_its_check_count
+           G0 screening -- the policy's max_checks cuts the list
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_the_count_and_the_stage_budget_cut_the_chea
+
+[KILLED ] screening_ignores_its_stage_budget
+           G0 screening -- the stage's wall-clock budget cuts the list
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_the_count_and_the_stage_budget_cut_the_chea
+
+[KILLED ] screening_repeats_a_reading
+           G0 screening -- a reading already taken on the same input is not taken again
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_a_reading_already_taken_on_the_same_input_i
+
+[KILLED ] screening_ignores_the_check_ceiling
+           G0 screening -- a check above the per-check ceiling is ineligible
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_the_count_and_the_stage_budget_cut_the_chea
+
+[KILLED ] screening_finding_not_derived
+           G0 screening -- a reading's finding follows from outcome vs reference
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_a_readings_finding_follows_from_its_outcome
+
+[KILLED ] screening_rival_not_conditioned
+           G0 screening -- a post-screening rival is recorded as conditioned on what it saw
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_an_abnormal_reading_adds_one_conditioned_ri
+
+[KILLED ] screening_review_accepts_irrelevant_grounding
+           G0 audit -- cited grounding must share content with the hypothesis
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_a_screening_reply_outside_its_contract_is_r
+
+[KILLED ] screening_review_accepts_an_unexplained_reading
+           G0 screening -- a rival says what the reading it answers means
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_a_rival_must_say_what_the_reading_it_answer
+
+[KILLED ] critic_reserve_ignored
+           G0 audit -- optional calls never leave the Critic short
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_an_optional_call_that_would_leave_the_criti
+
+[KILLED ] verification_repeats_the_screened_reading
+           G0 screening -- verification does not re-run a screened reading of the same input
+           killed by FAILED tests/e2e/test_g0_exploratory_screening_postgres.py::test_screening_finds_the_open_via_nobody
+
+[KILLED ] structure_summary_admits_an_answer
+           G0 structure -- an answer-like field is refused
+           killed by FAILED tests/unit/test_g0_exploratory_screening.py::test_an_answer_like_field_is_refused_and_an_unkn
+
+[KILLED ] sql_screened_observation_supports_its_rival
+           012y (a) -- the screened observation cannot SUPPORT a rival conditioned on it
+           killed by FAILED tests/e2e/test_g0_exploratory_screening_postgres.py::test_screening_finds_the_open_via_nobody
+
+[KILLED ] sql_an_older_observation_supports_a_post_screening_rival
+           012y (b) -- an observation older than the rival cannot SUPPORT it
+           killed by FAILED tests/e2e/test_g0_exploratory_screening_postgres.py::test_screening_finds_the_open_via_nobody
+
+[KILLED ] sql_a_repeat_supports_a_post_screening_rival
+           012y (c) -- a deterministic repeat cannot SUPPORT a rival conditioned on the reading
+           killed by FAILED tests/e2e/test_g0_exploratory_screening_postgres.py::test_screening_finds_the_open_via_nobody
+
+[KILLED ] sql_screening_rows_are_editable
+           012y -- screening records are append-only
+           killed by FAILED tests/e2e/test_g0_exploratory_screening_postgres.py::test_screening_records_are_project_scope
+
+[KILLED ] screening_preflight_ignores_money
+           V2 fail-closed -- a check estimated to cost money is refused before execution
+           killed by FAILED tests/unit/test_g0_screening_closure.py::test_preflight_refuses_anything_that_could_leave_cos
+
+[KILLED ] screening_preflight_ignores_a_seat
+           V2 fail-closed -- a check needing a licence seat is refused
+           killed by FAILED tests/unit/test_g0_screening_closure.py::test_preflight_refuses_anything_that_could_leave_cos
+
+[KILLED ] screening_preflight_ignores_tool_resources
+           V2 fail-closed -- a tool bound to a seat or another capability is refused
+           killed by FAILED tests/unit/test_g0_screening_closure.py::test_preflight_refuses_anything_that_could_leave_cos
+
+[KILLED ] screening_preflight_ignores_project
+           V2 fail-closed -- an input of another project is refused
+           killed by FAILED tests/unit/test_g0_screening_closure.py::test_preflight_refuses_anything_that_could_leave_cos
+
+[KILLED ] screening_preflight_ignores_plan_drift
+           V2 fail-closed -- a check its plan did not select is refused
+           killed by FAILED tests/unit/test_g0_screening_closure.py::test_preflight_refuses_anything_that_could_leave_cos
+
+[KILLED ] screening_runs_despite_refusal
+           V2 fail-closed -- a refused check is never executed
+           killed by FAILED tests/e2e/test_g0_screening_faults_postgres.py::test_a_check_whose_estimate_turns_paid_is_ref
+
+[SURVIVED] screening_dispatches_an_undeclared_tool
+           V2 fail-closed -- a tool call the workflow never declared is refused in flight
+           SURVIVED — tests still pass with the guard disabled
+
+[KILLED ] screening_evidence_not_atomic
+           V2 fault -- a check's evidence and its screening record commit together
+           killed by FAILED tests/e2e/test_g0_screening_faults_postgres.py::test_a_screening_record_that_cannot_be_writte
+
+[KILLED ] screening_interrupted_job_left_open
+           V2 fault -- an interrupted check's Job is closed FAILED
+           killed by FAILED tests/e2e/test_g0_screening_faults_postgres.py::test_an_interrupted_check_closes_its_job_admi
+
+[KILLED ] continuation_leaves_screening_job_running
+           V2 fault -- a continuation closes a screening Job a dead run left open
+           killed by FAILED tests/e2e/test_g0_screening_faults_postgres.py::test_a_screening_job_a_dead_run_left_open_is_
+
+[KILLED ] screening_probe_left_out_of_the_suite
+           V2 qualification -- ROLE_HYPOTHESIS includes the screening review
+           killed by FAILED tests/unit/test_g0_screening_closure.py::test_the_suite_now_carries_the_screening_review_unde
+
+[KILLED ] screening_review_has_no_contract
+           V2 qualification -- the screening review call carries its contract and schema
+           killed by FAILED tests/unit/test_g0_screening_closure.py::test_the_suite_now_carries_the_screening_review_unde
+
+[KILLED ] screening_on_by_default
+           V2 -- screening stays off unless a deployment turns it on (ADR-0015)
+           killed by FAILED tests/unit/test_g0_screening_closure.py::test_screening_is_off_unless_a_deployment_turns_it_o
+
+51/52 killed
