@@ -217,9 +217,14 @@ def full_report(inject: str = "") -> EpisodeReport:
             review=(
                 PostScreeningLine(
                     t("CERTIFIED"),
-                    (t("cap:sp.inspect_contact_connectivity: sp.contact_connectivity = OPEN"),),
+                    (
+                        t(
+                            "cap:sp.inspect_contact_connectivity: sp.contact_connectivity"
+                            " = DISCONTINUOUS"
+                        ),
+                    ),
                     t("hyp:1"),
-                    t("broken via (model wording)"),
+                    t("access contact discontinuity"),
                     (t("att:1"),),
                 ),
             ),

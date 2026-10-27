@@ -2177,7 +2177,10 @@ def _screening_html(report: EpisodeReport, t: Terms) -> Html:
             f"v.screening.{line.disposition}"
             if line.disposition in ("CERTIFIED", "DECLINED", "REFUSED")
             else "v.screening.REFUSED",
-            readings="; ".join(line.readings),
+            readings=cat(
+                h("{}{}", Html("; ") if i else Html(""), _reading_words(reading, t))
+                for i, reading in enumerate(line.readings)
+            ),
             mechanism=t.text(line.detail),
             reason=t.text(line.detail),
         )
@@ -2218,6 +2221,15 @@ def _screening_html(report: EpisodeReport, t: Terms) -> Html:
             else Html(""),
         ]
     )
+
+
+def _reading_words(reading: str, t: Terms) -> Html:
+    """A recorded "check: observable = outcome" in the reader's words; anything else as written."""
+    check, colon, rest = reading.partition(": ")
+    observable, equals, outcome = rest.partition(" = ")
+    if not (colon and equals):
+        return h("{}", t.text(reading))
+    return h("{}: {} = {}", t.name(check), t.name(observable), t.name(outcome))
 
 
 _SCREENING_STATUSES = frozenset(
