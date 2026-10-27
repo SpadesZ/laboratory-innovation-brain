@@ -52,8 +52,9 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Callable, Mapping, Sequence
+from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
-from typing import Any, TypeVar
+from typing import Any, Protocol, TypeVar
 
 from lab_brain.cognition.aliases import AliasTable, aliased
 from lab_brain.cognition.budgeted import (
@@ -61,6 +62,7 @@ from lab_brain.cognition.budgeted import (
     BudgetedInferenceDispatcher,
     InferenceBudgetBlocked,
     InferenceCall,
+    token_count,
 )
 from lab_brain.cognition.coverage import CoverageGap, discriminated, unaddressed_checks
 from lab_brain.cognition.debate_metrics import (
@@ -73,11 +75,13 @@ from lab_brain.cognition.debate_metrics import (
 )
 from lab_brain.cognition.evidence import EvidenceResearcher
 from lab_brain.cognition.llm import PromptTemplate
+from lab_brain.cognition.overlap import overlapping_pairs
 from lab_brain.cognition.roles import (
     ADVERSARIAL_CRITIC,
     COVERAGE_REVIEW,
     HYPOTHESIS_ENGINE,
     QUERY_REWRITER,
+    SCREENING_REVIEW,
     SPECIALIST_REQUIRES,
     CoverageDraft,
     HypothesisProposal,
@@ -88,11 +92,13 @@ from lab_brain.cognition.roles import (
     parse_critique,
     parse_hypothesis_engine,
     parse_query_terms,
+    parse_screening_review,
     parse_specialist,
     require_input,
 )
 from lab_brain.cognition.routing import CognitiveRole, ModelRouter
 from lab_brain.core.budget import BudgetPolicy
+from lab_brain.core.canonical_json import canonicalize
 from lab_brain.core.hypothesis_admission import (
     HypothesisAdmissionRefused,
     HypothesisAdmissionService,
@@ -129,6 +135,7 @@ from lab_brain.verification.disagreement import (
     rank_by_disagreement,
 )
 from lab_brain.verification.planner import VerificationPlanner
+from lab_brain.verification.screening import ScreeningOutcome
 
 
 class StopReason:
@@ -172,16 +179,53 @@ class DebatePolicy:
     #: After Stage A, ask the Hypothesis Engine once about the low-cost executable checks no
     #: hypothesis discriminates on (`cognition.coverage`, `roles.COVERAGE_REVIEW`).
     coverage_review: bool = False
+    #: After the coverage review, run an exploratory screening stage over the low-cost checks no
+    #: hypothesis predicts (`verification.screening`), and -- if a reading is ABNORMAL -- ask the
+    #: Hypothesis Engine once for rivals that account for it (`roles.SCREENING_REVIEW`).
+    screening: bool = False
+    #: Tokens held back for the Adversarial Critic. Before Stage B, an OPTIONAL call (the coverage
+    #: review, the screening review) or a RETRY of a refused reply is not made when it would leave
+    #: less than this under the budget's token cap: whatever else happens, the critique is
+    #: affordable. 0: nothing is reserved (the earlier behaviour).
+    critic_reserve_tokens: int = 0
 
     def __post_init__(self) -> None:
         if self.max_rounds < 1 or self.minimum_hypotheses < 1:
             raise ValueError("a debate policy needs at least one round and one hypothesis")
+        if self.critic_reserve_tokens < 0:
+            raise ValueError("a debate policy cannot reserve a negative number of tokens")
         if not 1 <= self.max_attempts <= 3:
             raise ValueError("a debate policy asks for a reply between one and three times")
 
     @property
     def ref(self) -> str:
         return f"{self.policy_id}@{self.version}"
+
+
+class ScreeningHook(Protocol):
+    """What the debate needs from a screening stage. The research service supplies it: it owns the
+    verification input, the Jobs and the stores; the debate decides only when to ask."""
+
+    def screen(
+        self,
+        *,
+        hypothesis_set_id: str,
+        certificates: Sequence[HypothesisCertificate],
+        bindings: Mapping[str, OutcomeSpace],
+    ) -> ScreeningOutcome: ...
+
+    def condition(
+        self,
+        *,
+        hypothesis_id: str,
+        plan_id: str,
+        screening_observation_ids: Sequence[str],
+        inference_id: str,
+    ) -> object: ...
+
+    def atomic(self) -> AbstractContextManager[object]:
+        """Admission and its conditioning record commit together, or neither does."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -205,6 +249,12 @@ class DebateRequest:
     human_requested_rounds: int = 0
     #: Inputs available to candidate verification actions (VER-002's `requires` half).
     available_inputs: frozenset[str] = frozenset()
+    #: Where a screening stage runs, when the policy asks for one; `None` means none can run.
+    screening: ScreeningHook | None = None
+    #: The device structure summary every Hypothesis Engine call is shown, when the deployment
+    #: enables it (`research.structure`): design-declared fields with units and source locators,
+    #: never an inspected or measured outcome, never citable as evidence.
+    structure: Mapping[str, object] | None = None
 
     @classmethod
     def from_contract(
@@ -411,7 +461,12 @@ class StructuredDebate:
             if self._policy.coverage_review
             else ()
         )
-        initial_ids = (*admitted.hypothesis_ids, *covered)
+        screened = (
+            self._screening(state, primary, bindings, hypothesis_set)
+            if self._policy.screening and request.screening is not None
+            else ()
+        )
+        initial_ids = (*admitted.hypothesis_ids, *covered, *screened)
         stage_a_positions = list(positions)
         specialist_bundles: list[EvidenceBundle] = []
         if self._policy.specialists_enabled:
@@ -434,6 +489,7 @@ class StructuredDebate:
         rounds = 1
         stop_reason = StopReason.CRITIC_DISABLED if not self._policy.critic_enabled else ""
         ranking: tuple[RankedAction, ...] = ()
+        state.critic_started = True
         while self._policy.critic_enabled:
             try:
                 in_contention = [
@@ -608,6 +664,13 @@ class StructuredDebate:
                 "max_attempts": self._policy.max_attempts,
                 "reply_attempts": list(state.attempts),
                 "coverage_review": state.coverage,
+                "screening": state.screening,
+                "critic_reserve_tokens": self._policy.critic_reserve_tokens,
+                "withheld_for_critic": list(state.withheld),
+                "structure_summary": (
+                    None if request.structure is None else request.structure.get("digest")
+                ),
+                "overlap": overlapping_pairs(final),
             },
         )
         stored = self._debates.add_debate_record(record)
@@ -644,6 +707,7 @@ class StructuredDebate:
             "minimum_hypotheses": minimum,
             "alternatives_to_certify": list(alternatives),
             "existing_mechanisms": list(existing),
+            **self._structure(state),
         }
         call, (proposals, draft) = self._ask(
             state,
@@ -695,6 +759,7 @@ class StructuredDebate:
             return ()
         unaddressed = [g.observable_ref for g in gaps]
         existing = sorted(c.hypothesis.mechanism for c in certificates)
+        shown_evidence = self._researcher.evidence_context(primary)
         context, shown_h, shown_e = coverage_context(
             question=request.question,
             hypotheses=[
@@ -706,12 +771,16 @@ class StructuredDebate:
                 }
                 for c in certificates
             ],
-            evidence=self._researcher.evidence_context(primary),
+            evidence=shown_evidence,
             bindings=bindings,
             unaddressed_checks=[g.as_context(bindings[g.observable_ref]) for g in gaps],
             hypothesis_aliases=state.hypotheses,
             evidence_aliases=state.evidence,
         )
+        context.update(self._structure(state))
+        if self._withheld(state, COVERAGE_REVIEW.prompt, context, "coverage review"):
+            state.coverage.update(status="RESERVED_FOR_CRITIC")
+            return ()
         try:
             call, draft = self._ask(
                 state,
@@ -727,6 +796,9 @@ class StructuredDebate:
                     existing_mechanisms=existing,
                     evidence_refs=shown_e,
                     shown_attestation_ids=primary.ordered_attestation_ids,
+                    evidence_texts={
+                        str(e["attestation_id"]): str(e["text"]) for e in shown_evidence
+                    },
                     inference_id=iid,
                 ),
                 parameters={"aliases": {**shown_h, **shown_e}},
@@ -789,9 +861,229 @@ class StructuredDebate:
                     "mechanism": proposal.mechanism,
                     "addresses": addresses,
                     "grounding": list(draft.grounding[proposal.key]),
+                    "relevance": {
+                        k: list(v) for k, v in draft.relevance.get(proposal.key, {}).items()
+                    },
                 }
             )
         return tuple(admitted)
+
+    def _screening(
+        self,
+        state: _RunState,
+        primary: EvidenceBundle,
+        bindings: Mapping[str, OutcomeSpace],
+        hypothesis_set: HypothesisSet,
+    ) -> tuple[str, ...]:
+        """The exploratory screening stage, and -- if it saw something abnormal -- the one review
+        that may add rivals accounting for it. Returns the ids of rivals admitted after screening.
+
+        The readings are taken by the research service's `ScreeningHook` under its declared
+        policy; this decides only that a stage happens here, after the coverage review and before
+        the Critic, so a post-screening rival is critiqued like every other. A stage or a review
+        that cannot complete costs the debate nothing it had: the set stands, and the record says
+        what ran, what was seen and why nothing more was asked.
+        """
+        request = state.request
+        hook = request.screening
+        assert hook is not None
+        certificates = self._hypotheses.certificates_in_set(hypothesis_set.set_id)
+        try:
+            outcome = hook.screen(
+                hypothesis_set_id=hypothesis_set.set_id,
+                certificates=certificates,
+                bindings=bindings,
+            )
+        except Exception as failed:  # recorded; the debate goes on without the stage
+            state.screening = {"status": "FAILED", "detail": f"{type(failed).__name__}: {failed}"}
+            return ()
+        state.screening = {
+            "status": "DONE",
+            "plan_id": outcome.plan.plan_id,
+            "policy": f"{outcome.plan.policy_id}@{outcome.plan.policy_version}",
+            "unaddressed": list(outcome.plan.unaddressed_observables),
+            "selected": [c.capability_id for c in outcome.plan.selected],
+            "observations": [
+                {
+                    "screening_observation_id": o.screening_observation_id,
+                    "check": o.capability_id,
+                    "status": o.status.value,
+                    "readings": [
+                        {
+                            "observable_ref": r.observable_ref,
+                            "outcome": r.outcome,
+                            "reference_outcome": r.reference_outcome,
+                            "finding": r.finding.value,
+                            "observation_id": r.observation_id,
+                        }
+                        for r in o.readings
+                    ],
+                }
+                for o in outcome.observations
+            ],
+            "review": {"status": "NOT_NEEDED", "certified": [], "declined": [], "refused": []},
+        }
+        review: dict[str, Any] = state.screening["review"]
+        if not outcome.abnormal:
+            return ()
+        readings = [(o, r) for o in outcome.executed for r in o.readings]
+        abnormal = {
+            r.observation_id: r.observable_ref for _, r in readings if r.finding.value == "ABNORMAL"
+        }
+        holder = {r.observation_id: o.screening_observation_id for o, r in readings}
+        attestation_of = {r.observation_id: r.attestation_id for _, r in readings}
+        shown_evidence = self._researcher.evidence_context(primary)
+        shown_hypotheses, shown_h = aliased(
+            [
+                {
+                    "hypothesis_id": c.hypothesis_id,
+                    "statement": c.hypothesis.statement,
+                    "mechanism": c.hypothesis.mechanism,
+                    "discriminates_on": sorted(discriminated((c,))),
+                }
+                for c in self._hypotheses.certificates_in_set(hypothesis_set.set_id)
+            ],
+            "hypothesis_id",
+            state.hypotheses,
+        )
+        evidence, shown_e = aliased(shown_evidence, "attestation_id", state.evidence)
+        observations, shown_o = aliased(
+            [
+                {
+                    "observation_ref": r.observation_id,
+                    "check": o.capability_id,
+                    "observable_ref": r.observable_ref,
+                    "outcome_space_id": r.outcome_space_id,
+                    "outcome_space_version": r.outcome_space_version,
+                    "outcome": r.outcome,
+                    "reference_outcome": r.reference_outcome,
+                    "finding": r.finding.value,
+                }
+                for o, r in readings
+            ],
+            "observation_ref",
+            state.observations,
+        )
+        existing = sorted(
+            c.hypothesis.mechanism
+            for c in self._hypotheses.certificates_in_set(hypothesis_set.set_id)
+        )
+        context: dict[str, object] = {
+            "question": request.question,
+            "evidence": evidence,
+            "prediction_bindings": binding_context(bindings),
+            "hypotheses": shown_hypotheses,
+            "existing_mechanisms": existing,
+            "screening_observations": observations,
+            **self._structure(state),
+        }
+        if self._withheld(state, SCREENING_REVIEW.prompt, context, "screening review"):
+            review["status"] = "RESERVED_FOR_CRITIC"
+            return ()
+        try:
+            call, draft = self._ask(
+                state,
+                role=CognitiveRole.HYPOTHESIS_ENGINE,
+                prompt=SCREENING_REVIEW.prompt,
+                requires=SCREENING_REVIEW.requires,
+                bundle=primary,
+                context=context,
+                parse=lambda text, iid: parse_screening_review(
+                    text,
+                    bindings=bindings,
+                    abnormal=abnormal,
+                    existing_mechanisms=existing,
+                    evidence_refs=shown_e,
+                    observation_refs=shown_o,
+                    shown_attestation_ids=primary.ordered_attestation_ids,
+                    evidence_texts={
+                        str(e["attestation_id"]): str(e["text"]) for e in shown_evidence
+                    },
+                    inference_id=iid,
+                ),
+                parameters={"aliases": {**shown_h, **shown_e, **shown_o}},
+            )
+        except RoleOutputRefused as refused:
+            review.update(status="FAILED", detail=refused.detail)
+            return ()
+        except _Blocked:
+            review.update(status="BUDGET_BLOCKED")
+            return ()
+        review["status"] = "DONE"
+        review["inference_id"] = call.inference.inference_id
+        review["declined"] = [
+            {"observation_id": d.observation, "reason": d.reason} for d in draft.declined
+        ]
+        admitted: list[str] = []
+        for proposal in draft.proposals:
+            certificate = self._certificate(proposal, hypothesis_set, call.inference.inference_id)
+            seen = draft.responds_to[proposal.key]
+            entry = {
+                "mechanism": proposal.mechanism,
+                "responds_to": list(seen),
+                "grounding": list(draft.grounding[proposal.key]),
+                "relevance": {k: list(v) for k, v in draft.relevance.get(proposal.key, {}).items()},
+            }
+            try:
+                with hook.atomic():
+                    self._admission.admit_alternative(
+                        hypothesis_set,
+                        certificate,
+                        # What it was admitted on: the evidence it cited and the readings it
+                        # accounts for. Admission is not support; the readings never will be.
+                        basis=(
+                            *draft.grounding[proposal.key],
+                            *(attestation_of[o] for o in seen),
+                        ),
+                        policy=request.admission_policy,
+                        event_id=self._mint("belief_revision_event"),
+                        occurred_at=self._now(),
+                        trace_id=request.trace_id,
+                        actor_id=request.actor_id,
+                    )
+                    hook.condition(
+                        hypothesis_id=certificate.hypothesis_id,
+                        plan_id=outcome.plan.plan_id,
+                        screening_observation_ids=sorted({holder[o] for o in seen}),
+                        inference_id=call.inference.inference_id,
+                    )
+            except HypothesisAdmissionRefused as refused:
+                review["refused"].append({**entry, "detail": str(refused)})
+                continue
+            state.hypotheses.add(certificate.hypothesis_id)
+            admitted.append(certificate.hypothesis_id)
+            review["certified"].append({"hypothesis_id": certificate.hypothesis_id, **entry})
+        return tuple(admitted)
+
+    def _structure(self, state: _RunState) -> dict[str, object]:
+        """The device structure summary for a Hypothesis Engine context, when there is one."""
+        structure = state.request.structure
+        return {} if structure is None else {"device_structure": dict(structure)}
+
+    def _withheld(
+        self, state: _RunState, prompt: PromptTemplate, context: Mapping[str, object], what: str
+    ) -> bool:
+        """Whether an optional call before the Critic would eat into the Critic's reserve.
+
+        Priced the way the dispatcher prices it (whitespace tokens of the prompt and context),
+        against the budget's token cap less what the debate has spent. No cap or no reserve: never.
+        """
+        if self._reserve_short(
+            state, token_count(prompt.template) + token_count(canonicalize(dict(context)))
+        ):
+            state.withheld.append(what)
+            return True
+        return False
+
+    def _reserve_short(self, state: _RunState, estimate: int) -> bool:
+        reserve = self._policy.critic_reserve_tokens
+        policy = state.request.budget_policy
+        if state.critic_started or not reserve or policy is None:
+            return False
+        cap = policy.caps.token_count
+        if cap is None:
+            return False
+        return state.consumed.token_count + estimate + reserve > cap
 
     def _specialist(
         self,
@@ -993,6 +1285,12 @@ class StructuredDebate:
             asked = dict(context)
             recorded: dict[str, object] = {**dict(parameters or {}), "attempt": attempt}
             if refusals and previous is not None:
+                if role is not CognitiveRole.ADVERSARIAL_CRITIC and self._reserve_short(
+                    state, token_count(prompt.template) + token_count(canonicalize(asked))
+                ):
+                    # A retry before Stage B that would leave the Critic short is not made.
+                    state.withheld.append(f"retry of {label}")
+                    break
                 asked["previous_reply_refused"] = {
                     "reason": refusals[-1].detail,
                     "instruction": "Reply again, meeting the contract; change nothing else.",
@@ -1255,6 +1553,14 @@ class _RunState:
     attempts: list[dict[str, Any]] = field(default_factory=list)
     #: The coverage review's record; `DISABLED` unless the policy asks for one.
     coverage: dict[str, Any] = field(default_factory=lambda: {"status": "DISABLED"})
+    #: Readings taken by screening, aliased O1, O2, ... in every call that shows them.
+    observations: AliasTable = field(default_factory=lambda: AliasTable("O"))
+    #: The screening stage's record; `DISABLED` unless the policy asks for one.
+    screening: dict[str, Any] = field(default_factory=lambda: {"status": "DISABLED"})
+    #: Set when Stage B begins: the Critic's reserve no longer holds anything back.
+    critic_started: bool = False
+    #: Optional calls and retries not made because they would have left the Critic short.
+    withheld: list[str] = field(default_factory=list)
 
 
 _T = TypeVar("_T")

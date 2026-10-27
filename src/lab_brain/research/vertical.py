@@ -25,10 +25,12 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from lab_brain.cognition.catalog_reasoner import MechanismCatalog
 from lab_brain.core.models.condition import ConditionSchemaRegistration
+from lab_brain.core.models.screening import ScreeningNorm
 from lab_brain.core.models.transition import TransitionPolicy
 from lab_brain.core.models.verification import SelectionPolicy
 from lab_brain.core.models.warrant import DiagnosticDeclarationSet
 from lab_brain.domains.registry import DomainPackRegistry
+from lab_brain.research.structure import StructureSummary
 from lab_brain.verification.capability_registry import CapabilityRegistry
 from lab_brain.verification.sufficiency import TransitionTarget
 
@@ -105,6 +107,13 @@ class ProductVertical:
     #: that reasons, verifies or replays reads it.
     presentation: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
     presentation_ref: str | None = None
+    #: Capabilities the pack declares usable for exploratory screening, with the reference outcome
+    #: a sound design shows on each observable (`core.models.screening.ScreeningNorm`). Empty:
+    #: nothing is ever screened in this vertical.
+    screening_norms: Mapping[str, ScreeningNorm] = field(default_factory=dict)
+    #: How the pack summarises the STRUCTURE of its verification input for a reasoning context
+    #: (`research.structure`): (input bytes, artifact id, project id) -> summary, or `None`.
+    structure_summary: Callable[[bytes, str, str], StructureSummary] | None = None
 
 
 def installed_declaration_sets() -> tuple[DiagnosticDeclarationSet, ...]:

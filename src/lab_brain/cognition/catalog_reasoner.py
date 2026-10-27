@@ -22,6 +22,9 @@ an answer:
     coverage review     for each unaddressed check, the catalog mechanisms not yet proposed that
                         discriminate on it and that the evidence shown mentions, grounded on the
                         attestations naming a cue; otherwise declined, saying which of those held
+    screening review    for each ABNORMAL reading, the catalog mechanism not yet proposed whose
+                        SUPPORTS outcome is exactly that reading and that the evidence shown
+                        mentions, grounded on the attestations naming a cue; otherwise declined
     Critic              a COUNTEREXAMPLE only where evidence it was shown (the inverted retrieval)
                         contains a mechanism's counter-cue, citing that attestation; alternative
                         mechanisms the evidence points at that no hypothesis covers
@@ -48,6 +51,7 @@ from lab_brain.cognition.roles import (
     HYPOTHESIS_ENGINE,
     NOVELTY_AUDITOR,
     QUERY_REWRITER,
+    SCREENING_REVIEW,
 )
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.core.models.warrant import DiagnosticDeclaration, DiagnosticDeclarationSet
@@ -224,6 +228,8 @@ class CatalogReasoner:
             return json.dumps(self._critic(ctx))
         if material.startswith(COVERAGE_REVIEW.prompt.template):
             return json.dumps(self._coverage(ctx))
+        if material.startswith(SCREENING_REVIEW.prompt.template):
+            return json.dumps(self._screening(ctx))
         if material.startswith(QUERY_REWRITER.prompt.template):
             return json.dumps(self._rewrite(ctx))
         if material.startswith(NOVELTY_AUDITOR.prompt.template):
@@ -346,6 +352,53 @@ class CatalogReasoner:
                         "evidence_ids": [],
                     }
                 )
+        return {"hypotheses": certified, "declined": declined}
+
+    def _screening(self, ctx: Mapping[str, Any]) -> dict[str, Any]:
+        existing = {" ".join(m.lower().split()) for m in ctx.get("existing_mechanisms", [])}
+        evidence = ctx.get("evidence", [])
+        certified: list[dict[str, Any]] = []
+        declined: list[dict[str, Any]] = []
+        for reading in ctx.get("screening_observations", []):
+            if reading.get("finding") != "ABNORMAL":
+                continue
+            found = None
+            for m in self.catalog.mechanisms:
+                explains = any(
+                    p.observable_ref == reading["observable_ref"]
+                    and p.expected_outcome == reading["outcome"]
+                    and p.relation_effect == "SUPPORTS"
+                    for p in m.predictions
+                )
+                taken = " ".join(m.mechanism.lower().split()) in existing
+                grounds = [
+                    e["attestation_id"]
+                    for e in evidence
+                    if any(c in e["text"].lower() for c in m.cues)
+                ]
+                if explains and not taken and grounds:
+                    found = (m, grounds)
+                    break
+            if found is None:
+                declined.append(
+                    {
+                        "observation_ref": reading["observation_ref"],
+                        "reason": (
+                            "no catalog mechanism new to the set predicts this reading and is "
+                            "named by the evidence shown"
+                        ),
+                    }
+                )
+                continue
+            m, grounds = found
+            existing.add(" ".join(m.mechanism.lower().split()))
+            certified.append(
+                {
+                    **self._certificate(m),
+                    "grounding_evidence_ids": grounds,
+                    "responds_to": [reading["observation_ref"]],
+                }
+            )
         return {"hypotheses": certified, "declined": declined}
 
     def _specialist(self, ctx: Mapping[str, Any]) -> dict[str, Any]:

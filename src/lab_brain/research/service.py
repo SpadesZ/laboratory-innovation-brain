@@ -15,6 +15,10 @@ Each stage calls the service that already owns it, unchanged, and records what i
                    Critic's inverted retrieval, §8 admission, typed predictions -- with the
                    ACTIVE LLM runtime behind the model slots (`research.reasoning`), or, with none
                    active, the pack's rule-based catalog reasoner (the explicit fallback)
+    screening      `verification.screening`, inside the debate after the coverage review: low-cost
+                   readings of what NO hypothesis predicts, under a declared policy, as Jobs and
+                   Runs; an abnormal reading may prompt one review for rivals, recorded as
+                   conditioned on it (`012y`). Exploratory evidence: it supports nothing
     verification   M4's `VerificationLoop` -- least-cost planning, typed tools, Jobs and Runs,
                    evidence admission, governed belief moves, the failure analysis
     pending        M4's `LeastCostPlanner` asked, over the loop's own final state, which action it
@@ -48,7 +52,7 @@ import datetime as dt
 import hashlib
 import re
 from collections.abc import Callable, Mapping, Sequence
-from contextlib import suppress
+from contextlib import AbstractContextManager, suppress
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -98,6 +102,7 @@ from lab_brain.core.repositories.inference import SqlInferenceProvenanceStore
 from lab_brain.core.repositories.jobs import SqlJobStore
 from lab_brain.core.repositories.observability import SqlSpanRepository
 from lab_brain.core.repositories.reviews import SqlReviewItemStore
+from lab_brain.core.repositories.screening import SqlScreeningStore
 from lab_brain.core.repositories.source_works import SqlClaimStore, SqlSourceWorkStore
 from lab_brain.core.repositories.verification_plans import SqlVerificationPlanStore
 from lab_brain.core.repositories.warrants import SqlDeclarationSetStore, SqlDiagnosticWarrantStore
@@ -144,7 +149,12 @@ from lab_brain.research.report import (
     LiteratureSection,
     PendingAction,
     PlanLine,
+    PostScreeningLine,
     ReliabilitySection,
+    ScreeningCandidateLine,
+    ScreeningCheckLine,
+    ScreeningReadingLine,
+    ScreeningSection,
     StageStatus,
     UsageLine,
 )
@@ -173,6 +183,12 @@ from lab_brain.verification.loop import (
     Planner,
     VerificationLoop,
 )
+from lab_brain.verification.screening import (
+    RESEARCH_SCREENING_POLICY,
+    ScreeningContext,
+    ScreeningExecutor,
+    ScreeningOutcome,
+)
 from lab_brain.verification.workflows import WorkflowStatus
 
 #: The genesis policy a debate's hypotheses are admitted under (DRAFT -> ACTIVE).
@@ -193,6 +209,34 @@ EMBEDDING_SLOT = ModelSlot(
 )
 REASONING_SLOTS = (LogicalSlot.REASONING_PRIMARY, LogicalSlot.FAST_UTILITY)
 BUDGET_POLICY_ID = "bp:research-run"
+#: Tokens (the ledger's whitespace count) held back for the Adversarial Critic before Stage B:
+#: about twice the largest critique context the fixture report produces with eight rivals, so an
+#: optional call or a retry can never leave the critique unaffordable (`DebatePolicy`).
+CRITIC_RESERVE_TOKENS = 12_000
+
+
+@dataclass(frozen=True)
+class ResearchFeatures:
+    """What a deployment switches on for its research runs. Declared, recorded, never inferred.
+
+    `exploratory_screening`: the governed screening stage (`verification.screening`). On by
+    default: it runs only where no hypothesis predicts, only low-cost local readings, and supports
+    nothing -- the Owner's decision for G0 option A.
+    `structure_context`: the device structure summary in Hypothesis Engine contexts
+    (`research.structure`). Off by default: a prototype evaluated separately (G0 option B), pending
+    the Owner's decision.
+    """
+
+    exploratory_screening: bool = True
+    structure_context: bool = False
+
+    @property
+    def label(self) -> str:
+        return (
+            f"screening={'on' if self.exploratory_screening else 'off'}, "
+            f"structure={'on' if self.structure_context else 'off'}"
+        )
+
 
 #: Stops that wait on something outside the episode: it is parked, not closed.
 _WAITING = frozenset(
@@ -410,6 +454,7 @@ class ResearchEpisodeService:
         mint: Callable[[str], str] = new_id,
         reasoning: ReasoningRuntime | None = None,
         reviewer_trust: ReviewerTrust | None = None,
+        features: ResearchFeatures | None = None,
     ) -> None:
         """`reasoning` is the active language-model runtime, if one is active. `None` is the
         explicit fallback: the pack's local catalog reasoner serves every model slot.
@@ -424,6 +469,7 @@ class ResearchEpisodeService:
         self._mint = mint
         self._reasoning = reasoning
         self._trust = reviewer_trust or ReviewerTrust()
+        self._features = features or ResearchFeatures()
         self._service = IngestionService(
             connection=connection, artifact_store=artifact_store, clock=clock
         )
@@ -1241,13 +1287,17 @@ class ResearchEpisodeService:
             embedding_space=EMBEDDING_SPACE,
             # 1.1.0: a refused reply is asked for once more, with the parser's reason; and the
             # Hypothesis Engine reviews the cheap executable checks no hypothesis addressed.
+            # 1.2.0: an exploratory screening stage after the coverage review (when the deployment
+            # enables it), and tokens reserved for the Critic before Stage B.
             policy=DebatePolicy(
                 policy_id="debate:research-run",
-                version="1.1.0",
+                version="1.2.0",
                 minimum_hypotheses=debate_minimum(vertical),
                 max_rounds=2,
                 max_attempts=2,
                 coverage_review=True,
+                screening=self._features.exploratory_screening,
+                critic_reserve_tokens=CRITIC_RESERVE_TOKENS,
             ),
             mint=self._mint,
             now=self._clock,
@@ -1282,6 +1332,10 @@ class ResearchEpisodeService:
                         if run.verification is not None
                         else frozenset()
                     ),
+                    screening=self._screening_hook(
+                        request, vertical, episode_id, trace_id, budget, run
+                    ),
+                    structure=self._structure(request, vertical, run),
                 )
             )
         except Exception as failed:  # recorded; verification cannot proceed without rivals
@@ -1289,6 +1343,7 @@ class ResearchEpisodeService:
             run.stage("verification", "SKIPPED", "the debate did not produce admitted hypotheses")
             return None
         run.debate = outcome
+        self._screening_stage(outcome, run)
         run.stage(
             "hypotheses",
             "DONE",
@@ -1302,6 +1357,131 @@ class ResearchEpisodeService:
             ),
         )
         return self._brain(vertical, debate, hypotheses, events, debates, attestations, gate)
+
+    def _screening_hook(
+        self,
+        request: ResearchRequest,
+        vertical: ProductVertical,
+        episode_id: str,
+        trace_id: str,
+        budget: BudgetPolicy,
+        run: _Run,
+    ) -> _ScreeningStage | None:
+        """The screening stage the debate may run, or `None` when none can: switched off, no
+        screenable capability in the pack, or no verification input to read."""
+        if (
+            not self._features.exploratory_screening
+            or not vertical.screening_norms
+            or run.verification is None
+            or run.verification_artifact is None
+        ):
+            return None
+        c = self._connection
+        regs = vertical.registry.registries
+        jobs = SqlJobStore(c)
+        outputs = SqlRunOutputSink(connection=c, store=self._store, now=self._clock)
+        evidence = SqlEvidenceSink(connection=c, outputs=outputs)
+        executor = ScreeningExecutor(
+            capabilities=regs.capabilities,
+            workflows=regs.workflows,
+            conditions=regs.conditions,
+            jobs=jobs,
+            dispatcher=BudgetedToolDispatcher(
+                tools=regs.tools,
+                capabilities=regs.capabilities,
+                spans=SqlSpanRepository(c),
+                ledger=SqlCostLedger(c),
+                jobs=jobs,
+                claims=SqlBudgetApprovalClaims(c),
+                now=self._clock,
+            ),
+            evidence=evidence,
+            admission=EvidenceAdmissionGate(
+                load_artifact=evidence.load_artifact,
+                load_evidence_unit=lambda _unit: None,
+                load_run=jobs.get_run,
+                is_artifact_in_project=evidence.artifact_in_project,
+            ),
+            store=SqlScreeningStore(c),
+            norms=vertical.screening_norms,
+            policy=RESEARCH_SCREENING_POLICY,
+            mint=self._mint,
+            now=self._clock,
+        )
+        return _ScreeningStage(
+            executor=executor,
+            context=ScreeningContext(
+                project_id=request.project_id,
+                episode_id=episode_id,
+                trace_id=trace_id,
+                actor_id=request.actor_id,
+                input_artifacts=(run.verification_artifact,),
+                available_inputs=frozenset({run.verification.kind}),
+                conditions=dict(run.verification.conditions),
+                conditions_schema_version=run.verification.conditions_schema_version,
+                budget_policy=budget,
+            ),
+            connection=c,
+        )
+
+    def _structure(
+        self, request: ResearchRequest, vertical: ProductVertical, run: _Run
+    ) -> Mapping[str, object] | None:
+        """The device structure summary for the Hypothesis Engine, when the deployment enables it
+        and the pack offers one -- built only from the input THIS run stored in THIS project."""
+        if (
+            not self._features.structure_context
+            or vertical.structure_summary is None
+            or run.verification_artifact is None
+        ):
+            return None
+        evidence = SqlEvidenceSink(connection=self._connection, outputs=None)  # type: ignore[arg-type]
+        if not evidence.artifact_in_project(run.verification_artifact, request.project_id):
+            run.notes.append("structure summary skipped: the input is not this project's")
+            return None
+        data = self._read_bytes(run.verification_artifact)
+        if data is None:
+            return None
+        try:
+            summary = vertical.structure_summary(
+                data, run.verification_artifact, request.project_id
+            )
+        except Exception as refused:  # recorded; the debate runs without it
+            run.notes.append(f"structure summary not built: {type(refused).__name__}: {refused}")
+            return None
+        run.stage(
+            "structure summary",
+            "DONE",
+            f"{summary.summary_ref}: {len(summary.entries)} design-declared field(s) shown to the "
+            f"Hypothesis Engine beside the evidence, never as evidence (digest {summary.digest})",
+        )
+        return summary.as_context()
+
+    @staticmethod
+    def _screening_stage(outcome: DebateOutcome, run: _Run) -> None:
+        """The screening stage's line in the run's stages, from the debate's record."""
+        recorded = outcome.record.reliability.get("screening") or {}
+        status = str(recorded.get("status", "DISABLED"))
+        if status == "DISABLED":
+            run.stage("screening", "SKIPPED", "exploratory screening is not enabled for this run")
+            return
+        if status == "FAILED":
+            run.stage("screening", "FAILED", str(recorded.get("detail", "")))
+            return
+        observations = recorded.get("observations", [])
+        executed = [o for o in observations if o.get("status") == "EXECUTED"]
+        abnormal = [
+            r for o in executed for r in o.get("readings", []) if r.get("finding") == "ABNORMAL"
+        ]
+        review = recorded.get("review", {})
+        run.stage(
+            "screening",
+            "DONE",
+            f"{len(executed)} of {len(observations)} selected low-cost reading(s) taken where no "
+            f"hypothesis predicted; {len(abnormal)} abnormal; review "
+            f"{review.get('status', 'NOT_NEEDED')}, {len(review.get('certified', []))} rival(s) "
+            "added after screening (exploratory: supports nothing)",
+        )
 
     def _model_route(
         self, vertical: ProductVertical
@@ -1456,6 +1636,18 @@ class ResearchEpisodeService:
             ),
         )
         loop_jobs: Any = jobs
+        screened = SqlScreeningStore(c).screened_capabilities(
+            request.project_id, episode_id, (run.verification_artifact,)
+        )
+        if screened:
+            # A reading screening already took of this same input is not taken again: a
+            # deterministic repeat is not a second piece of evidence, and a rival proposed after
+            # the reading must earn support from a different, prospective check (`012y`).
+            planner = ExcludingPlanner(planner, frozenset(screened))
+            run.notes.append(
+                "not repeated by verification (already read by screening, same input): "
+                + ", ".join(sorted(screened))
+            )
         continuing = run.continuation
         if continuing is not None:
             # What earlier runs of THIS episode executed is never executed again, and this run's
@@ -1584,7 +1776,11 @@ class ResearchEpisodeService:
             available_inputs=loop_request.available_inputs,
             conditions=loop_request.conditions,
             symptom=loop_request.symptom,
-            exclude=frozenset(result.executed) | _executed_before(run),
+            exclude=frozenset(result.executed)
+            | _executed_before(run)
+            | SqlScreeningStore(self._connection).screened_capabilities(
+                loop_request.project_id, loop_request.episode_id, loop_request.input_artifacts
+            ),
             projected_condition_match=match,
         )
         plan = what_if.plan
@@ -1644,6 +1840,11 @@ class ResearchEpisodeService:
         objections: dict[str, list[str]] = {}
         debate_section: DebateSection | None = None
         episode_store = SqlEpisodeStore(c)
+        screening_store = SqlScreeningStore(c)
+        conditioned = {
+            r.hypothesis_id
+            for r in screening_store.conditioned_for_episode(request.project_id, episode_id)
+        }
         if run.debate is not None:
             outcome = run.debate
             names = {c.hypothesis_id: c.hypothesis.mechanism for c in outcome.certificates}
@@ -1693,6 +1894,11 @@ class ResearchEpisodeService:
                         objections=tuple(objections.get(h.hypothesis_id, ())),
                         machine_falsifiers=tuple(
                             typed_falsifier_text(p) for p in certificate.falsifier_predictions
+                        ),
+                        origin=(
+                            "POST_SCREENING"
+                            if h.hypothesis_id in conditioned
+                            else "PRE_OBSERVATION"
                         ),
                     )
                 )
@@ -1941,6 +2147,9 @@ class ResearchEpisodeService:
             notes=tuple(run.notes) + (tuple(loop.notes) if loop is not None else ()),
             continuation=self._continuation_section(run),
             usage=self._usage(request.project_id, trace_id, started),
+            screening=_screening_section(
+                run, screening_store, request.project_id, episode_id, mechanisms
+            ),
         )
 
     def _aliases(self, project_id: str, inference_id: str) -> dict[str, str]:
@@ -2047,10 +2256,18 @@ class ResearchEpisodeService:
             store.close(episode_id, outcome=f"INCONCLUSIVE:{stop}", at=at)
             state = "COMPLETED"
         leading = ", ".join(c.split(" (")[0] for c in competing) or "none"
+        post = [h.mechanism for h in hypotheses if h.origin == "POST_SCREENING"]
         statement = (
             f"not confirmed. The executed checks ruled out {len(ruled_out)} of "
             f"{len(hypotheses)} competing mechanisms; {len(competing)} remain ({leading}). "
             + _WARRANT_STATEMENTS.get(stop, "")
+            + (
+                f"{', '.join(post)} was proposed after an exploratory screening reading; that "
+                "reading cannot support it, and it stays unconfirmed until a prospective, "
+                "independent check or an authorized reviewer settles it. "
+                if post
+                else ""
+            )
             + (
                 f"The check that would discriminate next is `{best.capability_id}`, a "
                 f"simulation this deployment cannot run; it is pending, not assumed."
@@ -2093,6 +2310,14 @@ class ResearchEpisodeService:
             )
         for action in human:
             steps.append(f"A person can act now: {action}")
+        if run.debate is not None:
+            review = (run.debate.record.reliability.get("screening") or {}).get("review") or {}
+            for certified in review.get("certified", []):
+                steps.append(
+                    f"'{certified['mechanism']}' was proposed after a screening reading it cannot "
+                    "be supported by: test it with a different, prospective check (one not yet "
+                    "read) or have an authorized reviewer judge it."
+                )
         if conclusion.status == "CONFIRMED":
             steps.append("Review the confirmed root cause and its trace before acting on it.")
         loop = run.loop
@@ -2324,6 +2549,19 @@ def _reliability(
             for a in attempts
             if a.get("outcome") == "REFUSED"
         ),
+        withheld_for_critic=tuple(str(w) for w in recorded.get("withheld_for_critic", [])),
+        overlap=tuple(
+            f"{' / '.join(str(m) for m in o.get('mechanisms', []))}: the same discriminating "
+            f"claims ({', '.join(o.get('shared_claims', []))}); word overlap "
+            f"{o.get('term_overlap')}"
+            for o in recorded.get("overlap", [])
+            if isinstance(o, dict)
+        ),
+        structure_summary=(
+            None
+            if recorded.get("structure_summary") is None
+            else str(recorded["structure_summary"])
+        ),
     )
 
 
@@ -2411,6 +2649,154 @@ def _require_nothing_new(request: ResearchRequest) -> None:
         )
 
 
+class _ScreeningStage:
+    """The research service's `ScreeningHook`: one executor, one episode, one connection."""
+
+    def __init__(
+        self, *, executor: ScreeningExecutor, context: ScreeningContext, connection: Any
+    ) -> None:
+        self._executor = executor
+        self._context = context
+        self._connection = connection
+
+    def screen(
+        self,
+        *,
+        hypothesis_set_id: str,
+        certificates: Sequence[Any],
+        bindings: Mapping[str, Any],
+    ) -> ScreeningOutcome:
+        return self._executor.screen(
+            self._context,
+            hypothesis_set_id=hypothesis_set_id,
+            certificates=certificates,
+            bindings=bindings,
+        )
+
+    def condition(
+        self,
+        *,
+        hypothesis_id: str,
+        plan_id: str,
+        screening_observation_ids: Sequence[str],
+        inference_id: str,
+    ) -> object:
+        return self._executor.condition(
+            hypothesis_id=hypothesis_id,
+            project_id=self._context.project_id,
+            episode_id=self._context.episode_id,
+            plan_id=plan_id,
+            screening_observation_ids=screening_observation_ids,
+            inference_id=inference_id,
+        )
+
+    def atomic(self) -> AbstractContextManager[object]:
+        transaction: AbstractContextManager[object] = self._connection.transaction()
+        return transaction
+
+
+def _screening_section(
+    run: _Run,
+    store: SqlScreeningStore,
+    project_id: str,
+    episode_id: str,
+    mechanisms: Mapping[str, str],
+) -> ScreeningSection | None:
+    """This run's screening stage, from the debate's record and the durable `012y` rows."""
+    if run.debate is None:
+        return None
+    recorded = run.debate.record.reliability.get("screening")
+    if not recorded:
+        return None
+    status = str(recorded.get("status", "DISABLED"))
+    plan_id = recorded.get("plan_id")
+    plan = next(
+        (p for p in store.plans_for_episode(project_id, episode_id) if p.plan_id == plan_id), None
+    )
+    observations = [
+        o for o in store.observations_for_episode(project_id, episode_id) if o.plan_id == plan_id
+    ]
+    readings = {
+        r.observation_id: f"{o.capability_id}: {r.observable_ref} = {r.outcome}"
+        for o in observations
+        for r in o.readings
+    }
+    review = recorded.get("review") or {}
+    lines: list[PostScreeningLine] = []
+    for c in review.get("certified", []):
+        lines.append(
+            PostScreeningLine(
+                disposition="CERTIFIED",
+                readings=tuple(readings.get(o, o) for o in c.get("responds_to", [])),
+                hypothesis_id=str(c["hypothesis_id"]),
+                detail=mechanisms.get(str(c["hypothesis_id"]), str(c["mechanism"])),
+                grounding=tuple(c.get("grounding", [])),
+            )
+        )
+    for d in review.get("declined", []):
+        lines.append(
+            PostScreeningLine(
+                disposition="DECLINED",
+                readings=(readings.get(str(d["observation_id"]), str(d["observation_id"])),),
+                hypothesis_id=None,
+                detail=str(d["reason"]),
+            )
+        )
+    for r in review.get("refused", []):
+        lines.append(
+            PostScreeningLine(
+                disposition="REFUSED",
+                readings=tuple(readings.get(o, o) for o in r.get("responds_to", [])),
+                hypothesis_id=None,
+                detail=f"{r.get('mechanism')}: {r.get('detail')}",
+            )
+        )
+    not_repeated = next(
+        (
+            n.split(": ", 1)[1].split(", ")
+            for n in run.notes
+            if n.startswith("not repeated by verification")
+        ),
+        [],
+    )
+    return ScreeningSection(
+        policy=str(recorded.get("policy", RESEARCH_SCREENING_POLICY.ref)),
+        status=status,
+        plan_id=None if plan_id is None else str(plan_id),
+        unaddressed=tuple(recorded.get("unaddressed", ())),
+        candidates=tuple(
+            ScreeningCandidateLine(c.capability_id, c.disposition.value, c.detail)
+            for c in (plan.candidates if plan is not None else ())
+        ),
+        checks=tuple(
+            ScreeningCheckLine(
+                rank=o.rank,
+                check=o.capability_id,
+                status=o.status.value,
+                estimated_cost=_cost(o.estimated_cost),
+                readings=tuple(
+                    ScreeningReadingLine(
+                        observable=r.observable_ref,
+                        outcome=r.outcome,
+                        reference=r.reference_outcome,
+                        finding=r.finding.value,
+                        observation_id=r.observation_id,
+                    )
+                    for r in o.readings
+                ),
+                job_id=o.job_id,
+                run_id=o.run_id,
+                detail=o.detail,
+            )
+            for o in observations
+        ),
+        review_status=str(review.get("status", "NOT_NEEDED")),
+        review=tuple(lines),
+        not_repeated=tuple(not_repeated),
+        detail=str(recorded.get("detail", "")),
+    )
+
+
 def _executed_before(run: _Run) -> frozenset[str]:
     """Capabilities an earlier run of this episode executed. Empty for an opening run."""
     if run.continuation is None:
@@ -2431,6 +2817,7 @@ __all__ = [
     "InputDocument",
     "QuestionNotCleared",
     "ResearchEpisodeService",
+    "ResearchFeatures",
     "ResearchRequest",
     "UuidEpisodeIds",
 ]

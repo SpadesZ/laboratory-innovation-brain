@@ -243,7 +243,7 @@ def test_the_review_finds_the_cheap_check_and_the_warrant_gate_still_decides(db,
     report = recorded.report
     assert report.debate is not None and report.debate.reliability is not None
     reliability = report.debate.reliability
-    assert reliability.policy == "debate:research-run@1.1.0"
+    assert reliability.policy == "debate:research-run@1.2.0"
     assert reliability.coverage_status == "DONE" and reliability.refused == 0
     assert [(c.observable, c.disposition) for c in reliability.coverage] == [
         (sp.OBS_CONNECTIVITY, "CERTIFIED")

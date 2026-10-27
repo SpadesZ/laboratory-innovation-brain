@@ -153,6 +153,7 @@ from lab_brain.research.service import (
     InputDocument,
     ProjectData,
     ResearchEpisodeService,
+    ResearchFeatures,
     ResearchRequest,
 )
 from lab_brain.research.vertical import VerticalFactory
@@ -306,6 +307,7 @@ class Workspace:
         credential_dir: Path | None = None,
         inference_deadline: float | None = None,
         accounts: AccountsConfig | None = None,
+        research_features: ResearchFeatures | None = None,
     ) -> None:
         # One of two trust models: one researcher, named at start-up (no login, loopback
         # only), or a laboratory's accounts, where each request is the person it signs in.
@@ -340,6 +342,8 @@ class Workspace:
             DOCKER_HOST_GATEWAY if DOCKER_HOST_GATEWAY in self._local_hosts else "127.0.0.1"
         )
         self._ollama_url = (ollama_url or f"http://{ollama_host}:11434/v1").rstrip("/")
+        #: What this deployment switches on for research runs (`ResearchFeatures`).
+        self._features = research_features or ResearchFeatures()
         self._settings = settings
         self._connect = connect
         self._artifact_root = artifact_root.resolve()
@@ -1413,6 +1417,7 @@ class Workspace:
             mint=mint,
             reasoning=reasoning,
             reviewer_trust=ReviewerTrust.configured_at(self._settings.review_authorities),
+            features=self._features,
         )
         report = service.run(request)
         if len(minted) != 1:  # pragma: no cover - the service mints one per run

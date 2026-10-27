@@ -86,6 +86,10 @@ class HypothesisLine:
     #: The designated typed falsifier(s), rendered: what verification adjudicates. Empty in a report
     #: stored before it was recorded.
     machine_falsifiers: tuple[str, ...] = ()
+    #: PRE_OBSERVATION: proposed before its author was shown any check this episode observed.
+    #: POST_SCREENING: proposed after its author was shown screening readings (`012y`) -- those
+    #: readings can never support it; only a prospective, different check or a person can.
+    origin: str = "PRE_OBSERVATION"
 
 
 @dataclass(frozen=True)
@@ -114,6 +118,82 @@ class ReliabilitySection:
     coverage: tuple[CoverageLine, ...] = ()
     #: "role, attempt n: the parser's reason", for every refused reply.
     refusals: tuple[str, ...] = ()
+    #: Optional calls and retries not made because they would have left the Critic short.
+    withheld_for_critic: tuple[str, ...] = ()
+    #: Admitted rivals making exactly the same discriminating claims (`cognition.overlap`): kept,
+    #: never merged, and named so a reader can judge whether they are one mechanism.
+    overlap: tuple[str, ...] = ()
+    #: The digest of the device structure summary the Hypothesis Engine was shown, if any.
+    structure_summary: str | None = None
+
+
+@dataclass(frozen=True)
+class ScreeningReadingLine:
+    observable: str
+    outcome: str
+    #: The outcome the domain declares a sound design shows.
+    reference: str
+    #: NORMAL | ABNORMAL
+    finding: str
+    observation_id: str
+
+
+@dataclass(frozen=True)
+class ScreeningCheckLine:
+    """One check a screening stage selected: what ran, what it read, and its provenance."""
+
+    rank: int
+    check: str
+    #: EXECUTED | AWAITING_RESOURCE | BUDGET_BLOCKED | FAILED | NOT_RUN
+    status: str
+    estimated_cost: str
+    readings: tuple[ScreeningReadingLine, ...] = ()
+    job_id: str | None = None
+    run_id: str | None = None
+    detail: str = ""
+
+
+@dataclass(frozen=True)
+class ScreeningCandidateLine:
+    """A capability the screening stage considered, and why it did or did not take it."""
+
+    check: str
+    disposition: str
+    detail: str
+
+
+@dataclass(frozen=True)
+class PostScreeningLine:
+    """What the review after an abnormal reading did with it."""
+
+    #: CERTIFIED (a new rival accounts for it) | DECLINED | REFUSED (admission refused the rival)
+    disposition: str
+    #: The readings answered, as "check: observable = outcome".
+    readings: tuple[str, ...]
+    hypothesis_id: str | None
+    #: The certified mechanism, or the reason given, or why it was refused.
+    detail: str
+    grounding: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ScreeningSection:
+    """The exploratory screening stage (`012y`): an outcome-independent look where no hypothesis
+    looked. Exploratory evidence: it moved no belief and supports nothing proposed after it."""
+
+    policy: str
+    #: DONE | FAILED | DISABLED
+    status: str
+    plan_id: str | None
+    unaddressed: tuple[str, ...]
+    candidates: tuple[ScreeningCandidateLine, ...]
+    checks: tuple[ScreeningCheckLine, ...]
+    #: NOT_NEEDED | DONE | FAILED | BUDGET_BLOCKED | RESERVED_FOR_CRITIC
+    review_status: str
+    review: tuple[PostScreeningLine, ...] = ()
+    #: Screened checks verification did not run again on the same input.
+    not_repeated: tuple[str, ...] = ()
+    detail: str = ""
 
 
 @dataclass(frozen=True)
@@ -249,6 +329,9 @@ class EpisodeReport:
     #: This run's model calls by model, with the provider-reported token counts (`execution_spans`).
     #: Empty when the run called no model or the report predates it.
     usage: tuple[UsageLine, ...] = ()
+    #: The exploratory screening stage, when this run's debate had one. `None` otherwise, and in a
+    #: report stored before screening existed.
+    screening: ScreeningSection | None = None
 
 
 __all__ = [
@@ -266,7 +349,12 @@ __all__ = [
     "LiteratureSection",
     "PendingAction",
     "PlanLine",
+    "PostScreeningLine",
     "ReliabilitySection",
+    "ScreeningCandidateLine",
+    "ScreeningCheckLine",
+    "ScreeningReadingLine",
+    "ScreeningSection",
     "StageStatus",
     "UsageLine",
 ]
