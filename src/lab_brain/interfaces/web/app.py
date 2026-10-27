@@ -576,7 +576,11 @@ class Workspace:
             return []
 
     def _cleared(self, c: Any, project_id: str) -> frozenset[str]:
-        """The labels this actor may declare -- and read -- in the project."""
+        """The labels this actor may declare -- and read -- in the project. None while the project's
+        read gate refuses them: a lapsed member or a disabled actor holds no clearance, so this
+        layer refuses on its own even if the membership check before it were lost."""
+        if not self._gate(c).authorize_project(actor_id=self._actor, project_id=project_id).allowed:
+            return frozenset()
         held = self._research_data(c).clearance(project_id=project_id, actor_id=self._actor)
         return frozenset(label.value for label in held)
 

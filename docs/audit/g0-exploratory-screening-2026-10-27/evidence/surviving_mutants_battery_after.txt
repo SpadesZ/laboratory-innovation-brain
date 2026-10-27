@@ -1,0 +1,11 @@
+2 mutations
+
+[KILLED ] workspace_episode_ignores_membership
+           research workspace -- a lapsed member sees their episode no more
+           killed by FAILED tests/e2e/test_web_workspace_postgres.py::test_the_opener_reads_their_episode_only_while_the_
+
+[KILLED ] the_review_rivals_cross_projects
+           Research integrity F-02 (012r) -- a review packet's rivals are the relation's own project's
+           killed by FAILED tests/e2e/test_causal_warrant_counterexample_postgres.py::test_the_review_packet_reads_only_i
+
+2/2 killed
