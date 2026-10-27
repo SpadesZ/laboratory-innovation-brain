@@ -1,0 +1,20 @@
+{
+ "suite": "g0-screening-dev",
+ "version": "1.0.0",
+ "note_for_readers": "Development cases: the historical open-via cases from the VS-SP-001 benchmark, its normal and probe-artefact devices, and designed cases for competing causes, an unavailable reader and contradictory evidence. Devices are merged over the nominal device; nothing else from the benchmark is given to the research system.",
+ "nominal_device": {"format": "sp.device_project@1", "device_id": "PS-500", "drawn_length_um": "500", "contacts": [{"contact_id": "anode", "region": "p_plus", "via_to_metal": true, "overlap_nm": "400"}, {"contact_id": "cathode", "region": "n_plus", "via_to_metal": true, "overlap_nm": "400"}], "extraction_normalization_length_um": "500", "access_mesh_max_edge_nm": "5", "rib_doping_cm3": "5E17", "counterdoping_cm3": "0", "solver_converges": true},
+ "cases": [
+  {"case_id": "dv-01", "device": {"device_id": "PS-501", "contacts": [{"contact_id": "anode", "region": "p_plus", "via_to_metal": true, "overlap_nm": "400"}, {"contact_id": "cathode", "region": "n_plus", "via_to_metal": false, "overlap_nm": "400"}]}, "evidence": "default"},
+  {"case_id": "dv-02", "device": {"device_id": "PS-502", "contacts": [{"contact_id": "anode", "region": "p_plus", "via_to_metal": true, "overlap_nm": "40"}, {"contact_id": "cathode", "region": "n_plus", "via_to_metal": true, "overlap_nm": "400"}]}, "evidence": "default"},
+  {"case_id": "dv-03", "device": {"device_id": "PS-506", "contacts": [{"contact_id": "anode", "region": "p_plus", "via_to_metal": false, "overlap_nm": "400"}, {"contact_id": "cathode", "region": "n_plus", "via_to_metal": true, "overlap_nm": "400"}]}, "evidence": "default"},
+  {"case_id": "dv-04", "device": {"device_id": "PS-503", "extraction_normalization_length_um": "1000"}, "evidence": "default"},
+  {"case_id": "dv-05", "device": {"device_id": "PS-504", "access_mesh_max_edge_nm": "40"}, "evidence": "default"},
+  {"case_id": "dv-06", "device": {"device_id": "PS-505", "counterdoping_cm3": "3E17"}, "evidence": "default"},
+  {"case_id": "dv-07", "device": {"device_id": "PS-508"}, "evidence": "default"},
+  {"case_id": "dv-08", "device": {"device_id": "PS-509"}, "evidence": "default", "deployment": {"unavailable": ["cap:sp.fourpoint_probe"]}},
+  {"case_id": "dv-09", "device": {"device_id": "PS-511", "contacts": [{"contact_id": "anode", "region": "p_plus", "via_to_metal": true, "overlap_nm": "400"}, {"contact_id": "cathode", "region": "n_plus", "via_to_metal": false, "overlap_nm": "400"}], "extraction_normalization_length_um": "1000"}, "evidence": "default"},
+  {"case_id": "dv-10", "device": {"device_id": "PS-512", "contacts": [{"contact_id": "anode", "region": "p_plus", "via_to_metal": true, "overlap_nm": "400"}, {"contact_id": "cathode", "region": "n_plus", "via_to_metal": false, "overlap_nm": "400"}]}, "evidence": "default", "deployment": {"unavailable": ["cap:sp.inspect_contact_connectivity"]}},
+  {"case_id": "dv-11", "device": {"device_id": "PS-513", "contacts": [{"contact_id": "anode", "region": "p_plus", "via_to_metal": true, "overlap_nm": "400"}, {"contact_id": "cathode", "region": "n_plus", "via_to_metal": false, "overlap_nm": "400"}]}, "evidence": "continuity_claimed"},
+  {"case_id": "dv-12", "device": {"device_id": "PS-514"}, "evidence": "continuity_claimed"}
+ ]
+}

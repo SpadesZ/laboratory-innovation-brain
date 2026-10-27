@@ -1,0 +1,92 @@
+{
+ "protocol": "AcceptanceProtocol-g0-screening-offline",
+ "version": "1.0.0",
+ "frozen_at": "2026-10-27T08:27:33+00:00",
+ "status": "FROZEN before any matrix run; thresholds are not changed after results are seen",
+ "scope": "Offline software matrix with a deterministic stand-in Hypothesis Engine (tests/g0_standin.py). It measures what the PLATFORM does with model replies of a recorded shape. It is NOT a G0 result: no real ScientificLLM is invoked.",
+ "experimental_unit": "one research episode per (configuration, case)",
+ "configurations": {
+  "baseline": {
+   "exploratory_screening": false,
+   "structure_context": false,
+   "standin": {
+    "structure_reading": false
+   }
+  },
+  "screening": {
+   "exploratory_screening": true,
+   "structure_context": false,
+   "standin": {
+    "structure_reading": false
+   }
+  },
+  "structure": {
+   "exploratory_screening": false,
+   "structure_context": true,
+   "standin": {
+    "structure_reading": true
+   }
+  },
+  "combined": {
+   "exploratory_screening": true,
+   "structure_context": true,
+   "standin": {
+    "structure_reading": true
+   }
+  }
+ },
+ "splits": {
+  "dev": "benchmarks/g0_screening/dev/cases.json",
+  "holdout": "benchmarks/g0_screening/holdout/cases.json"
+ },
+ "evaluator_only": [
+  "benchmarks/g0_screening/dev/truth.evaluator.json",
+  "benchmarks/g0_screening/holdout/truth.evaluator.json"
+ ],
+ "visible_to_the_system": "the measurement report (or the case's evidence variant), the device file, the goal, the deployment's capability availability",
+ "metrics": {
+  "considered": "some admitted hypothesis makes a SUPPORTS/CONTRADICTS prediction over the observable of a true cause (contact_discontinuity->sp.contact_connectivity, normalization_error->sp.normalization_basis, mesh_artifact->sp.mesh_stability, dopant_compensation->sp.carrier_profile, probe_artifact->sp.probe_contact_resistance); split by origin PRE_OBSERVATION / POST_SCREENING",
+  "decisive_executed": "a check in decisive_cheap_checks ran (screening or verification), among cases where that check is available",
+  "false_abnormal": "an ABNORMAL reading on an observable not in expected_abnormal_observables",
+  "false_confirmation": "episode CONFIRMED on a hypothesis whose discriminating observables include no true cause's observable, or any confirmation of a POST_SCREENING hypothesis",
+  "post_screening_support": "a SUPPORTS relation to a POST_SCREENING hypothesis",
+  "repeated_screened_reading": "verification ran a capability screening already read on the same input",
+  "ineligible_screening": "a screening Job for a SIMULATION/MEASUREMENT/FABRICATION capability or an UNAVAILABLE one",
+  "screening_checks": "screening Jobs per case; NORMAL readings are counted as checks that changed nothing",
+  "leak": "a case id, an evaluator rationale, a truth key or a benchmark note appears in any prompt sent to the model"
+ },
+ "acceptance_thresholds": {
+  "all_configurations": {
+   "false_confirmation": 0,
+   "post_screening_support": 0,
+   "repeated_screened_reading": 0,
+   "ineligible_screening": 0,
+   "leak": 0,
+   "false_abnormal": 0
+  },
+  "screening_and_combined": {
+   "decisive_executed_rate_min": 0.9,
+   "considered_rate_on_cheap_visible_min": 0.9,
+   "mean_screening_checks_per_case_max": 2.0
+  },
+  "structure": "reported only: a prototype awaiting an Owner decision; no acceptance threshold",
+  "reproducibility": "the dev split re-run under 'screening' yields identical normalized records"
+ },
+ "disclosures": [
+  "The holdout author's hand-back message summarised each holdout case's truth to the implementer before this protocol and the stand-in were frozen. The stand-in's rules read only prompt contexts; its structure heuristics (via not drawn to metal, an overlap under half of the largest, a length basis more than 10% off) are generic and were not tuned on holdout results, but the holdout cannot be called unseen by the implementer.",
+  "Dev cases dv-01..dv-08 come from the VS-SP-001 benchmark the platform was developed against."
+ ],
+ "file_sha256": {
+  "benchmarks/g0_screening/dev/cases.json": "8706d27c10a7683d762fe917d13da758b251bf7b60d1d8865bdf63fe66cd191e",
+  "benchmarks/g0_screening/dev/evidence/continuity_claimed.md": "c1e37600abf117fcf5f5000f0261a4f0ccc78bc46443ddbcf82e3f2ce87bc4da",
+  "benchmarks/g0_screening/dev/truth.evaluator.json": "918fda7e3ae0163a66496a86ac4315a9cfb65fa14466b422d5b801be51bd151a",
+  "benchmarks/g0_screening/holdout/SEAL.txt": "54b13b22edf701cc280750ca5880ffa124526f6d5ab69fe75ef1d71f55c141d4",
+  "benchmarks/g0_screening/holdout/cases.json": "9dca8b71178e64f92b17cbf9f6fc7960c518878bbdffde79c86e419a8dfdc3d3",
+  "benchmarks/g0_screening/holdout/evidence/bench_notes_verified.md": "9a49031f263c22e840ed449ea5c08c09d49944f8382e0cd43c5ea5a81044b76d",
+  "benchmarks/g0_screening/holdout/evidence/plain_summary.md": "408f9fd6606bb18ac7d88568ea6c6a71e7d2e19f85d421c165ef7d01a55d3899",
+  "benchmarks/g0_screening/holdout/evidence/reviewer_wording.md": "068d0c6f254d3dfd104fe9aaaccfc7922f7d030d83b1bdebd388ae3edf8698a4",
+  "benchmarks/g0_screening/holdout/truth.evaluator.json": "a6bc0ed4f0133942f62aa4f5bbee8575158e78d8f5a3d6ca4cb53f41c949bc5c",
+  "fixtures/evidence/rs_anomaly_report.md": "8b30ebc93163b8965b8ad8d67b298b20edeb832e16c69aacd66291fd621a981b",
+  "tests/g0_standin.py": "3530194b7be46d178abe93d8451c65bc6d374b8d069a6522e8852b4671a67b36"
+ }
+}
