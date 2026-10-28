@@ -213,6 +213,7 @@ def test_concurrent_reservations_never_pass_the_ceiling(pg):
     fits = int(Decimal(1) / request_cost)
     guard = PostgresSpendGuard(database_url(), budget)
     outcomes: list[str] = []
+    reasons: list[str] = []
     gate = threading.Barrier(24)
 
     def race() -> None:
@@ -223,8 +224,9 @@ def test_concurrent_reservations_never_pass_the_ceiling(pg):
                     SpendRequest(spend.new_call_id(), "provider.test", "m", 10_000, 0, 10_000)
                 )
                 outcomes.append("reserved")
-            except SpendRefused:
+            except SpendRefused as refused:
                 outcomes.append("refused")
+                reasons.append(str(refused))
 
     threads = [threading.Thread(target=race) for _ in range(24)]
     for thread in threads:
@@ -232,6 +234,9 @@ def test_concurrent_reservations_never_pass_the_ceiling(pg):
     for thread in threads:
         thread.join()
     assert outcomes.count("reserved") == fits < len(outcomes)
+    # Every refusal is the ceiling's own, decided under the budget row's lock -- never the table's
+    # CHECK firing as a backstop after two reservations both read the same charge.
+    assert reasons and all("may cost up to" in r for r in reasons), sorted(set(reasons))[:3]
     state = _state(pg, budget)
     assert state.charged == fits * request_cost <= state.ceiling
     rows = _ledger(pg, budget)
@@ -438,3 +443,21 @@ def test_the_ledger_prices_and_budget_money_refuse_direct_writes(pg, fake):
             " VALUES ('test-precharged', 'USD', 1, 0.5, 'a')"
         )
     assert _ledger(pg, budget) == before
+
+
+def test_the_database_refuses_a_reservation_without_max_tokens_or_a_size(pg):
+    """The SQL function's own refusals, for a caller that is not this client."""
+    budget = _budget(pg, ceiling="1")
+    _price(pg, budget, "provider.test", "m")
+    for body, images, max_output, why in (
+        (10_000, 0, None, "no max_tokens"),
+        (10_000, 0, 0, "no max_tokens"),
+        (None, 0, 100, "size is not known"),
+        (10_000, -1, 100, "size is not known"),
+    ):
+        with pytest.raises(Exception, match=why):
+            pg.execute(
+                "SELECT llm_spend_reserve(%s, %s, %s, %s, %s, %s, %s)",
+                (budget, spend.new_call_id(), "provider.test", "m", body, images, max_output),
+            )
+    assert _state(pg, budget).charged == 0
