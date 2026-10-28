@@ -298,7 +298,15 @@ class SessionProvenance:
     """How the run that wrote this report was started (`011n`), as its run row records it: the
     origin, and -- for WEB_SESSION only -- the session's NON-SECRET audit reference, with the
     actor, project, run and trace it binds. Never a sign-in token or a `session_hash`; `012d`'s
-    table refuses a report whose session provenance is not its run's."""
+    table refuses a report whose session provenance is not its run's.
+
+    For a WEB_SESSION run the web tier signed (`011q`), the run's interaction attestation, copied
+    from the run row (the database refuses a report whose copy differs): the exact statement text,
+    its signature and the signing key's id. These are CLAIMS TO BE CHECKED, not a verdict: the
+    claim level is computed when the report is shown, against the keys pinned outside the
+    database (`security.interaction_attestation.interaction_claim`). No stored field says a run
+    was verified, so no writer can set one. None on runs without an attestation and on reports
+    stored before `011q`."""
 
     origin: str
     session_audit_ref: str | None
@@ -306,6 +314,9 @@ class SessionProvenance:
     project_id: str
     research_run_id: str
     trace_id: str
+    interaction_statement: str | None = None
+    interaction_signature: str | None = None
+    interaction_key_id: str | None = None
 
 
 @dataclass(frozen=True)

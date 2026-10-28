@@ -67,6 +67,7 @@ from lab_brain.research.report import (
     PendingAction,
     StageStatus,
 )
+from lab_brain.security.interaction_attestation import interaction_claim
 
 _CSS = """
 body{font:15px/1.5 system-ui,-apple-system,"Segoe UI","Noto Sans TC","Microsoft JhengHei",
@@ -2162,11 +2163,15 @@ def _session_html(report: EpisodeReport | None, m: Messages) -> Html:
     project, run and trace it binds; any other origin says no session is attested. The report
     holds no token and no session lookup key, so none can be shown."""
     sp = report.session_provenance if report is not None else None
-    if sp is None:
+    if report is None or sp is None:
         return h("<h3>{}</h3><p>{}</p>", m("sess.title"), m("sess.none"))
+    # The claim level (`011q`), verified NOW against the keys pinned outside the database --
+    # never a level the stored report asserts. Only INTERACTION_VERIFIED is described as an
+    # authenticated interaction; the sentence for every other level says what is not shown.
+    claim = interaction_claim(report)
     return h(
         '<h3>{}</h3><ul class="session"><li>{} {}</li>{}<li>{} <code>{}</code> '
-        "<code>{}</code> <code>{}</code> <code>{}</code></li></ul>",
+        "<code>{}</code> <code>{}</code> <code>{}</code></li><li>{} {}</li><li>{}</li>{}</ul>",
         m("sess.title"),
         m("sess.origin"),
         status("so", sp.origin, m),
@@ -2178,6 +2183,12 @@ def _session_html(report: EpisodeReport | None, m: Messages) -> Html:
         sp.project_id,
         sp.research_run_id,
         sp.trace_id,
+        m("sess.claim"),
+        status("ic", claim.level.value, m),
+        m(f"md.session.says.{claim.level.value}").removeprefix("- "),
+        h("<li>{} <code>{}</code></li>", m("sess.key"), claim.key_id)
+        if claim.key_id is not None
+        else "",
     )
 
 

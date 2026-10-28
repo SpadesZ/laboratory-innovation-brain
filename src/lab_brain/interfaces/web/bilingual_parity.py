@@ -58,6 +58,7 @@ CHECKS = (
     "CITATIONS",
     "ORIGINAL",
     "CANONICAL",
+    "AUTH_CLAIM",
 )
 
 #: The science content categories (G0-B) and where each lives on an HTML rendering: the sections
@@ -75,7 +76,7 @@ CATEGORIES: Mapping[str, tuple[tuple[str, ...], str | None]] = {
 }
 
 #: The status families `pages.status` renders: `<span class="state state-V fam-V" title="V">`.
-_FAMILIES = ("bs", "cs", "ws", "ep", "rt", "es", "ps", "so")
+_FAMILIES = ("bs", "cs", "ws", "ep", "rt", "es", "ps", "so", "ic")
 
 #: Sections whose zh-TW text must be in Chinese, or shown in English and marked untranslated.
 _READ_IN_LOCALE = ("result", "hypotheses", "tested", "support", "why", "next")
@@ -111,6 +112,38 @@ _GLOSS = re.compile(r"（[^（）\u3400-\u9fff]*）")
 _LATIN_RUN = re.compile(r"[A-Za-z]+")
 #: Chinese words that carry a negation character but negate nothing.
 _ZH_NOT_NEGATIONS = ("否證", "是否", "無論", "非常")
+
+
+#: The claim levels of `research.run_provenance.ClaimLevel` (`011q`), as stored values.
+_CLAIM_LEVEL = re.compile(
+    r"\b(INTERACTION_VERIFIED|SESSION_RECORDED_UNVERIFIED|OPERATOR_UNATTESTED|LEGACY_UNATTESTED)\b"
+)
+_VERIFIED = "INTERACTION_VERIFIED"
+
+
+def _claim_findings(en_text: str, zh_text: str, surface: str, findings: list[Finding]) -> None:
+    """AUTH_CLAIM: both languages state the same claim levels, and neither says "authenticated
+    interaction" (the INTERACTION_VERIFIED sentence) unless that level is what it states. A
+    rendering that raised one language's claim, or described an unverified run as authenticated,
+    is caught here even when every other check passes."""
+    en_levels, zh_levels = (
+        Counter(_CLAIM_LEVEL.findall(en_text)),
+        Counter(_CLAIM_LEVEL.findall(zh_text)),
+    )
+    if en_levels != zh_levels:
+        findings.append(Finding("AUTH_CLAIM", surface, _diff(en_levels, zh_levels)))
+    key = f"md.session.says.{_VERIFIED}"
+    for locale, text, levels in ((EN, en_text, en_levels), (ZH, zh_text, zh_levels)):
+        sentence = Messages(locale)(key).removeprefix("- ")
+        if sentence in text and not levels[_VERIFIED]:
+            findings.append(
+                Finding(
+                    "AUTH_CLAIM",
+                    f"{surface} {locale}",
+                    "describes the run as an authenticated interaction without the "
+                    "INTERACTION_VERIFIED claim level",
+                )
+            )
 
 
 @dataclass(frozen=True)
@@ -704,6 +737,7 @@ def check_html(
         )
     _compare_citations(_html_citations(en_root), _html_citations(zh_root), surface, findings)
     _compare_quotes(_html_quotes(en_root), _html_quotes(zh_root), surface, findings)
+    _claim_findings(en_markup, zh_markup, surface, findings)
     untranslated = sum(1 for n in zh_root.walk() if "untr" in n.classes)
     return ParityResult(surface, tuple(findings), coverage, aligned, untranslated)
 
@@ -1014,6 +1048,7 @@ def check_markdown(
                         "its reason or what it needs is missing",
                     )
                 )
+    _claim_findings(en_text, zh_text, surface, findings)
     return ParityResult(surface, tuple(findings), {}, aligned, zh.untranslated)
 
 

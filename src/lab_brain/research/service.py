@@ -124,6 +124,7 @@ from lab_brain.research.continuation import (
     PriorVerification,
     ResearchRunRecord,
     SqlResearchRunStore,
+    attest_interaction,
     load_debate,
     prior_verification,
 )
@@ -536,9 +537,10 @@ class ResearchEpisodeService:
                 episode_id=episode_id,
             )
             # `012c` refuses this row unless the episode is this project's, new and gathering.
+            research_run_id = self._mint("research_run")
             record = ledger.start(
                 ResearchRunRecord(
-                    research_run_id=self._mint("research_run"),
+                    research_run_id=research_run_id,
                     episode_id=episode.episode_id,
                     project_id=request.project_id,
                     actor_id=request.actor_id,
@@ -551,6 +553,15 @@ class ResearchEpisodeService:
                     started_at=started,
                     question_label=request.sensitivity.value,
                     provenance=request.provenance,
+                    # Signed by the web tier for exactly this row (`011q`), or None.
+                    interaction=attest_interaction(
+                        request.provenance,
+                        research_run_id=research_run_id,
+                        episode_id=episode.episode_id,
+                        trace_id=episode.trace_id,
+                        actor_id=request.actor_id,
+                        project_id=request.project_id,
+                    ),
                 )
             )
             run = _Run(record=record)
@@ -765,6 +776,14 @@ class ResearchEpisodeService:
                     # The person who CONTINUED, in the session they continued in -- not the
                     # opener's session, which may have ended long ago.
                     provenance=request.provenance,
+                    interaction=attest_interaction(
+                        request.provenance,
+                        research_run_id=research_run_id,
+                        episode_id=episode_id,
+                        trace_id=episode.trace_id,
+                        actor_id=request.actor_id,
+                        project_id=request.project_id,
+                    ),
                 )
             )
             # The episode's own framing, from here on: this request adds nothing -- and the
@@ -2207,6 +2226,17 @@ class ResearchEpisodeService:
                 project_id=run.record.project_id,
                 research_run_id=run.record.research_run_id,
                 trace_id=trace_id,
+                # The run row's own attestation, copied as stored: a claim the report's reader
+                # verifies against the pinned keys, never a verdict (`011q`).
+                interaction_statement=(
+                    None if run.record.interaction is None else run.record.interaction.statement
+                ),
+                interaction_signature=(
+                    None if run.record.interaction is None else run.record.interaction.signature
+                ),
+                interaction_key_id=(
+                    None if run.record.interaction is None else run.record.interaction.key_id
+                ),
             ),
         )
 

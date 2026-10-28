@@ -23,6 +23,7 @@ from lab_brain.research.report import (
     ScreeningSection,
     UsageLine,
 )
+from lab_brain.security.interaction_attestation import interaction_claim
 
 _EXCERPT = 220
 
@@ -151,6 +152,29 @@ MARKDOWN_TEMPLATES: dict[str, str] = {
     "md.session.binds": (
         "- Actor `{actor}` | project `{project}` | research run `{run}` | trace `{trace}`"
     ),
+    # The claim level (`011q`), verified when the export is rendered against the keys pinned
+    # outside the database. Only INTERACTION_VERIFIED says "authenticated interaction"; every
+    # other level says what is NOT shown.
+    "md.session.claim": "- Claim level: {level}",
+    "md.session.says.INTERACTION_VERIFIED": (
+        "- This run originated from an authenticated interaction: a pinned web-tier key signed "
+        "its statement on a signed-in, CSRF-verified request. It does not show who held the "
+        "session credential."
+    ),
+    "md.session.says.SESSION_RECORDED_UNVERIFIED": (
+        "- A session reference was recorded, but this does not show that it originated from an "
+        "authenticated interaction: no interaction attestation verifies under a key pinned in "
+        "this deployment."
+    ),
+    "md.session.says.OPERATOR_UNATTESTED": (
+        "- No sign-in is claimed: an operator started this run, and nothing shows an "
+        "authenticated interaction."
+    ),
+    "md.session.says.LEGACY_UNATTESTED": (
+        "- Stored before session provenance existed: nothing shows a sign-in or an "
+        "authenticated interaction."
+    ),
+    "md.session.key": "- Interaction signing key id (not a secret): `{kid}`",
     "md.ran": "## What ran, and what did not",
     "md.not_performed": "- Not performed: {value}",
     "md.note": "- Note: {value}",
@@ -556,6 +580,12 @@ def render_markdown(
                 trace=sp.trace_id,
             )
         )
+        # Computed now, against the pinned keys -- never a level the stored report asserts.
+        claim = interaction_claim(r)
+        add(w("md.session.claim", level=w.status("ic", claim.level.value, bold=True)))
+        add(w(f"md.session.says.{claim.level.value}"))
+        if claim.key_id is not None:
+            add(w("md.session.key", kid=claim.key_id))
         add("")
 
     add(w("md.ran"))

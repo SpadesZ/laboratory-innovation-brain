@@ -66,7 +66,12 @@ from lab_brain.core.repositories.evidence_bundles import SqlEvidenceBundleReposi
 from lab_brain.core.repositories.hypotheses import SqlHypothesisStore
 from lab_brain.core.repositories.jobs import JobStore
 from lab_brain.research.evidence import AdmittedStatement
-from lab_brain.research.run_provenance import RunOrigin, RunProvenance
+from lab_brain.research.run_provenance import (
+    InteractionAttestation,
+    RunBinding,
+    RunOrigin,
+    RunProvenance,
+)
 from lab_brain.verification.least_cost import PlanningResult
 from lab_brain.verification.loop import Planner
 
@@ -94,6 +99,9 @@ _COLUMNS = (
     "question_label",
     "run_origin",
     "session_audit_ref",
+    "interaction_statement",
+    "interaction_signature",
+    "interaction_key_id",
 )
 
 
@@ -143,6 +151,10 @@ class ResearchRunRecord:
     #: How the run was started, and -- for a signed-in person's run -- the session's non-secret
     #: audit reference (`011n`). Declared by every writer; the database checks it.
     provenance: RunProvenance = field(kw_only=True)
+    #: The web tier's signed interaction statement for this run (`011q`), when it could sign:
+    #: stored once with the row, never changed. A claim to verify against the pinned keys, never
+    #: a verdict (`security.interaction_attestation`).
+    interaction: InteractionAttestation | None = field(default=None, kw_only=True)
 
 
 class SqlResearchRunStore:
@@ -207,6 +219,9 @@ class SqlResearchRunStore:
                 record.question_label,
                 record.provenance.origin.value,
                 record.provenance.session_audit_ref,
+                None if record.interaction is None else record.interaction.statement,
+                None if record.interaction is None else record.interaction.signature,
+                None if record.interaction is None else record.interaction.key_id,
             ),
         )
         return record
@@ -326,7 +341,43 @@ def _record(row: Sequence[object]) -> ResearchRunRecord:
     values = dict(zip(_COLUMNS, row, strict=True))
     origin, ref = values.pop("run_origin"), values.pop("session_audit_ref")
     provenance = RunProvenance(RunOrigin(str(origin)), None if ref is None else str(ref))
-    return ResearchRunRecord(**values, provenance=provenance)  # type: ignore[arg-type]
+    statement, signature, key = (
+        values.pop("interaction_statement"),
+        values.pop("interaction_signature"),
+        values.pop("interaction_key_id"),
+    )
+    interaction = (
+        None
+        if statement is None
+        else InteractionAttestation(str(statement), str(signature), str(key))
+    )
+    return ResearchRunRecord(**values, provenance=provenance, interaction=interaction)  # type: ignore[arg-type]
+
+
+def attest_interaction(
+    provenance: RunProvenance,
+    *,
+    research_run_id: str,
+    episode_id: str,
+    trace_id: str,
+    actor_id: str,
+    project_id: str,
+) -> InteractionAttestation | None:
+    """The run's signed interaction statement (`011q`), when the caller is the web tier holding a
+    signing key; None otherwise -- the run is then recorded, and shown, unverified. Called once,
+    when the run's id, episode and trace are known, so the statement binds exactly this row."""
+    if provenance.attestor is None or provenance.session_audit_ref is None:
+        return None
+    return provenance.attestor.attest(
+        RunBinding(
+            research_run_id=research_run_id,
+            episode_id=episode_id,
+            trace_id=trace_id,
+            actor_id=actor_id,
+            project_id=project_id,
+            session_audit_ref=provenance.session_audit_ref,
+        )
+    )
 
 
 # -- the episode's verification so far ------------------------------------------------------------
@@ -489,6 +540,7 @@ __all__ = [
     "PriorVerification",
     "ResearchRunRecord",
     "SqlResearchRunStore",
+    "attest_interaction",
     "load_debate",
     "prior_verification",
     "verification_key_prefix",

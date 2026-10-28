@@ -1043,7 +1043,9 @@ _M: dict[str, tuple[str, str]] = {
     "role.verification input": ("verification input", "驗證輸入"),
     # How a research run was started (`research.run_provenance.RunOrigin`); only a signed-in web
     # session is attested.
-    "so.WEB_SESSION": ("signed-in web session", "已登入的網頁工作階段"),
+    # The origin as recorded -- a session was named. Whether the run originated from an
+    # authenticated interaction is the claim level's to say (`ic.*`, `011q`), never the origin's.
+    "so.WEB_SESSION": ("signed-in web session recorded", "已登入的網頁工作階段紀錄"),
     "so.OPERATOR_WORKSPACE": (
         "operator workspace, no session attested",
         "操作者工作台，未證明工作階段",
@@ -1056,6 +1058,24 @@ _M: dict[str, tuple[str, str]] = {
         "recorded before sessions were attested, no session attested",
         "工作階段證明實施前的紀錄，未證明工作階段",
     ),
+    # How much the run's record proves about how it was started (`research.run_provenance.
+    # ClaimLevel`, `011q`), verified when shown. Only INTERACTION_VERIFIED is an authenticated
+    # interaction.
+    "ic.INTERACTION_VERIFIED": (
+        "authenticated interaction verified",
+        "已驗證：經身分驗證的互動",
+    ),
+    "ic.SESSION_RECORDED_UNVERIFIED": (
+        "session recorded, interaction unverified",
+        "已記錄工作階段，互動未驗證",
+    ),
+    "ic.OPERATOR_UNATTESTED": ("operator run, no sign-in claimed", "操作者執行，未主張登入"),
+    "ic.LEGACY_UNATTESTED": (
+        "recorded before attestation, nothing attested",
+        "證明機制實施前的紀錄，未證明任何事項",
+    ),
+    "sess.claim": ("Claim level", "主張等級"),
+    "sess.key": ("Interaction signing key id (not a secret)", "互動簽署金鑰識別碼（非秘密）"),
     "sess.title": ("Session provenance", "工作階段來源"),
     "sess.origin": ("How the run was started", "啟動方式"),
     "sess.ref": ("Session audit reference (not a secret)", "工作階段稽核參照（非秘密）"),
@@ -1262,6 +1282,22 @@ _MARKDOWN_ZH: dict[str, str] = {
     "md.session.binds": (
         "- 執行者 `{actor}` | 研究專案 `{project}` | 研究執行 `{run}` | 追溯碼 `{trace}`"
     ),
+    "md.session.claim": "- 主張等級：{level}",
+    "md.session.says.INTERACTION_VERIFIED": (
+        "- 這次執行源自經身分驗證的互動：已釘選的網頁層金鑰，在已登入且通過 CSRF 檢查的請求上"
+        "簽署了它的陳述。它不顯示是誰持有該工作階段憑證。"
+    ),
+    "md.session.says.SESSION_RECORDED_UNVERIFIED": (
+        "- 已記錄工作階段參照，但這並未顯示它源自經身分驗證的互動：沒有任何互動證明能以本部署"
+        "釘選的金鑰通過驗證。"
+    ),
+    "md.session.says.OPERATOR_UNATTESTED": (
+        "- 未主張登入：這次執行由操作者啟動，沒有任何紀錄顯示經身分驗證的互動。"
+    ),
+    "md.session.says.LEGACY_UNATTESTED": (
+        "- 儲存於工作階段來源機制實施之前：沒有任何紀錄顯示登入或經身分驗證的互動。"
+    ),
+    "md.session.key": "- 互動簽署金鑰識別碼（非秘密）：`{kid}`",
     "md.ran": "## 執行了什麼、沒執行什麼",
     "md.not_performed": "- 未執行：{value}",
     "md.note": "- 備註：{value}",

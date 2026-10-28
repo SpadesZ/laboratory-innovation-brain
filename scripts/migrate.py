@@ -318,7 +318,9 @@ APPLY_ORDER: tuple[str, ...] = (
     "011o_screening_guard_reads_the_cited_basis.sql",
     # Post-screening support must be prospective in time and kind, not only in row time. After 011o.
     "011p_screening_support_is_prospective_in_time.sql",
-    # A monetary ceiling reserved atomically before every metered model request. After 011p.
+    # A web-started run carries a signed interaction statement bound to its row. After 011p.
+    "011q_research_interaction_attestation.sql",
+    # A monetary ceiling reserved atomically before every metered model request. After 011q.
     "011r_llm_spend_ceiling.sql",
 )
 

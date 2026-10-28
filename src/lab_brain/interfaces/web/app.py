@@ -163,6 +163,7 @@ from lab_brain.research.service import (
     ResearchRequest,
 )
 from lab_brain.research.vertical import VerticalFactory
+from lab_brain.security.interaction_attestation import InteractionSigner, WebInteraction
 from lab_brain.security.reviewer_identity import ReviewerTrust
 from lab_brain.storage.artifacts.interface import ArtifactStoreError
 from lab_brain.storage.artifacts.local import LocalArtifactStore
@@ -353,6 +354,7 @@ class Workspace:
         inference_deadline: float | None = None,
         accounts: AccountsConfig | None = None,
         research_features: ResearchFeatures | None = None,
+        interaction_signer: InteractionSigner | None = None,
     ) -> None:
         # One of two trust models: one researcher, named at start-up (no login, loopback
         # only), or a laboratory's accounts, where each request is the person it signs in.
@@ -365,6 +367,16 @@ class Workspace:
         #: The signed-in session's NON-SECRET audit reference (`011n`), recorded with every
         #: research run this request starts. Never the token or its hash.
         self._session_audit_ref: str | None = None
+        #: The web tier's interaction signing key (`011q`): the one given, else the file
+        #: `LAB_BRAIN_INTERACTION_SIGNING_KEY` names, else none -- web runs are then recorded at
+        #: SESSION_RECORDED_UNVERIFIED (fail closed for the claim, not for the product). Only with
+        #: accounts: without them no sign-in exists to attest. Never stored, logged or shown.
+        self._interaction_signer = (
+            None if accounts is None else interaction_signer or InteractionSigner.from_environment()
+        )
+        #: Set per request, only after its session resolved and its CSRF token matched: the
+        #: route and method an interaction statement names. None on every other request.
+        self._verified_request: tuple[str, str] | None = None
         #: Binds each form's CSRF token to its session (or signed-out browser): a token one
         #: person sees is useless in another's browser. Per process, never stored.
         self._csrf_key = os.urandom(32)
@@ -1578,7 +1590,14 @@ class Workspace:
         if self._account is None or self._session_audit_ref is None:
             # Unreachable: signed out, every research route redirects to sign-in first.
             raise _Refused(_redirect("/login"))
-        return RunProvenance.web_session(self._session_audit_ref)
+        if self._interaction_signer is None or self._verified_request is None:
+            return RunProvenance.web_session(self._session_audit_ref)
+        method, route = self._verified_request
+        # Signed by the service once it knows the run's id, episode and trace (`011q`).
+        return RunProvenance.web_session(
+            self._session_audit_ref,
+            WebInteraction(route=route, method=method, signer=self._interaction_signer),
+        )
 
     def _load_runtime(self, c: Any) -> ReasoningRuntime | None:
         """The active runtime, judged under THIS deployment's declaration of which hosts are this
@@ -2515,6 +2534,11 @@ class Workspace:
                 # offer the way back, instead of a bare refusal.
                 stale = view._stale_form(environ, req)
                 return dataclasses.replace(stale, headers=stale.headers + tuple(extra))
+            # Authenticated (a resolved session) and CSRF-verified (the form's token matched the
+            # one bound to that session): the only request an interaction statement is built for.
+            view._verified_request = (
+                (method, path) if form is not None and account is not None else None
+            )
             try:
                 response = view._account_route(connection, req)
                 if response is None:
