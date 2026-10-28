@@ -338,3 +338,25 @@ def test_a_non_observation_source_is_refused(guarded):
             g.hypothesis,
         )
         _refused(g, other, "only an observation can SUPPORT", cites=[evidence])
+
+
+def test_a_fresh_observation_cannot_cite_a_claim_attestation(guarded):
+    """A reported claim (here, from the ingested measurement report) predates the hypothesis and is
+    not a check: citing it as the evidence for a post-screening hypothesis is refused (011o)."""
+    g = guarded
+    claims = rows(
+        g.db,
+        "SELECT attestation_id FROM attestations WHERE project_id = %s AND claim_id IS NOT NULL"
+        " ORDER BY attestation_id LIMIT 1",
+        PROJECT,
+    )
+    assert claims, "the research run ingested a report: its claims are attested"
+    ((claim_attestation,),) = claims
+    with g.db.transaction(force_rollback=True):
+        run, observation = _fresh(g, "cites-a-claim")
+        _refused(
+            g,
+            observation,
+            "attests no observation",
+            cites=[g.attest(observation, run), claim_attestation],
+        )

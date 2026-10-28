@@ -104,12 +104,51 @@ session 來源詞。**Canonical 不變**:測試證明渲染、匯出兩種語言
 
 ## 6. 驗證
 
-VERIFICATION_SECTION
+全部在本機免費資源執行(Python 3.13、PostgreSQL 16 + pgvector、本機 Chromium)。證據在 `evidence/`。
+
+| 項目 | 結果 |
+|---|---|
+| 靜態檢查:`ruff check`、`ruff format --check`(src tests scripts)、`mypy src` | 全部通過(275 檔) |
+| 規格測試 `pytest tests/spec` | 245 passed |
+| 不需資料庫的完整回歸 `pytest -q` | 2205 passed, 1089 skipped(skip 的是要 PostgreSQL 的測試) |
+| 新建資料庫(75 個 migration 到 011o)完整 PostgreSQL 回歸 | **3287 passed, 4 skipped**;另有 2 個 `test_status_freshness` 失敗,原因是狀態檔過期,已重新產生(之後 7 passed)。`evidence/full-postgres-suite.log` |
+| 本階段新的單元測試(scorer 2.0.0、live cap、session、雙語匯出、對等) | 131 passed |
+| 本階段新的 PostgreSQL 測試(獨立性、收集器、live cap、session、雙語匯出含 Chromium、對等、盲跑) | 29 passed |
+| 篩檢矩陣(stand-in,修訂 2) | 8/8 PASS。`evidence/matrix-standin-amendment-2.md` |
+| 缺陷先重現的證據 | `evidence/scorer-1.0.0-defects.txt`、`evidence/cited-basis-before-011o.txt` |
+| **完整變異測試**(778 項) | 第一輪 777/778(55 分鐘);存活的 `sql_a_post_screening_support_cites_no_observation` 是**測試缺口**:沒有測試引用「不屬於 observation 的 attestation」。新增測試(引用報告 claim 的 attestation)後重跑 1/1 killed → **778/778**。`evidence/mutation-full-778.log` |
+| GitHub CI | 見下 |
+
+變異測試清單的整理:011m 的 (a)–(d) 項目被 011o 取代(guard 函式被替換),所以移除 4 個重複項、把 backend 項目改指 011o,
+並新增 011o、011n、scorer 2.0.0、收集器、live cap、雙語匯出的項目;一個舊項目(`r11_the_summary_names_another_digest`)
+因匯出程式碼改變而重新定位。
+
+**CI**
+
+CI_LINES
+
+**Git 歷史沒有 AI 署名**:本分支每個 commit 的 author 與 committer 都是 `SpadesZ <rickiekuo1203@gmail.com>`,訊息沒有 trailer;
+CI 的 commit 身分檢查通過,負向控制 annotation:「AI-authored history refused as expected」。
 
 ## 7. 剩餘限制
 
-LIMITATIONS_SECTION
+1. **沒有真實 LLM 結果。** 所有研究流程測試都用離線 stand-in 或 catalog reasoner。真實模型的表現未知。
+2. **沒有獨立盲測集。** 22 個矩陣案例已曝光,只能當回歸證據。
+3. **雙語語意品質 NOT VERIFIED。** 結構對等可離線驗證;LLM 正文與審定譯文是否同義,需要獨立雙語審查者。
+4. **G0-S 有用性**需要具資格、獨立於產生者的審查者逐項判斷;新指標(競爭假說、可反駁性)只是必要條件。
+5. `OPERATOR_*` 來源可被有資料庫權限的人宣告,所以只標示「未證明」;資料庫超級使用者仍可關閉 trigger。
+6. 謊報「本機執行」的 backend:證據不採用,但已送出的資料收不回來(需要程序隔離或網路沙箱)。
+7. 本機 PostgreSQL 16,CI 用 pg17。
+8. 沒有物理驗證。
 
 ## 8. 剩餘 Owner Gates
 
-OWNER_SECTION
+1. 審查 scorer 2.0.0 的定義與協定修訂 2(門檻不變,指標定義修正)。
+2. 審查 011o 的較嚴格規則(只有 observation 能支持篩檢後假說,引用的證據也要通過 (a)–(d))。
+3. 審查 011n 的 session 來源設計;決定 OPERATOR 來源是否應該在正式環境被禁止。
+4. 雙語匯出的網址/語言規則與 digest 決定(英文紀錄匯出為 canonical)。
+5. 是否授權真實 LLM 評估(提案 §5:建議階段 0+1 上限 USD 25,需先在路由寫入官方單價)。
+6. 指派獨立評估者建立封存盲測集、指派獨立的雙語與領域審查者。
+7. 在 `main` 設定 branch rule,讓 commit 身分檢查成為必要關卡(上一階段已列出)。
+8. 正式環境的篩檢與結構摘要仍關閉;`READY_FOR_REAL_RESEARCH` 未改。
+9. G0 是否通過:只能由獨立審查決定。本報告**不**宣稱 G0 PASS。

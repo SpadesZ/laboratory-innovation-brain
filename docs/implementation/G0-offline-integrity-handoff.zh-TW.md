@@ -42,3 +42,7 @@ python scripts/check_commit_messages.py --tip HEAD
 - CI:`a682e9d` run 40540676295 四個 job 全部 success。
 - 這個環境的代理擋住 CI log;CI 負向控制的結果用 annotation 讀:
   `gh api repos/SpadesZ/laboratory-innovation-brain/check-runs/<job id>/annotations`。
+
+## 後續
+
+接續在 `g0-reliability-bilingual-closure`:見 `docs/implementation/G0-reliability-bilingual-handoff.zh-TW.md`。

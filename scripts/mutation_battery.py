@@ -6292,7 +6292,9 @@ MUTATIONS: tuple[Mutation, ...] = (
         path="migrations/011o_screening_guard_reads_the_cited_basis.sql",
         old="        IF v_cited IS NULL THEN\n",
         new="        IF FALSE THEN\n",
-        tests=("tests/e2e/test_g0_screening_independence_postgres.py",),
+        tests=(
+            "tests/e2e/test_g0_screening_independence_postgres.py::test_a_fresh_observation_cannot_cite_a_claim_attestation",
+        ),
     ),
     Mutation(
         name="sql_screened_basis_supports_its_rival",
