@@ -30,3 +30,7 @@ LAB_BRAIN_TEST_POSTGRES=1 LAB_BRAIN_DATABASE_URL=<DB> .venv/bin/python scripts/m
 ## 下一步(Owner)
 
 見報告 §8。最重要:審查 scorer 2.0.0、011o、011n;決定是否授權真實 LLM 評估;指派獨立評估者與審查者。
+
+## 後續
+
+接續在 `g0-evidence-auth-cost-closure`:見 `docs/implementation/G0-evidence-auth-cost-handoff.zh-TW.md`。
