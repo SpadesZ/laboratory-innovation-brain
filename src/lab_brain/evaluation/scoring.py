@@ -32,7 +32,9 @@ PER CASE, from the episode record the generator side collected (the shape
                                 the screened observation, observed before the hypothesis, a repeat
                                 of the screened check, or the screened output content (the
                                 012y/011m/011o rules, re-derived here from the facts the record
-                                carries, never trusted as a verdict)
+                                carries, never trusted as a verdict) -- and, since scorer 2.1.0,
+                                prospective in TIME and KIND (011p `retrospective_basis`): old
+                                evidence written today is retrospective, never new verification
     no_input_leak               no truth string -- answer or secret -- in anything sent TO the model
                                 (`record.prompts`): a leak is truth reaching the generator
     no_secret_in_output         no case id, and no long secret text (an evaluator rationale or note
@@ -75,7 +77,7 @@ from lab_brain.evaluation.packages import find_truth, normalize_text
 from lab_brain.evaluation.stats import bootstrap, wilson
 
 SCORER_ID = "g0-eval-screening-scorer"
-SCORER_VERSION = "2.0.0"
+SCORER_VERSION = "2.1.0"
 
 METRICS: tuple[str, ...] = (
     "considered_pre_screening",
@@ -100,6 +102,7 @@ SUPPORT_FACTS: tuple[str, ...] = (
     "observed_before_hypothesis",
     "repeats_screened_check",
     "shares_screened_output",
+    "retrospective_basis",
 )
 
 #: Below this many words, a secret text is scanned in the inputs only (see the module docstring).

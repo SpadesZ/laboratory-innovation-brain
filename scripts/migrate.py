@@ -316,6 +316,8 @@ APPLY_ORDER: tuple[str, ...] = (
     "011n_research_session_provenance.sql",
     # A post-screening SUPPORTS is judged on its source AND every observation it cites. After 011n.
     "011o_screening_guard_reads_the_cited_basis.sql",
+    # Post-screening support must be prospective in time and kind, not only in row time. After 011o.
+    "011p_screening_support_is_prospective_in_time.sql",
 )
 
 _BOOTSTRAP = """

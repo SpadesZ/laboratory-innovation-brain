@@ -36,6 +36,7 @@ from psycopg.types.json import Jsonb
 from lab_brain.core.models.job import Job, JobState
 from lab_brain.core.repositories.jobs import SqlJobStore
 from lab_brain.domains.silicon_photonics import vertical as sp
+from lab_brain.storage.postgres.capabilities import PostgresCapabilityStore
 from tests.e2e.test_g0_exploratory_screening_postgres import (
     SCREENING,
     device,
@@ -88,8 +89,17 @@ class Guarded:
         self.screened = screened
         self.later = dt.datetime.now(dt.UTC) + dt.timedelta(hours=1)
 
-    def fresh_output(self, name: str) -> str:
-        """A new artifact with genuinely different content, otherwise like the screened output."""
+    def register_capabilities(self) -> None:
+        """The vertical's capabilities, with their declared kinds, in `capabilities` -- what a
+        prospective check must be registered as since 011p. The research flow does not persist
+        them itself (see the 011p report), so a test that offers a genuine new check says so."""
+        store = PostgresCapabilityStore(self.db)
+        for capability in sp.capabilities():
+            store.upsert(capability)
+
+    def fresh_output(self, name: str, captured_at: dt.datetime | None = None) -> str:
+        """A new artifact with genuinely different content, otherwise like the screened output.
+        `captured_at`: when its data was taken, if not now (an old measurement imported today)."""
         (source,) = self.screened.output_artifacts
         with self.db.cursor(row_factory=psycopg.rows.dict_row) as cur:
             cur.execute("SELECT * FROM artifacts WHERE artifact_id = %s", (source,))
@@ -103,6 +113,8 @@ class Guarded:
             lineage_id=f"{row['lineage_id']}-{name}",
             previous_artifact_id=None,
         )
+        if captured_at is not None:
+            row["captured_at"] = captured_at
         row.pop("created_at", None)
         values = [Jsonb(v) if isinstance(v, dict) else v for v in row.values()]
         self.db.execute(
@@ -111,7 +123,10 @@ class Guarded:
         )
         return str(row["artifact_id"])
 
-    def run(self, name: str, **changes: Any) -> str:
+    def run(self, name: str, job_at: dt.datetime | None = None, **changes: Any) -> str:
+        """A completed Job and Run like the screened one, with `changes`. `job_at`: when its Job
+        was submitted and started, if not after the hypothesis (a run that ran long ago)."""
+        at = job_at or self.later
         job = self.jobs.submit(
             Job(
                 job_id=f"job:ind-{name}",
@@ -120,10 +135,10 @@ class Guarded:
                 capability_id=changes.pop("capability_id", self.screened.capability_id),
                 trace_id=self.screened.trace_id,
                 idempotency_key=f"ind:{name}",
-                submitted_at=self.later,
+                submitted_at=at,
             )
         )
-        self.jobs.transition(job.job_id, JobState.RUNNING, self.later)
+        self.jobs.transition(job.job_id, JobState.RUNNING, at)
         run = self.jobs.complete(
             job.job_id,
             job.idempotency_key,
@@ -132,8 +147,8 @@ class Guarded:
                     "run_id": f"run:ind-{name}",
                     "job_id": job.job_id,
                     "capability_id": job.capability_id,
-                    "start_time": self.later,
-                    "end_time": self.later,
+                    "start_time": at,
+                    "end_time": at,
                     **changes,
                 }
             ),
@@ -266,6 +281,7 @@ def test_a_later_reading_with_genuinely_different_content_may_still_support(guar
             output_artifacts=(g.fresh_output("independent"),),
         )
         observation = g.observe(run, "independent")
+        g.register_capabilities()
         # It cites its OWN attestation: the evidence is the new reading, not the screened one.
         g.support(observation, [g.attest(observation, run)])
         assert rows(
@@ -295,6 +311,8 @@ def test_a_relabelled_backend_with_fresh_bytes_is_still_a_repeat(guarded):
 
 
 def _fresh(g: Guarded, name: str) -> tuple[str, str]:
+    """A genuinely new check: registered kind, new content, run after the hypothesis."""
+    g.register_capabilities()
     run = g.run(
         name,
         input_parameters={"variant": name},

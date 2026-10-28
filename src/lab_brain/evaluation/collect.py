@@ -5,6 +5,7 @@ admissible. It does not take a verdict from the system under test -- a record sa
 `"admissible": true` would be the generator grading itself. The collector instead reports, for every
 SUPPORTS relation, the facts the 012y/011m/011o guard is defined on, read from the canonical rows.
 A relation rests on its BASIS: its source and the observation behind every attestation it cites.
+(012y/011m/011o/011p.)
 
     unobserved_basis            the source is not an observation, or a cited attestation attests no
                                 observation (011o: only a prospective check can support)
@@ -14,6 +15,12 @@ A relation rests on its BASIS: its source and the observation behind every attes
                                 capability, inputs and parameters as a conditioned run (any backend)
     shares_screened_output      a basis observation's run emitted an output artifact a conditioned
                                 run emitted -- the same content, since an artifact id is its hash
+    retrospective_basis         a basis observation is not prospective in TIME or KIND (011p): its
+                                run started before the hypothesis, has no run, reads or emits data
+                                captured before it, reads the output of a run that started before
+                                it, or is of a capability not registered with a kind that produces
+                                new evidence (unregistered, an evidence lookup, a historical case
+                                comparison). Recording time is not evidence time.
 
 For a hypothesis formed before any screening reading there is no conditioning record, so every fact
 is false: its support is ordinary evidence, not a post-hoc reading. The SQL guard refuses the
@@ -74,14 +81,31 @@ SELECT rel.relation_id,
        rel.screened IS NOT NULL AND EXISTS (
            SELECT 1 FROM basis b JOIN screened_runs s ON s.relation_id = b.relation_id
             WHERE b.relation_id = rel.relation_id
-              AND s.output_artifacts && b.output_artifacts)
+              AND s.output_artifacts && b.output_artifacts),
+       rel.screened IS NOT NULL AND EXISTS (
+           SELECT 1 FROM basis b
+            WHERE b.relation_id = rel.relation_id
+              AND (b.run_id IS NULL
+                   OR b.start_time < rel.created_at
+                   OR EXISTS (SELECT 1 FROM artifacts a
+                               WHERE a.artifact_id = ANY (b.input_artifacts || b.output_artifacts)
+                                 AND a.captured_at < rel.created_at)
+                   OR EXISTS (SELECT 1 FROM runs earlier
+                               WHERE earlier.project_id = b.project_id
+                                 AND earlier.run_id <> b.run_id
+                                 AND earlier.output_artifacts && b.input_artifacts
+                                 AND earlier.start_time < rel.created_at)
+                   OR NOT EXISTS (SELECT 1 FROM capabilities k
+                                   WHERE k.capability_id = b.capability_id
+                                     AND k.action_type NOT IN ('EXISTING_EVIDENCE_LOOKUP',
+                                                               'HISTORICAL_CASE_COMPARISON'))))
   FROM rel
  ORDER BY rel.relation_id
 """
 
 
 def support_provenance(connection: Any, hypothesis_id: str) -> list[dict[str, Any]]:
-    """Every SUPPORTS relation to `hypothesis_id`, with the facts scorer 2.0.0 judges it by."""
+    """Every SUPPORTS relation to `hypothesis_id`, with the facts scorer 2.1.0 judges it by."""
     return [
         {
             "relation_id": str(relation),
@@ -90,10 +114,17 @@ def support_provenance(connection: Any, hypothesis_id: str) -> list[dict[str, An
             "observed_before_hypothesis": bool(before),
             "repeats_screened_check": bool(repeat),
             "shares_screened_output": bool(same_bytes),
+            "retrospective_basis": bool(retrospective),
         }
-        for relation, unobserved, screened, before, repeat, same_bytes in connection.execute(
-            _SUPPORTS, (hypothesis_id,)
-        ).fetchall()
+        for (
+            relation,
+            unobserved,
+            screened,
+            before,
+            repeat,
+            same_bytes,
+            retrospective,
+        ) in connection.execute(_SUPPORTS, (hypothesis_id,)).fetchall()
     ]
 
 

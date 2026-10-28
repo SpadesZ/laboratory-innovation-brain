@@ -114,6 +114,7 @@ def test_the_screened_bytes_under_another_capability_are_collected(unguarded):
     g = unguarded
     from tests.e2e.test_g0_screening_independence_postgres import SAME_BYTES
 
+    g.register_capabilities()
     run = g.run("same-bytes", **SAME_BYTES["other_capability_same_output"](g))
     observation = g.observe(run, "same-bytes")
     g.support(observation, [g.attest(observation, run)])
@@ -125,3 +126,21 @@ def test_support_provenance_is_read_only(guarded):
     before = g.db.execute("SELECT count(*) FROM relation_judgments").fetchone()
     assert support_provenance(g.db, g.hypothesis) == []
     assert g.db.execute("SELECT count(*) FROM relation_judgments").fetchone() == before
+
+
+def test_old_evidence_written_today_is_collected_as_retrospective(unguarded):
+    """011p in the collector: a run that started before the rival, recorded now."""
+    g = unguarded
+    import datetime as _dt
+
+    g.register_capabilities()
+    old = _dt.datetime(2020, 1, 1, tzinfo=_dt.UTC)
+    run = g.run(
+        "late",
+        job_at=old,
+        input_parameters={"variant": "late"},
+        output_artifacts=(g.fresh_output("late"),),
+    )
+    observation = g.observe(run, "late")
+    g.support(observation, [g.attest(observation, run)])
+    assert _only_fact(g, observation) == {"retrospective_basis"}

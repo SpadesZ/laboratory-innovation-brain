@@ -42,6 +42,7 @@ from lab_brain.core.repositories.jobs import SqlJobStore
 from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.research.report_store import SqlResearchReportStore
 from lab_brain.research.service import ResearchFeatures
+from lab_brain.storage.postgres.capabilities import PostgresCapabilityStore
 from tests.e2e.test_research_episode_postgres import GOAL, PROJECT, REPORT
 from tests.e2e.test_web_debate_retry_postgres import _activated, _deployment
 from tests.e2e.test_web_llm_credentials_postgres import KEY, _setup, _text
@@ -391,6 +392,10 @@ def _sql_guard_refuses_post_hoc_support(
         refused(observe(repeat, "repeat", later), "repeats the screened reading")
         # ... and a prospective, different reading may relate: the guard does not freeze it.
         with db.transaction(force_rollback=True):
+            # A genuine new check is registered with its kind (011p); the research flow does not
+            # persist capabilities itself.
+            for capability in sp.capabilities():
+                PostgresCapabilityStore(db).upsert(capability)
             prospective = observe(different, "prospective", later)
             relate(prospective, [attest(prospective, different)])
 

@@ -6071,7 +6071,7 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="sql_a_repeat_must_share_the_backend",
         guards="011o (c) -- a relabelled backend is still the same check",
-        path="migrations/011o_screening_guard_reads_the_cited_basis.sql",
+        path="migrations/011p_screening_support_is_prospective_in_time.sql",
         old="           AND sr.input_parameters = v_run.input_parameters\n",
         new="           AND sr.backend_id = v_run.backend_id\n           AND sr.input_parameters = v_run.input_parameters\n",
         tests=("tests/e2e/test_g0_screening_independence_postgres.py",),
@@ -6299,7 +6299,7 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="sql_screened_basis_supports_its_rival",
         guards="011o (a) -- the screened observation cannot SUPPORT",
-        path="migrations/011o_screening_guard_reads_the_cited_basis.sql",
+        path="migrations/011p_screening_support_is_prospective_in_time.sql",
         old="    -- (a) a screened observation\n    IF EXISTS (",
         new="    -- (a) a screened observation\n    IF FALSE AND EXISTS (",
         tests=(
@@ -6310,7 +6310,7 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="sql_an_older_basis_supports_its_rival",
         guards="011o (b) -- an older observation cannot SUPPORT",
-        path="migrations/011o_screening_guard_reads_the_cited_basis.sql",
+        path="migrations/011p_screening_support_is_prospective_in_time.sql",
         old="    IF v_observed IS NOT NULL AND p_hypothesis_created IS NOT NULL\n",
         new="    IF FALSE AND v_observed IS NOT NULL AND p_hypothesis_created IS NOT NULL\n",
         tests=(
@@ -6320,7 +6320,7 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="sql_a_repeat_basis_supports_its_rival",
         guards="011o (c) -- a repeat of the screened check cannot SUPPORT",
-        path="migrations/011o_screening_guard_reads_the_cited_basis.sql",
+        path="migrations/011p_screening_support_is_prospective_in_time.sql",
         old="    -- (c) the same check of the same input, whichever backend ran it\n    IF EXISTS (",
         new="    -- (c) the same check of the same input, whichever backend ran it\n    IF FALSE AND EXISTS (",
         tests=("tests/e2e/test_g0_screening_independence_postgres.py",),
@@ -6328,7 +6328,7 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="sql_the_screened_bytes_basis_supports_its_rival",
         guards="011o (d) -- the screened output bytes cannot SUPPORT",
-        path="migrations/011o_screening_guard_reads_the_cited_basis.sql",
+        path="migrations/011p_screening_support_is_prospective_in_time.sql",
         old="    -- (d) the screened bytes under another identity\n    IF EXISTS (",
         new="    -- (d) the screened bytes under another identity\n    IF FALSE AND EXISTS (",
         tests=("tests/e2e/test_g0_screening_independence_postgres.py",),
@@ -6495,6 +6495,54 @@ MUTATIONS: tuple[Mutation, ...] = (
         old="        if sp.session_audit_ref:\n            add(",
         new="        if False:\n            add(",
         tests=("tests/unit/test_g0_bilingual_export_session.py",),
+    ),
+    Mutation(
+        name="sql_a_run_older_than_the_rival_supports_it",
+        guards="011p (e) -- a run that started before the hypothesis is retrospective",
+        path="migrations/011p_screening_support_is_prospective_in_time.sql",
+        old="    IF p_hypothesis_created IS NOT NULL AND v_run.start_time < p_hypothesis_created THEN\n",
+        new="    IF FALSE THEN\n",
+        tests=("tests/e2e/test_g0_evidence_timing_postgres.py",),
+    ),
+    Mutation(
+        name="sql_old_captured_data_supports_the_rival",
+        guards="011p (f) -- data captured before the hypothesis is retrospective",
+        path="migrations/011p_screening_support_is_prospective_in_time.sql",
+        old="       AND a.captured_at IS NOT NULL AND a.captured_at < p_hypothesis_created\n",
+        new="       AND FALSE\n",
+        tests=("tests/e2e/test_g0_evidence_timing_postgres.py",),
+    ),
+    Mutation(
+        name="sql_a_re_reading_of_old_output_supports_the_rival",
+        guards="011p (g) -- a run reading an earlier run's output is derived, not new",
+        path="migrations/011p_screening_support_is_prospective_in_time.sql",
+        old="       AND earlier.output_artifacts && v_run.input_artifacts\n",
+        new="       AND FALSE\n",
+        tests=("tests/e2e/test_g0_evidence_timing_postgres.py",),
+    ),
+    Mutation(
+        name="sql_an_unregistered_check_supports_the_rival",
+        guards="011p (h) -- a check of no registered kind cannot support",
+        path="migrations/011p_screening_support_is_prospective_in_time.sql",
+        old="    IF NOT v_found THEN\n",
+        new="    IF FALSE THEN\n",
+        tests=("tests/e2e/test_g0_evidence_timing_postgres.py",),
+    ),
+    Mutation(
+        name="sql_an_evidence_lookup_supports_the_rival",
+        guards="011p (h) -- an evidence lookup is retrospective",
+        path="migrations/011p_screening_support_is_prospective_in_time.sql",
+        old="    IF v_kind IN ('EXISTING_EVIDENCE_LOOKUP', 'HISTORICAL_CASE_COMPARISON') THEN\n",
+        new="    IF FALSE THEN\n",
+        tests=("tests/e2e/test_g0_evidence_timing_postgres.py",),
+    ),
+    Mutation(
+        name="collector_misses_retrospective_basis",
+        guards="collector -- old evidence written today is collected as retrospective",
+        path="src/lab_brain/evaluation/collect.py",
+        old="                   OR b.start_time < rel.created_at\n",
+        new="                   OR FALSE\n",
+        tests=("tests/e2e/test_g0_evaluation_support_provenance_postgres.py",),
     ),
     Mutation(
         name="screening_preflight_ignores_money",
