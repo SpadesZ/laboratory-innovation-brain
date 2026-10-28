@@ -125,7 +125,16 @@ session 來源詞。**Canonical 不變**:測試證明渲染、匯出兩種語言
 
 **CI**
 
-CI_LINES
+| SHA | Run | 結果 |
+|---|---|---|
+| `85503ce` | — | 中途 checkpoint(只有評估部分;狀態檔未更新) |
+| `9a52972` | — | 整合 commit(狀態檔未更新) |
+| `4161002` | 40624401397 | 4 個 job 全部 success |
+| `912df7f` | 40630133867 | **4 個 job 全部 success**;負向控制:「AI-authored history refused as expected」 |
+
+記錄本表的 commit 本身也有 CI run,結果見最終回報。
+
+Commit 祖先:`2e6962e` → `85503ce` → `9a52972` → `4161002` → `912df7f` → 記錄 commit。
 
 **Git 歷史沒有 AI 署名**:本分支每個 commit 的 author 與 committer 都是 `SpadesZ <rickiekuo1203@gmail.com>`,訊息沒有 trailer;
 CI 的 commit 身分檢查通過,負向控制 annotation:「AI-authored history refused as expected」。
