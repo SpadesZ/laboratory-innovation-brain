@@ -86,7 +86,38 @@ token ≥ 1 位元組;宣告的價格正確。違反時只能在那一次請求�
 
 ## 5. 驗證
 
-VERIFICATION_SECTION
+全部在本機免費資源執行。證據在 `evidence/`。
+
+| 項目 | 結果 |
+|---|---|
+| 靜態檢查:`ruff check`、`ruff format --check`(src tests scripts)、`mypy src` | 全部通過(277 檔) |
+| 規格測試 `pytest tests/spec` | 245 passed |
+| 不需資料庫的完整回歸 | 2233 passed, 1117 skipped |
+| 新建資料庫(78 個 migration 到 011r)完整 PostgreSQL 回歸 | **3342 passed, 4 skipped**(另 2 個狀態檔過期,已重新產生)。`evidence/full-postgres-suite.log` |
+| 風險 1 先重現的證據 | `evidence/evidence-timing-before-011p.txt`(5 失敗、2 通過) |
+| **完整變異測試,最終程式碼 `50c2c15`,一次完整執行** | **795/795 killed**(09:56–11:08 UTC)。`evidence/mutation-full-795-final-50c2c15.log` |
+
+變異測試對帳(全部保留在 `evidence/`,不合併計算):
+
+| 執行 | SHA | 結果 | 處理 |
+|---|---|---|---|
+| 第一次完整 | `2b8b6ab` | 793/795 | `sql_spend_accepts_no_max_tokens`:測試缺口(沒有直接呼叫 SQL 函式),已補;`sql_spend_reservations_race`:見下 |
+| 第二次完整 | `9065794` | 794/795 | race 存活:原本的多執行緒測試**取決於時序**,有時能殺、有時不能。沒有列鎖時,資料表 CHECK 仍會擋住超支(fail closed),只是拒絕訊息不同。改成**確定性**測試:A 開著交易持有預留,B 必須等待,A 提交後 B 必須得到上限本身的拒絕。單獨重跑 3/3 killed |
+| **最終完整** | **`50c2c15`** | **795/795** | 一次完整執行,報告的數字就是這個證據檔 |
+
+**CI**
+
+| SHA | Run | 結果 |
+|---|---|---|
+| `2b8b6ab` | 40651691319 | 4 個 job 全部 success;負向控制「AI-authored history refused as expected」 |
+| `9065794` | 40659390569 | 4 個 job 全部 success |
+| `50c2c15` | 40668159570 | 4 個 job 全部 success |
+
+記錄本表的 commit 本身也有 CI run,結果見最終回報。
+
+Commit 祖先:`7988ed7` → `6c8447d` → `6a140f9` → `098a357` → `2b8b6ab` → `4ff10f3` → `9065794` → `50c2c15` → 記錄 commit。
+
+**Git 歷史沒有 AI 署名**:每個 commit 的 author 與 committer 都是 `SpadesZ <rickiekuo1203@gmail.com>`,訊息沒有 trailer;CI commit 身分檢查通過。
 
 ## 6. 剩餘限制
 
