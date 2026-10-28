@@ -1,5 +1,8 @@
 # G0 科學可靠性與雙語研究收尾報告
 
+> **勘誤(2026-10-28,證據對帳)**:本報告的變異測試「全部抓到」是第一輪結果加上修正後的重跑合併計算;重跑沒有另存證據檔,證據檔本身記錄的是第一輪。詳見 `docs/audit/g0-owner-boundary-closure-2026-10-28/evidence-reconciliation.md`。
+
+
 日期:2026-10-28
 分支:`g0-reliability-bilingual-closure`
 起點:`g0-offline-integrity-closure` @ `2e6962ee41cbfd70b22f8867b672bd042832814a`(與遠端相同、工作區乾淨,改動前已確認)
