@@ -20,6 +20,16 @@ endpoint the connection names, whoever built the client and whatever row it was 
                     header included, to whatever the answer names -- another host, or https://
                     down to http://. A 3xx ends the call; neither its body nor its target is kept.
 
+And it is the one place MONEY is spent, so it is where the monetary ceiling is enforced
+(`llm_runtime.spend`, migration 011r). Every request with a body to an endpoint that is not this
+machine is RESERVED at its provable worst case against the Owner's ceiling before a byte is sent,
+and settled to the provider's reported usage afterwards -- or kept at the worst case when there is
+none (an error, a timeout, a reply without usage). A request the ceiling refuses -- no budget when
+one is required, no declared price, not enough left, a circuit opened by an overrun -- raises
+`SPEND_REFUSED` and is never sent. Every chat request now carries `max_tokens`, without which no
+worst case exists; the schema fallback's second request is reserved on its own. `GET /models`
+carries no body and is not metered.
+
 "This machine" is loopback, plus exactly the hosts the DEPLOYMENT declares (`local_hosts`: the
 container deployment's `--host-gateway host.docker.internal`). Nothing here infers locality from a
 host name: a function or client given no declaration treats `host.docker.internal` like any other
@@ -40,9 +50,10 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from http.client import HTTPMessage
-from typing import IO, Any
+from typing import IO, Any, NoReturn
 from urllib.parse import urlsplit
 
+from lab_brain.llm_runtime import spend as _spend
 from lab_brain.llm_runtime.secrets import redact
 
 #: Bytes of a provider's error body kept, after redaction, for the operator to read.
@@ -57,6 +68,8 @@ class ProviderFailure(StrEnum):
     #: model call, the deployment's inference deadline. Reachable, and too slow for it.
     TIMEOUT = "TIMEOUT"
     PROTOCOL_ERROR = "PROTOCOL_ERROR"
+    #: The monetary ceiling refused the request (`llm_runtime.spend`): nothing was sent.
+    SPEND_REFUSED = "SPEND_REFUSED"
 
 
 class ProviderError(RuntimeError):
@@ -163,7 +176,12 @@ class _NoRedirects(urllib.request.HTTPRedirectHandler):
 
 class OpenAICompatibleClient:
     """`local_hosts`: the hosts the deployment declared to be this machine, besides loopback. A
-    client built without them -- by any caller -- treats every other host as remote."""
+    client built without them -- by any caller -- treats every other host as remote.
+
+    `max_output_tokens`: the `max_tokens` every chat request carries (the deployment's,
+    `spend.max_output_tokens()`, when not given). `spend`: the guard for this client's requests;
+    when None, the process's or the environment's guard is resolved at each request
+    (`spend.resolve`), so no construction site can leave a request unguarded."""
 
     def __init__(
         self,
@@ -172,6 +190,8 @@ class OpenAICompatibleClient:
         *,
         timeout: float = 120.0,
         local_hosts: Iterable[str] = (),
+        max_output_tokens: int | None = None,
+        spend: _spend.SpendGuard | None = None,
     ) -> None:
         self._base = base_url.rstrip("/")
         self._key = api_key
@@ -182,6 +202,17 @@ class OpenAICompatibleClient:
         # This machine is reached directly, never through an environment proxy: a proxy would
         # carry a LOCAL call off the machine.
         direct = is_this_machine_url(base_url, declared)
+        self._this_machine = direct
+        parts = urlsplit(base_url)
+        host = (parts.hostname or "").lower()
+        #: How a price names this endpoint: `host`, or `host:port` when the URL gives a port.
+        self._endpoint_host = f"{host}:{parts.port}" if parts.port else host
+        self._max_output = (
+            max_output_tokens if max_output_tokens is not None else _spend.max_output_tokens()
+        )
+        if self._max_output < 1:
+            raise ValueError("max_output_tokens is a positive number of tokens")
+        self._spend = spend
         handlers: list[urllib.request.BaseHandler] = (
             [urllib.request.ProxyHandler({})] if direct else []
         )
@@ -212,8 +243,9 @@ class OpenAICompatibleClient:
         call is then made ONCE more without it, and the reply says so (`output_mode` PROMPT_ONLY
         and the status -- never the provider's words, which stay out of the record). Any other
         failure -- a 400 about the key, the context length or anything that does not name the
-        schema -- and any failure of the second call is raised as it is. A 400 costs nothing to
-        ask: it is the provider refusing the request, not answering it.
+        schema -- and any failure of the second call is raised as it is. The two are two
+        requests to the spend ceiling: each is reserved before it is sent, and the refused one --
+        which reported no usage -- stays charged at its worst case.
         """
         content: Any = prompt
         if image_png is not None:
@@ -226,7 +258,13 @@ class OpenAICompatibleClient:
         if system is not None:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": content})
-        payload: dict[str, Any] = {"model": model, "messages": messages, "temperature": 0}
+        # `max_tokens` always: it is the output side of the request's worst case.
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "temperature": 0,
+            "max_tokens": self._max_output,
+        }
         mode: str | None = None
         started = time.monotonic()
         if response_schema is not None:
@@ -276,12 +314,87 @@ class OpenAICompatibleClient:
         if payload is not None:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
+        # Before the request object exists: a refused request has nothing to send.
+        held = self._reserve(method, payload, data)
         request = urllib.request.Request(
             self._base + path, data=data, headers=headers, method=method
         )
         try:
             with self._opener.open(request, timeout=self._timeout) as response:
                 raw = response.read()
+        except BaseException as failed:
+            # Sent, or perhaps sent: the provider may have billed it and we have no usage.
+            if held is not None:
+                held[0].retain(held[1], f"no reply usage: {type(failed).__name__}")
+            self._raise_from(failed)
+        try:
+            body = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            if held is not None:
+                held[0].retain(held[1], "the reply was not JSON")
+            raise ProviderError(
+                ProviderFailure.PROTOCOL_ERROR, "the endpoint did not answer with JSON"
+            ) from None
+        if held is not None:
+            usage = _usage(body)
+            if _spend.usage_tokens(usage) is None:
+                # No usage, or not both counts: the worst case is all that can be proven.
+                held[0].retain(held[1], "the reply carried no usable usage")
+            else:
+                held[0].settle(held[1], usage)
+        return body
+
+    def _reserve(
+        self, method: str, payload: dict[str, Any] | None, data: bytes | None
+    ) -> tuple[_spend.SpendGuard, _spend.Reservation] | None:
+        """The spend ceiling's admission of one request: None when it is not metered, the guard
+        and its reservation when it is, `SPEND_REFUSED` when it may not be sent.
+
+        Not metered: a request with no body (`GET /models` -- no prompt, nothing generated; only a
+        GET may go without a body), and a request to this machine unless the guard meters this
+        machine too. Everything else needs a positive `max_tokens` in its body and a guard --
+        refused when the ceiling is required and there is none."""
+        if data is None:
+            if method != "GET":
+                raise ProviderError(
+                    ProviderFailure.SPEND_REFUSED, "only a GET may be sent without a body"
+                )
+            return None
+        guard = _spend.resolve(self._spend)
+        if self._this_machine and (guard is None or not guard.meter_this_machine):
+            return None
+        max_output = payload.get("max_tokens") if payload is not None else None
+        if not isinstance(max_output, int) or isinstance(max_output, bool) or max_output < 1:
+            raise ProviderError(
+                ProviderFailure.SPEND_REFUSED,
+                f"a request to {self._endpoint_host} must carry max_tokens: without it the "
+                "output, and the cost, have no bound",
+            )
+        if guard is None:
+            if _spend.required():
+                raise ProviderError(
+                    ProviderFailure.SPEND_REFUSED,
+                    "no spend ceiling is configured, and one is required before any request to "
+                    f"{self._endpoint_host}: nothing was sent",
+                )
+            return None
+        request = _spend.SpendRequest(
+            call_id=_spend.new_call_id(),
+            endpoint_host=self._endpoint_host,
+            model=str(payload.get("model", "")) if payload is not None else "",
+            body_bytes=len(data),
+            image_count=_images(payload),
+            max_output_tokens=max_output,
+        )
+        try:
+            return guard, guard.reserve(request)
+        except _spend.SpendRefused as refused:
+            raise ProviderError(ProviderFailure.SPEND_REFUSED, self._clean(str(refused))) from None
+
+    def _raise_from(self, failure: BaseException) -> NoReturn:
+        """The transport failure, as the `ProviderError` it means; anything else as itself."""
+        try:
+            raise failure
         except urllib.error.HTTPError as exc:
             if exc.code in (401, 403):
                 # An authentication refusal is ABOUT the credential, and providers quote it back --
@@ -314,15 +427,19 @@ class OpenAICompatibleClient:
         except (urllib.error.URLError, OSError) as exc:
             reason = getattr(exc, "reason", exc)
             raise ProviderError(ProviderFailure.UNREACHABLE, self._clean(str(reason))) from None
-        try:
-            return json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError, ValueError):
-            raise ProviderError(
-                ProviderFailure.PROTOCOL_ERROR, "the endpoint did not answer with JSON"
-            ) from None
 
     def _clean(self, text: str) -> str:
         return redact(" ".join(text.split()), [self._key or ""])[:_DETAIL]
+
+
+def _images(payload: Mapping[str, Any] | None) -> int:
+    """How many image parts the request's messages carry: each is charged the image allowance."""
+    count = 0
+    for message in (payload or {}).get("messages", []) or []:
+        content = message.get("content") if isinstance(message, dict) else None
+        if isinstance(content, list):
+            count += sum(1 for p in content if isinstance(p, dict) and p.get("type") == "image_url")
+    return count
 
 
 def _refuses_schema(failure: ProviderError) -> bool:

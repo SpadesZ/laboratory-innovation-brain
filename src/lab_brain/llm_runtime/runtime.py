@@ -612,7 +612,12 @@ class _Route:
 class RouteCompletion:
     """The `Completion` transport of an active runtime: `ScientificLLM` calls it, after the gates,
     with the prompt it digested; it sends that prompt to the slot's model with the role's
-    response contract and JSON schema, and hands back the provider's usage and output mode."""
+    response contract and JSON schema, and hands back the provider's usage and output mode.
+
+    Money is not decided here: every request the route's client sends to a host that is not this
+    machine passes the spend ceiling at the transport (`llm_runtime.spend`), which resolves the
+    process's or the deployment's guard at each request -- a retry, a coverage or screening
+    review, the schema fallback, each is reserved on its own."""
 
     def __init__(self, routes: dict[LogicalSlot, _Route]) -> None:
         self._routes = routes

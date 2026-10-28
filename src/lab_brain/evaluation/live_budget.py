@@ -13,16 +13,26 @@ unbounded. This module is the cap across runs, checked before every episode is s
     before each   refused (`LiveBudgetExhausted`) when what was spent plus one episode's reserve
                   would pass a cap, so the overshoot is bounded by one episode's own Budget Gate
 
-The amount of money is not computed here: no model route declares a unit price, and this module
-does not invent one (see docs/evaluation/G0-real-llm-evaluation-proposal.zh-TW.md §3).
+MONEY is capped by code, per REQUEST, not per episode (`lab_brain.llm_runtime.spend`, migration
+011r). For an external primary the evaluation REQUIRES the Owner's spend ceiling and unit prices
+(`spend_from_env`): without them it is refused before the first call, probes included. They are
+declared into the evaluation's database and a guard is installed for the process, REQUIRED -- so
+every request with a body to a host that is not this machine, from any client the workspace
+builds, is reserved at its provable worst case before it is sent, atomically against the ceiling,
+and a model or host with no declared price is refused. Prices are the Owner's, with source and
+date; nothing here invents one (docs/evaluation/G0-real-llm-evaluation-proposal.zh-TW.md §3).
 """
 
 from __future__ import annotations
 
+import datetime as dt
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from typing import Any
+
+from lab_brain.llm_runtime import spend
 
 
 class LiveBudgetMissing(RuntimeError):
@@ -101,11 +111,121 @@ def check_before_episode(connection: Any, model_id: str, cap: LiveCap | None) ->
         )
 
 
+#: The variables an external primary needs, besides the call and token caps.
+SPEND_VARIABLES = (
+    "LAB_BRAIN_LIVE_SPEND_CEILING",
+    "LAB_BRAIN_LIVE_SPEND_CURRENCY",
+    "LAB_BRAIN_LIVE_PRICE_INPUT_PER_MTOK",
+    "LAB_BRAIN_LIVE_PRICE_OUTPUT_PER_MTOK",
+    "LAB_BRAIN_LIVE_PRICE_SOURCE",
+    "LAB_BRAIN_LIVE_PRICE_DATE",
+)
+
+
+@dataclass(frozen=True)
+class LiveSpend:
+    """The Owner's monetary ceiling and the primary's unit prices, for one evaluation."""
+
+    budget_id: str
+    currency: str
+    ceiling: Decimal
+    input_per_mtok: Decimal
+    output_per_mtok: Decimal
+    source: str
+    source_date: dt.date
+    safety_multiplier: Decimal = Decimal(1)
+
+
+def spend_from_env(*, external: bool, env: Mapping[str, str] = os.environ) -> LiveSpend | None:
+    """The Owner's spend ceiling and prices: None only for a model on this machine; for an
+    external primary, every one of `SPEND_VARIABLES` or `LiveBudgetMissing` -- before any call."""
+    if not external:
+        return None
+    missing = [name for name in SPEND_VARIABLES if not env.get(name, "").strip()]
+    if missing:
+        raise LiveBudgetMissing(
+            "an external primary needs the Owner's monetary ceiling and unit prices before any "
+            "call is made (no price is ever estimated here): set " + ", ".join(missing)
+        )
+    try:
+        declared = LiveSpend(
+            budget_id=env.get("LAB_BRAIN_LIVE_SPEND_BUDGET", "") or "g0-live",
+            currency=env["LAB_BRAIN_LIVE_SPEND_CURRENCY"].strip().upper(),
+            ceiling=Decimal(env["LAB_BRAIN_LIVE_SPEND_CEILING"]),
+            input_per_mtok=Decimal(env["LAB_BRAIN_LIVE_PRICE_INPUT_PER_MTOK"]),
+            output_per_mtok=Decimal(env["LAB_BRAIN_LIVE_PRICE_OUTPUT_PER_MTOK"]),
+            source=env["LAB_BRAIN_LIVE_PRICE_SOURCE"].strip(),
+            source_date=dt.date.fromisoformat(env["LAB_BRAIN_LIVE_PRICE_DATE"].strip()),
+            safety_multiplier=Decimal(env.get("LAB_BRAIN_LIVE_SPEND_MULTIPLIER", "") or "1"),
+        )
+    except (InvalidOperation, ValueError) as bad:
+        raise LiveBudgetMissing(f"the spend ceiling or a price is not valid: {bad}") from bad
+    if declared.ceiling <= 0 or declared.input_per_mtok < 0 or declared.output_per_mtok < 0:
+        raise LiveBudgetMissing("the ceiling is positive and no price is negative")
+    if declared.safety_multiplier < 1:
+        raise LiveBudgetMissing("the safety multiplier is never below 1")
+    return declared
+
+
+def install_live_spend_guard(
+    dsn: str, declared: LiveSpend, *, endpoint_host: str, model: str, actor_id: str
+) -> spend.PostgresSpendGuard:
+    """Declare the budget and the primary's price in the evaluation's (fresh) database, and
+    install its guard for this process as REQUIRED. Returns the guard; `spend.install(None)`
+    removes it."""
+    import psycopg
+
+    with psycopg.connect(dsn, autocommit=True) as connection:
+        spend.declare_budget(
+            connection,
+            declared.budget_id,
+            currency=declared.currency,
+            ceiling=declared.ceiling,
+            actor_id=actor_id,
+            safety_multiplier=declared.safety_multiplier,
+        )
+        spend.declare_price(
+            connection,
+            declared.budget_id,
+            endpoint_host=endpoint_host,
+            model=model,
+            currency=declared.currency,
+            input_per_mtok=declared.input_per_mtok,
+            output_per_mtok=declared.output_per_mtok,
+            source=declared.source,
+            source_date=declared.source_date,
+            actor_id=actor_id,
+        )
+    guard = spend.PostgresSpendGuard(dsn, declared.budget_id)
+    spend.install(guard, required=True)
+    return guard
+
+
+def check_spend_before_episode(connection: Any, budget_id: str | None) -> None:
+    """Refuse the next episode once an overrun has opened the budget's circuit. Each request is
+    refused by the guard anyway; this stops the evaluation at an episode boundary, with a reason."""
+    if budget_id is None:
+        return
+    state = spend.budget_state(connection, budget_id)
+    if state is None:
+        raise LiveBudgetMissing(f"the spend budget {budget_id} is not declared")
+    if state.circuit_open:
+        raise LiveBudgetExhausted(
+            f"spend budget {budget_id} is halted after an overrun ({state.charged} "
+            f"{state.currency} charged of {state.ceiling}); the Owner must review it"
+        )
+
+
 __all__ = [
+    "SPEND_VARIABLES",
     "LiveBudgetExhausted",
     "LiveBudgetMissing",
     "LiveCap",
+    "LiveSpend",
     "cap_from_env",
     "check_before_episode",
+    "check_spend_before_episode",
+    "install_live_spend_guard",
+    "spend_from_env",
     "spent",
 ]

@@ -48,6 +48,10 @@ G0 RETEST (owner-authorized only; an external primary is billable). From the rep
     LAB_BRAIN_LIVE_PRIMARY=models/gemini-3.1-pro-preview LAB_BRAIN_LIVE_PRIMARY_PROVIDER=gemini
     LAB_BRAIN_LIVE_PRIMARY_KEY_ENV=GEMINI_API_KEY LAB_BRAIN_LIVE_CRITIC=qwen2.5:7b
     LAB_BRAIN_LIVE_UTILITY=qwen2.5:7b LAB_BRAIN_LIVE_EVIDENCE=<new evidence dir>
+    LAB_BRAIN_LIVE_MAX_CALLS=<cap> LAB_BRAIN_LIVE_MAX_TOKENS=<cap>
+    LAB_BRAIN_LIVE_SPEND_CEILING=<money> LAB_BRAIN_LIVE_SPEND_CURRENCY=USD
+    LAB_BRAIN_LIVE_PRICE_INPUT_PER_MTOK=<Owner's price> LAB_BRAIN_LIVE_PRICE_OUTPUT_PER_MTOK=<...>
+    LAB_BRAIN_LIVE_PRICE_SOURCE=<where read> LAB_BRAIN_LIVE_PRICE_DATE=<YYYY-MM-DD>
     pytest tests/e2e/test_research_live_model_postgres.py
     python scripts/g0_live_compare.py <earlier run dirs> -- <new evidence dir>
 
@@ -70,9 +74,17 @@ import pytest
 
 from lab_brain.domains.silicon_photonics import tools
 from lab_brain.domains.silicon_photonics import vertical as sp
-from lab_brain.evaluation.live_budget import cap_from_env, check_before_episode
+from lab_brain.evaluation.live_budget import (
+    cap_from_env,
+    check_before_episode,
+    check_spend_before_episode,
+    install_live_spend_guard,
+    spend_from_env,
+)
 from lab_brain.interfaces.config import Settings
 from lab_brain.interfaces.web import Workspace, allowed_hosts
+from lab_brain.interfaces.web.settings_pages import PROVIDERS
+from lab_brain.llm_runtime import spend
 from lab_brain.llm_runtime.secrets import SecretStore
 from lab_brain.research.report_store import SqlResearchReportStore
 from lab_brain.research.service import ResearchFeatures
@@ -251,7 +263,16 @@ def _episode(browser: Browser, tmp_path: Path, name: str) -> str:
     return unquote(found.group(1))
 
 
-def test_a_real_model_researches_three_cases_without_lumerical(db, tmp_path):
+def _host(url: str | None) -> str:
+    """How the spend ceiling names an endpoint: `host`, or `host:port` when the URL gives one."""
+    from urllib.parse import urlsplit
+
+    parts = urlsplit(url or "")
+    host = (parts.hostname or "").lower()
+    return f"{host}:{parts.port}" if parts.port else host
+
+
+def test_a_real_model_researches_three_cases_without_lumerical(db, tmp_path, request):
     """Every case runs, whatever the one before it did; each is checked for what must hold of any
     run -- whose inferences these are, no simulation, no confirmation the record does not carry,
     a page that says what happened -- and the test then asks the acceptance question: did every
@@ -264,9 +285,27 @@ def test_a_real_model_researches_three_cases_without_lumerical(db, tmp_path):
     # The evaluation's cumulative cap, read before anything else: an external primary without one
     # is refused here, before the qualification probes make the first call.
     cap = cap_from_env(external=bool(EXTERNAL))
+    # And the MONEY ceiling (`llm_runtime.spend`): an external primary without the Owner's ceiling
+    # and unit prices is refused here too. With them, the budget and the primary's price are
+    # declared in this (fresh) database and a REQUIRED guard is installed for the process: every
+    # request to a host that is not this machine -- probes, research, retries, the schema
+    # fallback -- is reserved at its worst case before it is sent, and anything unpriced refused.
+    money = spend_from_env(external=bool(EXTERNAL))
+    budget = None
+    if money is not None:
+        install_live_spend_guard(
+            database_url(),
+            money,
+            endpoint_host=_host(PROVIDERS[EXTERNAL][0]),
+            model=PRIMARY,
+            actor_id="act:rkuo",
+        )
+        request.addfinalizer(lambda: spend.install(None))
+        budget = money.budget_id
 
     def within_cap() -> None:
         check_before_episode(db, PRIMARY, cap)
+        check_spend_before_episode(db, budget)
 
     deployment = _Deployment()
     browser = _workspace(tmp_path, deployment)
