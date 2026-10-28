@@ -1,0 +1,4 @@
+1 legitimate prospective support of a post-screening rival -> COMPLETED {"considered": true, "decisive_executed": true, "no_false_confirmation": false, "no_false_abnormal": true, "no_post_screening_support": false, "no_leak": true}
+2 cause found only after screening -> COMPLETED {"considered": true, "decisive_executed": true, "no_false_confirmation": true, "no_false_abnormal": true, "no_post_screening_support": true, "no_leak": true}
+3 correct conclusion names the cause -> COMPLETED {"considered": true, "decisive_executed": true, "no_false_confirmation": true, "no_false_abnormal": true, "no_post_screening_support": true, "no_leak": false}
+4 malformed hypothesis entry -> SCORER CRASHED: KeyError 'discriminates_on'

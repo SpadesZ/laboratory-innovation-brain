@@ -220,7 +220,8 @@ def record(
                 "hypothesis_id": "hyp:1",
                 "origin": "PRE_OBSERVATION",
                 "discriminates_on": discriminates,
-                "supports": 0,
+                "refutable_on": discriminates,
+                "supports": [],
             }
         ],
         "screening_executed": executed,
@@ -482,8 +483,9 @@ def test_every_frozen_case_stays_in_the_denominator(tmp_path):
     m = summary["metrics"]
     # considered: applies to the 4 cases with a cause; syn-v6d3 excluded; k7q2 passes, m3x9
     # discriminated the wrong observable, t8w4 is missing.
-    assert (m["considered"]["k"], m["considered"]["n"], m["considered"]["excluded"]) == (1, 3, 1)
-    assert (m["considered"]["conservative"]["k"], m["considered"]["conservative"]["n"]) == (1, 4)
+    c = m["considered_pre_screening"]
+    assert (c["k"], c["n"], c["excluded"]) == (1, 3, 1)
+    assert (c["conservative"]["k"], c["conservative"]["n"]) == (1, 4)
     # no_false_confirmation applies to every case: m3x9 confirmed wrongly; p5r1 crashed and
     # t8w4 is missing -- neither demonstrated anything.
     nfc = m["no_false_confirmation"]
@@ -510,14 +512,15 @@ def test_refusals_malformed_records_and_leaks_are_failures(tmp_path):
     )
     result = score_run(manifest=manifest, root=tmp_path, outputs=out, truth=sealed)
     rows = {r["case_id"]: r for r in result["cases"]}
-    assert rows["syn-k7q2"]["leaks"] == 1 and rows["syn-k7q2"]["metrics"]["no_leak"] is False
+    k7q2 = rows["syn-k7q2"]
+    assert k7q2["input_leaks"] == 1 and k7q2["metrics"]["no_input_leak"] is False
     assert [rows[c]["status"] for c in ("syn-m3x9", "syn-p5r1", "syn-t8w4")] == [
         "REFUSED",
         "MALFORMED",
         "MALFORMED",
     ]
-    assert result["summary"]["metrics"]["no_leak"]["k"] == 1  # only syn-v6d3
-    assert result["summary"]["metrics"]["no_leak"]["n"] == 5
+    assert result["summary"]["metrics"]["no_input_leak"]["k"] == 1  # only syn-v6d3
+    assert result["summary"]["metrics"]["no_input_leak"]["n"] == 5
     # The report names where a leak happened, never the leaked string.
     assert SYNTHETIC["syn-k7q2"][3]["rationale"] not in json.dumps(result)
 

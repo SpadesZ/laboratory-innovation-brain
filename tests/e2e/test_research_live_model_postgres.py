@@ -70,6 +70,7 @@ import pytest
 
 from lab_brain.domains.silicon_photonics import tools
 from lab_brain.domains.silicon_photonics import vertical as sp
+from lab_brain.evaluation.live_budget import cap_from_env, check_before_episode
 from lab_brain.interfaces.config import Settings
 from lab_brain.interfaces.web import Workspace, allowed_hosts
 from lab_brain.llm_runtime.secrets import SecretStore
@@ -260,12 +261,21 @@ def test_a_real_model_researches_three_cases_without_lumerical(db, tmp_path):
     _admin(db)
     from tests.e2e.test_g0_screening_matrix_postgres import _Deployment, _run_splits, collect
 
+    # The evaluation's cumulative cap, read before anything else: an external primary without one
+    # is refused here, before the qualification probes make the first call.
+    cap = cap_from_env(external=bool(EXTERNAL))
+
+    def within_cap() -> None:
+        check_before_episode(db, PRIMARY, cap)
+
     deployment = _Deployment()
     browser = _workspace(tmp_path, deployment)
+    within_cap()
     _qualified(db, browser)
     models = {PRIMARY, CRITIC, UTILITY}
     outcomes: dict[str, dict[str, Any]] = {}
     for name in CASES:
+        within_cap()
         episode = _episode(browser, tmp_path, name)
         provenance = _rows(
             db,
@@ -353,7 +363,7 @@ def test_a_real_model_researches_three_cases_without_lumerical(db, tmp_path):
     _write("outcomes.json", json.dumps(outcomes, indent=1, ensure_ascii=False))
     if MATRIX_CASES:
         splits = ("dev", "holdout") if MATRIX_CASES == "matrix" else (MATRIX_CASES,)
-        records = _run_splits(db, browser, deployment, None, splits)
+        records = _run_splits(db, browser, deployment, None, splits, before_each=within_cap)
         _write(
             "matrix.outputs.json",
             json.dumps({"configurations": {FEATURES: records}}, indent=1, ensure_ascii=False),

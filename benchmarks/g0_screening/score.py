@@ -16,6 +16,8 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from lab_brain.evaluation.scoring import admissible, record_problems
+
 HERE = Path(__file__).resolve().parent
 OBSERVABLE_OF = {
     "contact_discontinuity": "sp.contact_connectivity",
@@ -66,13 +68,14 @@ def score_case(record: Mapping[str, Any], truth: Mapping[str, Any]) -> dict[str,
     executed = set(record["screening_executed"]) | set(record["verification_executed"])
     abnormal = {r["observable"] for r in record["readings"] if r["finding"] == "ABNORMAL"}
     confirmed = record["confirmed"]
+    post = [h for h in hypotheses if h["origin"] == "POST_SCREENING"]
     false_confirmation = False
     if confirmed is not None:
         h = next((x for x in hypotheses if x["hypothesis_id"] == confirmed), None)
         false_confirmation = (
             h is None
-            or h["origin"] == "POST_SCREENING"
             or not set(h["discriminates_on"]) & set(causes)
+            or (h["origin"] == "POST_SCREENING" and not any(admissible(s) for s in h["supports"]))
         )
     return {
         "considered_any": all(considered[o] for o in causes) if causes else True,
@@ -89,8 +92,9 @@ def score_case(record: Mapping[str, Any], truth: Mapping[str, Any]) -> dict[str,
         if record["screening_enabled"] and decisive
         else [],
         "false_confirmation": false_confirmation,
-        "post_screening_support": sum(
-            h["supports"] for h in hypotheses if h["origin"] == "POST_SCREENING"
+        "post_screening_support": sum(1 for h in post for s in h["supports"] if not admissible(s)),
+        "post_screening_support_admissible": sum(
+            1 for h in post for s in h["supports"] if admissible(s)
         ),
         "repeated_screened_reading": sorted(
             set(record["screening_executed"]) & set(record["verification_executed"])
@@ -113,21 +117,30 @@ def score_case(record: Mapping[str, Any], truth: Mapping[str, Any]) -> dict[str,
     }
 
 
-def summarize(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+def summarize(all_rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    malformed = [r for r in all_rows if r.get("malformed")]
+    rows = [r for r in all_rows if not r.get("malformed")]
     n = len(rows)
     visible = [r for r in rows if r["cheap_visible"]]
     with_cause = [r for r in rows if r.get("_has_cause")]
     return {
-        "cases": n,
+        "cases": len(all_rows),
+        "malformed": len(malformed),
         "considered_rate": _rate([r["considered_any"] for r in with_cause]),
         "considered_pre_observation_rate": _rate(
             [r["considered_pre_observation"] for r in with_cause]
+        ),
+        "considered_post_screening_only_rate": _rate(
+            [r["considered_post_screening_only"] for r in with_cause]
         ),
         "considered_rate_on_cheap_visible": _rate([r["considered_any"] for r in visible]),
         "decisive_executed_rate": _rate([r["decisive_executed"] for r in visible]),
         "false_abnormal": sum(len(r["false_abnormal"]) for r in rows),
         "false_confirmation": sum(1 for r in rows if r["false_confirmation"]),
         "post_screening_support": sum(r["post_screening_support"] for r in rows),
+        "post_screening_support_admissible": sum(
+            r["post_screening_support_admissible"] for r in rows
+        ),
         "repeated_screened_reading": sum(len(r["repeated_screened_reading"]) for r in rows),
         "ineligible_screening": sum(len(r["ineligible_screening"]) for r in rows),
         "mean_screening_checks_per_case": round(sum(r["screening_checks"] for r in rows) / n, 3)
@@ -154,6 +167,11 @@ def evaluate(outputs: Mapping[str, Any]) -> dict[str, Any]:
         for split, records in splits.items():
             rows = []
             for case_id, record in records.items():
+                # `prompts` are the harness's, consumed by its leak check before scoring.
+                problem = record_problems({"prompts": [], **record})
+                if problem is not None:
+                    rows.append({"case_id": case_id, "malformed": problem})
+                    continue
                 row = score_case(record, truth[case_id])
                 row["_has_cause"] = bool(truth[case_id]["true_causes"])
                 row["case_id"] = case_id
@@ -174,6 +192,8 @@ def acceptance(result: Mapping[str, Any], protocol: Mapping[str, Any]) -> dict[s
                 for k, v in thresholds["all_configurations"].items()
                 if s[k] != v
             ]
+            if s["malformed"]:  # amendment 2: an unreadable record is a failure, never a skip
+                failures.append(f"malformed={s['malformed']} (must be 0)")
             if config in ("screening", "combined"):
                 t = thresholds["screening_and_combined"]
                 if (s["decisive_executed_rate"] or 0) < t["decisive_executed_rate_min"]:
@@ -200,16 +220,19 @@ def markdown(result: Mapping[str, Any]) -> str:
     keys = [
         "considered_rate",
         "considered_pre_observation_rate",
+        "considered_post_screening_only_rate",
         "decisive_executed_rate",
         "false_abnormal",
         "false_confirmation",
         "post_screening_support",
+        "post_screening_support_admissible",
         "repeated_screened_reading",
         "mean_screening_checks_per_case",
         "normal_readings",
         "post_screening_rivals",
         "confirmed",
         "leak",
+        "malformed",
     ]
     lines = [
         "| config / split | " + " | ".join(keys) + " | acceptance |",

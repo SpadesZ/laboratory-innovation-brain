@@ -30,7 +30,7 @@ import importlib.util
 import json
 import os
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
@@ -39,6 +39,7 @@ import psycopg
 import pytest
 
 from lab_brain.core.models.capability import Availability
+from lab_brain.evaluation.collect import support_provenance
 from lab_brain.interfaces.config import Settings
 from lab_brain.interfaces.web import Workspace, allowed_hosts
 from lab_brain.llm_runtime.secrets import DirectoryCredentialStore, SecretStore
@@ -150,19 +151,27 @@ def collect(db: Any, episode: str) -> dict[str, Any]:
                 )
             }
         )
-        ((supports,),) = _rows(
-            db,
-            "SELECT count(*) FROM relation_judgments WHERE to_entity_id = %s"
-            " AND relation_type = 'SUPPORTS'",
-            hid,
+        refutable = sorted(
+            {
+                r[0]
+                for r in _rows(
+                    db,
+                    "SELECT observable_ref FROM predictions WHERE hypothesis_id = %s AND"
+                    " relation_effect_if_observed -> 0 ->> 'relation_type' = 'CONTRADICTS'",
+                    hid,
+                )
+            }
         )
         hypotheses.append(
             {
                 "hypothesis_id": hid,
+                "refutable_on": refutable,
                 "mechanism": mechanism,
                 "origin": "POST_SCREENING" if hid in conditioned else "PRE_OBSERVATION",
                 "discriminates_on": discriminates,
-                "supports": int(supports),
+                # Each SUPPORTS relation with the facts scorer 2.0.0 judges it by -- never a bare
+                # count, which could not tell a prospective support from the screened reading.
+                "supports": support_provenance(db, hid),
             }
         )
     executed = _rows(
@@ -308,9 +317,11 @@ def _run_splits(
     deployment: _Deployment,
     fake: FakeProvider | None,
     splits: tuple[str, ...],
+    before_each: Callable[[], None] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Every case of `splits`, one episode each. `fake`, when given, is the provider whose
-    prompts are kept with each record for the leak check; a live model's run passes None."""
+    prompts are kept with each record for the leak check; a live model's run passes None.
+    `before_each` runs before every episode -- a live run's cumulative cap, which may refuse."""
     outputs: dict[str, dict[str, Any]] = {}
     calls_before = len(fake.calls) if fake is not None else 0
     for split in splits:
@@ -318,6 +329,8 @@ def _run_splits(
         outputs[split] = {}
         for case in data["cases"]:
             deployment.unavailable = tuple(case.get("deployment", {}).get("unavailable", ()))
+            if before_each is not None:
+                before_each()
             episode = _run(browser, split, data["nominal_device"], case)
             record = collect(db, episode)
             record["unavailable"] = list(deployment.unavailable)

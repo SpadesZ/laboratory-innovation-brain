@@ -1,0 +1,16 @@
+{
+ "amends": "AcceptanceProtocol-g0-screening-offline@1.0.0",
+ "amendment": 2,
+ "date": "2026-10-28",
+ "authority": "Independent Chief Auditor findings, G0 scientific reliability closure: legitimate prospective support of post-screening hypotheses was penalized; pre-screening and post-screening discovery were mixed; malformed output handling.",
+ "changes": {
+  "metrics.post_screening_support": "Counts only INADMISSIBLE supports of a post-screening hypothesis: the screened observation, an observation older than the hypothesis, a repeat of the screened check (same capability, inputs, parameters; any backend), or the screened output content. These are the 012y/011m guard's bases, re-derived by the scorer from facts the collector reads (lab_brain.evaluation.collect). A prospective, independent support is reported as post_screening_support_admissible and is not a failure.",
+  "metrics.false_confirmation": "A post-screening hypothesis confirmed with at least one admissible support, and discriminating on a true cause, is not a false confirmation. Without an admissible support it still is.",
+  "metrics.considered": "considered_pre_observation_rate and considered_post_screening_only_rate are reported side by side so screening's discovery is never read as the reasoning's. The threshold considered_rate_on_cheap_visible_min keeps its value and its definition (any origin), because it measures what the screening configuration is for; the split is disclosed next to it.",
+  "acceptance.malformed": "A record the scorer cannot read is counted as malformed and fails acceptance (must be 0). The scorer never raises on it.",
+  "records.supports": "Each hypothesis lists its SUPPORTS relations with four provenance facts instead of a bare count. A record with a bare count is malformed."
+ },
+ "unchanged": "Every threshold value, configuration, split, case, truth file and file hash of protocol.json 1.0.0; amendment 1 (the former holdout is exposed-regression evidence).",
+ "leak_note": "This harness computes `leak` from the prompts sent to the model only, so it never counted a correct conclusion as a leak. The defect of counting answers in outputs was in the independent-holdout scorer (lab_brain.evaluation.scoring 1.0.0), corrected in 2.0.0.",
+ "independent_blind_evaluation": "NONE EXISTS."
+}

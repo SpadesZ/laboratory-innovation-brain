@@ -69,6 +69,10 @@ TRUTH_KEYS = frozenset(
 #: other truth fields -- observable or capability ids -- are vocabulary the platform itself uses in
 #: every prompt, so finding them in a prompt is not evidence of a leak.
 SECRET_TRUTH_FIELDS: tuple[str, ...] = ("true_causes", "rationale", "notes")
+#: The part of the truth a correct run may state in its OUTPUT (the answer itself), and the part it
+#: could not derive. Both must stay out of the INPUTS (`SECRET_TRUTH_FIELDS` is their union).
+ANSWER_TRUTH_FIELDS: tuple[str, ...] = ("true_causes",)
+PRIVATE_TRUTH_FIELDS: tuple[str, ...] = ("rationale", "notes")
 
 _EVALUATOR_NAME = re.compile(r"(truth|evaluator|answer|rubric|seal)", re.IGNORECASE)
 

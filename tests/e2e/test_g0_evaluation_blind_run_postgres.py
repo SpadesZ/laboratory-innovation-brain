@@ -226,7 +226,8 @@ def test_a_synthetic_case_runs_blind_and_is_scored_against_its_commitment(db, tm
     result = score_run(manifest=manifest, root=tmp_path, outputs=outputs, truth=sealed)
     summary = result["summary"]
     assert summary["frozen_cases"] == 1 and summary["status_counts"]["COMPLETED"] == 1
-    assert summary["metrics"]["no_leak"]["k"] == summary["metrics"]["no_leak"]["n"] == 1
+    for leak in ("no_input_leak", "no_secret_in_output"):
+        assert summary["metrics"][leak]["k"] == summary["metrics"][leak]["n"] == 1, leak
     for metric in summary["metrics"].values():
         assert metric["n"] == metric["applicable"] == 1
         assert metric["wilson95"] is not None and metric["bootstrap95"] is not None

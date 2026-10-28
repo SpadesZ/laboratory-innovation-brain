@@ -36,6 +36,8 @@ from typing import Any
 from lab_brain.core.canonical_json import canonical_hash
 from lab_brain.evaluation import contamination, scoring
 from lab_brain.evaluation.packages import (
+    ANSWER_TRUTH_FIELDS,
+    PRIVATE_TRUTH_FIELDS,
     LoadedPackage,
     load_generator_package,
     truth_strings,
@@ -251,7 +253,16 @@ def score_run(
         truth=truth.truth(),
         unavailable=unavailable,
         observable_of=manifest["protocol"]["rubric"]["observable_of"],
-        forbidden=truth_strings(truth.truth()),
+        answers=[
+            a
+            for a in truth_strings(truth.truth(), fields=ANSWER_TRUTH_FIELDS)
+            if a not in manifest["cases"]
+        ],
+        secrets=[
+            p
+            for p in truth_strings(truth.truth(), fields=PRIVATE_TRUTH_FIELDS)
+            if p not in manifest["cases"]
+        ],
         exclusions=manifest["exclusions"],
     )
     return {
