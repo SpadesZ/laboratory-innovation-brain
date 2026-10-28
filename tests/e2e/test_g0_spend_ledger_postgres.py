@@ -461,3 +461,49 @@ def test_the_database_refuses_a_reservation_without_max_tokens_or_a_size(pg):
                 (budget, spend.new_call_id(), "provider.test", "m", body, images, max_output),
             )
     assert _state(pg, budget).charged == 0
+
+
+def test_a_reservation_waits_for_an_open_one_and_reads_its_charge(pg):
+    """Deterministic: B starts while A's reservation is uncommitted. Under the budget row's lock
+    B waits, then reads A's charge and is refused by the ceiling itself. Without the lock B would
+    read the old charge, decide it fits, and be stopped only by the table's CHECK."""
+    import psycopg
+
+    budget = _budget(pg, ceiling="1")
+    _price(pg, budget, "provider.test", "m")
+    body, out = 10_000, 10_000
+    cost = spend.worst_case_cost(
+        body_bytes=body, image_count=0, max_output_tokens=out, input_per_mtok=IN,
+        output_per_mtok=OUT,
+    )[1]  # fmt: skip
+    # Leave room for exactly one more request after A's.
+    fits = int(Decimal(1) / cost)
+    for _ in range(fits - 1):
+        PostgresSpendGuard(database_url(), budget).reserve(
+            SpendRequest(spend.new_call_id(), "provider.test", "m", body, 0, out)
+        )
+    holder = psycopg.connect(database_url())  # A: an open transaction
+    holder.execute(
+        "SELECT llm_spend_reserve(%s, %s, %s, %s, %s, %s, %s)",
+        (budget, spend.new_call_id(), "provider.test", "m", body, 0, out),
+    )
+    outcome: list[str] = []
+
+    def second() -> None:
+        try:
+            PostgresSpendGuard(database_url(), budget).reserve(
+                SpendRequest(spend.new_call_id(), "provider.test", "m", body, 0, out)
+            )
+            outcome.append("reserved")
+        except SpendRefused as refused:
+            outcome.append(str(refused))
+
+    waiter = threading.Thread(target=second)
+    waiter.start()
+    waiter.join(timeout=2)
+    assert waiter.is_alive(), "B must wait for A's reservation, not read past it"
+    holder.commit()
+    holder.close()
+    waiter.join(timeout=30)
+    assert len(outcome) == 1 and "may cost up to" in outcome[0], outcome
+    assert _state(pg, budget).charged == fits * cost
