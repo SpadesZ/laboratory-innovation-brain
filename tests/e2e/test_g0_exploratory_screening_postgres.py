@@ -348,12 +348,27 @@ def _sql_guard_refuses_post_hoc_support(
         )
         return observation.observation_id
 
-    def relate(source: str) -> None:
+    def attest(observation: str, run: str) -> str:
+        # The new reading's own attestation. Before 011o the prospective case below cited the
+        # screened attestation, and the guard never read what a relation cites.
+        with db.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute("SELECT * FROM attestations WHERE attestation_id = %s", (attestation,))
+            row = cur.fetchone()
+        assert row is not None
+        row.update(attestation_id=f"att:{observation}", observation_id=observation, run_id=run)
+        row.pop("created_at", None)
+        db.execute(
+            f"INSERT INTO attestations ({', '.join(row)}) VALUES ({', '.join(['%s'] * len(row))})",
+            [Jsonb(v) if isinstance(v, dict | list) else v for v in row.values()],
+        )
+        return f"att:{observation}"
+
+    def relate(source: str, cites: list[str] | None = None) -> None:
         db.execute(
             "INSERT INTO relation_judgments (relation_id, from_entity_id, to_entity_id,"
             " relation_type, supporting_attestation_ids, project_id)"
             " VALUES (%s, %s, %s, 'SUPPORTS', %s, %s)",
-            (f"rel:guard-{source}", source, hypothesis, [attestation], PROJECT),
+            (f"rel:guard-{source}", source, hypothesis, cites or [attestation], PROJECT),
         )
 
     def refused(source: str, why: str) -> None:
@@ -376,7 +391,8 @@ def _sql_guard_refuses_post_hoc_support(
         refused(observe(repeat, "repeat", later), "repeats the screened reading")
         # ... and a prospective, different reading may relate: the guard does not freeze it.
         with db.transaction(force_rollback=True):
-            relate(observe(different, "prospective", later))
+            prospective = observe(different, "prospective", later)
+            relate(prospective, [attest(prospective, different)])
 
 
 def test_a_sound_device_reads_normal_and_keeps_every_reading(db, tmp_path, standin):

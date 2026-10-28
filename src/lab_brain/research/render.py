@@ -1,8 +1,20 @@
-"""Render an `EpisodeReport` as Markdown -- presentation only; every line is a report field."""
+"""Render an `EpisodeReport` as Markdown -- presentation only; every line is a report field.
+
+ONE LAYOUT, A VOCABULARY PER LANGUAGE. `render_markdown` lays the report out once; the fixed words
+around each field come from a `Words` -- `ENGLISH` here, whose templates (`MARKDOWN_TEMPLATES`) are
+the record's export exactly as it has always read, or another language's, supplied by the
+interface (`interfaces.web.pages.MarkdownWords`) from its curated vocabulary. A `Words` changes the
+words AROUND a field and how a stored value is named; it never changes a field. Identifiers,
+digests, numbers and quoted evidence are inserted exactly as stored, and report prose goes through
+`Words.text`, which in English is the text itself and elsewhere a curated rendering or the original,
+marked. Every language therefore has the same lines in the same order -- what
+`bilingual_parity.check_markdown` compares.
+"""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Protocol
 
 from lab_brain.research.episode_view import Conclusion
 from lab_brain.research.report import (
@@ -15,6 +27,204 @@ from lab_brain.research.report import (
 _EXCERPT = 220
 
 
+class Words(Protocol):
+    """The fixed words of a Markdown export in one language, and how it names a stored value."""
+
+    locale: str
+
+    def __call__(self, key: str, /, **values: object) -> str:
+        """`MARKDOWN_TEMPLATES[key]` in this language, with `values` inserted as given."""
+        ...
+
+    def text(self, canonical: str) -> str:
+        """Report prose: as written, or a curated rendering, or the original marked as such."""
+        ...
+
+    def status(self, family: str, value: str, *, bold: bool = False) -> str:
+        """A stored value (`family` names its words, e.g. `bs`, `ws`), the value itself kept."""
+        ...
+
+
+#: The English export's fixed words, by key. Changing one changes the record's export: the English
+#: rendering is pinned byte for byte (`tests/unit/test_g0_bilingual_export_markdown.py`).
+MARKDOWN_TEMPLATES: dict[str, str] = {
+    "md.title": "# Research episode {episode}",
+    "md.goal": "**Goal:** {goal}",
+    "md.header": (
+        "Project `{project}` | actor `{actor}` | domain `{domain}` | trace `{trace}` | "
+        "episode state {state}"
+    ),
+    "md.times": "Started {started} | finished {finished}",
+    "md.continuation": "## Continuation: run {n} of this episode",
+    "md.resumed_from": "Resumed from {value}.",
+    "md.reasoning": "Reasoning: {value}.",
+    "md.earlier_runs": "Earlier runs:",
+    "md.earlier_checks": "Checks executed by earlier runs (not executed again):",
+    "md.result": "## Result",
+    "md.conclusion": "{status} -- {statement}",
+    "md.ruled_out": "Ruled out by executed checks: {items}",
+    "md.still_competing": "Still competing: {items}",
+    "md.trace": "Confirmation trace: {items}",
+    "md.pending_simulation": (
+        "**Pending simulation:** `{capability}` is the best next verification action and cannot "
+        "run here -- {reason}."
+    ),
+    "md.stages": "## Stages",
+    "md.stages.head": "| Stage | Status | Detail |",
+    "md.inputs": "## Inputs",
+    "md.inputs.head": "| File | Role | Declared as | State | Artifact | Units | Statements |",
+    "md.verification_input": "Verification input: {value}",
+    "md.evidence": "## Evidence and sources",
+    "md.evidence.line": "- `{attestation}` ({origin}, {trust}) {source} [{locator}]: '{excerpt}'",
+    "md.evidence.continuation": (
+        "- This run admitted no statement. The statements the hypotheses were debated over "
+        "were admitted by run 1 of this episode and stand unchanged."
+    ),
+    "md.evidence.none": "- No statement was admitted as evidence.",
+    "md.literature": "### External literature -- `{provider}`",
+    "md.literature.source": (
+        "Source: {description}. Query (declared public by the actor): '{query}'."
+    ),
+    "md.literature.policy": "Egress policy for this run: {policy}.",
+    "md.literature.discovered": "Passages discovered: {n}.",
+    "md.literature.line": (
+        "- {title} `{locator}` -- {trust}, licence {license}, kept {retention}, status {status}; "
+        "{admitted}. {note}"
+    ),
+    "md.literature.not_admitted": "not admitted",
+    "md.literature.refused": "- refused: {value}",
+    "md.hypotheses": "## Competing hypotheses",
+    "md.hypotheses.none": "No hypothesis was admitted.",
+    "md.hypothesis": "### {mechanism} -- {state}",
+    "md.hypothesis.statement": "`{hypothesis}` | {statement}",
+    "md.hypothesis.machine": "- Machine falsifier (what verification adjudicates): `{value}`",
+    "md.hypothesis.falsifier": "- Model's explanation (prose falsifier, not adjudicated): {value}",
+    "md.hypothesis.cheapest": "- Cheapest test: `{value}`",
+    "md.hypothesis.predictions": "- Predictions: {items}",
+    "md.hypothesis.critique": "- Critique: {value}",
+    "md.debate": "## Debate and critique",
+    "md.debate.none": "The debate did not run.",
+    "md.debate.head": (
+        "Debate `{debate}` | reasoner {reasoner} | {rounds} round(s) | stopped: {stopped}"
+    ),
+    "md.debate.position": "- Position: {value}",
+    "md.debate.critic": (
+        "- Critic cross-examined {n} evidence item(s); its inverted retrieval found {m}."
+    ),
+    "md.debate.alternatives": "- Critic named alternatives: {items}",
+    "md.debate.surviving": "- Surviving after critique: {items}",
+    "md.debate.contradicted": "- Contradicted by critique: {items}",
+    "md.debate.gate": "- Debate gate: {value}",
+    "md.line": "- {value}",
+    "md.none": "none",
+    "md.belief": "## Belief state",
+    "md.belief.head": "| Hypothesis | Mechanism | State | Governed moves |",
+    "md.plans": "## Verification plan",
+    "md.plans.none": "No verification plan was made.",
+    "md.plan": "{n}. `{plan}` -- {decision}",
+    "md.plan.chosen": " -> `{chosen}`",
+    "md.completed": "## Completed actions",
+    "md.completed.none": "No verification action was executed.",
+    "md.completed.line": (
+        "- `{capability}` ({kind}) {status} by {backend} -- job `{job}`, run `{run}`"
+    ),
+    "md.completed.output": "  - output: {items}",
+    "md.pending": "## Pending simulation actions",
+    "md.pending.none": (
+        "None: no simulation is needed for the next step, or none would change a decision."
+    ),
+    "md.pending.line": "- `{capability}` ({kind}, {tag}) -- {status}: {reason}",
+    "md.pending.best": "best next action",
+    "md.pending.also": "also sufficient",
+    "md.pending.decide": "  - would decide: {items}",
+    "md.pending.cost": "  - estimated cost: {value}",
+    "md.pending.requires": "  - requires: {value}",
+    "md.human": "- Awaiting a person: {value}",
+    "md.next": "## Next steps",
+    "md.provenance": "## Provenance",
+    "md.failure": "- Failure analysis: {value}",
+    "md.heuristic": "- Heuristic candidate (pending review): {value}",
+    "md.session": "### Session provenance",
+    "md.session.origin": "- Origin: {origin}",
+    "md.session.ref": "- Session audit reference (not a secret): `{ref}`",
+    "md.session.unattested": "- No signed-in session is attested for this run.",
+    "md.session.binds": (
+        "- Actor `{actor}` | project `{project}` | research run `{run}` | trace `{trace}`"
+    ),
+    "md.ran": "## What ran, and what did not",
+    "md.not_performed": "- Not performed: {value}",
+    "md.note": "- Note: {value}",
+    # reliability_lines
+    "md.rel.replies": (
+        "Reply checks under {policy}: {replies} model replies, {refused} refused by a typed "
+        "parser, {repaired} repaired before parsing"
+    ),
+    "md.rel.refused": "Refused reply: {value}",
+    "md.rel.coverage": "Coverage review: {value}",
+    "md.rel.unaddressed": "Unaddressed check {check} ({observable}): {disposition} -- {detail}",
+    "md.rel.withheld": "Withheld to keep the Critic's reserve: {value}",
+    "md.rel.overlap": "Overlapping rivals (kept, not merged): {value}",
+    "md.rel.structure": "Device structure summary shown to the Hypothesis Engine: {value}",
+    # screening_lines
+    "md.scr.head": "Exploratory screening under {policy}: {status}",
+    "md.scr.plan": " (plan `{plan}`)",
+    "md.scr.detail": " -- {detail}",
+    "md.scr.unaddressed": "Unaddressed observables (no hypothesis predicted them): {items}",
+    "md.scr.candidate": "Candidate {check}: {disposition} -- {detail}",
+    "md.scr.check": "Screening check {rank}: {check} {status}, estimated {cost}",
+    "md.scr.job": ", job `{job}`",
+    "md.scr.run": ", run `{run}`",
+    "md.scr.reading": (
+        "  read {observable} = {outcome} (reference {reference}): {finding}, observation "
+        "`{observation}`"
+    ),
+    "md.scr.review": "Review after abnormal readings: {status}",
+    "md.scr.review_line": "  {disposition}: {readings} -- {detail}",
+    "md.scr.proposed": " (`{hypothesis}`, proposed after screening)",
+    "md.scr.not_repeated": (
+        "Not repeated by verification on the same input (a repeat is not independent): {items}"
+    ),
+    "md.scr.exploratory": (
+        "Screening readings are exploratory evidence: they relate to no hypothesis, and a "
+        "hypothesis proposed after them cannot be supported by them (012y)."
+    ),
+    # usage_lines
+    "md.usage": (
+        "Model use: {model} on {slot}: {calls} call(s), {metered} with provider-reported usage; "
+        "tokens prompt {prompt}, completion {completion}, total {total}"
+    ),
+    # render_recorded_since
+    "md.since": "## Recorded since this report",
+    "md.since.read": (
+        "Read from the stored records when this file was exported. The report above is as its "
+        "run wrote it; nothing in it was changed."
+    ),
+    "md.since.what": "`{analysis}` ({status}, {failure_class})",
+    "md.since.flag": "- {what} is flagged {kind} by {by}: {statement} (evidence: {evidence})",
+    "md.since.not_relied": "- {what} is not relied on by case memory or the miner: {reason}",
+}
+
+
+class _English:
+    """The record's own language: its templates, prose as written, stored values as stored."""
+
+    locale = "en"
+
+    def __call__(self, key: str, /, **values: object) -> str:
+        template = MARKDOWN_TEMPLATES[key]
+        return template.format(**values) if values else template
+
+    def text(self, canonical: str) -> str:
+        return canonical
+
+    def status(self, family: str, value: str, *, bold: bool = False) -> str:
+        return f"**{value}**" if bold else value
+
+
+#: The record's export language: exactly the Markdown the report has always exported as.
+ENGLISH: Words = _English()
+
+
 def _clip(text: str, limit: int = _EXCERPT) -> str:
     flat = " ".join(text.split())
     return flat if len(flat) <= limit else flat[: limit - 1].rstrip() + "..."
@@ -24,275 +234,373 @@ def _cell(text: str) -> str:
     return text.replace("|", "\\|").replace("\n", " ")
 
 
-def render_markdown(report: EpisodeReport) -> str:
+def render_markdown(
+    report: EpisodeReport, words: Words = ENGLISH, *, preamble: Sequence[str] = ()
+) -> str:
+    """The report as Markdown in `words`' language. `preamble`: lines a rendering in another
+    language puts under the title (each a `> ` note saying what it is derived from); none in the
+    record's export."""
     r = report
+    w = words
     out: list[str] = []
     add = out.append
 
-    add(f"# Research episode {r.episode_id}")
+    def texts(items: Sequence[str], sep: str = "; ") -> str:
+        return sep.join(w.text(x) for x in items)
+
+    add(w("md.title", episode=r.episode_id))
+    out.extend(preamble)
     add("")
-    add(f"**Goal:** {r.goal}")
+    add(w("md.goal", goal=w.text(r.goal)))
     add("")
     add(
-        f"Project `{r.project_id}` | actor `{r.actor_id}` | domain `{r.domain}` | "
-        f"trace `{r.trace_id}` | episode state **{r.episode_state}**"
+        w(
+            "md.header",
+            project=r.project_id,
+            actor=r.actor_id,
+            domain=r.domain,
+            trace=r.trace_id,
+            state=w.status("ep", r.episode_state, bold=True),
+        )
     )
-    add(f"Started {r.started_at.isoformat()} | finished {r.finished_at.isoformat()}")
+    add(w("md.times", started=r.started_at.isoformat(), finished=r.finished_at.isoformat()))
     add("")
 
     if r.continuation is not None:
         k = r.continuation
-        add(f"## Continuation: run {k.run_ordinal} of this episode")
+        add(w("md.continuation", n=k.run_ordinal))
         add("")
-        add(f"Resumed from {k.resumed_from}.")
+        add(w("md.resumed_from", value=w.text(k.resumed_from)))
         add("")
-        add(f"Reasoning: {k.reasoning}.")
+        add(w("md.reasoning", value=w.text(k.reasoning)))
         add("")
-        add("Earlier runs:")
+        add(w("md.earlier_runs"))
         for line in k.earlier_runs:
-            add(f"- {line}")
+            add(w("md.line", value=w.text(line)))
         if k.earlier_checks:
             add("")
-            add("Checks executed by earlier runs (not executed again):")
+            add(w("md.earlier_checks"))
             for line in k.earlier_checks:
-                add(f"- {line}")
+                add(w("md.line", value=w.text(line)))
         for line in (*k.superseded_jobs, *k.recovered):
-            add(f"- {line}")
+            add(w("md.line", value=w.text(line)))
         add("")
 
-    add("## Result")
+    add(w("md.result"))
     add("")
-    add(f"**{r.conclusion.status}** -- {r.conclusion.statement}")
+    add(
+        w(
+            "md.conclusion",
+            status=w.status("cs", r.conclusion.status, bold=True),
+            statement=w.text(r.conclusion.statement),
+        )
+    )
     if r.conclusion.ruled_out:
         add("")
-        add("Ruled out by executed checks: " + "; ".join(r.conclusion.ruled_out))
+        add(w("md.ruled_out", items=texts(r.conclusion.ruled_out)))
     if r.conclusion.still_competing:
         add("")
-        add("Still competing: " + "; ".join(r.conclusion.still_competing))
+        add(w("md.still_competing", items=texts(r.conclusion.still_competing)))
     if r.conclusion.trace:
         add("")
-        add("Confirmation trace: " + " -> ".join(r.conclusion.trace))
+        add(w("md.trace", items=texts(r.conclusion.trace, " -> ")))
     if r.pending:
         best = next((p for p in r.pending if p.best_next), r.pending[0])
         add("")
         add(
-            f"**Pending simulation:** `{best.capability_id}` is the best next verification action "
-            f"and cannot run here -- {best.blocked_because}."
+            w(
+                "md.pending_simulation",
+                capability=best.capability_id,
+                reason=w.text(best.blocked_because),
+            )
         )
     add("")
 
-    add("## Stages")
+    add(w("md.stages"))
     add("")
-    add("| Stage | Status | Detail |")
+    add(w("md.stages.head"))
     add("|---|---|---|")
     for s in r.stages:
-        add(f"| {s.stage} | {s.status} | {_cell(s.detail)} |")
+        add(
+            f"| {w.status('stage', s.stage)} | {w.status('ss', s.status)} | "
+            f"{_cell(w.text(s.detail))} |"
+        )
     add("")
 
-    add("## Inputs")
+    add(w("md.inputs"))
     add("")
-    add("| File | Role | Declared as | State | Artifact | Units | Statements |")
+    add(w("md.inputs.head"))
     add("|---|---|---|---|---|---|---|")
     for i in r.inputs:
         add(
-            f"| {_cell(i.name)} | {i.role} | {i.declared_kind} | {i.state} | "
-            f"`{i.artifact_id or '-'}` | {i.evidence_units} | {i.statements} |"
+            f"| {_cell(i.name)} | {w.status('role', i.role)} | {i.declared_kind} | "
+            f"{w.status('is', i.state)} | `{i.artifact_id or '-'}` | {i.evidence_units} | "
+            f"{i.statements} |"
         )
     if r.verification_input:
         add("")
-        add(f"Verification input: {r.verification_input}")
+        add(w("md.verification_input", value=w.text(r.verification_input)))
     add("")
 
-    add("## Evidence and sources")
+    add(w("md.evidence"))
     add("")
     if r.evidence:
         for e in r.evidence:
             add(
-                f"- `{e.attestation_id}` ({e.origin}, {e.trust_class}) {_cell(e.source)} "
-                f"[{e.locator}]: '{_clip(e.excerpt)}'"
+                w(
+                    "md.evidence.line",
+                    attestation=e.attestation_id,
+                    origin=w.status("origin", e.origin),
+                    trust=e.trust_class,
+                    source=_cell(e.source),
+                    locator=e.locator,
+                    excerpt=_clip(e.excerpt),
+                )
             )
     elif r.continuation is not None:
-        add(
-            "- This run admitted no statement. The statements the hypotheses were debated over "
-            "were admitted by run 1 of this episode and stand unchanged."
-        )
+        add(w("md.evidence.continuation"))
     else:
-        add("- No statement was admitted as evidence.")
+        add(w("md.evidence.none"))
     add("")
     if r.literature is not None:
         lit = r.literature
-        add(f"### External literature -- `{lit.provider}`")
+        add(w("md.literature", provider=lit.provider))
         add("")
-        add(f"Source: {lit.description}. Query (declared public by the actor): '{lit.query}'.")
-        add(f"Egress policy for this run: {lit.egress_policy}.")
-        add(f"Passages discovered: {lit.discovered}.")
+        add(w("md.literature.source", description=w.text(lit.description), query=lit.query))
+        add(w("md.literature.policy", policy=lit.egress_policy))
+        add(w("md.literature.discovered", n=lit.discovered))
         add("")
         for c in lit.consulted:
             admitted = (
-                f"`{c.admitted_attestation_id}`" if c.admitted_attestation_id else "not admitted"
+                f"`{c.admitted_attestation_id}`"
+                if c.admitted_attestation_id
+                else w("md.literature.not_admitted")
             )
             add(
-                f"- {_cell(c.title)} `{c.locator}` -- {c.trust_class}, licence {c.license}, "
-                f"kept {c.retention}, status {c.status}; {admitted}. {c.note}"
+                w(
+                    "md.literature.line",
+                    title=_cell(c.title),
+                    locator=c.locator,
+                    trust=c.trust_class,
+                    license=c.license,
+                    retention=c.retention,
+                    status=c.status,
+                    admitted=admitted,
+                    note=w.text(c.note),
+                )
             )
         for refusal in lit.refusals:
-            add(f"- refused: {refusal}")
+            add(w("md.literature.refused", value=w.text(refusal)))
         add("")
 
-    add("## Competing hypotheses")
+    add(w("md.hypotheses"))
     add("")
     if not r.hypotheses:
-        add("No hypothesis was admitted.")
+        add(w("md.hypotheses.none"))
     for h in r.hypotheses:
-        add(f"### {h.mechanism} -- **{h.final_state}**")
+        add(
+            w(
+                "md.hypothesis",
+                mechanism=w.text(h.mechanism),
+                state=w.status("bs", h.final_state, bold=True),
+            )
+        )
         add("")
-        add(f"`{h.hypothesis_id}` | {h.statement}")
+        add(w("md.hypothesis.statement", hypothesis=h.hypothesis_id, statement=w.text(h.statement)))
         for machine in h.machine_falsifiers:
-            add(f"- Machine falsifier (what verification adjudicates): `{machine}`")
-        add(f"- Model's explanation (prose falsifier, not adjudicated): {h.falsifier}")
-        add(f"- Cheapest test: `{h.minimal_test}`")
-        add("- Predictions: " + "; ".join(h.predictions))
+            add(w("md.hypothesis.machine", value=machine))
+        add(w("md.hypothesis.falsifier", value=w.text(h.falsifier)))
+        add(w("md.hypothesis.cheapest", value=h.minimal_test))
+        add(w("md.hypothesis.predictions", items=texts(h.predictions)))
         for objection in h.objections:
-            add(f"- Critique: {objection}")
+            add(w("md.hypothesis.critique", value=w.text(objection)))
         add("")
 
-    add("## Debate and critique")
+    add(w("md.debate"))
     add("")
     if r.debate is None:
-        add("The debate did not run.")
+        add(w("md.debate.none"))
     else:
         d = r.debate
         add(
-            f"Debate `{d.debate_id}` | reasoner {d.reasoner} | {d.rounds} round(s) | "
-            f"stopped: {d.stop_reason}"
+            w(
+                "md.debate.head",
+                debate=d.debate_id,
+                reasoner=w.text(d.reasoner),
+                rounds=d.rounds,
+                stopped=d.stop_reason,
+            )
         )
         add("")
         for position in d.positions:
-            add(f"- Position: {position}")
-        add(
-            f"- Critic cross-examined {d.critic_evidence} evidence item(s); its inverted "
-            f"retrieval found {d.inverted_evidence}."
-        )
+            add(w("md.debate.position", value=w.text(position)))
+        add(w("md.debate.critic", n=d.critic_evidence, m=d.inverted_evidence))
         if d.alternatives_named:
-            add("- Critic named alternatives: " + ", ".join(d.alternatives_named))
-        add("- Surviving after critique: " + (", ".join(d.surviving) or "none"))
-        add("- Contradicted by critique: " + (", ".join(d.contradicted) or "none"))
-        add(f"- Debate gate: {d.gate}")
-        for line in reliability_lines(d.reliability):
-            add(f"- {line}")
-    for line in screening_lines(r.screening):
-        add(f"- {line}")
+            add(w("md.debate.alternatives", items=texts(d.alternatives_named, ", ")))
+        add(w("md.debate.surviving", items=texts(d.surviving, ", ") or w("md.none")))
+        add(w("md.debate.contradicted", items=texts(d.contradicted, ", ") or w("md.none")))
+        add(w("md.debate.gate", value=w.text(d.gate)))
+        for line in reliability_lines(d.reliability, w):
+            add(w("md.line", value=line))
+    for line in screening_lines(r.screening, w):
+        add(w("md.line", value=line))
     add("")
 
-    add("## Belief state")
+    add(w("md.belief"))
     add("")
-    add("| Hypothesis | Mechanism | State | Governed moves |")
+    add(w("md.belief.head"))
     add("|---|---|---|---|")
     for b in r.belief:
         add(
-            f"| `{b.hypothesis_id}` | {b.mechanism} | {b.state} | "
-            f"{_cell('; '.join(b.moves) or '-')} |"
+            f"| `{b.hypothesis_id}` | {w.text(b.mechanism)} | {w.status('bs', b.state)} | "
+            f"{_cell(texts(b.moves) or '-')} |"
         )
     add("")
 
-    add("## Verification plan")
+    add(w("md.plans"))
     add("")
     if not r.plans:
-        add("No verification plan was made.")
+        add(w("md.plans.none"))
     for n, p in enumerate(r.plans, start=1):
-        add(f"{n}. `{p.plan_id}` -- **{p.decision}**" + (f" -> `{p.chosen}`" if p.chosen else ""))
-        add(f"   {p.summary}")
+        add(
+            w("md.plan", n=n, plan=p.plan_id, decision=w.status("pd", p.decision, bold=True))
+            + (w("md.plan.chosen", chosen=p.chosen) if p.chosen else "")
+        )
+        add(f"   {w.text(p.summary)}")
         for candidate in p.candidates:
-            add(f"   - {candidate}")
+            add(f"   - {w.text(candidate)}")
     add("")
 
-    add("## Completed actions")
+    add(w("md.completed"))
     add("")
     if not r.completed:
-        add("No verification action was executed.")
+        add(w("md.completed.none"))
     for a in r.completed:
         add(
-            f"- `{a.capability_id}` ({a.action_type}) **{a.status}** by {a.backend} -- "
-            f"job `{a.job_id}`, run `{a.run_id}`"
+            w(
+                "md.completed.line",
+                capability=a.capability_id,
+                kind=w.status("act", a.action_type),
+                status=w.status("ws", a.status, bold=True),
+                backend=w.text(a.backend),
+                job=a.job_id,
+                run=a.run_id,
+            )
         )
         for outcome in a.outcomes:
-            add(f"  - {outcome}")
+            add(f"  - {w.text(outcome)}")
         if a.output_artifacts:
-            add("  - output: " + ", ".join(f"`{x}`" for x in a.output_artifacts))
+            add(w("md.completed.output", items=", ".join(f"`{x}`" for x in a.output_artifacts)))
         if a.detail:
-            add(f"  - {a.detail}")
+            add(f"  - {w.text(a.detail)}")
     add("")
 
-    add("## Pending simulation actions")
+    add(w("md.pending"))
     add("")
     if not r.pending:
-        add("None: no simulation is needed for the next step, or none would change a decision.")
+        add(w("md.pending.none"))
     for pending in r.pending:
-        tag = "best next action" if pending.best_next else "also sufficient"
         add(
-            f"- `{pending.capability_id}` ({pending.action_type}, {tag}) -- **BLOCKED**: "
-            f"{pending.blocked_because}"
+            w(
+                "md.pending.line",
+                capability=pending.capability_id,
+                kind=w.status("act", pending.action_type),
+                tag=w("md.pending.best") if pending.best_next else w("md.pending.also"),
+                status=w.status("ws", "BLOCKED", bold=True),
+                reason=w.text(pending.blocked_because),
+            )
         )
-        add("  - would decide: " + ("; ".join(pending.would_decide) or "-"))
-        add(f"  - estimated cost: {pending.estimated_cost}")
-        add(f"  - requires: {pending.requires}")
+        add(w("md.pending.decide", items=texts(pending.would_decide) or "-"))
+        add(w("md.pending.cost", value=w.text(pending.estimated_cost)))
+        add(w("md.pending.requires", value=w.text(pending.requires)))
     if r.human_actions:
         add("")
         for action in r.human_actions:
-            add(f"- Awaiting a person: {action}")
+            add(w("md.human", value=w.text(action)))
     add("")
 
-    add("## Next steps")
+    add(w("md.next"))
     add("")
     for step in r.next_steps:
-        add(f"- {step}")
+        add(w("md.line", value=w.text(step)))
     add("")
 
-    add("## Provenance")
+    add(w("md.provenance"))
     add("")
     if r.failure_analysis:
-        add(f"- Failure analysis: {r.failure_analysis}")
+        add(w("md.failure", value=w.text(r.failure_analysis)))
     for candidate in r.heuristic_candidates:
-        add(f"- Heuristic candidate (pending review): {candidate}")
+        add(w("md.heuristic", value=w.text(candidate)))
     for line in r.provenance:
-        add(f"- {line}")
+        add(w("md.line", value=w.text(line)))
     add("")
+    if r.session_provenance is not None:
+        # How the run was started, as its run row records it (`011n`): the origin and, for a
+        # signed-in web session only, the session's NON-SECRET audit reference. Never a token or
+        # a session's lookup key -- the report holds neither. Absent from a report stored before
+        # `011n`, whose export is then exactly what it always was.
+        sp = r.session_provenance
+        add(w("md.session"))
+        add("")
+        add(w("md.session.origin", origin=w.status("so", sp.origin, bold=True)))
+        if sp.session_audit_ref:
+            add(w("md.session.ref", ref=sp.session_audit_ref))
+        else:
+            add(w("md.session.unattested"))
+        add(
+            w(
+                "md.session.binds",
+                actor=sp.actor_id,
+                project=sp.project_id,
+                run=sp.research_run_id,
+                trace=sp.trace_id,
+            )
+        )
+        add("")
 
-    add("## What ran, and what did not")
+    add(w("md.ran"))
     add("")
     for line in r.deployment:
-        add(f"- {line}")
+        add(w("md.line", value=w.text(line)))
     for line in r.not_performed:
-        add(f"- Not performed: {line}")
+        add(w("md.not_performed", value=w.text(line)))
     for note in r.notes:
-        add(f"- Note: {note}")
-    for line in usage_lines(r.usage):
-        add(f"- {line}")
+        add(w("md.note", value=w.text(note)))
+    for line in usage_lines(r.usage, w):
+        add(w("md.line", value=line))
     add("")
     return "\n".join(out)
 
 
-def reliability_lines(reliability: ReliabilitySection | None) -> list[str]:
+def reliability_lines(reliability: ReliabilitySection | None, words: Words = ENGLISH) -> list[str]:
     """The debate's reply checks and coverage review, as the full report states them."""
     if reliability is None:
         return []
+    w = words
     lines = [
-        f"Reply checks under {reliability.policy}: {reliability.replies} model replies, "
-        f"{reliability.refused} refused by a typed parser, {reliability.repaired} repaired before "
-        "parsing",
-        *(f"Refused reply: {x}" for x in reliability.refusals),
-        f"Coverage review: {reliability.coverage_status}",
+        w(
+            "md.rel.replies",
+            policy=reliability.policy,
+            replies=reliability.replies,
+            refused=reliability.refused,
+            repaired=reliability.repaired,
+        ),
+        *(w("md.rel.refused", value=w.text(x)) for x in reliability.refusals),
+        w("md.rel.coverage", value=reliability.coverage_status),
         *(
-            f"Unaddressed check {c.check} ({c.observable}): {c.disposition} -- {c.detail}"
+            w(
+                "md.rel.unaddressed",
+                check=c.check,
+                observable=c.observable,
+                disposition=c.disposition,
+                detail=w.text(c.detail),
+            )
             for c in reliability.coverage
         ),
-        *(f"Withheld to keep the Critic's reserve: {w}" for w in reliability.withheld_for_critic),
-        *(f"Overlapping rivals (kept, not merged): {o}" for o in reliability.overlap),
+        *(w("md.rel.withheld", value=w.text(x)) for x in reliability.withheld_for_critic),
+        *(w("md.rel.overlap", value=w.text(x)) for x in reliability.overlap),
         *(
-            (
-                "Device structure summary shown to the Hypothesis Engine: "
-                + reliability.structure_summary,
-            )
+            (w("md.rel.structure", value=reliability.structure_summary),)
             if reliability.structure_summary
             else ()
         ),
@@ -300,61 +608,86 @@ def reliability_lines(reliability: ReliabilitySection | None) -> list[str]:
     return lines
 
 
-def screening_lines(screening: ScreeningSection | None) -> list[str]:
+def screening_lines(screening: ScreeningSection | None, words: Words = ENGLISH) -> list[str]:
     """The exploratory screening stage, as the full report states it: every candidate and why,
     every reading with its provenance, the review, and what verification did not repeat."""
     if screening is None:
         return []
+    w = words
     lines = [
-        f"Exploratory screening under {screening.policy}: {screening.status}"
-        + (f" (plan `{screening.plan_id}`)" if screening.plan_id else "")
-        + (f" -- {screening.detail}" if screening.detail else ""),
-        "Unaddressed observables (no hypothesis predicted them): "
-        + (", ".join(screening.unaddressed) or "none"),
-        *(f"Candidate {c.check}: {c.disposition} -- {c.detail}" for c in screening.candidates),
+        w("md.scr.head", policy=screening.policy, status=screening.status)
+        + (w("md.scr.plan", plan=screening.plan_id) if screening.plan_id else "")
+        + (w("md.scr.detail", detail=w.text(screening.detail)) if screening.detail else ""),
+        w("md.scr.unaddressed", items=", ".join(screening.unaddressed) or w("md.none")),
+        *(
+            w(
+                "md.scr.candidate",
+                check=c.check,
+                disposition=c.disposition,
+                detail=w.text(c.detail),
+            )
+            for c in screening.candidates
+        ),
     ]
     for check in screening.checks:
         lines.append(
-            f"Screening check {check.rank}: {check.check} {check.status}, estimated "
-            f"{check.estimated_cost}"
-            + (f", job `{check.job_id}`" if check.job_id else "")
-            + (f", run `{check.run_id}`" if check.run_id else "")
-            + (f" -- {check.detail}" if check.detail else "")
+            w(
+                "md.scr.check",
+                rank=check.rank,
+                check=check.check,
+                status=check.status,
+                cost=w.text(check.estimated_cost),
+            )
+            + (w("md.scr.job", job=check.job_id) if check.job_id else "")
+            + (w("md.scr.run", run=check.run_id) if check.run_id else "")
+            + (w("md.scr.detail", detail=w.text(check.detail)) if check.detail else "")
         )
         lines.extend(
-            f"  read {r.observable} = {r.outcome} (reference {r.reference}): {r.finding}, "
-            f"observation `{r.observation_id}`"
+            w(
+                "md.scr.reading",
+                observable=r.observable,
+                outcome=r.outcome,
+                reference=r.reference,
+                finding=r.finding,
+                observation=r.observation_id,
+            )
             for r in check.readings
         )
-    lines.append(f"Review after abnormal readings: {screening.review_status}")
+    lines.append(w("md.scr.review", status=screening.review_status))
     lines.extend(
-        f"  {x.disposition}: {'; '.join(x.readings)} -- {x.detail}"
-        + (f" (`{x.hypothesis_id}`, proposed after screening)" if x.hypothesis_id else "")
+        w(
+            "md.scr.review_line",
+            disposition=x.disposition,
+            readings="; ".join(w.text(y) for y in x.readings),
+            detail=w.text(x.detail),
+        )
+        + (w("md.scr.proposed", hypothesis=x.hypothesis_id) if x.hypothesis_id else "")
         for x in screening.review
     )
     if screening.not_repeated:
-        lines.append(
-            "Not repeated by verification on the same input (a repeat is not independent): "
-            + ", ".join(screening.not_repeated)
-        )
-    lines.append(
-        "Screening readings are exploratory evidence: they relate to no hypothesis, and a "
-        "hypothesis proposed after them cannot be supported by them (012y)."
-    )
+        lines.append(w("md.scr.not_repeated", items=", ".join(screening.not_repeated)))
+    lines.append(w("md.scr.exploratory"))
     return lines
 
 
-def usage_lines(usage: Sequence[UsageLine]) -> list[str]:
+def usage_lines(usage: Sequence[UsageLine], words: Words = ENGLISH) -> list[str]:
     """This run's model calls, with the token counts the provider reported."""
     return [
-        f"Model use: {u.model} on {u.slot}: {u.calls} call(s), {u.metered_calls} with "
-        f"provider-reported usage; tokens prompt {u.prompt_tokens}, completion "
-        f"{u.completion_tokens}, total {u.total_tokens}"
+        words(
+            "md.usage",
+            model=u.model,
+            slot=u.slot,
+            calls=u.calls,
+            metered=u.metered_calls,
+            prompt=u.prompt_tokens,
+            completion=u.completion_tokens,
+            total=u.total_tokens,
+        )
         for u in usage
     ]
 
 
-def render_recorded_since(conclusions: Sequence[Conclusion]) -> str:
+def render_recorded_since(conclusions: Sequence[Conclusion], words: Words = ENGLISH) -> str:
     """What the record says about the report's conclusions now, for an exported report.
 
     A stored report is frozen: written when its run ended, never edited. A conclusion can be
@@ -362,32 +695,40 @@ def render_recorded_since(conclusions: Sequence[Conclusion]) -> str:
     would present a flagged CONFIRMED cause as if nothing were known against it. Empty when
     there is nothing to add, so the export is then exactly the stored report.
     """
+    w = words
     lines: list[str] = []
     for c in conclusions:
-        what = f"`{c.failure_analysis_id}` ({c.status}, {c.failure_class})"
+        what = w(
+            "md.since.what",
+            analysis=c.failure_analysis_id,
+            status=c.status,
+            failure_class=c.failure_class,
+        )
         for flag in c.flags:
             lines.append(
-                f"- {what} is flagged **{flag.kind}** by {flag.recorded_by}: {flag.statement}"
-                f" (evidence: {', '.join(flag.evidence_refs)})"
+                w(
+                    "md.since.flag",
+                    what=what,
+                    kind=w.status("flag", flag.kind, bold=True),
+                    by=flag.recorded_by,
+                    statement=w.text(flag.statement),
+                    evidence=", ".join(flag.evidence_refs),
+                )
             )
         if c.not_relied_on and not c.flags:
-            lines.append(
-                f"- {what} is not relied on by case memory or the miner: {c.not_relied_on}"
-            )
+            lines.append(w("md.since.not_relied", what=what, reason=w.text(c.not_relied_on)))
     if not lines:
         return ""
-    return "\n".join(
-        [
-            "",
-            "## Recorded since this report",
-            "",
-            "Read from the stored records when this file was exported. The report above is as "
-            "its run wrote it; nothing in it was changed.",
-            "",
-            *lines,
-            "",
-        ]
-    )
+    return "\n".join(["", w("md.since"), "", w("md.since.read"), "", *lines, ""])
 
 
-__all__ = ["render_markdown", "render_recorded_since"]
+__all__ = [
+    "ENGLISH",
+    "MARKDOWN_TEMPLATES",
+    "Words",
+    "reliability_lines",
+    "render_markdown",
+    "render_recorded_since",
+    "screening_lines",
+    "usage_lines",
+]

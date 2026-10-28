@@ -35,6 +35,7 @@ from lab_brain.research.continuation import (
     ResearchRunRecord,
     SqlResearchRunStore,
 )
+from lab_brain.research.run_provenance import RunProvenance
 from lab_brain.research.service import InputDocument, ResearchEpisodeService, ResearchRequest
 from lab_brain.research.vertical import load_vertical_factory
 from lab_brain.storage.artifacts.local import LocalArtifactStore
@@ -408,7 +409,12 @@ def test_a_completed_episode_receives_no_new_research_run(db, tmp_path):
     with pytest.raises(EpisodeFinished):
         _service(tmp_path).run(
             ResearchRequest(
-                project_id=PROJECT, actor_id=ACTOR, goal="", documents=(), episode_id=confirmed
+                project_id=PROJECT,
+                actor_id=ACTOR,
+                goal="",
+                documents=(),
+                episode_id=confirmed,
+                provenance=RunProvenance.operator_cli(),
             )
         )
     assert _census(db) == before
@@ -451,6 +457,7 @@ def test_a_continuation_takes_no_new_inputs_and_keeps_the_episode_goal(db, tmp_p
                 goal="",
                 documents=(document,),
                 episode_id=episode_id,
+                provenance=RunProvenance.operator_cli(),
             )
         )
 
@@ -496,6 +503,7 @@ def test_a_live_run_holds_the_episode_and_an_interrupted_one_is_recovered(db, tm
             observed_behavior=opening.observed_behavior,
             started_at=opening.started_at,
             question_label=opening.question_label,
+            provenance=RunProvenance.operator_cli(),
         )
     )
     jobs = SqlJobStore(other)
@@ -554,6 +562,7 @@ def test_a_parked_check_is_superseded_and_the_continuation_confirms_the_cause(db
             verification_input=(device.name, device.read_bytes()),
             sensitivity=SensitivityLabel.INTERNAL,
             wall_clock_budget_s=0,
+            provenance=RunProvenance.operator_cli(),
         )
     )
     episode_id = first.episode_id
@@ -569,7 +578,12 @@ def test_a_parked_check_is_superseded_and_the_continuation_confirms_the_cause(db
     # The budget is there now. The same episode continues, and the cheap checks settle it.
     second = service.run(
         ResearchRequest(
-            project_id=PROJECT, actor_id=ACTOR, goal="", documents=(), episode_id=episode_id
+            project_id=PROJECT,
+            actor_id=ACTOR,
+            goal="",
+            documents=(),
+            episode_id=episode_id,
+            provenance=RunProvenance.operator_cli(),
         )
     )
     assert second.episode_id == episode_id
@@ -637,6 +651,7 @@ def test_a_verification_error_parks_the_episode_and_a_continuation_retries_it(
                 ),
                 verification_input=(device.name, device.read_bytes()),
                 sensitivity=SensitivityLabel.INTERNAL,
+                provenance=RunProvenance.operator_cli(),
             )
         )
     assert any(s.stage == "verification" and s.status == "FAILED" for s in first.stages)
@@ -649,7 +664,12 @@ def test_a_verification_error_parks_the_episode_and_a_continuation_retries_it(
 
     retried = service.run(
         ResearchRequest(
-            project_id=PROJECT, actor_id=ACTOR, goal="", documents=(), episode_id=first.episode_id
+            project_id=PROJECT,
+            actor_id=ACTOR,
+            goal="",
+            documents=(),
+            episode_id=first.episode_id,
+            provenance=RunProvenance.operator_cli(),
         )
     )
     assert retried.episode_id == first.episode_id

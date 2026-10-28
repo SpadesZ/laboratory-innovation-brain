@@ -63,8 +63,10 @@ def _label(db: Any, episode_id: str, label: str) -> None:
     db.execute("SET session_replication_role = replica")
     try:
         db.execute(
+            # Driven directly, not from a signed-in session: OPERATOR_CLI (`011n`).
             "INSERT INTO research_runs (research_run_id, episode_id, project_id, actor_id,"
-            " ordinal, started_at, question_label) VALUES (%s, %s, %s, %s, 1, now(), %s)",
+            " ordinal, started_at, question_label, run_origin)"
+            " VALUES (%s, %s, %s, %s, 1, now(), %s, 'OPERATOR_CLI')",
             (f"rrn:{episode_id}", episode_id, PROJECT, REVIEWER, label),
         )
     finally:

@@ -55,6 +55,8 @@ CHECKS = (
     "NOT_PERFORMED",
     "LANGUAGE",
     "SINGLE_LANGUAGE",
+    "CITATIONS",
+    "ORIGINAL",
     "CANONICAL",
 )
 
@@ -68,12 +70,12 @@ CATEGORIES: Mapping[str, tuple[tuple[str, ...], str | None]] = {
     "conclusions": (("result",), None),
     "uncertainty": (("why",), None),
     "limitations": (("why",), None),
-    "citations": (("reasoning",), None),
+    "citations": (("reasoning", "citations"), None),
     "next_steps": (("next",), None),
 }
 
 #: The status families `pages.status` renders: `<span class="state state-V fam-V" title="V">`.
-_FAMILIES = ("bs", "cs", "ws", "ep", "rt", "es", "ps")
+_FAMILIES = ("bs", "cs", "ws", "ep", "rt", "es", "ps", "so")
 
 #: Sections whose zh-TW text must be in Chinese, or shown in English and marked untranslated.
 _READ_IN_LOCALE = ("result", "hypotheses", "tested", "support", "why", "next")
@@ -278,14 +280,20 @@ def _without_originals(section: _Node, locale: str) -> _Node:
         if isinstance(child, _Node) and child.tag == "h3":
             skipping = _flat(child.text()) == heading
         if not skipping:
-            kept.append(_without_rows(child, {m("sum.untranslated"), m("sum.exported")}))
+            kept.append(
+                _without_rows(
+                    child, {m("sum.untranslated"), m("sum.exported"), m("sum.source_lang")}
+                )
+            )
     return _Node(section.tag, section.attrs, kept)
 
 
 def _without_rows(node: _Node | str, labels: set[str]) -> _Node | str:
     """The node without table rows headed by one of `labels`: the count of passages shown
     untranslated, which is the locale's by construction (none in the language research is
-    written in), and when this rendering was made, which is each rendering's own moment."""
+    written in), when this rendering was made, which is each rendering's own moment, and the
+    digest of `report.md` in this rendering's language, which is each language's own file (both
+    languages name the SAME record export digest, compared as usual)."""
     if isinstance(node, str):
         return node
     kept: list[_Node | str] = []
@@ -694,14 +702,77 @@ def check_html(
         _html_not_performed(
             sections, locale, unavailable, renderings if locale == ZH else {}, findings
         )
+    _compare_citations(_html_citations(en_root), _html_citations(zh_root), surface, findings)
+    _compare_quotes(_html_quotes(en_root), _html_quotes(zh_root), surface, findings)
     untranslated = sum(1 for n in zh_root.walk() if "untr" in n.classes)
     return ParityResult(surface, tuple(findings), coverage, aligned, untranslated)
+
+
+def _html_citations(root: _Node) -> list[tuple[str, ...]]:
+    """Each citation (`pages._citations_html`, `li.cite`): its locator as the report states it,
+    then every identifier and digest the record gave it, in order."""
+    out: list[tuple[str, ...]] = []
+    for node in root.walk():
+        if node.tag == "li" and "cite" in node.classes:
+            locator = next(
+                (_flat(x.text()) for x in node.walk() if x.tag == "span" and "loc" in x.classes),
+                "",
+            )
+            out.append((locator, *(_flat(x.text()) for x in node.walk() if x.tag == "code")))
+    return out
+
+
+def _html_quotes(root: _Node) -> list[str]:
+    """Every quoted passage, exactly as it reads: original text is never translated."""
+    return [node.text() for node in root.walk() if node.tag == "blockquote"]
+
+
+def _compare_citations(
+    en: Sequence[tuple[str, ...]], zh: Sequence[tuple[str, ...]], surface: str, out: list[Finding]
+) -> None:
+    """The same attestations, locators, artifacts, hashes and units, in the same order."""
+    if list(en) == list(zh):
+        return
+    first = next(
+        (i for i, (a, b) in enumerate(zip(en, zh, strict=False)) if a != b), min(len(en), len(zh))
+    )
+    out.append(
+        Finding(
+            "CITATIONS",
+            surface,
+            f"{len(en)} English citation(s), {len(zh)} zh-TW; first differ at #{first}: "
+            f"English {en[first] if first < len(en) else '-'}; "
+            f"zh-TW {zh[first] if first < len(zh) else '-'}",
+        )
+    )
+
+
+def _compare_quotes(en: Sequence[str], zh: Sequence[str], surface: str, out: list[Finding]) -> None:
+    """Each quoted passage byte-identical in both languages: never overwritten by a rendering."""
+    if len(en) != len(zh):
+        out.append(Finding("ORIGINAL", surface, f"{len(en)} English quote(s), {len(zh)} zh-TW"))
+        return
+    for n, (a, b) in enumerate(zip(en, zh, strict=True)):
+        if a != b:
+            out.append(
+                Finding("ORIGINAL", f"{surface} quote #{n + 1}", f"{a[:80]!r} / zh-TW {b[:80]!r}")
+            )
 
 
 # -- Markdown -------------------------------------------------------------------------------------
 
 
 _MD_CODE = re.compile(r"`([^`]+)`")
+#: A stored value named in words (`pages.MarkdownWords.status`): `VALUE〔words〕`.
+_MD_GLOSS = re.compile(r"〔([^〕]*)〕")
+#: A cited excerpt (`render.render_markdown`'s evidence line, in either language).
+_MD_CITE = re.compile(r"^- `(?P<att>[^`]+)`[^\[]*\[(?P<loc>.*?)\]\s*[:：]\s*'(?P<quote>.*)'$")
+#: Stored values and other upper-case tokens, which both languages keep as stored.
+_UPPER = re.compile(r"\b[A-Z][A-Z_]{2,}\b")
+#: A run of English prose: two or more words in a row.
+_PROSE_RUN = re.compile(r"[A-Za-z]{3,}(?:[ \-][A-Za-z]{3,})+")
+#: The families whose stored values the Markdown export names in words.
+_MD_FAMILIES = frozenset({*_FAMILIES, "stage", "ss", "role", "origin", "act", "is", "pd", "flag"})
 
 
 def _md_lines(text: str) -> list[tuple[str, str]]:
@@ -723,6 +794,102 @@ def _md_lines(text: str) -> list[tuple[str, str]]:
     return out
 
 
+@dataclass(frozen=True)
+class _MdExport:
+    """One language's Markdown export, split as `pages.markdown_export` writes it."""
+
+    #: The report's lines: what the two languages must agree on, line by line.
+    lines: list[tuple[str, str]]
+    #: (rendering shown, original) from the trailing table of renderings beside their originals.
+    pairs: list[tuple[str, str]]
+    #: Passages shown as written and marked original-language text (`tr.md_untranslated`).
+    untranslated: int
+    #: Per line: how many original-language marks it carries.
+    marks: list[int]
+    #: Per line: stored values named in words the product does not use for them.
+    glosses: list[list[str]]
+    #: Per line: what follows its last original-language mark, without stored values and their
+    #: words -- what must read in the export's language.
+    probes: list[str]
+
+
+def _md_status_words() -> dict[str, set[str]]:
+    """zh-TW words -> the stored values the product names with them (`i18n`, by family)."""
+    m = Messages(ZH)
+    found: dict[str, set[str]] = {}
+    for key in message_keys():
+        family, _, value = key.partition(".")
+        if family in _MD_FAMILIES and value:
+            found.setdefault(m.template(key), set()).add(value)
+    return found
+
+
+def _md_cells(row: str) -> list[str]:
+    return [c.strip().replace("\\|", "|") for c in re.split(r"(?<!\\)\|", row)[1:-1]]
+
+
+def _md_split(text: str, locale: str) -> _MdExport:
+    """The report's lines, without what exists only in a rendering in another language: the notes
+    under its title (`> `, each saying what it is derived from) and, after the report, its table
+    of renderings beside their originals (which instead supplies the curated pairs)."""
+    m = Messages(locale)
+    heading = "## " + m("v.l3.originals")
+    raw = text.splitlines()
+    cut = next((i for i, line in enumerate(raw) if line.strip() == heading), len(raw))
+    pairs: list[tuple[str, str]] = []
+    for line in raw[cut + 1 :]:
+        cells = _md_cells(line) if line.startswith("|") else []
+        if len(cells) >= 2 and not set(cells[0]) <= {"-"} and cells[0] != m("col.shown"):
+            pairs.append((cells[0], cells[1]))
+    marks_of = (Messages(ZH)("tr.md_untranslated"), Messages(ZH)("tr.md_quote"))
+    words_of = _md_status_words() if locale == ZH else {}
+    lines: list[tuple[str, str]] = []
+    marks: list[int] = []
+    glosses: list[list[str]] = []
+    probes: list[str] = []
+    untranslated = 0
+    for shape, line in _md_lines("\n".join(raw[:cut])):
+        if line.startswith(">"):
+            continue
+        untranslated += line.count(marks_of[0])
+        marks.append(sum(line.count(x) for x in marks_of))
+        # What follows the last mark: a passage before a mark is honestly marked, English after
+        # it is not -- the language check reads only this.
+        tail = line[max((line.rfind(x) + len(x) for x in marks_of if x in line), default=0) :]
+        for mark in marks_of:
+            line = line.replace(mark, "")
+        _, bad = _without_named_values(line, words_of)
+        glosses.append(bad)
+        probes.append(_without_named_values(tail, words_of)[0])
+        lines.append((shape, _MD_GLOSS.sub("", line)))
+    return _MdExport(lines, pairs, untranslated, marks, glosses, probes)
+
+
+def _without_named_values(text: str, words_of: Mapping[str, set[str]]) -> tuple[str, list[str]]:
+    """The text without each stored value named in words (`VALUE〔words〕`), and every naming
+    whose words the product does not use for the value before them."""
+    bad: list[str] = []
+    for g in reversed(list(_MD_GLOSS.finditer(text))):
+        before = text[: g.start()].rstrip("*")
+        value = next((v for v in words_of.get(g.group(1), ()) if before.endswith(v)), None)
+        if value is None:
+            bad.append(f"{before[-40:]!r} named {g.group(0)!r}")
+            text = text[: g.start()] + " " + text[g.end() :]
+            continue
+        text = text[: len(before) - len(value)] + " " + text[g.end() :]
+    return text, bad
+
+
+def _md_citations(lines: Sequence[tuple[str, str]]) -> list[tuple[tuple[str, str], str]]:
+    """((attestation, locator), quoted excerpt) for every cited excerpt, in order."""
+    out: list[tuple[tuple[str, str], str]] = []
+    for _, line in lines:
+        cite = _MD_CITE.match(line)
+        if cite is not None:
+            out.append(((cite["att"], cite["loc"]), cite["quote"]))
+    return out
+
+
 def check_markdown(
     en_text: str,
     zh_text: str,
@@ -730,7 +897,16 @@ def check_markdown(
     surface: str = "report.md",
     unavailable: Sequence[Unavailable] = (),
 ) -> ParityResult:
-    """The parity of a Markdown export's English and zh-TW renderings, line by line."""
+    """The parity of a Markdown export's English and zh-TW renderings, line by line.
+
+    The zh-TW export may carry what exists only in a rendering (`pages.markdown_export`): notes
+    under its title (`> `) and a trailing table of renderings beside their originals; neither is
+    aligned, and the table supplies the curated pairs. A stored value named in words
+    (`VALUE〔words〕`) must be named in the product's own words for it (STATUS), and both
+    languages keep the same stored values; a passage marked original-language text is honest,
+    English left unmarked is not (LANGUAGE). Every cited excerpt has the same attestation and
+    locator (CITATIONS) and the same bytes (ORIGINAL) in both.
+    """
     findings: list[Finding] = []
     if not _CJK.search(zh_text):
         findings.append(
@@ -741,14 +917,23 @@ def check_markdown(
                 + (": it is the English export, byte for byte" if zh_text == en_text else ""),
             )
         )
-    en_lines, zh_lines = _md_lines(en_text), _md_lines(zh_text)
+    en, zh = _md_split(en_text, EN), _md_split(zh_text, ZH)
+    en_lines, zh_lines = en.lines, zh.lines
+    _pair_negations(zh.pairs, findings)
     aligned = 0
     if [s for s, _ in en_lines] != [s for s, _ in zh_lines]:
+        en_shape, zh_shape = [s for s, _ in en_lines], [s for s, _ in zh_lines]
+        at = next(
+            (i for i, (a, b) in enumerate(zip(en_shape, zh_shape, strict=False)) if a != b),
+            min(len(en_shape), len(zh_shape)),
+        )
         findings.append(
             Finding(
                 "STRUCTURE",
                 surface,
-                f"{len(en_lines)} English line(s), {len(zh_lines)} zh-TW line(s) of other shape",
+                f"{len(en_lines)} English line(s), {len(zh_lines)} zh-TW line(s); first differ "
+                f"at #{at}: English {en_lines[at] if at < len(en_lines) else '-'!r}; "
+                f"zh-TW {zh_lines[at] if at < len(zh_lines) else '-'!r}",
             )
         )
     else:
@@ -764,20 +949,48 @@ def check_markdown(
                 )
             if numbers(a) != numbers(b):
                 findings.append(Finding("NUMBERS", where, _diff(numbers(a), numbers(b))))
-            prose_a, prose_b = content(_MD_CODE.sub(" ", a)), content(_MD_CODE.sub(" ", b))
-            if negations(prose_a) != negations(prose_b):
+            prose_a, prose_b = _MD_CODE.sub(" ", a), _MD_CODE.sub(" ", b)
+            if Counter(_UPPER.findall(prose_a)) != Counter(_UPPER.findall(prose_b)):
+                findings.append(
+                    Finding(
+                        "STATUS",
+                        where,
+                        _diff(Counter(_UPPER.findall(prose_a)), Counter(_UPPER.findall(prose_b))),
+                    )
+                )
+            for bad in zh.glosses[n]:
+                findings.append(Finding("STATUS", where, f"not the product's words: {bad}"))
+            # Unlike a page, every fixed word of the export is a curated pair with the same
+            # negations and claims (`i18n._MARKDOWN_ZH`), so nothing is taken out before counting:
+            # another message's fragment must not be taken out of one language only.
+            said_a, said_b = prose_a, prose_b
+            if negations(said_a) != negations(said_b):
                 findings.append(Finding("NEGATION", where, f"{a[:80]!r} / {b[:80]!r}"))
-            if confirmations(prose_a) != confirmations(prose_b):
+            if confirmations(said_a) != confirmations(said_b):
                 findings.append(Finding("CLAIM", where, f"{a[:80]!r} / {b[:80]!r}"))
+            probe = _MD_CODE.sub(" ", zh.probes[n])
+            probe = _UPPER.sub(" ", _IDENT.sub(" ", _GLOSS.sub(" ", probe)))
+            if _PROSE_RUN.search(probe):
+                findings.append(
+                    Finding(
+                        "LANGUAGE",
+                        where,
+                        f"shown in English and not marked as original-language text: {b[:90]!r}",
+                    )
+                )
             aligned += 1
+    en_cites, zh_cites = _md_citations(en_lines), _md_citations(zh_lines)
+    _compare_citations([c for c, _ in en_cites], [c for c, _ in zh_cites], surface, findings)
+    _compare_quotes([q for _, q in en_cites], [q for _, q in zh_cites], surface, findings)
+    renderings = {original: shown for shown, original in zh.pairs}
     for locale, lines in ((EN, en_lines), (ZH, zh_lines)):
         for item in unavailable:
-            at = [
+            blocked = [
                 i
                 for i, (_, line) in enumerate(lines)
                 if f"`{item.capability_id}`" in line and "**BLOCKED**" in line
             ]
-            if not at:
+            if not blocked:
                 findings.append(
                     Finding(
                         "NOT_PERFORMED",
@@ -786,10 +999,13 @@ def check_markdown(
                     )
                 )
                 continue
-            if locale == EN and not any(
-                item.reason in lines[i][1]
-                and any(item.requires in line for _, line in lines[i : i + 5])
-                for i in at
+            #: Each text as this locale shows it: as written, or (zh-TW) its curated rendering.
+            reason = {item.reason, renderings.get(item.reason, item.reason)}
+            needs = {item.requires, renderings.get(item.requires, item.requires)}
+            if not any(
+                any(x in lines[i][1] for x in reason)
+                and any(x in line for _, line in lines[i : i + 5] for x in needs)
+                for i in blocked
             ):
                 findings.append(
                     Finding(
@@ -798,7 +1014,7 @@ def check_markdown(
                         "its reason or what it needs is missing",
                     )
                 )
-    return ParityResult(surface, tuple(findings), {}, aligned, 0)
+    return ParityResult(surface, tuple(findings), {}, aligned, zh.untranslated)
 
 
 # -- the record, before and after -----------------------------------------------------------------

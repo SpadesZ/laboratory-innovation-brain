@@ -155,9 +155,11 @@ from lab_brain.research.report import (
     ScreeningCheckLine,
     ScreeningReadingLine,
     ScreeningSection,
+    SessionProvenance,
     StageStatus,
     UsageLine,
 )
+from lab_brain.research.run_provenance import RunProvenance, provenance_line
 from lab_brain.research.vertical import (
     BlockedCapability,
     InputRefused,
@@ -329,6 +331,10 @@ class ResearchRequest:
     max_steps: int = 8
     #: Research data already in the project, used as ingested (see `ProjectData`).
     project_data: tuple[ProjectData, ...] = ()
+    #: How this run is started (`011n`): a signed-in person's session, the operator's workspace or
+    #: command line. Declared by every caller, never defaulted; recorded with the run, and checked
+    #: by the database for a WEB_SESSION run.
+    provenance: RunProvenance = field(kw_only=True)
 
 
 class QuestionNotCleared(ValueError):
@@ -544,6 +550,7 @@ class ResearchEpisodeService:
                     observed_behavior=request.observed_behavior,
                     started_at=started,
                     question_label=request.sensitivity.value,
+                    provenance=request.provenance,
                 )
             )
             run = _Run(record=record)
@@ -755,6 +762,9 @@ class ResearchEpisodeService:
                     observed_behavior=opener.observed_behavior,
                     started_at=started,
                     question_label=label.value,
+                    # The person who CONTINUED, in the session they continued in -- not the
+                    # opener's session, which may have ended long ago.
+                    provenance=request.provenance,
                 )
             )
             # The episode's own framing, from here on: this request adds nothing -- and the
@@ -2190,6 +2200,14 @@ class ResearchEpisodeService:
             screening=_screening_section(
                 run, screening_store, request.project_id, episode_id, mechanisms
             ),
+            session_provenance=SessionProvenance(
+                origin=run.record.provenance.origin.value,
+                session_audit_ref=run.record.provenance.session_audit_ref,
+                actor_id=run.record.actor_id,
+                project_id=run.record.project_id,
+                research_run_id=run.record.research_run_id,
+                trace_id=trace_id,
+            ),
         )
 
     def _aliases(self, project_id: str, inference_id: str) -> dict[str, str]:
@@ -2387,7 +2405,14 @@ class ResearchEpisodeService:
     def _provenance(self, run: _Run, episode_id: str, trace_id: str) -> tuple[str, ...]:
         lines = [
             f"Episode `{episode_id}`, trace `{trace_id}`; research run "
-            f"`{run.record.research_run_id}` (run {run.record.ordinal} of this episode)."
+            f"`{run.record.research_run_id}` (run {run.record.ordinal} of this episode).",
+            provenance_line(
+                run.record.provenance,
+                actor_id=run.record.actor_id,
+                project_id=run.record.project_id,
+                research_run_id=run.record.research_run_id,
+                trace_id=trace_id,
+            ),
         ]
         if run.debate is not None:
             outcome = run.debate

@@ -34,6 +34,7 @@ from lab_brain.interfaces.web import Workspace, allowed_hosts
 from lab_brain.llm_runtime.secrets import SecretStore
 from lab_brain.research.data import LabelNotCleared, NewFile, ResearchData
 from lab_brain.research.report_store import report_from_json
+from lab_brain.research.run_provenance import RunProvenance
 from lab_brain.research.service import ProjectData, ResearchEpisodeService, ResearchRequest
 from lab_brain.research.vertical import load_vertical_factory
 from lab_brain.storage.artifacts.local import LocalArtifactStore
@@ -619,6 +620,7 @@ def test_another_projects_data_is_refused_before_anything_is_written(db, tmp_pat
                 goal=GOAL,
                 documents=(),
                 project_data=(ProjectData(foreign, "mzi_drift.md", TrustClass.EXPERT_HEURISTIC),),
+                provenance=RunProvenance.operator_cli(),
             )
         )
     assert _census(db) == before

@@ -46,10 +46,11 @@ def _run(  # type: ignore[no-untyped-def]
     project_id: str = PROJECT,
 ) -> None:
     db.execute(
-        # Every run records its question's classification (`012q`).
+        # Every run records its question's classification (`012q`), and how it was started
+        # (`011n`): this fixture writes the table directly, attesting no signed-in session.
         "INSERT INTO research_runs (research_run_id, episode_id, project_id, actor_id, ordinal,"
-        " hypothesis_set_id, started_at, question_label)"
-        " VALUES (%s, %s, %s, %s, %s, %s, %s, 'INTERNAL')",
+        " hypothesis_set_id, started_at, question_label, run_origin)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, 'INTERNAL', 'OPERATOR_CLI')",
         (run_id, episode_id, project_id, actor, ordinal, set_id, T0),
     )
 

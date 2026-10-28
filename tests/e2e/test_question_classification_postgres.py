@@ -32,6 +32,7 @@ from lab_brain.research.continuation import (
     ResearchRunRecord,
     SqlResearchRunStore,
 )
+from lab_brain.research.run_provenance import RunProvenance
 from lab_brain.research.service import InputDocument, QuestionNotCleared, ResearchRequest
 from tests.e2e.test_research_continuation_postgres import _census, _cli, _service
 from tests.e2e.test_research_episode_postgres import ACTOR, GOAL, PROJECT, REPORT, _device, _member
@@ -68,6 +69,7 @@ def _open(tmp_path: Path, label: SensitivityLabel) -> str:
             documents=(_document(),),
             verification_input=(device.name, device.read_bytes()),
             sensitivity=label,
+            provenance=RunProvenance.operator_cli(),
         )
     )
     assert report.episode_state == "SUSPENDED", report.episode_state
@@ -83,6 +85,7 @@ def _continue(tmp_path: Path, episode_id: str, label: SensitivityLabel | None = 
             documents=(),
             episode_id=episode_id,
             sensitivity=label,
+            provenance=RunProvenance.operator_cli(),
         )
     )
 
@@ -103,7 +106,13 @@ def test_an_episode_opens_only_under_a_declared_classification(db, tmp_path):
     before = _census(db)
     with pytest.raises(ValueError, match="declares its question's classification"):
         _service(tmp_path).run(
-            ResearchRequest(project_id=PROJECT, actor_id=ACTOR, goal=GOAL, documents=(_document(),))
+            ResearchRequest(
+                project_id=PROJECT,
+                actor_id=ACTOR,
+                goal=GOAL,
+                documents=(_document(),),
+                provenance=RunProvenance.operator_cli(),
+            )
         )
     code, printed = _cli(tmp_path, "--goal", GOAL, "--measurement", str(REPORT))
     assert code == 2 and "--sensitivity is required to open an episode" in printed, printed
@@ -117,6 +126,7 @@ def test_an_episode_opens_only_under_a_declared_classification(db, tmp_path):
                 goal=GOAL,
                 documents=(_document(),),
                 sensitivity=SensitivityLabel.CONFIDENTIAL_LAB,
+                provenance=RunProvenance.operator_cli(),
             )
         )
     code, printed = _cli(
@@ -210,6 +220,7 @@ def test_the_database_holds_the_classification_rule_for_every_writer(db, tmp_pat
             observed_behavior=opening.observed_behavior,
             started_at=opening.started_at,
             question_label=label,
+            provenance=RunProvenance.operator_cli(),
         )
 
     for label, refusal in (

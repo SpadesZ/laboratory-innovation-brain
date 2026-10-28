@@ -19,8 +19,9 @@ Through the workspace, on a fresh database, with no model, simulator or network 
     model text   with a stand-in language model (`tests.g0_standin`), whose wording has no curated
                  translation, the Chinese reading shows it as written and marks it untranslated --
                  and still passes every structural check
-    known gap    `report.md` is the English record in every locale: G0-B's "an export falls back
-                 to one language" -- kept as a strict expected failure until the product decides
+    report.md    the zh-TW reader's `report.md` is a full Traditional Chinese reading of the
+                 record, line for line, in parity with the English record export (closed: it was
+                 the English record in every locale; `tests/e2e/test_g0_bilingual_export_web_*`)
 
 WHAT THIS DOES NOT SHOW: that a Chinese sentence means what its English original means. That is
 NOT VERIFIED offline; it needs an independent bilingual reviewer.
@@ -292,14 +293,6 @@ def _project(db: Any, episode: str) -> str:
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "G0-B gap, demonstrated: report.md is the English record in every locale -- an export "
-        "that falls back to one language. The zh-TW export is summary.html; whether report.md "
-        "stays the language-neutral record or gains a zh-TW rendering is a product decision."
-    ),
-)
 def test_the_markdown_export_reads_in_the_readers_language(db: Any, journey: Lab2) -> None:
     j = journey
     episode = _research(j, db, _device("probe-artifact"))
@@ -309,5 +302,5 @@ def test_the_markdown_export_reads_in_the_readers_language(db: Any, journey: Lab
         rendered[("report.md", "zh-TW")],
         unavailable=unavailable_simulations(_report(db, j.project, episode)),
     )
-    assert result.checks() <= {"SINGLE_LANGUAGE"}, result.findings
     assert result.ok, result.findings
+    assert rendered[("report.md", "zh-TW")] != rendered[("report.md", "en")]

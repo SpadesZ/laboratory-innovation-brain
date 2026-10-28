@@ -312,6 +312,10 @@ APPLY_ORDER: tuple[str, ...] = (
     "012z_screening_fail_closed.sql",
     # Screened bytes cannot SUPPORT under another backend, parameter or capability. After 012z.
     "011m_screening_repeat_by_content.sql",
+    # A research run declares its origin; a signed-in person's names its session's audit ref.
+    "011n_research_session_provenance.sql",
+    # A post-screening SUPPORTS is judged on its source AND every observation it cites. After 011n.
+    "011o_screening_guard_reads_the_cited_basis.sql",
 )
 
 _BOOTSTRAP = """

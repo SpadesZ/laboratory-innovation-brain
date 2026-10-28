@@ -98,6 +98,16 @@ class Account:
         return "VERIFICATION" if self.email_verified_at is None else "APPROVAL"
 
 
+@dataclass(frozen=True)
+class SignedIn:
+    """The account a session token signs in, and that session's NON-SECRET audit reference
+    (`011n`): minted by the database for the session, never derived from the token or its hash,
+    and never used to authenticate. A research run started in the session records it."""
+
+    account: Account
+    session_audit_ref: str
+
+
 class AccountRefused(Exception):
     """Refused as asked; nothing was written. `code` is stable and names what to show."""
 
@@ -545,11 +555,17 @@ class AccountService:
     def session(self, token: str) -> Account | None:
         """The ACTIVE account a session token signs in, or None. Re-read every time: a
         suspension, a password reset or a sign-out ends the session at once."""
+        signed_in = self.signed_in(token)
+        return None if signed_in is None else signed_in.account
+
+    def signed_in(self, token: str) -> SignedIn | None:
+        """`session`, with the session's audit reference. The session is found by the token's
+        hash alone: the reference is read, never matched against."""
         if not token:
             return None
         row = self._c.execute(
             f"SELECT s.session_hash, s.last_seen_at, s.expires_at, s.revoked_at,"
-            f" {', '.join('a.' + c.strip() for c in _COLUMNS.split(','))}"
+            f" s.session_audit_ref, {', '.join('a.' + c.strip() for c in _COLUMNS.split(','))}"
             " FROM account_sessions s JOIN accounts a ON a.account_id = s.account_id"
             " WHERE s.session_hash = %s",
             (token_hash(token),),
@@ -557,8 +573,8 @@ class AccountService:
         if row is None:
             return None
         now = self._now()
-        last_seen, expires, revoked = row[1], row[2], row[3]
-        account = _account(row[4:])
+        last_seen, expires, revoked, audit_ref = row[1], row[2], row[3], str(row[4])
+        account = _account(row[5:])
         if revoked is not None or expires <= now or now - last_seen >= SESSION_IDLE:
             return None
         if account.status != "ACTIVE":
@@ -569,7 +585,7 @@ class AccountService:
                 " AND revoked_at IS NULL",
                 (now, row[0]),
             )
-        return account
+        return SignedIn(account=account, session_audit_ref=audit_ref)
 
     def sign_out(self, token: str) -> None:
         if not token:

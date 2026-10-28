@@ -98,7 +98,12 @@ from lab_brain.interfaces.web import (
     workspace_pages,
 )
 from lab_brain.interfaces.web.forms import Form, FormError, Upload, read_form
-from lab_brain.interfaces.web.i18n import DEFAULT_LOCALE, LOCALES, Messages
+from lab_brain.interfaces.web.i18n import (
+    DEFAULT_LOCALE,
+    LOCALES,
+    RESEARCH_OUTPUT_LANGUAGE,
+    Messages,
+)
 from lab_brain.interfaces.web.pages import Chrome
 from lab_brain.interfaces.web.workspace_pages import kind_key
 from lab_brain.llm_runtime.authority import (
@@ -149,6 +154,7 @@ from lab_brain.research.reasoning import ReasoningRuntime
 from lab_brain.research.render import render_markdown, render_recorded_since
 from lab_brain.research.report import EpisodeReport, EvidenceLine
 from lab_brain.research.report_store import RecordedReport, SqlResearchReportStore
+from lab_brain.research.run_provenance import RunProvenance
 from lab_brain.research.service import (
     InputDocument,
     ProjectData,
@@ -230,6 +236,45 @@ class Response:
 
 def _redirect(location: str, *headers: tuple[str, str]) -> Response:
     return Response("303 See Other", b"", headers=(("Location", location), *headers))
+
+
+@dataclass(frozen=True)
+class _Exported:
+    """One run's report as exported to one reader: the record's export (English, `canonical`),
+    `report.md` in the reader's language (the same text in English), the read model, and the
+    report with what the reader may not read withheld."""
+
+    canonical: str
+    language: str
+    view: EpisodeView
+    report: EpisodeReport
+
+
+def _sha256(text: str) -> str:
+    return "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _repr_digest(body: bytes) -> str:
+    """RFC 9530 `Repr-Digest`: the SHA-256 of exactly the bytes served."""
+    return "sha-256=:" + base64.b64encode(hashlib.sha256(body).digest()).decode("ascii") + ":"
+
+
+def _markdown_response(episode_id: str, ordinal: int, locale: str, text: str) -> Response:
+    """`report.md`: the record's export keeps its file name; another language's reading names its
+    language. Each with its own digest, and its language."""
+    name = re.sub(r"[^A-Za-z0-9._-]+", "-", episode_id).strip("-")
+    suffix = "" if locale == RESEARCH_OUTPUT_LANGUAGE else f".{locale}"
+    body = text.encode("utf-8")
+    return Response(
+        "200 OK",
+        body,
+        content_type="text/markdown; charset=utf-8",
+        headers=(
+            ("Content-Disposition", f'inline; filename="{name}-run-{ordinal}{suffix}.md"'),
+            ("Content-Language", locale),
+            ("Repr-Digest", _repr_digest(body)),
+        ),
+    )
 
 
 @dataclass(frozen=True)
@@ -317,6 +362,9 @@ class Workspace:
         self._accounts_config = accounts
         self._account: Account | None = None
         self._session_token = ""
+        #: The signed-in session's NON-SECRET audit reference (`011n`), recorded with every
+        #: research run this request starts. Never the token or its hash.
+        self._session_audit_ref: str | None = None
         #: Binds each form's CSRF token to its session (or signed-out browser): a token one
         #: person sees is useless in another's browser. Per process, never stored.
         self._csrf_key = os.urandom(32)
@@ -1267,6 +1315,7 @@ class Workspace:
                     opened.project_id
                 ),
                 terms=self._terms(req),
+                citations=self._citations(c, report) if report is not None else (),
             ),
         )
 
@@ -1298,6 +1347,7 @@ class Workspace:
             documents=(),
             episode_id=episode_id,
             sensitivity=SensitivityLabel(declared) if declared else None,
+            provenance=self._run_provenance(),
         )
         try:
             report, run_id = self._run(c, req, request)
@@ -1320,80 +1370,170 @@ class Workspace:
         return _redirect(f"/episodes/{_path(episode_id)}?run={ordinal}")
 
     def _markdown(self, c: Any, req: _Req, episode_id: str, ordinal: int) -> Response:
+        """`report.md` in the reader's language (`_asked`): in the record's language, the record's
+        export itself, byte for byte; in another, its line-for-line reading, which names the
+        SHA-256 of the record's export it was rendered from. Each carries its own SHA-256 as a
+        `Repr-Digest` header (a file cannot name its own digest)."""
         opened = self._opened(c, episode_id)
         if opened is None:
             return self._not_found(req, episode_id)
+        asked = self._asked(req)
+        if asked is None:
+            return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
         for recorded in SqlResearchReportStore(c).for_episode(
             project_id=opened.project_id, episode_id=episode_id
         ):
             if recorded.ordinal == ordinal:
-                text, _ = self._export(c, opened.project_id, episode_id, recorded.report)
-                name = re.sub(r"[^A-Za-z0-9._-]+", "-", episode_id).strip("-")
-                return Response(
-                    "200 OK",
-                    text.encode("utf-8"),
-                    content_type="text/markdown; charset=utf-8",
-                    headers=(
-                        ("Content-Disposition", f'inline; filename="{name}-run-{ordinal}.md"'),
-                    ),
+                exported = self._export(
+                    c, opened.project_id, episode_id, recorded.report, self._terms(asked)
                 )
+                return _markdown_response(episode_id, ordinal, asked.locale, exported.language)
         return self._message(
             req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_recorded_run")
         )
 
+    @staticmethod
+    def _asked(req: _Req) -> _Req | None:
+        """The request in the language an export is asked for: `?lang=` when given -- one of
+        `LOCALES`, or None (refused) -- and otherwise the reader's own (`lb_locale`, defaulting
+        to `DEFAULT_LOCALE`). A link can so name a language, and a reader of one can fetch the
+        record's own export (`?lang=en`)."""
+        wanted = req.query.get("lang", [""])[0]
+        if not wanted:
+            return req
+        return dataclasses.replace(req, locale=wanted) if wanted in LOCALES else None
+
     def _export(
-        self, c: Any, project_id: str, episode_id: str, report: EpisodeReport
-    ) -> tuple[str, EpisodeView]:
+        self,
+        c: Any,
+        project_id: str,
+        episode_id: str,
+        report: EpisodeReport,
+        terms: pages.Terms | None = None,
+    ) -> _Exported:
         """The report as its run wrote it -- with what this actor may not read withheld -- then
         what the record says about its conclusions now: a flag recorded since must travel with
-        the export. And the read model that said so."""
+        the export (the record's export, English). Then the same in `terms`' language, naming
+        the record export's SHA-256. And the read model that said so. Nothing is written."""
         view = load_episode_view(
             c, project_id=project_id, episode_id=episode_id, verify=self._confirmation_verifier(c)
         )
-        text = render_markdown(self._authorized(c, report)) + render_recorded_since(
-            view.conclusions
-        )
-        return text, view
+        authorized = self._authorized(c, report)
+        canonical = render_markdown(authorized) + render_recorded_since(view.conclusions)
+        language = canonical
+        if terms is not None and terms.locale != RESEARCH_OUTPUT_LANGUAGE:
+            language = pages.markdown_export(
+                authorized, view.conclusions, terms=terms, canonical_digest=_sha256(canonical)
+            )
+        return _Exported(canonical, language, view, authorized)
+
+    def _citations(self, c: Any, report: EpisodeReport) -> tuple[pages.Citation, ...]:
+        """What the canonical records hold for each attestation the report cites, read in the
+        report's own project: the stored locator, the source artifact (a literature snapshot's,
+        when the attestation names none), its content hash and its occurrence in the project,
+        the source work, and the evidence unit with its digest. Read only."""
+        external = SqlExternalSourceStore(c)
+        cited: list[pages.Citation] = []
+        for line in report.evidence:
+            row = c.execute(
+                "SELECT a.locator, a.source_artifact_id, a.source_work_id, a.evidence_unit_id,"
+                " u.content_digest FROM attestations a"
+                " LEFT JOIN evidence_units u ON u.evidence_unit_id = a.evidence_unit_id"
+                " WHERE a.attestation_id = %s AND a.project_id = %s",
+                (line.attestation_id, report.project_id),
+            ).fetchone()
+            if row is None:
+                cited.append(
+                    pages.Citation(
+                        line.attestation_id, None, None, None, None, None, None, None, None
+                    )
+                )
+                continue
+            artifact = row[1] or external.snapshot_artifact_of_attestation(
+                line.attestation_id, report.project_id
+            )
+            content_hash = occurrence = work = None
+            if artifact:
+                found = c.execute(
+                    "SELECT content_hash FROM artifacts WHERE artifact_id = %s", (artifact,)
+                ).fetchone()
+                content_hash = None if found is None else str(found[0])
+                present = c.execute(
+                    "SELECT project_id FROM artifact_occurrences"
+                    " WHERE artifact_id = %s AND project_id = %s",
+                    (artifact, report.project_id),
+                ).fetchone()
+                occurrence = None if present is None else str(present[0])
+            if row[2]:
+                titled = c.execute(
+                    "SELECT title, canonical_locator FROM source_works WHERE source_work_id = %s",
+                    (row[2],),
+                ).fetchone()
+                work = None if titled is None else f"{titled[0]} ({titled[1]})"
+            cited.append(
+                pages.Citation(
+                    attestation_id=line.attestation_id,
+                    locator=None if row[0] is None else str(row[0]),
+                    source_artifact_id=None if not artifact else str(artifact),
+                    content_hash=content_hash,
+                    occurrence_project_id=occurrence,
+                    source_work_id=None if row[2] is None else str(row[2]),
+                    source_work=work,
+                    evidence_unit_id=None if row[3] is None else str(row[3]),
+                    unit_digest=None if row[4] is None else str(row[4]),
+                )
+            )
+        return tuple(cited)
 
     def _summary(self, c: Any, req: _Req, episode_id: str, ordinal: int) -> Response:
-        """One run's research summary in this request's language: a derived document, served
-        to whoever may read the run's report, naming the digest of that report's export."""
+        """One run's research summary in this request's language (`_asked`): a derived document,
+        served to whoever may read the run's report, naming the digest of the record's export
+        (the same in every language) and of `report.md` in its own language, and citing every
+        excerpt with what the records hold for it."""
         opened = self._opened(c, episode_id)
         if opened is None:
             return self._not_found(req, episode_id)
+        asked = self._asked(req)
+        if asked is None:
+            return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
         stored = SqlResearchReportStore(c).for_episode(
             project_id=opened.project_id, episode_id=episode_id
         )
         for recorded in stored:
             if recorded.ordinal == ordinal:
-                text, view = self._export(c, opened.project_id, episode_id, recorded.report)
+                terms = self._terms(asked)
+                exported = self._export(c, opened.project_id, episode_id, recorded.report, terms)
                 ordinals = {r.ordinal for r in stored}
                 runs = [
                     dataclasses.replace(r, recorded=r.ordinal in ordinals)
                     for r in self._runs(c, opened.project_id, episode_id)
                 ]
                 name = re.sub(r"[^A-Za-z0-9._-]+", "-", episode_id).strip("-")
-                terms = self._terms(req)
+                body = pages.summary_document(
+                    episode=opened.row,
+                    runs=runs,
+                    report=exported.report,
+                    report_ordinal=ordinal,
+                    view=exported.view,
+                    terms=terms,
+                    project_name={p.project_id: p.name for p in self._projects(c)}.get(
+                        opened.project_id
+                    ),
+                    source_digest=_sha256(exported.canonical),
+                    language_digest=_sha256(exported.language),
+                    exported_at=utc_now(),
+                    citations=self._citations(c, exported.report),
+                )
                 return Response(
                     "200 OK",
-                    pages.summary_document(
-                        episode=opened.row,
-                        runs=runs,
-                        report=self._authorized(c, recorded.report),
-                        report_ordinal=ordinal,
-                        view=view,
-                        terms=terms,
-                        project_name={p.project_id: p.name for p in self._projects(c)}.get(
-                            opened.project_id
-                        ),
-                        source_digest="sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest(),
-                        exported_at=utc_now(),
-                    ),
+                    body,
                     headers=(
                         (
                             "Content-Disposition",
                             f'inline; filename="{name}-run-{ordinal}.{terms.locale}.html"',
                         ),
+                        ("Content-Language", terms.locale),
+                        ("Repr-Digest", _repr_digest(body)),
                     ),
                 )
         return self._message(
@@ -1427,6 +1567,18 @@ class Workspace:
         if len(minted) != 1:  # pragma: no cover - the service mints one per run
             raise RuntimeError(f"the research service minted {len(minted)} research run ids")
         return report, minted[0]
+
+    def _run_provenance(self) -> RunProvenance:
+        """How a run this request starts was started (`011n`). With accounts, only a signed-in
+        session reaches a research route, and its audit reference is recorded -- the database
+        then checks it is this actor's live session and that they are a cleared member. Without
+        accounts, the operator's workspace for its one named actor, which attests no session."""
+        if self._accounts_config is None:
+            return RunProvenance.operator_workspace()
+        if self._account is None or self._session_audit_ref is None:
+            # Unreachable: signed out, every research route redirects to sign-in first.
+            raise _Refused(_redirect("/login"))
+        return RunProvenance.web_session(self._session_audit_ref)
 
     def _load_runtime(self, c: Any) -> ReasoningRuntime | None:
         """The active runtime, judged under THIS deployment's declaration of which hosts are this
@@ -1523,6 +1675,7 @@ class Workspace:
                 )
                 for artifact_id, key in chosen.items()
             ),
+            provenance=self._run_provenance(),
         )
 
     @staticmethod
@@ -2339,7 +2492,8 @@ class Workspace:
                 connection.execute("SELECT 1").fetchone()
                 return Response("200 OK", b"ok", content_type="text/plain; charset=utf-8")
             connection.autocommit = True
-            account = self._account_service(connection).session(session_token)
+            signed_in = self._account_service(connection).signed_in(session_token)
+            account = signed_in.account if signed_in is not None else None
             if account is None:
                 session_token = ""
                 if not anonymous:
@@ -2353,6 +2507,7 @@ class Workspace:
             view._account = account
             view._actor = account.actor_id if account is not None else ""
             view._session_token = session_token
+            view._session_audit_ref = signed_in.session_audit_ref if signed_in else None
             req = _Req(method, path, query, form, locale)
             if form is not None and not hmac.compare_digest(form.value("csrf"), csrf):
                 # Nothing of the form is acted on. Most often its session ended (it expired,
@@ -3056,18 +3211,34 @@ class Workspace:
         project_id = oversight.episode_project(episode_id)
         if project_id is None:
             return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
+        asked = self._asked(req)
+        if asked is None:
+            return self._message(req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_page"))
         oversight.record(project_id, f"{EPISODE_REPORTS}{episode_id}")
         for number, text in self._full_reports(c, project_id, episode_id):
             if number == ordinal:
-                name = re.sub(r"[^A-Za-z0-9._-]+", "-", episode_id).strip("-")
-                return Response(
-                    "200 OK",
-                    text.encode("utf-8"),
-                    content_type="text/markdown; charset=utf-8",
-                    headers=(
-                        ("Content-Disposition", f'inline; filename="{name}-run-{ordinal}.md"'),
-                    ),
-                )
+                if asked.locale != RESEARCH_OUTPUT_LANGUAGE:
+                    # The same reading as a member's, of the full report: nothing withheld.
+                    (recorded,) = (
+                        r
+                        for r in SqlResearchReportStore(c).for_episode(
+                            project_id=project_id, episode_id=episode_id
+                        )
+                        if r.ordinal == ordinal
+                    )
+                    view = load_episode_view(
+                        c,
+                        project_id=project_id,
+                        episode_id=episode_id,
+                        verify=self._confirmation_verifier(c),
+                    )
+                    text = pages.markdown_export(
+                        recorded.report,
+                        view.conclusions,
+                        terms=self._terms(asked),
+                        canonical_digest=_sha256(text),
+                    )
+                return _markdown_response(episode_id, ordinal, asked.locale, text)
         return self._message(
             req, "404 Not Found", req.m("msg.not_found"), req.m("msg.no_recorded_run")
         )

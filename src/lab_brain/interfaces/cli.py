@@ -79,6 +79,7 @@ from lab_brain.research.continuation import ContinuationRefused
 from lab_brain.research.literature import LiteratureRequest
 from lab_brain.research.reasoning import active_runtime_name
 from lab_brain.research.render import render_markdown
+from lab_brain.research.run_provenance import RunProvenance
 from lab_brain.research.service import (
     InputDocument,
     QuestionNotCleared,
@@ -791,6 +792,8 @@ def _research_request(args: argparse.Namespace) -> ResearchRequest:
         symptom=args.symptom,
         expected_behavior=args.expected,
         observed_behavior=args.observed,
+        # The operator's command line attests no signed-in session (`011n`).
+        provenance=RunProvenance.operator_cli(),
     )
 
 

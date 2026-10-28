@@ -14,6 +14,8 @@ changes neither what is stored nor how a run is written (`RESEARCH_OUTPUT_LANGUA
 
 from __future__ import annotations
 
+from lab_brain.research.render import MARKDOWN_TEMPLATES
+
 LOCALES: tuple[str, ...] = ("en", "zh-TW")
 DEFAULT_LOCALE = "en"
 LOCALE_NAMES = {"en": "English", "zh-TW": "繁體中文"}
@@ -286,6 +288,13 @@ _M: dict[str, tuple[str, str]] = {
     "r.ran": ("What ran, and what did not", "執行了什麼、沒執行什麼"),
     "r.not_performed": ("Not performed:", "未執行："),
     "r.note": ("Note:", "備註："),
+    # The full report's own interface words around literature and executed checks.
+    "r.licence": ("licence", "授權"),
+    "r.kept": ("kept", "保存"),
+    "r.status": ("status", "狀態"),
+    "r.not_admitted": ("not admitted", "未納入"),
+    "r.job": ("job", "工作"),
+    "r.run": ("run", "執行"),
     # -- form and request messages ----------------------------------------------------------------
     "msg.refused": ("The request was refused", "請求被拒絕"),
     "msg.not_found": ("Not found", "找不到"),
@@ -973,6 +982,94 @@ _M: dict[str, tuple[str, str]] = {
     "sum.reasoner": ("Who reasoned", "推理來源"),
     "sum.exported": ("Made at", "製作時間"),
     "sum.episode": ("Research task", "研究任務"),
+    "sum.source_lang": (
+        "SHA-256 of report.md in this language when this was made",
+        "製作時本語言 report.md 匯出檔的 SHA-256",
+    ),
+    "ep.markdown_record": ("Markdown (English record)", "英文正式紀錄 Markdown"),
+    # -- citations: what the canonical records hold for each cited attestation -----------------
+    "cit.title": ("Citations", "引用來源"),
+    "cit.none": ("No statement was admitted as evidence.", "沒有任何陳述被納入為證據。"),
+    "cit.attestation": ("Attestation", "證據陳述（attestation）"),
+    "cit.artifact": ("Source artifact", "來源檔案"),
+    "cit.content_hash": ("content hash", "內容雜湊值"),
+    "cit.occurrence": ("present in project", "所在研究專案"),
+    "cit.work": ("Source work", "來源著作"),
+    "cit.unit": ("Evidence unit", "證據段落"),
+    "cit.unit_digest": ("digest", "雜湊值"),
+    "cit.locator": ("exact locator", "精確位置"),
+    "cit.quote": (
+        "Quoted as recorded, in its original language (untranslated):",
+        "依紀錄原文引述（原文，未翻譯）：",
+    ),
+    "cit.note": (
+        "Each citation is read from the stored attestation, its source and the source's content "
+        "hash when this was made; the quoted text is the record's own.",
+        "每則引用都在製作時讀自已儲存的證據陳述、其來源與來源的內容雜湊值；引述文字即紀錄原文。",
+    ),
+    # -- the Markdown export in another language ------------------------------------------------
+    "tr.md_untranslated": (
+        " [shown in the original English, untranslated]",
+        " 〔英文原文，未翻譯〕",
+    ),
+    "tr.md_quote": (
+        " [quoted as recorded, original language, untranslated]",
+        " 〔原文引述，未翻譯〕",
+    ),
+    "md.derived": (
+        "> A reading of this run's recorded report in English, derived line by line from the "
+        "product's curated words; the record is the English report.md, unchanged.",
+        "> 本檔是這次執行所記錄之研究報告的繁體中文閱讀版（衍生文件），以產品的策展詞彙與套件呈現"
+        "目錄逐行呈現；正式紀錄是英文的 report.md，內容未經更動。",
+    ),
+    "md.canonical": (
+        "> SHA-256 of the record's export (English report.md) this was rendered from: `{digest}`",
+        "> 本檔所依據之正式紀錄匯出檔（英文 report.md）的 SHA-256：`{digest}`",
+    ),
+    "md.rule": (
+        "> Passages without a curated translation are shown as written and marked; quoted "
+        "evidence keeps its original language; identifiers, digests, numbers, units and signs "
+        "are those of the record.",
+        "> 沒有策展翻譯的段落以原文顯示並加註標示；引述的證據保留原文；識別碼、雜湊值、數值、"
+        "單位與正負號與正式紀錄相同。",
+    ),
+    "md.count": (
+        "> Passages shown in English (no curated translation): {n}",
+        "> 以英文原文顯示的段落數（無策展翻譯）：{n}",
+    ),
+    # -- stored values the Markdown export names in words -----------------------------------------
+    "role.document": ("document", "文件"),
+    "role.research data": ("research data", "研究資料"),
+    "role.verification input": ("verification input", "驗證輸入"),
+    # How a research run was started (`research.run_provenance.RunOrigin`); only a signed-in web
+    # session is attested.
+    "so.WEB_SESSION": ("signed-in web session", "已登入的網頁工作階段"),
+    "so.OPERATOR_WORKSPACE": (
+        "operator workspace, no session attested",
+        "操作者工作台，未證明工作階段",
+    ),
+    "so.OPERATOR_CLI": (
+        "operator command line, no session attested",
+        "操作者命令列，未證明工作階段",
+    ),
+    "so.LEGACY_UNATTESTED": (
+        "recorded before sessions were attested, no session attested",
+        "工作階段證明實施前的紀錄，未證明工作階段",
+    ),
+    "sess.title": ("Session provenance", "工作階段來源"),
+    "sess.origin": ("How the run was started", "啟動方式"),
+    "sess.ref": ("Session audit reference (not a secret)", "工作階段稽核參照（非秘密）"),
+    "sess.unattested": (
+        "No signed-in session is attested for this run.",
+        "這次執行沒有可證明的已登入工作階段。",
+    ),
+    "sess.binds": ("Bound to", "綁定的紀錄"),
+    "sess.none": (
+        "Not recorded: this report was stored before session provenance existed.",
+        "未記錄：這份報告儲存於工作階段來源機制實施之前。",
+    ),
+    "origin.internal document": ("internal document", "內部文件"),
+    "origin.external literature": ("external literature", "外部文獻"),
     # -- stored values, in words (the value itself stays the tooltip) ---------------------------
     "bs.DRAFT": ("Draft", "草稿"),
     "bs.ADMITTED": ("Admitted, not yet tested", "已受理、尚未檢驗"),
@@ -1012,6 +1109,8 @@ _M: dict[str, tuple[str, str]] = {
     "stage.verification input": ("verification input", "驗證輸入"),
     "stage.verification": ("verification", "驗證"),
     "stage.pending simulation": ("pending simulation", "待執行的模擬"),
+    "stage.screening": ("screening", "探索性篩檢"),
+    "ss.BLOCKED": ("cannot run here", "無法在此執行"),
     "act.EXISTING_EVIDENCE_LOOKUP": ("existing-evidence lookup", "查詢既有證據"),
     "act.ANALYTICAL_RULE_CHECK": ("analytical check", "分析檢查"),
     "act.HISTORICAL_CASE_COMPARISON": ("historical case comparison", "歷史案例比對"),
@@ -1060,10 +1159,195 @@ def templates(key: str) -> tuple[str, ...]:
     return tuple(_M[key])
 
 
+#: The Markdown export's fixed words (`research.render.MARKDOWN_TEMPLATES`, the English record's
+#: own) in Traditional Chinese. Curated beside each English template, never generated: the same
+#: placeholders, and the same count of negations and of "confirm" as the English, so a rendering
+#: neither drops nor adds one (`bilingual_parity.check_markdown` compares them line by line).
+_MARKDOWN_ZH: dict[str, str] = {
+    "md.title": "# 研究任務 {episode}",
+    "md.goal": "**研究問題：** {goal}",
+    "md.header": (
+        "研究專案 `{project}` | 執行者 `{actor}` | 領域 `{domain}` | 追溯碼 `{trace}` | "
+        "研究狀態 {state}"
+    ),
+    "md.times": "開始 {started} | 結束 {finished}",
+    "md.continuation": "## 繼續研究：這項研究的第 {n} 次執行",
+    "md.resumed_from": "從這裡接續：{value}。",
+    "md.reasoning": "推理：{value}。",
+    "md.earlier_runs": "先前的執行：",
+    "md.earlier_checks": "先前執行過的檢查（不會重做）：",
+    "md.result": "## 結果",
+    "md.conclusion": "{status} -- {statement}",
+    "md.ruled_out": "已被已執行的檢查排除：{items}",
+    "md.still_competing": "仍在比較中：{items}",
+    "md.trace": "確認依據：{items}",
+    "md.pending_simulation": (
+        "**等待模擬：** `{capability}` 是下一步最值得做的驗證行動，但這裡無法執行：{reason}。"
+    ),
+    "md.stages": "## 研究步驟",
+    "md.stages.head": "| 步驟 | 狀態 | 說明 |",
+    "md.inputs": "## 輸入與匯入",
+    "md.inputs.head": "| 檔案 | 用途 | 宣告類型 | 狀態 | 檔案識別碼 | 段落 | 陳述 |",
+    "md.verification_input": "驗證輸入：{value}",
+    "md.evidence": "## 證據與來源",
+    "md.evidence.line": (
+        "- `{attestation}`（{origin}，{trust}）{source} [{locator}]："
+        "'{excerpt}' 〔原文引述，未翻譯〕"
+    ),
+    "md.evidence.continuation": (
+        "- 這次執行沒有納入任何陳述。假說辯論所依據的陳述，由這項研究的第 1 次執行納入，維持不變。"
+    ),
+    "md.evidence.none": "- 沒有任何陳述被納入為證據。",
+    "md.literature": "### 外部文獻 -- `{provider}`",
+    "md.literature.source": (
+        "來源：{description}。查詢（執行者宣告可公開）：'{query}' 〔原文引述，未翻譯〕。"
+    ),
+    "md.literature.policy": "這次執行的外部傳輸規則：{policy}。",
+    "md.literature.discovered": "找到的段落：{n}。",
+    "md.literature.line": (
+        "- {title} `{locator}` -- {trust}，授權 {license}，保存 {retention}，狀態 {status}；"
+        "{admitted}。{note}"
+    ),
+    "md.literature.not_admitted": "未納入",
+    "md.literature.refused": "- 被拒絕：{value}",
+    "md.hypotheses": "## 互相競爭的假說",
+    "md.hypotheses.none": "沒有任何假說被納入。",
+    "md.hypothesis": "### {mechanism} -- {state}",
+    "md.hypothesis.statement": "`{hypothesis}` | {statement}",
+    "md.hypothesis.machine": "- 機器否證條件（驗證據此判定）：`{value}`",
+    "md.hypothesis.falsifier": "- 模型的說明（文字否證條件，不作判定）：{value}",
+    "md.hypothesis.cheapest": "- 最省成本的檢查：`{value}`",
+    "md.hypothesis.predictions": "- 預測：{items}",
+    "md.hypothesis.critique": "- 反方意見：{value}",
+    "md.debate": "## 辯論與反方審查",
+    "md.debate.none": "沒有進行辯論。",
+    "md.debate.head": "辯論 `{debate}` | 推理來源 {reasoner} | {rounds} 輪 | 結束原因：{stopped}",
+    "md.debate.position": "- 立場：{value}",
+    "md.debate.critic": "- 反方審查交叉檢視了 {n} 項證據；它的反向檢索找到 {m} 項。",
+    "md.debate.alternatives": "- 反方提出的其他可能機制：{items}",
+    "md.debate.surviving": "- 經過反方審查仍成立：{items}",
+    "md.debate.contradicted": "- 被反方審查推翻：{items}",
+    "md.debate.gate": "- 辯論把關：{value}",
+    "md.line": "- {value}",
+    "md.none": "無",
+    "md.belief": "## 各假說目前的狀態",
+    "md.belief.head": "| 假說 | 機制 | 狀態 | 治理下的狀態變更 |",
+    "md.plans": "## 驗證計畫",
+    "md.plans.none": "沒有擬定驗證計畫。",
+    "md.plan": "{n}. `{plan}` -- {decision}",
+    "md.plan.chosen": " -> `{chosen}`",
+    "md.completed": "## 已完成的檢查",
+    "md.completed.none": "沒有執行任何驗證行動。",
+    "md.completed.line": (
+        "- `{capability}`（{kind}）{status} 執行者 {backend} -- 工作 `{job}`，執行 `{run}`"
+    ),
+    "md.completed.output": "  - 產出：{items}",
+    "md.pending": "## 等待中的模擬",
+    "md.pending.none": "無：下一步不需要模擬，或任何模擬都不會改變判斷。",
+    "md.pending.line": "- `{capability}`（{kind}，{tag}）-- {status}：{reason}",
+    "md.pending.best": "下一步最值得做",
+    "md.pending.also": "也可以判定",
+    "md.pending.decide": "  - 可以判定：{items}",
+    "md.pending.cost": "  - 估計成本：{value}",
+    "md.pending.requires": "  - 需要：{value}",
+    "md.human": "- 等待人員處理：{value}",
+    "md.next": "## 下一步",
+    "md.provenance": "## 來源追溯",
+    "md.failure": "- 失效分析：{value}",
+    "md.heuristic": "- 經驗法則候選（待審查）：{value}",
+    "md.session": "### 工作階段來源",
+    "md.session.origin": "- 啟動方式：{origin}",
+    "md.session.ref": "- 工作階段稽核參照（非秘密）：`{ref}`",
+    "md.session.unattested": "- 這次執行沒有可證明的已登入工作階段。",
+    "md.session.binds": (
+        "- 執行者 `{actor}` | 研究專案 `{project}` | 研究執行 `{run}` | 追溯碼 `{trace}`"
+    ),
+    "md.ran": "## 執行了什麼、沒執行什麼",
+    "md.not_performed": "- 未執行：{value}",
+    "md.note": "- 備註：{value}",
+    "md.rel.replies": (
+        "{policy} 之下的回覆檢查：{replies} 則模型回覆，{refused} 則被型別解析器拒絕，"
+        "{repaired} 則在解析前修復"
+    ),
+    "md.rel.refused": "被拒絕的回覆：{value}",
+    "md.rel.coverage": "涵蓋度審查：{value}",
+    "md.rel.unaddressed": "未處理的檢查 {check}（{observable}）：{disposition} -- {detail}",
+    "md.rel.withheld": "為保留反方審查的額度而暫緩：{value}",
+    "md.rel.overlap": "重疊的對立假說（保留，不合併）：{value}",
+    "md.rel.structure": "提供給假說引擎的元件結構摘要：{value}",
+    "md.scr.head": "{policy} 之下的探索性篩檢：{status}",
+    "md.scr.plan": "（計畫 `{plan}`）",
+    "md.scr.detail": " -- {detail}",
+    "md.scr.unaddressed": "未處理的觀測量（沒有任何假說預測它們）：{items}",
+    "md.scr.candidate": "候選 {check}：{disposition} -- {detail}",
+    "md.scr.check": "篩檢檢查 {rank}：{check} {status}，估計 {cost}",
+    "md.scr.job": "，工作 `{job}`",
+    "md.scr.run": "，執行 `{run}`",
+    "md.scr.reading": (
+        "  讀取 {observable} = {outcome}（參考值 {reference}）：{finding}，觀察 `{observation}`"
+    ),
+    "md.scr.review": "異常讀值後的審查：{status}",
+    "md.scr.review_line": "  {disposition}：{readings} -- {detail}",
+    "md.scr.proposed": "（`{hypothesis}`，篩檢後提出）",
+    "md.scr.not_repeated": "驗證沒有在同一輸入上重做（重做並不獨立）：{items}",
+    "md.scr.exploratory": (
+        "篩檢讀值是探索性證據：它們與任何假說都無關，而在它們之後提出的假說，"
+        "不能以它們作為支持（012y）。"
+    ),
+    "md.usage": (
+        "模型使用：{model} 於 {slot}：{calls} 次呼叫，其中 {metered} 次附有供應者回報的用量；"
+        "詞元數：提示 {prompt}、完成 {completion}、合計 {total}"
+    ),
+    "md.since": "## 本報告之後的紀錄",
+    "md.since.read": (
+        "匯出本檔時從已儲存的紀錄讀取。上方報告依其執行寫下的原樣保留，內容沒有任何更動。"
+    ),
+    "md.since.what": "`{analysis}`（{status}，{failure_class}）",
+    "md.since.flag": "- {what} 已由 {by} 標記為 {kind}：{statement}（證據：{evidence}）",
+    "md.since.not_relied": "- {what} 不被案例記憶或規則探勘器採用：{reason}",
+}
+
+#: Fixed sentences the research service writes into a report (`research.service`), each with a
+#: curated rendering: the product's own words, so a reader of the export in this language is not
+#: shown them in English. Keyed by the exact text; a sentence the service changes has no
+#: rendering until one is written for it, and is then shown as written and marked. Parametrised
+#: sentences are never rendered here: their values cannot be rendered without parsing prose.
+RECORD_RENDERINGS: dict[str, dict[str, str]] = {
+    "zh-TW": {
+        "exploratory screening is not enabled for this run": "這次執行沒有啟用探索性篩檢",
+        "no literature provider and public query were given; no external source was contacted": (
+            "沒有提供文獻來源與可公開的查詢；沒有聯繫任何外部來源"
+        ),
+        "no external source was contacted": "沒有聯繫任何外部來源",
+        "Optionally re-run with a literature provider and a query you declare public, so the "
+        "Critic's inverted retrieval can search external literature.": (
+            "可選擇以文獻來源與您宣告可公開的查詢重新執行，讓反方審查的反向檢索能搜尋外部文獻。"
+        ),
+        "advisory only -- no calibrated BenchmarkPolicy is active for this domain, so the debate "
+        "metrics are recorded and enforce nothing": (
+            "僅供參考：此領域沒有啟用經校準的 BenchmarkPolicy，因此辯論指標只記錄、不作任何強制"
+        ),
+        "no language model was called; every hypothesis, position and critique came from the "
+        "local rule-based catalog reasoner, recorded as such in its InferenceProvenance": (
+            "沒有呼叫任何語言模型；所有假說、立場與反方意見都來自本機的規則式目錄推理器，"
+            "並如實記錄於其推論來源紀錄（InferenceProvenance）"
+        ),
+    },
+}
+
+if set(_MARKDOWN_ZH) != set(MARKDOWN_TEMPLATES):
+    raise ValueError(
+        "the Markdown export's words differ between languages: "
+        f"{sorted(set(_MARKDOWN_ZH) ^ set(MARKDOWN_TEMPLATES))}"
+    )
+Messages.extend({key: (MARKDOWN_TEMPLATES[key], zh) for key, zh in _MARKDOWN_ZH.items()})
+
+
 __all__ = [
     "DEFAULT_LOCALE",
     "LOCALES",
     "LOCALE_NAMES",
+    "RECORD_RENDERINGS",
     "RESEARCH_OUTPUT_LANGUAGE",
     "Messages",
     "keys",

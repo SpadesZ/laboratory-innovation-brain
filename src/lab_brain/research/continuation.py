@@ -55,7 +55,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from lab_brain.cognition.debate import DebateOutcome
@@ -66,6 +66,7 @@ from lab_brain.core.repositories.evidence_bundles import SqlEvidenceBundleReposi
 from lab_brain.core.repositories.hypotheses import SqlHypothesisStore
 from lab_brain.core.repositories.jobs import JobStore
 from lab_brain.research.evidence import AdmittedStatement
+from lab_brain.research.run_provenance import RunOrigin, RunProvenance
 from lab_brain.verification.least_cost import PlanningResult
 from lab_brain.verification.loop import Planner
 
@@ -91,6 +92,8 @@ _COLUMNS = (
     "finished_at",
     "outcome",
     "question_label",
+    "run_origin",
+    "session_audit_ref",
 )
 
 
@@ -137,6 +140,9 @@ class ResearchRunRecord:
     #: The question's classification this run reasoned under (`012q`). None only on runs
     #: recorded before it.
     question_label: str | None = None
+    #: How the run was started, and -- for a signed-in person's run -- the session's non-secret
+    #: audit reference (`011n`). Declared by every writer; the database checks it.
+    provenance: RunProvenance = field(kw_only=True)
 
 
 class SqlResearchRunStore:
@@ -199,6 +205,8 @@ class SqlResearchRunStore:
                 record.observed_behavior,
                 record.started_at,
                 record.question_label,
+                record.provenance.origin.value,
+                record.provenance.session_audit_ref,
             ),
         )
         return record
@@ -316,7 +324,9 @@ class SqlResearchRunStore:
 
 def _record(row: Sequence[object]) -> ResearchRunRecord:
     values = dict(zip(_COLUMNS, row, strict=True))
-    return ResearchRunRecord(**values)  # type: ignore[arg-type]
+    origin, ref = values.pop("run_origin"), values.pop("session_audit_ref")
+    provenance = RunProvenance(RunOrigin(str(origin)), None if ref is None else str(ref))
+    return ResearchRunRecord(**values, provenance=provenance)  # type: ignore[arg-type]
 
 
 # -- the episode's verification so far ------------------------------------------------------------

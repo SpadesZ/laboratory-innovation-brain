@@ -299,7 +299,10 @@ def test_the_interface_switches_language_and_the_research_does_not(db, tmp_path,
         and " ".join(leaf.replace("`", "").replace("**", "").split()) not in shown
     ]
     assert not missing, f"the zh-TW page lost stored text: {missing[:3]}"
-    assert browser.get(f"{episode}/runs/1/report.md").text == markdown_en
+    # The record's export is unchanged by the interface language (`?lang=en`); the zh-TW reader's
+    # report.md is a derived reading of it, naming its digest.
+    assert browser.get(f"{episode}/runs/1/report.md?lang=en").text == markdown_en
+    assert "研究任務" in browser.get(f"{episode}/runs/1/report.md").text
     assert (
         db.execute("SELECT report::text FROM research_run_reports").fetchone()[0] == stored_before
     )

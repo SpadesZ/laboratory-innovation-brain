@@ -29,6 +29,15 @@ def _report(**overrides: object) -> dict[str, object]:
         "episode_state": "SUSPENDED",
         "conclusion": {"status": "PROVISIONAL", "statement": "not confirmed"},
         "provenance": ["Episode `epi:reports`; research run `rrn:one` (run 1 of this episode)."],
+        # What the run recorded about how it was started (`011n`): a direct database writer.
+        "session_provenance": {
+            "origin": "OPERATOR_CLI",
+            "session_audit_ref": None,
+            "actor_id": ACTOR,
+            "project_id": PROJECT,
+            "research_run_id": "rrn:one",
+            "trace_id": "trc:r",
+        },
     }
     report.update(overrides)
     return report
@@ -52,9 +61,11 @@ def run(db):  # type: ignore[no-untyped-def]
         (EPISODE, PROJECT, T0),
     )
     db.execute(
-        # Every run records its question's classification (`012q`).
+        # Every run records its question's classification (`012q`), and how it was started
+        # (`011n`): this fixture writes the table directly, attesting no signed-in session.
         "INSERT INTO research_runs (research_run_id, episode_id, project_id, actor_id, ordinal,"
-        " started_at, question_label) VALUES ('rrn:one', %s, %s, %s, 1, %s, 'INTERNAL')",
+        " started_at, question_label, run_origin)"
+        " VALUES ('rrn:one', %s, %s, %s, 1, %s, 'INTERNAL', 'OPERATOR_CLI')",
         (EPISODE, PROJECT, ACTOR, T0),
     )
     return db

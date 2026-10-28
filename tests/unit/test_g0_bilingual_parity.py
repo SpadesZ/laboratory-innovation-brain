@@ -236,7 +236,7 @@ def test_an_export_that_falls_back_to_one_language_fails():
     assert {"SINGLE_LANGUAGE", "LANGUAGE"} <= _check(fallback)
     md = "# Report\n\n- `hyp:a` is not confirmed at -12.5 Ω\n"
     result = check_markdown(md, md)
-    assert result.checks() == {"SINGLE_LANGUAGE"}
+    assert result.checks() == {"SINGLE_LANGUAGE", "LANGUAGE"}
     assert "byte for byte" in result.findings[0].detail
 
 
@@ -246,16 +246,27 @@ def test_markdown_pairs_are_compared_line_by_line():
         "- `cap:sp.mesh_sensitivity` (SIMULATION) -- **BLOCKED**: no simulator is wired here\n"
         "  - requires: a licence seat\n"
     )
+    # The zh-TW export keeps each stored value and names it in the product's words beside it,
+    # and lists its curated renderings beside their originals after the report.
     zh = (
         "## 結果\n\n- `hyp:a` 在 -12.5 Ω 時尚未確認\n"
-        "- `cap:sp.mesh_sensitivity`（模擬）-- **BLOCKED**：這裡沒有接上模擬器\n"
+        "- `cap:sp.mesh_sensitivity`（SIMULATION〔模擬〕）-- **BLOCKED**〔無法在此執行〕："
+        "這裡沒有接上模擬器\n"
         "  - 需要：授權席位\n"
+        "\n## 翻譯與原文對照\n\n| 頁面顯示 | 原文（紀錄） | 來源 |\n|---|---|---|\n"
+        "| 這裡沒有接上模擬器 | no simulator is wired here | 策展翻譯 |\n"
+        "| 授權席位 | a licence seat | 策展翻譯 |\n"
     )
-    assert check_markdown(en, zh, unavailable=(SIM,)).ok
+    assert check_markdown(en, zh, unavailable=(SIM,)).ok, check_markdown(en, zh).findings
+    assert "STATUS" in check_markdown(en, zh.replace("〔模擬〕", "〔量測〕")).checks()
+    assert "NEGATION" in check_markdown(en, zh.replace("| 這裡沒有接上", "| 這裡接上")).checks()
     assert "NUMBERS" in check_markdown(en, zh.replace("-12.5 Ω", "12.5 Ω")).checks()
     assert "NEGATION" in check_markdown(en, zh.replace("尚未確認", "已確認")).checks()
     assert "IDENTIFIERS" in check_markdown(en, zh.replace("`hyp:a`", "`hyp:b`")).checks()
-    assert "STRUCTURE" in check_markdown(en, zh + "- 新觀察\n").checks()
+    assert (
+        "STRUCTURE"
+        in check_markdown(en, zh.replace("授權席位\n", "授權席位\n- 新觀察\n", 1)).checks()
+    )
     assert (
         "NOT_PERFORMED"
         in check_markdown(en, zh.replace("**BLOCKED**", "**未執行**"), unavailable=(SIM,)).checks()

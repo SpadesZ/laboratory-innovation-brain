@@ -304,7 +304,9 @@ def test_the_summary_names_its_source_and_a_continuation_leaves_run_one_as_it_wa
     second = _in(j.owner, "zh-TW", f"/episodes/{episode}?run=2")
     assert "先前已執行、這次不再重複的檢查" in _section(second, "tested")
     assert "第 2 次執行是從上次停下的地方繼續，不是重新開始。" in _section(second, "result")
-    assert j.owner.get(f"/episodes/{episode}/runs/1/report.md").body == record.body
+    # The record's export (English, `?lang=en`) is unchanged; a zh-TW reader's own report.md is
+    # its reading (tests/e2e/test_g0_bilingual_export_web_postgres.py).
+    assert j.owner.get(f"/episodes/{episode}/runs/1/report.md?lang=en").body == record.body
     # Reading run 1 in both languages, exporting it and continuing changed no stored record of it.
     assert (
         db.execute(

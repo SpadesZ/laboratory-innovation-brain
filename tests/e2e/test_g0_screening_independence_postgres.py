@@ -160,12 +160,34 @@ class Guarded:
         )
         return observation
 
-    def support(self, observation: str) -> None:
+    def attest(self, observation: str, run: str) -> str:
+        """An attestation of `observation`, otherwise like the screened reading's."""
+        with self.db.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute("SELECT * FROM attestations WHERE attestation_id = %s", (self.attestation,))
+            row = cur.fetchone()
+        assert row is not None
+        row.update(attestation_id=f"att:{observation}", observation_id=observation, run_id=run)
+        row.pop("created_at", None)
+        self.db.execute(
+            f"INSERT INTO attestations ({', '.join(row)}) VALUES ({', '.join(['%s'] * len(row))})",
+            [Jsonb(v) if isinstance(v, dict | list) else v for v in row.values()],
+        )
+        return f"att:{observation}"
+
+    def support(self, observation: str, cites: list[str] | None = None) -> None:
+        """SUPPORTS from `observation`, citing `cites` (default: the screened attestation, which
+        is how a repeat would cite the reading it repeats)."""
         self.db.execute(
             "INSERT INTO relation_judgments (relation_id, from_entity_id, to_entity_id,"
             " relation_type, supporting_attestation_ids, project_id)"
             " VALUES (%s, %s, %s, 'SUPPORTS', %s, %s)",
-            (f"rel:{observation}", observation, self.hypothesis, [self.attestation], PROJECT),
+            (
+                f"rel:{observation}",
+                observation,
+                self.hypothesis,
+                cites if cites is not None else [self.attestation],
+                PROJECT,
+            ),
         )
 
 
@@ -178,12 +200,12 @@ def guarded(db: Any, tmp_path: Any, standin: Any) -> Guarded:
     return Guarded(db, research(browser, device("contact-open-via")))
 
 
-def _refused(g: Guarded, observation: str, why: str) -> None:
+def _refused(g: Guarded, observation: str, why: str, cites: list[str] | None = None) -> None:
     with (
         pytest.raises(psycopg.errors.RaiseException, match=why),
         g.db.transaction(force_rollback=True),
     ):
-        g.support(observation)
+        g.support(observation, cites)
 
 
 def test_content_identical_input_cannot_carry_a_second_artifact_id(guarded):
@@ -243,7 +265,9 @@ def test_a_later_reading_with_genuinely_different_content_may_still_support(guar
             input_parameters={"variant": "independent reading"},
             output_artifacts=(g.fresh_output("independent"),),
         )
-        g.support(g.observe(run, "independent"))
+        observation = g.observe(run, "independent")
+        # It cites its OWN attestation: the evidence is the new reading, not the screened one.
+        g.support(observation, [g.attest(observation, run)])
         assert rows(
             g.db,
             "SELECT 1 FROM relation_judgments WHERE to_entity_id = %s AND relation_type = 'SUPPORTS'",
@@ -261,3 +285,56 @@ def test_a_relabelled_backend_with_fresh_bytes_is_still_a_repeat(guarded):
             output_artifacts=(g.fresh_output("relabelled"),),
         )
         _refused(g, g.observe(run, "relabelled-fresh"), "repeats the screened reading")
+
+
+# -- the basis a relation CITES, not only the entity it comes from -------------------------------
+#
+# DEMONSTRATED on 011m (before 011o): the guard judged only `from_entity_id`. A SUPPORTS relation
+# whose source was not an observation was not checked at all, and the attestations a relation
+# cites -- its actual evidence -- were never read.
+
+
+def _fresh(g: Guarded, name: str) -> tuple[str, str]:
+    run = g.run(
+        name,
+        input_parameters={"variant": name},
+        output_artifacts=(g.fresh_output(name),),
+    )
+    return run, g.observe(run, name)
+
+
+def test_the_screened_attestation_cannot_be_the_source(guarded):
+    g = guarded
+    with g.db.transaction(force_rollback=True):
+        _refused(g, g.attestation, "only an observation can SUPPORT|screened")
+
+
+def test_a_fresh_observation_cannot_cite_the_screened_attestation(guarded):
+    g = guarded
+    with g.db.transaction(force_rollback=True):
+        _run, observation = _fresh(g, "cites-screened")
+        _refused(g, observation, "cites", cites=[g.attestation])
+
+
+def test_a_fresh_observation_cannot_borrow_a_repeat_as_its_evidence(guarded):
+    g = guarded
+    with g.db.transaction(force_rollback=True):
+        _run, observation = _fresh(g, "fresh-source")
+        repeat = g.run("borrowed-repeat")  # the screened reading again, same everything
+        borrowed = g.observe(repeat, "borrowed-repeat")
+        _refused(g, observation, "cites", cites=[g.attest(borrowed, repeat)])
+
+
+def test_a_non_observation_source_is_refused(guarded):
+    g = guarded
+    with g.db.transaction(force_rollback=True):
+        run, observation = _fresh(g, "behind-a-hypothesis")
+        evidence = g.attest(observation, run)
+        ((other,),) = rows(
+            g.db,
+            "SELECT hypothesis_id FROM hypotheses WHERE created_in_episode = %s"
+            " AND hypothesis_id <> %s ORDER BY hypothesis_id LIMIT 1",
+            g.episode,
+            g.hypothesis,
+        )
+        _refused(g, other, "only an observation can SUPPORT", cites=[evidence])

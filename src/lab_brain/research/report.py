@@ -294,6 +294,21 @@ class ContinuationSection:
 
 
 @dataclass(frozen=True)
+class SessionProvenance:
+    """How the run that wrote this report was started (`011n`), as its run row records it: the
+    origin, and -- for WEB_SESSION only -- the session's NON-SECRET audit reference, with the
+    actor, project, run and trace it binds. Never a sign-in token or a `session_hash`; `012d`'s
+    table refuses a report whose session provenance is not its run's."""
+
+    origin: str
+    session_audit_ref: str | None
+    actor_id: str
+    project_id: str
+    research_run_id: str
+    trace_id: str
+
+
+@dataclass(frozen=True)
 class EpisodeReport:
     episode_id: str
     project_id: str
@@ -332,6 +347,9 @@ class EpisodeReport:
     #: The exploratory screening stage, when this run's debate had one. `None` otherwise, and in a
     #: report stored before screening existed.
     screening: ScreeningSection | None = None
+    #: How this run was started and the session it was started in (`011n`). `None` only in a
+    #: report stored before session provenance existed.
+    session_provenance: SessionProvenance | None = None
 
 
 __all__ = [
@@ -355,6 +373,7 @@ __all__ = [
     "ScreeningCheckLine",
     "ScreeningReadingLine",
     "ScreeningSection",
+    "SessionProvenance",
     "StageStatus",
     "UsageLine",
 ]

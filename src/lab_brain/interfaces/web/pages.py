@@ -39,21 +39,30 @@ from dataclasses import dataclass
 from lab_brain.interfaces.web.i18n import (
     LOCALE_NAMES,
     LOCALES,
+    RECORD_RENDERINGS,
     RESEARCH_OUTPUT_LANGUAGE,
     Messages,
 )
 from lab_brain.research.episode_view import (
     CheckResult,
+    Conclusion,
     DeclaredPrediction,
     EpisodeView,
     ExecutedCheck,
     Relation,
 )
-from lab_brain.research.render import reliability_lines, screening_lines, usage_lines
+from lab_brain.research.render import (
+    reliability_lines,
+    render_markdown,
+    render_recorded_since,
+    screening_lines,
+    usage_lines,
+)
 from lab_brain.research.report import (
     ActionLine,
     CoverageLine,
     EpisodeReport,
+    EvidenceLine,
     HypothesisLine,
     PendingAction,
     StageStatus,
@@ -597,6 +606,129 @@ class Terms:
             original,
             self.m("tr.untranslated"),
         )
+
+
+@dataclass(frozen=True)
+class Citation:
+    """What the canonical records hold for one attestation a report cites, read when the page or
+    export is made: the attestation, the exact locator it stores, the source artifact with its
+    content hash and its occurrence in the report's project -- or, for literature, the source
+    work -- and the evidence unit with its digest where the attestation records one. `None`: the
+    record holds no such value. Read only; the quoted text stays the report's own excerpt."""
+
+    attestation_id: str
+    locator: str | None
+    source_artifact_id: str | None
+    content_hash: str | None
+    occurrence_project_id: str | None
+    source_work_id: str | None
+    source_work: str | None
+    evidence_unit_id: str | None
+    unit_digest: str | None
+
+
+_CJK = re.compile(r"[\u3400-\u9fff\uf900-\ufaff]")
+_LATIN_PROSE = re.compile(r"[A-Za-z]{2,}")
+
+
+class MarkdownWords:
+    """`research.render.Words` for the reader's language: the Markdown export's fixed words from
+    the curated catalog (`i18n`, `md.*`), the pack's declared prose through its presentation
+    catalog, and everything else -- model-written text above all -- exactly as written, followed by
+    the original-language mark (`tr.md_untranslated`); the research service's own fixed sentences
+    through the product's curated renderings of them (`i18n.RECORD_RENDERINGS`). A stored value
+    keeps its value and is named
+    beside it, `VALUE〔words〕`, in the product's own words for it, or not at all. Nothing is
+    guessed, and nothing a report holds is changed: `shown` remembers each lookup, so the export
+    can set every rendering beside its original."""
+
+    def __init__(self, terms: Terms) -> None:
+        self.m = terms.m
+        self.locale = terms.locale
+        self._renderings: Mapping[str, str] = {
+            **RECORD_RENDERINGS.get(self.locale, {}),
+            **terms.presentation.get(self.locale, {}),
+        }
+        self._as_written = self.locale == RESEARCH_OUTPUT_LANGUAGE
+        #: canonical -> its curated rendering (None: shown as written, marked), first seen first.
+        self.shown: dict[str, str | None] = {}
+
+    def __call__(self, key: str, /, **values: object) -> str:
+        return self.m(key, **values)
+
+    def text(self, canonical: str) -> str:
+        if self._as_written or not canonical:
+            return canonical
+        rendering = self._renderings.get(canonical)
+        if rendering is not None:
+            self.shown.setdefault(canonical, rendering)
+            return rendering
+        if _CJK.search(canonical) or not _LATIN_PROSE.search(canonical):
+            return canonical  # already in this language, or nothing to read (a dash, a number)
+        self.shown.setdefault(canonical, None)
+        return canonical + self.m("tr.md_untranslated")
+
+    def status(self, family: str, value: str, *, bold: bool = False) -> str:
+        shown = f"**{value}**" if bold else value
+        if self._as_written:
+            return shown
+        try:
+            words = self.m(f"{family}.{value}")
+        except KeyError:
+            return shown
+        return f"{shown}〔{words}〕"
+
+    @property
+    def untranslated(self) -> int:
+        return sum(1 for rendering in self.shown.values() if rendering is None)
+
+
+def markdown_export(
+    report: EpisodeReport,
+    conclusions: Sequence[Conclusion],
+    *,
+    terms: Terms,
+    canonical_digest: str,
+) -> str:
+    """`report.md` in `terms`' language.
+
+    In the language research is recorded in it is the record's export itself, byte for byte:
+    `render_markdown` and what the record says about its conclusions since. In another it is the
+    same lines, in the same order, read through `MarkdownWords`; under the title it names the
+    SHA-256 of the record's export it was rendered from (`canonical_digest`), and after the
+    report it sets every curated rendering it used beside its original. A derived document: no
+    record is read or written here, and the record's export is unchanged."""
+    if terms.locale == RESEARCH_OUTPUT_LANGUAGE:
+        return render_markdown(report) + render_recorded_since(conclusions)
+    m = terms.m
+    words = MarkdownWords(terms)
+    body = render_markdown(
+        report,
+        words,
+        preamble=(m("md.derived"), m("md.canonical", digest=canonical_digest), m("md.rule")),
+    ) + render_recorded_since(conclusions, words)
+
+    def cell(text: str) -> str:
+        return text.replace("|", "\\|").replace("\n", " ")
+
+    appendix = [
+        "",
+        f"## {m('v.l3.originals')}",
+        "",
+        "> " + m("tr.provenance", ref=terms.ref or m("none")),
+        *((f"> {m('tr.curated_note', note=terms.note)}",) if terms.note else ()),
+        m("md.count", n=words.untranslated),
+        "",
+        f"| {m('col.shown')} | {m('col.original')} | {m('col.rendering')} |",
+        "|---|---|---|",
+        *(
+            f"| {cell(rendering if rendering is not None else m('tr.none'))} | {cell(original)} | "
+            f"{m('tr.curated') if rendering is not None else m('tr.missing')} |"
+            for original, rendering in words.shown.items()
+        ),
+        "",
+    ]
+    return body + "\n".join(appendix)
 
 
 def mh(m: Messages, key: str, **values: object) -> Html:
@@ -1712,6 +1844,7 @@ def _reasoning_html(
     runs: Sequence[RunRow],
     ordinal: int | None,
     m: Messages,
+    citations: Sequence[Citation] = (),
 ) -> Html:
     if report is None:
         return h('<p class="muted">{}</p>', m("ep.no_report"))
@@ -1894,7 +2027,10 @@ def _reasoning_html(
                 ),
             )
         )
-    if report.evidence:
+    if report.evidence and citations:
+        # Each excerpt with what the canonical records hold for it (`Citation`).
+        parts.append(h("<h3>{}</h3>{}", m("v.l2.evidence"), _citations_html(report, citations, m)))
+    elif report.evidence:
         # A literature passage keeps its source's publication status beside it: a RETRACTED
         # paper is admitted and recorded (EVI-008), and must not read as an ordinary one.
         status_of = {
@@ -1945,6 +2081,104 @@ def _reasoning_html(
             )
         )
     return cat(parts)
+
+
+def _citations_html(
+    report: EpisodeReport, citations: Sequence[Citation], m: Messages, *, warn: bool = True
+) -> Html:
+    """Every excerpt the report cites, traceable: the source and locator as the report states
+    them, then what the canonical records hold for the attestation -- its id and stored locator,
+    the source artifact, its content hash and its occurrence in the project, or the source work,
+    and the evidence unit with its digest where recorded -- and the quoted text, in its original
+    language and never translated. A value the record does not hold is shown as `-`."""
+    by_id = {c.attestation_id: c for c in citations}
+    status_of = {
+        line.admitted_attestation_id: line.status
+        for line in (report.literature.consulted if report.literature else ())
+        if line.admitted_attestation_id
+    }
+
+    def code(value: str | None) -> Html:
+        return h("<code>{}</code>", value or "-")
+
+    def item(x: EvidenceLine) -> Html:
+        c = by_id.get(x.attestation_id)
+        record = [
+            h("<li>{} {}</li>", m("cit.attestation"), code(x.attestation_id)),
+            h("<li>{} {}</li>", m("cit.locator"), code(c.locator if c else None)),
+        ]
+        if c is None or c.source_artifact_id or not c.source_work_id:
+            record.append(
+                h(
+                    "<li>{} {} · {} {} · {} {}</li>",
+                    m("cit.artifact"),
+                    code(c.source_artifact_id if c else None),
+                    m("cit.content_hash"),
+                    code(c.content_hash if c else None),
+                    m("cit.occurrence"),
+                    code(c.occurrence_project_id if c else None),
+                )
+            )
+        if c is not None and c.source_work_id:
+            record.append(
+                h("<li>{} {} {}</li>", m("cit.work"), code(c.source_work_id), c.source_work or "")
+            )
+        if c is not None and c.evidence_unit_id:
+            record.append(
+                h(
+                    "<li>{} {} · {} {}</li>",
+                    m("cit.unit"),
+                    code(c.evidence_unit_id),
+                    m("cit.unit_digest"),
+                    code(c.unit_digest),
+                )
+            )
+        return h(
+            '<li class="cite"><div>{} <span class="loc">[{}]</span> ({}, {}){}</div><ul>{}</ul>'
+            '<p class="muted">{}</p><blockquote>{}</blockquote></li>',
+            x.source,
+            x.locator,
+            _words("origin", x.origin, m),
+            x.trust_class,
+            h(
+                ' <strong class="warn">{}</strong>',
+                m("v.source_status", status=status_of[x.attestation_id]),
+            )
+            if warn and status_of.get(x.attestation_id, "ACTIVE") not in _ORDINARY_STATUS
+            else Html(""),
+            cat(record),
+            m("cit.quote"),
+            x.excerpt,
+        )
+
+    if not report.evidence:
+        return h("<p>{}</p>", m("cit.none"))
+    return h('<ul class="cites">{}</ul>', cat(item(x) for x in report.evidence))
+
+
+def _session_html(report: EpisodeReport | None, m: Messages) -> Html:
+    """How the run was started (`011n`), as the report records it: the origin in words, and --
+    for a signed-in web session only -- the session's NON-SECRET audit reference, with the actor,
+    project, run and trace it binds; any other origin says no session is attested. The report
+    holds no token and no session lookup key, so none can be shown."""
+    sp = report.session_provenance if report is not None else None
+    if sp is None:
+        return h("<h3>{}</h3><p>{}</p>", m("sess.title"), m("sess.none"))
+    return h(
+        '<h3>{}</h3><ul class="session"><li>{} {}</li>{}<li>{} <code>{}</code> '
+        "<code>{}</code> <code>{}</code> <code>{}</code></li></ul>",
+        m("sess.title"),
+        m("sess.origin"),
+        status("so", sp.origin, m),
+        h("<li>{} <code>{}</code></li>", m("sess.ref"), sp.session_audit_ref)
+        if sp.session_audit_ref
+        else h("<li>{}</li>", m("sess.unattested")),
+        m("sess.binds"),
+        sp.actor_id,
+        sp.project_id,
+        sp.research_run_id,
+        sp.trace_id,
+    )
 
 
 def _records_html(view: EpisodeView) -> Html:
@@ -2323,6 +2557,7 @@ def episode_page(
     view: EpisodeView | None = None,
     declare_label: frozenset[str] | None = None,
     terms: Terms | None = None,
+    citations: Sequence[Citation] = (),
 ) -> bytes:
     """The research, in the order a researcher reads it.
 
@@ -2333,7 +2568,8 @@ def episode_page(
     and the full report exactly as before. `view` is `research.episode_view`'s read of the stored
     records; without it, what it would have said is shown as not recorded, never filled in.
     `terms` is how the pack's declared words read in this locale; without it they are shown as
-    written (and, outside English, marked untranslated).
+    written (and, outside English, marked untranslated). `citations`: what the records hold for
+    each cited attestation, shown with its excerpt in L2.
     """
     frame = _chrome(actor_id, chrome, "episodes")
     m = frame.m
@@ -2356,7 +2592,7 @@ def episode_page(
             h(
                 '<a href="/episodes/{}?run={}">{}</a> · '
                 '<a href="/episodes/{}/runs/{}/report.md">{}</a> · '
-                '<a href="/episodes/{}/runs/{}/summary.html">{}</a>',
+                '<a href="/episodes/{}/runs/{}/summary.html">{}</a>{}',
                 episode.episode_id,
                 r.ordinal,
                 m("ep.report_link"),
@@ -2366,6 +2602,16 @@ def episode_page(
                 episode.episode_id,
                 r.ordinal,
                 m("ep.summary_export"),
+                # Outside the record's language, the record's own export one step away.
+                h(
+                    ' · <a href="/episodes/{}/runs/{}/report.md?lang={}">{}</a>',
+                    episode.episode_id,
+                    r.ordinal,
+                    RESEARCH_OUTPUT_LANGUAGE,
+                    m("ep.markdown_record"),
+                )
+                if m.locale != RESEARCH_OUTPUT_LANGUAGE
+                else Html(""),
             )
             if r.recorded
             else h('<span class="muted">{}</span>', m("ep.not_recorded"))
@@ -2408,6 +2654,7 @@ def episode_page(
         [
             h("<h3>{}</h3>{}", m("ep.runs"), runs_table),
             h("<h3>{}</h3>{}", m("tech.details"), technical),
+            _session_html(report, m) if report is not None else Html(""),
             h("<h3>{}</h3>{}", m("v.l3.records"), _records_html(view)),
             h("<h3>{}</h3>{}", m("v.l3.conclusions"), _conclusion_records_html(view, m))
             if view.conclusions
@@ -2432,7 +2679,7 @@ def episode_page(
             _layer(
                 "reasoning",
                 m("v.reasoning"),
-                _reasoning_html(report, view, runs, report_ordinal, m),
+                _reasoning_html(report, view, runs, report_ordinal, m, citations),
             ),
             _layer("audit", m("v.audit"), audit),
         ]
@@ -2451,18 +2698,34 @@ def summary_document(
     project_name: str | None,
     source_digest: str,
     exported_at: dt.datetime,
+    language_digest: str | None = None,
+    citations: Sequence[Citation] = (),
 ) -> bytes:
-    """One run's research summary as a file to keep or print: L1 in the reader's language, then
-    where it came from. A derived document: the record is the run's report, unchanged
-    (`report.md`), and `source_digest` is that export's SHA-256 at the moment of this one."""
+    """One run's research summary as a file to keep or print: L1 in the reader's language, the
+    citations it rests on, then where it came from. A derived document: the record is the run's
+    report, unchanged (`report.md`), and `source_digest` is the SHA-256 of the record's export
+    (English) at the moment of this one; `language_digest` that of `report.md` in this
+    summary's language -- the same value in English. Every summary, in every language, names
+    the same `source_digest`."""
     t = terms
     m = t.m
     l1 = _l1_html(episode, report, runs, report_ordinal, view, t, csrf=None, continuable=False)
+    cited = h(
+        '<section id="v-citations" class="view"><h2>{}</h2><p class="muted">{}</p>{}</section>',
+        m("cit.title"),
+        m("cit.note"),
+        _citations_html(report, citations, m),
+    )
     provenance = _table(
         (m("col.item"), m("col.value")),
         (
             (m("sum.derived"), m("sum.derived_text", n=report_ordinal)),
             (m("sum.source"), h("<code>{}</code>", source_digest)),
+            *(
+                ((m("sum.source_lang"), h("<code>{}</code>", language_digest)),)
+                if language_digest is not None
+                else ()
+            ),
             (m("sum.renderings"), t.ref or m("none")),
             (m("sum.untranslated"), t.untranslated),
             (m("sum.reasoner"), _reasoner_line(report, t)),
@@ -2476,10 +2739,12 @@ def summary_document(
             _question_html(episode, project_name, m),
             _translation_notes(t),
             l1,
+            cited,
             h(
-                '<section id="v-provenance" class="view"><h2>{}</h2>{}<h3>{}</h3>{}</section>',
+                '<section id="v-provenance" class="view"><h2>{}</h2>{}{}<h3>{}</h3>{}</section>',
                 m("sum.provenance"),
                 provenance,
+                _session_html(report, m),
                 m("v.l3.originals"),
                 _originals_html(t),
             ),
@@ -2653,16 +2918,19 @@ def report_html(r: EpisodeReport, *, locale: str = "en") -> Html:
         lit = r.literature
         consulted = [
             h(
-                "{} <code>{}</code> -- {}, licence {}, kept {}, status {}; {}. {}",
+                "{} <code>{}</code> -- {}, {} {}, {} {}, {} {}; {}. {}",
                 x.title,
                 x.locator,
                 x.trust_class,
+                m("r.licence"),
                 x.license,
+                m("r.kept"),
                 x.retention,
+                m("r.status"),
                 state(x.status),
                 h("<code>{}</code>", x.admitted_attestation_id)
                 if x.admitted_attestation_id
-                else "not admitted",
+                else m("r.not_admitted"),
                 x.note,
             )
             for x in lit.consulted
@@ -2804,13 +3072,15 @@ def report_html(r: EpisodeReport, *, locale: str = "en") -> Html:
 
     completed = [
         h(
-            "<code>{}</code> ({}) {} {} {} -- job <code>{}</code>, run <code>{}</code>{}",
+            "<code>{}</code> ({}) {} {} {} -- {} <code>{}</code>, {} <code>{}</code>{}",
             a.capability_id,
             a.action_type,
             state(a.status),
             m("r.by"),
             a.backend,
+            m("r.job"),
             a.job_id or "-",
+            m("r.run"),
             a.run_id or "-",
             _list(
                 [
@@ -2896,8 +3166,10 @@ def report_html(r: EpisodeReport, *, locale: str = "en") -> Html:
 
 __all__ = [
     "Chrome",
+    "Citation",
     "EpisodeRow",
     "Html",
+    "MarkdownWords",
     "ProjectRow",
     "RunRow",
     "cat",
@@ -2905,6 +3177,7 @@ __all__ = [
     "episode_page",
     "h",
     "label",
+    "markdown_export",
     "message_page",
     "outcome_words",
     "page",
