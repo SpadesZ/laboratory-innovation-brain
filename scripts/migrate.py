@@ -324,6 +324,8 @@ APPLY_ORDER: tuple[str, ...] = (
     "011r_llm_spend_ceiling.sql",
     # Budgets, prices and circuits belong to an Owner role; the services only reserve. After 011r.
     "011t_llm_spend_administration.sql",
+    # Account role, status and membership changes leave a chained audit row. After 011t.
+    "011u_account_change_audit.sql",
 )
 
 _BOOTSTRAP = """

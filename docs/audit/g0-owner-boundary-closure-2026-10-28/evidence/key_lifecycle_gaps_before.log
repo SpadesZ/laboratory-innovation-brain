@@ -1,0 +1,12 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+E   Failed: DID NOT RAISE InteractionUnverified
+/home/user/laboratory-innovation-brain/tests/unit/test_g0_key_lifecycle_gaps.py:68: Failed: DID NOT RAISE InteractionUnverified
+E   Failed: DID NOT RAISE InteractionUnverified
+/home/user/laboratory-innovation-brain/tests/unit/test_g0_key_lifecycle_gaps.py:75: Failed: DID NOT RAISE InteractionUnverified
+E   Failed: DID NOT RAISE InteractionUnverified
+/home/user/laboratory-innovation-brain/tests/unit/test_g0_key_lifecycle_gaps.py:88: Failed: DID NOT RAISE InteractionUnverified
+E   Failed: DID NOT RAISE InteractionUnverified
+/home/user/laboratory-innovation-brain/tests/unit/test_g0_key_lifecycle_gaps.py:97: Failed: DID NOT RAISE InteractionUnverified
+E   lab_brain.security.interaction_attestation.InteractionUnverified: interaction authorities line 1 is not `web:<label> ed25519:<base64 key> [until=<ISO time>]`
+/home/user/laboratory-innovation-brain/src/lab_brain/security/interaction_attestation.py:268: lab_brain.security.interaction_attestation.InteractionUnverified: interaction authorities line 1 is not `web:<label> ed25519:<base64 key> [until=<ISO time>]`

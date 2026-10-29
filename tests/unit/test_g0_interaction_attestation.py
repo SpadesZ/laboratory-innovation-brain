@@ -181,7 +181,12 @@ def test_the_signer_is_optional_and_never_shows_its_key(tmp_path: Path):
     key = SigningKey.generate()
     path = tmp_path / "k.pem"
     key.save(path)
-    signer = InteractionSigner.from_environment({SIGNING_KEY_ENV: str(path)})
+    # A named key must be pinned (`security.key_lifecycle`'s start-up checks).
+    pinned = tmp_path / "authorities"
+    pinned.write_text(f"web:primary ed25519:{key.public_key}\n")
+    signer = InteractionSigner.from_environment(
+        {SIGNING_KEY_ENV: str(path), AUTHORITIES_ENV: str(pinned)}
+    )
     assert signer is not None and signer.public_key == key.public_key
     pem = path.read_text()
     body = "".join(pem.splitlines()[1:-1])

@@ -27,11 +27,16 @@ row's episode, its nonce used once): a valid signature for one run cannot be pas
 WHERE TRUST COMES FROM. The database cannot verify Ed25519, and must not be asked to: anything it
 holds a database writer can rewrite. Verification is here, against public keys pinned OUTSIDE the
 database, in the file `LAB_BRAIN_INTERACTION_AUTHORITIES` names -- one line per key,
-`web:<label> ed25519:<base64 public key> [until=<ISO time with zone>]`, like the review
-authorities (`security.reviewer_identity`). `until` retires a key without erasing it: statements
-it signed before then still verify, none after. That is how keys rotate. With no key pinned,
+`web:<label> ed25519:<base64 public key> [until=<ISO time>] [revoked=<ISO time>]` (times with a
+zone), like the review authorities (`security.reviewer_identity`). `until` RETIRES a key without
+erasing it: statements it signed before then still verify, none after. That is how keys rotate.
+`revoked` REVOKES a key that may be compromised: from then on NONE of its statements verifies,
+whatever date it bears -- the holder of a stolen key chooses `signed_at`, so a date before the
+revocation proves nothing (`security.key_lifecycle` states the procedure). With no key pinned,
 nothing verifies; with no signing key, web runs are still recorded, at SESSION_RECORDED_UNVERIFIED
--- fail closed for the CLAIM, not for the product.
+-- fail closed for the CLAIM, not for the product. A signing key that IS named must pass the
+start-up checks of `security.key_lifecycle` (owner-only file outside any git working tree, pinned,
+not retired or revoked, trust files not writable by others), or the web tier refuses to start.
 
 THE CLAIM LEVELS (`research.run_provenance.ClaimLevel`) are computed here, whenever a run or
 report is shown -- never read from a stored field a writer could set:
@@ -242,14 +247,33 @@ class InteractionAuthority:
     public_key: str
     #: Statements signed at or after this time under this key do not verify (rotation).
     valid_until: dt.datetime | None = None
+    #: When the key was revoked as possibly compromised: then none of its statements verifies.
+    revoked_at: dt.datetime | None = None
 
     @property
     def key_id(self) -> str:
         return interaction_key_id(self.public_key)
 
+    def line(self) -> str:
+        """This authority in the file's own format (what the operator tools write)."""
+        options = "".join(
+            f" {name}={value.isoformat()}"
+            for name, value in (("until", self.valid_until), ("revoked", self.revoked_at))
+            if value is not None
+        )
+        return f"{self.label} ed25519:{self.public_key}{options}"
+
+    def active_at(self, at: dt.datetime) -> bool:
+        """Whether this key may sign a statement dated `at`."""
+        return self.revoked_at is None and (self.valid_until is None or at < self.valid_until)
+
+
+_OPTIONS = ("until", "revoked")
+
 
 def parse_interaction_authorities(text: str) -> tuple[InteractionAuthority, ...]:
-    """`web:<label> ed25519:<base64> [until=<ISO time>]` per line, `#` comments.
+    """`web:<label> ed25519:<base64> [until=<ISO time>] [revoked=<ISO time>]` per line, `#`
+    comments; each option at most once.
 
     A malformed line is refused, never skipped: a trust anchor that silently dropped a line would
     be a different trust anchor from the one its operator wrote."""
@@ -259,15 +283,17 @@ def parse_interaction_authorities(text: str) -> tuple[InteractionAuthority, ...]
         if not body:
             continue
         parts = body.split()
+        names = [p.split("=", 1)[0] for p in parts[2:]]
         if (
-            len(parts) not in (2, 3)
+            len(parts) < 2
             or not parts[0].startswith("web:")
             or not parts[1].startswith("ed25519:")
-            or (len(parts) == 3 and not parts[2].startswith("until="))
+            or any("=" not in p or p.split("=", 1)[0] not in _OPTIONS for p in parts[2:])
+            or len(set(names)) != len(names)
         ):
             raise InteractionUnverified(
                 f"interaction authorities line {number} is not "
-                "`web:<label> ed25519:<base64 key> [until=<ISO time>]`"
+                "`web:<label> ed25519:<base64 key> [until=<ISO time>] [revoked=<ISO time>]`"
             )
         public_key = parts[1].removeprefix("ed25519:")
         try:
@@ -276,19 +302,22 @@ def parse_interaction_authorities(text: str) -> tuple[InteractionAuthority, ...]
             raise InteractionUnverified(
                 f"interaction authorities line {number} has no Ed25519 key"
             ) from exc
-        until: dt.datetime | None = None
-        if len(parts) == 3:
+        times: dict[str, dt.datetime] = {}
+        for part in parts[2:]:
+            name, value = part.split("=", 1)
             try:
-                until = dt.datetime.fromisoformat(parts[2].removeprefix("until="))
+                times[name] = dt.datetime.fromisoformat(value)
             except ValueError as exc:
                 raise InteractionUnverified(
                     f"interaction authorities line {number}: {exc}"
                 ) from exc
-            if until.tzinfo is None:
+            if times[name].tzinfo is None:
                 raise InteractionUnverified(
-                    f"interaction authorities line {number}: `until` needs a time zone"
+                    f"interaction authorities line {number}: `{name}` needs a time zone"
                 )
-        found.append(InteractionAuthority(parts[0], public_key, until))
+        found.append(
+            InteractionAuthority(parts[0], public_key, times.get("until"), times.get("revoked"))
+        )
     ids = [a.key_id for a in found]
     if len(set(ids)) != len(ids):
         raise InteractionUnverified("an interaction key is pinned twice")
@@ -371,6 +400,11 @@ class InteractionTrust:
             raise InteractionUnverified(
                 f"the statement's request {statement.method} {statement.route} does not start or "
                 "continue this run"
+            )
+        if authority.revoked_at is not None:
+            raise InteractionUnverified(
+                f"key {authority.key_id} was revoked ({authority.revoked_at.isoformat()}): none "
+                "of its statements verifies, whatever date it bears"
             )
         if authority.valid_until is not None and statement.signed_at >= authority.valid_until:
             raise InteractionUnverified(
@@ -490,12 +524,19 @@ class InteractionSigner:
     @classmethod
     def from_environment(cls, env: Mapping[str, str] | None = None) -> InteractionSigner | None:
         """The configured signing key, or None when none is configured (web runs are then
-        recorded at SESSION_RECORDED_UNVERIFIED). A key that is named but unreadable raises: an
-        operator who meant to sign must hear that nothing will be."""
+        recorded at SESSION_RECORDED_UNVERIFIED). A key that is named but unreadable, or that
+        fails a start-up check of `security.key_lifecycle` (loose permissions, inside a git
+        working tree, not pinned, retired or revoked, trust files writable by others), raises:
+        an operator who meant to sign must hear that nothing will be, and why."""
+        from lab_brain.security.key_lifecycle import signer_startup_problems
+
         env = os.environ if env is None else env
         path = env.get(SIGNING_KEY_ENV, "").strip()
         if not path:
             return None
+        before = signer_startup_problems(env, public_key=None)
+        if before:
+            raise InteractionUnverified("; ".join(before))
         passphrase = env.get(PASSPHRASE_ENV)
         try:
             key = SigningKey.load(path, passphrase.encode("utf-8") if passphrase else None)
@@ -504,6 +545,9 @@ class InteractionSigner:
                 f"{SIGNING_KEY_ENV} names a file that is not a readable Ed25519 key "
                 f"({type(exc).__name__})"
             ) from None
+        after = signer_startup_problems(env, public_key=key.public_key)
+        if after:
+            raise InteractionUnverified("; ".join(after))
         return cls(key)
 
     @property

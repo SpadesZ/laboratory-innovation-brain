@@ -87,6 +87,7 @@ from lab_brain.research.service import (
     ResearchRequest,
 )
 from lab_brain.research.vertical import ENTRY_POINT_GROUP, VerticalNotFound, load_vertical_factory
+from lab_brain.security import key_lifecycle
 from lab_brain.security.reviewer_identity import IdentityUnverified, ReviewerTrust
 from lab_brain.storage.artifacts.local import LocalArtifactStore
 from lab_brain.surface.catalog import MessageCatalog, Severity, default_catalog
@@ -256,6 +257,7 @@ def build_parser() -> argparse.ArgumentParser:
     inbox.add_argument("--actor", required=True)
 
     add_review_parser(sub)
+    key_lifecycle.add_parser(sub)
 
     explain = sub.add_parser("explain", help="explain an error reference")
     explain.add_argument("error_id")
@@ -590,6 +592,15 @@ def build_parser() -> argparse.ArgumentParser:
         default="http://127.0.0.1:8765",
         help="the workspace address the printed link points at",
     )
+    audit = admin_sub.add_parser(
+        "account-audit",
+        help=(
+            "A12: account and membership changes no account event explains, and the audit "
+            "chain's head to record outside the database (011u; detects, prevents nothing)"
+        ),
+    )
+    audit.add_argument("--since-seq", type=int, help="only audit rows after this one")
+    audit.add_argument("--expect-head", help="SEQ:DIGEST recorded earlier; refused if rewritten")
     admin_sub.add_parser("show", help="list actors, projects, memberships, LLM administrators")
     return parser
 
@@ -828,6 +839,9 @@ def main(
     if args.command == "review" and args.review_command == "keygen":
         # A key is made on the person's own machine and recorded nowhere: no database.
         return run_keygen(args, out=stream, env=os.environ if env is None else env)
+    if args.command == "interaction-key":
+        # The web tier's signing key and its pinned authorities: files only, no database.
+        return key_lifecycle.run(args, out=stream, env=os.environ if env is None else env)
 
     try:
         settings = read_settings(os.environ if env is None else env)
@@ -1128,6 +1142,14 @@ def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
             )
         elif args.admin_command == "bootstrap-admin":
             lines = _bootstrap_admin(args, connection)
+        elif args.admin_command == "account-audit":
+            from lab_brain.accounts import change_audit
+
+            lines, intact = change_audit.report(
+                connection, since_seq=args.since_seq, expect_head=args.expect_head
+            )
+            if not intact:
+                raise deployment.OperatorRefused("\n".join(lines))
         else:
             lines = deployment.describe(connection)
     except deployment.OperatorRefused as refused:

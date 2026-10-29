@@ -509,6 +509,13 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
             f"REVOKE SELECT ON accounts, account_sessions, account_tokens FROM {reader}",
             f"GRANT SELECT ({_ACCOUNT_COLUMNS}) ON accounts TO {reader}",
         )
+    # The account change audit (`011u`) is written only by its migrator-owned triggers; the services
+    # get no row privilege on it either, so a forged audit row is refused twice.
+    if c.execute("SELECT to_regclass('public.account_change_audit')").fetchone()[0] is not None:
+        statements += (
+            "REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON account_change_audit,"
+            f" account_change_audit_head FROM {app}",
+        )
     spend = [
         t
         for t in _SPEND_TABLES

@@ -1,0 +1,8 @@
+E   psycopg.errors.UndefinedTable: relation "account_change_audit" does not exist
+/home/user/laboratory-innovation-brain/.venv/lib/python3.13/site-packages/psycopg/connection.py:304: psycopg.errors.UndefinedTable: relation "account_change_audit" does not exist
+E   psycopg.errors.UndefinedTable: relation "account_change_audit" does not exist
+/home/user/laboratory-innovation-brain/.venv/lib/python3.13/site-packages/psycopg/connection.py:304: psycopg.errors.UndefinedTable: relation "account_change_audit" does not exist
+E   psycopg.errors.UndefinedTable: relation "account_change_audit" does not exist
+/home/user/laboratory-innovation-brain/.venv/lib/python3.13/site-packages/psycopg/connection.py:304: psycopg.errors.UndefinedTable: relation "account_change_audit" does not exist
+E   psycopg.errors.UndefinedTable: relation "account_change_audit" does not exist
+/home/user/laboratory-innovation-brain/.venv/lib/python3.13/site-packages/psycopg/connection.py:304: psycopg.errors.UndefinedTable: relation "account_change_audit" does not exist
