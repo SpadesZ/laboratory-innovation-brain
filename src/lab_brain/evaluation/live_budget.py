@@ -21,6 +21,14 @@ every request with a body to a host that is not this machine, from any client th
 builds, is reserved at its provable worst case before it is sent, atomically against the ceiling,
 and a model or host with no declared price is refused. Prices are the Owner's, with source and
 date; nothing here invents one (docs/evaluation/G0-real-llm-evaluation-proposal.zh-TW.md §3).
+
+THIS MACHINE IS METERED TOO (011t). A local endpoint may be a proxy that forwards to a paid
+provider (LiteLLM on localhost), so the evaluation's guard meters it like a remote one: an unpriced
+local critic or utility is refused, unless the Owner declares it FREE --
+`LAB_BRAIN_LIVE_FREE_ENDPOINTS="127.0.0.1:11434 qwen2.5:7b; 127.0.0.1:11434 *"` (`host[:port]` and a
+model, or `*`), with `LAB_BRAIN_LIVE_FREE_REASON` saying why. The declarations are made through the
+Owner's spend administration (`lab_brain_spend_admin`), as the budget and prices are: the DSN the
+evaluation declares with must be the Owner's (in a fresh evaluation database, the migrator's).
 """
 
 from __future__ import annotations
@@ -167,14 +175,57 @@ def spend_from_env(*, external: bool, env: Mapping[str, str] = os.environ) -> Li
     return declared
 
 
+@dataclass(frozen=True)
+class FreeEndpoint:
+    """An endpoint the Owner declares costs nothing: `host[:port]` and a model, or `*`."""
+
+    endpoint_host: str
+    model: str
+
+
+def free_endpoints_from_env(
+    env: Mapping[str, str] = os.environ,
+) -> tuple[tuple[FreeEndpoint, ...], str]:
+    """(the endpoints `LAB_BRAIN_LIVE_FREE_ENDPOINTS` declares free, the Owner's reason). Each
+    entry is `host[:port] model`, separated by `;`. A declaration without a reason is refused."""
+    raw = env.get("LAB_BRAIN_LIVE_FREE_ENDPOINTS", "").strip()
+    reason = env.get("LAB_BRAIN_LIVE_FREE_REASON", "").strip()
+    if not raw:
+        return (), reason
+    if not reason:
+        raise LiveBudgetMissing(
+            "LAB_BRAIN_LIVE_FREE_ENDPOINTS declares endpoints free; LAB_BRAIN_LIVE_FREE_REASON "
+            "must say why (a local model server, not a proxy to a paid provider)"
+        )
+    endpoints = []
+    for entry in raw.split(";"):
+        parts = entry.split()
+        if not parts:
+            continue
+        if len(parts) != 2:
+            raise LiveBudgetMissing(
+                f"a free endpoint is `host[:port] model` (or `*`), not {entry.strip()!r}"
+            )
+        endpoints.append(FreeEndpoint(parts[0].lower(), parts[1]))
+    return tuple(endpoints), reason
+
+
 def install_live_spend_guard(
-    dsn: str, declared: LiveSpend, *, endpoint_host: str, model: str, actor_id: str
+    dsn: str,
+    declared: LiveSpend,
+    *,
+    endpoint_host: str,
+    model: str,
+    actor_id: str,
+    env: Mapping[str, str] = os.environ,
 ) -> spend.PostgresSpendGuard:
-    """Declare the budget and the primary's price in the evaluation's (fresh) database, and
-    install its guard for this process as REQUIRED. Returns the guard; `spend.install(None)`
-    removes it."""
+    """Declare the budget, the primary's price and the Owner's free endpoints
+    (`free_endpoints_from_env`) in the evaluation's (fresh) database, through the spend
+    administration functions, and install its guard for this process as REQUIRED -- metering this
+    machine too. Returns the guard; `spend.install(None)` removes it."""
     import psycopg
 
+    free, reason = free_endpoints_from_env(env)
     with psycopg.connect(dsn, autocommit=True) as connection:
         spend.declare_budget(
             connection,
@@ -196,7 +247,45 @@ def install_live_spend_guard(
             source_date=declared.source_date,
             actor_id=actor_id,
         )
-    guard = spend.PostgresSpendGuard(dsn, declared.budget_id)
+        for endpoint in free:
+            spend.declare_free_endpoint(
+                connection,
+                endpoint.endpoint_host,
+                endpoint.model,
+                reason=reason,
+                actor_id=actor_id,
+            )
+    guard = spend.PostgresSpendGuard(dsn, declared.budget_id, meter_this_machine=True)
+    spend.install(guard, required=True)
+    return guard
+
+
+def install_local_free_guard(
+    dsn: str, *, actor_id: str, env: Mapping[str, str] = os.environ
+) -> spend.PostgresSpendGuard:
+    """For an evaluation whose models are all on this machine (no spend ceiling): the Owner must
+    declare each local endpoint free (`free_endpoints_from_env`) -- an undeclared one may be a
+    proxy to a paid provider. Declares them and installs, REQUIRED, a guard with no budget that
+    meters this machine: a request to any endpoint not declared free is refused unsent."""
+    import psycopg
+
+    free, reason = free_endpoints_from_env(env)
+    if not free:
+        raise LiveBudgetMissing(
+            "an evaluation on this machine without a spend ceiling needs the Owner's declaration "
+            "that its endpoints are free: set LAB_BRAIN_LIVE_FREE_ENDPOINTS and "
+            "LAB_BRAIN_LIVE_FREE_REASON (or the spend ceiling and prices)"
+        )
+    with psycopg.connect(dsn, autocommit=True) as connection:
+        for endpoint in free:
+            spend.declare_free_endpoint(
+                connection,
+                endpoint.endpoint_host,
+                endpoint.model,
+                reason=reason,
+                actor_id=actor_id,
+            )
+    guard = spend.PostgresSpendGuard(dsn, None, meter_this_machine=True)
     spend.install(guard, required=True)
     return guard
 
@@ -218,6 +307,7 @@ def check_spend_before_episode(connection: Any, budget_id: str | None) -> None:
 
 __all__ = [
     "SPEND_VARIABLES",
+    "FreeEndpoint",
     "LiveBudgetExhausted",
     "LiveBudgetMissing",
     "LiveCap",
@@ -225,7 +315,9 @@ __all__ = [
     "cap_from_env",
     "check_before_episode",
     "check_spend_before_episode",
+    "free_endpoints_from_env",
     "install_live_spend_guard",
+    "install_local_free_guard",
     "spend_from_env",
     "spent",
 ]

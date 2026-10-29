@@ -28,7 +28,7 @@
 | 10 | 多個行程 / 執行緒同時呼叫 | web 伺服器是多執行緒(`interfaces/web/__init__.py:49`);評估可能多個行程共用資料庫 | 不是原子操作 | 兩個行程可以同時通過「已用 + 保留 ≤ 上限」 | PostgreSQL 鎖住預算列再預留(`llm_spend_reserve`),不會超過上限 |
 | 11 | 連線健康檢查、取得模型清單 | `runtime.py:298`、`runtime.py:314`、`runtime.py:565`;`app.py:1913`、`app.py:2004`(兩處都是 `list_models`,不是 chat) | 不需要 | — | 不計量(見 §4) |
 | 12 | 續寫(continuation)、串流 | 程式沒有這兩種請求 | — | — | 不存在;若以後加入,一樣經過 `_request`,一樣要預留 |
-| 13 | 指向本機但實際轉送到付費服務的代理(例如本機 LiteLLM) | 任何 LOCAL 連線 | 沒有 | 無 | 預設不計量;Owner 可設 `LAB_BRAIN_LLM_SPEND_METER_LOCAL=1` 計量 |
+| 13 | 指向本機但實際轉送到付費服務的代理(例如本機 LiteLLM) | 任何 LOCAL 連線 | 沒有 | 無 | 有預算時一律計量,只有 Owner 宣告免費的端點例外(`011t`);完全沒有預算時仍不計量,除非 `LAB_BRAIN_LLM_SPEND_METER_LOCAL=1`(見 `docs/audit/g0-owner-boundary-closure-2026-10-28/spend-administration.md` §3.6) |
 
 ## 3. 已證明的缺口與假設性的缺口
 
@@ -99,7 +99,9 @@ worst_case  = (input_bound × 輸入單價 + max_tokens × 輸出單價) / 1,000
 - 觸發器:不能 UPDATE / DELETE;不能直接 INSERT(只有 `llm_spend_*` 函式能寫)。
 - `llm_spend_prices`:只能新增。單價由 Owner 宣告,含幣別(必須是預算的幣別)、來源、日期。repo 不估價。
 - `llm_spend_budgets`:參數不能改;金額、上限、電路只能經由函式改;不能刪除。
-- 限制:這是防止誤寫,不是權限控制。能自己設定交易旗標的資料庫角色可以繞過。權限由部署設定。
+- ~~限制:這是防止誤寫,不是權限控制。能自己設定交易旗標的資料庫角色可以繞過。~~
+  已由 `011t` 關閉:觸發器還要求 `current_user` 是資料表擁有者;管理函式只給 `lab_brain_spend_admin`;
+  服務角色只能預留、結算、保留。見 `docs/audit/g0-owner-boundary-closure-2026-10-28/spend-administration.md`。
 - 測試 fixture 用 TRUNCATE 清表時不會觸發列級觸發器;目前 fixture 沒有列出這三個表(測試用各自的預算 id)。
 
 ### 4.6 用哪個 guard
@@ -109,9 +111,10 @@ worst_case  = (input_bound × 輸入單價 + max_tokens × 輸出單價) / 1,000
 2. 行程安裝的 guard(`spend.install`)——即時評估用這個。
 3. 環境變數 `LAB_BRAIN_LLM_SPEND_BUDGET`(資料庫用 `LAB_BRAIN_LLM_SPEND_DSN` 或 `LAB_BRAIN_DATABASE_URL`)。有設定但無法連線 → 拒絕所有計量請求。
 
-沒有 guard 時:
-- 要求上限(`install(..., required=True)` 或 `LAB_BRAIN_LLM_SPEND_REQUIRED=1`)→ 遠端請求被拒絕。
-- 不要求 → 照舊送出(仍然帶 `max_tokens`)。
+沒有 guard 時(`011t` 之後):
+- 遠端請求一律拒絕,不送出。`LAB_BRAIN_LLM_SPEND_REQUIRED` 已沒有作用。
+- 唯一例外:Owner(`lab_brain_spend_admin`)在資料庫宣告這個端點免費。
+- 有資料庫但沒有預算時,guard 只放行宣告免費的端點。
 
 ## 5. 即時評估:必須有金額上限
 
@@ -121,15 +124,14 @@ worst_case  = (input_bound × 輸入單價 + max_tokens × 輸出單價) / 1,000
   workspace 建立的所有 client(probe、研究、重試)都會被計量。沒有單價的模型或主機會被拒絕。
 - 每個情境開始前,電路已打開就停止(`check_spend_before_episode`)。
 
-## 6. 產品 web runtime:Owner Gate
+## 6. 產品 web runtime(`011t` 更新)
 
-- 預設行為不變:沒有設定 `LAB_BRAIN_LLM_SPEND_BUDGET` 就不計金額(但現在一定帶 `max_tokens`)。
-- 開關:
-  - `LAB_BRAIN_LLM_SPEND_BUDGET=<預算 id>`:啟用上限。預算與單價要先寫進資料庫(`spend.declare_budget`、`spend.declare_price`)。
-  - `LAB_BRAIN_LLM_SPEND_REQUIRED=1`:沒有上限就拒絕所有遠端請求。
-  - `LAB_BRAIN_LLM_SPEND_METER_LOCAL=1`:本機端點也計量(本機代理到付費服務時)。
-- **是否在正式環境強制啟用,是 Owner Gate。本工作不做決定。**
-- 目前沒有 CLI 或設定頁面可以宣告預算與單價;需要時可另外加。
+- 預設改成拒絕:沒有預算時,遠端請求一律不送出。只有 Owner 宣告免費的端點例外。
+- 有預算(`LAB_BRAIN_LLM_SPEND_BUDGET=<預算 id>`)時,本機端點也計量,只有宣告免費的端點例外。
+- 預算、單價、上限、免費端點只能由 `lab_brain_spend_admin` 的成員宣告(`spend.declare_budget`、
+  `spend.declare_price`、`spend.set_ceiling`、`spend.declare_free_endpoint`)。服務角色不能。
+- `LAB_BRAIN_LLM_SPEND_METER_LOCAL=1`:沒有預算時,未宣告免費的本機端點也拒絕。
+- Owner 的步驟:`docs/audit/g0-owner-boundary-closure-2026-10-28/spend-administration.md` §7。
 
 ## 7. 剩下的風險(要 Owner 確認)
 

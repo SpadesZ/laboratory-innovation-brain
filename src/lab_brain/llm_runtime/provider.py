@@ -24,11 +24,12 @@ And it is the one place MONEY is spent, so it is where the monetary ceiling is e
 (`llm_runtime.spend`, migration 011r). Every request with a body to an endpoint that is not this
 machine is RESERVED at its provable worst case against the Owner's ceiling before a byte is sent,
 and settled to the provider's reported usage afterwards -- or kept at the worst case when there is
-none (an error, a timeout, a reply without usage). A request the ceiling refuses -- no budget when
-one is required, no declared price, not enough left, a circuit opened by an overrun -- raises
-`SPEND_REFUSED` and is never sent. Every chat request now carries `max_tokens`, without which no
-worst case exists; the schema fallback's second request is reserved on its own. `GET /models`
-carries no body and is not metered.
+none (an error, a timeout, a reply without usage). A request the ceiling refuses -- no budget (a
+remote request always needs one, 011t), no declared price, not enough left, a circuit opened by an
+overrun -- raises `SPEND_REFUSED` and is never sent. A budget meters this machine too (a local
+proxy may forward to a paid provider); only an endpoint the Owner declared free is exempt. Every
+chat request now carries `max_tokens`, without which no worst case exists; the schema fallback's
+second request is reserved on its own. `GET /models` carries no body and is not metered.
 
 "This machine" is loopback, plus exactly the hosts the DEPLOYMENT declares (`local_hosts`: the
 container deployment's `--host-gateway host.docker.internal`). Nothing here infers locality from a
@@ -351,9 +352,10 @@ class OpenAICompatibleClient:
         and its reservation when it is, `SPEND_REFUSED` when it may not be sent.
 
         Not metered: a request with no body (`GET /models` -- no prompt, nothing generated; only a
-        GET may go without a body), and a request to this machine unless the guard meters this
-        machine too. Everything else needs a positive `max_tokens` in its body and a guard --
-        refused when the ceiling is required and there is none."""
+        GET may go without a body); a request to this machine when no guard applies, or the guard
+        does not meter this machine; and an endpoint the Owner declared free (011t). Everything
+        else needs a positive `max_tokens` in its body and a guard that reserves it -- a remote
+        request with no guard is refused, whatever the environment says."""
         if data is None:
             if method != "GET":
                 raise ProviderError(
@@ -371,17 +373,20 @@ class OpenAICompatibleClient:
                 "output, and the cost, have no bound",
             )
         if guard is None:
-            if _spend.required():
-                raise ProviderError(
-                    ProviderFailure.SPEND_REFUSED,
-                    "no spend ceiling is configured, and one is required before any request to "
-                    f"{self._endpoint_host}: nothing was sent",
-                )
+            raise ProviderError(
+                ProviderFailure.SPEND_REFUSED,
+                "no spend ceiling is configured, and one is required before any request to "
+                f"{self._endpoint_host} (or the Owner's declaration that it is free): nothing "
+                "was sent",
+            )
+        model = str(payload.get("model", "")) if payload is not None else ""
+        declared_free = getattr(guard, "declared_free", None)
+        if declared_free is not None and declared_free(self._endpoint_host, model):
             return None
         request = _spend.SpendRequest(
             call_id=_spend.new_call_id(),
             endpoint_host=self._endpoint_host,
-            model=str(payload.get("model", "")) if payload is not None else "",
+            model=model,
             body_bytes=len(data),
             image_count=_images(payload),
             max_output_tokens=max_output,

@@ -340,12 +340,28 @@ def test_probes_are_reserved_though_the_span_meter_never_saw_them(pg, fake):
     assert len(reservations) == len(fake.calls) == 3, "the model list is not; each probe is"
 
 
-def test_this_machine_is_not_charged_by_the_live_guard(pg, fake):
+def test_this_machine_is_charged_by_the_live_guard_unless_the_owner_declared_it_free(pg, fake):
+    """011t: a local endpoint may be a proxy to a paid provider, so a budget meters it too; only
+    the Owner's free declaration (by the spend administration role) exempts it."""
     budget = _budget(pg)
     _price(pg, budget, _host(fake.port), "fake-reasoner")
-    guard = PostgresSpendGuard(database_url(), budget)  # meter_this_machine False
-    OpenAICompatibleClient(fake.base_url, KEY, spend=guard).chat("fake-reasoner", PROMPT)
-    assert len(fake.calls) == 1 and _ledger(pg, budget) == []
+    guard = PostgresSpendGuard(database_url(), budget)  # meters this machine by default
+    client = OpenAICompatibleClient(fake.base_url, KEY, spend=guard)
+    client.chat("fake-reasoner", PROMPT)
+    assert len(fake.calls) == 1 and [r["kind"] for r in _ledger(pg, budget)] == [
+        "RESERVATION",
+        "SETTLEMENT",
+    ]
+    spend.declare_free_endpoint(
+        pg, _host(fake.port), "fake-reasoner", reason="the test's fake provider", actor_id="act:o"
+    )
+    try:
+        client.chat("fake-reasoner", PROMPT)
+        assert len(fake.calls) == 2 and len(_ledger(pg, budget)) == 2, "free: not metered"
+    finally:
+        spend.revoke_free_endpoint(
+            pg, _host(fake.port), "fake-reasoner", reason="test over", actor_id="act:o"
+        )
 
 
 def test_the_live_evaluation_guard_meters_the_priced_remote_and_refuses_the_rest(

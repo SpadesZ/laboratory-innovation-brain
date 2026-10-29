@@ -32,17 +32,30 @@ Which guard applies, decided at each request (`resolve`), first match wins:
                  `LAB_BRAIN_DATABASE_URL`): a deployment's ceiling. A budget named here that cannot
                  be reached refuses every metered request -- a configured ceiling never silently
                  lapses.
+    declarations no budget, but a database (`LAB_BRAIN_LLM_SPEND_DSN` or `LAB_BRAIN_DATABASE_URL`):
+                 a guard with no ceiling. It lets through exactly the endpoints the Owner declared
+                 free and refuses every other metered request.
 
-With no guard, a remote request is REFUSED when the guard is REQUIRED (`install(..., required=
-True)`, or `LAB_BRAIN_LLM_SPEND_REQUIRED=1`), and sent unmetered otherwise -- the product web
-runtime's behaviour until the Owner decides to make the ceiling mandatory there (an Owner Gate,
-docs/audit/g0-evidence-auth-cost-closure-2026-10-28/cost-path-audit.md).
+FAIL CLOSED BY DEFAULT (011t). With no guard, or a guard with no budget, a request with a body to
+an endpoint that is not this machine is REFUSED before a byte is sent. The one opt-out is the
+Owner's: an endpoint (`host[:port]` and one model, or `*`) DECLARED FREE in the database by a
+member of `lab_brain_spend_admin` (`declare_free_endpoint`), never by the services' role.
 
-NOT METERED, by design. A request to THIS MACHINE (loopback, or a host the deployment declared) --
-unless the guard says `meter_this_machine` (a local proxy that forwards to a paid provider is
-billable, and the Owner can say so: `LAB_BRAIN_LLM_SPEND_METER_LOCAL=1`). A request with NO BODY
-(`GET /models`, the model list and health check): it carries no prompt, generates nothing, and
-the client cannot send a body with it -- `_request` exempts exactly `GET` without a payload.
+THIS MACHINE. A guard with a budget meters this machine too, unless the endpoint is declared free:
+a local proxy (LiteLLM on localhost) may forward to a paid provider, and nothing here can tell. With
+no budget configured at all, a request to this machine is sent unmetered -- unless the Owner says
+`LAB_BRAIN_LLM_SPEND_METER_LOCAL=1`, when an undeclared local endpoint is refused like a remote one.
+That last case is the residual (spend-administration.md): a deployment with no ceiling, pointed at
+a paying local proxy, is unmetered.
+
+NOT METERED, ever. A request with NO BODY (`GET /models`, the model list and health check): it
+carries no prompt, generates nothing, and the client cannot send a body with it -- `_request`
+exempts exactly `GET` without a payload.
+
+WHO MAY CHANGE THE MONEY (011t). Creating a budget, declaring a price, changing a ceiling, closing a
+circuit and declaring an endpoint free are the Owner's: SECURITY DEFINER functions that refuse any
+session whose login role is not a member of `lab_brain_spend_admin`. The services' role may only
+reserve, settle, retain and read (`lab-brain admin db-roles`).
 
 The ledger rows carry the call id, model and endpoint host -- never the credential or the prompt.
 """
@@ -97,6 +110,9 @@ class Reservation:
 class SpendGuard(Protocol):
     #: True: requests to this machine are metered too (a local proxy to a paid provider).
     meter_this_machine: bool
+
+    # Optional, read with `getattr` by the transport: `declared_free(endpoint_host, model) ->
+    # bool`, whether the Owner declared this endpoint free. A guard without it declares none.
 
     def reserve(self, request: SpendRequest) -> Reservation:
         """Charge the request's worst case, or raise `SpendRefused`. Nothing is sent before."""
@@ -161,17 +177,22 @@ def usage_tokens(usage: Mapping[str, int] | None) -> tuple[int, int, int | None]
 
 
 class PostgresSpendGuard:
-    """The guard backed by migration 011r. Each operation is its own short autocommit
+    """The guard backed by migrations 011r and 011t. Each operation is its own short autocommit
     transaction on its own connection: a reservation is durable and visible to every other
     process the moment it returns, whatever transaction the caller is in (a research run's
-    rollback cannot erase it), and the guard is safe to share between threads."""
+    rollback cannot erase it), and the guard is safe to share between threads.
+
+    `budget_id` None: a guard with no ceiling -- it passes the endpoints the Owner declared free
+    and refuses every other metered request. `meter_this_machine` (default True): a budget meters
+    this machine as well, since a local endpoint may be a proxy to a paid provider; only the
+    Owner's free declaration exempts one."""
 
     def __init__(
         self,
         dsn: str,
-        budget_id: str,
+        budget_id: str | None,
         *,
-        meter_this_machine: bool = False,
+        meter_this_machine: bool = True,
         connect: Callable[[str], Any] | None = None,
     ) -> None:
         self._dsn = dsn
@@ -187,7 +208,21 @@ class PostgresSpendGuard:
             connection.close()
         return row[0] if row else None
 
+    def declared_free(self, endpoint_host: str, model: str) -> bool:
+        """Whether the Owner declared this endpoint (and model) free. Any failure: not free."""
+        try:
+            return bool(
+                self._run("SELECT llm_spend_endpoint_is_free(%s, %s)", (endpoint_host, model))
+            )
+        except Exception:  # unknown is not free: the request is metered, or refused
+            return False
+
     def reserve(self, request: SpendRequest) -> Reservation:
+        if self.budget_id is None:
+            raise SpendRefused(
+                f"no spend ceiling is configured for {request.endpoint_host}, and the Owner has "
+                f"not declared {request.model} there free: nothing was sent"
+            )
         try:
             cost = self._run(
                 "SELECT llm_spend_reserve(%s, %s, %s, %s, %s, %s, %s)",
@@ -265,8 +300,8 @@ _from_env: dict[tuple[str, str, bool], SpendGuard] = {}
 
 
 def install(guard: SpendGuard | None, *, required: bool = True) -> None:
-    """Make `guard` the process's guard (None removes it). `required`: with no guard at all, a
-    remote request is refused rather than sent unmetered."""
+    """Make `guard` the process's guard (None removes it). `required` is kept for callers of 011r:
+    a remote request with no guard is refused whatever it says (011t)."""
     global _installed, _installed_required
     with _lock:
         _installed = guard
@@ -290,8 +325,9 @@ def _flag(env: Mapping[str, str], name: str) -> bool:
 
 
 def required(env: Mapping[str, str] = os.environ) -> bool:
-    """Whether a remote request with no guard is refused."""
-    return _installed_required or _flag(env, "LAB_BRAIN_LLM_SPEND_REQUIRED")
+    """Whether a remote request with no guard is refused: always, since 011t. There is no switch
+    that sends one unmetered; the Owner's free declaration is the only exemption."""
+    return True
 
 
 def resolve(explicit: SpendGuard | None, env: Mapping[str, str] = os.environ) -> SpendGuard | None:
@@ -300,15 +336,17 @@ def resolve(explicit: SpendGuard | None, env: Mapping[str, str] = os.environ) ->
     if _installed is not None:
         return _installed
     budget = env.get("LAB_BRAIN_LLM_SPEND_BUDGET", "").strip()
-    if not budget:
-        return None
     dsn = env.get("LAB_BRAIN_LLM_SPEND_DSN", "") or env.get("LAB_BRAIN_DATABASE_URL", "")
-    local = _flag(env, "LAB_BRAIN_LLM_SPEND_METER_LOCAL")
+    if not budget and not dsn:
+        return None
+    # With a budget, this machine is metered unless declared free. Without one, only when the
+    # Owner says so: otherwise the deployment would refuse its own local models.
+    local = bool(budget) or _flag(env, "LAB_BRAIN_LLM_SPEND_METER_LOCAL")
     key = (dsn, budget, local)
     with _lock:
         if key not in _from_env:
             _from_env[key] = (
-                PostgresSpendGuard(dsn, budget, meter_this_machine=local)
+                PostgresSpendGuard(dsn, budget or None, meter_this_machine=local)
                 if dsn
                 else _Unreachable(
                     f"LAB_BRAIN_LLM_SPEND_BUDGET names {budget}, but no database is configured "
@@ -330,6 +368,12 @@ def max_output_tokens(env: Mapping[str, str] = os.environ) -> int:
 
 
 # -- the Owner's declarations --------------------------------------------------------------------
+#
+# Each is a SECURITY DEFINER function (011t) that refuses a session whose login role is not a member
+# of `lab_brain_spend_admin`: `connection` is the Owner's, never the services'.
+
+#: The role whose members administer the money (migration 011t).
+SPEND_ADMIN_ROLE = "lab_brain_spend_admin"
 
 
 def declare_budget(
@@ -345,17 +389,15 @@ def declare_budget(
 ) -> None:
     """A new budget: nothing charged, circuit closed. Its parameters never change afterwards."""
     connection.execute(
-        "INSERT INTO llm_spend_budgets (budget_id, currency, ceiling, safety_multiplier,"
-        " image_allowance_tokens, request_overhead_tokens, declared_by)"
-        " VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        "SELECT llm_spend_declare_budget(%s, %s, %s, %s, %s, %s, %s)::text",
         (
             budget_id,
             currency,
             ceiling,
+            actor_id,
             safety_multiplier,
             image_allowance_tokens,
             request_overhead_tokens,
-            actor_id,
         ),
     )
 
@@ -376,9 +418,7 @@ def declare_price(
     """The Owner's unit price for `model` at `endpoint_host`, as read from `source` on
     `source_date`. Never computed here; a later declaration supersedes this one."""
     connection.execute(
-        "INSERT INTO llm_spend_prices (budget_id, currency, endpoint_host, model, input_per_mtok,"
-        " output_per_mtok, source, source_date, declared_by)"
-        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+        "SELECT llm_spend_declare_price(%s, %s, %s, %s, %s, %s, %s, %s, %s)",
         (
             budget_id,
             currency,
@@ -409,6 +449,28 @@ def set_ceiling(
     )
 
 
+def declare_free_endpoint(
+    connection: Any, endpoint_host: str, model: str, *, reason: str, actor_id: str
+) -> None:
+    """The Owner's statement that `model` (or `*`, every model) at `endpoint_host` costs nothing
+    -- a local model server, not a proxy to a paid provider. Requests to it are not metered.
+    `reason` says why; it is kept with the declaration."""
+    connection.execute(
+        "SELECT llm_spend_declare_free(%s, %s, %s, %s)::text",
+        (endpoint_host.lower(), model, reason, actor_id),
+    )
+
+
+def revoke_free_endpoint(
+    connection: Any, endpoint_host: str, model: str, *, reason: str, actor_id: str
+) -> None:
+    """Withdraw a free declaration: requests to the endpoint are metered (or refused) again."""
+    connection.execute(
+        "SELECT llm_spend_revoke_free(%s, %s, %s, %s)::text",
+        (endpoint_host.lower(), model, reason, actor_id),
+    )
+
+
 @dataclass(frozen=True)
 class BudgetState:
     currency: str
@@ -428,6 +490,7 @@ def budget_state(connection: Any, budget_id: str) -> BudgetState | None:
 
 __all__ = [
     "DEFAULT_MAX_OUTPUT_TOKENS",
+    "SPEND_ADMIN_ROLE",
     "BudgetState",
     "PostgresSpendGuard",
     "Reservation",
@@ -436,6 +499,7 @@ __all__ = [
     "SpendRequest",
     "budget_state",
     "declare_budget",
+    "declare_free_endpoint",
     "declare_price",
     "install",
     "installed",
@@ -443,6 +507,7 @@ __all__ = [
     "new_call_id",
     "required",
     "resolve",
+    "revoke_free_endpoint",
     "set_ceiling",
     "usage_tokens",
     "worst_case_cost",

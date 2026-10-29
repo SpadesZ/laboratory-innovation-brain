@@ -322,6 +322,8 @@ APPLY_ORDER: tuple[str, ...] = (
     "011q_research_interaction_attestation.sql",
     # A monetary ceiling reserved atomically before every metered model request. After 011q.
     "011r_llm_spend_ceiling.sql",
+    # Budgets, prices and circuits belong to an Owner role; the services only reserve. After 011r.
+    "011t_llm_spend_administration.sql",
 )
 
 _BOOTSTRAP = """

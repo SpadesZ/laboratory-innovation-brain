@@ -12,7 +12,7 @@ metering a local proxy would; one test shows the same client is NOT metered with
     endings      usage -> settle; no usage, an HTTP error, a timeout -> retain at the worst case
     two          the schema fallback is two reservations
     every path   capability probes are reserved; the model list (GET, no body) is not
-    required     a remote request with no guard, when required, is refused unsent
+    required     a remote request with no guard is refused unsent (011t: always)
 """
 
 from __future__ import annotations
@@ -269,30 +269,23 @@ def test_a_named_budget_without_a_database_refuses(monkeypatch: pytest.MonkeyPat
     assert refused.value.failure is ProviderFailure.SPEND_REFUSED and opened == []
 
 
-def test_unrequired_and_unconfigured_the_product_keeps_its_behaviour(
+def test_unconfigured_the_product_refuses_a_remote_request_unsent(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """The web runtime's default until the Owner decides (an Owner Gate): no ceiling configured,
-    not required -- a remote request is sent, now with `max_tokens`."""
+    """011t: the product fails closed. No ceiling configured and no flag set -- a remote request
+    is refused before anything is sent; there is no switch that sends it unmetered."""
     sent: list[bytes] = []
-
-    class Reply:
-        def __enter__(self) -> Reply:
-            return self
-
-        def __exit__(self, *exc: object) -> None:
-            return None
-
-        def read(self) -> bytes:
-            return b'{"choices": [{"message": {"content": "ok"}}]}'
-
-    def record(self: object, request: urllib.request.Request, *a: object, **k: object) -> Reply:
-        sent.append(request.data or b"")
-        return Reply()
-
-    monkeypatch.setattr(urllib.request.OpenerDirector, "open", record)
-    OpenAICompatibleClient("https://models.provider.invalid/v1", KEY).chat("m", "prompt")
-    assert len(sent) == 1 and json.loads(sent[0])["max_tokens"] == spend.DEFAULT_MAX_OUTPUT_TOKENS
+    for name in ("LAB_BRAIN_DATABASE_URL", "LAB_BRAIN_LLM_SPEND_DSN"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(
+        urllib.request.OpenerDirector,
+        "open",
+        lambda self, request, *a, **k: sent.append(request.data or b""),
+    )
+    with pytest.raises(ProviderError) as refused:
+        OpenAICompatibleClient("https://models.provider.invalid/v1", KEY).chat("m", "prompt")
+    assert refused.value.failure is ProviderFailure.SPEND_REFUSED and sent == []
+    assert "no spend ceiling is configured" in refused.value.detail
 
 
 def test_the_live_evaluation_requires_a_ceiling_and_prices_for_an_external_primary():

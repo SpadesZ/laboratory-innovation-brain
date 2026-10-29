@@ -384,6 +384,26 @@ _ROLE_NAME = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 #: The migrations ledger: written by the migrator, read by anyone, never written by a service.
 _LEDGER = "schema_migrations"
 
+#: The Owner's spend administration (`011t`): its members alone create budgets, declare prices and
+#: free endpoints, change ceilings and close circuits. Neither the services nor an auditor is one.
+SPEND_ADMIN_ROLE = "lab_brain_spend_admin"
+
+#: The spend tables (`011r`, `011t`): the services read them and write them only through the
+#: migrator's functions below, never row by row.
+_SPEND_TABLES = (
+    "llm_spend_budgets",
+    "llm_spend_prices",
+    "llm_spend_ledger",
+    "llm_spend_free_endpoints",
+)
+
+#: What the services may do with the money: reserve a request's worst case, settle or retain it.
+_SPEND_OPERATIONS = (
+    "llm_spend_reserve(text, text, text, text, bigint, integer, bigint)",
+    "llm_spend_settle(text, bigint, bigint, bigint)",
+    "llm_spend_retain(text, text)",
+)
+
 #: What an auditor may read of an account: everything but its password hash and lockout.
 _ACCOUNT_COLUMNS = (
     "account_id, actor_id, email, display_name, system_role, status, email_verified_at,"
@@ -406,6 +426,13 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
     a role that could undo what is granted here -- a superuser; one that can create roles or
     databases, replicate, bypass row security or set `session_replication_role`; one that owns an
     object in this database; or a member of a role that is or does any of those.
+
+    THE MONEY (`011t`). `app_role` reads the spend tables and changes them only by executing
+    `llm_spend_reserve`, `llm_spend_settle` and `llm_spend_retain` -- the migrator's SECURITY
+    DEFINER functions; its row writes on them are revoked. Budgets, prices, ceilings, circuits and
+    free endpoints are the Owner's spend administration (`lab_brain_spend_admin`), so a role that
+    is a member of it is refused here as well: the services must not be able to raise their own
+    ceiling.
 
     Idempotent: privileges are revoked first and granted again, so running it twice, or after a
     migration added tables, leaves exactly this set.
@@ -432,6 +459,17 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
             raise OperatorRefused(
                 f"{role} can create roles or databases, replicate, bypass row security or turn "
                 "triggers off; the services' and auditors' roles hold row privileges only"
+            )
+        administers = c.execute(
+            "SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = %s)"
+            " AND pg_has_role(%s, %s, 'MEMBER')",
+            (SPEND_ADMIN_ROLE, role, SPEND_ADMIN_ROLE),
+        ).fetchone()
+        if administers is not None and administers[0]:
+            raise OperatorRefused(
+                f"{role} is a member of {SPEND_ADMIN_ROLE}, the Owner's spend administration: the "
+                "services' and auditors' roles must not be able to change budgets, prices or "
+                "ceilings"
             )
         owned = c.execute(
             "SELECT (SELECT count(*) FROM pg_class WHERE pg_has_role(%s, relowner, 'USAGE'))"
@@ -471,6 +509,35 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
             f"REVOKE SELECT ON accounts, account_sessions, account_tokens FROM {reader}",
             f"GRANT SELECT ({_ACCOUNT_COLUMNS}) ON accounts TO {reader}",
         )
+    spend = [
+        t
+        for t in _SPEND_TABLES
+        if c.execute("SELECT to_regclass(%s)", (f"public.{t}",)).fetchone()[0] is not None
+    ]
+    if spend:
+        statements += (
+            f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {', '.join(spend)} FROM {app}",
+            *(
+                f"REVOKE ALL ON SEQUENCE {seq} FROM {app}"
+                for (seq,) in c.execute(
+                    "SELECT pg_get_serial_sequence(t, k) FROM (VALUES"
+                    " ('public.llm_spend_prices', 'price_id'),"
+                    " ('public.llm_spend_ledger', 'entry_id'),"
+                    " ('public.llm_spend_free_endpoints', 'declaration_id')) AS v(t, k)"
+                    " WHERE to_regclass(t) IS NOT NULL"
+                ).fetchall()
+                if seq is not None
+            ),
+        )
+    administered = (
+        c.execute(
+            "SELECT to_regprocedure('llm_spend_declare_budget(text, text, numeric, text,"
+            " numeric, integer, integer)')"
+        ).fetchone()[0]
+        is not None
+    )
+    if administered:  # 011t: the operations are granted, never PUBLIC
+        statements += tuple(f"GRANT EXECUTE ON FUNCTION {f} TO {app}" for f in _SPEND_OPERATIONS)
     try:
         with c.transaction():
             for statement in statements:
@@ -484,11 +551,18 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
         ) from exc
     row = c.execute("SELECT count(*) FROM pg_tables WHERE schemaname = 'public'").fetchone()
     tables = 0 if row is None else int(row[0])
-    return [
+    lines = [
         f"database role {app_role}: reads and writes rows of {tables} tables -- no TRUNCATE, no "
         f"ownership, {_LEDGER} read-only; the triggers bind it",
         f"database role {reader_role}: reads them",
     ]
+    if spend:
+        lines.append(
+            f"database role {app_role}: the spend tables are read-only to it; it reserves, settles "
+            f"and retains through the migrator's functions, and only members of {SPEND_ADMIN_ROLE} "
+            "change budgets, prices, ceilings and free endpoints"
+        )
+    return lines
 
 
 def _write(c: Any, sql: str, params: Sequence[object]) -> None:
@@ -509,6 +583,7 @@ __all__ = [
     "KNOWN_SCOPES",
     "PRIVACY_MODES",
     "REVIEW_QUEUE_DEFAULTS",
+    "SPEND_ADMIN_ROLE",
     "OperatorRefused",
     "declare_review_queue",
     "describe",

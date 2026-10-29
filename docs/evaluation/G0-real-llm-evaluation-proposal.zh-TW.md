@@ -50,7 +50,15 @@ G0 是否通過要由獨立審查決定。
 3. 回覆後:有用量就按用量結算;沒有用量、錯誤、逾時 → 保留最壞金額;
    用量超過預留 → 記為 OVERRUN,停止所有後續呼叫,直到 Owner 檢查後重設。
 4. 帳本只能新增,不記金鑰與提示詞。
-5. 建議的金額上限:階段 0+1 **USD 25**;階段 2 另外授權。
+5. 誰能改金額(`011t`):只有 `lab_brain_spend_admin` 的成員能建立預算、宣告單價、改上限、關電路、
+   宣告免費端點。研究服務的資料庫角色只能預留、結算、保留,不能調高自己的上限,也不能偽造旗標。
+   即時評估用 Owner 的連線(新資料庫的 migrator)宣告。
+   步驟:`docs/audit/g0-owner-boundary-closure-2026-10-28/spend-administration.md` §7。
+6. 本機也計量:本機端點可能是轉送到付費服務的代理。評估的 guard 對本機也預留;沒有單價就拒絕。
+   真的免費的本機模型(例如 Ollama 的 critic / utility)要由 Owner 宣告:
+   `LAB_BRAIN_LIVE_FREE_ENDPOINTS="127.0.0.1:11434 qwen2.5:7b"`、`LAB_BRAIN_LIVE_FREE_REASON=<原因>`。
+   只用本機模型的評估也要宣告(`install_local_free_guard`),否則拒絕。
+7. 建議的金額上限:階段 0+1 **USD 25**;階段 2 另外授權。
    因為每次請求都按最壞情況預留,實際可跑的量會比上限少;不夠時,縮小階段 1(例如先只跑 `screening`)。
 
 剩下的假設(Owner 要確認):
