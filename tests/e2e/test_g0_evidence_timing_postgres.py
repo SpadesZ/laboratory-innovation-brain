@@ -105,7 +105,13 @@ def test_an_evidence_lookup_is_not_new_verification(guarded):
             output_artifacts=(g.fresh_output("lookup"),),
         )
         observation = g.observe(run, "lookup")
-        _refused(g, observation, RETRO, cites=[g.attest(observation, run)])
+        # Since 011s a kind written into `capabilities` is not a classification at all.
+        _refused(
+            g,
+            observation,
+            "not declared|reads existing evidence",
+            cites=[g.attest(observation, run)],
+        )
 
 
 def test_retrospective_evidence_is_kept_as_context_not_support(guarded):
@@ -133,30 +139,39 @@ def test_retrospective_evidence_is_kept_as_context_not_support(guarded):
 
 
 def test_a_genuinely_new_check_after_the_hypothesis_still_supports(guarded):
+    """Since 011s: a declared measurement, pre-registered as a test of the rival, captured after."""
     g = guarded
     with g.db.transaction(force_rollback=True):
-        run = g.run(
-            "new",
-            input_parameters={"variant": "new"},
-            output_artifacts=(g.fresh_output("new"),),
-        )
-        observation = g.observe(run, "new")
-        g.register_capabilities()
-        g.support(observation, [g.attest(observation, run)])
+        authorization = g.authorize("new")
+        observation, evidence = g.measured("new", authorization=authorization)
+        g.support(observation, [evidence], prediction=g.prediction())
 
 
-def test_a_check_of_no_registered_kind_cannot_support(guarded):
-    """Fail closed: the research flow persists no capability, so its kind is unknown -- and a
-    check of unknown kind may be a lookup of what already exists."""
+def test_a_check_of_no_declared_kind_cannot_support(guarded):
+    """Fail closed: the research flow registers the pack's declared kinds (it did here, as the
+    schema owner); a capability nobody declared has no kind, and may be a lookup."""
     g = guarded
-    assert not rows(
-        g.db, "SELECT 1 FROM capabilities WHERE capability_id = %s", g.screened.capability_id
+    assert rows(
+        g.db,
+        "SELECT 1 FROM capability_declarations WHERE capability_id = %s",
+        g.screened.capability_id,
     )
+    capability = "cap:sp.undeclared_probe"
     with g.db.transaction(force_rollback=True):
-        run = g.run(
-            "unregistered",
-            input_parameters={"variant": "unregistered"},
-            output_artifacts=(g.fresh_output("unregistered"),),
+        g.db.execute(
+            "INSERT INTO capabilities (capability_id, domain, version, action_type, backend_id,"
+            " requires, produces, authority_class, estimate_cost_contract)"
+            " SELECT %s, domain, version, action_type, 'elsewhere', requires, produces,"
+            " authority_class, estimate_cost_contract FROM capabilities WHERE capability_id = %s",
+            (capability, sp.CAP_FOURPOINT_PROBE),
         )
-        observation = g.observe(run, "unregistered")
-        _refused(g, observation, "not registered with a kind", cites=[g.attest(observation, run)])
+        run = g.run(
+            "undeclared",
+            capability_id=capability,
+            backend_id="elsewhere",
+            input_artifacts=(),
+            input_parameters={"variant": "undeclared"},
+            output_artifacts=(g.artifact("undeclared export", captured_at=g.later),),
+        )
+        observation = g.observe(run, "undeclared")
+        _refused(g, observation, "not declared", cites=[g.attest(observation, run)])

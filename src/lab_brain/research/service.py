@@ -171,7 +171,12 @@ from lab_brain.research.vertical import (
 from lab_brain.security.egress import EgressAuditLog, EgressGate
 from lab_brain.security.external import AuthorizedExternalRunner, ExternalReach
 from lab_brain.security.reviewer_identity import ReviewerTrust
-from lab_brain.storage.postgres.capabilities import PostgresResourceBroker
+from lab_brain.storage.postgres.capabilities import (
+    CapabilityStoreError,
+    PostgresResourceBroker,
+    may_declare_capabilities,
+    register_pack_declarations,
+)
 from lab_brain.storage.postgres.external_artifacts import SqlExternalArtifactSink
 from lab_brain.storage.postgres.run_outputs import SqlRunOutputSink
 from lab_brain.storage.postgres.verification_evidence import SqlEvidenceSink
@@ -185,6 +190,11 @@ from lab_brain.verification.loop import (
     LoopResult,
     Planner,
     VerificationLoop,
+)
+from lab_brain.verification.prospective import (
+    AuthorizedJobs,
+    ProspectiveEvidenceSink,
+    SqlVerificationAuthorizations,
 )
 from lab_brain.verification.screening import (
     RESEARCH_SCREENING_POLICY,
@@ -479,6 +489,8 @@ class ResearchEpisodeService:
         self._reasoning = reasoning
         self._trust = reviewer_trust or ReviewerTrust()
         self._features = features or ResearchFeatures()
+        #: Capabilities of the vertical whose kind no domain pack declaration covers (`011s`).
+        self._undeclared: tuple[str, ...] = ()
         self._service = IngestionService(
             connection=connection, artifact_store=artifact_store, clock=clock
         )
@@ -984,6 +996,11 @@ class ResearchEpisodeService:
         # The confirmation rule is evaluated in SQL for every writer (`012p`), over the
         # declarations this code registers -- exactly, or not at all.
         SqlDeclarationSetStore(c).ensure(vertical.declaration_sets, vertical.active_declarations)
+        # A capability's KIND, as its pack's code declares it, is what decides whether a check can
+        # be new evidence for a post-screening hypothesis (`011s`). Only the schema owner may
+        # register a declaration; under the services' role a missing one stays missing, and no
+        # check of that capability can support such a hypothesis (fail closed).
+        self._undeclared = _declare_capabilities(c, vertical)
         benchmarks = SqlBenchmarkStore(c)
         for space in vertical.registry.registries.disagreement_metrics.declared_spaces():
             if benchmarks.outcome_space(space.outcome_space_id, space.version) is None:
@@ -1693,6 +1710,15 @@ class ResearchEpisodeService:
             ),
         )
         events = SqlBeliefEventStore(c)
+        # A post-screening hypothesis is supported only by a pre-registered check (`011s`): a job
+        # of an authorized capability is bound to its authorization before it runs, and a
+        # SUPPORTS the database would refuse is kept as context (CITES), never lost or forced.
+        prospective = ProspectiveEvidenceSink(evidence, c)
+        if self._undeclared:
+            run.notes.append(
+                "capabilities with no domain pack declaration (they cannot support a hypothesis "
+                "proposed after screening): " + ", ".join(sorted(self._undeclared))
+            )
         planner = cast(
             Planner,
             LeastCostPlanner(
@@ -1723,6 +1749,8 @@ class ResearchEpisodeService:
             # jobs are keyed in its own namespace (`research.continuation`).
             planner = ExcludingPlanner(planner, _executed_before(run))
             loop_jobs = ContinuationJobs(jobs, episode_id=episode_id, ordinal=run.record.ordinal)
+        authorized = AuthorizedJobs(loop_jobs, SqlVerificationAuthorizations(c))
+        loop_jobs = authorized
         loop = VerificationLoop(
             LoopDependencies(
                 planner=planner,
@@ -1734,7 +1762,7 @@ class ResearchEpisodeService:
                 belief=belief,
                 reviser=brain,
                 history=events.history,
-                evidence=evidence,
+                evidence=prospective,
                 admission=EvidenceAdmissionGate(
                     load_artifact=evidence.load_artifact,
                     load_evidence_unit=lambda _unit: None,
@@ -1795,6 +1823,10 @@ class ResearchEpisodeService:
             return
         run.loop = result
         run.loop_request = loop_request
+        for authorization, job in authorized.bound:
+            run.notes.append(f"pre-registered test {authorization} ran as job {job}")
+        for relation, why in prospective.downgraded:
+            run.notes.append(f"{relation} recorded as context, not support: {why}")
         executed = len(result.executed)
         run.stage(
             "verification",
@@ -2583,6 +2615,68 @@ class ResearchEpisodeService:
                 "provider was contacted unless that description says so"
             )
         return tuple(lines)
+
+
+def declare_vertical_capabilities(c: Any, vertical: ProductVertical) -> tuple[str, ...]:
+    """The operator's path (`011s`): register `vertical`'s condition schemas and capability
+    declarations as the schema owner; the capability ids still undeclared afterwards.
+
+    Refused outright under any other role -- a declaration written by the services' role would let
+    the system under test classify its own checks.
+    """
+    if not may_declare_capabilities(c):
+        raise CapabilityStoreError(
+            "only the schema owner (the operator's migrator) may register capability declarations"
+        )
+    schemas = SqlConditionSchemaStore(c)
+    schemas.ensure(DOCUMENT_STATEMENT_SCHEMA)
+    for registration in vertical.condition_schemas:
+        schemas.ensure(registration)
+    # A capability's contract names its condition schema; the pack holds it even when this
+    # deployment cannot run the capability, and a declaration needs the capability row.
+    conditions = vertical.registry.registries.conditions
+    for capability in vertical.planning_capabilities:
+        if capability.conditions_schema_version:
+            schemas.ensure(conditions.get_schema(capability.conditions_schema_version))
+    return _declare_capabilities(c, vertical)
+
+
+def _declare_capabilities(c: Any, vertical: ProductVertical) -> tuple[str, ...]:
+    """Register each installed pack's capability declarations (`011s`); the ids left undeclared.
+
+    Refused registrations -- the stored declaration differs from the code, or the database refused
+    it -- leave those capabilities undeclared rather than failing the research run: what is not
+    declared cannot support a post-screening hypothesis, which is the fail-closed outcome.
+    """
+    declared = list(vertical.planning_capabilities)
+    undeclared: list[str] = []
+    for pack in vertical.registry:
+        reads = getattr(pack, "specification_media_types", None)
+        mine = tuple(
+            (capability, tuple(reads(capability)) if callable(reads) else ())
+            for capability in declared
+            if capability.domain == pack.id
+        )
+        for capability, specification in mine:
+            # One at a time: a capability this deployment cannot register (its condition schema
+            # is not installed here, say) leaves only itself undeclared.
+            try:
+                with c.transaction():
+                    undeclared.extend(
+                        register_pack_declarations(
+                            c,
+                            pack_id=pack.id,
+                            pack_version=pack.version,
+                            capabilities=((capability, specification),),
+                        )
+                    )
+            except Exception as refused:  # recorded as undeclared; see the docstring
+                if getattr(refused, "sqlstate", None) is None and not isinstance(
+                    refused, CapabilityStoreError
+                ):
+                    raise
+                undeclared.append(capability.capability_id)
+    return tuple(undeclared)
 
 
 def _dealias(text: str, shown: Mapping[str, str], names: Mapping[str, str]) -> str:

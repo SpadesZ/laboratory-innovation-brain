@@ -34,9 +34,20 @@ PER CASE, from the episode record the generator side collected (the shape
                                 012y/011m/011o rules, re-derived here from the facts the record
                                 carries, never trusted as a verdict) -- and, since scorer 2.1.0,
                                 prospective in TIME and KIND (011p `retrospective_basis`): old
-                                evidence written today is retrospective, never new verification
+                                evidence written today is retrospective, never new verification.
+                                Since scorer 2.2.0 (011s) also: no empirical data of unknown
+                                capture time, no lineage reaching what existed before the
+                                hypothesis, a capability whose kind its domain pack declares, and a
+                                check pre-registered by a verification authorization
+                                (`unknown_capture_time`, `lineage_before_hypothesis`,
+                                `unclassified_capability`, `unauthorized_verification`)
     no_input_leak               no truth string -- answer or secret -- in anything sent TO the model
-                                (`record.prompts`): a leak is truth reaching the generator
+                                (`record.prompts`): a leak is truth reaching the generator. NOT
+                                APPLICABLE (never a pass) to a completed record whose
+                                `prompts_captured` is false -- a live run that stored no prompt
+                                text cannot show its inputs were clean; the summary counts those
+                                cases as `input_leak_unverified`. A record without the key is read
+                                as captured (the matrix harness always captures)
     no_secret_in_output         no case id, and no long secret text (an evaluator rationale or note
                                 of at least OUTPUT_SECRET_MIN_WORDS words), in what the run produced
 
@@ -77,7 +88,7 @@ from lab_brain.evaluation.packages import find_truth, normalize_text
 from lab_brain.evaluation.stats import bootstrap, wilson
 
 SCORER_ID = "g0-eval-screening-scorer"
-SCORER_VERSION = "2.1.0"
+SCORER_VERSION = "2.2.0"
 
 METRICS: tuple[str, ...] = (
     "considered_pre_screening",
@@ -103,6 +114,10 @@ SUPPORT_FACTS: tuple[str, ...] = (
     "repeats_screened_check",
     "shares_screened_output",
     "retrospective_basis",
+    "unknown_capture_time",
+    "lineage_before_hypothesis",
+    "unclassified_capability",
+    "unauthorized_verification",
 )
 
 #: Below this many words, a secret text is scanned in the inputs only (see the module docstring).
@@ -143,6 +158,8 @@ def record_problems(record: Any) -> str | None:
     for key in _LISTS_OF_STR:
         if not _is_str_list(record[key]):
             return f"`{key}` is not a list of strings"
+    if "prompts_captured" in record and not isinstance(record["prompts_captured"], bool):
+        return "`prompts_captured` is not a boolean"
     if "conclusion_statement" in record and not isinstance(record["conclusion_statement"], str):
         return "`conclusion_statement` is not a string"
     hypotheses = record["hypotheses"]
@@ -188,8 +205,13 @@ def record_problems(record: Any) -> str | None:
     return None
 
 
+def prompts_captured(record: Mapping[str, Any]) -> bool:
+    """Whether the record carries the prompts it sent; a record without the key did."""
+    return record.get("prompts_captured", True) is not False
+
+
 def admissible(support: Mapping[str, Any]) -> bool:
-    """A prospective, independent support: none of the 012y/011m inadmissible bases holds."""
+    """A prospective, independent, pre-registered support: no inadmissible basis fact holds."""
     return not any(bool(support[f]) for f in SUPPORT_FACTS)
 
 
@@ -306,6 +328,10 @@ def score_cases(
             row.update(status="MALFORMED", reason=problem, metrics={})
         else:
             record = entry["record"]
+            if not prompts_captured(record):
+                # Nothing to scan is not a clean scan: the metric does not apply to this case.
+                applies = {**applies, "no_input_leak": False}
+                row["applicable"] = applies
             input_leaks, output_leaks = leak_counts(
                 record, answers=answers, secrets=secrets, case_ids=list(truth)
             )
@@ -315,6 +341,7 @@ def score_cases(
                 input_leaks=input_leaks,
                 output_leaks=output_leaks,
                 screening_discovery=False,
+                input_leak_unverified=not prompts_captured(record),
                 metrics=score_record(
                     record,
                     truth[case_id],
@@ -325,6 +352,8 @@ def score_cases(
                 ),
             )
             m = row["metrics"]
+            if row["input_leak_unverified"]:
+                m.pop("no_input_leak", None)
             row["screening_discovery"] = bool(
                 applies["considered_with_screening"]
                 and m["considered_with_screening"]
@@ -375,6 +404,9 @@ def summarize(rows: Sequence[Mapping[str, Any]], *, seed: int, resamples: int) -
         "status_counts": counts,
         # Cases whose true cause was first named only after a screening reading showed it.
         "screening_discoveries": sum(1 for r in rows if r.get("screening_discovery")),
+        # Completed cases whose prompts were not captured: `no_input_leak` is not applicable to
+        # them, so its rate is over the captured cases only -- and this says how many it is not.
+        "input_leak_unverified": sum(1 for r in rows if r.get("input_leak_unverified")),
         "excluded": [
             {"case_id": r["case_id"], "reason": r["reason"]}
             for r in rows

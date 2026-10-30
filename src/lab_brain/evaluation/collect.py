@@ -15,12 +15,35 @@ A relation rests on its BASIS: its source and the observation behind every attes
                                 capability, inputs and parameters as a conditioned run (any backend)
     shares_screened_output      a basis observation's run emitted an output artifact a conditioned
                                 run emitted -- the same content, since an artifact id is its hash
-    retrospective_basis         a basis observation is not prospective in TIME or KIND (011p): its
-                                run started before the hypothesis, has no run, reads or emits data
-                                captured before it, reads the output of a run that started before
-                                it, or is of a capability not registered with a kind that produces
-                                new evidence (unregistered, an evidence lookup, a historical case
-                                comparison). Recording time is not evidence time.
+    retrospective_basis         a basis observation is not prospective in TIME or KIND (011p,
+                                011s): it has no run; its run started before the hypothesis, reads
+                                or emits data captured before it, reads the output of a run that
+                                started before it, emits -- or reads as empirical data -- an
+                                artifact recorded before it; or its DECLARED kind cannot produce
+                                new evidence about what it read (an evidence lookup, a historical
+                                case comparison, an expert review; a rule check or surrogate of a
+                                design or of anything that existed before the hypothesis).
+                                Recording time is not evidence time.
+    unknown_capture_time        a basis run reads or emits EMPIRICAL data (not a declared design
+                                specification it reads, nor a computed output of a computing
+                                kind) whose capture time is NULL (011s)
+    lineage_before_hypothesis   the lineage of a basis run's inputs or outputs (derived_from,
+                                previous revision; transitively, at most 16 links) reaches an
+                                output of a screened run or of a run started before the
+                                hypothesis, empirical data captured or recorded before it or of
+                                unknown capture time, an unrecorded artifact, a cycle, or more
+                                than 16 links (011s)
+    unclassified_capability     a basis observation has no run, or its run's capability has no
+                                domain-pack declaration (`capability_declarations`) agreeing with
+                                `capabilities` (011s)
+    unauthorized_verification   a basis observation has no run, or its run's job is not bound to a
+                                verification authorization of this hypothesis, for this
+                                capability under the declaration in force, naming the relation's
+                                prediction, made before the run started and -- for a measurement
+                                -- before its data was captured (011s)
+
+The 011s facts are read through the same SQL functions the guard calls (`prospective_*`), on the
+rows as they are now -- so a guard switched off, or rows edited after the fact, are still reported.
 
 For a hypothesis formed before any screening reading there is no conditioning record, so every fact
 is false: its support is ordinary evidence, not a post-hoc reading. The SQL guard refuses the
@@ -37,14 +60,15 @@ from typing import Any
 _SUPPORTS = """
 WITH rel AS (
     SELECT r.relation_id, r.from_entity_id, r.supporting_attestation_ids, h.created_at,
-           c.screening_observation_ids AS screened
+           c.screening_observation_ids AS screened, c AS conditioned,
+           r.attributes ->> 'prediction_id' AS prediction_id
       FROM relation_judgments r
       JOIN hypotheses h ON h.project_id = r.project_id AND h.hypothesis_id = r.to_entity_id
       LEFT JOIN screening_conditioned_hypotheses c
              ON c.project_id = h.project_id AND c.hypothesis_id = h.hypothesis_id
      WHERE r.to_entity_id = %s AND r.relation_type = 'SUPPORTS'
 ), basis AS (
-    SELECT rel.relation_id, o.observation_id, o.created_at AS observed, u.*
+    SELECT rel.relation_id, o.observation_id, o.created_at AS observed, u AS run_row, u.*
       FROM rel
       JOIN observations o ON o.observation_id = rel.from_entity_id
                           OR o.observation_id IN (
@@ -95,17 +119,35 @@ SELECT rel.relation_id,
                                  AND earlier.run_id <> b.run_id
                                  AND earlier.output_artifacts && b.input_artifacts
                                  AND earlier.start_time < rel.created_at)
-                   OR NOT EXISTS (SELECT 1 FROM capabilities k
-                                   WHERE k.capability_id = b.capability_id
-                                     AND k.action_type NOT IN ('EXISTING_EVIDENCE_LOOKUP',
-                                                               'HISTORICAL_CASE_COMPARISON'))))
+                   OR prospective_kind_problem(b.run_row, rel.created_at) IS NOT NULL
+                   OR prospective_existence_problem(b.run_row, rel.created_at) IS NOT NULL)),
+       rel.screened IS NOT NULL AND EXISTS (
+           SELECT 1 FROM basis b WHERE b.relation_id = rel.relation_id
+              AND b.run_id IS NOT NULL
+              AND prospective_capture_problem(b.run_row, rel.created_at) IS NOT NULL),
+       rel.screened IS NOT NULL AND EXISTS (
+           SELECT 1 FROM basis b WHERE b.relation_id = rel.relation_id
+              AND b.run_id IS NOT NULL
+              AND prospective_lineage_problem(rel.conditioned, b.run_row, rel.created_at)
+                  IS NOT NULL),
+       rel.screened IS NOT NULL AND EXISTS (
+           SELECT 1 FROM basis b WHERE b.relation_id = rel.relation_id
+              AND (b.run_id IS NULL
+                   OR prospective_declaration_problem(b.run_row) IS NOT NULL)),
+       rel.screened IS NOT NULL AND (
+           NOT EXISTS (SELECT 1 FROM basis b WHERE b.relation_id = rel.relation_id)
+           OR EXISTS (
+               SELECT 1 FROM basis b WHERE b.relation_id = rel.relation_id
+                  AND (b.run_id IS NULL
+                       OR prospective_authorization_problem(
+                              rel.conditioned, b.run_row, rel.prediction_id) IS NOT NULL)))
   FROM rel
  ORDER BY rel.relation_id
 """
 
 
 def support_provenance(connection: Any, hypothesis_id: str) -> list[dict[str, Any]]:
-    """Every SUPPORTS relation to `hypothesis_id`, with the facts scorer 2.1.0 judges it by."""
+    """Every SUPPORTS relation to `hypothesis_id`, with the facts scorer 2.2.0 judges it by."""
     return [
         {
             "relation_id": str(relation),
@@ -115,6 +157,10 @@ def support_provenance(connection: Any, hypothesis_id: str) -> list[dict[str, An
             "repeats_screened_check": bool(repeat),
             "shares_screened_output": bool(same_bytes),
             "retrospective_basis": bool(retrospective),
+            "unknown_capture_time": bool(unknown),
+            "lineage_before_hypothesis": bool(lineage),
+            "unclassified_capability": bool(unclassified),
+            "unauthorized_verification": bool(unauthorized),
         }
         for (
             relation,
@@ -124,6 +170,10 @@ def support_provenance(connection: Any, hypothesis_id: str) -> list[dict[str, An
             repeat,
             same_bytes,
             retrospective,
+            unknown,
+            lineage,
+            unclassified,
+            unauthorized,
         ) in connection.execute(_SUPPORTS, (hypothesis_id,)).fetchall()
     ]
 

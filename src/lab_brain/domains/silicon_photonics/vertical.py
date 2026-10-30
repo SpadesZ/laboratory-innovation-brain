@@ -370,6 +370,22 @@ def capabilities() -> tuple[Capability, ...]:
     )
 
 
+#: The input kinds this pack's capabilities read as a DESIGN SPECIFICATION, with the media types
+#: they are stored under (`011s`). A design is not empirical data: its age is not evidence age, and
+#: a simulation of it computes something it does not state. Every other input -- a measurement
+#: export, an imported log -- is empirical data, which needs a known capture time.
+SPECIFICATION_INPUTS: Final[Mapping[str, tuple[str, ...]]] = {
+    INPUT_DEVICE_PROJECT: (diagnosis.DEVICE_PROJECT_MEDIA_TYPE,),
+}
+
+
+def specification_media_types(capability: Capability) -> tuple[str, ...]:
+    """The media types `capability` reads as a design specification, as this pack declares them."""
+    return tuple(
+        sorted({m for kind in capability.requires for m in SPECIFICATION_INPUTS.get(kind, ())})
+    )
+
+
 # -- authority, 1.1.0 ------------------------------------------------------------------------------
 
 _FAMILIES: Final[Mapping[str, str]] = {
@@ -652,6 +668,7 @@ __all__ = [
     "SPACE_NORMALIZATION",
     "SPACE_PROBE",
     "SPACE_VERSION",
+    "SPECIFICATION_INPUTS",
     "CategoricalMismatch",
     "OutcomePlausibilityValidator",
     "VerticalAuthorityPolicy",
@@ -662,5 +679,6 @@ __all__ = [
     "outcome_spaces",
     "selection_policy",
     "space_for",
+    "specification_media_types",
     "vertical_transition_policies",
 ]

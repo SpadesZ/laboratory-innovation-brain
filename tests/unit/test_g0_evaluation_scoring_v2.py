@@ -262,6 +262,14 @@ MALFORMED = {
     "unknown finding": (_broken("readings.0.finding", "WEIRD"), "finding"),
     "executed not strings": (_broken("screening_executed", [1, 2]), "list of strings"),
     "statement not a string": (_broken("conclusion_statement", ["x"]), "conclusion_statement"),
+    "prompts_captured not a bool": (_broken("prompts_captured", "no"), "prompts_captured"),
+    "a 2.1.0 support without the 011s facts": (
+        _broken(
+            "hypotheses.0.supports",
+            [{"relation_id": "r", **dict.fromkeys(scoring.SUPPORT_FACTS[:6], False)}],
+        ),
+        "lacks provenance",
+    ),
 }
 
 
@@ -313,3 +321,50 @@ def test_two_competing_hypotheses_before_screening_and_refutability():
     unrefutable["refutable_on"] = []
     assert not score(record(unrefutable))["metrics"]["refutable"]
     assert not score(record())["metrics"]["refutable"], "no hypothesis is not refutable"
+
+
+# -- scorer 2.2.0 -------------------------------------------------------------------------------
+
+
+def test_scorer_2_2_0_carries_the_011s_facts():
+    assert scoring.SCORER_VERSION == "2.2.0"
+    assert set(scoring.SUPPORT_FACTS) >= {
+        "unknown_capture_time",
+        "lineage_before_hypothesis",
+        "unclassified_capability",
+        "unauthorized_verification",
+    }
+
+
+def test_uncaptured_prompts_make_the_input_leak_metric_not_applicable_not_a_pass():
+    row = score(
+        record(hypothesis("h1", PRE, "sp.contact_connectivity"), prompts=[], prompts_captured=False)
+    )
+    assert row["status"] == "COMPLETED"
+    assert row["applicable"]["no_input_leak"] is False
+    assert "no_input_leak" not in row["metrics"]
+    assert row["input_leak_unverified"] is True
+    summary = scoring.summarize([row], seed=1, resamples=50)
+    assert summary["input_leak_unverified"] == 1
+    assert summary["metrics"]["no_input_leak"]["n"] == 0
+    assert summary["metrics"]["no_input_leak"]["applicable"] == 0
+
+
+@pytest.mark.parametrize("captured", [True, None])
+def test_captured_prompts_or_no_key_are_scanned_as_before(captured):
+    changes: dict[str, Any] = {"prompts": ["HINT: contact_discontinuity"]}
+    if captured is not None:
+        changes["prompts_captured"] = captured
+    row = score(record(hypothesis("h1", PRE, "sp.contact_connectivity"), **changes))
+    assert row["applicable"]["no_input_leak"] is True
+    assert row["input_leak_unverified"] is False
+    assert row["metrics"]["no_input_leak"] is False  # the leak is still found
+    assert scoring.summarize([row], seed=1, resamples=50)["input_leak_unverified"] == 0
+
+
+def test_a_failed_live_case_still_fails_the_input_leak_metric():
+    """Not applicable is for a COMPLETED record that could not be scanned; a case that did not
+    complete fails every metric that applies, as before."""
+    row = score(record(prompts=[], prompts_captured=False), status="CRASHED")
+    assert row["applicable"]["no_input_leak"] is True
+    assert row["metrics"]["no_input_leak"] is False

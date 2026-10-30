@@ -14,7 +14,9 @@ because "the evidence does not point there". Through the web workspace, on a fre
                     the same inspection is never run again by verification, the belief does not
                     move and the episode is not CONFIRMED -- and SQL refuses the shortcut for any
                     writer (`012y`): the screened observation, an older observation, a deterministic
-                    repeat; a prospective, different reading is still allowed
+                    repeat; and (011s) a different rule reading of the same design is not new
+                    evidence -- a pre-registered measurement is
+                    (test_g0_prospective_verification_postgres)
     no leak         the plan is the same for every device; the stand-in was shown no case id,
                     label or answer
     sound device    both readings NORMAL: no review, no new rival, both readings kept
@@ -42,7 +44,6 @@ from lab_brain.core.repositories.jobs import SqlJobStore
 from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.research.report_store import SqlResearchReportStore
 from lab_brain.research.service import ResearchFeatures
-from lab_brain.storage.postgres.capabilities import PostgresCapabilityStore
 from tests.e2e.test_research_episode_postgres import GOAL, PROJECT, REPORT
 from tests.e2e.test_web_debate_retry_postgres import _activated, _deployment
 from tests.e2e.test_web_llm_credentials_postgres import KEY, _setup, _text
@@ -349,21 +350,6 @@ def _sql_guard_refuses_post_hoc_support(
         )
         return observation.observation_id
 
-    def attest(observation: str, run: str) -> str:
-        # The new reading's own attestation. Before 011o the prospective case below cited the
-        # screened attestation, and the guard never read what a relation cites.
-        with db.cursor(row_factory=psycopg.rows.dict_row) as cur:
-            cur.execute("SELECT * FROM attestations WHERE attestation_id = %s", (attestation,))
-            row = cur.fetchone()
-        assert row is not None
-        row.update(attestation_id=f"att:{observation}", observation_id=observation, run_id=run)
-        row.pop("created_at", None)
-        db.execute(
-            f"INSERT INTO attestations ({', '.join(row)}) VALUES ({', '.join(['%s'] * len(row))})",
-            [Jsonb(v) if isinstance(v, dict | list) else v for v in row.values()],
-        )
-        return f"att:{observation}"
-
     def relate(source: str, cites: list[str] | None = None) -> None:
         db.execute(
             "INSERT INTO relation_judgments (relation_id, from_entity_id, to_entity_id,"
@@ -390,14 +376,10 @@ def _sql_guard_refuses_post_hoc_support(
         refused(observe(different, "older", earlier), "predates hypothesis")
         # (c) a deterministic repeat of the screened reading, recorded later
         refused(observe(repeat, "repeat", later), "repeats the screened reading")
-        # ... and a prospective, different reading may relate: the guard does not freeze it.
-        with db.transaction(force_rollback=True):
-            # A genuine new check is registered with its kind (011p); the research flow does not
-            # persist capabilities itself.
-            for capability in sp.capabilities():
-                PostgresCapabilityStore(db).upsert(capability)
-            prospective = observe(different, "prospective", later)
-            relate(prospective, [attest(prospective, different)])
+        # (011s) a different reading of the same design file -- new bytes, run later -- is a
+        # deterministic re-analysis of what existed before the rival, not new evidence. What may
+        # still support it is a pre-registered new check (test_g0_prospective_verification_postgres).
+        refused(observe(different, "prospective", later), "deterministic")
 
 
 def test_a_sound_device_reads_normal_and_keeps_every_reading(db, tmp_path, standin):

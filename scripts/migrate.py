@@ -326,6 +326,8 @@ APPLY_ORDER: tuple[str, ...] = (
     "011t_llm_spend_administration.sql",
     # Account role, status and membership changes leave a chained audit row. After 011t.
     "011u_account_change_audit.sql",
+    # Post-screening support needs declared, pre-registered, new-lineage evidence. After 011u.
+    "011s_prospective_evidence_authorization.sql",
 )
 
 _BOOTSTRAP = """

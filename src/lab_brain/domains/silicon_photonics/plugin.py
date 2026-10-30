@@ -165,6 +165,10 @@ class SiliconPhotonicsPack:
     def version(self) -> str:
         return PACK_VERSION
 
+    def specification_media_types(self, capability: Capability) -> tuple[str, ...]:
+        """What `capability` reads as a design specification, not as empirical data (`011s`)."""
+        return vertical.specification_media_types(capability)
+
     # -- §24.3 registrations ------------------------------------------------
 
     def register_condition_schema(self, registry: ConditionSchemaRegistry) -> None:

@@ -20,8 +20,10 @@ to handle: the Job parks in WAITING_RESOURCE.
 from __future__ import annotations
 
 import datetime as dt
+import json
 from typing import Any
 
+from lab_brain.core.canonical_json import canonical_hash, canonicalize
 from lab_brain.core.models.capability import ActionType, Availability, Capability
 from lab_brain.core.repositories.budget import SqlConnection
 from lab_brain.core.repositories.protocols import RepositoryError
@@ -192,6 +194,129 @@ class PostgresCapabilityStore:
         )
 
 
+def capability_declaration(
+    capability: Capability,
+    *,
+    pack_id: str,
+    pack_version: str,
+    specification_media_types: tuple[str, ...] = (),
+) -> tuple[str, str]:
+    """The canonical declaration of `capability` as its pack's code states it, and its SHA-256.
+
+    `011s` recomputes the hash and checks every field against the `capabilities` row, so the text
+    stored is exactly this -- the kind, the contract and the input media types the pack reads as a
+    design specification (not as empirical data).
+    """
+    declaration = {
+        "capability_id": capability.capability_id,
+        "domain": capability.domain,
+        "action_type": capability.action_type.value,
+        "backend_id": capability.backend_id,
+        "requires": list(capability.requires),
+        "produces": list(capability.produces),
+        "authority_class": capability.authority_class,
+        "conditions_schema_version": capability.conditions_schema_version,
+        "privacy_constraints": list(capability.privacy_constraints),
+        "license_constraints": list(capability.license_constraints),
+        "irreversible": capability.irreversible,
+        "estimate_cost_contract": capability.estimate_cost_contract,
+        "version": capability.version,
+        "pack_id": pack_id,
+        "pack_version": pack_version,
+        "specification_media_types": list(specification_media_types),
+    }
+    return canonicalize(declaration), canonical_hash(declaration)
+
+
+def may_declare_capabilities(connection: SqlConnection) -> bool:
+    """Whether this connection's role may register declarations: the schema owner only (`011s`)."""
+    row = connection.execute(
+        "SELECT pg_has_role(current_user, relowner, 'MEMBER') FROM pg_class"
+        " WHERE oid = 'capability_declarations'::regclass"
+    ).fetchone()
+    return bool(row and row[0])
+
+
+def register_pack_declarations(
+    connection: SqlConnection,
+    *,
+    pack_id: str,
+    pack_version: str,
+    capabilities: tuple[tuple[Capability, tuple[str, ...]], ...],
+) -> tuple[str, ...]:
+    """Register a DomainPack's capabilities and their declared kinds -- the governed path (`011s`).
+
+    Each capability is upserted into `capabilities` (the services may do that) and its declaration
+    into `capability_declarations`, which only the schema owner can write. Returns the capability
+    ids that are NOT declared afterwards (this role may not declare them, and nobody has): those
+    can never support a post-screening hypothesis, which is the fail-closed outcome. A declaration
+    already stored with different text is refused -- the code and the database disagree about what
+    the capability is, and the stored one is never rewritten.
+    """
+    store = PostgresCapabilityStore(connection)
+    owner = may_declare_capabilities(connection)
+    undeclared: list[str] = []
+    for capability, specification in capabilities:
+        store.upsert(capability)
+        text, digest = capability_declaration(
+            capability,
+            pack_id=pack_id,
+            pack_version=pack_version,
+            specification_media_types=specification,
+        )
+        row = connection.execute(
+            "SELECT declaration FROM capability_declarations WHERE capability_id = %s",
+            (capability.capability_id,),
+        ).fetchone()
+        if row is not None:
+            stored = str(row[0])
+            if stored != text and _contract(stored) != _contract(text):
+                raise CapabilityStoreError(
+                    f"capability {capability.capability_id} is declared in the database "
+                    "differently from the installed pack's code; a declared kind is never "
+                    "rewritten -- a changed capability is a new version (011s)"
+                )
+            continue
+        if not owner:
+            undeclared.append(capability.capability_id)
+            continue
+        connection.execute(
+            "INSERT INTO capability_declarations (capability_id, capability_version, pack_id,"
+            " pack_version, action_type, specification_media_types, declaration,"
+            " declaration_hash, registered_by, registered_at)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, current_user, now())",
+            (
+                capability.capability_id,
+                capability.version,
+                pack_id,
+                pack_version,
+                capability.action_type.value,
+                list(specification),
+                text,
+                digest,
+            ),
+        )
+    return tuple(undeclared)
+
+
+def _contract(declaration: str) -> str:
+    """A declaration without the pack version: a later pack release that leaves a capability's
+    contract unchanged is the same declaration, not a conflict."""
+    data = json.loads(declaration)
+    data.pop("pack_version", None)
+    return canonicalize(data)
+
+
+def declared_kind(connection: SqlConnection, capability_id: str) -> tuple[str, str] | None:
+    """(kind, declaration hash) of a declared capability, or None."""
+    row = connection.execute(
+        "SELECT action_type, declaration_hash FROM capability_declarations"
+        " WHERE capability_id = %s",
+        (capability_id,),
+    ).fetchone()
+    return None if row is None else (_text(row[0]), _text(row[1]))
+
+
 class PostgresResourceBroker:
     """§10.7's seat pool over `007c`. The ceiling is the trigger's; this translates the refusal.
 
@@ -299,4 +424,12 @@ class PostgresResourceBroker:
         return tuple(_lease(row) for row in rows)
 
 
-__all__ = ["CapabilityStoreError", "PostgresCapabilityStore", "PostgresResourceBroker"]
+__all__ = [
+    "CapabilityStoreError",
+    "PostgresCapabilityStore",
+    "PostgresResourceBroker",
+    "capability_declaration",
+    "declared_kind",
+    "may_declare_capabilities",
+    "register_pack_declarations",
+]

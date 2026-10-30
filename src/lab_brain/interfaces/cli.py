@@ -54,6 +54,7 @@ was missing and the part a unit test of `run_inbox` cannot reach.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import hashlib
 import os
 import sys
@@ -601,6 +602,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     audit.add_argument("--since-seq", type=int, help="only audit rows after this one")
     audit.add_argument("--expect-head", help="SEQ:DIGEST recorded earlier; refused if rewritten")
+    declare = admin_sub.add_parser(
+        "declare-capabilities",
+        help=(
+            "011s: register the vertical's capability kinds as its domain pack declares them "
+            "(schema owner only; without them no check can support a post-screening hypothesis)"
+        ),
+    )
+    declare.add_argument(
+        "--domain",
+        help=f"the product vertical (an entry point in {ENTRY_POINT_GROUP}); "
+        "default: the only one installed",
+    )
     admin_sub.add_parser("show", help="list actors, projects, memberships, LLM administrators")
     return parser
 
@@ -1150,6 +1163,8 @@ def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
             )
             if not intact:
                 raise deployment.OperatorRefused("\n".join(lines))
+        elif args.admin_command == "declare-capabilities":
+            lines = _declare_capabilities(args, connection)
         else:
             lines = deployment.describe(connection)
     except deployment.OperatorRefused as refused:
@@ -1180,6 +1195,34 @@ def _bootstrap_admin(args: argparse.Namespace, connection: Any) -> list[str]:
         "set their password, once, within 24 hours, at:",
         f"  {base}/password/reset?token={token}",
     ]
+
+
+def _declare_capabilities(args: argparse.Namespace, connection: Any) -> list[str]:
+    """`admin declare-capabilities`: the operator registers the declared kinds (`011s`)."""
+    from lab_brain.interfaces import deployment
+    from lab_brain.research.service import declare_vertical_capabilities
+    from lab_brain.storage.postgres.capabilities import CapabilityStoreError
+
+    try:
+        factory = load_vertical_factory(args.domain or _only_vertical())
+    except (VerticalNotFound, ConfigurationError) as exc:
+        raise deployment.OperatorRefused(str(exc)) from exc
+    vertical = factory(outputs=None, jobs=None, broker=None, now=lambda: dt.datetime.now(dt.UTC))
+    try:
+        with connection.transaction():
+            undeclared = declare_vertical_capabilities(connection, vertical)
+    except CapabilityStoreError as refused:
+        raise deployment.OperatorRefused(str(refused)) from refused
+    declared = sorted(
+        c.capability_id
+        for c in vertical.planning_capabilities
+        if c.capability_id not in set(undeclared)
+    )
+    lines = [f"declared  {capability}" for capability in declared]
+    lines += [f"UNDECLARED  {capability}" for capability in sorted(undeclared)]
+    if undeclared:
+        raise deployment.OperatorRefused("\n".join(lines))
+    return lines
 
 
 def _only_vertical() -> str:

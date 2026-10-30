@@ -26,7 +26,7 @@ import pytest
 
 from lab_brain.evaluation import scoring
 from lab_brain.evaluation.collect import support_provenance
-from tests.e2e.test_g0_screening_independence_postgres import Guarded, _fresh
+from tests.e2e.test_g0_screening_independence_postgres import PROBE_METHOD, Guarded, _fresh
 from tests.e2e.test_g0_screening_independence_postgres import guarded as guarded
 from tests.e2e.test_g0_screening_independence_postgres import standin as standin
 from tests.e2e.test_g0_screening_matrix_postgres import collect
@@ -40,11 +40,16 @@ def _post_screening(record: dict[str, Any], hypothesis: str) -> dict[str, Any]:
     return h
 
 
+def _authorized(g: Guarded, name: str, **changes: Any) -> tuple[str, str]:
+    """A pre-registered probe measurement after the rival (`011s`): (observation, attestation)."""
+    return g.measured(name, authorization=g.authorize(name), **changes)
+
+
 def test_a_prospective_support_is_collected_admissible_and_scores_clean(guarded):
     g: Guarded = guarded
     with g.db.transaction(force_rollback=True):
-        run, observation = _fresh(g, "prospective")
-        g.support(observation, [g.attest(observation, run)])
+        observation, evidence = _authorized(g, "prospective")
+        g.support(observation, [evidence], prediction=g.prediction())
         record = collect(g.db, g.episode)
         h = _post_screening(record, g.hypothesis)
         (entry,) = h["supports"]
@@ -101,12 +106,12 @@ def test_a_fresh_observation_citing_a_repeat_is_collected_as_a_repeat(unguarded)
 
 def test_an_older_observation_is_collected_as_older(unguarded):
     g = unguarded
-    run, observation = _fresh(g, "older")
+    observation, evidence = _authorized(g, "older")
     g.db.execute(
         "UPDATE observations SET created_at = %s WHERE observation_id = %s",
         (dt.datetime(2020, 1, 1, tzinfo=dt.UTC), observation),
     )
-    g.support(observation, [g.attest(observation, run)])
+    g.support(observation, [evidence], prediction=g.prediction())
     assert _only_fact(g, observation) == {"observed_before_hypothesis"}
 
 
@@ -118,7 +123,7 @@ def test_the_screened_bytes_under_another_capability_are_collected(unguarded):
     run = g.run("same-bytes", **SAME_BYTES["other_capability_same_output"](g))
     observation = g.observe(run, "same-bytes")
     g.support(observation, [g.attest(observation, run)])
-    assert _only_fact(g, observation) == {"shares_screened_output"}
+    assert "shares_screened_output" in _only_fact(g, observation)
 
 
 def test_support_provenance_is_read_only(guarded):
@@ -143,4 +148,73 @@ def test_old_evidence_written_today_is_collected_as_retrospective(unguarded):
     )
     observation = g.observe(run, "late")
     g.support(observation, [g.attest(observation, run)])
-    assert _only_fact(g, observation) == {"retrospective_basis"}
+    assert "retrospective_basis" in _only_fact(g, observation)
+
+
+# -- 011s, in the collector: each new fact, with the guard switched off -----------------------
+
+
+def test_a_measurement_of_unknown_capture_time_is_collected(unguarded):
+    g = unguarded
+    authorization = g.authorize("no-capture")
+    run = g.run(
+        "no-capture",
+        authorization=authorization,
+        capability_id="cap:sp.fourpoint_probe",
+        backend_id="lab.probe_station",
+        input_artifacts=(),
+        input_parameters={"variant": "no-capture"},
+        output_artifacts=(g.artifact("probe export, no capture time"),),
+    )
+    observation = g.observe(run, "no-capture", "sp.probe_contact_resistance", "ELEVATED")
+    g.support(observation, [g.attest(observation, run, PROBE_METHOD)], prediction=g.prediction())
+    # Unknown capture time is also not "captured after the authorization".
+    assert _only_fact(g, observation) == {"unknown_capture_time", "unauthorized_verification"}
+
+
+def test_a_lineage_reaching_old_data_is_collected(unguarded):
+    g = unguarded
+    old = g.artifact("the 2020 log", captured_at=dt.datetime(2020, 1, 1, tzinfo=dt.UTC))
+    authorization = g.authorize("lineage")
+    run = g.run(
+        "lineage",
+        authorization=authorization,
+        capability_id="cap:sp.fourpoint_probe",
+        backend_id="lab.probe_station",
+        input_artifacts=(),
+        input_parameters={"variant": "lineage"},
+        output_artifacts=(g.artifact("re-processed", captured_at=g.later, derived_from=(old,)),),
+    )
+    observation = g.observe(run, "lineage", "sp.probe_contact_resistance", "ELEVATED")
+    g.support(observation, [g.attest(observation, run, PROBE_METHOD)], prediction=g.prediction())
+    assert _only_fact(g, observation) == {"lineage_before_hypothesis"}
+
+
+def test_an_undeclared_capability_is_collected_as_unclassified(unguarded):
+    g = unguarded
+    g.db.execute(
+        "INSERT INTO capabilities (capability_id, domain, version, action_type, backend_id,"
+        " requires, produces, authority_class, estimate_cost_contract)"
+        " SELECT 'cap:sp.undeclared', domain, version, action_type, 'elsewhere', requires,"
+        " produces, authority_class, estimate_cost_contract FROM capabilities"
+        " WHERE capability_id = 'cap:sp.fourpoint_probe'"
+    )
+    run = g.run(
+        "undeclared",
+        capability_id="cap:sp.undeclared",
+        backend_id="elsewhere",
+        input_artifacts=(),
+        input_parameters={"variant": "undeclared"},
+        output_artifacts=(g.artifact("undeclared export", captured_at=g.later),),
+    )
+    observation = g.observe(run, "undeclared")
+    g.support(observation, [g.attest(observation, run)])
+    # Nothing can authorize an undeclared check, so it is unauthorized as well.
+    assert _only_fact(g, observation) == {"unclassified_capability", "unauthorized_verification"}
+
+
+def test_a_measurement_nobody_authorized_is_collected_as_unauthorized(unguarded):
+    g = unguarded
+    observation, evidence = g.measured("unauthorized")
+    g.support(observation, [evidence], prediction=g.prediction())
+    assert _only_fact(g, observation) == {"unauthorized_verification"}
