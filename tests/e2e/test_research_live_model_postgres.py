@@ -79,6 +79,7 @@ from lab_brain.evaluation.live_budget import (
     check_before_episode,
     check_spend_before_episode,
     install_live_spend_guard,
+    install_local_free_guard,
     spend_from_env,
 )
 from lab_brain.interfaces.config import Settings
@@ -302,6 +303,11 @@ def test_a_real_model_researches_three_cases_without_lumerical(db, tmp_path, req
         )
         request.addfinalizer(lambda: spend.install(None))
         budget = money.budget_id
+    elif not EXTERNAL:
+        # Only this machine's models and no ceiling: a local endpoint may be a proxy to a paid
+        # provider, so the Owner must declare each one free, or every request is refused unsent.
+        install_local_free_guard(database_url(), actor_id="act:rkuo")
+        request.addfinalizer(lambda: spend.install(None))
 
     def within_cap() -> None:
         check_before_episode(db, PRIMARY, cap)

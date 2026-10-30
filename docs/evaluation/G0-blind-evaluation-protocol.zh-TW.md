@@ -11,6 +11,8 @@
   要用遠端付費模型,必須另外取得 Owner 授權,而且紀錄會寫明「不是零成本」。
 - 本機端點也要由 Owner 在費用管理中宣告為「真的免費」(見 `docs/audit/g0-owner-boundary-closure-2026-10-28/spend-administration.md`);
   沒有宣告的本機端點視為可能付費(例如轉送到付費服務的本機代理)。
+  評估的宣告方式:`LAB_BRAIN_LIVE_FREE_ENDPOINTS="127.0.0.1:11434 <模型>"`、
+  `LAB_BRAIN_LIVE_FREE_REASON=<原因>`;沒有宣告時,即時測試在第一次呼叫前就拒絕(`install_local_free_guard`)。
 - 不使用 Lumerical 或任何授權求解器;需要模擬的檢查在報告中標 NOT_PERFORMED。
 
 ## 2. 角色與分隔
