@@ -137,6 +137,12 @@ def key_file_problems(path: str | os.PathLike[str], *, euid: int | None = None) 
     return problems
 
 
+def _owner(path: Path) -> int:
+    """The uid that owns `path`. One function, so a test run by one user can stand in for the
+    operator owning the trust files; production reads the file system."""
+    return path.stat().st_uid
+
+
 def trust_file_problems(
     path: str | os.PathLike[str], *, euid: int | None = None, refuse_root: bool = False
 ) -> list[str]:
@@ -164,12 +170,12 @@ def trust_file_problems(
                 "authorities cannot be read-only to it; run the web tier as its own user"
             )
     else:
-        if info.st_uid == euid:
+        if _owner(target) == euid:
             problems.append(
                 f"the interaction authorities file {target} is owned by the service user (uid "
                 f"{euid}), who could rewrite the keys it is verified against; the operator owns it"
             )
-        if directory.stat().st_uid == euid:
+        if _owner(directory) == euid:
             problems.append(
                 f"the interaction authorities file's directory {directory} is owned by the "
                 f"service user (uid {euid}), who could replace the file"

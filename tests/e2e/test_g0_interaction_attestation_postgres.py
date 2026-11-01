@@ -52,6 +52,7 @@ from tests.e2e.test_g0_session_provenance_postgres import (
 )
 from tests.postgres_fixtures import database_url
 from tests.report_samples import full_report
+from tests.trust_owner import operator_owns_the_trust_files as operator_owns_the_trust_files
 from tests.wsgi_client import Browser
 
 pytestmark = pytest.mark.postgres

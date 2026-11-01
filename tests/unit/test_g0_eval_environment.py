@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -89,7 +90,7 @@ def test_the_script_captures_this_repository(tmp_path):
     out = tmp_path / "env.json"
     result = subprocess.run(
         [
-            str(REPO / ".venv/bin/python"),
+            sys.executable,
             str(REPO / "scripts/g0_eval_environment.py"),
             "capture",
             "--model-endpoint", LOCAL["endpoint"],

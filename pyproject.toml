@@ -59,6 +59,7 @@ markers = [
     "postgres: requires a live PostgreSQL instance",
     "lumerical: requires a real Lumerical license seat",
     "network: requires outbound network access",
+    "real_owners: read the interaction trust files' real owners (tests/trust_owner.py)",
 ]
 
 [tool.ruff]

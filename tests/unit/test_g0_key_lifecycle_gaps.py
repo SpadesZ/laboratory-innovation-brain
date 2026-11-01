@@ -35,6 +35,7 @@ from lab_brain.security.interaction_attestation import (
     parse_interaction_authorities,
 )
 from lab_brain.security.reviewer_identity import SigningKey
+from tests.trust_owner import operator_owns_the_trust_files as operator_owns_the_trust_files
 
 T = dt.datetime(2026, 10, 28, 9, 0, tzinfo=dt.UTC)
 BINDING = RunBinding(

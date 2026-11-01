@@ -31,6 +31,7 @@ from lab_brain.security.interaction_attestation import (
     parse_interaction_authorities,
 )
 from lab_brain.security.reviewer_identity import SigningKey
+from tests.trust_owner import operator_owns_the_trust_files as operator_owns_the_trust_files
 
 T = dt.datetime(2026, 10, 28, 9, 0, tzinfo=dt.UTC)
 BINDING = RunBinding(
@@ -265,6 +266,7 @@ def test_start_up_refuses_a_link_a_loose_directory_and_writable_trust_files(tmp_
     assert InteractionSigner.from_environment(env) is not None
 
 
+@pytest.mark.real_owners
 @pytest.mark.skipif(not ROOT_ONLY, reason="giving a file to another user needs root")
 def test_a_service_user_that_owns_its_trust_anchor_is_refused(tmp_path: Path):
     """As a non-root service user (uid 65534, `nobody`): the key must be its own, the
@@ -304,3 +306,19 @@ def test_the_operator_check_refuses_root_and_reports_each_key(tmp_path: Path):
     os.chmod(env[SIGNING_KEY_ENV], 0o644)
     code, text = _cmd("check", env=env)
     assert code == 2 and "REFUSED" in text and "chmod 600" in text
+
+
+@pytest.mark.real_owners
+def test_trust_files_the_running_user_owns_are_refused_unless_it_is_root(tmp_path: Path):
+    """The real rule, on any machine: files created by the user running this test are owned by
+    it -- standing for the service user -- so a non-root run refuses them; root is not asked
+    (the operator check refuses root itself)."""
+    env, _key = _deployed(tmp_path)
+    authorities = env[kl.AUTHORITIES_ENV]
+    problems = kl.trust_file_problems(authorities)
+    if ROOT_ONLY:
+        assert problems == []
+        assert kl.trust_file_problems(authorities, refuse_root=True)
+    else:
+        assert any("owned by the service user" in p for p in problems), problems
+        assert any("directory" in p and "owned by the service user" in p for p in problems)
