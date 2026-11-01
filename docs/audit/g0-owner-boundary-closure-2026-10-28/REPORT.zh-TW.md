@@ -26,7 +26,9 @@ f43907a  互動簽章金鑰生命週期;011u 帳號變更的雜湊鏈紀錄(A12 
 f40a979  只用本機模型的即時評估,先要 Owner 的免費宣告
 9cbeb9f..eefcad5  補 011s/011t/011u 的對抗測試與變異項目;Owner 決定、交接
 aff855e  最後一次完整變異測試的證據檔
-<最後>   狀態檔、完整測試證據、本報告
+3062dca  狀態檔、完整測試證據、本報告
+12d86d8  CI 以非 root 執行時,金鑰測試用一個 operator 擁有的信任檔替身;用目前的直譯器
+<最後>   12d86d8 的完整變異測試證據、狀態檔、本報告
 ```
 
 ## 2. 優先 1:金額上限真的能執行
@@ -86,10 +88,17 @@ aff855e  最後一次完整變異測試的證據檔
 | 檢查 | 結果 | 證據 |
 |---|---|---|
 | ruff、ruff format、mypy | 全部通過(mypy:282 個檔案) | 本機 |
-| 完整 PostgreSQL 測試(新建資料庫,81 個 migration) | 3472 passed, 4 skipped;2 個失敗只是狀態檔過期,執行 `update_status.py` 後 spec 245 passed | `evidence/full-postgres-suite.log` |
+| 完整 PostgreSQL 測試(新建資料庫,81 個 migration,`12d86d8` 程式) | **3475 passed, 4 skipped, 0 failed**(之後執行 `update_status.py`) | `evidence/full-postgres-suite.log` |
 | 變異測試,第一次完整執行(`cfb7e19`) | 857/861 | `evidence/mutation-full-861-first-run-cfb7e19.log` |
-| 變異測試,最後一次完整執行(`eefcad5`) | **861/861** | `evidence/mutation-full-861-final-eefcad5.log` |
-| CI | 見推送後的結果(交接檔) | GitHub Actions |
+| 變異測試,完整執行(`eefcad5`) | 861/861 | `evidence/mutation-full-861-final-eefcad5.log` |
+| 變異測試,最後一次完整執行(`12d86d8`,程式最後一次改動之後) | **861/861** | `evidence/mutation-full-861-final-12d86d8.log` |
+| CI | 見最後的推送;`3062dca` 的發現見下面 | GitHub Actions |
+
+CI 的發現(`3062dca`):CI 用一般使用者執行測試。金鑰檢查規定「信任檔不能由執行網頁層的使用者擁有」(只有 root 例外),
+所以以一般使用者建立的測試信任檔都被拒絕。這是規則正確,不是程式錯誤。
+修正只改測試:`key_lifecycle._owner()` 是讀檔案擁有者的唯一函式;`tests/trust_owner.py` 讓測試把信任檔當作另一個 operator 擁有。
+真正讀擁有者的測試標記 `real_owners`,另外新增「執行者自己擁有的信任檔被拒絕(root 除外)」的測試。
+以一般使用者 `tester` 在本機重跑:通過。`12d86d8` 的 CI:全部測試通過,只有狀態檔過期(本次提交修正)。
 
 變異測試的發現與修正(都在第一次完整執行之前或之後,都有紀錄):
 - 舊的變異資料庫沒有 `schema_migrations`,所以角色測試在 setup 就出錯,被誤算為「抓到」(14 項)。

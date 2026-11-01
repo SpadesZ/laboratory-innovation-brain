@@ -40,6 +40,8 @@ LAB_BRAIN_TEST_POSTGRES=1 LAB_BRAIN_DATABASE_URL=<DB> .venv/bin/python scripts/m
 - 變異測試會覆寫測試報告;之後要先跑一次完整測試,`update_status.py` 才能更新清單。
 - 變異測試的資料庫現在也建立 `schema_migrations`;以前缺這張表,角色測試會在 setup 出錯,被誤算為「抓到」。
 - 這個容器重啟後 PostgreSQL 會停;要重新啟動。
+- CI 用一般使用者執行。金鑰測試用 `tests/trust_owner.py` 把信任檔當作 operator 擁有;要讀真正擁有者的測試要標記 `real_owners`。
+- 最後一次完整變異測試:`12d86d8`,861/861(`evidence/mutation-full-861-final-12d86d8.log`)。
 
 ## 下一步
 
