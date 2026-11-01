@@ -48,7 +48,7 @@ from tests.fake_llm_provider import FakeProvider
 from tests.postgres_fixtures import database_url
 from tests.transport_endpoints import Endpoint
 
-pytestmark = pytest.mark.postgres
+pytestmark = [pytest.mark.postgres, pytest.mark.real_spend_guard]
 
 KEY = "sk-test-spend-ledger-0123456789abcdefABCDEF"
 PROMPT = "EVIDENCE-SPEND-77 pad P4 read 41 ohm"

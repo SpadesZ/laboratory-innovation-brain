@@ -29,7 +29,7 @@ from tests.integration import test_g0_spend_admin_postgres as _admin
 from tests.integration.test_g0_spend_admin_postgres import Roles
 from tests.transport_endpoints import Endpoint
 
-pytestmark = pytest.mark.postgres
+pytestmark = [pytest.mark.postgres, pytest.mark.real_spend_guard]
 
 # The deployment's roles, made and dropped per test exactly as in the 011t tests.
 su = _admin.su

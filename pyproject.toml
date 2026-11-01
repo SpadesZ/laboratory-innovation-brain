@@ -60,6 +60,7 @@ markers = [
     "lumerical: requires a real Lumerical license seat",
     "network: requires outbound network access",
     "real_owners: read the interaction trust files' real owners (tests/trust_owner.py)",
+    "real_spend_guard: a postgres test of the spend ceiling: its test servers are not free (tests/conftest.py)",
 ]
 
 [tool.ruff]

@@ -53,7 +53,7 @@ from lab_brain.llm_runtime.spend import PostgresSpendGuard, SpendRequest
 from tests.fake_llm_provider import FakeProvider
 from tests.postgres_fixtures import database_url
 
-pytestmark = pytest.mark.postgres
+pytestmark = [pytest.mark.postgres, pytest.mark.real_spend_guard]
 
 ROOT = Path(__file__).resolve().parents[2]
 ADMIN = "lab_brain_spend_admin"
