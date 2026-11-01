@@ -32,3 +32,7 @@ LAB_BRAIN_TEST_POSTGRES=1 LAB_BRAIN_DATABASE_URL=<DB> .venv/bin/python scripts/m
 ## 下一步(Owner)
 
 見報告 §7。
+
+## 後續
+
+接續在 `g0-owner-boundary-closure`:見 `docs/implementation/G0-owner-boundary-handoff.zh-TW.md`。
