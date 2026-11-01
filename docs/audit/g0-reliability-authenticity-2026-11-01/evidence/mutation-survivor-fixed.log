@@ -1,0 +1,7 @@
+1 mutations
+
+[KILLED ] sql_a_service_authorizes_a_test
+           011s -- a test is pre-registered by an active human member
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_a_person_who_left_the_project_author
+
+1/1 killed

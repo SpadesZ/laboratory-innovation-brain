@@ -561,3 +561,22 @@ def test_the_evidence_sink_checks_against_the_trust_it_is_given(guarded, monkeyp
         unpinned = Recording()
         ProspectiveEvidenceSink(unpinned, g.db).add_relation(relation)
         assert [r.relation_type for r in unpinned.added] == [RelationType.CITES]
+
+
+def test_a_person_who_left_the_project_authorizes_nothing_with_a_key_enrolled_before(guarded):
+    """The enrolment checked membership when it was made; 011s checks it again for every
+    authorization, so a person who has since left the project cannot authorize with that key."""
+    g = guarded
+    with g.db.transaction(force_rollback=True):
+        _member(g, "act:former")
+        signer = g.keys.signer(PROJECT, "act:former")
+        g.db.execute(
+            "UPDATE project_memberships SET active = FALSE WHERE project_id = %s"
+            " AND actor_id = 'act:former'",
+            (PROJECT,),
+        )
+        with (
+            pytest.raises(psycopg.errors.RaiseException, match="not an active person"),
+            g.db.transaction(force_rollback=True),
+        ):
+            _insert(g, _row(g, "former", signer=signer, actor="act:former"))

@@ -6877,6 +6877,7 @@ MUTATIONS: tuple[Mutation, ...] = (
         old="        RAISE EXCEPTION\n            'authorization %: % is not an active person",
         new="        RETURN NEW;\n        RAISE EXCEPTION\n            'authorization %: % is not an active person",
         tests=(
+            "tests/e2e/test_g0_signed_authorization_postgres.py",
             "tests/e2e/test_g0_prospective_verification_postgres.py",
             "tests/e2e/test_g0_prospective_authorization_postgres.py",
         ),
