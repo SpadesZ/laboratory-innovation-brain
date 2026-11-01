@@ -308,3 +308,53 @@ def test_two_concurrent_writers_extend_one_chain_never_a_fork(db, lab):
         second.close()
     chain = change_audit.verify_chain(db)
     assert chain.intact, chain.problems
+
+
+def test_the_triggers_hold_even_where_writes_were_granted_by_mistake(db, lab, app_role):
+    """Defence in depth: a deployment that granted the services row writes on the audit tables
+    (a hand-written GRANT after `db-roles`) still cannot forge, edit, erase or move the chain --
+    the triggers refuse, not only the privileges."""
+    _people(lab)
+    before = change_audit.verify_chain(db)
+    (seq,) = db.execute("SELECT max(audit_seq) FROM account_change_audit").fetchone()
+    app, password = app_role
+    db.execute(
+        sql.SQL(
+            "GRANT INSERT, UPDATE, DELETE ON account_change_audit, account_change_audit_head TO {}"
+        ).format(sql.Identifier(app))
+    )
+    db.execute(
+        sql.SQL("GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO {}").format(sql.Identifier(app))
+    )
+    statements = {
+        "update": f"UPDATE account_change_audit SET new_values = '{{}}' WHERE audit_seq = {seq}",
+        "delete": f"DELETE FROM account_change_audit WHERE audit_seq = {seq}",
+        "forge": (
+            "INSERT INTO account_change_audit (table_name, operation, account_id, db_session_user,"
+            " role_setting, application_name, txid, recorded_at, previous_digest, row_digest)"
+            f" VALUES ('account_events', 'INSERT', 'acc:x', 'lab_brain_app', 'none', '', 1, now(),"
+            f" '{'0' * 64}', '{'1' * 64}')"
+        ),
+        "move the head": "UPDATE account_change_audit_head SET last_seq = 1",
+    }
+    # Each refused by its own trigger: a forged row by the seal, not only by the head after it.
+    expected = {
+        "update": "append-only",
+        "delete": "append-only",
+        "forge": "written only by its recording triggers",
+        "move the head": "moves only with a sealed audit row",
+    }
+    try:
+        with _as(app, password) as as_app:
+            for what, statement in statements.items():
+                with pytest.raises(psycopg.errors.RaiseException, match=expected[what]):
+                    as_app.execute(statement)
+    finally:
+        db.execute(
+            sql.SQL(
+                "REVOKE INSERT, UPDATE, DELETE ON account_change_audit, account_change_audit_head"
+                " FROM {}"
+            ).format(sql.Identifier(app))
+        )
+    after = change_audit.verify_chain(db)
+    assert after.intact and after.rows == before.rows and after.head == before.head

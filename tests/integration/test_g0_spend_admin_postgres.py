@@ -270,7 +270,13 @@ def test_the_flag_is_not_enough_even_where_table_writes_were_granted_by_mistake(
     budget = _budget(su, "1")
     _price(su, budget)
     tables = sql.SQL(", ").join(
-        sql.Identifier(t) for t in ("llm_spend_budgets", "llm_spend_prices", "llm_spend_ledger")
+        sql.Identifier(t)
+        for t in (
+            "llm_spend_budgets",
+            "llm_spend_prices",
+            "llm_spend_ledger",
+            "llm_spend_free_endpoints",
+        )
     )
     su.execute(
         sql.SQL("GRANT INSERT, UPDATE, DELETE ON {} TO {}").format(
@@ -291,6 +297,8 @@ def test_the_flag_is_not_enough_even_where_table_writes_were_granted_by_mistake(
                 "INSERT INTO llm_spend_prices (budget_id, currency, endpoint_host, model,"
                 " input_per_mtok, output_per_mtok, source, source_date, declared_by)"
                 " VALUES (%s, 'USD', 'api.example.test', 'm', 0, 0, 'x', '2026-10-28', 'a')",
+                "INSERT INTO llm_spend_free_endpoints (endpoint_host, model, free, reason, actor_id)"
+                " SELECT '127.0.0.1:4000', '*', TRUE, 'forged ' || %s, 'act:app'",
             ):
                 with pytest.raises(psycopg.errors.RaiseException), app.transaction():
                     app.execute("SELECT set_config('lab_brain.llm_spend_writer', 'on', TRUE)")
@@ -570,3 +578,43 @@ def test_a_local_only_evaluation_needs_its_endpoints_declared_free(su, fake, mon
     finally:
         spend.install(None)
         spend.revoke_free_endpoint(su, host, "*", reason="test over", actor_id="act:o")
+
+
+def test_an_execute_granted_by_mistake_still_needs_the_administration_role(su, roles):
+    """Defence in depth: a hand-written GRANT EXECUTE on an administration function to the app
+    does not make it the Owner -- each function checks membership of the administration role."""
+    budget = _budget(su)
+    signature = "llm_spend_set_ceiling(TEXT, NUMERIC, TEXT, TEXT, BOOLEAN)"
+    su.execute(
+        sql.SQL(f"GRANT EXECUTE ON FUNCTION {signature} TO {{}}").format(sql.Identifier(roles.app))
+    )
+    try:
+        with (
+            roles.connect(roles.app) as app,
+            pytest.raises(psycopg.errors.InsufficientPrivilege, match="SPEND_ADMIN_REQUIRED"),
+        ):
+            app.execute("SELECT llm_spend_set_ceiling(%s, 99, 'act:app', 'x', TRUE)", (budget,))
+    finally:
+        su.execute(
+            sql.SQL(f"REVOKE EXECUTE ON FUNCTION {signature} FROM {{}}").format(
+                sql.Identifier(roles.app)
+            )
+        )
+    assert _state(su, budget).ceiling == Decimal(10)
+
+
+def test_a_budget_never_starts_charged_or_open_even_for_the_owner(su):
+    """Even inside the owner's writer flag, a new budget has nothing charged and its circuit
+    closed: a budget declared already spent would hide what it was spent on."""
+    for columns in ("charged", "circuit_open"):
+        value = "5" if columns == "charged" else "TRUE"
+        with (
+            pytest.raises(psycopg.errors.RaiseException, match="starts with nothing charged"),
+            su.transaction(),
+        ):
+            su.execute("SELECT set_config('lab_brain.llm_spend_writer', 'on', TRUE)")
+            su.execute(
+                f"INSERT INTO llm_spend_budgets (budget_id, currency, ceiling, declared_by,"
+                f" {columns}) VALUES (%s, 'USD', 5, 'act:owner', {value})",
+                (f"test-adm-{uuid.uuid4().hex[:12]}",),
+            )
