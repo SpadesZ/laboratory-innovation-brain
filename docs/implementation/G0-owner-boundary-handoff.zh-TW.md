@@ -46,3 +46,7 @@ LAB_BRAIN_TEST_POSTGRES=1 LAB_BRAIN_DATABASE_URL=<DB> .venv/bin/python scripts/m
 ## 下一步
 
 Owner:見 `G0-owner-decisions.zh-TW.md`。實作:等 Independent Chief Auditor 審查結果。
+
+## 後續
+
+下一階段:`G0-reliability-authenticity-handoff.zh-TW.md`(分支 `g0-reliability-authenticity-closure`)。

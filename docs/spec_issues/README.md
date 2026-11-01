@@ -42,6 +42,9 @@ enforces. The two are compared by `tests/spec/test_spec_issue_index.py`, because
 | [014](SPEC-ISSUE-014-evidence-unit-cannot-exist-in-two-projects.md) | GATE | §17.25 gives `EvidenceUnit` a project-independent identity and a project-scoped row, so the same document in two projects collides on the primary key and the second project gets no evidence at all | M1 | **RESOLVED** — Reading C, `EvidenceUnitOccurrence`, `v3.3-a18` |
 | [015](SPEC-ISSUE-015-segmentation-conformance-is-self-attested.md) | GATE | §6.22 rule 1 is enforced only when a unit declares its own bindings, so a raw writer skips it by declaring nothing; segmentation conformance is self-attested | M1 | **RESOLVED** — two-layer split per `v3.3-a13`, `v3.3-a18` |
 | [016](SPEC-ISSUE-016-exploratory-screening.md) | GATE | An outcome-independent low-cost screening reading is neither permitted nor forbidden: §9.1/`VER-001` govern the next verification action, §25.4 asks for cheap checks first | M4 | **RESOLVED** — Reading B, Owner decision, ADR-0015 (registry unchanged) |
+| [017](SPEC-ISSUE-017-local-endpoint-free-declaration-is-the-trust-root.md) | GATE | Whether a local model endpoint is free is a fact no client can observe; who may declare it, and whether the declaration expires or binds a model digest, is unstated | M4 | OPEN |
+| [018](SPEC-ISSUE-018-verification-authorization-trust-root.md) | GATE | No mechanism is specified that proves which person pre-registered a verification; who the authority is and which separations of duty apply is unstated | M4 | OPEN |
+| [019](SPEC-ISSUE-019-blind-evaluation-environment-equivalence.md) | GATE | No normative text says which environment differences make a blind evaluation a different experiment | M4 | OPEN |
 
 Issues 004–008 were all raised by the **M0a Spec Coverage Audit** (§23.5 (2)) — the section-by-section
 review of §6–§16 that a linter cannot perform. Each is a hard MUST in the prose with no Requirement

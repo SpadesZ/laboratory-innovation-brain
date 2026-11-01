@@ -33,20 +33,29 @@
 1. **記錄環境**(凍結前):
    ```
    python scripts/g0_eval_environment.py capture --model-endpoint http://127.0.0.1:11434/v1 \
-       --model-id <模型名稱> --model-digest <本機模型內容摘要> --out environment.json
+       --model-id <模型名稱> --model-digest <本機模型內容摘要> \
+       --database-url <評估用資料庫> --out environment.json
    ```
    會拒絕有未提交修改的工作區,與不是本機的模型。印出的 `environment_sha256` 寫進評估者的紀錄。
+   - 會問本機模型伺服器(Ollama `/api/tags`)它真正提供的摘要。和宣告的摘要不同 → 拒絕。
+     伺服器說不出摘要時,紀錄寫 `digest_source: declared`(只是宣告,沒有量到)。
+   - `--database-url` 記錄資料庫**實際套用**的 migration(不只是 repo 裡的檔案)。
+   - 也記錄所有 `LAB_BRAIN_*` 設定(金鑰、密碼、URL 只記「有設定」)與平台。
+   - 哪些差異算「不同的實驗」,目前最嚴格:任何差異都算(SPEC-ISSUE-019,待 Owner 決定)。
 2. **撰寫並封存真值**(真值檔放 repo 外):`scripts/g0_eval_seal.py`。公開的只有 commitments。
 3. **檢查污染**:`scripts/g0_eval_check_contamination.py`,比對已曝光的 `benchmarks/g0_screening` 案例與任何開發集。
 4. **凍結**:`scripts/g0_eval_freeze.py`。凍結協定、評分程式碼 hash、所有輸入檔 hash、案例清單、承諾、污染結果。
 5. **盲跑生成端**:`lab_brain.evaluation.runner.run_blind`。
-   - 先確認 manifest 雜湊正確、生成端套件就是凍結的那一份,否則什麼都不跑。
+   - 先確認 manifest 雜湊正確,並讀一次**每一個**凍結的輸入檔(生成端套件與每個證據檔),比對雜湊。
+     套件與證據都從**同一份已比對的位元組**解析,不再從磁碟重讀;凍結後被改或被換的檔案不會被執行。
+   - 傳入 `environment=`(紀錄的 `environment.json`)與 `observe_environment=`(量測現在環境的函式):
+     第一個案例前有任何差異 → 什麼都不跑;最後一個案例後再量一次,差異寫進輸出,評分程式拒絕評分。
+     沒有傳環境時,輸出寫明「環境未驗證」,分數的 `environment.verified` 是 false。
    - 每個凍結案例都有一筆輸出;執行失敗記為 CRASHED,留在分母。
-   - 輸出綁定 manifest 雜湊與環境雜湊。
    - 正式產品不儲存提示原文,所以本機真實模型的執行會記錄 `prompts_captured: false`;
      這時「輸入洩漏」檢查是 **NOT VERIFIED**,不是通過。生成端從頭到尾沒有拿到真值,這是由封存與套件載入器保證。
 6. **重現檢查**(評分前):用同一份 `environment.json` 執行 `g0_eval_environment.py verify`;有任何差異就不評分。
-7. **揭露並評分**:`scripts/g0_eval_score.py`(scorer 2.1.0 以上)。揭露的真值必須符合凍結的承諾。
+7. **揭露並評分**:`scripts/g0_eval_score.py`(scorer 2.3.0 以上:預先授權必須有可驗證的簽章)。揭露的真值必須符合凍結的承諾。
    報告每個指標的 n、k、比例、Wilson 95% 區間、固定 seed 的 bootstrap 區間,以及把排除案例算失敗的保守數字。
 8. **獨立審查**:G0-S 的「科學有用性」需要具領域資格、獨立於產生者的審查者逐項判斷;分數只是必要條件。
 
