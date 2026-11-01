@@ -329,12 +329,16 @@ def test_probes_are_reserved_though_the_span_meter_never_saw_them(pg, fake):
     call/token meter counted none of them. The spend ledger counts every one."""
     budget = _budget(pg)
     _price(pg, budget, _host(fake.port), "fake-reasoner")
+    # The span meter reads the whole database; an earlier test's committed episode may have left
+    # spans for the same stand-in model. What matters is that the probes add none.
+    cap = LiveCap(max_calls=10, max_tokens=10)
+    before = spent(pg, "fake-reasoner", cap)
     with spend.installed(PostgresSpendGuard(database_url(), budget)):
         client = OpenAICompatibleClient(fake.base_url, KEY)  # built without a guard: installed
         client.list_models()
         for capability in (Capability.CHAT, Capability.STRUCTURED_JSON, Capability.VISION):
             run_probe(client, "fake-reasoner", capability)
-    assert spent(pg, "fake-reasoner", LiveCap(max_calls=10, max_tokens=10)) == (0, 0)
+    assert spent(pg, "fake-reasoner", cap) == before, "the probes wrote no LLM_CALL span"
     reservations = [r for r in _ledger(pg, budget) if r["kind"] == "RESERVATION"]
     assert len(reservations) == len(fake.calls) == 3, "the model list is not; each probe is"
 
