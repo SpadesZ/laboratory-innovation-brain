@@ -24,7 +24,10 @@
 afb8a65  盲測:執行凍結的位元組;執行前後檢查環境
 6c17196  011w:驗證授權由本人簽章
 68eee20  011v、011w、盲測的變異測試項目;授權金鑰登記的測試
-<最後>   SPEC ISSUES、文件、證據、狀態檔
+f5b0210  SPEC-ISSUE-017/018/019、設計、報告草稿、Owner 決定、交接
+db8ef9c  變異測試修正(還原一個被我誤蓋的 012p 項目、修兩個 011w 項目、收緊一個測試)
+6d7b4c3  計費帳本測試改成量「差值」(前一個測試留下的紀錄會干擾)
+<最後>   證據、狀態檔、本報告
 ```
 
 ## 2. 本機代理的成本風險(011v)
@@ -83,10 +86,18 @@ warrant gate 的職責分離(執行者、假說作者不能授權)還沒套用(S
 
 | 檢查 | 結果 | 證據 |
 |---|---|---|
-| ruff、ruff format、mypy | 見最後更新 | 本機 |
-| 完整 PostgreSQL 測試(新建資料庫,83 個 migration) | 見最後更新 | `evidence/full-postgres-suite.log` |
-| 變異測試(新增與改指向的項目) | 見最後更新 | `evidence/mutation-new-entries.log` |
+| ruff、ruff format、mypy | 全部通過(mypy:282 個檔案) | 本機 |
+| 完整 PostgreSQL 測試(新建資料庫,83 個 migration) | **3564 passed, 4 skipped**;2 個失敗只是狀態檔過期,之後執行 `update_status.py` | `evidence/full-postgres-suite.log` |
+| 變異測試,新增與改指向的 58 項,第一次 | 55/58:2 項是我寫錯的 SQL 變異(沒有套用),1 項測試太鬆 | `evidence/mutation-new-entries-first-run.log` |
+| 修正後重跑那 3 項(加上被我誤蓋後還原的 012p 項目) | 4/4 | `evidence/mutation-new-entries-fixed.log` |
+| 變異測試,完整 911 項 | 見最後更新 | `evidence/mutation-full-911.log` |
 | CI | 見推送後 | GitHub Actions |
+
+測試過程的發現:
+- 第一次完整測試有 1 個真的失敗:計費帳本測試計算「整個資料庫」的模型呼叫紀錄,
+  而我新增的授權測試剛好在它前面執行並留下紀錄。改成量執行前後的差值。
+- 舊的網頁與研究流程測試(約 160 個)用 127.0.0.1 的假模型。011v 之後它們的請求被拒絕——這是新規則正確。
+  PostgreSQL 測試因此把「測試自己的假伺服器」當成已宣告免費;計費規則本身的測試標記 `real_spend_guard`,看到真實行為。
 
 ## 6. 工程有效 vs 科學有效
 
