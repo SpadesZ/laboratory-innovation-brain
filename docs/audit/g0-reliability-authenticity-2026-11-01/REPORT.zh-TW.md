@@ -29,7 +29,8 @@ db8ef9c  變異測試修正(還原一個被我誤蓋的 012p 項目、修兩個 
 6d7b4c3  計費帳本測試改成量「差值」(前一個測試留下的紀錄會干擾)
 8743c4b  狀態檔、完整測試證據(CI 4 個 job 全綠)
 ab76bf5  補上最後一個存活變異的測試;完整變異測試證據
-<最後>   狀態檔、本報告
+eadef42  報告:完整變異測試結果與 CI
+<最後>   狀態檔、最後的完整測試證據
 ```
 
 ## 2. 本機代理的成本風險(011v)
@@ -89,7 +90,7 @@ warrant gate 的職責分離(執行者、假說作者不能授權)還沒套用(S
 | 檢查 | 結果 | 證據 |
 |---|---|---|
 | ruff、ruff format、mypy | 全部通過(mypy:282 個檔案) | 本機 |
-| 完整 PostgreSQL 測試(新建資料庫,83 個 migration) | **3564 passed, 4 skipped**;2 個失敗只是狀態檔過期,之後執行 `update_status.py` | `evidence/full-postgres-suite.log` |
+| 完整 PostgreSQL 測試(新建資料庫,83 個 migration,最後的程式與測試) | **3567 passed, 4 skipped, 0 failed**;之後執行 `update_status.py` | `evidence/full-postgres-suite.log` |
 | 變異測試,新增與改指向的 58 項,第一次 | 55/58:2 項是我寫錯的 SQL 變異(沒有套用),1 項測試太鬆 | `evidence/mutation-new-entries-first-run.log` |
 | 修正後重跑那 3 項(加上被我誤蓋後還原的 012p 項目) | 4/4 | `evidence/mutation-new-entries-fixed.log` |
 | 變異測試,完整 911 項(`db8ef9c`) | 910/911:存活的是 011s「授權人必須是在職成員」。011w 的登記也檢查成員,所以舊測試分不出來 | `evidence/mutation-full-911-db8ef9c.log` |
