@@ -1,0 +1,96 @@
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 28%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+.............................................s.......................... [ 35%]
+......s................................................................. [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+.............................s.......................................... [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+......F..F.............................................................. [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 89%]
+........................................................................ [ 91%]
+............................................s........................... [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+......................                                                   [100%]
+=================================== FAILURES ===================================
+_____________________ test_the_hermetic_blocks_are_current _____________________
+
+    def test_the_hermetic_blocks_are_current():
+        """The requirement table, the coverage audit and the spec baseline, in one subprocess.
+    
+        All three are derived from the spec, the milestones, the markers and the migrations directory,
+        so none needs a whole-suite outcome report and `--requirements-only` regenerates every one.
+        """
+        result = subprocess.run(
+            [sys.executable, "scripts/update_status.py", "--check", "--requirements-only"],
+            cwd=repo_root(),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+>       assert result.returncode == 0, (
+            f"{STATUS} is stale — run `python scripts/update_status.py`.\n"
+            f"{result.stdout}{result.stderr}"
+        )
+E       AssertionError: IMPLEMENTATION_STATUS.md is stale — run `python scripts/update_status.py`.
+E         error: IMPLEMENTATION_STATUS.md is stale; run scripts/update_status.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/user/laboratory-innovation-brain/.venv/bin/python', 'scripts/update_status.py', '--check...nts-only'], returncode=1, stdout='error: IMPLEMENTATION_STATUS.md is stale; run scripts/update_status.py\n', stderr='').returncode
+
+tests/spec/test_status_freshness.py:62: AssertionError
+____________ test_the_stated_migration_count_is_the_number_on_disk _____________
+
+    def test_the_stated_migration_count_is_the_number_on_disk():
+        """The other fact that was wrong, cross-checked the same way."""
+        count = len(list((repo_root() / "migrations").glob("*.sql")))
+        assert count > 0, "no migrations found; this check is comparing nothing"
+>       assert f"| Migrations declared | {count} —" in spec_baseline_block(), (
+            f"{STATUS} does not state {count} declared migrations"
+        )
+E       AssertionError: IMPLEMENTATION_STATUS.md does not state 81 declared migrations
+E       assert '| Migrations declared | 81 —' in "<!-- BEGIN GENERATED: spec-baseline -->\n\nGenerated by `scripts/update_status.py` from the specification's Version N...igrations is not a property of this repository and is not asserted here: run `python scripts/migrate.py --status`.\n\n"
+E        +  where "<!-- BEGIN GENERATED: spec-baseline -->\n\nGenerated by `scripts/update_status.py` from the specification's Version N...igrations is not a property of this repository and is not asserted here: run `python scripts/migrate.py --status`.\n\n" = spec_baseline_block()
+
+tests/spec/test_status_freshness.py:131: AssertionError
+=========================== short test summary info ============================
+SKIPPED [1] tests/e2e/test_research_live_model_postgres.py:276: set LAB_BRAIN_LIVE_PRIMARY to a local model to run
+SKIPPED [1] tests/e2e/test_vs_sp_001_licensed_replay.py:24: requires lumerical; set LAB_BRAIN_TEST_LUMERICAL=1 to enable
+SKIPPED [1] tests/integration/test_github_network.py:31: requires network; set LAB_BRAIN_TEST_NETWORK=1 to enable
+SKIPPED [1] tests/unit/test_llm_runtime.py:202: Windows Credential Manager
+2 failed, 3472 passed, 4 skipped in 1212.99s (0:20:12)

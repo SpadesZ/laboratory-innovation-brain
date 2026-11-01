@@ -24,7 +24,9 @@
 f43907a  互動簽章金鑰生命週期;011u 帳號變更的雜湊鏈紀錄(A12 仍開放)
 45a9454  011s:篩檢後支持需要宣告的種類、預先授權、新的血緣;operator 指令
 f40a979  只用本機模型的即時評估,先要 Owner 的免費宣告
-<最後>   變異測試補強與文件(見 §6)
+9cbeb9f..eefcad5  補 011s/011t/011u 的對抗測試與變異項目;Owner 決定、交接
+aff855e  最後一次完整變異測試的證據檔
+<最後>   狀態檔、完整測試證據、本報告
 ```
 
 ## 2. 優先 1:金額上限真的能執行
@@ -81,8 +83,23 @@ f40a979  只用本機模型的即時評估,先要 Owner 的免費宣告
 
 ## 6. 驗證
 
-<!-- 最後數字在最終 SHA 填入 -->
-見 §6.1–6.4。
+| 檢查 | 結果 | 證據 |
+|---|---|---|
+| ruff、ruff format、mypy | 全部通過(mypy:282 個檔案) | 本機 |
+| 完整 PostgreSQL 測試(新建資料庫,81 個 migration) | 3472 passed, 4 skipped;2 個失敗只是狀態檔過期,執行 `update_status.py` 後 spec 245 passed | `evidence/full-postgres-suite.log` |
+| 變異測試,第一次完整執行(`cfb7e19`) | 857/861 | `evidence/mutation-full-861-first-run-cfb7e19.log` |
+| 變異測試,最後一次完整執行(`eefcad5`) | **861/861** | `evidence/mutation-full-861-final-eefcad5.log` |
+| CI | 見推送後的結果(交接檔) | GitHub Actions |
+
+變異測試的發現與修正(都在第一次完整執行之前或之後,都有紀錄):
+- 舊的變異資料庫沒有 `schema_migrations`,所以角色測試在 setup 就出錯,被誤算為「抓到」(14 項)。
+  修正電池後,這些規則裡有 21 項其實沒有測試;都補了測試(`tests/e2e/test_g0_prospective_authorization_postgres.py`、
+  spend 與 A12 的「權限誤授時 trigger 仍然擋住」測試)。
+- 第一次完整執行有 4 項存活:011s 取代了 011o 的 guard 函式(3 項,改指向 011s 的同一檢查),
+  以及收集器的開始時間規則被 011s 的種類規則重複涵蓋(1 項,把測試改成只有開始時間是舊的)。
+- 011p 規則 (h) 的兩項移到 011s(011s 自己判斷 (h))。
+
+以前的 795 項,加上新的 68 項,減去移走的 2 項 = 861 項。
 
 ## 7. 工程有效 vs 科學有效
 
