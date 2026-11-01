@@ -1,0 +1,236 @@
+58 mutations
+
+[KILLED ] sql_an_unauthorized_check_supports
+           011s (l) -- a check nobody pre-registered cannot support
+           killed by FAILED tests/e2e/test_g0_prospective_evidence_postgres.py::test_a_new_measurement_nobody_authorized_
+
+[KILLED ] sql_an_authorization_of_another_hypothesis_supports
+           011s (l) -- authorized for this hypothesis
+           killed by FAILED tests/e2e/test_g0_prospective_authorization_postgres.py::test_the_guard_refuses_an_authorizat
+
+[KILLED ] sql_an_authorization_of_another_capability_supports
+           011s (l) -- authorized for this capability
+           killed by FAILED tests/e2e/test_g0_prospective_authorization_postgres.py::test_the_guard_refuses_an_authorizat
+
+[KILLED ] sql_an_authorization_under_another_declaration_supports
+           011s (l) -- under the declaration in force
+           killed by FAILED tests/e2e/test_g0_prospective_authorization_postgres.py::test_the_guard_refuses_an_authorizat
+
+[KILLED ] sql_an_unregistered_prediction_is_supported
+           011s (l) -- a test supports only the prediction it registered
+           killed by FAILED tests/e2e/test_g0_prospective_verification_postgres.py::test_a_relation_naming_no_registered_
+
+[KILLED ] sql_a_check_started_before_its_authorization_supports
+           011s (l) -- the run starts after its authorization
+           killed by FAILED tests/e2e/test_g0_prospective_verification_postgres.py::test_a_check_that_began_before_its_au
+
+[KILLED ] sql_data_captured_before_authorization_supports
+           011s (l) -- a measurement's data is captured after its authorization
+           killed by FAILED tests/e2e/test_g0_prospective_verification_postgres.py::test_data_captured_before_the_authori
+
+[KILLED ] this_machine_is_exempt_again
+           011v -- a request to this machine is admitted like any other (no local exemption)
+           killed by FAILED tests/unit/test_g0_local_proxy_spend.py::test_with_no_ceiling_configured_a_local_request_is_r
+
+[KILLED ] sql_a_wildcard_free_declaration_is_accepted
+           011v -- a free declaration names one model, never *
+           killed by FAILED tests/integration/test_g0_local_proxy_postgres.py::test_the_owner_cannot_declare_every_model_
+
+[KILLED ] sql_a_wildcard_row_frees_every_model
+           011v -- a * row from 011t frees nothing
+           killed by FAILED tests/integration/test_g0_local_proxy_postgres.py::test_a_wildcard_row_from_before_frees_noth
+
+[KILLED ] sql_paid_proxy_evidence_is_ignored
+           011v -- paid-proxy evidence withdraws the declaration
+           killed by FAILED tests/integration/test_g0_local_proxy_postgres.py::test_a_report_withdraws_exactly_that_decla
+
+[KILLED ] sql_paid_proxy_evidence_is_editable
+           011v -- paid-proxy evidence is append-only, written by its function
+           killed by FAILED tests/integration/test_g0_local_proxy_postgres.py::test_nobody_edits_deletes_or_writes_a_repo
+
+[KILLED ] sql_a_paid_proxy_signal_carries_a_value
+           011v -- a report holds signal names, never values
+           killed by FAILED tests/integration/test_g0_local_proxy_postgres.py::test_a_report_holds_signal_names_never_val
+
+[KILLED ] sql_a_report_of_nothing_writes_evidence
+           011v -- nothing declared free: nothing to withdraw, nothing written
+           killed by FAILED tests/integration/test_g0_local_proxy_postgres.py::test_a_report_with_nothing_declared_withdr
+
+[KILLED ] paid_proxy_signs_are_ignored
+           011v -- a free answer with a paid provider's signs is refused
+           killed by FAILED tests/unit/test_g0_local_proxy_spend.py::test_a_free_endpoint_that_answers_like_a_paid_proxy_
+
+[KILLED ] paid_proxy_is_not_reported
+           011v -- the signs withdraw the declaration
+           killed by FAILED tests/unit/test_g0_local_proxy_spend.py::test_a_free_endpoint_that_answers_like_a_paid_proxy_
+
+[KILLED ] paid_proxy_billing_header_unseen
+           011v -- billing headers are paid-proxy signs
+           killed by FAILED tests/unit/test_g0_local_proxy_spend.py::test_a_free_endpoint_that_answers_like_a_paid_proxy_
+
+[KILLED ] paid_proxy_usage_cost_unseen
+           011v -- a cost in the usage is a paid-proxy sign
+           killed by ImportError while loading conftest '/home/user/laboratory-innovation-brain/tests/conftest.py'.
+tests
+
+[KILLED ] free_endpoints_env_accepts_a_wildcard
+           011v -- an evaluation's free endpoint names one model
+           killed by FAILED tests/unit/test_g0_local_proxy_spend.py::test_a_wildcard_free_endpoint_is_refused_by_the_eval
+
+[KILLED ] sql_an_unsigned_authorization_is_accepted
+           011w -- an authorization is signed
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_an_unsigned_authorization_in_a_membe
+
+[KILLED ] sql_vauth_another_persons_enrolment_signs
+           011w -- signed under the named person's enrolment
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_a_signature_under_another_persons_en
+
+[KILLED ] sql_a_revoked_enrolment_signs
+           011w -- a revoked key signs nothing more
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_a_revoked_key_signs_nothing_more
+
+[KILLED ] sql_signed_before_its_enrolment
+           011w -- signed after the enrolment
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_a_signature_older_than_its_enrolment
+
+[KILLED ] sql_signed_in_the_future
+           011w -- a signature is not dated in the future
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_a_signature_dated_in_the_future_or_b
+
+[KILLED ] sql_signed_before_the_hypothesis
+           011w -- signed after the hypothesis
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_a_signature_dated_in_the_future_or_b
+
+[KILLED ] sql_rule_l_admits_an_unsigned_row
+           011w -- rule (l): an unsigned authorization licenses nothing
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_an_unsigned_row_from_before_011w_lic
+
+[KILLED ] sql_rule_l_ignores_whose_enrolment
+           011w -- rule (l): the enrolment is the authorization's person's
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_rule_l_rereads_the_enrolment_of_a_ro
+
+[KILLED ] sql_rule_l_ignores_a_revocation
+           011w -- rule (l): a revocation before the signature withdraws it
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_a_revocation_effective_before_the_si
+
+[SURVIVED] sql_vauth_a_non_member_is_enrolled
+           011w -- only an active human member gets an authorizer key
+           MUTANT DID NOT APPLY — too many parameters specified for RAISE
+
+[KILLED ] sql_one_key_two_people
+           011w -- one key, one person
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_one_key_belongs_to_one_person
+
+[KILLED ] sql_vauth_a_revoked_key_is_enrolled_again
+           011w -- a revoked key is never enrolled again
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_a_revoked_key_is_never_enrolled_agai
+
+[KILLED ] sql_a_persons_key_is_an_authoritys
+           011w -- an authority's key is never a person's key
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_a_persons_key_is_never_an_authoritys
+
+[SURVIVED] sql_authorizer_enrolments_are_editable
+           011w -- enrolments are append-only
+           MUTANT DID NOT APPLY — TRUNCATE FOR EACH ROW triggers are not supported
+
+[KILLED ] authorization_signature_is_not_checked
+           011w -- the person's signature must verify
+           killed by FAILED tests/unit/test_g0_authorization_signature.py::test_every_field_is_inside_the_signature[autho
+
+[KILLED ] authorization_enrolment_is_not_verified
+           011w -- the enrolment must be a pinned authority's
+           killed by FAILED tests/unit/test_g0_authorization_signature.py::test_an_enrolment_by_an_unpinned_authority_doe
+
+[KILLED ] authorization_accepts_a_warrant_enrolment
+           011w -- only an authorizer enrolment signs an authorization
+           killed by FAILED tests/unit/test_g0_authorization_signature.py::test_a_warrant_enrolment_does_not_sign_an_auth
+
+[KILLED ] authorization_ignores_a_revocation
+           011w -- a revocation at or before the signature withdraws it
+           killed by FAILED tests/unit/test_g0_authorization_signature.py::test_a_revocation_at_or_before_the_signature_w
+
+[KILLED ] authorization_predating_its_enrolment_counts
+           011w -- a signature before its enrolment does not count
+           killed by FAILED tests/unit/test_g0_authorization_signature.py::test_a_signature_before_the_enrolment_does_not
+
+[KILLED ] authorization_by_another_person_counts
+           011w -- the enrolment is the named person's in that project
+           killed by FAILED tests/unit/test_g0_authorization_signature.py::test_another_persons_enrolment_does_not_count
+
+[KILLED ] authorization_statement_omits_the_rationale
+           011w -- every field is inside the signature
+           killed by FAILED tests/unit/test_g0_authorization_signature.py::test_every_field_is_inside_the_signature[ratio
+
+[KILLED ] support_skips_the_signature_check
+           011w -- every read that counts an authorization verifies it
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_a_forged_signature_passes_the_frame_
+
+[KILLED ] collector_never_reports_an_unverified_authorization
+           011w -- the collector re-reads the signature
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_a_forged_signature_passes_the_frame_
+
+[KILLED ] scorer_ignores_an_unverified_authorization
+           011w -- scorer 2.3.0 requires the fact
+           killed by FAILED tests/unit/test_g0_evaluation_scoring_v2.py::test_scorer_2_3_0_carries_the_011s_and_011w_fact
+
+[KILLED ] sink_ignores_its_trust
+           011w -- the sink checks against the trust it is given
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_the_evidence_sink_checks_against_the
+
+[KILLED ] runner_reads_an_unfrozen_file
+           blind runner -- an input the manifest did not freeze is refused
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_an_evidence_file_the_manifest_did_not_freeze_is_re
+
+[KILLED ] runner_starts_on_a_drifted_environment
+           blind runner -- drift before the first case refuses the run
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_a_drifted_environment_is_refused_before_the_first_
+
+[KILLED ] runner_never_checks_after_the_run
+           blind runner -- the environment is checked after the last case
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_drift_during_the_run_is_recorded_and_the_scorer_re
+
+[SURVIVED] runner_runs_with_a_record_it_cannot_observe
+           blind runner -- a recorded environment needs a way to observe it
+           SURVIVED — tests still pass with the guard disabled
+
+[KILLED ] scorer_scores_a_drifted_run
+           scorer -- drift during the run refuses scoring
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_drift_during_the_run_is_recorded_and_the_scorer_re
+
+[KILLED ] settings_record_a_secret_value
+           environment -- a secret setting is recorded only as set
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_settings_record_values_but_only_the_presence_of_se
+
+[KILLED ] served_digest_contradiction_accepted
+           environment -- a served digest that contradicts the declared one is refused
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_a_declared_digest_the_server_contradicts_is_refuse
+
+[KILLED ] a_remote_endpoint_is_asked_its_digest
+           environment -- only this machine's model server is asked
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_a_remote_endpoint_is_never_asked
+
+[KILLED ] verify_ignores_clean_tree
+           environment -- verify reports clean tree drift
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_verify_reports_each_field_that_makes_another_exper
+
+[KILLED ] verify_ignores_model_endpoint
+           environment -- verify reports model endpoint drift
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_verify_reports_each_field_that_makes_another_exper
+
+[KILLED ] verify_ignores_platform
+           environment -- verify reports platform drift
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_a_drifted_environment_is_refused_before_the_first_
+
+[KILLED ] verify_ignores_settings
+           environment -- verify reports settings drift
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_verify_reports_each_field_that_makes_another_exper
+
+[KILLED ] verify_ignores_applied_schema
+           environment -- verify reports applied schema drift
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_verify_reports_each_field_that_makes_another_exper
+
+[KILLED ] verify_ignores_model_digest_source
+           environment -- verify reports model digest source drift
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_verify_reports_each_field_that_makes_another_exper
+
+55/58 killed

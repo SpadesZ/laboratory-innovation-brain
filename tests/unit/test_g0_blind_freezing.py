@@ -151,7 +151,7 @@ def test_drift_during_the_run_is_recorded_and_the_scorer_refuses_it(tmp_path):
 
 def test_a_recorded_environment_needs_a_way_to_observe_it(tmp_path):
     evaluator = _prepare(tmp_path)
-    with pytest.raises(RunnerRefused, match="observe"):
+    with pytest.raises(RunnerRefused, match="needs a way to observe"):
         run_blind(
             manifest=evaluator["manifest"],
             root=tmp_path,

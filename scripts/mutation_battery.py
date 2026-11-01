@@ -4533,11 +4533,11 @@ MUTATIONS: tuple[Mutation, ...] = (
     ),
     Mutation(
         name="sql_a_non_member_is_enrolled",
-        guards="011w -- only an active human member gets an authorizer key",
-        path="migrations/011w_signed_verification_authorizations.sql",
-        old="        RAISE EXCEPTION\n            '% is not an active human member of %, so no authorizer key can be enrolled for them '\n            'there', NEW.actor_id, NEW.project_id;\n",
-        new="        NULL;\n",
-        tests=("tests/e2e/test_g0_signed_authorization_postgres.py",),
+        guards="Causal Warrant Gate V1.1 (012p) -- only an active member of the project is enrolled",
+        path="migrations/012p_causal_warrant_gate_v1_1.sql",
+        old="           AND m.project_id = NEW.project_id AND m.active\n    ) THEN\n        RAISE EXCEPTION\n            '% is not an active human member of %, so no reviewer key",
+        new="           AND m.project_id = NEW.project_id AND m.active\n    ) AND FALSE THEN\n        RAISE EXCEPTION\n            '% is not an active human member of %, so no reviewer key",
+        tests=("tests/e2e/test_causal_warrant_v1_1_postgres.py",),
     ),
     Mutation(
         name="sql_a_key_is_shared",
@@ -7587,8 +7587,8 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="sql_vauth_a_non_member_is_enrolled",
         guards="011w -- only an active human member gets an authorizer key",
         path="migrations/011w_signed_verification_authorizations.sql",
-        old="            '% is not an active human member of %, so no authorizer key can be enrolled for them '\n",
-        new="            '% is not an active human member of %, so no authorizer key can be enrolled for them '\n            'there', NEW.actor_id, NEW.project_id;\n        RETURN NEW;\n        RAISE EXCEPTION '%'\n",
+        old="           AND m.project_id = NEW.project_id AND m.active\n    ) THEN\n        RAISE EXCEPTION\n            '% is not an active human member of %, so no authorizer key",
+        new="           AND m.project_id = NEW.project_id AND m.active\n    ) AND FALSE THEN\n        RAISE EXCEPTION\n            '% is not an active human member of %, so no authorizer key",
         tests=("tests/e2e/test_g0_signed_authorization_postgres.py",),
     ),
     Mutation(
@@ -7619,8 +7619,8 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="sql_authorizer_enrolments_are_editable",
         guards="011w -- enrolments are append-only",
         path="migrations/011w_signed_verification_authorizations.sql",
-        old="    BEFORE UPDATE OR DELETE ON verification_authorizer_enrolments\n",
-        new="    BEFORE TRUNCATE ON verification_authorizer_enrolments\n",
+        old="    BEFORE UPDATE OR DELETE ON verification_authorizer_enrolments\n    FOR EACH ROW EXECUTE",
+        new="    BEFORE UPDATE OR DELETE ON verification_authorizer_enrolments\n    FOR EACH ROW WHEN (FALSE) EXECUTE",
         tests=("tests/e2e/test_g0_signed_authorization_postgres.py",),
     ),
     Mutation(

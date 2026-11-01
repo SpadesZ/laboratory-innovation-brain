@@ -1,0 +1,19 @@
+4 mutations
+
+[KILLED ] sql_a_non_member_is_enrolled
+           Causal Warrant Gate V1.1 (012p) -- only an active member of the project is enrolled
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_the_database_refuses_self_enrolment_shar
+
+[KILLED ] sql_vauth_a_non_member_is_enrolled
+           011w -- only an active human member gets an authorizer key
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_a_model_slot_is_never_enrolled_as_an
+
+[KILLED ] sql_authorizer_enrolments_are_editable
+           011w -- enrolments are append-only
+           killed by FAILED tests/e2e/test_g0_signed_authorization_postgres.py::test_an_enrolment_is_never_edited_or_dele
+
+[KILLED ] runner_runs_with_a_record_it_cannot_observe
+           blind runner -- a recorded environment needs a way to observe it
+           killed by FAILED tests/unit/test_g0_blind_freezing.py::test_a_recorded_environment_needs_a_way_to_observe_it
+
+4/4 killed
