@@ -1,0 +1,22 @@
+{
+  "hypothesis_count_gaming": {
+    "copied": "hyp:thermo.ambient",
+    "copies_added": 50,
+    "distinguishable_diversity_after": 11,
+    "distinguishable_diversity_before": 11,
+    "naive_count_after": 61,
+    "naive_count_before": 11,
+    "world": "in_catalog_single-00"
+  },
+  "retrospective_support": {
+    "examples": [
+      "in_catalog_single-00:hyp:geometry.thickness",
+      "in_catalog_single-01:hyp:cladding.index_drift",
+      "in_catalog_single-10:hyp:geometry.thickness",
+      "in_catalog_single-12:hyp:geometry.thickness",
+      "in_catalog_single-14:hyp:cladding.index_drift"
+    ],
+    "hypotheses_it_would_have_counted_as_tested_but_were_not": 88,
+    "rule": "a naive rule counting every admitted risky observation, whatever its time"
+  }
+}

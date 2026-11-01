@@ -1,0 +1,2850 @@
+{
+  "ablations": {
+    "B2-no-closure": {
+      "budget_per_correct_outcome": 10.3333,
+      "budget_spent_all": {
+        "bootstrap95": [
+          6.465,
+          7.165
+        ],
+        "mean": 6.82,
+        "n": 200
+      },
+      "budget_spent_when_correct": {
+        "bootstrap95": [
+          6.4773,
+          7.2273
+        ],
+        "mean": 6.8409,
+        "n": 132
+      },
+      "claims_made": {
+        "k": 156,
+        "n": 200,
+        "rate": 0.78,
+        "wilson95": [
+          0.7176,
+          0.8318
+        ]
+      },
+      "correct_outcome": {
+        "k": 132,
+        "n": 200,
+        "rate": 0.66,
+        "wilson95": [
+          0.5919,
+          0.7221
+        ]
+      },
+      "correct_rate_by_seed_block": [
+        0.65,
+        0.6,
+        0.725,
+        0.7,
+        0.625
+      ],
+      "discovery_rate_declared_truths": {
+        "k": 107,
+        "n": 175,
+        "rate": 0.6114,
+        "wilson95": [
+          0.5376,
+          0.6805
+        ]
+      },
+      "distinguishable_diversity": {
+        "bootstrap95": [
+          10.9,
+          11.705
+        ],
+        "mean": 11.3,
+        "n": 200
+      },
+      "false_discovery": {
+        "k": 24,
+        "n": 200,
+        "rate": 0.12,
+        "wilson95": [
+          0.082,
+          0.1723
+        ]
+      },
+      "imprecise": {
+        "k": 0,
+        "n": 200,
+        "rate": 0.0,
+        "wilson95": [
+          0.0,
+          0.0188
+        ]
+      },
+      "label": "B2 without rival closure, class closure or class reporting",
+      "naive_hypothesis_count": {
+        "bootstrap95": [
+          10.92,
+          11.685
+        ],
+        "mean": 11.3,
+        "n": 200
+      },
+      "open_anomalies_at_stop": {
+        "bootstrap95": [
+          0.215,
+          0.435
+        ],
+        "mean": 0.315,
+        "n": 200
+      },
+      "overclaim": {
+        "k": 25,
+        "n": 200,
+        "rate": 0.125,
+        "wilson95": [
+          0.0861,
+          0.178
+        ]
+      },
+      "partial_false_discovery": {
+        "k": 1,
+        "n": 200,
+        "rate": 0.005,
+        "wilson95": [
+          0.0009,
+          0.0278
+        ]
+      },
+      "per_kind": {
+        "composition": {
+          "correct": {
+            "k": 23,
+            "n": 25,
+            "rate": 0.92,
+            "wilson95": [
+              0.7503,
+              0.9778
+            ]
+          },
+          "false_discovery": {
+            "k": 1,
+            "n": 25,
+            "rate": 0.04,
+            "wilson95": [
+              0.0071,
+              0.1954
+            ]
+          },
+          "mean_spent": 9.08,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "confounded_measurement_chain": {
+          "correct": {
+            "k": 17,
+            "n": 25,
+            "rate": 0.68,
+            "wilson95": [
+              0.4841,
+              0.8279
+            ]
+          },
+          "false_discovery": {
+            "k": 7,
+            "n": 25,
+            "rate": 0.28,
+            "wilson95": [
+              0.1428,
+              0.4758
+            ]
+          },
+          "mean_spent": 6.32,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "in_catalog_single": {
+          "correct": {
+            "k": 25,
+            "n": 25,
+            "rate": 1.0,
+            "wilson95": [
+              0.8668,
+              1.0
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 5.32,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "inseparable_pair": {
+          "correct": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 4.28,
+          "overclaim": {
+            "k": 25,
+            "n": 25,
+            "rate": 1.0,
+            "wilson95": [
+              0.8668,
+              1.0
+            ]
+          }
+        },
+        "noise_glitch": {
+          "correct": {
+            "k": 24,
+            "n": 25,
+            "rate": 0.96,
+            "wilson95": [
+              0.8046,
+              0.9929
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 5.48,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "noise_only_null": {
+          "correct": {
+            "k": 11,
+            "n": 25,
+            "rate": 0.44,
+            "wilson95": [
+              0.2667,
+              0.6293
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 11.36,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "outside_all_declared": {
+          "correct": {
+            "k": 25,
+            "n": 25,
+            "rate": 1.0,
+            "wilson95": [
+              0.8668,
+              1.0
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 5.84,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "outside_initial_prior": {
+          "correct": {
+            "k": 7,
+            "n": 25,
+            "rate": 0.28,
+            "wilson95": [
+              0.1428,
+              0.4758
+            ]
+          },
+          "false_discovery": {
+            "k": 16,
+            "n": 25,
+            "rate": 0.64,
+            "wilson95": [
+              0.4452,
+              0.7975
+            ]
+          },
+          "mean_spent": 6.88,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        }
+      },
+      "protocol_digest": "sha256:514afc493a5f266b8b31e5b277c9b48d27e9f2a2125ffb5df363550b1d5d6e32"
+    },
+    "B2-no-expansion": {
+      "budget_per_correct_outcome": 8.8993,
+      "budget_spent_all": {
+        "bootstrap95": [
+          6.21,
+          7.085
+        ],
+        "mean": 6.63,
+        "n": 200
+      },
+      "budget_spent_when_correct": {
+        "bootstrap95": [
+          6.5101,
+          7.3087
+        ],
+        "mean": 6.9128,
+        "n": 149
+      },
+      "claims_made": {
+        "k": 126,
+        "n": 200,
+        "rate": 0.63,
+        "wilson95": [
+          0.5612,
+          0.6939
+        ]
+      },
+      "correct_outcome": {
+        "k": 149,
+        "n": 200,
+        "rate": 0.745,
+        "wilson95": [
+          0.6804,
+          0.8004
+        ]
+      },
+      "correct_rate_by_seed_block": [
+        0.775,
+        0.725,
+        0.75,
+        0.75,
+        0.725
+      ],
+      "discovery_rate_declared_truths": {
+        "k": 124,
+        "n": 175,
+        "rate": 0.7086,
+        "wilson95": [
+          0.6373,
+          0.7708
+        ]
+      },
+      "distinguishable_diversity": {
+        "bootstrap95": [
+          10.24,
+          10.375
+        ],
+        "mean": 10.305,
+        "n": 200
+      },
+      "false_discovery": {
+        "k": 2,
+        "n": 200,
+        "rate": 0.01,
+        "wilson95": [
+          0.0027,
+          0.0357
+        ]
+      },
+      "imprecise": {
+        "k": 0,
+        "n": 200,
+        "rate": 0.0,
+        "wilson95": [
+          0.0,
+          0.0188
+        ]
+      },
+      "label": "B2 without widening or the measurement-chain review",
+      "naive_hypothesis_count": {
+        "bootstrap95": [
+          10.235,
+          10.375
+        ],
+        "mean": 10.305,
+        "n": 200
+      },
+      "open_anomalies_at_stop": {
+        "bootstrap95": [
+          0.385,
+          0.61
+        ],
+        "mean": 0.5,
+        "n": 200
+      },
+      "overclaim": {
+        "k": 0,
+        "n": 200,
+        "rate": 0.0,
+        "wilson95": [
+          0.0,
+          0.0188
+        ]
+      },
+      "partial_false_discovery": {
+        "k": 1,
+        "n": 200,
+        "rate": 0.005,
+        "wilson95": [
+          0.0009,
+          0.0278
+        ]
+      },
+      "per_kind": {
+        "composition": {
+          "correct": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "false_discovery": {
+            "k": 1,
+            "n": 25,
+            "rate": 0.04,
+            "wilson95": [
+              0.0071,
+              0.1954
+            ]
+          },
+          "mean_spent": 2.68,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "confounded_measurement_chain": {
+          "correct": {
+            "k": 24,
+            "n": 25,
+            "rate": 0.96,
+            "wilson95": [
+              0.8046,
+              0.9929
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 8.36,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "in_catalog_single": {
+          "correct": {
+            "k": 25,
+            "n": 25,
+            "rate": 1.0,
+            "wilson95": [
+              0.8668,
+              1.0
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 6.52,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "inseparable_pair": {
+          "correct": {
+            "k": 25,
+            "n": 25,
+            "rate": 1.0,
+            "wilson95": [
+              0.8668,
+              1.0
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 4.28,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "noise_glitch": {
+          "correct": {
+            "k": 24,
+            "n": 25,
+            "rate": 0.96,
+            "wilson95": [
+              0.8046,
+              0.9929
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 6.68,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "noise_only_null": {
+          "correct": {
+            "k": 11,
+            "n": 25,
+            "rate": 0.44,
+            "wilson95": [
+              0.2667,
+              0.6293
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 11.36,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "outside_all_declared": {
+          "correct": {
+            "k": 25,
+            "n": 25,
+            "rate": 1.0,
+            "wilson95": [
+              0.8668,
+              1.0
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 5.44,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "outside_initial_prior": {
+          "correct": {
+            "k": 15,
+            "n": 25,
+            "rate": 0.6,
+            "wilson95": [
+              0.4074,
+              0.766
+            ]
+          },
+          "false_discovery": {
+            "k": 1,
+            "n": 25,
+            "rate": 0.04,
+            "wilson95": [
+              0.0071,
+              0.1954
+            ]
+          },
+          "mean_spent": 7.72,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        }
+      },
+      "protocol_digest": "sha256:973bd45c1e215c277aa672832bcdf0b002d4c29f6cca2b61b6591d59174b402c"
+    },
+    "B2-no-noise-test": {
+      "budget_per_correct_outcome": 6.8472,
+      "budget_spent_all": {
+        "bootstrap95": [
+          4.615,
+          5.25
+        ],
+        "mean": 4.93,
+        "n": 200
+      },
+      "budget_spent_when_correct": {
+        "bootstrap95": [
+          4.9861,
+          5.625
+        ],
+        "mean": 5.3056,
+        "n": 144
+      },
+      "claims_made": {
+        "k": 135,
+        "n": 200,
+        "rate": 0.675,
+        "wilson95": [
+          0.6073,
+          0.7361
+        ]
+      },
+      "correct_outcome": {
+        "k": 144,
+        "n": 200,
+        "rate": 0.72,
+        "wilson95": [
+          0.6541,
+          0.7776
+        ]
+      },
+      "correct_rate_by_seed_block": [
+        0.775,
+        0.7,
+        0.675,
+        0.75,
+        0.7
+      ],
+      "discovery_rate_declared_truths": {
+        "k": 120,
+        "n": 175,
+        "rate": 0.6857,
+        "wilson95": [
+          0.6136,
+          0.7499
+        ]
+      },
+      "distinguishable_diversity": {
+        "bootstrap95": [
+          12.2,
+          13.1
+        ],
+        "mean": 12.63,
+        "n": 200
+      },
+      "false_discovery": {
+        "k": 15,
+        "n": 200,
+        "rate": 0.075,
+        "wilson95": [
+          0.046,
+          0.12
+        ]
+      },
+      "imprecise": {
+        "k": 0,
+        "n": 200,
+        "rate": 0.0,
+        "wilson95": [
+          0.0,
+          0.0188
+        ]
+      },
+      "label": "B2 without anomaly noise tests or decisive replication",
+      "naive_hypothesis_count": {
+        "bootstrap95": [
+          12.185,
+          13.105
+        ],
+        "mean": 12.63,
+        "n": 200
+      },
+      "open_anomalies_at_stop": {
+        "bootstrap95": [
+          0.53,
+          0.85
+        ],
+        "mean": 0.685,
+        "n": 200
+      },
+      "overclaim": {
+        "k": 0,
+        "n": 200,
+        "rate": 0.0,
+        "wilson95": [
+          0.0,
+          0.0188
+        ]
+      },
+      "partial_false_discovery": {
+        "k": 5,
+        "n": 200,
+        "rate": 0.025,
+        "wilson95": [
+          0.0107,
+          0.0572
+        ]
+      },
+      "per_kind": {
+        "composition": {
+          "correct": {
+            "k": 23,
+            "n": 25,
+            "rate": 0.92,
+            "wilson95": [
+              0.7503,
+              0.9778
+            ]
+          },
+          "false_discovery": {
+            "k": 1,
+            "n": 25,
+            "rate": 0.04,
+            "wilson95": [
+              0.0071,
+              0.1954
+            ]
+          },
+          "mean_spent": 6.76,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "confounded_measurement_chain": {
+          "correct": {
+            "k": 24,
+            "n": 25,
+            "rate": 0.96,
+            "wilson95": [
+              0.8046,
+              0.9929
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 5.52,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "in_catalog_single": {
+          "correct": {
+            "k": 25,
+            "n": 25,
+            "rate": 1.0,
+            "wilson95": [
+              0.8668,
+              1.0
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 4.4,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "inseparable_pair": {
+          "correct": {
+            "k": 25,
+            "n": 25,
+            "rate": 1.0,
+            "wilson95": [
+              0.8668,
+              1.0
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 3.44,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "noise_glitch": {
+          "correct": {
+            "k": 2,
+            "n": 25,
+            "rate": 0.08,
+            "wilson95": [
+              0.0222,
+              0.2497
+            ]
+          },
+          "false_discovery": {
+            "k": 7,
+            "n": 25,
+            "rate": 0.28,
+            "wilson95": [
+              0.1428,
+              0.4758
+            ]
+          },
+          "mean_spent": 3.28,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "noise_only_null": {
+          "correct": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "false_discovery": {
+            "k": 4,
+            "n": 25,
+            "rate": 0.16,
+            "wilson95": [
+              0.064,
+              0.3465
+            ]
+          },
+          "mean_spent": 3.24,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "outside_all_declared": {
+          "correct": {
+            "k": 24,
+            "n": 25,
+            "rate": 0.96,
+            "wilson95": [
+              0.8046,
+              0.9929
+            ]
+          },
+          "false_discovery": {
+            "k": 1,
+            "n": 25,
+            "rate": 0.04,
+            "wilson95": [
+              0.0071,
+              0.1954
+            ]
+          },
+          "mean_spent": 4.8,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "outside_initial_prior": {
+          "correct": {
+            "k": 21,
+            "n": 25,
+            "rate": 0.84,
+            "wilson95": [
+              0.6535,
+              0.936
+            ]
+          },
+          "false_discovery": {
+            "k": 2,
+            "n": 25,
+            "rate": 0.08,
+            "wilson95": [
+              0.0222,
+              0.2497
+            ]
+          },
+          "mean_spent": 8.0,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        }
+      },
+      "protocol_digest": "sha256:fc5aaa2c7a5e108c64459743c65a5836b3736c303db53d25a0ef41c4852683ae"
+    },
+    "B2-no-severity": {
+      "budget_per_correct_outcome": 5.8902,
+      "budget_spent_all": {
+        "bootstrap95": [
+          4.685,
+          5.545
+        ],
+        "mean": 5.095,
+        "n": 200
+      },
+      "budget_spent_when_correct": {
+        "bootstrap95": [
+          4.4566,
+          5.237
+        ],
+        "mean": 4.8439,
+        "n": 173
+      },
+      "claims_made": {
+        "k": 165,
+        "n": 200,
+        "rate": 0.825,
+        "wilson95": [
+          0.7664,
+          0.8714
+        ]
+      },
+      "correct_outcome": {
+        "k": 173,
+        "n": 200,
+        "rate": 0.865,
+        "wilson95": [
+          0.8107,
+          0.9055
+        ]
+      },
+      "correct_rate_by_seed_block": [
+        0.85,
+        0.825,
+        0.9,
+        0.9,
+        0.85
+      ],
+      "discovery_rate_declared_truths": {
+        "k": 150,
+        "n": 175,
+        "rate": 0.8571,
+        "wilson95": [
+          0.7976,
+          0.9013
+        ]
+      },
+      "distinguishable_diversity": {
+        "bootstrap95": [
+          11.25,
+          12.02
+        ],
+        "mean": 11.62,
+        "n": 200
+      },
+      "false_discovery": {
+        "k": 15,
+        "n": 200,
+        "rate": 0.075,
+        "wilson95": [
+          0.046,
+          0.12
+        ]
+      },
+      "imprecise": {
+        "k": 0,
+        "n": 200,
+        "rate": 0.0,
+        "wilson95": [
+          0.0,
+          0.0188
+        ]
+      },
+      "label": "B2 with one prospective test and no decisive replication",
+      "naive_hypothesis_count": {
+        "bootstrap95": [
+          11.26,
+          12.0
+        ],
+        "mean": 11.62,
+        "n": 200
+      },
+      "open_anomalies_at_stop": {
+        "bootstrap95": [
+          0.16,
+          0.36
+        ],
+        "mean": 0.255,
+        "n": 200
+      },
+      "overclaim": {
+        "k": 0,
+        "n": 200,
+        "rate": 0.0,
+        "wilson95": [
+          0.0,
+          0.0188
+        ]
+      },
+      "partial_false_discovery": {
+        "k": 2,
+        "n": 200,
+        "rate": 0.01,
+        "wilson95": [
+          0.0027,
+          0.0357
+        ]
+      },
+      "per_kind": {
+        "composition": {
+          "correct": {
+            "k": 22,
+            "n": 25,
+            "rate": 0.88,
+            "wilson95": [
+              0.7004,
+              0.9583
+            ]
+          },
+          "false_discovery": {
+            "k": 2,
+            "n": 25,
+            "rate": 0.08,
+            "wilson95": [
+              0.0222,
+              0.2497
+            ]
+          },
+          "mean_spent": 7.36,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "confounded_measurement_chain": {
+          "correct": {
+            "k": 24,
+            "n": 25,
+            "rate": 0.96,
+            "wilson95": [
+              0.8046,
+              0.9929
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 5.0,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "in_catalog_single": {
+          "correct": {
+            "k": 25,
+            "n": 25,
+            "rate": 1.0,
+            "wilson95": [
+              0.8668,
+              1.0
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 3.2,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "inseparable_pair": {
+          "correct": {
+            "k": 25,
+            "n": 25,
+            "rate": 1.0,
+            "wilson95": [
+              0.8668,
+              1.0
+            ]
+          },
+          "false_discovery": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          },
+          "mean_spent": 1.44,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "noise_glitch": {
+          "correct": {
+            "k": 22,
+            "n": 25,
+            "rate": 0.88,
+            "wilson95": [
+              0.7004,
+              0.9583
+            ]
+          },
+          "false_discovery": {
+            "k": 3,
+            "n": 25,
+            "rate": 0.12,
+            "wilson95": [
+              0.0417,
+              0.2996
+            ]
+          },
+          "mean_spent": 3.64,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "noise_only_null": {
+          "correct": {
+            "k": 11,
+            "n": 25,
+            "rate": 0.44,
+            "wilson95": [
+              0.2667,
+              0.6293
+            ]
+          },
+          "false_discovery": {
+            "k": 6,
+            "n": 25,
+            "rate": 0.24,
+            "wilson95": [
+              0.115,
+              0.4343
+            ]
+          },
+          "mean_spent": 8.04,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "outside_all_declared": {
+          "correct": {
+            "k": 23,
+            "n": 25,
+            "rate": 0.92,
+            "wilson95": [
+              0.7503,
+              0.9778
+            ]
+          },
+          "false_discovery": {
+            "k": 2,
+            "n": 25,
+            "rate": 0.08,
+            "wilson95": [
+              0.0222,
+              0.2497
+            ]
+          },
+          "mean_spent": 6.32,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        },
+        "outside_initial_prior": {
+          "correct": {
+            "k": 21,
+            "n": 25,
+            "rate": 0.84,
+            "wilson95": [
+              0.6535,
+              0.936
+            ]
+          },
+          "false_discovery": {
+            "k": 2,
+            "n": 25,
+            "rate": 0.08,
+            "wilson95": [
+              0.0222,
+              0.2497
+            ]
+          },
+          "mean_spent": 5.76,
+          "overclaim": {
+            "k": 0,
+            "n": 25,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.1332
+            ]
+          }
+        }
+      },
+      "protocol_digest": "sha256:ae66e32157f2b1a1a551d993373469466713eb799ef106b05b9346d979481243"
+    }
+  },
+  "budget": 12,
+  "budget_never_exceeded": true,
+  "budget_sensitivity": {
+    "16": {
+      "B0": {
+        "budget_spent_all": {
+          "bootstrap95": [
+            0.99,
+            1.265
+          ],
+          "mean": 1.125,
+          "n": 200
+        },
+        "correct_outcome": {
+          "k": 16,
+          "n": 200,
+          "rate": 0.08,
+          "wilson95": [
+            0.0498,
+            0.126
+          ]
+        },
+        "discovery_rate_declared_truths": {
+          "k": 11,
+          "n": 175,
+          "rate": 0.0629,
+          "wilson95": [
+            0.0355,
+            0.109
+          ]
+        },
+        "false_discovery": {
+          "k": 74,
+          "n": 200,
+          "rate": 0.37,
+          "wilson95": [
+            0.3061,
+            0.4388
+          ]
+        },
+        "overclaim": {
+          "k": 25,
+          "n": 200,
+          "rate": 0.125,
+          "wilson95": [
+            0.0861,
+            0.178
+          ]
+        }
+      },
+      "B1": {
+        "budget_spent_all": {
+          "bootstrap95": [
+            1.77,
+            2.125
+          ],
+          "mean": 1.94,
+          "n": 200
+        },
+        "correct_outcome": {
+          "k": 62,
+          "n": 200,
+          "rate": 0.31,
+          "wilson95": [
+            0.25,
+            0.3772
+          ]
+        },
+        "discovery_rate_declared_truths": {
+          "k": 44,
+          "n": 175,
+          "rate": 0.2514,
+          "wilson95": [
+            0.193,
+            0.3206
+          ]
+        },
+        "false_discovery": {
+          "k": 51,
+          "n": 200,
+          "rate": 0.255,
+          "wilson95": [
+            0.1996,
+            0.3196
+          ]
+        },
+        "overclaim": {
+          "k": 25,
+          "n": 200,
+          "rate": 0.125,
+          "wilson95": [
+            0.0861,
+            0.178
+          ]
+        }
+      },
+      "B2": {
+        "budget_spent_all": {
+          "bootstrap95": [
+            7.73,
+            8.72
+          ],
+          "mean": 8.205,
+          "n": 200
+        },
+        "correct_outcome": {
+          "k": 189,
+          "n": 200,
+          "rate": 0.945,
+          "wilson95": [
+            0.9042,
+            0.969
+          ]
+        },
+        "discovery_rate_declared_truths": {
+          "k": 164,
+          "n": 175,
+          "rate": 0.9371,
+          "wilson95": [
+            0.891,
+            0.9645
+          ]
+        },
+        "false_discovery": {
+          "k": 2,
+          "n": 200,
+          "rate": 0.01,
+          "wilson95": [
+            0.0027,
+            0.0357
+          ]
+        },
+        "overclaim": {
+          "k": 0,
+          "n": 200,
+          "rate": 0.0,
+          "wilson95": [
+            0.0,
+            0.0188
+          ]
+        }
+      }
+    },
+    "8": {
+      "B0": {
+        "budget_spent_all": {
+          "bootstrap95": [
+            0.99,
+            1.265
+          ],
+          "mean": 1.125,
+          "n": 200
+        },
+        "correct_outcome": {
+          "k": 16,
+          "n": 200,
+          "rate": 0.08,
+          "wilson95": [
+            0.0498,
+            0.126
+          ]
+        },
+        "discovery_rate_declared_truths": {
+          "k": 11,
+          "n": 175,
+          "rate": 0.0629,
+          "wilson95": [
+            0.0355,
+            0.109
+          ]
+        },
+        "false_discovery": {
+          "k": 74,
+          "n": 200,
+          "rate": 0.37,
+          "wilson95": [
+            0.3061,
+            0.4388
+          ]
+        },
+        "overclaim": {
+          "k": 25,
+          "n": 200,
+          "rate": 0.125,
+          "wilson95": [
+            0.0861,
+            0.178
+          ]
+        }
+      },
+      "B1": {
+        "budget_spent_all": {
+          "bootstrap95": [
+            1.765,
+            2.07
+          ],
+          "mean": 1.915,
+          "n": 200
+        },
+        "correct_outcome": {
+          "k": 62,
+          "n": 200,
+          "rate": 0.31,
+          "wilson95": [
+            0.25,
+            0.3772
+          ]
+        },
+        "discovery_rate_declared_truths": {
+          "k": 44,
+          "n": 175,
+          "rate": 0.2514,
+          "wilson95": [
+            0.193,
+            0.3206
+          ]
+        },
+        "false_discovery": {
+          "k": 50,
+          "n": 200,
+          "rate": 0.25,
+          "wilson95": [
+            0.1951,
+            0.3143
+          ]
+        },
+        "overclaim": {
+          "k": 25,
+          "n": 200,
+          "rate": 0.125,
+          "wilson95": [
+            0.0861,
+            0.178
+          ]
+        }
+      },
+      "B2": {
+        "budget_spent_all": {
+          "bootstrap95": [
+            6.44,
+            6.885
+          ],
+          "mean": 6.67,
+          "n": 200
+        },
+        "correct_outcome": {
+          "k": 128,
+          "n": 200,
+          "rate": 0.64,
+          "wilson95": [
+            0.5714,
+            0.7033
+          ]
+        },
+        "discovery_rate_declared_truths": {
+          "k": 103,
+          "n": 175,
+          "rate": 0.5886,
+          "wilson95": [
+            0.5145,
+            0.6588
+          ]
+        },
+        "false_discovery": {
+          "k": 2,
+          "n": 200,
+          "rate": 0.01,
+          "wilson95": [
+            0.0027,
+            0.0357
+          ]
+        },
+        "overclaim": {
+          "k": 0,
+          "n": 200,
+          "rate": 0.0,
+          "wilson95": [
+            0.0,
+            0.0188
+          ]
+        }
+      }
+    }
+  },
+  "kind": "lab-brain/discovery-benchmark-results@1",
+  "main": {
+    "arms": {
+      "B0": {
+        "budget_per_correct_outcome": 14.0625,
+        "budget_spent_all": {
+          "bootstrap95": [
+            0.99,
+            1.265
+          ],
+          "mean": 1.125,
+          "n": 200
+        },
+        "budget_spent_when_correct": {
+          "bootstrap95": [
+            1.0,
+            1.375
+          ],
+          "mean": 1.125,
+          "n": 16
+        },
+        "claims_made": {
+          "k": 110,
+          "n": 200,
+          "rate": 0.55,
+          "wilson95": [
+            0.4808,
+            0.6174
+          ]
+        },
+        "correct_outcome": {
+          "k": 16,
+          "n": 200,
+          "rate": 0.08,
+          "wilson95": [
+            0.0498,
+            0.126
+          ]
+        },
+        "correct_rate_by_seed_block": [
+          0.1,
+          0.1,
+          0.1,
+          0.05,
+          0.05
+        ],
+        "discovery_rate_declared_truths": {
+          "k": 11,
+          "n": 175,
+          "rate": 0.0629,
+          "wilson95": [
+            0.0355,
+            0.109
+          ]
+        },
+        "distinguishable_diversity": {
+          "bootstrap95": [
+            0.94,
+            1.145
+          ],
+          "mean": 1.04,
+          "n": 200
+        },
+        "false_discovery": {
+          "k": 74,
+          "n": 200,
+          "rate": 0.37,
+          "wilson95": [
+            0.3061,
+            0.4388
+          ]
+        },
+        "imprecise": {
+          "k": 0,
+          "n": 200,
+          "rate": 0.0,
+          "wilson95": [
+            0.0,
+            0.0188
+          ]
+        },
+        "label": "single hypothesis (deterministic stand-in, not an LLM)",
+        "naive_hypothesis_count": {
+          "bootstrap95": [
+            0.94,
+            1.15
+          ],
+          "mean": 1.04,
+          "n": 200
+        },
+        "open_anomalies_at_stop": {
+          "bootstrap95": [
+            0.0,
+            0.0
+          ],
+          "mean": 0.0,
+          "n": 200
+        },
+        "overclaim": {
+          "k": 25,
+          "n": 200,
+          "rate": 0.125,
+          "wilson95": [
+            0.0861,
+            0.178
+          ]
+        },
+        "partial_false_discovery": {
+          "k": 1,
+          "n": 200,
+          "rate": 0.005,
+          "wilson95": [
+            0.0009,
+            0.0278
+          ]
+        },
+        "per_kind": {
+          "composition": {
+            "correct": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "false_discovery": {
+              "k": 1,
+              "n": 25,
+              "rate": 0.04,
+              "wilson95": [
+                0.0071,
+                0.1954
+              ]
+            },
+            "mean_spent": 0.16,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "confounded_measurement_chain": {
+            "correct": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "false_discovery": {
+              "k": 18,
+              "n": 25,
+              "rate": 0.72,
+              "wilson95": [
+                0.5242,
+                0.8572
+              ]
+            },
+            "mean_spent": 1.64,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "in_catalog_single": {
+            "correct": {
+              "k": 9,
+              "n": 25,
+              "rate": 0.36,
+              "wilson95": [
+                0.2025,
+                0.5548
+              ]
+            },
+            "false_discovery": {
+              "k": 11,
+              "n": 25,
+              "rate": 0.44,
+              "wilson95": [
+                0.2667,
+                0.6293
+              ]
+            },
+            "mean_spent": 1.64,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "inseparable_pair": {
+            "correct": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "false_discovery": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "mean_spent": 1.04,
+            "overclaim": {
+              "k": 25,
+              "n": 25,
+              "rate": 1.0,
+              "wilson95": [
+                0.8668,
+                1.0
+              ]
+            }
+          },
+          "noise_glitch": {
+            "correct": {
+              "k": 2,
+              "n": 25,
+              "rate": 0.08,
+              "wilson95": [
+                0.0222,
+                0.2497
+              ]
+            },
+            "false_discovery": {
+              "k": 5,
+              "n": 25,
+              "rate": 0.2,
+              "wilson95": [
+                0.0886,
+                0.3913
+              ]
+            },
+            "mean_spent": 1.36,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "noise_only_null": {
+            "correct": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "false_discovery": {
+              "k": 2,
+              "n": 25,
+              "rate": 0.08,
+              "wilson95": [
+                0.0222,
+                0.2497
+              ]
+            },
+            "mean_spent": 0.76,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "outside_all_declared": {
+            "correct": {
+              "k": 5,
+              "n": 25,
+              "rate": 0.2,
+              "wilson95": [
+                0.0886,
+                0.3913
+              ]
+            },
+            "false_discovery": {
+              "k": 20,
+              "n": 25,
+              "rate": 0.8,
+              "wilson95": [
+                0.6087,
+                0.9114
+              ]
+            },
+            "mean_spent": 1.0,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "outside_initial_prior": {
+            "correct": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "false_discovery": {
+              "k": 17,
+              "n": 25,
+              "rate": 0.68,
+              "wilson95": [
+                0.4841,
+                0.8279
+              ]
+            },
+            "mean_spent": 1.4,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          }
+        },
+        "protocol_digest": "sha256:5473507ce99d2f41918361c35ebf33efa18770e91baf7a7d8f76008462560c97"
+      },
+      "B1": {
+        "budget_per_correct_outcome": 6.2419,
+        "budget_spent_all": {
+          "bootstrap95": [
+            1.77,
+            2.11
+          ],
+          "mean": 1.935,
+          "n": 200
+        },
+        "budget_spent_when_correct": {
+          "bootstrap95": [
+            2.3065,
+            2.6935
+          ],
+          "mean": 2.5,
+          "n": 62
+        },
+        "claims_made": {
+          "k": 119,
+          "n": 200,
+          "rate": 0.595,
+          "wilson95": [
+            0.5258,
+            0.6606
+          ]
+        },
+        "correct_outcome": {
+          "k": 62,
+          "n": 200,
+          "rate": 0.31,
+          "wilson95": [
+            0.25,
+            0.3772
+          ]
+        },
+        "correct_rate_by_seed_block": [
+          0.375,
+          0.25,
+          0.3,
+          0.325,
+          0.3
+        ],
+        "discovery_rate_declared_truths": {
+          "k": 44,
+          "n": 175,
+          "rate": 0.2514,
+          "wilson95": [
+            0.193,
+            0.3206
+          ]
+        },
+        "distinguishable_diversity": {
+          "bootstrap95": [
+            10.0,
+            10.0
+          ],
+          "mean": 10.0,
+          "n": 200
+        },
+        "false_discovery": {
+          "k": 50,
+          "n": 200,
+          "rate": 0.25,
+          "wilson95": [
+            0.1951,
+            0.3143
+          ]
+        },
+        "imprecise": {
+          "k": 0,
+          "n": 200,
+          "rate": 0.0,
+          "wilson95": [
+            0.0,
+            0.0188
+          ]
+        },
+        "label": "existing LIB style (fixed set + verification)",
+        "naive_hypothesis_count": {
+          "bootstrap95": [
+            10.0,
+            10.0
+          ],
+          "mean": 10.0,
+          "n": 200
+        },
+        "open_anomalies_at_stop": {
+          "bootstrap95": [
+            0.0,
+            0.0
+          ],
+          "mean": 0.0,
+          "n": 200
+        },
+        "overclaim": {
+          "k": 25,
+          "n": 200,
+          "rate": 0.125,
+          "wilson95": [
+            0.0861,
+            0.178
+          ]
+        },
+        "partial_false_discovery": {
+          "k": 4,
+          "n": 200,
+          "rate": 0.02,
+          "wilson95": [
+            0.0078,
+            0.0503
+          ]
+        },
+        "per_kind": {
+          "composition": {
+            "correct": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "false_discovery": {
+              "k": 4,
+              "n": 25,
+              "rate": 0.16,
+              "wilson95": [
+                0.064,
+                0.3465
+              ]
+            },
+            "mean_spent": 1.08,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "confounded_measurement_chain": {
+            "correct": {
+              "k": 17,
+              "n": 25,
+              "rate": 0.68,
+              "wilson95": [
+                0.4841,
+                0.8279
+              ]
+            },
+            "false_discovery": {
+              "k": 7,
+              "n": 25,
+              "rate": 0.28,
+              "wilson95": [
+                0.1428,
+                0.4758
+              ]
+            },
+            "mean_spent": 3.48,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "in_catalog_single": {
+            "correct": {
+              "k": 25,
+              "n": 25,
+              "rate": 1.0,
+              "wilson95": [
+                0.8668,
+                1.0
+              ]
+            },
+            "false_discovery": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "mean_spent": 2.2,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "inseparable_pair": {
+            "correct": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "false_discovery": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "mean_spent": 1.44,
+            "overclaim": {
+              "k": 25,
+              "n": 25,
+              "rate": 1.0,
+              "wilson95": [
+                0.8668,
+                1.0
+              ]
+            }
+          },
+          "noise_glitch": {
+            "correct": {
+              "k": 2,
+              "n": 25,
+              "rate": 0.08,
+              "wilson95": [
+                0.0222,
+                0.2497
+              ]
+            },
+            "false_discovery": {
+              "k": 3,
+              "n": 25,
+              "rate": 0.12,
+              "wilson95": [
+                0.0417,
+                0.2996
+              ]
+            },
+            "mean_spent": 1.28,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "noise_only_null": {
+            "correct": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "false_discovery": {
+              "k": 11,
+              "n": 25,
+              "rate": 0.44,
+              "wilson95": [
+                0.2667,
+                0.6293
+              ]
+            },
+            "mean_spent": 1.44,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "outside_all_declared": {
+            "correct": {
+              "k": 18,
+              "n": 25,
+              "rate": 0.72,
+              "wilson95": [
+                0.5242,
+                0.8572
+              ]
+            },
+            "false_discovery": {
+              "k": 7,
+              "n": 25,
+              "rate": 0.28,
+              "wilson95": [
+                0.1428,
+                0.4758
+              ]
+            },
+            "mean_spent": 2.56,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "outside_initial_prior": {
+            "correct": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "false_discovery": {
+              "k": 18,
+              "n": 25,
+              "rate": 0.72,
+              "wilson95": [
+                0.5242,
+                0.8572
+              ]
+            },
+            "mean_spent": 2.0,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          }
+        },
+        "protocol_digest": "sha256:e032d575092f47e80e7c645f9c7554a38b116dbd25e76a8949bd0fce7cbc3bed"
+      },
+      "B2": {
+        "budget_per_correct_outcome": 8.7921,
+        "budget_spent_all": {
+          "bootstrap95": [
+            7.445,
+            8.22
+          ],
+          "mean": 7.825,
+          "n": 200
+        },
+        "budget_spent_when_correct": {
+          "bootstrap95": [
+            7.0225,
+            7.7697
+          ],
+          "mean": 7.3933,
+          "n": 178
+        },
+        "claims_made": {
+          "k": 155,
+          "n": 200,
+          "rate": 0.775,
+          "wilson95": [
+            0.7123,
+            0.8274
+          ]
+        },
+        "correct_outcome": {
+          "k": 178,
+          "n": 200,
+          "rate": 0.89,
+          "wilson95": [
+            0.8391,
+            0.9262
+          ]
+        },
+        "correct_rate_by_seed_block": [
+          0.9,
+          0.85,
+          0.925,
+          0.925,
+          0.85
+        ],
+        "discovery_rate_declared_truths": {
+          "k": 153,
+          "n": 175,
+          "rate": 0.8743,
+          "wilson95": [
+            0.817,
+            0.9155
+          ]
+        },
+        "distinguishable_diversity": {
+          "bootstrap95": [
+            11.275,
+            12.045
+          ],
+          "mean": 11.65,
+          "n": 200
+        },
+        "false_discovery": {
+          "k": 2,
+          "n": 200,
+          "rate": 0.01,
+          "wilson95": [
+            0.0027,
+            0.0357
+          ]
+        },
+        "imprecise": {
+          "k": 0,
+          "n": 200,
+          "rate": 0.0,
+          "wilson95": [
+            0.0,
+            0.0188
+          ]
+        },
+        "label": "LIB + Discovery",
+        "naive_hypothesis_count": {
+          "bootstrap95": [
+            11.265,
+            12.055
+          ],
+          "mean": 11.65,
+          "n": 200
+        },
+        "open_anomalies_at_stop": {
+          "bootstrap95": [
+            0.215,
+            0.43
+          ],
+          "mean": 0.315,
+          "n": 200
+        },
+        "overclaim": {
+          "k": 0,
+          "n": 200,
+          "rate": 0.0,
+          "wilson95": [
+            0.0,
+            0.0188
+          ]
+        },
+        "partial_false_discovery": {
+          "k": 1,
+          "n": 200,
+          "rate": 0.005,
+          "wilson95": [
+            0.0009,
+            0.0278
+          ]
+        },
+        "per_kind": {
+          "composition": {
+            "correct": {
+              "k": 22,
+              "n": 25,
+              "rate": 0.88,
+              "wilson95": [
+                0.7004,
+                0.9583
+              ]
+            },
+            "false_discovery": {
+              "k": 1,
+              "n": 25,
+              "rate": 0.04,
+              "wilson95": [
+                0.0071,
+                0.1954
+              ]
+            },
+            "mean_spent": 9.44,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "confounded_measurement_chain": {
+            "correct": {
+              "k": 24,
+              "n": 25,
+              "rate": 0.96,
+              "wilson95": [
+                0.8046,
+                0.9929
+              ]
+            },
+            "false_discovery": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "mean_spent": 8.36,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "in_catalog_single": {
+            "correct": {
+              "k": 25,
+              "n": 25,
+              "rate": 1.0,
+              "wilson95": [
+                0.8668,
+                1.0
+              ]
+            },
+            "false_discovery": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "mean_spent": 6.52,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "inseparable_pair": {
+            "correct": {
+              "k": 25,
+              "n": 25,
+              "rate": 1.0,
+              "wilson95": [
+                0.8668,
+                1.0
+              ]
+            },
+            "false_discovery": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "mean_spent": 4.28,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "noise_glitch": {
+            "correct": {
+              "k": 24,
+              "n": 25,
+              "rate": 0.96,
+              "wilson95": [
+                0.8046,
+                0.9929
+              ]
+            },
+            "false_discovery": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "mean_spent": 6.68,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "noise_only_null": {
+            "correct": {
+              "k": 11,
+              "n": 25,
+              "rate": 0.44,
+              "wilson95": [
+                0.2667,
+                0.6293
+              ]
+            },
+            "false_discovery": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "mean_spent": 11.36,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "outside_all_declared": {
+            "correct": {
+              "k": 25,
+              "n": 25,
+              "rate": 1.0,
+              "wilson95": [
+                0.8668,
+                1.0
+              ]
+            },
+            "false_discovery": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            },
+            "mean_spent": 5.84,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          },
+          "outside_initial_prior": {
+            "correct": {
+              "k": 22,
+              "n": 25,
+              "rate": 0.88,
+              "wilson95": [
+                0.7004,
+                0.9583
+              ]
+            },
+            "false_discovery": {
+              "k": 1,
+              "n": 25,
+              "rate": 0.04,
+              "wilson95": [
+                0.0071,
+                0.1954
+              ]
+            },
+            "mean_spent": 10.12,
+            "overclaim": {
+              "k": 0,
+              "n": 25,
+              "rate": 0.0,
+              "wilson95": [
+                0.0,
+                0.1332
+              ]
+            }
+          }
+        },
+        "protocol_digest": "sha256:5473507ce99d2f41918361c35ebf33efa18770e91baf7a7d8f76008462560c97"
+      }
+    },
+    "paired": {
+      "B2_minus_B0_correct": {
+        "a_only": 162,
+        "b_only": 0,
+        "ci95": [
+          0.755,
+          0.865
+        ],
+        "mean": 0.81,
+        "worlds": 200
+      },
+      "B2_minus_B0_false_discovery": {
+        "a_only": 1,
+        "b_only": 73,
+        "ci95": [
+          -0.43,
+          -0.295
+        ],
+        "mean": -0.36,
+        "worlds": 200
+      },
+      "B2_minus_B1_correct": {
+        "a_only": 116,
+        "b_only": 0,
+        "ci95": [
+          0.515,
+          0.65
+        ],
+        "mean": 0.58,
+        "worlds": 200
+      },
+      "B2_minus_B1_false_discovery": {
+        "a_only": 0,
+        "b_only": 48,
+        "ci95": [
+          -0.3,
+          -0.185
+        ],
+        "mean": -0.24,
+        "worlds": 200
+      }
+    }
+  },
+  "matched": {
+    "arms": [
+      "B0",
+      "B1",
+      "B2"
+    ],
+    "same_worlds_seeds_and_budget_for_every_arm": true,
+    "worlds": 200
+  },
+  "never_confirmed": true,
+  "reproducibility": {
+    "results_compared": 600,
+    "results_identical": 600,
+    "run_digest": "sha256:e98bd4c20156e8e1beec4528a632a728108f119e42a47f7d73c17b11821e9dfd",
+    "two_runs_identical": true
+  }
+}

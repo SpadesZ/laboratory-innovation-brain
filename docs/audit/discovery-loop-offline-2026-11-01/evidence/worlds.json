@@ -1,0 +1,3177 @@
+[
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110100,
+    "truth": [
+      [
+        "geometry.width_wide",
+        7.8831
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-00"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110101,
+    "truth": [
+      [
+        "chain.laser_drift",
+        82.7238
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-01"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110102,
+    "truth": [
+      [
+        "nonlinear.tpa_fca",
+        0.6638
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-02"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110103,
+    "truth": [
+      [
+        "nonlinear.tpa_fca",
+        1.0424
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-03"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110104,
+    "truth": [
+      [
+        "fcd.static",
+        0.9012
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-04"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110105,
+    "truth": [
+      [
+        "nonlinear.tpa_fca",
+        1.0475
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-05"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110106,
+    "truth": [
+      [
+        "thermo.ambient",
+        0.6856
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-06"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110107,
+    "truth": [
+      [
+        "nonlinear.tpa_fca",
+        1.3028
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-07"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110108,
+    "truth": [
+      [
+        "fcd.static",
+        1.5577
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-08"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110109,
+    "truth": [
+      [
+        "leakage.substrate",
+        1.8465
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-09"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110110,
+    "truth": [
+      [
+        "geometry.width_wide",
+        7.9012
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-10"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110111,
+    "truth": [
+      [
+        "fcd.static",
+        1.5114
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-11"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110112,
+    "truth": [
+      [
+        "geometry.width_wide",
+        6.9841
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-12"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110113,
+    "truth": [
+      [
+        "thermo.ambient",
+        1.638
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-13"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110114,
+    "truth": [
+      [
+        "chain.laser_drift",
+        52.0898
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-14"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110115,
+    "truth": [
+      [
+        "thermo.ambient",
+        1.1563
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-15"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110116,
+    "truth": [
+      [
+        "nonlinear.tpa_fca",
+        1.2268
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-16"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110117,
+    "truth": [
+      [
+        "chain.laser_drift",
+        57.035
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-17"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110118,
+    "truth": [
+      [
+        "chain.laser_drift",
+        60.8018
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-18"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110119,
+    "truth": [
+      [
+        "chain.laser_drift",
+        58.7033
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-19"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110120,
+    "truth": [
+      [
+        "geometry.gap_small",
+        -10.8325
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-20"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110121,
+    "truth": [
+      [
+        "leakage.substrate",
+        1.7607
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-21"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110122,
+    "truth": [
+      [
+        "nonlinear.tpa_fca",
+        0.8177
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-22"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110123,
+    "truth": [
+      [
+        "nonlinear.tpa_fca",
+        0.8997
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-23"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "in_catalog_single",
+    "removed": [],
+    "seed": 2026110124,
+    "truth": [
+      [
+        "chain.laser_drift",
+        43.5033
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "in_catalog_single-24"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111100,
+    "truth": [
+      [
+        "geometry.width_narrow",
+        -4.3882
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-00"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111101,
+    "truth": [
+      [
+        "thermo.self_heating",
+        1.2218
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-01"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111102,
+    "truth": [
+      [
+        "geometry.thickness",
+        7.0988
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-02"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111103,
+    "truth": [
+      [
+        "thermo.self_heating",
+        0.9052
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-03"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111104,
+    "truth": [
+      [
+        "cladding.index_drift",
+        72.5069
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-04"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111105,
+    "truth": [
+      [
+        "thermo.self_heating",
+        1.2531
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-05"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111106,
+    "truth": [
+      [
+        "cladding.index_drift",
+        82.3628
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-06"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111107,
+    "truth": [
+      [
+        "nonlinear.fca_dominated",
+        1.3002
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-07"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111108,
+    "truth": [
+      [
+        "geometry.thickness",
+        4.1672
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-08"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111109,
+    "truth": [
+      [
+        "geometry.thickness",
+        8.3201
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-09"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111110,
+    "truth": [
+      [
+        "cladding.index_drift",
+        63.345
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-10"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111111,
+    "truth": [
+      [
+        "geometry.thickness",
+        6.7514
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-11"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111112,
+    "truth": [
+      [
+        "geometry.gap_large",
+        20.9718
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-12"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111113,
+    "truth": [
+      [
+        "geometry.gap_large",
+        8.0728
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-13"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111114,
+    "truth": [
+      [
+        "thermo.self_heating",
+        0.5182
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-14"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111115,
+    "truth": [
+      [
+        "geometry.width_narrow",
+        -5.0801
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-15"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111116,
+    "truth": [
+      [
+        "geometry.width_narrow",
+        -3.6064
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-16"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111117,
+    "truth": [
+      [
+        "cladding.index_drift",
+        72.1662
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-17"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111118,
+    "truth": [
+      [
+        "geometry.thickness",
+        3.8328
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-18"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111119,
+    "truth": [
+      [
+        "geometry.thickness",
+        7.4581
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-19"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111120,
+    "truth": [
+      [
+        "cladding.index_drift",
+        65.3991
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-20"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111121,
+    "truth": [
+      [
+        "geometry.gap_large",
+        7.1632
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-21"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111122,
+    "truth": [
+      [
+        "geometry.thickness",
+        3.7413
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-22"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111123,
+    "truth": [
+      [
+        "geometry.thickness",
+        8.227
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-23"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_initial_prior",
+    "removed": [],
+    "seed": 2026111124,
+    "truth": [
+      [
+        "geometry.width_narrow",
+        -7.5273
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "outside_initial_prior-24"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112100,
+    "truth": [
+      [
+        "geometry.thickness",
+        5.7046
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-00"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112101,
+    "truth": [
+      [
+        "geometry.width_wide",
+        6.5518
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-01"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112102,
+    "truth": [
+      [
+        "geometry.thickness",
+        8.2825
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-02"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112103,
+    "truth": [
+      [
+        "geometry.width_wide",
+        8.4894
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-03"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112104,
+    "truth": [
+      [
+        "geometry.thickness",
+        6.0793
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-04"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112105,
+    "truth": [
+      [
+        "geometry.thickness",
+        3.5887
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-05"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112106,
+    "truth": [
+      [
+        "geometry.width_wide",
+        3.2958
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-06"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112107,
+    "truth": [
+      [
+        "geometry.width_wide",
+        7.0819
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-07"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112108,
+    "truth": [
+      [
+        "geometry.width_wide",
+        7.0911
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-08"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112109,
+    "truth": [
+      [
+        "geometry.thickness",
+        3.1678
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-09"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112110,
+    "truth": [
+      [
+        "geometry.thickness",
+        7.3963
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-10"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112111,
+    "truth": [
+      [
+        "geometry.thickness",
+        3.577
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-11"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112112,
+    "truth": [
+      [
+        "geometry.width_wide",
+        4.2506
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-12"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112113,
+    "truth": [
+      [
+        "geometry.width_wide",
+        7.2351
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-13"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112114,
+    "truth": [
+      [
+        "geometry.width_wide",
+        5.1935
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-14"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112115,
+    "truth": [
+      [
+        "geometry.width_wide",
+        8.0928
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-15"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112116,
+    "truth": [
+      [
+        "geometry.width_wide",
+        9.1465
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-16"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112117,
+    "truth": [
+      [
+        "geometry.thickness",
+        3.4541
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-17"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112118,
+    "truth": [
+      [
+        "geometry.thickness",
+        3.2046
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-18"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112119,
+    "truth": [
+      [
+        "geometry.width_wide",
+        8.7247
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-19"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112120,
+    "truth": [
+      [
+        "geometry.thickness",
+        8.0984
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-20"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112121,
+    "truth": [
+      [
+        "geometry.width_wide",
+        8.7718
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-21"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112122,
+    "truth": [
+      [
+        "geometry.width_wide",
+        4.5407
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-22"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112123,
+    "truth": [
+      [
+        "geometry.width_wide",
+        7.4172
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-23"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "inseparable_pair",
+    "removed": [
+      [
+        "width_array",
+        "this die carries a single ring width"
+      ]
+    ],
+    "seed": 2026112124,
+    "truth": [
+      [
+        "geometry.thickness",
+        8.8153
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "inseparable_pair-24"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113100,
+    "truth": [
+      [
+        "thermo.ambient",
+        0.8599
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-00"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113101,
+    "truth": [
+      [
+        "geometry.width_wide",
+        3.2608
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-01"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113102,
+    "truth": [
+      [
+        "thermo.ambient",
+        1.0618
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-02"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113103,
+    "truth": [
+      [
+        "chain.laser_drift",
+        81.6162
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-03"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113104,
+    "truth": [
+      [
+        "thermo.ambient",
+        0.6862
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-04"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113105,
+    "truth": [
+      [
+        "geometry.width_wide",
+        6.4677
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-05"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113106,
+    "truth": [
+      [
+        "chain.laser_drift",
+        66.405
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-06"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113107,
+    "truth": [
+      [
+        "nonlinear.tpa_fca",
+        1.3198
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-07"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113108,
+    "truth": [
+      [
+        "chain.laser_drift",
+        52.2451
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-08"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113109,
+    "truth": [
+      [
+        "geometry.width_wide",
+        3.5533
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-09"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113110,
+    "truth": [
+      [
+        "chain.fiber_coupling",
+        1.0075
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-10"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113111,
+    "truth": [
+      [
+        "geometry.width_wide",
+        3.5191
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-11"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113112,
+    "truth": [
+      [
+        "thermo.ambient",
+        1.0332
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-12"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113113,
+    "truth": [
+      [
+        "geometry.width_wide",
+        4.8499
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-13"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113114,
+    "truth": [
+      [
+        "chain.fiber_coupling",
+        0.7876
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-14"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113115,
+    "truth": [
+      [
+        "geometry.gap_small",
+        -19.5927
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-15"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113116,
+    "truth": [
+      [
+        "chain.fiber_coupling",
+        0.9606
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-16"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113117,
+    "truth": [
+      [
+        "nonlinear.tpa_fca",
+        1.5193
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-17"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113118,
+    "truth": [
+      [
+        "nonlinear.tpa_fca",
+        1.0568
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-18"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113119,
+    "truth": [
+      [
+        "scatter.sidewall",
+        1.8639
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-19"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113120,
+    "truth": [
+      [
+        "leakage.substrate",
+        0.7983
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-20"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113121,
+    "truth": [
+      [
+        "geometry.gap_small",
+        -21.6239
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-21"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113122,
+    "truth": [
+      [
+        "chain.fiber_coupling",
+        1.4371
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-22"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113123,
+    "truth": [
+      [
+        "thermo.ambient",
+        1.6276
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-23"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "noise_glitch",
+    "removed": [],
+    "seed": 2026113124,
+    "truth": [
+      [
+        "geometry.width_wide",
+        3.6455
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "noise_glitch-24"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114100,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-00"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114101,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-01"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114102,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-02"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114103,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-03"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114104,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-04"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114105,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-05"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114106,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-06"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114107,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-07"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114108,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-08"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114109,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-09"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114110,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-10"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114111,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-11"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114112,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-12"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114113,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-13"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114114,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-14"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114115,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-15"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114116,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-16"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114117,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-17"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114118,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-18"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114119,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-19"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114120,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-20"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114121,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-21"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114122,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-22"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114123,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-23"
+  },
+  {
+    "glitch_first": true,
+    "glitch_motivating": true,
+    "glitch_sigma": 7.0,
+    "kind": "noise_only_null",
+    "removed": [],
+    "seed": 2026114124,
+    "truth": [],
+    "undeclared": null,
+    "world_id": "noise_only_null-24"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115100,
+    "truth": [
+      [
+        "chain.laser_drift",
+        33.9648
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-00"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115101,
+    "truth": [
+      [
+        "chain.laser_drift",
+        95.7454
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-01"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115102,
+    "truth": [
+      [
+        "chain.laser_drift",
+        35.9969
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-02"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115103,
+    "truth": [
+      [
+        "chain.laser_drift",
+        34.2767
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-03"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115104,
+    "truth": [
+      [
+        "chain.polarization_drift",
+        1.3945
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-04"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115105,
+    "truth": [
+      [
+        "chain.laser_drift",
+        68.5943
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-05"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115106,
+    "truth": [
+      [
+        "chain.laser_drift",
+        89.6613
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-06"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115107,
+    "truth": [
+      [
+        "chain.polarization_drift",
+        0.7885
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-07"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115108,
+    "truth": [
+      [
+        "chain.laser_drift",
+        107.2944
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-08"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115109,
+    "truth": [
+      [
+        "chain.polarization_drift",
+        1.233
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-09"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115110,
+    "truth": [
+      [
+        "chain.laser_drift",
+        93.9843
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-10"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115111,
+    "truth": [
+      [
+        "chain.laser_drift",
+        67.9044
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-11"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115112,
+    "truth": [
+      [
+        "chain.polarization_drift",
+        1.1599
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-12"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115113,
+    "truth": [
+      [
+        "chain.laser_drift",
+        76.0799
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-13"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115114,
+    "truth": [
+      [
+        "chain.laser_drift",
+        35.3093
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-14"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115115,
+    "truth": [
+      [
+        "chain.laser_drift",
+        36.3163
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-15"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115116,
+    "truth": [
+      [
+        "chain.laser_drift",
+        54.2846
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-16"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115117,
+    "truth": [
+      [
+        "chain.laser_drift",
+        42.3651
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-17"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115118,
+    "truth": [
+      [
+        "chain.laser_drift",
+        52.5513
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-18"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115119,
+    "truth": [
+      [
+        "chain.polarization_drift",
+        1.2942
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-19"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115120,
+    "truth": [
+      [
+        "chain.polarization_drift",
+        0.7863
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-20"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115121,
+    "truth": [
+      [
+        "chain.laser_drift",
+        104.7748
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-21"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115122,
+    "truth": [
+      [
+        "chain.laser_drift",
+        58.4513
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-22"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115123,
+    "truth": [
+      [
+        "chain.polarization_drift",
+        0.9715
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-23"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "confounded_measurement_chain",
+    "removed": [],
+    "seed": 2026115124,
+    "truth": [
+      [
+        "chain.polarization_drift",
+        1.2088
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "confounded_measurement_chain-24"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116100,
+    "truth": [
+      [
+        "chain.laser_drift",
+        62.7125
+      ],
+      [
+        "scatter.sidewall",
+        1.2426
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-00"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116101,
+    "truth": [
+      [
+        "fcd.static",
+        1.6738
+      ],
+      [
+        "nonlinear.tpa_fca",
+        1.3884
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-01"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116102,
+    "truth": [
+      [
+        "chain.laser_drift",
+        40.0639
+      ],
+      [
+        "scatter.sidewall",
+        1.4827
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-02"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116103,
+    "truth": [
+      [
+        "chain.laser_drift",
+        58.4053
+      ],
+      [
+        "scatter.sidewall",
+        1.1046
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-03"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116104,
+    "truth": [
+      [
+        "cladding.index_drift",
+        44.9048
+      ],
+      [
+        "scatter.sidewall",
+        1.7119
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-04"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116105,
+    "truth": [
+      [
+        "scatter.sidewall",
+        0.7701
+      ],
+      [
+        "thermo.ambient",
+        1.7534
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-05"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116106,
+    "truth": [
+      [
+        "scatter.sidewall",
+        0.8955
+      ],
+      [
+        "thermo.ambient",
+        0.7286
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-06"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116107,
+    "truth": [
+      [
+        "chain.laser_drift",
+        42.6395
+      ],
+      [
+        "scatter.sidewall",
+        2.1505
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-07"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116108,
+    "truth": [
+      [
+        "geometry.width_wide",
+        7.7982
+      ],
+      [
+        "leakage.substrate",
+        0.8936
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-08"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116109,
+    "truth": [
+      [
+        "geometry.width_wide",
+        2.8817
+      ],
+      [
+        "leakage.substrate",
+        0.8644
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-09"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116110,
+    "truth": [
+      [
+        "geometry.width_wide",
+        4.5917
+      ],
+      [
+        "leakage.substrate",
+        1.2665
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-10"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116111,
+    "truth": [
+      [
+        "cladding.index_drift",
+        74.7376
+      ],
+      [
+        "scatter.sidewall",
+        1.6244
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-11"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116112,
+    "truth": [
+      [
+        "geometry.width_wide",
+        3.9486
+      ],
+      [
+        "leakage.substrate",
+        1.8344
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-12"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116113,
+    "truth": [
+      [
+        "cladding.index_drift",
+        35.8002
+      ],
+      [
+        "scatter.sidewall",
+        2.2113
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-13"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116114,
+    "truth": [
+      [
+        "cladding.index_drift",
+        84.9604
+      ],
+      [
+        "scatter.sidewall",
+        1.9837
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-14"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116115,
+    "truth": [
+      [
+        "geometry.width_wide",
+        6.406
+      ],
+      [
+        "leakage.substrate",
+        1.1464
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-15"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116116,
+    "truth": [
+      [
+        "scatter.sidewall",
+        2.2992
+      ],
+      [
+        "thermo.ambient",
+        0.7508
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-16"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116117,
+    "truth": [
+      [
+        "chain.laser_drift",
+        45.1556
+      ],
+      [
+        "scatter.sidewall",
+        1.3564
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-17"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116118,
+    "truth": [
+      [
+        "cladding.index_drift",
+        77.9509
+      ],
+      [
+        "scatter.sidewall",
+        1.145
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-18"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116119,
+    "truth": [
+      [
+        "geometry.width_wide",
+        4.2636
+      ],
+      [
+        "leakage.substrate",
+        1.3693
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-19"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116120,
+    "truth": [
+      [
+        "chain.laser_drift",
+        75.6492
+      ],
+      [
+        "scatter.sidewall",
+        0.7873
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-20"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116121,
+    "truth": [
+      [
+        "chain.laser_drift",
+        50.9355
+      ],
+      [
+        "scatter.sidewall",
+        0.7076
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-21"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116122,
+    "truth": [
+      [
+        "cladding.index_drift",
+        42.3236
+      ],
+      [
+        "scatter.sidewall",
+        1.621
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-22"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116123,
+    "truth": [
+      [
+        "chain.laser_drift",
+        103.0743
+      ],
+      [
+        "scatter.sidewall",
+        1.7998
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-23"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "composition",
+    "removed": [],
+    "seed": 2026116124,
+    "truth": [
+      [
+        "chain.laser_drift",
+        100.18
+      ],
+      [
+        "scatter.sidewall",
+        1.085
+      ]
+    ],
+    "undeclared": null,
+    "world_id": "composition-24"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117100,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-00"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117101,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-01"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117102,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-02"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117103,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-03"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117104,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-04"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117105,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-05"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117106,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-06"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117107,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-07"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117108,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-08"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117109,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-09"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117110,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-10"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117111,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-11"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117112,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-12"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117113,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-13"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117114,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-14"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117115,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-15"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117116,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-16"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117117,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-17"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117118,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-18"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117119,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-19"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117120,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-20"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117121,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-21"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117122,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-22"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117123,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-23"
+  },
+  {
+    "glitch_first": false,
+    "glitch_motivating": false,
+    "glitch_sigma": 7.0,
+    "kind": "outside_all_declared",
+    "removed": [],
+    "seed": 2026117124,
+    "truth": [],
+    "undeclared": "progressive_photo_oxidation",
+    "world_id": "outside_all_declared-24"
+  }
+]
