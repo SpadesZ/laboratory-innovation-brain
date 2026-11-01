@@ -82,12 +82,16 @@ def make_tls(directory: Path) -> TLS | None:
 class Endpoint:
     """`redirect`: None answers as a provider (model `m`, reply `ok`); else (status, location),
     where `{path}` in the location is replaced by the request's path. `host` is the name the URL
-    uses for it -- `localhost` makes the same socket a different origin from `127.0.0.1`."""
+    uses for it -- `localhost` makes the same socket a different origin from `127.0.0.1`.
+    `headers` and `extra` are added to every chat answer: a test makes the endpoint look like a
+    proxy to a paid provider (a billing header, a cost in the usage)."""
 
     tls: TLS | None = None
     host: str = "127.0.0.1"
     redirect: tuple[int, str] | None = None
     seen: list[Seen] = field(default_factory=list)
+    headers: dict[str, str] = field(default_factory=dict)
+    extra: dict[str, object] = field(default_factory=dict)
     port: int = 0
     _server: ThreadingHTTPServer | None = None
 
@@ -120,9 +124,14 @@ class Endpoint:
                 if self.path.endswith("/models"):
                     answer: object = {"object": "list", "data": [{"id": "m"}]}
                 else:
-                    answer = {"choices": [{"message": {"role": "assistant", "content": "ok"}}]}
+                    answer = {
+                        "choices": [{"message": {"role": "assistant", "content": "ok"}}],
+                        **endpoint.extra,
+                    }
                 raw = json.dumps(answer).encode()
                 self.send_response(200)
+                for name, value in endpoint.headers.items():
+                    self.send_header(name, value)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(raw)))
                 self.end_headers()

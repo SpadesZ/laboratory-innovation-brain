@@ -41,12 +41,22 @@ an endpoint that is not this machine is REFUSED before a byte is sent. The one o
 Owner's: an endpoint (`host[:port]` and one model, or `*`) DECLARED FREE in the database by a
 member of `lab_brain_spend_admin` (`declare_free_endpoint`), never by the services' role.
 
-THIS MACHINE. A guard with a budget meters this machine too, unless the endpoint is declared free:
-a local proxy (LiteLLM on localhost) may forward to a paid provider, and nothing here can tell. With
-no budget configured at all, a request to this machine is sent unmetered -- unless the Owner says
-`LAB_BRAIN_LLM_SPEND_METER_LOCAL=1`, when an undeclared local endpoint is refused like a remote one.
-That last case is the residual (spend-administration.md): a deployment with no ceiling, pointed at
-a paying local proxy, is unmetered.
+THIS MACHINE IS NOT PRESUMED FREE (011v). A request with a body to this machine is admitted
+exactly like a remote one: reserved against a budget, or let through because the Owner declared
+that exact (endpoint, model) free. With no guard at all it is refused unsent. A local endpoint may
+be a proxy (LiteLLM on localhost) to a paid provider, and nothing a client sees proves it is not;
+before 011v such a deployment, with no ceiling configured, sent its requests unmetered (the
+residual of 011t, Owner decision A3). `LAB_BRAIN_LLM_SPEND_METER_LOCAL` is retired: there is no
+switch that turns local metering off.
+
+    no wildcard      a free declaration names one model. `*` declared nothing for a proxy that
+                     routes by model name; 011v refuses new ones and ignores the old ones.
+    paid-proxy signs a declared-free endpoint whose answer carries a billing header or a cost in
+                     its usage (`paid_proxy_signals`) is reported (`llm_spend_report_paid_proxy`,
+                     which the services may call -- it only ever withdraws an exemption) and the
+                     call is refused. The declaration stops counting until the Owner declares the
+                     endpoint free again. A proxy that strips every such sign is not detected: the
+                     Owner's declaration stays the trust root (SPEC-ISSUE-017).
 
 NOT METERED, ever. A request with NO BODY (`GET /models`, the model list and health check): it
 carries no prompt, generates nothing, and the client cannot send a body with it -- `_request`
@@ -108,11 +118,11 @@ class Reservation:
 
 
 class SpendGuard(Protocol):
-    #: True: requests to this machine are metered too (a local proxy to a paid provider).
-    meter_this_machine: bool
-
     # Optional, read with `getattr` by the transport: `declared_free(endpoint_host, model) ->
-    # bool`, whether the Owner declared this endpoint free. A guard without it declares none.
+    # bool`, whether the Owner declared this endpoint free (a guard without it declares none), and
+    # `report_paid_proxy(endpoint_host, model, signals)`, which withdraws that exemption when a
+    # declared-free endpoint answered like a paid proxy (011v). There is no way to exempt this
+    # machine as such: since 011v it is metered like any other endpoint.
 
     def reserve(self, request: SpendRequest) -> Reservation:
         """Charge the request's worst case, or raise `SpendRefused`. Nothing is sent before."""
@@ -183,21 +193,19 @@ class PostgresSpendGuard:
     rollback cannot erase it), and the guard is safe to share between threads.
 
     `budget_id` None: a guard with no ceiling -- it passes the endpoints the Owner declared free
-    and refuses every other metered request. `meter_this_machine` (default True): a budget meters
-    this machine as well, since a local endpoint may be a proxy to a paid provider; only the
-    Owner's free declaration exempts one."""
+    and refuses every other metered request. This machine is metered like any endpoint (011v):
+    a local endpoint may be a proxy to a paid provider; only the Owner's free declaration of that
+    exact model exempts one."""
 
     def __init__(
         self,
         dsn: str,
         budget_id: str | None,
         *,
-        meter_this_machine: bool = True,
         connect: Callable[[str], Any] | None = None,
     ) -> None:
         self._dsn = dsn
         self.budget_id = budget_id
-        self.meter_this_machine = meter_this_machine
         self._connect = connect or _autocommit_connect
 
     def _run(self, sql: str, args: tuple[object, ...]) -> Any:
@@ -216,6 +224,18 @@ class PostgresSpendGuard:
             )
         except Exception:  # unknown is not free: the request is metered, or refused
             return False
+
+    def report_paid_proxy(self, endpoint_host: str, model: str, signals: tuple[str, ...]) -> None:
+        """Withdraw the free declaration of (endpoint, model) until the Owner renews it: its last
+        answer looked like a paid provider's. Best effort -- the call that saw it is refused
+        whatever happens here."""
+        try:
+            self._run(
+                "SELECT llm_spend_report_paid_proxy(%s, %s, %s)::text",
+                (endpoint_host, model, list(signals)),
+            )
+        except Exception:  # the refusal of the call that saw the signs does not depend on this
+            return
 
     def reserve(self, request: SpendRequest) -> Reservation:
         if self.budget_id is None:
@@ -276,8 +296,6 @@ def _db_message(error: BaseException) -> str:
 class _Unreachable:
     """A ceiling the environment names but that cannot be built: every metered request refused."""
 
-    meter_this_machine = True
-
     def __init__(self, why: str) -> None:
         self._why = why
 
@@ -291,12 +309,51 @@ class _Unreachable:
         return
 
 
+# -- a free endpoint that answers like a paid one (011v) ---------------------------------------
+
+#: Response headers a paid provider, or a proxy forwarding to one, sends and a model server on this
+#: machine does not: billing, organisation and provider rate-limit headers, and LiteLLM's own.
+PAID_PROXY_HEADER_PREFIXES = (
+    "x-litellm-",
+    "openai-organization",
+    "openai-project",
+    "openai-processing-ms",
+    "anthropic-ratelimit-",
+    "anthropic-organization-id",
+    "x-ratelimit-limit-tokens",
+    "x-groq-",
+    "x-openrouter-",
+    "helicone-",
+    "x-portkey-",
+)
+
+#: A cost the answer itself reports (OpenRouter's `usage.cost`, LiteLLM's `response_cost`...).
+PAID_PROXY_USAGE_FIELDS = ("cost", "total_cost", "estimated_cost", "response_cost")
+
+
+def paid_proxy_signals(headers: Mapping[str, str], body: Any) -> tuple[str, ...]:
+    """What, in one answer, says the endpoint billed it: `header:<name>` for each billing or
+    provider header, `usage.<field>` for a cost in the usage. Empty for a plain model server.
+    Absence proves nothing -- a proxy may strip them; presence withdraws a free declaration."""
+    found = [
+        f"header:{name.lower()}"
+        for name in headers
+        if name.lower().startswith(PAID_PROXY_HEADER_PREFIXES)
+    ]
+    usage = body.get("usage") if isinstance(body, Mapping) else None
+    if isinstance(usage, Mapping):
+        found += [f"usage.{key}" for key in PAID_PROXY_USAGE_FIELDS if key in usage]
+    if isinstance(body, Mapping) and "response_cost" in body:
+        found.append("body.response_cost")
+    return tuple(sorted(set(found)))
+
+
 # -- which guard applies -------------------------------------------------------------------------
 
 _lock = threading.Lock()
 _installed: SpendGuard | None = None
 _installed_required = False
-_from_env: dict[tuple[str, str, bool], SpendGuard] = {}
+_from_env: dict[tuple[str, str], SpendGuard] = {}
 
 
 def install(guard: SpendGuard | None, *, required: bool = True) -> None:
@@ -320,10 +377,6 @@ def installed(guard: SpendGuard, *, required: bool = True) -> Iterator[SpendGuar
             globals()["_installed_required"] = previous_required
 
 
-def _flag(env: Mapping[str, str], name: str) -> bool:
-    return env.get(name, "").strip().lower() in ("1", "true", "yes", "on")
-
-
 def required(env: Mapping[str, str] = os.environ) -> bool:
     """Whether a remote request with no guard is refused: always, since 011t. There is no switch
     that sends one unmetered; the Owner's free declaration is the only exemption."""
@@ -339,14 +392,13 @@ def resolve(explicit: SpendGuard | None, env: Mapping[str, str] = os.environ) ->
     dsn = env.get("LAB_BRAIN_LLM_SPEND_DSN", "") or env.get("LAB_BRAIN_DATABASE_URL", "")
     if not budget and not dsn:
         return None
-    # With a budget, this machine is metered unless declared free. Without one, only when the
-    # Owner says so: otherwise the deployment would refuse its own local models.
-    local = bool(budget) or _flag(env, "LAB_BRAIN_LLM_SPEND_METER_LOCAL")
-    key = (dsn, budget, local)
+    # This machine is metered like any endpoint (011v); the retired
+    # LAB_BRAIN_LLM_SPEND_METER_LOCAL switch is not read.
+    key = (dsn, budget)
     with _lock:
         if key not in _from_env:
             _from_env[key] = (
-                PostgresSpendGuard(dsn, budget or None, meter_this_machine=local)
+                PostgresSpendGuard(dsn, budget or None)
                 if dsn
                 else _Unreachable(
                     f"LAB_BRAIN_LLM_SPEND_BUDGET names {budget}, but no database is configured "
@@ -452,9 +504,10 @@ def set_ceiling(
 def declare_free_endpoint(
     connection: Any, endpoint_host: str, model: str, *, reason: str, actor_id: str
 ) -> None:
-    """The Owner's statement that `model` (or `*`, every model) at `endpoint_host` costs nothing
-    -- a local model server, not a proxy to a paid provider. Requests to it are not metered.
-    `reason` says why; it is kept with the declaration."""
+    """The Owner's statement that `model` at `endpoint_host` costs nothing -- a local model server,
+    not a proxy to a paid provider. Requests for that model there are not metered. One model per
+    declaration: `*` is refused (011v), since a proxy routes by model name. `reason` says why; it
+    is kept with the declaration."""
     connection.execute(
         "SELECT llm_spend_declare_free(%s, %s, %s, %s)::text",
         (endpoint_host.lower(), model, reason, actor_id),
@@ -490,6 +543,8 @@ def budget_state(connection: Any, budget_id: str) -> BudgetState | None:
 
 __all__ = [
     "DEFAULT_MAX_OUTPUT_TOKENS",
+    "PAID_PROXY_HEADER_PREFIXES",
+    "PAID_PROXY_USAGE_FIELDS",
     "SPEND_ADMIN_ROLE",
     "BudgetState",
     "PostgresSpendGuard",
@@ -505,6 +560,7 @@ __all__ = [
     "installed",
     "max_output_tokens",
     "new_call_id",
+    "paid_proxy_signals",
     "required",
     "resolve",
     "revoke_free_endpoint",

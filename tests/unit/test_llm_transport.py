@@ -40,7 +40,10 @@ from lab_brain.llm_runtime.provider import (
     plaintext_refusal,
 )
 from lab_brain.llm_runtime.runtime import RouteCompletion, _Route
+from tests.free_test_endpoints import free_test_servers  # noqa: F401
 from tests.transport_endpoints import REDIRECT_BODY, TLS, Endpoint, make_tls
+
+pytestmark = pytest.mark.usefixtures("free_test_servers")
 
 KEY = "sk-test-transport-0123456789abcdefABCDEF"
 #: What a research call carries: a prompt with the project's evidence in it.

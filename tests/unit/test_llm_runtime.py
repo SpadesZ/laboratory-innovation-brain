@@ -56,7 +56,10 @@ from lab_brain.llm_runtime.secrets import (
     redact,
 )
 from tests.fake_llm_provider import FakeProvider, _probe_answer
+from tests.free_test_endpoints import free_test_servers  # noqa: F401
 from tests.report_samples import full_report, leaves
+
+pytestmark = pytest.mark.usefixtures("free_test_servers")
 
 KEY = "sk-test-unit-0123456789abcdefghijkl"
 

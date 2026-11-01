@@ -42,6 +42,9 @@ from lab_brain.llm_runtime.provider import (
 )
 from lab_brain.llm_runtime.runtime import RouteCompletion, _Route
 from tests.fake_llm_provider import FakeProvider
+from tests.free_test_endpoints import free_test_servers  # noqa: F401
+
+pytestmark = pytest.mark.usefixtures("free_test_servers")
 
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")
 #: `QUALIFICATION_DIGEST` under probe-6.0.0 (short synthetic ids), as `pre-lumerical-acceptance`

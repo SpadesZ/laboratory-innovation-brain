@@ -3,8 +3,8 @@
 Every test talks to a real local HTTP endpoint through the real `OpenAICompatibleClient`; the guard
 is an in-memory stand-in that records what the transport asked of it (the PostgreSQL guard, and the
 atomicity of its reservations, are in `tests/e2e/test_g0_spend_ledger_postgres.py`). The endpoints
-are on 127.0.0.1 -- this machine -- so the stand-in says `meter_this_machine`, exactly as an Owner
-metering a local proxy would; one test shows the same client is NOT metered without it.
+are on 127.0.0.1 -- this machine -- which is metered like any endpoint since 011v (a local proxy may
+forward to a paid provider); one test shows no guard can exempt it.
 
     before       a reservation precedes the request; a refused reservation sends nothing
     size         the reserved body is the bytes the endpoint received; `max_tokens` is what it
@@ -158,10 +158,11 @@ def test_a_refused_reservation_sends_nothing(endpoint):
     assert endpoint.seen == []
 
 
-def test_this_machine_is_not_metered_unless_the_guard_says_so(endpoint):
+def test_this_machine_is_metered_whatever_the_guard_says(endpoint):
+    """011v: no guard can exempt this machine as such (011t let `meter_this_machine=False` do it)."""
     guard = Recorder(meter_this_machine=False)
     OpenAICompatibleClient(endpoint.origin + "/v1", KEY, spend=guard).chat("m", "local prompt")
-    assert len(endpoint.seen) == 1 and guard.reserved == []
+    assert len(endpoint.seen) == 1 and [r.model for r in guard.reserved] == ["m"]
 
 
 def test_a_timeout_keeps_the_worst_case():
@@ -251,8 +252,10 @@ def test_an_installed_guard_covers_clients_built_anywhere(endpoint):
     with spend.installed(guard):
         OpenAICompatibleClient(endpoint.origin + "/v1", KEY).chat("m", "prompt")
     assert len(guard.reserved) == 1
-    OpenAICompatibleClient(endpoint.origin + "/v1", KEY).chat("m", "prompt")
-    assert len(guard.reserved) == 1, "uninstalled again"
+    with pytest.raises(ProviderError) as refused:
+        OpenAICompatibleClient(endpoint.origin + "/v1", KEY).chat("m", "prompt")
+    assert refused.value.failure is ProviderFailure.SPEND_REFUSED, "uninstalled again: no guard"
+    assert len(guard.reserved) == 1
 
 
 def test_a_named_budget_without_a_database_refuses(monkeypatch: pytest.MonkeyPatch):
@@ -309,9 +312,10 @@ def test_the_live_evaluation_requires_a_ceiling_and_prices_for_an_external_prima
         spend_from_env(external=True, env={**env, "LAB_BRAIN_LIVE_PRICE_DATE": "soon"})
 
 
-def test_with_a_budget_the_environment_guard_meters_this_machine():
-    """A local endpoint may be a proxy to a paid provider: with a budget it is metered (011t).
-    Without one, only when the Owner asks (`LAB_BRAIN_LLM_SPEND_METER_LOCAL`)."""
+def test_with_or_without_a_budget_the_environment_guard_has_no_local_exemption():
+    """A local endpoint may be a proxy to a paid provider: it is metered with a budget and refused
+    without one unless declared free (011v). The retired LAB_BRAIN_LLM_SPEND_METER_LOCAL switch
+    gives the same guard as its absence."""
     from lab_brain.llm_runtime import spend as _spend
 
     _spend.install(None)
@@ -321,8 +325,9 @@ def test_with_a_budget_the_environment_guard_meters_this_machine():
     )
     unbudgeted = _spend.resolve(None, {"LAB_BRAIN_LLM_SPEND_DSN": dsn})
     asked = _spend.resolve(
-        None, {"LAB_BRAIN_LLM_SPEND_DSN": dsn, "LAB_BRAIN_LLM_SPEND_METER_LOCAL": "1"}
+        None, {"LAB_BRAIN_LLM_SPEND_DSN": dsn, "LAB_BRAIN_LLM_SPEND_METER_LOCAL": "0"}
     )
-    assert budgeted is not None and budgeted.meter_this_machine is True
-    assert unbudgeted is not None and unbudgeted.meter_this_machine is False
-    assert asked is not None and asked.meter_this_machine is True
+    assert isinstance(budgeted, _spend.PostgresSpendGuard) and budgeted.budget_id == "b1"
+    assert isinstance(unbudgeted, _spend.PostgresSpendGuard) and unbudgeted.budget_id is None
+    assert asked is unbudgeted
+    assert not hasattr(budgeted, "meter_this_machine")

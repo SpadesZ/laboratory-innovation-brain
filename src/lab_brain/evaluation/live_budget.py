@@ -204,7 +204,12 @@ def free_endpoints_from_env(
             continue
         if len(parts) != 2:
             raise LiveBudgetMissing(
-                f"a free endpoint is `host[:port] model` (or `*`), not {entry.strip()!r}"
+                f"a free endpoint is `host[:port] model`, not {entry.strip()!r}"
+            )
+        if parts[1] == "*":
+            raise LiveBudgetMissing(
+                f"a free endpoint names one model, not `*` ({entry.strip()!r}): a proxy routes by "
+                "model name, so `*` would declare every model it forwards free (011v)"
             )
         endpoints.append(FreeEndpoint(parts[0].lower(), parts[1]))
     return tuple(endpoints), reason
@@ -255,7 +260,7 @@ def install_live_spend_guard(
                 reason=reason,
                 actor_id=actor_id,
             )
-    guard = spend.PostgresSpendGuard(dsn, declared.budget_id, meter_this_machine=True)
+    guard = spend.PostgresSpendGuard(dsn, declared.budget_id)
     spend.install(guard, required=True)
     return guard
 
@@ -265,8 +270,8 @@ def install_local_free_guard(
 ) -> spend.PostgresSpendGuard:
     """For an evaluation whose models are all on this machine (no spend ceiling): the Owner must
     declare each local endpoint free (`free_endpoints_from_env`) -- an undeclared one may be a
-    proxy to a paid provider. Declares them and installs, REQUIRED, a guard with no budget that
-    meters this machine: a request to any endpoint not declared free is refused unsent."""
+    proxy to a paid provider. Declares them and installs, REQUIRED, a guard with no budget: a
+    request for any model not declared free at its endpoint is refused unsent."""
     import psycopg
 
     free, reason = free_endpoints_from_env(env)
@@ -285,7 +290,7 @@ def install_local_free_guard(
                 reason=reason,
                 actor_id=actor_id,
             )
-    guard = spend.PostgresSpendGuard(dsn, None, meter_this_machine=True)
+    guard = spend.PostgresSpendGuard(dsn, None)
     spend.install(guard, required=True)
     return guard
 

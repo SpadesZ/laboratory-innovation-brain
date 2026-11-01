@@ -21,13 +21,14 @@ endpoint the connection names, whoever built the client and whatever row it was 
                     down to http://. A 3xx ends the call; neither its body nor its target is kept.
 
 And it is the one place MONEY is spent, so it is where the monetary ceiling is enforced
-(`llm_runtime.spend`, migration 011r). Every request with a body to an endpoint that is not this
-machine is RESERVED at its provable worst case against the Owner's ceiling before a byte is sent,
+(`llm_runtime.spend`, migration 011r). Every request with a body -- to this machine as to any other
+(011v) -- is RESERVED at its provable worst case against the Owner's ceiling before a byte is sent,
 and settled to the provider's reported usage afterwards -- or kept at the worst case when there is
 none (an error, a timeout, a reply without usage). A request the ceiling refuses -- no budget (a
 remote request always needs one, 011t), no declared price, not enough left, a circuit opened by an
-overrun -- raises `SPEND_REFUSED` and is never sent. A budget meters this machine too (a local
-proxy may forward to a paid provider); only an endpoint the Owner declared free is exempt. Every
+overrun -- raises `SPEND_REFUSED` and is never sent. This machine is metered like any endpoint (a
+local proxy may forward to a paid provider); only a model the Owner declared free at its endpoint
+is exempt, and a free answer carrying a paid provider's signs withdraws that exemption. Every
 chat request now carries `max_tokens`, without which no worst case exists; the schema fallback's
 second request is reserved on its own. `GET /models` carries no body and is not metered.
 
@@ -113,6 +114,15 @@ def is_loopback_url(url: str) -> bool:
         return ipaddress.ip_address(host).is_loopback
     except ValueError:
         return False
+
+
+@dataclass(frozen=True)
+class _FreeCall:
+    """A request the Owner's free declaration exempted: its answer is still checked for the signs
+    of a paid provider behind the endpoint (011v)."""
+
+    guard: Any
+    model: str
 
 
 def is_this_machine_url(url: str, local_hosts: frozenset[str] = frozenset()) -> bool:
@@ -316,13 +326,18 @@ class OpenAICompatibleClient:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
         # Before the request object exists: a refused request has nothing to send.
-        held = self._reserve(method, payload, data)
+        admitted = self._reserve(method, payload, data)
+        free = admitted if isinstance(admitted, _FreeCall) else None
+        held = admitted if isinstance(admitted, tuple) else None
         request = urllib.request.Request(
             self._base + path, data=data, headers=headers, method=method
         )
         try:
             with self._opener.open(request, timeout=self._timeout) as response:
                 raw = response.read()
+                # Every real answer has headers; a test's stand-in for urllib may not.
+                answered = getattr(response, "headers", None)
+                answered_headers = dict(answered.items()) if answered is not None else {}
         except BaseException as failed:
             # Sent, or perhaps sent: the provider may have billed it and we have no usage.
             if held is not None:
@@ -336,6 +351,21 @@ class OpenAICompatibleClient:
             raise ProviderError(
                 ProviderFailure.PROTOCOL_ERROR, "the endpoint did not answer with JSON"
             ) from None
+        if free is not None:
+            signals = _spend.paid_proxy_signals(answered_headers, body)
+            if signals:
+                # Declared free, answered like a paid provider: the declaration stops counting
+                # (011v) and this answer, which nobody metered, is not used.
+                report = getattr(free.guard, "report_paid_proxy", None)
+                if report is not None:
+                    report(self._endpoint_host, free.model, signals)
+                raise ProviderError(
+                    ProviderFailure.SPEND_REFUSED,
+                    f"{free.model} at {self._endpoint_host} is declared free, but its answer "
+                    f"carried what a paid provider sends ({', '.join(signals)[:200]}): the "
+                    "declaration is withdrawn until the Owner renews it, and the answer is not "
+                    "used",
+                )
         if held is not None:
             usage = _usage(body)
             if _spend.usage_tokens(usage) is None:
@@ -347,15 +377,16 @@ class OpenAICompatibleClient:
 
     def _reserve(
         self, method: str, payload: dict[str, Any] | None, data: bytes | None
-    ) -> tuple[_spend.SpendGuard, _spend.Reservation] | None:
-        """The spend ceiling's admission of one request: None when it is not metered, the guard
-        and its reservation when it is, `SPEND_REFUSED` when it may not be sent.
+    ) -> tuple[_spend.SpendGuard, _spend.Reservation] | _FreeCall | None:
+        """The spend ceiling's admission of one request: None when it carries no body, a
+        `_FreeCall` when the Owner declared the model free here, the guard and its reservation when
+        it is metered, `SPEND_REFUSED` when it may not be sent.
 
         Not metered: a request with no body (`GET /models` -- no prompt, nothing generated; only a
-        GET may go without a body); a request to this machine when no guard applies, or the guard
-        does not meter this machine; and an endpoint the Owner declared free (011t). Everything
-        else needs a positive `max_tokens` in its body and a guard that reserves it -- a remote
-        request with no guard is refused, whatever the environment says."""
+        GET may go without a body), and a request for a model the Owner declared free at this
+        endpoint (011t). Everything else -- on this machine as anywhere (011v: a local endpoint may
+        be a proxy to a paid provider) -- needs a positive `max_tokens` in its body and a guard
+        that reserves it; with no guard it is refused, whatever the environment says."""
         if data is None:
             if method != "GET":
                 raise ProviderError(
@@ -363,8 +394,6 @@ class OpenAICompatibleClient:
                 )
             return None
         guard = _spend.resolve(self._spend)
-        if self._this_machine and (guard is None or not guard.meter_this_machine):
-            return None
         max_output = payload.get("max_tokens") if payload is not None else None
         if not isinstance(max_output, int) or isinstance(max_output, bool) or max_output < 1:
             raise ProviderError(
@@ -373,16 +402,21 @@ class OpenAICompatibleClient:
                 "output, and the cost, have no bound",
             )
         if guard is None:
+            where = (
+                "this machine, which may be a proxy to a paid provider"
+                if (self._this_machine)
+                else self._endpoint_host
+            )
             raise ProviderError(
                 ProviderFailure.SPEND_REFUSED,
                 "no spend ceiling is configured, and one is required before any request to "
-                f"{self._endpoint_host} (or the Owner's declaration that it is free): nothing "
+                f"{where} (or the Owner's declaration that this model there is free): nothing "
                 "was sent",
             )
         model = str(payload.get("model", "")) if payload is not None else ""
         declared_free = getattr(guard, "declared_free", None)
         if declared_free is not None and declared_free(self._endpoint_host, model):
-            return None
+            return _FreeCall(guard, model)
         request = _spend.SpendRequest(
             call_id=_spend.new_call_id(),
             endpoint_host=self._endpoint_host,

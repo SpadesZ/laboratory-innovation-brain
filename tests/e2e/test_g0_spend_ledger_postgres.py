@@ -3,9 +3,8 @@
 Each test declares its own budget (a fresh id) and drives the real `OpenAICompatibleClient` through
 the real `PostgresSpendGuard` against a local endpoint -- the repository's fake provider, or a
 recording endpoint -- or, for a REMOTE host, against urllib's opener replaced by a local stand-in,
-so no request ever leaves this machine. The fake provider is on 127.0.0.1, so the guard says
-`meter_this_machine` (as an Owner metering a local proxy would); the live evaluation's guard does
-not, and meters only remote hosts.
+so no request ever leaves this machine. The fake provider is on 127.0.0.1, which is metered like
+any endpoint (011v: a local proxy may forward to a paid provider).
 
     refused unsent   no budget, no price, not enough left, an open circuit: the provider receives
                      nothing
@@ -119,7 +118,7 @@ def fake() -> Any:
 
 
 def _client(provider: Any, budget: str, **options: Any) -> OpenAICompatibleClient:
-    guard = PostgresSpendGuard(database_url(), budget, meter_this_machine=True)
+    guard = PostgresSpendGuard(database_url(), budget)
     return OpenAICompatibleClient(provider.base_url, KEY, spend=guard, **options)
 
 
@@ -252,7 +251,7 @@ def test_missing_usage_keeps_the_worst_case(pg):
     try:
         budget = _budget(pg)
         _price(pg, budget, _host(endpoint.port), "m")
-        guard = PostgresSpendGuard(database_url(), budget, meter_this_machine=True)
+        guard = PostgresSpendGuard(database_url(), budget)
         OpenAICompatibleClient(endpoint.origin + "/v1", KEY, spend=guard).chat("m", PROMPT)
     finally:
         endpoint.stop()
@@ -330,7 +329,7 @@ def test_probes_are_reserved_though_the_span_meter_never_saw_them(pg, fake):
     call/token meter counted none of them. The spend ledger counts every one."""
     budget = _budget(pg)
     _price(pg, budget, _host(fake.port), "fake-reasoner")
-    with spend.installed(PostgresSpendGuard(database_url(), budget, meter_this_machine=True)):
+    with spend.installed(PostgresSpendGuard(database_url(), budget)):
         client = OpenAICompatibleClient(fake.base_url, KEY)  # built without a guard: installed
         client.list_models()
         for capability in (Capability.CHAT, Capability.STRUCTURED_JSON, Capability.VISION):

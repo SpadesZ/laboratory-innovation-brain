@@ -16,8 +16,9 @@ and then `grant_database_roles`, i.e. `lab-brain admin db-roles`), and drops the
                     an endpoint free and revoke it
     bounded         concurrent reservations by the app, each on its own connection, never pass
                     the ceiling
-    local proxy     a loopback endpoint is metered by a configured ceiling unless the Owner
-                    declared it free; undeclared, an unpriced local request is refused unsent
+    local proxy     a loopback endpoint is metered like any other unless the Owner declared that
+                    model there free; undeclared, an unpriced local request is refused unsent
+                    (the 011v closures are in test_g0_local_proxy_postgres.py)
 """
 
 from __future__ import annotations
@@ -472,7 +473,7 @@ def fake() -> Iterator[FakeProvider]:
 
 
 def test_a_local_proxy_is_metered_unless_the_owner_declares_it_free(su, roles, fake, monkeypatch):
-    for name in ("LAB_BRAIN_LLM_SPEND_BUDGET", "LAB_BRAIN_LLM_SPEND_METER_LOCAL"):
+    for name in ("LAB_BRAIN_LLM_SPEND_BUDGET",):
         monkeypatch.delenv(name, raising=False)
     spend.install(None)
     host = f"127.0.0.1:{fake.port}"
@@ -566,7 +567,7 @@ def test_a_local_only_evaluation_needs_its_endpoints_declared_free(su, fake, mon
             database_url(),
             actor_id="act:owner",
             env={
-                "LAB_BRAIN_LIVE_FREE_ENDPOINTS": f"{host} *",
+                "LAB_BRAIN_LIVE_FREE_ENDPOINTS": f"{host} fake-reasoner",
                 "LAB_BRAIN_LIVE_FREE_REASON": "the test's fake provider",
             },
         )
@@ -577,7 +578,7 @@ def test_a_local_only_evaluation_needs_its_endpoints_declared_free(su, fake, mon
         assert "no spend ceiling is configured" in str(refused.value)
     finally:
         spend.install(None)
-        spend.revoke_free_endpoint(su, host, "*", reason="test over", actor_id="act:o")
+        spend.revoke_free_endpoint(su, host, "fake-reasoner", reason="test over", actor_id="act:o")
 
 
 def test_an_execute_granted_by_mistake_still_needs_the_administration_role(su, roles):

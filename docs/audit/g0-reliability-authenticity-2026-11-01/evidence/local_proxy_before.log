@@ -1,0 +1,204 @@
+F.FF..FFFFF.FF                                                           [100%]
+=================================== FAILURES ===================================
+______ test_with_no_ceiling_configured_a_local_request_is_refused_unsent _______
+
+endpoint = Endpoint(tls=None, host='127.0.0.1', redirect=None, seen=[Seen(method='POST', path='/v1/chat/completions', authorizati...kens": 16384}')], headers={}, extra={}, port=34855, _server=<http.server.ThreadingHTTPServer object at 0x7f78c25e1550>)
+
+    def test_with_no_ceiling_configured_a_local_request_is_refused_unsent(endpoint):
+        client = OpenAICompatibleClient(endpoint.origin + "/v1", KEY)
+>       with pytest.raises(ProviderError) as refused:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ProviderError
+
+tests/unit/test_g0_local_proxy_spend.py:87: Failed
+_____________ test_a_database_without_a_budget_meters_this_machine _____________
+
+    def test_a_database_without_a_budget_meters_this_machine():
+        guard = spend.resolve(None, {"LAB_BRAIN_LLM_SPEND_DSN": "postgresql://unused.invalid/none"})
+>       assert guard is not None and guard.meter_this_machine is True
+E       assert (<lab_brain.llm_runtime.spend.PostgresSpendGuard object at 0x7f78c2d82900> is not None and False is True)
+E        +  where False = <lab_brain.llm_runtime.spend.PostgresSpendGuard object at 0x7f78c2d82900>.meter_this_machine
+
+tests/unit/test_g0_local_proxy_spend.py:102: AssertionError
+____________ test_the_retired_switch_cannot_turn_local_metering_off ____________
+
+    def test_the_retired_switch_cannot_turn_local_metering_off():
+        env = {"LAB_BRAIN_DATABASE_URL": "postgresql://unused.invalid/x"}
+        for value in ("0", "false", "off", ""):
+            guard = spend.resolve(None, {**env, "LAB_BRAIN_LLM_SPEND_METER_LOCAL": value})
+>           assert guard is not None and guard.meter_this_machine is True
+E           assert (<lab_brain.llm_runtime.spend.PostgresSpendGuard object at 0x7f78c2361450> is not None and False is True)
+E            +  where False = <lab_brain.llm_runtime.spend.PostgresSpendGuard object at 0x7f78c2361450>.meter_this_machine
+
+tests/unit/test_g0_local_proxy_spend.py:109: AssertionError
+_ test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused[headers0-extra0-x-litellm-response-cost] _
+
+headers = {'x-litellm-response-cost': '0.0042'}, extra = {}
+signal = 'x-litellm-response-cost'
+
+    @pytest.mark.parametrize(
+        ("headers", "extra", "signal"),
+        [
+            ({"x-litellm-response-cost": "0.0042"}, {}, "x-litellm-response-cost"),
+            ({"openai-organization": "org-123"}, {}, "openai-organization"),
+            ({"anthropic-ratelimit-tokens-limit": "80000"}, {}, "anthropic-ratelimit-tokens-limit"),
+            ({}, {"usage": {"prompt_tokens": 3, "completion_tokens": 1, "cost": 0.0004}}, "usage.cost"),
+            ({}, {"usage": {"prompt_tokens": 3, "completion_tokens": 1, "total_cost": 1}}, "usage."),
+        ],
+    )
+    def test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused(
+        headers, extra, signal
+    ):
+        endpoint = Endpoint(headers=headers, extra=extra).start()
+        try:
+            host = f"127.0.0.1:{endpoint.port}"
+            guard = FreeGuard(free={(host, "m")})
+            client = OpenAICompatibleClient(endpoint.origin + "/v1", KEY, spend=guard)
+>           with pytest.raises(ProviderError) as refused:
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ProviderError
+
+tests/unit/test_g0_local_proxy_spend.py:144: Failed
+_ test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused[headers1-extra1-openai-organization] _
+
+headers = {'openai-organization': 'org-123'}, extra = {}
+signal = 'openai-organization'
+
+    @pytest.mark.parametrize(
+        ("headers", "extra", "signal"),
+        [
+            ({"x-litellm-response-cost": "0.0042"}, {}, "x-litellm-response-cost"),
+            ({"openai-organization": "org-123"}, {}, "openai-organization"),
+            ({"anthropic-ratelimit-tokens-limit": "80000"}, {}, "anthropic-ratelimit-tokens-limit"),
+            ({}, {"usage": {"prompt_tokens": 3, "completion_tokens": 1, "cost": 0.0004}}, "usage.cost"),
+            ({}, {"usage": {"prompt_tokens": 3, "completion_tokens": 1, "total_cost": 1}}, "usage."),
+        ],
+    )
+    def test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused(
+        headers, extra, signal
+    ):
+        endpoint = Endpoint(headers=headers, extra=extra).start()
+        try:
+            host = f"127.0.0.1:{endpoint.port}"
+            guard = FreeGuard(free={(host, "m")})
+            client = OpenAICompatibleClient(endpoint.origin + "/v1", KEY, spend=guard)
+>           with pytest.raises(ProviderError) as refused:
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ProviderError
+
+tests/unit/test_g0_local_proxy_spend.py:144: Failed
+_ test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused[headers2-extra2-anthropic-ratelimit-tokens-limit] _
+
+headers = {'anthropic-ratelimit-tokens-limit': '80000'}, extra = {}
+signal = 'anthropic-ratelimit-tokens-limit'
+
+    @pytest.mark.parametrize(
+        ("headers", "extra", "signal"),
+        [
+            ({"x-litellm-response-cost": "0.0042"}, {}, "x-litellm-response-cost"),
+            ({"openai-organization": "org-123"}, {}, "openai-organization"),
+            ({"anthropic-ratelimit-tokens-limit": "80000"}, {}, "anthropic-ratelimit-tokens-limit"),
+            ({}, {"usage": {"prompt_tokens": 3, "completion_tokens": 1, "cost": 0.0004}}, "usage.cost"),
+            ({}, {"usage": {"prompt_tokens": 3, "completion_tokens": 1, "total_cost": 1}}, "usage."),
+        ],
+    )
+    def test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused(
+        headers, extra, signal
+    ):
+        endpoint = Endpoint(headers=headers, extra=extra).start()
+        try:
+            host = f"127.0.0.1:{endpoint.port}"
+            guard = FreeGuard(free={(host, "m")})
+            client = OpenAICompatibleClient(endpoint.origin + "/v1", KEY, spend=guard)
+>           with pytest.raises(ProviderError) as refused:
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ProviderError
+
+tests/unit/test_g0_local_proxy_spend.py:144: Failed
+_ test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused[headers3-extra3-usage.cost] _
+
+headers = {}
+extra = {'usage': {'prompt_tokens': 3, 'completion_tokens': 1, 'cost': 0.0004}}
+signal = 'usage.cost'
+
+    @pytest.mark.parametrize(
+        ("headers", "extra", "signal"),
+        [
+            ({"x-litellm-response-cost": "0.0042"}, {}, "x-litellm-response-cost"),
+            ({"openai-organization": "org-123"}, {}, "openai-organization"),
+            ({"anthropic-ratelimit-tokens-limit": "80000"}, {}, "anthropic-ratelimit-tokens-limit"),
+            ({}, {"usage": {"prompt_tokens": 3, "completion_tokens": 1, "cost": 0.0004}}, "usage.cost"),
+            ({}, {"usage": {"prompt_tokens": 3, "completion_tokens": 1, "total_cost": 1}}, "usage."),
+        ],
+    )
+    def test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused(
+        headers, extra, signal
+    ):
+        endpoint = Endpoint(headers=headers, extra=extra).start()
+        try:
+            host = f"127.0.0.1:{endpoint.port}"
+            guard = FreeGuard(free={(host, "m")})
+            client = OpenAICompatibleClient(endpoint.origin + "/v1", KEY, spend=guard)
+>           with pytest.raises(ProviderError) as refused:
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ProviderError
+
+tests/unit/test_g0_local_proxy_spend.py:144: Failed
+_ test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused[headers4-extra4-usage.] _
+
+headers = {}
+extra = {'usage': {'prompt_tokens': 3, 'completion_tokens': 1, 'total_cost': 1}}
+signal = 'usage.'
+
+    @pytest.mark.parametrize(
+        ("headers", "extra", "signal"),
+        [
+            ({"x-litellm-response-cost": "0.0042"}, {}, "x-litellm-response-cost"),
+            ({"openai-organization": "org-123"}, {}, "openai-organization"),
+            ({"anthropic-ratelimit-tokens-limit": "80000"}, {}, "anthropic-ratelimit-tokens-limit"),
+            ({}, {"usage": {"prompt_tokens": 3, "completion_tokens": 1, "cost": 0.0004}}, "usage.cost"),
+            ({}, {"usage": {"prompt_tokens": 3, "completion_tokens": 1, "total_cost": 1}}, "usage."),
+        ],
+    )
+    def test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused(
+        headers, extra, signal
+    ):
+        endpoint = Endpoint(headers=headers, extra=extra).start()
+        try:
+            host = f"127.0.0.1:{endpoint.port}"
+            guard = FreeGuard(free={(host, "m")})
+            client = OpenAICompatibleClient(endpoint.origin + "/v1", KEY, spend=guard)
+>           with pytest.raises(ProviderError) as refused:
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ProviderError
+
+tests/unit/test_g0_local_proxy_spend.py:144: Failed
+__________________ test_the_signal_detector_names_what_it_saw __________________
+
+    def test_the_signal_detector_names_what_it_saw():
+>       assert spend.paid_proxy_signals({}, {"usage": {"prompt_tokens": 1}}) == ()
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'lab_brain.llm_runtime.spend' has no attribute 'paid_proxy_signals'
+
+tests/unit/test_g0_local_proxy_spend.py:166: AttributeError
+____ test_a_wildcard_free_endpoint_is_refused_by_the_evaluation_declaration ____
+
+    def test_a_wildcard_free_endpoint_is_refused_by_the_evaluation_declaration():
+        env = {"LAB_BRAIN_LIVE_FREE_ENDPOINTS": "127.0.0.1:11434 *", "LAB_BRAIN_LIVE_FREE_REASON": "x"}
+>       with pytest.raises(LiveBudgetMissing, match=r"\*"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE LiveBudgetMissing
+
+tests/unit/test_g0_local_proxy_spend.py:176: Failed
+=========================== short test summary info ============================
+FAILED tests/unit/test_g0_local_proxy_spend.py::test_with_no_ceiling_configured_a_local_request_is_refused_unsent
+FAILED tests/unit/test_g0_local_proxy_spend.py::test_a_database_without_a_budget_meters_this_machine
+FAILED tests/unit/test_g0_local_proxy_spend.py::test_the_retired_switch_cannot_turn_local_metering_off
+FAILED tests/unit/test_g0_local_proxy_spend.py::test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused[headers0-extra0-x-litellm-response-cost]
+FAILED tests/unit/test_g0_local_proxy_spend.py::test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused[headers1-extra1-openai-organization]
+FAILED tests/unit/test_g0_local_proxy_spend.py::test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused[headers2-extra2-anthropic-ratelimit-tokens-limit]
+FAILED tests/unit/test_g0_local_proxy_spend.py::test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused[headers3-extra3-usage.cost]
+FAILED tests/unit/test_g0_local_proxy_spend.py::test_a_free_endpoint_that_answers_like_a_paid_proxy_is_reported_and_refused[headers4-extra4-usage.]
+FAILED tests/unit/test_g0_local_proxy_spend.py::test_the_signal_detector_names_what_it_saw
+FAILED tests/unit/test_g0_local_proxy_spend.py::test_a_wildcard_free_endpoint_is_refused_by_the_evaluation_declaration
+10 failed, 4 passed in 5.54s

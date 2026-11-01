@@ -395,6 +395,7 @@ _SPEND_TABLES = (
     "llm_spend_prices",
     "llm_spend_ledger",
     "llm_spend_free_endpoints",
+    "llm_spend_paid_proxy_evidence",
 )
 
 #: What the services may do with the money: reserve a request's worst case, settle or retain it.
@@ -402,6 +403,9 @@ _SPEND_OPERATIONS = (
     "llm_spend_reserve(text, text, text, text, bigint, integer, bigint)",
     "llm_spend_settle(text, bigint, bigint, bigint)",
     "llm_spend_retain(text, text)",
+    # 011v: withdraw a free declaration whose endpoint answered like a paid proxy. It can only
+    # make the guard stricter, so the services may call it.
+    "llm_spend_report_paid_proxy(text, text, text[])",
 )
 
 #: What an auditor may read of an account: everything but its password hash and lockout.
@@ -530,7 +534,8 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
                     "SELECT pg_get_serial_sequence(t, k) FROM (VALUES"
                     " ('public.llm_spend_prices', 'price_id'),"
                     " ('public.llm_spend_ledger', 'entry_id'),"
-                    " ('public.llm_spend_free_endpoints', 'declaration_id')) AS v(t, k)"
+                    " ('public.llm_spend_free_endpoints', 'declaration_id'),"
+                    " ('public.llm_spend_paid_proxy_evidence', 'evidence_id')) AS v(t, k)"
                     " WHERE to_regclass(t) IS NOT NULL"
                 ).fetchall()
                 if seq is not None
@@ -543,8 +548,12 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
         ).fetchone()[0]
         is not None
     )
-    if administered:  # 011t: the operations are granted, never PUBLIC
-        statements += tuple(f"GRANT EXECUTE ON FUNCTION {f} TO {app}" for f in _SPEND_OPERATIONS)
+    if administered:  # 011t: the operations are granted, never PUBLIC (each once it exists)
+        statements += tuple(
+            f"GRANT EXECUTE ON FUNCTION {f} TO {app}"
+            for f in _SPEND_OPERATIONS
+            if c.execute("SELECT to_regprocedure(%s)", (f,)).fetchone()[0] is not None
+        )
     try:
         with c.transaction():
             for statement in statements:

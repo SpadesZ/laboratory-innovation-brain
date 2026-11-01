@@ -328,6 +328,9 @@ APPLY_ORDER: tuple[str, ...] = (
     "011u_account_change_audit.sql",
     # Post-screening support needs declared, pre-registered, new-lineage evidence. After 011u.
     "011s_prospective_evidence_authorization.sql",
+    # A model server on this machine is not presumed free: exact free declarations only, and a
+    # declared-free endpoint that answers like a paid proxy loses its exemption. After 011s.
+    "011v_llm_spend_local_is_not_free.sql",
 )
 
 _BOOTSTRAP = """

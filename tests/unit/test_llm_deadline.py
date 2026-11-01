@@ -25,6 +25,9 @@ from lab_brain.llm_runtime.capabilities import Capability
 from lab_brain.llm_runtime.probes import run_probe
 from lab_brain.llm_runtime.provider import OpenAICompatibleClient, ProviderError, ProviderFailure
 from lab_brain.llm_runtime.runtime import DEFAULT_INFERENCE_DEADLINE_S, checked_deadline
+from tests.free_test_endpoints import free_test_servers  # noqa: F401
+
+pytestmark = pytest.mark.usefixtures("free_test_servers")
 
 KEY = "sk-test-deadline-0123456789abcdefABCDEF"
 

@@ -8,8 +8,8 @@ declare what) are in `tests/integration/test_g0_spend_admin_postgres.py`.
     free         an endpoint the guard says the Owner declared free is sent unreserved; any other
                  model on it is reserved
     no budget    a guard with no ceiling refuses whatever is not declared free
-    this machine a configured budget meters it; with no budget it is sent unmetered unless the
-                 Owner sets LAB_BRAIN_LLM_SPEND_METER_LOCAL (the documented residual)
+    this machine metered like any endpoint (011v): with no guard it is refused unsent; the
+                 retired LAB_BRAIN_LLM_SPEND_METER_LOCAL switch changes nothing
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ class Guard:
     reserved: list[SpendRequest] = field(default_factory=list)
 
     def declared_free(self, endpoint_host: str, model: str) -> bool:
-        return (endpoint_host, model) in self.free or (endpoint_host, "*") in self.free
+        return (endpoint_host, model) in self.free
 
     def reserve(self, request: SpendRequest) -> Reservation:
         self.reserved.append(request)
@@ -145,15 +145,21 @@ def test_which_guard_the_environment_gives() -> None:
     with_budget = spend.resolve(
         None, env={"LAB_BRAIN_LLM_SPEND_BUDGET": "b", "LAB_BRAIN_DATABASE_URL": "postgresql://x"}
     )
-    assert isinstance(with_budget, PostgresSpendGuard) and with_budget.meter_this_machine
+    assert isinstance(with_budget, PostgresSpendGuard) and with_budget.budget_id == "b"
     declarations = spend.resolve(None, env={"LAB_BRAIN_DATABASE_URL": "postgresql://x"})
     assert isinstance(declarations, PostgresSpendGuard) and declarations.budget_id is None
-    assert not declarations.meter_this_machine
-    strict = spend.resolve(
-        None,
-        env={"LAB_BRAIN_DATABASE_URL": "postgresql://x", "LAB_BRAIN_LLM_SPEND_METER_LOCAL": "1"},
-    )
-    assert strict is not None and strict.meter_this_machine
+    # The retired switch is not read: the same guard, whatever it says.
+    for value in ("1", "0"):
+        assert (
+            spend.resolve(
+                None,
+                env={
+                    "LAB_BRAIN_DATABASE_URL": "postgresql://x",
+                    "LAB_BRAIN_LLM_SPEND_METER_LOCAL": value,
+                },
+            )
+            is declarations
+        )
     assert spend.required({}) is True
 
 
@@ -163,21 +169,22 @@ def test_a_budget_meters_this_machine() -> None:
         guard = Guard()
         OpenAICompatibleClient(endpoint.origin + "/v1", KEY, spend=guard).chat("m", "prompt")
         assert len(guard.reserved) == 1 and len(endpoint.seen) == 1
-        guard.free.add((guard.reserved[0].endpoint_host, "*"))
+        guard.free.add((guard.reserved[0].endpoint_host, "m"))
         OpenAICompatibleClient(endpoint.origin + "/v1", KEY, spend=guard).chat("m", "prompt")
         assert len(guard.reserved) == 1 and len(endpoint.seen) == 2, "declared free"
     finally:
         endpoint.stop()
 
 
-def test_with_no_ceiling_at_all_this_machine_is_the_documented_residual() -> None:
-    """No budget, no database, no METER_LOCAL: a loopback request is sent unmetered. A local
-    proxy to a paid provider would be too -- the residual spend-administration.md names; the
-    Owner closes it by configuring a ceiling or LAB_BRAIN_LLM_SPEND_METER_LOCAL=1."""
+def test_with_no_ceiling_at_all_this_machine_is_refused_unsent() -> None:
+    """No budget, no database: a loopback request is refused unsent (011v). Before, it was sent
+    unmetered -- and so was a local proxy to a paid provider (the 011t residual, decision A3)."""
     endpoint = Endpoint().start()
     try:
-        OpenAICompatibleClient(endpoint.origin + "/v1", KEY).chat("m", "prompt")
-        assert len(endpoint.seen) == 1
+        with pytest.raises(ProviderError) as refused:
+            OpenAICompatibleClient(endpoint.origin + "/v1", KEY).chat("m", "prompt")
+        assert refused.value.failure is ProviderFailure.SPEND_REFUSED
+        assert endpoint.seen == []
     finally:
         endpoint.stop()
 
@@ -186,17 +193,17 @@ def test_the_live_free_endpoints_are_parsed_and_need_a_reason() -> None:
     assert free_endpoints_from_env({}) == ((), "")
     free, reason = free_endpoints_from_env(
         {
-            "LAB_BRAIN_LIVE_FREE_ENDPOINTS": "127.0.0.1:11434 qwen2.5:7b; LOCALHOST:8080 *",
+            "LAB_BRAIN_LIVE_FREE_ENDPOINTS": "127.0.0.1:11434 qwen2.5:7b; LOCALHOST:8080 llama3",
             "LAB_BRAIN_LIVE_FREE_REASON": "Ollama on this machine",
         }
     )
     assert [(f.endpoint_host, f.model) for f in free] == [
         ("127.0.0.1:11434", "qwen2.5:7b"),
-        ("localhost:8080", "*"),
+        ("localhost:8080", "llama3"),
     ]
     assert reason == "Ollama on this machine"
     with pytest.raises(LiveBudgetMissing, match="REASON"):
-        free_endpoints_from_env({"LAB_BRAIN_LIVE_FREE_ENDPOINTS": "127.0.0.1:11434 *"})
+        free_endpoints_from_env({"LAB_BRAIN_LIVE_FREE_ENDPOINTS": "127.0.0.1:11434 m"})
     with pytest.raises(LiveBudgetMissing, match="host"):
         free_endpoints_from_env(
             {"LAB_BRAIN_LIVE_FREE_ENDPOINTS": "127.0.0.1:11434", "LAB_BRAIN_LIVE_FREE_REASON": "x"}

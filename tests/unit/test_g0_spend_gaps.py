@@ -25,11 +25,13 @@ import pytest
 
 from lab_brain.llm_runtime.provider import OpenAICompatibleClient, ProviderError
 from tests.fake_llm_provider import FakeProvider
+from tests.free_test_endpoints import free_test_servers  # noqa: F401
 from tests.transport_endpoints import Endpoint
 
 KEY = "sk-test-spend-gaps-0123456789abcdefABCDEF"
 
 
+@pytest.mark.usefixtures("free_test_servers")
 def test_gap_unbounded_output_every_chat_request_carries_max_tokens():
     endpoint = Endpoint().start()
     try:
@@ -66,6 +68,7 @@ def test_gap_no_money_check_a_required_ceiling_refuses_a_remote_request_unsent(
     assert opened == []
 
 
+@pytest.mark.usefixtures("free_test_servers")
 def test_gap_two_per_call_a_schema_refusal_is_two_billed_requests():
     """The fact the meter must follow: one `chat()` against a provider that refuses the schema
     reaches the provider twice. (That each of the two is reserved separately is asserted in
