@@ -86,6 +86,9 @@ jobs:
       - name: SAI 3.4 phased activation mapping and documentation-only boundary
         run: python docs/spec/sai34/check_activation.py --self-test
 
+      - name: SAI 3.5 discovery candidate documentation (not active, not runtime acceptance)
+        run: python docs/spec/sai35/check_candidate.py --self-test
+
       # §23.5 (2) occurrence inventory. The tests above already recompute the audit's arithmetic
       # against the inventory on disk; this proves the inventory itself is still in sync with the
       # document. An amendment that adds a hard obligation, deletes one, or rewords one fails here

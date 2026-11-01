@@ -1,0 +1,706 @@
+# SAI 3.5 Discovery Candidate registry. CANDIDATE, NOT ACTIVE, not integrated.
+# The active SAI 3.3 registry, the SAI 3.4 activation registry and ACTIVE_SPEC.yaml are unchanged.
+# planned_tests are obligations, never implementation or executed-test evidence.
+schema_version: 1
+spec_version: 3.5.0-discovery-candidate.1
+status: CANDIDATE
+activation_status: NOT_ACTIVE
+integrated: false
+owner_approval: PENDING
+ready_for_real_research: false
+g0_status: NOT_PASSED
+changes_sai34: false
+changes_g0_g9: false
+base_revision: a38ad63a4f4ad83c895cbd1e32b2e760d878f356
+g0_line_revision: 58c68be8ad5af63c9335e3b99ce8e0fd403815e9
+spec_document: docs/spec/SAI_3.5_Discovery_Candidate.md
+review_at: '2026-12-01'
+review_trigger: Owner decision OD-01 on the candidate; G-D0 cannot start before OD-02, OD-03 and OD-04.
+deferred_rationale: Candidate only. Activation needs an Owner decision, an accepted ADR-0016, a branch integration plan, an SAI 3.4 activation-checker scope change and real implementation tests. No runtime delivery is claimed.
+documents:
+  - docs/spec/SAI_3.5_Discovery_Candidate.md
+  - docs/spec/sai35/acceptance-gd.md
+  - docs/spec/sai35/matched-budget-protocol.md
+  - docs/spec/sai35/architecture-end-to-end.md
+  - docs/spec/sai35/implementation-status.md
+  - docs/spec/sai35/roadmap.md
+  - docs/spec/sai35/decisions-and-review.md
+  - docs/spec/sai35/traceability.md
+  - docs/adr/ADR-0016-sai35-discovery-candidate.md
+gd_levels: [G-D0, G-D1, G-D2, G-D3, G-D4]
+gd_framework:
+  separate_from_g0_g9: true
+  g0_g9_completion_implies_discovery: false
+  requires_independent_evaluator: true
+  implementer_may_sign: false
+  substitutes_for_g_gates: false
+  evaluated_levels: []
+comparison_arms:
+  A: single LLM
+  B: existing LIB
+  C: LIB with Discovery
+matching_dimensions: [models, token_budget, compute_budget, experiment_budget, tools_and_data, time_limit, seeds, environment]
+metrics:
+  - true-mechanism discovery rate
+  - distinguishable diversity
+  - experimental efficiency
+  - false discoveries
+  - reproducibility
+epistemic_states: [PROPOSED, ADMITTED, PREREGISTERED, UNDER_TEST, SUPPORTED, CHALLENGED, CONTRADICTED, INCONCLUSIVE, CONFIRMED, INSUFFICIENT_VALIDATION, STOPPED, REFRAMED, WITHDRAWN]
+anomaly_states: [UNEXPLAINED, UNDER_INVESTIGATION, PROVISIONALLY_EXPLAINED, EXPLAINED, ARTIFACT, UNRESOLVED_INSUFFICIENT, WITHDRAWN]
+stop_outcomes: [INSUFFICIENT_VALIDATION, STOPPED]
+stop_outcome_is_governance_success: true
+confirmed_only_via: causal_warrant_gate
+production_depends_on_external_coding_agent: false
+licensed_products: [CHARGE, MODE, FDTD, INTERCONNECT]
+owner_gates: [money, licenses, physical_experiments, publication]
+human_account_roles: [ADMIN, MEMBER]
+unresolved_security_decisions: [A3, A9, A12]
+roadmap_phases: [D0, D1, D2, D3, D4, D5, D6]
+owner_decisions: [OD-01, OD-02, OD-03, OD-04, OD-05, OD-06, OD-07, OD-08, OD-09, OD-10, OD-11, OD-12, OD-13]
+decision_statuses: {OD-01: OPEN, OD-02: OPEN, OD-03: OPEN, OD-04: OPEN, OD-05: OPEN, OD-06: OPEN, OD-07: OPEN, OD-08: OPEN, OD-09: OPEN, OD-10: OPEN, OD-11: OPEN, OD-12: OPEN, OD-13: OPEN}
+normative_statements:
+  - key: candidate.additive
+    section: '0'
+    level: MUST
+    requirement_id: D-001
+    tests: []
+    planned_tests: [T-D-001]
+    pass_condition: SAI 3.3 and SAI 3.4 files, registries, milestones and ACTIVE_SPEC.yaml stay byte-identical to the base; a later conflict opens a spec issue and stops the affected slice.
+    gates: [G-D0]
+    milestone: D0
+    related_sai34: [ASM-018]
+    related_sai33: [TST-002, TST-003]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Only the documentation checker exists; spec-issue handling for SAI 3.5 is not yet exercised.
+  - key: vision.target
+    section: '1'
+    level: MUST
+    requirement_id: D-002
+    tests: []
+    planned_tests: [T-D-002]
+    pass_condition: Each of the four capabilities has an operational definition tied to records and to the G-D level that would evidence it; none is described as present.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D0
+    related_sai34: [ASM-001, ASM-002]
+    related_sai33: [SYS-001]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Product target only; no discovery capability exists.
+  - key: vision.claim_discipline
+    section: '1'
+    level: MUST
+    requirement_id: D-003
+    tests: []
+    planned_tests: [T-D-003]
+    pass_condition: A claim audit of documents, UI strings, reports and status files finds no capability claim above the highest independently passed G-D level, and engineering results are labeled as engineering validity.
+    gates: [G-D0, G-D1, G-D2, G-D3, G-D4]
+    milestone: D0
+    related_sai34: [ASM-018]
+    related_sai33: [UX-006]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No claim audit tooling for discovery claims exists.
+  - key: vision.novelty_falsifiability
+    section: '1'
+    level: MUST
+    requirement_id: D-004
+    tests: []
+    planned_tests: [T-D-004]
+    pass_condition: A novelty status without a PriorArtSearchRecord with coverage is refused; a hypothesis without a CONTRADICTS prediction over a measurable observable in a frozen outcome space is not called falsifiable.
+    gates: [G-D2, G-D3, G-D4]
+    milestone: D2
+    related_sai34: [ASM-003]
+    related_sai33: [SRC-003, VER-004, VER-006]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: SRC-003 records exist; discovery-level novelty and falsifiability checks do not.
+  - key: e2e.chain
+    section: '2'
+    level: MUST
+    requirement_id: D-005
+    tests: []
+    planned_tests: [T-D-005]
+    pass_condition: Every stage of a campaign persists scoped, hashed, versioned inputs, outputs and decisions with restartable checkpoints; a skipped stage records its reason.
+    gates: [G-D1, G-D2, G-D3]
+    milestone: D2
+    related_sai34: [ASM-002, ASM-017]
+    related_sai33: [SYS-001, OPS-001, OPS-003]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Discovery stages are not implemented or integrated.
+  - key: autonomy.no_external_coding_agent
+    section: '2'
+    level: MUST
+    requirement_id: D-006
+    tests: []
+    planned_tests: [T-D-006]
+    pass_condition: In a deployment-equivalent environment with coding-agent binaries absent and their endpoints blocked, the full chain runs from a blank workspace to a bilingual report on an in-envelope case; audit logs show zero coding-agent invocations, refused attempts are logged and every human intervention is a ReviewItem.
+    gates: [G-D3, G-D4]
+    milestone: D4
+    related_sai34: [ASM-001]
+    related_sai33: [SIM-003]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Requires the full autonomous chain, including licensed workers, none of which exists; G9 has not run.
+  - key: e2e.literature
+    section: '2'
+    level: MUST
+    requirement_id: D-007
+    tests: []
+    planned_tests: [T-D-007]
+    pass_condition: Non-PUBLIC queries never leave the deployment; every passage is pinned with version, hash and license class; unreachable providers appear in the search record's limitations.
+    gates: [G-D2]
+    milestone: D3
+    related_sai34: [ASM-003]
+    related_sai33: [SRC-001, SRC-002, SEC-001, SEC-004]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Only a local fixture literature corpus exists; no live provider or autonomous query planning.
+  - key: e2e.model_from_scratch
+    section: '2'
+    level: MUST
+    requirement_id: D-008
+    tests: []
+    planned_tests: [T-D-008]
+    pass_condition: A new project is built from a typed PhysicalModelSpec in a blank workspace through typed operations only, with independent readback; unknown parameters block instead of defaulting.
+    gates: [G-D3]
+    milestone: D4
+    related_sai34: [ASM-004, ASM-005]
+    related_sai33: [SIM-003, EVI-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: PhysicalModelSpec and the typed constructor are SPECIFIED in SAI 3.4 and not implemented.
+  - key: e2e.licensed_internal_workers
+    section: '2'
+    level: MUST
+    requirement_id: D-009
+    tests: []
+    planned_tests: [T-D-009]
+    pass_condition: Each licensed run records real entitlement checkout, solver identity, Owner authorization and reconciled cost on a qualified internal worker; a missing license or authorization blocks and never returns a mock success.
+    gates: [G-D3, G-D4]
+    milestone: D4
+    related_sai34: [ASM-006, ASM-007, ASM-015]
+    related_sai33: [TST-001, COST-001, OPS-001, SIM-001]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: The Lumerical provider is mock only; no worker, license or qualification exists.
+  - key: e2e.sweeps
+    section: '2'
+    level: MUST
+    requirement_id: D-010
+    tests: []
+    planned_tests: [T-D-010]
+    pass_condition: A sweep without a frozen plan is refused; every point is a Run with lineage to spec and plan; sweep outputs are admitted only as simulated, never as measured.
+    gates: [G-D3]
+    milestone: D4
+    related_sai34: [ASM-002, ASM-012]
+    related_sai33: [EVI-009, SIM-001]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Only a mock DC-sweep capability exists.
+  - key: e2e.convergence
+    section: '2'
+    level: MUST
+    requirement_id: D-011
+    tests: []
+    planned_tests: [T-D-011]
+    pass_condition: A simulated observable without a passed ASM-008 convergence study cannot change the mechanism class partition or any belief state; non-asymptotic cases are UNKNOWN or FAIL.
+    gates: [G-D3]
+    milestone: D4
+    related_sai34: [ASM-008]
+    related_sai33: [SIM-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Only trend validators and a mock mesh-sensitivity capability exist.
+  - key: e2e.refinement
+    section: '2'
+    level: MUST
+    requirement_id: D-012
+    tests: []
+    planned_tests: [T-D-012]
+    pass_condition: Refinement produces immutable child versions within approved bounds; a mechanism change creates a new hypothesis lineage with admission and pre-registration.
+    gates: [G-D3]
+    milestone: D4
+    related_sai34: [ASM-011]
+    related_sai33: [EPI-005]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: ModelPatch and bounded refinement are not implemented.
+  - key: e2e.physical_validation
+    section: '2'
+    level: MUST
+    requirement_id: D-013
+    tests: []
+    planned_tests: [T-D-013]
+    pass_condition: A physical discovery claim without independent reference data and measurement uncertainty is refused; simulation-only agreement cannot pass G-D4.
+    gates: [G-D4]
+    milestone: D5
+    related_sai34: [ASM-009, ASM-010]
+    related_sai33: [EVI-004, DOM-SP-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No independent physical validation path or reference data exists.
+  - key: e2e.bilingual_report
+    section: '2'
+    level: MUST
+    requirement_id: D-014
+    tests: []
+    planned_tests: [T-D-014]
+    pass_condition: zh-TW and en reports cover the eight ASM-016 classes plus problem provenance, mechanism classes with experiment-set version, anomaly states, reframing history, pre-registrations, validation outcomes and stop reasons, with identical identifiers, numbers and states and unchanged canonical hashes.
+    gates: [G-D2, G-D3, G-D4]
+    milestone: D2
+    related_sai34: [ASM-016]
+    related_sai33: [UX-006]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Discovery content does not exist; bilingual semantic quality is not verified on the G0 line.
+  - key: loop.problem_discovery
+    section: '3'
+    level: MUST
+    requirement_id: D-015
+    tests: []
+    planned_tests: [T-D-015]
+    pass_condition: Every ResearchProblem has an origin and resolvable links; a problem not accepted by an active human member consumes no non-zero-cost resource; INTERNAL material never passes the egress gate.
+    gates: [G-D1, G-D2]
+    milestone: D1
+    related_sai34: [ASM-014]
+    related_sai33: [SEC-001, SEC-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No problem discovery exists; the offline v0 is in progress and not reviewed.
+  - key: loop.mechanism_classes
+    section: '3'
+    level: MUST
+    requirement_id: D-016
+    tests: []
+    planned_tests: [T-D-016]
+    pass_condition: No report or metric presents a raw hypothesis count as diversity; every class count names its experiment-set version.
+    gates: [G-D1, G-D2, G-D3]
+    milestone: D1
+    related_sai34: []
+    related_sai33: [EPI-001, LLM-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No class partition exists.
+  - key: loop.mechanism_class_definition
+    section: '3'
+    level: MUST
+    requirement_id: D-017
+    tests: []
+    planned_tests: [T-D-017]
+    pass_condition: The partition is deterministic and versioned, recomputed when the experiment set changes, merges undecidable pairs conservatively and lists them.
+    gates: [G-D1, G-D2, G-D3]
+    milestone: D1
+    related_sai34: []
+    related_sai33: [VER-006, VER-008]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Requires comparable typed predictions per experiment; not implemented.
+  - key: loop.anomaly_state
+    section: '3'
+    level: MUST
+    requirement_id: D-018
+    tests: []
+    planned_tests: [T-D-018]
+    pass_condition: Anomalies move only through the listed states with append-only events; EXPLAINED requires a Causal Warrant Gate confirmation; no anomaly disappears from records or reports.
+    gates: [G-D1, G-D2, G-D3]
+    milestone: D1
+    related_sai34: [ASM-012, ASM-013]
+    related_sai33: [EPI-003, EPI-006]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No general anomaly registry exists.
+  - key: loop.reframing
+    section: '3'
+    level: MUST
+    requirement_id: D-019
+    tests: []
+    planned_tests: [T-D-019]
+    pass_condition: A reframing appends a record linked to failed hypotheses, anomalies and the prior problem; no failure record is deleted or edited; evidence that failed a hypothesis never supports it or its successor.
+    gates: [G-D1, G-D2, G-D3]
+    milestone: D1
+    related_sai34: [ASM-011, ASM-012]
+    related_sai33: [EPI-003, EPI-005]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Research Reframing does not exist on either line.
+  - key: loop.reframing_accounting
+    section: '3'
+    level: MUST
+    requirement_id: D-020
+    tests: []
+    planned_tests: [T-D-020]
+    pass_condition: Reframed hypotheses carry new lineage and need prospective validation; every reframing and abandoned branch stays in metric denominators; the reframing cap is enforced.
+    gates: [G-D1, G-D2, G-D3]
+    milestone: D1
+    related_sai34: [ASM-010]
+    related_sai33: [EPI-003]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Depends on reframing records and prospective rules, which exist only on the G0 line for screening.
+  - key: loop.experiment_selection
+    section: '3'
+    level: MUST
+    requirement_id: D-021
+    tests: []
+    planned_tests: [T-D-021]
+    pass_condition: Identical state and policy yield an identical ranked plan by classes separated per CostVector; no uncalibrated information-gain value is used; gated experiments are only proposed until authorized.
+    gates: [G-D1, G-D2, G-D3]
+    milestone: D1
+    related_sai34: [ASM-002]
+    related_sai33: [VER-001, VER-002, VER-003, VER-005]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: The least-cost planner exists; class-based discrimination per cost does not.
+  - key: loop.termination
+    section: '3'
+    level: MUST
+    requirement_id: D-022
+    tests: []
+    planned_tests: [T-D-022]
+    pass_condition: Every campaign terminates within its budgets with a recorded reason; exhaustion and stagnation end as STOPPED or INSUFFICIENT_VALIDATION and are never reported as discoveries.
+    gates: [G-D1, G-D2, G-D3]
+    milestone: D1
+    related_sai34: [ASM-007, ASM-011]
+    related_sai33: [COST-001]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No campaign controller exists.
+  - key: validation.role_separation
+    section: '4'
+    level: MUST
+    requirement_id: D-023
+    tests: []
+    planned_tests: [T-D-023]
+    pass_condition: Discovery identities cannot write verdicts, change validators, protocols or scoring, or read sealed material; validation does not generate the hypotheses it validates; access attempts are refused and logged.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D2
+    related_sai34: [ASM-010, ASM-013]
+    related_sai33: [SEC-002, EPI-005]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Role separation for discovery is designed, not built.
+  - key: validation.preregistration
+    section: '4'
+    level: MUST
+    requirement_id: D-024
+    tests: []
+    planned_tests: [T-D-024]
+    pass_condition: A validation without an earlier immutable registration supports nothing; registrations are dated by the database clock and need human authorization when money, licenses or physical experiments are used.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D2
+    related_sai34: [ASM-010]
+    related_sai33: [VER-006, EPI-005]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Pre-authorization exists only for post-screening hypotheses on the G0 line (011s).
+  - key: validation.no_retrospective_self_support
+    section: '4'
+    level: MUST
+    requirement_id: D-025
+    tests: []
+    planned_tests: [T-D-025]
+    pass_condition: Every 011p/011s refusal case, applied to discovery and reframed hypotheses, records CITES instead of SUPPORTS; a genuinely new, pre-registered, clean-lineage check can support.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D2
+    related_sai34: [ASM-012, ASM-013]
+    related_sai33: [EVI-004, EVI-009, EPI-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: The rules exist only on the unintegrated G0 line and only for post-screening hypotheses.
+  - key: validation.cwg_only_confirmed
+    section: '4'
+    level: MUST
+    requirement_id: D-026
+    tests: []
+    planned_tests: [T-D-026]
+    pass_condition: The number of CONFIRMED discovery claims not re-derivable through the Causal Warrant Gate is zero; no discovery component can mint a warrant.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D2
+    related_sai34: [ASM-013]
+    related_sai33: [EPI-002, EPI-004, EPI-005]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: The Causal Warrant Gate exists; its use by discovery is not wired.
+  - key: validation.epistemic_states
+    section: '4'
+    level: MUST
+    requirement_id: D-027
+    tests: []
+    planned_tests: [T-D-027]
+    pass_condition: The projection is rebuilt from canonical records alone; every transition outside the allowed table is refused and logged; the projection never writes a belief state.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D2
+    related_sai34: [ASM-013, ASM-018]
+    related_sai33: [EPI-003, EPI-005, SYS-001]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No discovery-claim projection exists.
+  - key: validation.stop_insufficient
+    section: '4'
+    level: MUST
+    requirement_id: D-028
+    tests: []
+    planned_tests: [T-D-028]
+    pass_condition: In no-mechanism-validatable cases the system ends with INSUFFICIENT_VALIDATION or STOPPED with reason, attempts, cost and needs; the scorer counts it as correct; a confident claim there counts as a false discovery.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D1
+    related_sai34: [ASM-011, ASM-018]
+    related_sai33: [EPI-001]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Reports show unperformed checks; a typed discovery-level stop outcome does not exist.
+  - key: validation.uncertainty
+    section: '4'
+    level: MUST
+    requirement_id: D-029
+    tests: []
+    planned_tests: [T-D-029]
+    pass_condition: Each claim lists uncertainty by source with UNKNOWN where unknown; no uncalibrated number is displayed as a probability of truth.
+    gates: [G-D2, G-D3, G-D4]
+    milestone: D2
+    related_sai34: [ASM-008, ASM-009, ASM-016]
+    related_sai33: [EVI-001, EVI-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No discovery-claim uncertainty model exists.
+  - key: oversight.owner_gates
+    section: '5'
+    level: MUST
+    requirement_id: D-030
+    tests: []
+    planned_tests: [T-D-030]
+    pass_condition: Money, license, physical-experiment and publication actions without a valid recorded Owner authorization produce zero side effects; timeouts never authorize.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D2
+    related_sai34: [ASM-007, ASM-014]
+    related_sai33: [COST-001, OPS-002, SEC-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: An Owner-only spend role exists on the G0 line; license, physical and publication gates for discovery do not.
+  - key: oversight.evidence_governance
+    section: '5'
+    level: MUST
+    requirement_id: D-031
+    tests: []
+    planned_tests: [T-D-031]
+    pass_condition: No discovery output is admitted as evidence outside the admission path; corrections are new events and originals remain.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D2
+    related_sai34: [ASM-012]
+    related_sai33: [EVI-003, EVI-009, SYS-001]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: The admission path exists; discovery records are not wired to it.
+  - key: oversight.provenance
+    section: '5'
+    level: MUST
+    requirement_id: D-032
+    tests: []
+    planned_tests: [T-D-032]
+    pass_condition: Every discovery record carries input hashes, producer and version, InferenceProvenance, policy versions and trace; a record without them cannot justify a transition.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D2
+    related_sai34: [ASM-002, ASM-017]
+    related_sai33: [LLM-001, OPS-003, ART-001]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Discovery records do not exist.
+  - key: oversight.project_isolation
+    section: '5'
+    level: MUST
+    requirement_id: D-033
+    tests: []
+    planned_tests: [T-D-033]
+    pass_condition: Cross-project reads of discovery records, benchmarks, sessions or caches are refused without a project occurrence; sealed material is unreachable from the control plane.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D2
+    related_sai34: [ASM-014]
+    related_sai33: [SEC-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Project isolation exists for current records; discovery and evaluation planes are not built.
+  - key: oversight.accounts
+    section: '5'
+    level: MUST
+    requirement_id: D-034
+    tests: []
+    planned_tests: [T-D-034]
+    pass_condition: Only ADMIN and MEMBER account roles exist; evaluator and reviewer independence is not satisfied by a second account of the same natural person; A3, A9 and A12 remain OPEN.
+    gates: [G-D0, G-D2, G-D4]
+    milestone: D0
+    related_sai34: [ASM-014]
+    related_sai33: [SEC-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Natural-person independence cannot be verified by software; it is an Owner responsibility.
+  - key: gd.independence
+    section: '6'
+    level: MUST
+    requirement_id: D-035
+    tests: []
+    planned_tests: [T-D-035]
+    pass_condition: Every G-D verdict is signed by an Owner-assigned evaluator who is not the implementer; no G-D status is derived from G0-G9 results; the system cannot issue a verdict.
+    gates: [G-D0, G-D1, G-D2, G-D3, G-D4]
+    milestone: D0
+    related_sai34: [ASM-018]
+    related_sai33: [TST-003]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No evaluator is assigned (OD-02).
+  - key: gd.levels
+    section: '6'
+    level: MUST
+    requirement_id: D-036
+    tests: []
+    planned_tests: [T-D-036]
+    pass_condition: Each level has frozen entry conditions, evidence and pass or fail criteria before evaluation; a missing threshold makes the level BLOCKED; results name their scope.
+    gates: [G-D0, G-D1, G-D2, G-D3, G-D4]
+    milestone: D0
+    related_sai34: [ASM-018]
+    related_sai33: [LLM-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Protocol values are not approved (OD-03).
+  - key: gd.no_substitution
+    section: '6'
+    level: MUST
+    requirement_id: D-037
+    tests: []
+    planned_tests: [T-D-037]
+    pass_condition: No G gate changes because of a G-D result and no G-D level passes without its listed G prerequisites; earlier runs are labeled exploratory.
+    gates: [G-D2, G-D3, G-D4]
+    milestone: D0
+    related_sai34: [ASM-018]
+    related_sai33: []
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No G-D level and no G0-G9 gate has been accepted.
+  - key: compare.three_arms
+    section: '7'
+    level: MUST
+    requirement_id: D-038
+    tests: []
+    planned_tests: [T-D-038]
+    pass_condition: Every G-D1 to G-D4 evaluation reports arms A, B and C on the same cases with the same answer schema, including the stop option.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D1
+    related_sai34: []
+    related_sai33: [LLM-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No comparison harness exists.
+  - key: compare.matching
+    section: '7'
+    level: MUST
+    requirement_id: D-039
+    tests: []
+    planned_tests: [T-D-039]
+    pass_condition: Budget ledgers show identical caps per case for every arm across models, tokens, compute, experiments, licensed time, tools, data, time, seeds and environment; any mismatch makes the comparison INVALID.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D1
+    related_sai34: []
+    related_sai33: [COST-001, VER-003]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No comparison harness exists.
+  - key: compare.blinding
+    section: '7'
+    level: MUST
+    requirement_id: D-040
+    tests: []
+    planned_tests: [T-D-040]
+    pass_condition: The evaluator scores with sealed arm labels held by a custodian; the scorer is hash-frozen; at G-D2 and above two independent blinded reviewers judge novelty and falsifiability with agreement reported.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D1
+    related_sai34: [ASM-010]
+    related_sai33: []
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No evaluator, custodian or G-D scorer exists.
+  - key: compare.benchmark
+    section: '7'
+    level: MUST
+    requirement_id: D-041
+    tests: []
+    planned_tests: [T-D-041]
+    pass_condition: The benchmark is sealed before any arm runs, contains hidden-mechanism synthetic worlds including no-mechanism-validatable worlds, held-out literature cases and later physical cases, and keeps every case in the denominator.
+    gates: [G-D0, G-D1, G-D2, G-D3, G-D4]
+    milestone: D0
+    related_sai34: [ASM-010]
+    related_sai33: [LLM-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No G-D benchmark exists; synthetic worlds are in progress on the unreviewed offline branch.
+  - key: compare.metrics
+    section: '7'
+    level: MUST
+    requirement_id: D-042
+    tests: []
+    planned_tests: [T-D-042]
+    pass_condition: All five metrics are reported per arm with definition, n, estimate and interval; diversity is counted only as equivalence classes; drifted re-runs are INVALID; exactly one primary metric is pre-registered.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D1
+    related_sai34: [ASM-017]
+    related_sai33: [LLM-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No G-D scorer exists.
+  - key: compare.statistics
+    section: '7'
+    level: MUST
+    requirement_id: D-043
+    tests: []
+    planned_tests: [T-D-043]
+    pass_condition: The frozen protocol names unit, paired tests, intervals, minimum effect, margins, multiplicity, sample size and interim rules before unsealing; the analysis follows it exactly.
+    gates: [G-D0, G-D1, G-D2, G-D3, G-D4]
+    milestone: D0
+    related_sai34: []
+    related_sai33: [LLM-002]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Protocol values await OD-03.
+  - key: compare.contamination
+    section: '7'
+    level: MUST
+    requirement_id: D-044
+    tests: []
+    planned_tests: [T-D-044]
+    pass_condition: Every case has recorded cutoff comparison, overlap check and memorization probe results; contaminated cases follow the rule frozen before unsealing and are reported.
+    gates: [G-D0, G-D1, G-D2]
+    milestone: D0
+    related_sai34: [ASM-010]
+    related_sai33: [EVI-004]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: Contamination tooling exists only for G0 on the G0 line.
+  - key: compare.stopping
+    section: '7'
+    level: MUST
+    requirement_id: D-045
+    tests: []
+    planned_tests: [T-D-045]
+    pass_condition: Cases and studies end only by the frozen rules; governance incidents invalidate affected runs; paid stages end at the Owner ceiling and are reported as partial.
+    gates: [G-D1, G-D2, G-D3, G-D4]
+    milestone: D1
+    related_sai34: [ASM-007]
+    related_sai33: [COST-001]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No comparison harness exists.
+  - key: compare.zero_cost_first
+    section: '7'
+    level: MUST
+    requirement_id: D-046
+    tests: []
+    planned_tests: [T-D-046]
+    pass_condition: The zero-cost stage runs and is reported before any paid, licensed or physical stage; spend ledgers for that stage are zero; later stages carry an Owner authorization with a ceiling.
+    gates: [G-D1, G-D2]
+    milestone: D1
+    related_sai34: [ASM-007, ASM-018]
+    related_sai33: [COST-001]
+    status: SPECIFIED
+    review_at: '2026-12-01'
+    deferred_rationale: No stage has run.
