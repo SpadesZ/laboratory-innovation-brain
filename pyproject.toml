@@ -106,6 +106,11 @@ known-first-party = ["lab_brain", "tests"]
 # on a DomainPack contract -- the direction §24.2 permits (`domains -> tools/simulators`, and a
 # provider is bound to the domain whose schema its payloads satisfy). Core still imports neither.
 "src/lab_brain/tool_providers/**" = ["TID251"]
+# The offline discovery benchmark's script is a composition root, the way the entry-point table above
+# is for product verticals: it is the one file that names the silicon-photonics discovery scenario
+# and hands it to the domain-agnostic engine. The engine (`src/lab_brain/discovery`) stays under the
+# ban, and `tests/unit/test_discovery_governance.py` parses its import graph to keep it pack-free.
+"scripts/discovery_benchmark.py" = ["TID251"]
 # The mutation battery's `old=` fields are verbatim excerpts of the source lines they anchor on.
 # Wrapping them with implicit concatenation would keep the line length and make the anchor
 # unreadable -- and an anchor a reviewer cannot compare against the source by eye is the one
