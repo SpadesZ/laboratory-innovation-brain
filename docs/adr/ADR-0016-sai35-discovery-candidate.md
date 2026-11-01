@@ -21,12 +21,14 @@ anything new. Meanwhile the work sits on separate branches:
 - `g0-owner-boundary-closure` @ `58c68be` holds 72 G0 commits (prospective-evidence rules
   `011p`/`011s`, spend administration, evaluation tooling) but not the SAI 3.4 documents; G0 is NOT
   PASSED and that line awaits an independent audit;
-- `discovery-loop-offline` (from `58c68be`) is where an offline Discovery Loop v0 is in progress,
-  not reviewed.
+- `discovery-loop-offline` @ `118a4ac` (from `58c68be`) holds an offline Discovery Loop v0
+  prototype with a synthetic benchmark; it is not integrated and not independently reviewed.
 
 ## Constraints
 
-SAI 3.3 and SAI 3.4 stay byte-identical, including the activation registry and ACTIVE_SPEC.yaml.
+SAI 3.3 and SAI 3.4 stay byte-identical, including ACTIVE_SPEC.yaml. The one exception is the SAI
+3.4 change-boundary allowlist (`sai34/activation.yaml`, `check_activation.py`), widened in its own
+commit by the twelve documentation-only SAI 3.5 paths, pending Owner decision OD-10.
 G0–G9 conditions stay intact. READY_FOR_REAL_RESEARCH stays false. No runtime, migration, test or
 dependency changes in this delivery. No merge or cherry-pick from other branches. Owner gates for
 money, licenses, physical experiments and publication are not bypassed.

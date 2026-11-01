@@ -14,7 +14,7 @@ scientific capability.
 |---|---|---|---|
 | SAI 3.4 integration line | `integration-integrity-accounts` @ `a38ad63` (this candidate's base) | `f3fadf6` code plus the SAI 3.4 documents | — |
 | G0 line | `g0-owner-boundary-closure` @ `58c68be` | `f3fadf6` plus 72 G0 commits: reliability, exploratory screening, prospective evidence (`011p`, `011s`), spend administration (`011t`), account audit (`011u`), evaluation tooling | **not integrated** with `a38ad63`. The common ancestor is `f3fadf6`. `58c68be` does not contain the SAI 3.4 documents, and `a38ad63` does not contain the G0 code |
-| Discovery line | `discovery-loop-offline`, created from `58c68be` | offline Discovery Loop v0 (see §3) | not integrated; not reviewed |
+| Discovery line | `discovery-loop-offline` @ `118a4ac`, created from `58c68be` | offline Discovery Loop v0 (see §3) | pushed; not integrated; not independently reviewed |
 
 Paths below without a prefix exist on this base. Paths written as `58c68be:<path>` exist only on the
 G0 line. Reports on the G0 line state that its final state passed the full PostgreSQL suite and an
@@ -64,17 +64,31 @@ and it is not scientific evidence (`58c68be:docs/audit/g0-owner-boundary-closure
 
 ### Offline Discovery Loop v0
 
-The offline Discovery Loop v0 is being developed on branch `discovery-loop-offline` from `58c68be`:
-module `lab_brain.discovery`, synthetic seeded worlds, and baselines B0 single-hypothesis, B1
-LIB-without-discovery and B2 LIB+Discovery. Status: **in progress, not reviewed.** At the time of
-writing the branch pointed at `58c68be` itself, with no committed Discovery code visible to this
-review. Its results, when they exist, are engineering evidence about synthetic worlds. They are not
-a G-D1 verdict unless an independent evaluator runs them under a frozen G-D0 protocol.
+The offline Discovery Loop v0 is on branch `discovery-loop-offline` @ `118a4ac` (from `58c68be`):
+module `lab_brain.discovery` (pure Python, no migration), a ring-resonator mechanism catalog pinned by
+digest and not installed in the product, seeded synthetic worlds, and baselines B0 single-hypothesis
+(a deterministic stand-in, **not** an LLM), B1 existing-LIB style and B2 LIB + Discovery. Status:
+**IMPLEMENTED as an offline prototype; not integrated; not independently reviewed.**
+
+What it shows (`docs/audit/discovery-loop-offline-2026-11-01/` on that branch; 200 worlds, matched
+budget 12, Wilson 95% intervals): correct outcome B0 0.08, B1 0.31, B2 0.89; false discovery B0
+0.37, B1 0.25, B2 0.01; B2 spends about four times B1's budget and is worse per correct outcome.
+The worlds and the engine share an author and the forward models are toy linear models, so this is
+**engineering evidence about synthetic worlds**: not a G-D1 verdict, not an independent or blind
+evaluation, and not evidence of discovery capability (D-003). It never invokes the Causal Warrant
+Gate; it emits a handover packet with status pending. Arm A (single LLM) of the matched-budget
+protocol is not implemented: B0 is not a substitute for it.
+
+The next G0 candidate, `g0-reliability-authenticity-closure` (from `58c68be`), adds an always-metered
+local endpoint (`011v`), signed verification authorizations (`011w`) and frozen blind-run inputs; it
+also awaits an independent audit.
 
 ## 4. What this means
 
-- No SAI 3.5 capability is implemented. The Discovery Loop, mechanism classes, anomaly states,
-  reframing, the epistemic-state projection and the A/B/C harness do not exist on either line.
+- No SAI 3.5 capability is implemented in the product. An offline prototype of the Discovery Loop
+  (mechanism classes, anomaly records, reframing records, discovery states) exists on the
+  unintegrated `discovery-loop-offline` line only; the epistemic-state projection for discovery
+  objects in the product and the A/B/C harness (with a real arm A) do not exist on any line.
 - Reusable parts exist but sit on two unintegrated lines. The most relevant ones for SAI 3.5 are
   the prospective-evidence rules and the evaluation tooling, and those are only on the G0 line.
 - Licensed simulation, model construction, refinement and physical validation are absent on both
