@@ -52,6 +52,8 @@ ACTIVE_SPEC_VALUES = {
 }
 
 # SHA-256 of every SAI 3.3 / SAI 3.4 file at BASE_REVISION. SAI 3.5 may not change one byte.
+# Exception, Owner decision OD-10: the SAI 3.4 activation allowlist (activation.yaml and
+# check_activation.py) gained the SAI 3.5 candidate paths; their hashes are the patched ones.
 PROTECTED = {
     "docs/spec/ACTIVE_SPEC.yaml": (
         "4b9ed134325071cc2b0b3ee097db9a7e5054991353529838281abd8e5ef51479"
@@ -69,13 +71,13 @@ PROTECTED = {
         "b3b525ae628a5ec70cf24ad54c372719d5b322f43b1de7ae956c74120189bc40"
     ),
     "docs/spec/sai34/activation.yaml": (
-        "d4e9b2ca8aafc86077594337cf737327ab245d590604184f0cafd34e2953c92f"
+        "08f0f56787b681d6f546262b91fdfb24c0ed079b954ac23ab3b706743411022e"
     ),
     "docs/spec/sai34/change-impact.md": (
         "1ae46679c92f41d5e9a25758f09100b9638d0536f7ac4d2170c34365d2cb6d16"
     ),
     "docs/spec/sai34/check_activation.py": (
-        "a00a27b6559c16260a9bb1e7cfafc7afc5dd839eaed4932ee38d09fdfb84c8e1"
+        "a9602a28170c8282d5c8f6b374e1703c7ae67551fddb1a6b89344dfac4580d83"
     ),
     "docs/spec/sai34/check_candidate.py": (
         "229e2c028327e597b90c07974a9e00ff6058842ab8f71a29b848ee1710673730"

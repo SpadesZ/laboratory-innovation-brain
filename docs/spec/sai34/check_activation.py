@@ -139,6 +139,19 @@ def check(data: dict) -> None:
         "docs/spec/sai34/activation.yaml",
         "docs/spec/sai34/check_activation.py",
         "docs/spec/sai34/integration-activation.md",
+        # OD-10 (SAI 3.5): documentation-only candidate paths; no runtime path is added.
+        "docs/adr/ADR-0016-sai35-discovery-candidate.md",
+        "docs/spec/SAI_3.5_Discovery_Candidate.md",
+        "docs/spec/sai35/REPORT.zh-TW.md",
+        "docs/spec/sai35/acceptance-gd.md",
+        "docs/spec/sai35/architecture-end-to-end.md",
+        "docs/spec/sai35/check_candidate.py",
+        "docs/spec/sai35/decisions-and-review.md",
+        "docs/spec/sai35/implementation-status.md",
+        "docs/spec/sai35/matched-budget-protocol.md",
+        "docs/spec/sai35/normative-statements.yaml",
+        "docs/spec/sai35/roadmap.md",
+        "docs/spec/sai35/traceability.md",
     }
     assert set(data["allowed_documentation_paths"]) == expected_allowed
     assert git("rev-parse", "--is-shallow-repository") == "false"
