@@ -232,6 +232,12 @@ def score_run(
         raise ScoringRefused(f"outputs are not {OUTPUTS_KIND}")
     if outputs.get("manifest_sha256") != manifest["manifest_sha256"]:
         raise ScoringRefused("outputs were produced against a different protocol manifest")
+    ran_in = outputs.get("environment") or {}
+    if ran_in.get("drift_after"):
+        raise ScoringRefused(
+            "the environment changed during the run: " + "; ".join(ran_in["drift_after"])
+        )
+    verified = bool(ran_in.get("verified_before")) and ran_in.get("drift_after") == []
     records: Mapping[str, Any] = outputs["cases"]
     unknown = sorted(set(records) - set(manifest["cases"]))
     if unknown:
@@ -276,6 +282,9 @@ def score_run(
         "bootstrap_seed": stats["bootstrap_seed"],
         "bootstrap_resamples": stats["bootstrap_resamples"],
         "contamination_findings": len(found),
+        # Whether the runner checked the recorded environment before the first case and after the
+        # last. False: the score is of outputs whose environment nobody verified.
+        "environment": {"verified": verified, "sha256": ran_in.get("sha256") if verified else None},
         "summary": scoring.summarize(
             rows, seed=stats["bootstrap_seed"], resamples=stats["bootstrap_resamples"]
         ),

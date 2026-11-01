@@ -1,0 +1,400 @@
+FFFFFFFFFFFFFFFFFFF                                                      [100%]
+=================================== FAILURES ===================================
+_ test_an_evidence_file_edited_after_the_freeze_is_refused_before_anything_runs _
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_an_evidence_file_edited_a0')
+
+    def test_an_evidence_file_edited_after_the_freeze_is_refused_before_anything_runs(tmp_path):
+        evaluator = _prepare(tmp_path)
+        (tmp_path / "holdout" / "evidence" / "report.md").write_text("an edited report", "utf-8")
+        ran: list[Any] = []
+>       with pytest.raises(RunnerRefused, match="evidence/report.md"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE RunnerRefused
+
+tests/unit/test_g0_blind_freezing.py:55: Failed
+__________ test_the_package_is_parsed_from_the_bytes_that_were_hashed __________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_the_package_is_parsed_fro0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fa85386de00>
+
+    def test_the_package_is_parsed_from_the_bytes_that_were_hashed(tmp_path, monkeypatch):
+        evaluator = _prepare(tmp_path)
+        package = tmp_path / "holdout" / "generator-package.json"
+        frozen_question = json.loads(package.read_text("utf-8"))["cases"][0]["question"]
+        real_load = runner.load_generator_package
+    
+        def swap_then_load(path: Path, *args: Any, **kwargs: Any) -> Any:
+            swapped = json.loads(package.read_text("utf-8"))
+            swapped["cases"][0]["question"] = "a question nobody froze"
+            package.write_text(json.dumps(swapped), "utf-8")
+            return real_load(path, *args, **kwargs)
+    
+        monkeypatch.setattr(runner, "load_generator_package", swap_then_load)
+        asked: list[str] = []
+        run_blind(
+            manifest=evaluator["manifest"],
+            root=tmp_path,
+            run_case=lambda inputs: asked.append(inputs.question) or "e",
+            collect_record=_record,
+        )
+>       assert asked == [frozen_question]
+E       AssertionError: assert ['a question nobody froze'] == ['Why is Rs e...ds normally?']
+E         
+E         At index 0 diff: 'a question nobody froze' != 'Why is Rs extremely high and weakly bias dependent while Cj trends normally?'
+E         Use -v to get more diff
+
+tests/unit/test_g0_blind_freezing.py:85: AssertionError
+_________ test_an_evidence_file_the_manifest_did_not_freeze_is_refused _________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_an_evidence_file_the_mani0')
+
+    def test_an_evidence_file_the_manifest_did_not_freeze_is_refused(tmp_path):
+        evaluator = _prepare(tmp_path)
+        manifest = copy.deepcopy(evaluator["manifest"])
+        del manifest["input_files"]["holdout/evidence/report.md"]
+        from lab_brain.evaluation.manifest import manifest_hash
+    
+        manifest["manifest_sha256"] = manifest_hash(manifest)
+>       with pytest.raises(RunnerRefused, match="not frozen"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE RunnerRefused
+
+tests/unit/test_g0_blind_freezing.py:95: Failed
+_________ test_a_drifted_environment_is_refused_before_the_first_case __________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_a_drifted_environment_is_0')
+
+    def test_a_drifted_environment_is_refused_before_the_first_case(tmp_path):
+        evaluator = _prepare(tmp_path)
+        recorded = _environment(tmp_path)
+        now = _rehash({**copy.deepcopy(recorded), "platform": {"system": "Other", "machine": "x"}})
+        ran: list[Any] = []
+        with pytest.raises(RunnerRefused, match="platform"):
+>           run_blind(
+                manifest=evaluator["manifest"],
+                root=tmp_path,
+                run_case=lambda inputs: ran.append(inputs) or "e",
+                collect_record=_record,
+                environment=recorded,
+                observe_environment=lambda: now,
+            )
+E           TypeError: run_blind() got an unexpected keyword argument 'environment'
+
+tests/unit/test_g0_blind_freezing.py:112: TypeError
+_______ test_drift_during_the_run_is_recorded_and_the_scorer_refuses_it ________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_drift_during_the_run_is_r0')
+
+    def test_drift_during_the_run_is_recorded_and_the_scorer_refuses_it(tmp_path):
+        evaluator = _prepare(tmp_path)
+        recorded = _environment(tmp_path)
+        changed = copy.deepcopy(recorded)
+        changed["model"]["model_digest"] = "sha256:" + "f" * 64
+        observed = iter([recorded, _rehash(changed)])
+>       outputs = run_blind(
+            manifest=evaluator["manifest"],
+            root=tmp_path,
+            run_case=lambda inputs: "e",
+            collect_record=_record,
+            environment=recorded,
+            observe_environment=lambda: next(observed),
+        )
+E       TypeError: run_blind() got an unexpected keyword argument 'environment'
+
+tests/unit/test_g0_blind_freezing.py:129: TypeError
+____________ test_a_recorded_environment_needs_a_way_to_observe_it _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_a_recorded_environment_ne0')
+
+    def test_a_recorded_environment_needs_a_way_to_observe_it(tmp_path):
+        evaluator = _prepare(tmp_path)
+        with pytest.raises(RunnerRefused, match="observe"):
+>           run_blind(
+                manifest=evaluator["manifest"],
+                root=tmp_path,
+                run_case=str,
+                collect_record=_record,
+                environment=_environment(tmp_path),
+            )
+E           TypeError: run_blind() got an unexpected keyword argument 'environment'
+
+tests/unit/test_g0_blind_freezing.py:152: TypeError
+_______ test_without_an_environment_the_outputs_say_it_was_not_verified ________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_without_an_environment_th0')
+
+    def test_without_an_environment_the_outputs_say_it_was_not_verified(tmp_path):
+        evaluator = _prepare(tmp_path)
+        outputs = run_blind(
+            manifest=evaluator["manifest"], root=tmp_path, run_case=str, collect_record=_record
+        )
+>       assert outputs["environment"] == {"verified_before": False, "drift_after": None}
+               ^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'environment'
+
+tests/unit/test_g0_blind_freezing.py:166: KeyError
+_ test_verify_reports_each_field_that_makes_another_experiment[clean tree-<lambda>] _
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_verify_reports_each_field0')
+label = 'clean tree', change = <function <lambda> at 0x7fa8538d44a0>
+
+    @pytest.mark.parametrize(
+        ("label", "change"),
+        [
+            ("clean tree", lambda m: m["code"].__setitem__("clean", False)),
+            ("model endpoint", lambda m: m["model"].__setitem__("endpoint", "http://127.0.0.1:8080/v1")),
+            ("platform", lambda m: m["platform"].__setitem__("machine", "riscv64")),
+            ("settings", lambda m: m["settings"].__setitem__("digest", "sha256:" + "0" * 64)),
+            ("applied schema", lambda m: m["schema"].__setitem__("applied_digest", "sha256:" + "1" * 64)),
+            ("model digest source", lambda m: m["model"].__setitem__("digest_source", "served")),
+        ],
+    )
+    def test_verify_reports_each_field_that_makes_another_experiment(tmp_path, label, change):
+        recorded = _environment(tmp_path)
+        now = copy.deepcopy(recorded)
+        change(now)
+        drift = verify(recorded, _rehash(now))
+>       assert any(d.startswith(label + ":") for d in drift), drift
+E       AssertionError: []
+E       assert False
+E        +  where False = any(<generator object test_verify_reports_each_field_that_makes_another_experiment.<locals>.<genexpr> at 0x7fa85375d700>)
+
+tests/unit/test_g0_blind_freezing.py:193: AssertionError
+_ test_verify_reports_each_field_that_makes_another_experiment[model endpoint-<lambda>] _
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_verify_reports_each_field1')
+label = 'model endpoint', change = <function <lambda> at 0x7fa8538d4540>
+
+    @pytest.mark.parametrize(
+        ("label", "change"),
+        [
+            ("clean tree", lambda m: m["code"].__setitem__("clean", False)),
+            ("model endpoint", lambda m: m["model"].__setitem__("endpoint", "http://127.0.0.1:8080/v1")),
+            ("platform", lambda m: m["platform"].__setitem__("machine", "riscv64")),
+            ("settings", lambda m: m["settings"].__setitem__("digest", "sha256:" + "0" * 64)),
+            ("applied schema", lambda m: m["schema"].__setitem__("applied_digest", "sha256:" + "1" * 64)),
+            ("model digest source", lambda m: m["model"].__setitem__("digest_source", "served")),
+        ],
+    )
+    def test_verify_reports_each_field_that_makes_another_experiment(tmp_path, label, change):
+        recorded = _environment(tmp_path)
+        now = copy.deepcopy(recorded)
+        change(now)
+        drift = verify(recorded, _rehash(now))
+>       assert any(d.startswith(label + ":") for d in drift), drift
+E       AssertionError: []
+E       assert False
+E        +  where False = any(<generator object test_verify_reports_each_field_that_makes_another_experiment.<locals>.<genexpr> at 0x7fa8538df760>)
+
+tests/unit/test_g0_blind_freezing.py:193: AssertionError
+_ test_verify_reports_each_field_that_makes_another_experiment[platform-<lambda>] _
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_verify_reports_each_field2')
+label = 'platform', change = <function <lambda> at 0x7fa8538d45e0>
+
+    @pytest.mark.parametrize(
+        ("label", "change"),
+        [
+            ("clean tree", lambda m: m["code"].__setitem__("clean", False)),
+            ("model endpoint", lambda m: m["model"].__setitem__("endpoint", "http://127.0.0.1:8080/v1")),
+            ("platform", lambda m: m["platform"].__setitem__("machine", "riscv64")),
+            ("settings", lambda m: m["settings"].__setitem__("digest", "sha256:" + "0" * 64)),
+            ("applied schema", lambda m: m["schema"].__setitem__("applied_digest", "sha256:" + "1" * 64)),
+            ("model digest source", lambda m: m["model"].__setitem__("digest_source", "served")),
+        ],
+    )
+    def test_verify_reports_each_field_that_makes_another_experiment(tmp_path, label, change):
+        recorded = _environment(tmp_path)
+        now = copy.deepcopy(recorded)
+        change(now)
+        drift = verify(recorded, _rehash(now))
+>       assert any(d.startswith(label + ":") for d in drift), drift
+E       AssertionError: []
+E       assert False
+E        +  where False = any(<generator object test_verify_reports_each_field_that_makes_another_experiment.<locals>.<genexpr> at 0x7fa8538dcc80>)
+
+tests/unit/test_g0_blind_freezing.py:193: AssertionError
+_ test_verify_reports_each_field_that_makes_another_experiment[settings-<lambda>] _
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_verify_reports_each_field3')
+label = 'settings', change = <function <lambda> at 0x7fa8538d4680>
+
+    @pytest.mark.parametrize(
+        ("label", "change"),
+        [
+            ("clean tree", lambda m: m["code"].__setitem__("clean", False)),
+            ("model endpoint", lambda m: m["model"].__setitem__("endpoint", "http://127.0.0.1:8080/v1")),
+            ("platform", lambda m: m["platform"].__setitem__("machine", "riscv64")),
+            ("settings", lambda m: m["settings"].__setitem__("digest", "sha256:" + "0" * 64)),
+            ("applied schema", lambda m: m["schema"].__setitem__("applied_digest", "sha256:" + "1" * 64)),
+            ("model digest source", lambda m: m["model"].__setitem__("digest_source", "served")),
+        ],
+    )
+    def test_verify_reports_each_field_that_makes_another_experiment(tmp_path, label, change):
+        recorded = _environment(tmp_path)
+        now = copy.deepcopy(recorded)
+>       change(now)
+
+tests/unit/test_g0_blind_freezing.py:191: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+m = {'kind': 'g0-eval/environment@1', 'code': {'commit': '75625a6cfda1bf08b05476dcae378ce85f20481d', 'clean': True}, 'sche...', 'iniconfig==2.3.1', ...], 'digest': 'sha256:c711841c2dbfea4f1488dbd0b8384809ddf35eee6cb5bb055d238747251cf81f'}, ...}
+
+>           ("settings", lambda m: m["settings"].__setitem__("digest", "sha256:" + "0" * 64)),
+                                   ^^^^^^^^^^^^^
+            ("applied schema", lambda m: m["schema"].__setitem__("applied_digest", "sha256:" + "1" * 64)),
+            ("model digest source", lambda m: m["model"].__setitem__("digest_source", "served")),
+        ],
+    )
+E   KeyError: 'settings'
+
+tests/unit/test_g0_blind_freezing.py:183: KeyError
+_ test_verify_reports_each_field_that_makes_another_experiment[applied schema-<lambda>] _
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_verify_reports_each_field4')
+label = 'applied schema', change = <function <lambda> at 0x7fa8538d4720>
+
+    @pytest.mark.parametrize(
+        ("label", "change"),
+        [
+            ("clean tree", lambda m: m["code"].__setitem__("clean", False)),
+            ("model endpoint", lambda m: m["model"].__setitem__("endpoint", "http://127.0.0.1:8080/v1")),
+            ("platform", lambda m: m["platform"].__setitem__("machine", "riscv64")),
+            ("settings", lambda m: m["settings"].__setitem__("digest", "sha256:" + "0" * 64)),
+            ("applied schema", lambda m: m["schema"].__setitem__("applied_digest", "sha256:" + "1" * 64)),
+            ("model digest source", lambda m: m["model"].__setitem__("digest_source", "served")),
+        ],
+    )
+    def test_verify_reports_each_field_that_makes_another_experiment(tmp_path, label, change):
+        recorded = _environment(tmp_path)
+        now = copy.deepcopy(recorded)
+        change(now)
+        drift = verify(recorded, _rehash(now))
+>       assert any(d.startswith(label + ":") for d in drift), drift
+E       AssertionError: []
+E       assert False
+E        +  where False = any(<generator object test_verify_reports_each_field_that_makes_another_experiment.<locals>.<genexpr> at 0x7fa853897680>)
+
+tests/unit/test_g0_blind_freezing.py:193: AssertionError
+_ test_verify_reports_each_field_that_makes_another_experiment[model digest source-<lambda>] _
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_verify_reports_each_field5')
+label = 'model digest source', change = <function <lambda> at 0x7fa8538d47c0>
+
+    @pytest.mark.parametrize(
+        ("label", "change"),
+        [
+            ("clean tree", lambda m: m["code"].__setitem__("clean", False)),
+            ("model endpoint", lambda m: m["model"].__setitem__("endpoint", "http://127.0.0.1:8080/v1")),
+            ("platform", lambda m: m["platform"].__setitem__("machine", "riscv64")),
+            ("settings", lambda m: m["settings"].__setitem__("digest", "sha256:" + "0" * 64)),
+            ("applied schema", lambda m: m["schema"].__setitem__("applied_digest", "sha256:" + "1" * 64)),
+            ("model digest source", lambda m: m["model"].__setitem__("digest_source", "served")),
+        ],
+    )
+    def test_verify_reports_each_field_that_makes_another_experiment(tmp_path, label, change):
+        recorded = _environment(tmp_path)
+        now = copy.deepcopy(recorded)
+        change(now)
+        drift = verify(recorded, _rehash(now))
+>       assert any(d.startswith(label + ":") for d in drift), drift
+E       AssertionError: []
+E       assert False
+E        +  where False = any(<generator object test_verify_reports_each_field_that_makes_another_experiment.<locals>.<genexpr> at 0x7fa85375c900>)
+
+tests/unit/test_g0_blind_freezing.py:193: AssertionError
+_________ test_settings_record_values_but_only_the_presence_of_secrets _________
+
+    def test_settings_record_values_but_only_the_presence_of_secrets():
+>       state = environment.settings_state(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+            {
+                "LAB_BRAIN_LLM_MAX_OUTPUT_TOKENS": "2048",
+                "LAB_BRAIN_DATABASE_URL": "postgresql://u:hunter2@db/x",
+                "LAB_BRAIN_REVIEW_KEY_PASSPHRASE": "hunter2",
+                "LAB_BRAIN_LLM_API_KEY": "sk-live-abc",
+                "PATH": "/usr/bin",
+            }
+        )
+E       AttributeError: module 'lab_brain.evaluation.environment' has no attribute 'settings_state'
+
+tests/unit/test_g0_blind_freezing.py:197: AttributeError
+_____________ test_the_served_digest_is_read_from_the_local_server _____________
+
+    def test_the_served_digest_is_read_from_the_local_server():
+>       got = environment.served_model_digest(LOCAL["endpoint"], "qwen2.5:7b", fetch=_tags("a" * 64))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'lab_brain.evaluation.environment' has no attribute 'served_model_digest'
+
+tests/unit/test_g0_blind_freezing.py:224: AttributeError
+___________ test_a_declared_digest_the_server_contradicts_is_refused ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_a_declared_digest_the_ser0')
+
+    def test_a_declared_digest_the_server_contradicts_is_refused(tmp_path):
+        with pytest.raises(EnvironmentRefused, match="serves"):
+>           capture(_repo(tmp_path), ORDER, fetch_tags=_tags("b" * 64), **LOCAL)
+E           TypeError: capture() got an unexpected keyword argument 'fetch_tags'
+
+tests/unit/test_g0_blind_freezing.py:231: TypeError
+___________ test_a_server_that_cannot_say_leaves_the_digest_declared ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_a_server_that_cannot_say_0')
+
+    def test_a_server_that_cannot_say_leaves_the_digest_declared(tmp_path):
+        def unreachable(url: str) -> Mapping[str, Any]:
+            raise OSError("connection refused")
+    
+>       m = capture(_repo(tmp_path), ORDER, fetch_tags=unreachable, **LOCAL)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: capture() got an unexpected keyword argument 'fetch_tags'
+
+tests/unit/test_g0_blind_freezing.py:240: TypeError
+____________________ test_a_remote_endpoint_is_never_asked _____________________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-2421/test_a_remote_endpoint_is_neve0')
+
+    def test_a_remote_endpoint_is_never_asked(tmp_path):
+        asked: list[str] = []
+    
+        def fetch(url: str) -> Mapping[str, Any]:
+            asked.append(url)
+            return {}
+    
+        remote = {**LOCAL, "endpoint": "https://models.provider.invalid/v1"}
+>       m = capture(_repo(tmp_path), ORDER, allow_remote=True, fetch_tags=fetch, **remote)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: capture() got an unexpected keyword argument 'fetch_tags'
+
+tests/unit/test_g0_blind_freezing.py:252: TypeError
+_______________ test_the_environment_module_states_what_it_pins ________________
+
+    def test_the_environment_module_states_what_it_pins():
+        for word in ("settings", "applied", "served", "platform"):
+>           assert word in (environment.__doc__ or "")
+E           AssertionError: assert 'settings' in (('The environment of a blind evaluation, pinned so an independent evaluator can reproduce it.\n\nA frozen protocol mani...h the environment now, field by field, and returns every\ndifference; reproducing a score starts with an empty list.\n'))
+E            +  where 'The environment of a blind evaluation, pinned so an independent evaluator can reproduce it.\n\nA frozen protocol mani...h the environment now, field by field, and returns every\ndifference; reproducing a score starts with an empty list.\n' = environment.__doc__
+
+tests/unit/test_g0_blind_freezing.py:258: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/test_g0_blind_freezing.py::test_an_evidence_file_edited_after_the_freeze_is_refused_before_anything_runs
+FAILED tests/unit/test_g0_blind_freezing.py::test_the_package_is_parsed_from_the_bytes_that_were_hashed
+FAILED tests/unit/test_g0_blind_freezing.py::test_an_evidence_file_the_manifest_did_not_freeze_is_refused
+FAILED tests/unit/test_g0_blind_freezing.py::test_a_drifted_environment_is_refused_before_the_first_case
+FAILED tests/unit/test_g0_blind_freezing.py::test_drift_during_the_run_is_recorded_and_the_scorer_refuses_it
+FAILED tests/unit/test_g0_blind_freezing.py::test_a_recorded_environment_needs_a_way_to_observe_it
+FAILED tests/unit/test_g0_blind_freezing.py::test_without_an_environment_the_outputs_say_it_was_not_verified
+FAILED tests/unit/test_g0_blind_freezing.py::test_verify_reports_each_field_that_makes_another_experiment[clean tree-<lambda>]
+FAILED tests/unit/test_g0_blind_freezing.py::test_verify_reports_each_field_that_makes_another_experiment[model endpoint-<lambda>]
+FAILED tests/unit/test_g0_blind_freezing.py::test_verify_reports_each_field_that_makes_another_experiment[platform-<lambda>]
+FAILED tests/unit/test_g0_blind_freezing.py::test_verify_reports_each_field_that_makes_another_experiment[settings-<lambda>]
+FAILED tests/unit/test_g0_blind_freezing.py::test_verify_reports_each_field_that_makes_another_experiment[applied schema-<lambda>]
+FAILED tests/unit/test_g0_blind_freezing.py::test_verify_reports_each_field_that_makes_another_experiment[model digest source-<lambda>]
+FAILED tests/unit/test_g0_blind_freezing.py::test_settings_record_values_but_only_the_presence_of_secrets
+FAILED tests/unit/test_g0_blind_freezing.py::test_the_served_digest_is_read_from_the_local_server
+FAILED tests/unit/test_g0_blind_freezing.py::test_a_declared_digest_the_server_contradicts_is_refused
+FAILED tests/unit/test_g0_blind_freezing.py::test_a_server_that_cannot_say_leaves_the_digest_declared
+FAILED tests/unit/test_g0_blind_freezing.py::test_a_remote_endpoint_is_never_asked
+FAILED tests/unit/test_g0_blind_freezing.py::test_the_environment_module_states_what_it_pins
+19 failed in 3.12s

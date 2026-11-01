@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -192,12 +192,19 @@ def check_generator_document(data: Any, *, origin: str) -> GeneratorPackage:
     return GeneratorPackage.model_validate(dict(data))
 
 
-def load_generator_package(path: Path) -> LoadedPackage:
-    """Load a generator package and its evidence; refuse anything that is evaluator material."""
+def load_generator_package(
+    path: Path, *, read: Callable[[Path], bytes] | None = None
+) -> LoadedPackage:
+    """Load a generator package and its evidence; refuse anything that is evaluator material.
+
+    `read` returns a file's bytes (default: from disk). The blind runner passes the bytes it has
+    already checked against the frozen manifest, so what is parsed is exactly what was hashed --
+    never a second read of a file that could have changed in between."""
+    read_bytes = read or (lambda p: p.read_bytes())
     if _EVALUATOR_NAME.search(path.name):
         raise VisibilityViolation(f"{path.name}: the file name marks evaluator material")
     package = check_generator_document(
-        json.loads(path.read_text(encoding="utf-8")), origin=path.name
+        json.loads(read_bytes(path).decode("utf-8")), origin=path.name
     )
     base = path.resolve().parent
     evidence: dict[str, bytes] = {}
@@ -212,7 +219,7 @@ def load_generator_package(path: Path) -> LoadedPackage:
                 raise VisibilityViolation(f"{ref.path}: evidence outside the package directory")
             if _EVALUATOR_NAME.search(ref.path) or _EVALUATOR_NAME.search(ref.name):
                 raise VisibilityViolation(f"{ref.path}: the name marks evaluator material")
-            body = target.read_bytes()
+            body = read_bytes(target)
             _refuse_evaluator_json(body, ref.path)
             evidence[ref.path] = body
     return LoadedPackage(path=path, package=package, evidence=evidence)
