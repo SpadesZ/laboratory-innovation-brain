@@ -2,11 +2,12 @@
 
 WHAT THIS IS. A small, typed catalog the offline Discovery Loop (`lab_brain.discovery`) runs
 against: twelve declared experiments a photonics lab might run on a silicon microring (one of them
-unavailable here), and fourteen mechanism classes -- eleven parameter regimes of the ten mechanisms
-a lab raises first for "the resonance has drifted and the ring is lossier than designed", plus three
-it raises only when those fail. Each class has a cheap deterministic forward model: a function of
-an experiment's declared conditions (powers, temperatures, widths, radii, gaps, wavelengths) that
-returns how much each reported entry moves per unit of the class's one amplitude parameter.
+unavailable here), and sixteen mechanism classes: the nine a lab raises first for "the resonance has
+drifted and the ring is lossier than designed" (the initial working set), four parameter-regime
+variants of them, and three mechanisms it raises only when those fail. Each class has a cheap
+deterministic forward model: a function of an experiment's declared conditions (powers,
+temperatures, widths, radii, gaps, wavelengths) that returns how much each reported entry moves per
+unit of the class's one amplitude parameter.
 
 WHAT THIS IS NOT. It is NOT calibrated physics and NOT product domain knowledge:
 
