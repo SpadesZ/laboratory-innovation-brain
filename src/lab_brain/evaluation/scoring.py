@@ -40,7 +40,10 @@ PER CASE, from the episode record the generator side collected (the shape
                                 hypothesis, a capability whose kind its domain pack declares, and a
                                 check pre-registered by a verification authorization
                                 (`unknown_capture_time`, `lineage_before_hypothesis`,
-                                `unclassified_capability`, `unauthorized_verification`)
+                                `unclassified_capability`, `unauthorized_verification`) --
+                                and, since scorer 2.3.0 (011w), an authorization whose person's
+                                signature verifies under the pinned review authorities
+                                (`unverified_authorization`)
     no_input_leak               no truth string -- answer or secret -- in anything sent TO the model
                                 (`record.prompts`): a leak is truth reaching the generator. NOT
                                 APPLICABLE (never a pass) to a completed record whose
@@ -88,7 +91,7 @@ from lab_brain.evaluation.packages import find_truth, normalize_text
 from lab_brain.evaluation.stats import bootstrap, wilson
 
 SCORER_ID = "g0-eval-screening-scorer"
-SCORER_VERSION = "2.2.0"
+SCORER_VERSION = "2.3.0"
 
 METRICS: tuple[str, ...] = (
     "considered_pre_screening",
@@ -118,6 +121,7 @@ SUPPORT_FACTS: tuple[str, ...] = (
     "lineage_before_hypothesis",
     "unclassified_capability",
     "unauthorized_verification",
+    "unverified_authorization",
 )
 
 #: Below this many words, a secret text is scanned in the inputs only (see the module docstring).

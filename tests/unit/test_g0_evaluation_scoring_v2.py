@@ -326,13 +326,14 @@ def test_two_competing_hypotheses_before_screening_and_refutability():
 # -- scorer 2.2.0 -------------------------------------------------------------------------------
 
 
-def test_scorer_2_2_0_carries_the_011s_facts():
-    assert scoring.SCORER_VERSION == "2.2.0"
+def test_scorer_2_3_0_carries_the_011s_and_011w_facts():
+    assert scoring.SCORER_VERSION == "2.3.0"
     assert set(scoring.SUPPORT_FACTS) >= {
         "unknown_capture_time",
         "lineage_before_hypothesis",
         "unclassified_capability",
         "unauthorized_verification",
+        "unverified_authorization",
     }
 
 

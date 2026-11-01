@@ -192,8 +192,12 @@ def test_only_an_active_person_of_the_project_may_authorize(guarded):
             "INSERT INTO actors (actor_id, actor_type, display_name)"
             " VALUES ('act:engine', 'AGENT_ROLE', 'a model slot')"
         )
+        # Since 011w a model slot cannot even be given an authorizer key; 011s's trigger is the
+        # second wall (an active HUMAN member of the project).
         with (
-            pytest.raises(psycopg.errors.RaiseException, match="not an active person"),
+            pytest.raises(
+                (ProspectiveRefused, psycopg.errors.RaiseException), match="not an active"
+            ),
             g.db.transaction(force_rollback=True),
         ):
             g.authorize("by-a-model", actor="act:engine")
@@ -227,9 +231,11 @@ def test_an_authorization_is_dated_by_the_database_and_never_changes(guarded):
         g.db.execute(
             "INSERT INTO verification_authorizations (authorization_id, project_id, episode_id,"
             " hypothesis_id, prediction_ids, capability_id, declaration_hash, actor_id,"
-            " rationale, created_at) SELECT 'vauth:backdated', project_id, episode_id,"
+            " rationale, created_at, enrolment_id, signature, signed_at)"
+            " SELECT 'vauth:backdated', project_id, episode_id,"
             " hypothesis_id, prediction_ids, capability_id, declaration_hash, actor_id,"
-            " rationale, %s FROM verification_authorizations WHERE authorization_id = %s",
+            " rationale, %s, enrolment_id, signature, signed_at"
+            " FROM verification_authorizations WHERE authorization_id = %s",
             (OLD, authorization),
         )
         ((stored,),) = rows(
@@ -357,6 +363,7 @@ def test_end_to_end_an_authorized_measurement_is_recorded_as_admissible_support(
             prediction_ids=[g.prediction()],
             capability_id=sp.CAP_FOURPOINT_PROBE,
             actor_id=g.actor,
+            signer=g.keys.signer(PROJECT, g.actor),
             rationale="an open via should raise the probed contact resistance",
         )
         _evidence, stored = _record(g, "vauth:e2e", "e2e", dt.datetime.now(dt.UTC))
@@ -379,6 +386,7 @@ def test_end_to_end_a_late_authorized_measurement_is_context_not_support(guarded
             prediction_ids=[g.prediction()],
             capability_id=sp.CAP_FOURPOINT_PROBE,
             actor_id=g.actor,
+            signer=g.keys.signer(PROJECT, g.actor),
             rationale="registered after the data was taken",
         )
         _evidence, stored = _record(g, "vauth:late", "late", taken)
@@ -399,6 +407,7 @@ def test_end_to_end_retrospective_data_is_context_not_support(guarded):
             prediction_ids=[g.prediction()],
             capability_id=sp.CAP_FOURPOINT_PROBE,
             actor_id=g.actor,
+            signer=g.keys.signer(PROJECT, g.actor),
             rationale="an old log, registered today",
         )
         _evidence, stored = _record(g, "vauth:old", "old", OLD)

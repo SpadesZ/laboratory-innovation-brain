@@ -40,7 +40,7 @@ OLD = dt.datetime(2020, 1, 1, tzinfo=dt.UTC)
 LOOKUP = "cap:sp.probe_lookup"
 _COLUMNS = (
     "authorization_id, project_id, episode_id, hypothesis_id, prediction_ids, capability_id,"
-    " declaration_hash, actor_id, rationale, created_at"
+    " declaration_hash, actor_id, rationale, created_at, enrolment_id, signature, signed_at"
 )
 
 

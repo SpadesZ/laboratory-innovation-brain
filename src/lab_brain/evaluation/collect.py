@@ -40,7 +40,15 @@ A relation rests on its BASIS: its source and the observation behind every attes
                                 verification authorization of this hypothesis, for this
                                 capability under the declaration in force, naming the relation's
                                 prediction, made before the run started and -- for a measurement
-                                -- before its data was captured (011s)
+                                -- before its data was captured (011s); or that authorization
+                                is unsigned, or signed under an enrolment of another person or
+                                one revoked before it signed (011w's frame)
+    unverified_authorization    an authorization a basis run is bound to does not VERIFY: its
+                                signature, its enrolment or the authority's signature on that
+                                enrolment fails under the pinned review authorities
+                                (`LAB_BRAIN_REVIEW_AUTHORITIES`), or nothing is pinned (011w).
+                                Python's check -- SQL cannot verify Ed25519 -- read again here so
+                                the score does not rest on the evidence sink having held
 
 The 011s facts are read through the same SQL functions the guard calls (`prospective_*`), on the
 rows as they are now -- so a guard switched off, or rows edited after the fact, are still reported.
@@ -57,9 +65,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from lab_brain.security.reviewer_identity import ReviewerTrust
+from lab_brain.verification.prospective import bound_authorization_problem
+
 _SUPPORTS = """
 WITH rel AS (
     SELECT r.relation_id, r.from_entity_id, r.supporting_attestation_ids, h.created_at,
+           h.project_id, h.hypothesis_id,
            c.screening_observation_ids AS screened, c AS conditioned,
            r.attributes ->> 'prediction_id' AS prediction_id
       FROM relation_judgments r
@@ -140,14 +152,19 @@ SELECT rel.relation_id,
                SELECT 1 FROM basis b WHERE b.relation_id = rel.relation_id
                   AND (b.run_id IS NULL
                        OR prospective_authorization_problem(
-                              rel.conditioned, b.run_row, rel.prediction_id) IS NOT NULL)))
+                              rel.conditioned, b.run_row, rel.prediction_id) IS NOT NULL))),
+       rel.screened IS NOT NULL, rel.project_id, rel.hypothesis_id, rel.from_entity_id,
+       rel.supporting_attestation_ids
   FROM rel
  ORDER BY rel.relation_id
 """
 
 
-def support_provenance(connection: Any, hypothesis_id: str) -> list[dict[str, Any]]:
-    """Every SUPPORTS relation to `hypothesis_id`, with the facts scorer 2.2.0 judges it by."""
+def support_provenance(
+    connection: Any, hypothesis_id: str, trust: ReviewerTrust | None = None
+) -> list[dict[str, Any]]:
+    """Every SUPPORTS relation to `hypothesis_id`, with the facts scorer 2.3.0 judges it by.
+    `trust`: the pinned review authorities (default `LAB_BRAIN_REVIEW_AUTHORITIES`)."""
     return [
         {
             "relation_id": str(relation),
@@ -161,6 +178,16 @@ def support_provenance(connection: Any, hypothesis_id: str) -> list[dict[str, An
             "lineage_before_hypothesis": bool(lineage),
             "unclassified_capability": bool(unclassified),
             "unauthorized_verification": bool(unauthorized),
+            "unverified_authorization": bool(conditioned)
+            and bound_authorization_problem(
+                connection,
+                project_id=project_id,
+                hypothesis_id=hypothesis,
+                observation_id=observation,
+                attestation_ids=list(cited or ()),
+                trust=trust,
+            )
+            is not None,
         }
         for (
             relation,
@@ -174,6 +201,11 @@ def support_provenance(connection: Any, hypothesis_id: str) -> list[dict[str, An
             lineage,
             unclassified,
             unauthorized,
+            conditioned,
+            project_id,
+            hypothesis,
+            observation,
+            cited,
         ) in connection.execute(_SUPPORTS, (hypothesis_id,)).fetchall()
     ]
 

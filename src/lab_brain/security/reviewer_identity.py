@@ -37,6 +37,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 from lab_brain.core.models.reviewer import (
+    VERIFICATION_AUTHORIZATION_SCOPE,
     WARRANT_REVIEW_SCOPE,
     ReviewerEnrolment,
     ReviewerKeyRevocation,
@@ -255,6 +256,53 @@ class ReviewerTrust:
         if not _verify(enrolment.public_key, grant.signature, grant.statement()):
             raise IdentityUnverified(f"{what}: the reviewer's signature does not verify")
 
+    def verify_authorization(
+        self,
+        *,
+        what: str,
+        actor_id: str,
+        project_id: str,
+        enrolment_id: str | None,
+        signature: str | None,
+        signed_at: dt.datetime | None,
+        statement: bytes,
+        enrolment: ReviewerEnrolment | None,
+        revocations: Iterable[ReviewerKeyRevocation] = (),
+    ) -> None:
+        """Raise `IdentityUnverified` unless the verification authorization `what` is one its
+        named person signed (011w): under their VERIFICATION_AUTHORIZATION enrolment in that
+        project, enrolled by a pinned authority, not revoked at the time it was signed."""
+        if enrolment_id is None or signature is None or signed_at is None:
+            raise IdentityUnverified(f"{what} is unsigned")
+        if enrolment is None or enrolment.enrolment_id != enrolment_id:
+            raise IdentityUnverified(f"{what} names enrolment {enrolment_id}, not recorded")
+        if (enrolment.project_id, enrolment.actor_id) != (project_id, actor_id):
+            raise IdentityUnverified(
+                f"{what} is by {actor_id} in {project_id}, but enrolment "
+                f"{enrolment.enrolment_id} is {enrolment.actor_id}'s in {enrolment.project_id}"
+            )
+        if enrolment.scope != VERIFICATION_AUTHORIZATION_SCOPE:
+            raise IdentityUnverified(
+                f"{what} is signed under enrolment {enrolment.enrolment_id}, which authorizes "
+                f"{enrolment.scope}, not {VERIFICATION_AUTHORIZATION_SCOPE}"
+            )
+        self.verify_enrolment(enrolment)
+        if signed_at < enrolment.enrolled_at:
+            raise IdentityUnverified(f"{what} predates the enrolment of the key it is signed with")
+        for revocation in revocations:
+            if revocation.enrolment_id != enrolment.enrolment_id:
+                continue
+            self.verify_revocation(revocation)
+            if revocation.effective_at <= signed_at:
+                raise IdentityUnverified(
+                    f"{what} is signed with a key revoked from "
+                    f"{revocation.effective_at.isoformat()}"
+                )
+        if not is_signature(signature):
+            raise IdentityUnverified(f"{what}: the signature is not a canonical Ed25519 one")
+        if not _verify(enrolment.public_key, signature, statement):
+            raise IdentityUnverified(f"{what}: the person's signature does not verify")
+
 
 class SigningKey:
     """A private Ed25519 key held by a reviewer or an authority, never by the database."""
@@ -319,13 +367,16 @@ def sign_enrolment(
     actor_id: str,
     public_key: str,
     enrolled_at: dt.datetime,
+    scope: str = WARRANT_REVIEW_SCOPE,
 ) -> ReviewerEnrolment:
-    """An enrolment signed by `authority` (whose actor must be someone other than `actor_id`)."""
+    """An enrolment signed by `authority` (whose actor must be someone other than `actor_id`),
+    for warrant answers (the default) or verification authorizations (011w)."""
     unsigned = {
         "enrolment_id": enrolment_id,
         "project_id": project_id,
         "actor_id": actor_id,
         "public_key": public_key,
+        "scope": scope,
         "enrolled_at": enrolled_at,
         "authority_actor_id": authority_actor_id,
         "authority_key_id": authority.key_id,

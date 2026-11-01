@@ -1713,7 +1713,9 @@ class ResearchEpisodeService:
         # A post-screening hypothesis is supported only by a pre-registered check (`011s`): a job
         # of an authorized capability is bound to its authorization before it runs, and a
         # SUPPORTS the database would refuse is kept as context (CITES), never lost or forced.
-        prospective = ProspectiveEvidenceSink(evidence, c)
+        # The authorization's signature (011w) is checked against the same pinned authorities
+        # the warrant gate uses.
+        prospective = ProspectiveEvidenceSink(evidence, c, self._trust)
         if self._undeclared:
             run.notes.append(
                 "capabilities with no domain pack declaration (they cannot support a hypothesis "

@@ -38,6 +38,7 @@ from lab_brain.core.repositories.jobs import SqlJobStore
 from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.domains.silicon_photonics.plugin import PACK_VERSION
 from lab_brain.storage.postgres.capabilities import register_pack_declarations
+from tests.authorizer_keys import AuthorizerKeys
 from tests.e2e.test_g0_exploratory_screening_postgres import (
     SCREENING,
     device,
@@ -123,6 +124,9 @@ class Guarded:
         assert screened is not None
         self.screened = screened
         self.later = dt.datetime.now(dt.UTC) + dt.timedelta(hours=1)
+        # 011w: an authorization is signed by its person under an authorizer key a pinned review
+        # authority enrolled; `self.keys.trust` is the pinned authority.
+        self.keys = AuthorizerKeys(db)
 
     def register_capabilities(self) -> None:
         """The vertical's capabilities and their DECLARED kinds (`011s`) -- through the governed
@@ -165,27 +169,45 @@ class Guarded:
         predictions: list[str] | None = None,
         actor: str | None = None,
     ) -> str:
-        """A pre-registered test of the rival (`011s`), made now by the episode's person."""
+        """A pre-registered test of the rival (`011s`), made now by the episode's person and
+        signed with their enrolled authorizer key (`011w`)."""
         ((digest,),) = rows(
             self.db,
             "SELECT declaration_hash FROM capability_declarations WHERE capability_id = %s",
             capability_id,
         )
         authorization = f"vauth:{name}"
+        person = actor or self.actor
+        named = predictions or [self.prediction()]
+        enrolment, signature, signed_at = self.keys.signed_columns(
+            self.keys.signer(PROJECT, person),
+            authorization_id=authorization,
+            project_id=PROJECT,
+            episode_id=self.episode,
+            hypothesis_id=self.hypothesis,
+            prediction_ids=named,
+            capability_id=capability_id,
+            declaration_hash=digest,
+            rationale=f"test {name}",
+        )
         self.db.execute(
             "INSERT INTO verification_authorizations (authorization_id, project_id, episode_id,"
             " hypothesis_id, prediction_ids, capability_id, declaration_hash, actor_id,"
-            " rationale, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, now())",
+            " rationale, created_at, enrolment_id, signature, signed_at)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, now(), %s, %s, %s)",
             (
                 authorization,
                 PROJECT,
                 self.episode,
                 self.hypothesis,
-                predictions or [self.prediction()],
+                named,
                 capability_id,
                 digest,
-                actor or self.actor,
+                person,
                 f"test {name}",
+                enrolment,
+                signature,
+                signed_at,
             ),
         )
         return authorization
@@ -394,12 +416,16 @@ class Guarded:
 
 
 @pytest.fixture
-def guarded(db: Any, tmp_path: Any, standin: Any) -> Guarded:
+def guarded(db: Any, tmp_path: Any, standin: Any, monkeypatch: pytest.MonkeyPatch) -> Guarded:
     fake, _model = standin
     _setup(db)
     browser = _deployment(tmp_path, inference_deadline=60, research_features=SCREENING)
     _activated(db, browser, fake)
-    return Guarded(db, research(browser, device("contact-open-via")))
+    g = Guarded(db, research(browser, device("contact-open-via")))
+    # The pinned review authority every read that counts an authorization checks it against
+    # (011w): the evidence sink, the collector and the research service read this setting.
+    monkeypatch.setenv("LAB_BRAIN_REVIEW_AUTHORITIES", str(g.keys.authorities_file(tmp_path)))
+    return g
 
 
 def _refused(

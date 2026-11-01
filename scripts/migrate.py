@@ -331,6 +331,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # A model server on this machine is not presumed free: exact free declarations only, and a
     # declared-free endpoint that answers like a paid proxy loses its exemption. After 011s.
     "011v_llm_spend_local_is_not_free.sql",
+    # A verification authorization is signed by its person under an authorizer key a pinned
+    # review authority enrolled; rule (l) admits only the signed frame. After 011v.
+    "011w_signed_verification_authorizations.sql",
 )
 
 _BOOTSTRAP = """

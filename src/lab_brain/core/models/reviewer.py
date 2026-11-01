@@ -31,13 +31,19 @@ from pydantic import Field, model_validator
 from lab_brain.core.canonical_json import canonical_bytes
 from lab_brain.core.models.base import CoreModel
 
-#: The one review subject a reviewer key answers today.
+#: The review subject a warrant reviewer key answers (012p).
 WARRANT_REVIEW_SCOPE = "DIAGNOSTIC_WARRANT"
+#: What an authorizer key signs (011w): a verification authorization of a post-screening
+#: hypothesis. The scope is inside the authority's signature, so one kind of enrolment is never
+#: the other.
+VERIFICATION_AUTHORIZATION_SCOPE = "VERIFICATION_AUTHORIZATION"
+ENROLMENT_SCOPES = frozenset({WARRANT_REVIEW_SCOPE, VERIFICATION_AUTHORIZATION_SCOPE})
 
 #: Domain separation: a signature over one kind of statement is never valid for another.
 GRANT_STATEMENT = "lab-brain/diagnostic-warrant-grant/v1"
 ENROLMENT_STATEMENT = "lab-brain/reviewer-enrolment/v1"
 REVOCATION_STATEMENT = "lab-brain/reviewer-revocation/v1"
+AUTHORIZATION_STATEMENT = "lab-brain/verification-authorization/v1"
 
 _ED25519_PUBLIC = 32
 _ED25519_SIGNATURE = 64
@@ -102,7 +108,7 @@ class ReviewerEnrolment(CoreModel):
             raise ValueError(f"enrolment {self.enrolment_id} names no authority key id")
         if not is_signature(self.authority_signature):
             raise ValueError(f"enrolment {self.enrolment_id} carries no Ed25519 signature")
-        if self.scope != WARRANT_REVIEW_SCOPE:
+        if self.scope not in ENROLMENT_SCOPES:
             raise ValueError(f"enrolment {self.enrolment_id} is for {self.scope}")
         if self.authority_actor_id == self.actor_id:
             raise ValueError(
@@ -218,13 +224,52 @@ def grant_statement(
     )
 
 
+def authorization_statement(
+    *,
+    authorization_id: str,
+    project_id: str,
+    episode_id: str,
+    hypothesis_id: str,
+    prediction_ids: tuple[str, ...],
+    capability_id: str,
+    declaration_hash: str,
+    actor_id: str,
+    rationale: str,
+    signed_at: dt.datetime,
+    enrolment_id: str,
+) -> bytes:
+    """The bytes a person signs to pre-register one verification (011w): every field the
+    authorization consists of, so it cannot be moved to another hypothesis, capability,
+    declaration or prediction, re-dated, or edited into another rationale."""
+    return canonical_bytes(
+        {
+            "statement": AUTHORIZATION_STATEMENT,
+            "authorization_id": authorization_id,
+            "project_id": project_id,
+            "episode_id": episode_id,
+            "hypothesis_id": hypothesis_id,
+            "prediction_ids": sorted(prediction_ids),
+            "capability_id": capability_id,
+            "declaration_hash": declaration_hash,
+            "actor_id": actor_id,
+            "rationale": rationale.strip(),
+            "signed_at": _instant(signed_at),
+            "enrolment_id": enrolment_id,
+        }
+    )
+
+
 __all__ = [
+    "AUTHORIZATION_STATEMENT",
+    "ENROLMENT_SCOPES",
     "ENROLMENT_STATEMENT",
     "GRANT_STATEMENT",
     "REVOCATION_STATEMENT",
+    "VERIFICATION_AUTHORIZATION_SCOPE",
     "WARRANT_REVIEW_SCOPE",
     "ReviewerEnrolment",
     "ReviewerKeyRevocation",
+    "authorization_statement",
     "enrolment_statement",
     "grant_statement",
     "is_public_key",
