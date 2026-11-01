@@ -241,10 +241,10 @@
     "digest": "sha256:69c86963d6e1ae31832208530654539a9283bded6638cad8f0877848553d9119",
     "ref": "sp.ring_drift_loss.discovery@0.1.0"
   },
-  "code_commit": "c92e7df735d2b0285a19e9fb58f55e64efb9c313",
+  "code_commit": "b3bbb55d14e4ebf329c88bc2cfc73dd56698da9e",
   "interpreter": "CPython 3.13.17",
   "kind": "lab-brain/discovery-benchmark-manifest@1",
-  "manifest_sha256": "sha256:2c959606f4c80b6c2b1ad24dfab756ae106d448f50049fe5b2010509d017aaf9",
+  "manifest_sha256": "sha256:d58ffb401a26a14a614d80b56bcda18505d40c44bea5195baebe6323ada3e9d9",
   "not_claimed": [
     "scientific validity of any mechanism or forward model",
     "an independent or blind evaluation (the worlds and the engine share an author)",
@@ -269,7 +269,7 @@
     "src/lab_brain/discovery/numerics.py": "6dcc879dfc45d88eb7e8f0fb7dca7232fce0e366e5129e768892d5af312b4248",
     "src/lab_brain/discovery/protocol.py": "9ed5d770c4bbdaeb60306b6f794242577e46856154c4e45d7a478a32a25bc4c0",
     "src/lab_brain/discovery/worlds.py": "b1961dca14dcd1cb53ac40e6e9d24e97a2fc735972aa574d04386fe5295bcf88",
-    "src/lab_brain/domains/silicon_photonics/discovery_catalog.py": "c1506d9e138344769f4707bf209e8cef36b7924b778ac3e8d358a109dacf867a"
+    "src/lab_brain/domains/silicon_photonics/discovery_catalog.py": "2b0ce8ff59f59be3787aee36a04a22db5735393b041b91a655ba8a799e8d6c62"
   },
   "statistics": {
     "bootstrap_seed": 20261101,

@@ -57,7 +57,8 @@ B2 的錯誤發現率是 0.01,B1 是 0.25,B0 是 0.37。
 ### 4.1 設定
 
 - 8 種世界,每種 25 個種子,共 200 個世界。評估種子 `2026110100`。
-- 開發時只用開發種子 `1`。評估種子在協定凍結後(`c92e7df`)只跑一次。
+- 開發時只用開發種子 `1`。評估種子在協定凍結後(`c92e7df`)才第一次執行。
+  之後只修正了一段 docstring(`b3bbb55`),證據重新產生:所有結果檔逐位元相同,只有來源雜湊與 commit 改變。
 - 預算:12 單位(另跑 8 和 16 做敏感度)。所有 arm 用同一個預算、同一批世界、同一組種子。
   同一個實驗的第 k 次執行,所有 arm 看到同一組雜訊(共同隨機數)。
 - **B0「單一假說」**:先驗機率最高、又符合症狀的機制,只測一次,符合就接受。
@@ -180,7 +181,7 @@ B0 和 B1 很早就停,所以預算對它們沒有影響。B2 需要預算。
 
 - 設計:`docs/implementation/discovery-loop-offline.md`
 - 交接:`docs/implementation/discovery-loop-offline-handoff.zh-TW.md`
-- 證據:`evidence/manifest.json`(來源 SHA-256、目錄與世界摘要值、協定摘要值、程式版本 `c92e7df`)、
+- 證據:`evidence/manifest.json`(來源 SHA-256、目錄與世界摘要值、協定摘要值、程式版本 `b3bbb55`)、
   `results.json`、`world_rows.json`、`worlds.json`、`defects.json`、`exemplar_traces.json`、
   `run.log`、`development-defects.md`
 - 重跑:`python scripts/discovery_benchmark.py`;檢查:`python scripts/discovery_benchmark.py --check`
@@ -189,4 +190,8 @@ B0 和 B1 很早就停,所以預算對它們沒有影響。B2 需要預算。
 
 ## 10. 測試結果
 
-見交接文件第 4 節(包含指令與確切數字)。
+- 全部測試 + PostgreSQL(新建並 migrate 的 `lab_brain_disc_full`):3575 passed, 4 skipped。
+  跳過的是:本地模型、Lumerical、網路、Windows 認證管理員。
+- 新增的離線測試:100 passed(97 個單元測試、3 個凍結檢查)。
+- `ruff check`、`ruff format --check`、`mypy src`:全部通過。
+- 指令與其他檢查見交接文件第 4 節。

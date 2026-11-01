@@ -2,7 +2,9 @@
 
 All of these were found on the DEVELOPMENT worlds (`DEVELOPMENT_BASE_SEED = 1`) or on the toy
 catalog in `tests/discovery_fixtures.py`. The evaluation worlds (`EVALUATION_BASE_SEED =
-2026110100`) were run once, after the protocol was frozen at `c92e7df`. This file is the honest
+2026110100`) were first run after the protocol was frozen at `c92e7df`; the evidence was
+regenerated at `b3bbb55` after a docstring-only fix, with every result file byte-identical. This
+file is the honest
 record that the protocol was shaped by what the development runs showed.
 
 ## Naive versions that the tests show failing

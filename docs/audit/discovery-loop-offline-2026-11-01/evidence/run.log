@@ -4,7 +4,7 @@ main arms run 2: digest sha256:e98bd4c20156e8e1beec4528a632a728108f119e42a47f7d7
 ablations: digest sha256:43a94152dd9f51d0a6a2ecfc6de68812d876e83eee53b6db9996fbb5c5f4957d
 budget 8: digest sha256:21df1e4ff399d98b1a6ddeaa9ada4a725c40a788cfaddd4817e9de6efb54deae
 budget 16: digest sha256:6b315fe26f0ed8ddc3de0a694de84b14c53989f2d7b3aedc736bce23cb41538d
-elapsed 67.7s
+elapsed 62.2s
 arm  correct  [95% CI]        false-disc  overclaim  diversity  spent
 B0   0.080  (0.0498, 0.126)  0.370       0.125      1.04       1.12
 B1   0.310  (0.25, 0.3772)  0.250       0.125      10.00       1.94
