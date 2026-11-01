@@ -315,3 +315,30 @@ def test_a_declaration_whose_hash_is_not_its_text_is_refused(guarded):
                 " WHERE capability_id = %s",
                 ("cap:sp.probe_lookup_copy", LOOKUP),
             )
+
+
+def test_a_declaration_that_misstates_the_capability_is_refused(guarded):
+    """A correctly hashed declaration that calls the lookup a MEASUREMENT: not the pack's code."""
+    import json
+
+    g = guarded
+    with g.db.transaction(force_rollback=True):
+        _declare_lookup(g)
+        ((text,),) = g.db.execute(
+            "SELECT declaration FROM capability_declarations WHERE capability_id = %s", (LOOKUP,)
+        ).fetchall()
+        forged = json.dumps({**json.loads(text), "action_type": "MEASUREMENT"})
+        digest = "sha256:" + hashlib.sha256(forged.encode()).hexdigest()
+        with (
+            pytest.raises(psycopg.errors.RaiseException, match="does not describe"),
+            g.db.transaction(force_rollback=True),
+        ):
+            g.db.execute(
+                "INSERT INTO capability_declarations (capability_id, capability_version, pack_id,"
+                " pack_version, action_type, specification_media_types, declaration,"
+                " declaration_hash, registered_by, registered_at)"
+                " SELECT capability_id, capability_version, pack_id, pack_version, 'MEASUREMENT',"
+                " specification_media_types, %s, %s, registered_by, registered_at"
+                " FROM capability_declarations WHERE capability_id = %s",
+                (forged, digest, LOOKUP),
+            )
