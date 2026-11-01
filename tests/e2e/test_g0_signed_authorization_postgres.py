@@ -42,8 +42,10 @@ from lab_brain.evaluation.collect import support_provenance
 from lab_brain.security.reviewer_identity import ReviewerTrust, SigningKey, sign_enrolment
 from lab_brain.verification.prospective import (
     AuthorizationSigner,
+    ProspectiveEvidenceSink,
     ProspectiveRefused,
     SqlVerificationAuthorizations,
+    enrol_authorizer,
     support_problem,
 )
 from tests.e2e.test_g0_exploratory_screening_postgres import rows
@@ -206,8 +208,6 @@ def test_a_warrant_enrolment_is_not_an_authorizer_enrolment(guarded):
     )
     with g.db.transaction(force_rollback=True):
         with pytest.raises(ProspectiveRefused, match="VERIFICATION_AUTHORIZATION"):
-            from lab_brain.verification.prospective import enrol_authorizer
-
             enrol_authorizer(g.db, warrant)
         # Stored in the warrant table, it cannot sign an authorization: the enrolment must be an
         # authorizer enrolment of that person (the foreign key and the trigger).
@@ -325,8 +325,6 @@ def test_an_enrolment_a_database_writer_forged_supports_nothing(guarded):
     with g.db.transaction(force_rollback=True):
         impostor = SigningKey.generate()  # the writer's own "authority"
         key = SigningKey.generate()
-        from lab_brain.verification.prospective import enrol_authorizer
-
         enrolment = sign_enrolment(
             impostor,
             authority_actor_id=g.keys.authority_actor,  # claims the real authority's name
@@ -407,3 +405,159 @@ def test_the_store_signs_with_the_persons_key_only(guarded):
             rationale="x",
             signer=other,
         )
+
+
+# -- the enrolment frame, in SQL ----------------------------------------------------------------
+
+
+def _enrolment(g: Guarded, actor: str, key: SigningKey, **changes: Any) -> Any:
+    fields: dict[str, Any] = {
+        "authority_actor_id": g.keys.authority_actor,
+        "enrolment_id": f"enr:vauth:{secrets.token_hex(4)}",
+        "project_id": PROJECT,
+        "actor_id": actor,
+        "public_key": key.public_key,
+        "enrolled_at": dt.datetime.now(dt.UTC) - dt.timedelta(minutes=1),
+        "scope": VERIFICATION_AUTHORIZATION_SCOPE,
+    }
+    authority = changes.pop("authority", g.keys.authority)
+    fields.update(changes)
+    return sign_enrolment(authority, **fields)
+
+
+def _member(g: Guarded, actor: str) -> None:
+    g.db.execute(
+        "INSERT INTO actors (actor_id, actor_type, display_name) VALUES (%s, 'HUMAN', %s)",
+        (actor, actor),
+    )
+    g.db.execute(
+        "INSERT INTO project_memberships (project_id, actor_id, role) VALUES (%s, %s,"
+        " 'RESEARCHER')",
+        (PROJECT, actor),
+    )
+
+
+def test_a_model_slot_is_never_enrolled_as_an_authorizer(guarded):
+    g = guarded
+    with g.db.transaction(force_rollback=True):
+        g.db.execute(
+            "INSERT INTO actors (actor_id, actor_type, display_name)"
+            " VALUES ('act:slot', 'AGENT_ROLE', 'a model slot')"
+        )
+        with pytest.raises(ProspectiveRefused, match="not an active human member"):
+            enrol_authorizer(g.db, _enrolment(g, "act:slot", SigningKey.generate()))
+
+
+def test_one_key_belongs_to_one_person(guarded):
+    g = guarded
+    key = SigningKey.generate()
+    with g.db.transaction(force_rollback=True):
+        _member(g, "act:second")
+        enrol_authorizer(g.db, _enrolment(g, g.actor, key))
+        with pytest.raises(ProspectiveRefused, match="another person"):
+            enrol_authorizer(g.db, _enrolment(g, "act:second", key))
+
+
+def test_a_revoked_key_is_never_enrolled_again(guarded):
+    g = guarded
+    with g.db.transaction(force_rollback=True):
+        signer = g.keys.signer(PROJECT, g.actor)
+        g.keys.revoke(PROJECT, signer, effective_at=dt.datetime.now(dt.UTC))
+        with pytest.raises(ProspectiveRefused, match="revoked"):
+            enrol_authorizer(g.db, _enrolment(g, g.actor, signer.key))
+
+
+def test_a_persons_key_is_never_an_authoritys(guarded):
+    g = guarded
+    with g.db.transaction(force_rollback=True):
+        _member(g, "act:third")
+        person = g.keys.signer(PROJECT, g.actor)
+        # An "enrolment" signed with the person's own key, acting as an authority.
+        with pytest.raises(ProspectiveRefused, match="both as a review authority"):
+            enrol_authorizer(
+                g.db, _enrolment(g, "act:third", SigningKey.generate(), authority=person.key)
+            )
+
+
+def test_an_enrolment_is_never_edited_or_deleted(guarded):
+    g = guarded
+    with g.db.transaction(force_rollback=True):
+        signer = g.keys.signer(PROJECT, g.actor)
+        for statement in (
+            "UPDATE verification_authorizer_enrolments SET actor_id = actor_id"
+            " WHERE enrolment_id = %s",
+            "DELETE FROM verification_authorizer_enrolments WHERE enrolment_id = %s",
+        ):
+            with (
+                pytest.raises(psycopg.errors.RaiseException, match="append-only"),
+                g.db.transaction(force_rollback=True),
+            ):
+                g.db.execute(statement, (signer.enrolment_id,))
+
+
+def test_a_signature_older_than_its_enrolment_is_refused(guarded):
+    g = guarded
+    with g.db.transaction(force_rollback=True):
+        signer = g.keys.signer(PROJECT, g.actor, enrolled_at=dt.datetime.now(dt.UTC))
+        with (
+            pytest.raises(psycopg.errors.RaiseException, match="before enrolment"),
+            g.db.transaction(force_rollback=True),
+        ):
+            _insert(
+                g,
+                _row(
+                    g,
+                    "early",
+                    signer=signer,
+                    signed_at=dt.datetime.now(dt.UTC) - dt.timedelta(seconds=20),
+                ),
+            )
+
+
+def test_rule_l_rereads_the_enrolment_of_a_row_edited_past_its_triggers(guarded):
+    g = guarded
+    with g.db.transaction(force_rollback=True):
+        _member(g, "act:fourth")
+        authorization = g.authorize("reassigned")
+        g.db.execute(
+            "ALTER TABLE verification_authorizations"
+            " DISABLE TRIGGER verification_authorizations_are_append_only_trg"
+        )
+        try:
+            g.db.execute(
+                "UPDATE verification_authorizations SET actor_id = 'act:fourth'"
+                " WHERE authorization_id = %s",
+                (authorization,),
+            )
+        finally:
+            g.db.execute(
+                "ALTER TABLE verification_authorizations"
+                " ENABLE TRIGGER verification_authorizations_are_append_only_trg"
+            )
+        with (
+            pytest.raises(psycopg.errors.RaiseException, match="not signed under an enrolment"),
+            g.db.transaction(force_rollback=True),
+        ):
+            _supported_by(g, authorization, "reassigned")
+
+
+def test_the_evidence_sink_checks_against_the_trust_it_is_given(guarded, monkeypatch):
+    g = guarded
+    monkeypatch.delenv("LAB_BRAIN_REVIEW_AUTHORITIES", raising=False)
+
+    class Recording:
+        def __init__(self) -> None:
+            self.added: list[RelationJudgment] = []
+
+        def add_relation(self, relation: RelationJudgment) -> RelationJudgment:
+            self.added.append(relation)
+            return relation
+
+    with g.db.transaction(force_rollback=True):
+        relation = _supported_by(g, g.authorize("sink"), "sink")
+        trusted = Recording()
+        ProspectiveEvidenceSink(trusted, g.db, g.keys.trust).add_relation(relation)
+        assert [r.relation_type for r in trusted.added] == [RelationType.SUPPORTS]
+        unpinned = Recording()
+        ProspectiveEvidenceSink(unpinned, g.db).add_relation(relation)
+        assert [r.relation_type for r in unpinned.added] == [RelationType.CITES]
