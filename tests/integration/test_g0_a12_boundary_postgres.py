@@ -358,3 +358,46 @@ def test_the_triggers_hold_even_where_writes_were_granted_by_mistake(db, lab, ap
         )
     after = change_audit.verify_chain(db)
     assert after.intact and after.rows == before.rows and after.head == before.head
+
+
+def _edit_past_the_guard(db: Any, statement: str, args: tuple[Any, ...]) -> None:
+    db.execute("ALTER TABLE account_change_audit DISABLE TRIGGER account_change_audit_append_only")
+    db.execute(statement, args)
+
+
+def test_an_edited_row_is_reported_by_its_own_digest(db, lab):
+    """A superuser's edit of a middle row's fields: its digest no longer matches them."""
+    _people(lab)
+    with db.transaction(force_rollback=True):
+        (middle,) = db.execute("SELECT min(audit_seq) FROM account_change_audit").fetchone()
+        _edit_past_the_guard(
+            db,
+            "UPDATE account_change_audit SET new_values = '{\"forged\": true}'"
+            " WHERE audit_seq = %s",
+            (middle,),
+        )
+        problems = change_audit.verify_chain(db).problems
+        assert any(f"#{middle}: its digest is not the digest of its fields" in p for p in problems)
+
+
+def test_a_row_resealed_after_an_edit_is_reported_by_its_link(db, lab):
+    """The same edit with the row's digest recomputed: its successor no longer chains to it."""
+    _people(lab)
+    with db.transaction(force_rollback=True):
+        (first,) = db.execute("SELECT min(audit_seq) FROM account_change_audit").fetchone()
+        rows = change_audit.rows(db)
+        follower = next(r for r in rows if r.previous_seq == first)
+        edited = next(r for r in rows if r.seq == first)
+        import dataclasses
+        import hashlib
+
+        forged = dataclasses.replace(edited, new_values='{"forged": true}')
+        digest = hashlib.sha256(forged.digest_text().encode("utf-8")).hexdigest()
+        _edit_past_the_guard(
+            db,
+            "UPDATE account_change_audit SET new_values = %s, row_digest = %s WHERE audit_seq = %s",
+            ('{"forged": true}', digest, first),
+        )
+        problems = change_audit.verify_chain(db).problems
+        assert not any(f"#{first}: its digest" in p for p in problems), problems
+        assert any(f"#{follower.seq} does not chain to #{first}" in p for p in problems), problems

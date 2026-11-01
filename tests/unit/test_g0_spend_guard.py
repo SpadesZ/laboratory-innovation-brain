@@ -307,3 +307,22 @@ def test_the_live_evaluation_requires_a_ceiling_and_prices_for_an_external_prima
         spend_from_env(external=True, env={**env, "LAB_BRAIN_LIVE_SPEND_MULTIPLIER": "0.5"})
     with pytest.raises(LiveBudgetMissing):
         spend_from_env(external=True, env={**env, "LAB_BRAIN_LIVE_PRICE_DATE": "soon"})
+
+
+def test_with_a_budget_the_environment_guard_meters_this_machine():
+    """A local endpoint may be a proxy to a paid provider: with a budget it is metered (011t).
+    Without one, only when the Owner asks (`LAB_BRAIN_LLM_SPEND_METER_LOCAL`)."""
+    from lab_brain.llm_runtime import spend as _spend
+
+    _spend.install(None)
+    dsn = "postgresql://unused.invalid/none"
+    budgeted = _spend.resolve(
+        None, {"LAB_BRAIN_LLM_SPEND_BUDGET": "b1", "LAB_BRAIN_LLM_SPEND_DSN": dsn}
+    )
+    unbudgeted = _spend.resolve(None, {"LAB_BRAIN_LLM_SPEND_DSN": dsn})
+    asked = _spend.resolve(
+        None, {"LAB_BRAIN_LLM_SPEND_DSN": dsn, "LAB_BRAIN_LLM_SPEND_METER_LOCAL": "1"}
+    )
+    assert budgeted is not None and budgeted.meter_this_machine is True
+    assert unbudgeted is not None and unbudgeted.meter_this_machine is False
+    assert asked is not None and asked.meter_this_machine is True
