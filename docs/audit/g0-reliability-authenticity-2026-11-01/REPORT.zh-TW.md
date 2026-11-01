@@ -27,7 +27,9 @@ afb8a65  盲測:執行凍結的位元組;執行前後檢查環境
 f5b0210  SPEC-ISSUE-017/018/019、設計、報告草稿、Owner 決定、交接
 db8ef9c  變異測試修正(還原一個被我誤蓋的 012p 項目、修兩個 011w 項目、收緊一個測試)
 6d7b4c3  計費帳本測試改成量「差值」(前一個測試留下的紀錄會干擾)
-<最後>   證據、狀態檔、本報告
+8743c4b  狀態檔、完整測試證據(CI 4 個 job 全綠)
+ab76bf5  補上最後一個存活變異的測試;完整變異測試證據
+<最後>   狀態檔、本報告
 ```
 
 ## 2. 本機代理的成本風險(011v)
@@ -90,8 +92,11 @@ warrant gate 的職責分離(執行者、假說作者不能授權)還沒套用(S
 | 完整 PostgreSQL 測試(新建資料庫,83 個 migration) | **3564 passed, 4 skipped**;2 個失敗只是狀態檔過期,之後執行 `update_status.py` | `evidence/full-postgres-suite.log` |
 | 變異測試,新增與改指向的 58 項,第一次 | 55/58:2 項是我寫錯的 SQL 變異(沒有套用),1 項測試太鬆 | `evidence/mutation-new-entries-first-run.log` |
 | 修正後重跑那 3 項(加上被我誤蓋後還原的 012p 項目) | 4/4 | `evidence/mutation-new-entries-fixed.log` |
-| 變異測試,完整 911 項 | 見最後更新 | `evidence/mutation-full-911.log` |
-| CI | 見推送後 | GitHub Actions |
+| 變異測試,完整 911 項(`db8ef9c`) | 910/911:存活的是 011s「授權人必須是在職成員」。011w 的登記也檢查成員,所以舊測試分不出來 | `evidence/mutation-full-911-db8ef9c.log` |
+| 補測試後重跑存活項 | 1/1:新測試「登記後離開專案的人,不能用舊金鑰授權」 | `evidence/mutation-survivor-fixed.log` |
+
+`db8ef9c` 之後沒有改任何 `src/`、`migrations/` 或 `scripts/migrate.py`(只改了測試與文件),所以完整變異測試的結果適用於最後的程式碼。
+| CI | `8743c4b`:4 個 job 全部通過(run 41344865252);最後的 SHA 見交接 | GitHub Actions |
 
 測試過程的發現:
 - 第一次完整測試有 1 個真的失敗:計費帳本測試計算「整個資料庫」的模型呼叫紀錄,
