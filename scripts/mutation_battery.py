@@ -6272,8 +6272,8 @@ MUTATIONS: tuple[Mutation, ...] = (
     ),
     Mutation(
         name="sql_a_post_screening_support_from_a_non_observation",
-        guards="011o -- only an observation can SUPPORT a post-screening hypothesis",
-        path="migrations/011o_screening_guard_reads_the_cited_basis.sql",
+        guards="011o (in 011s's guard) -- only an observation can SUPPORT a post-screening hypothesis",
+        path="migrations/011s_prospective_evidence_authorization.sql",
         old="    IF NOT EXISTS (SELECT 1 FROM observations WHERE observation_id = NEW.from_entity_id) THEN\n",
         new="    IF FALSE THEN\n",
         tests=("tests/e2e/test_g0_screening_independence_postgres.py",),
@@ -6281,15 +6281,15 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="sql_a_post_screening_support_cites_the_screened_reading",
         guards="011o -- every cited attestation's observation is judged too",
-        path="migrations/011o_screening_guard_reads_the_cited_basis.sql",
-        old="        v_problem := screening_basis_problem(v_conditioned, v_created, v_cited);\n",
+        path="migrations/011s_prospective_evidence_authorization.sql",
+        old="        v_problem := prospective_basis_problem(v_conditioned, v_created, v_cited, v_prediction,\n                                               FALSE);\n",
         new="        v_problem := NULL;\n",
         tests=("tests/e2e/test_g0_screening_independence_postgres.py",),
     ),
     Mutation(
         name="sql_a_post_screening_support_cites_no_observation",
         guards="011o -- a cited attestation must attest an observation",
-        path="migrations/011o_screening_guard_reads_the_cited_basis.sql",
+        path="migrations/011s_prospective_evidence_authorization.sql",
         old="        IF v_cited IS NULL THEN\n",
         new="        IF FALSE THEN\n",
         tests=(

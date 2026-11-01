@@ -134,21 +134,12 @@ def test_support_provenance_is_read_only(guarded):
 
 
 def test_old_evidence_written_today_is_collected_as_retrospective(unguarded):
-    """011p in the collector: a run that started before the rival, recorded now."""
+    """011p in the collector: a measurement whose run started before the rival, recorded now --
+    its export captured and recorded later, so the run's start is the only old thing about it."""
     g = unguarded
-    import datetime as _dt
-
-    g.register_capabilities()
-    old = _dt.datetime(2020, 1, 1, tzinfo=_dt.UTC)
-    run = g.run(
-        "late",
-        job_at=old,
-        input_parameters={"variant": "late"},
-        output_artifacts=(g.fresh_output("late"),),
-    )
-    observation = g.observe(run, "late")
-    g.support(observation, [g.attest(observation, run)])
-    assert "retrospective_basis" in _only_fact(g, observation)
+    observation, evidence = g.measured("late", job_at=dt.datetime(2020, 1, 1, tzinfo=dt.UTC))
+    g.support(observation, [evidence], prediction=g.prediction())
+    assert _only_fact(g, observation) == {"retrospective_basis", "unauthorized_verification"}
 
 
 # -- 011s, in the collector: each new fact, with the guard switched off -----------------------
