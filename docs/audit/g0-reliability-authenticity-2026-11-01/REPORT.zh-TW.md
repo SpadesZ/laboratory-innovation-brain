@@ -144,4 +144,14 @@ warrant gate 的職責分離(執行者、假說作者不能授權)還沒套用(S
 - 要讓 SQL 在寫入時就驗簽,需要資料庫擴充(例如 pgsodium),這是 Owner/部署決定(SPEC-ISSUE-018 第 4 點)。
 - 驗收紀錄的驗證者 id 是宣告的,沒有簽章(SPEC-ISSUE-019 第 4 點)。
 
-驗證結果:見本節最後更新。
+驗證結果:
+
+| 檢查 | 結果 | 證據 |
+|---|---|---|
+| ruff、ruff format、mypy | 全部通過(mypy:282 個檔案) | 本機 |
+| 完整 PostgreSQL 測試(`2a96ee8`,新建資料庫,83 個 migration) | 3583 passed, 4 skipped, 0 failed | 本機 |
+| 完整變異測試,929 項(`2a96ee8`) | **928/929**。存活的是「迴圈的讀取沒有帶驗證函式」:舊測試只檢查偽造的不進入,沒有檢查合法的會進入 | `evidence/mutation-full-929-2a96ee8.log` |
+| 補上「合法簽章的支持會進入迴圈的讀取」後重跑 | 1/1 | `evidence/mutation-929-survivor-fixed.log` |
+| 最後的完整 PostgreSQL 測試 | 見交接與最後的 CI | `evidence/full-postgres-suite-read-path.log` |
+
+`2a96ee8` 之後沒有改 `src/`、`migrations/`(只改測試與文件),所以完整變異測試結果適用於最後的程式碼。
