@@ -111,6 +111,11 @@ known-first-party = ["lab_brain", "tests"]
 # and hands it to the domain-agnostic engine. The engine (`src/lab_brain/discovery`) stays under the
 # ban, and `tests/unit/test_discovery_governance.py` parses its import graph to keep it pack-free.
 "scripts/discovery_benchmark.py" = ["TID251"]
+# The same for the discovery evaluation refinements (cost curves, held-out classes, the hidden-world
+# scaffold demonstration): this script is their composition root and names the scenario; the
+# evaluation package (`src/lab_brain/discovery_eval`) stays under the ban and has its own structural
+# test (`tests/unit/test_discovery_eval_governance.py`).
+"scripts/discovery_independent_eval.py" = ["TID251"]
 # The mutation battery's `old=` fields are verbatim excerpts of the source lines they anchor on.
 # Wrapping them with implicit concatenation would keep the line length and make the anchor
 # unreadable -- and an anchor a reviewer cannot compare against the source by eye is the one
