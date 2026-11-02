@@ -171,17 +171,14 @@ B2 有 2 次錯誤發現:漏掉弱的第二效應一次;把小幅度的耦合間
 | `python scripts/check_commit_messages.py --range 58c68be..HEAD` | no AI authorship found |
 | `python scripts/rebuild_obligation_inventory.py --check` | 84 occurrences, in sync |
 | `python scripts/update_status.py` 然後 `--check`、`--check --requirements-only` | 重新產生;`IMPLEMENTATION_STATUS.md is up to date`。測試清單 3579 → 3701 |
-| 全部測試 + PostgreSQL(`lab_brain_p3_full`) | **未完成,見下** |
+| 全部測試 + PostgreSQL(`lab_brain_p3_full`,在 `d22679d`) | **3697 passed, 4 skipped, 0 failed**(19 分 13 秒);見下 |
 
 PostgreSQL 全套測試:
-- 新建 `lab_brain_p3_full` 並 migrate:81 個 migration 全部套用,`--status` 顯示 pending 0,再跑一次 migrate 顯示 up to date。
-- 之後 127.0.0.1:5433 的伺服器停止了(用量上限重置時容器重啟;資料目錄 `/home/user/pgdata` 最後寫入 12:58 UTC)。
-  這個 sandbox 拒絕切換使用者的指令(`su`、`runuser`),所以無法以 `postgres` 身分重新啟動它。
-- 伺服器停止時跑過一次:2527 passed、1170 skipped、1 failed、3 errors。
-  失敗與錯誤**全部**是 `Connection refused`,不是程式結果,不能當作 PostgreSQL 全套的證據。
-- 需要:有人以 `postgres` 身分重新啟動伺服器(`pg_ctl -D /home/user/pgdata -o "-p 5433 ..." start`),
-  再重建 `lab_brain_p3_full` 並執行
-  `LAB_BRAIN_TEST_POSTGRES=1 LAB_BRAIN_DATABASE_URL=postgresql://lab_brain:lab_brain@127.0.0.1:5433/lab_brain_p3_full python -m pytest -q -p no:cacheprovider -rs`。
+- 第一次嘗試時 127.0.0.1:5433 的伺服器停了(容器重啟),那次的失敗全部是 `Connection refused`,不算證據。
+- 之後由 lead 重新啟動伺服器,重建並 migrate `lab_brain_p3_full`(81 個 migration),在 `d22679d` 執行完整測試:
+  **3697 passed, 4 skipped, 0 failed**(4 個跳過:本地模型、Lumerical、網路、Windows 認證)。
+  紀錄:`docs/audit/discovery-independent-evaluation-2026-11-02/evidence/full-postgres-suite.log`。
+- 之後執行 `update_status.py` 與 `--check`:`IMPLEMENTATION_STATUS.md is up to date`(沒有變動)。
 - 本分支沒有改任何 PostgreSQL 相關的程式碼、migration 或測試;新的程式只在離線套件裡。
 
 ### 10.5 沒有改的東西
