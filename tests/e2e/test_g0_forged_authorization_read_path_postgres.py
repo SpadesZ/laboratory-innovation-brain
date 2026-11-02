@@ -158,6 +158,15 @@ def test_a_signed_authorization_still_reaches_them(guarded):
         g.db, support_verifier=prospective.prospective_support_verifier(g.db, g.keys.trust)
     )
     assert relation in _decision_inputs(g, verified)
+    # The verification loop's reader passes the verifier on to the store it reads through.
+    loop_reads = SqlEvidenceSink(
+        connection=g.db,
+        outputs=None,  # type: ignore[arg-type]
+        support_verifier=prospective.prospective_support_verifier(g.db, g.keys.trust),
+    )
+    assert relation in {
+        r.relation_id for r in loop_reads.admitted_for_subject(PROJECT, g.hypothesis)
+    }
     # The same row, read with no authority pinned, is not support.
     unpinned = SqlRelationStore(
         g.db, support_verifier=prospective.prospective_support_verifier(g.db, ReviewerTrust())

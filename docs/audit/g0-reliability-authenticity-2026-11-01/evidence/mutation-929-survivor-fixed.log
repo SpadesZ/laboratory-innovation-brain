@@ -1,0 +1,7 @@
+1 mutations
+
+[KILLED ] the_loop_reads_without_the_verifier
+           011w read path -- the loop's evidence sink passes its verifier on
+           killed by FAILED tests/e2e/test_g0_forged_authorization_read_path_postgres.py::test_a_signed_authorization_sti
+
+1/1 killed
