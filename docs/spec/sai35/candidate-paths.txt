@@ -1,0 +1,24 @@
+# SAI 3.5 candidate paths (CANDIDATE — NOT ACTIVE).
+#
+# Every path this candidate ADDS relative to the SAI 3.4 integration commit
+# a38ad63a4f4ad83c895cbd1e32b2e760d878f356, one per line, sorted. `.github/workflows/ci.yml` is
+# changed too but is not listed: SAI 3.4 already allows it. No path here existed at a38ad63, and
+# none lies under src/, migrations/, tests/, scripts/ or docs/spec/sai34/.
+#
+# Used by OD-10 proposal A' (pending Owner decision): check_sai34_boundary_without_candidate.py
+# deletes exactly these paths in a temporary worktree and runs the UNMODIFIED SAI 3.4 activation
+# checker there. check_candidate.py fails if this list and the actual changed paths differ.
+docs/adr/ADR-0016-sai35-discovery-candidate.md
+docs/spec/SAI_3.5_Discovery_Candidate.md
+docs/spec/sai35/REPORT.zh-TW.md
+docs/spec/sai35/acceptance-gd.md
+docs/spec/sai35/architecture-end-to-end.md
+docs/spec/sai35/candidate-paths.txt
+docs/spec/sai35/check_candidate.py
+docs/spec/sai35/check_sai34_boundary_without_candidate.py
+docs/spec/sai35/decisions-and-review.md
+docs/spec/sai35/implementation-status.md
+docs/spec/sai35/matched-budget-protocol.md
+docs/spec/sai35/normative-statements.yaml
+docs/spec/sai35/roadmap.md
+docs/spec/sai35/traceability.md

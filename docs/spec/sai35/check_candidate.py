@@ -5,8 +5,11 @@ Run: python docs/spec/sai35/check_candidate.py --self-test
 What it proves: the candidate is NOT active (ACTIVE_SPEC.yaml and the SAI 3.3/3.4 files are
 byte-identical to the base commit), every D-NNN statement is registered exactly once, the required
 sections exist, and the G-D levels, arms, metrics, phases and decisions agree across documents.
+It also checks that docs/spec/sai35/candidate-paths.txt lists exactly the paths changed relative
+to the base (ci.yml excepted) and that CI runs the SAI 3.4 activation checker only through the
+OD-10 proposal A' wrapper; this part reads git (the base commit must be present).
 What it does not prove: anything about discovery, physics, runtime behavior or the quality of the
-prose. Planned tests are never counted as executed tests. No git history is needed.
+prose. Planned tests are never counted as executed tests.
 """
 
 from __future__ import annotations
@@ -14,6 +17,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import re
+import subprocess
 import sys
 from collections.abc import Callable
 from datetime import date
@@ -29,6 +33,8 @@ ACTIVE_SPEC = "docs/spec/ACTIVE_SPEC.yaml"
 WORKFLOW = ".github/workflows/ci.yml"
 SAI34_REGISTRY = "docs/spec/sai34/normative-statements.yaml"
 SAI34_ACTIVATION = "docs/spec/sai34/activation.yaml"
+CANDIDATE_PATHS = "docs/spec/sai35/candidate-paths.txt"
+BOUNDARY_WRAPPER = "docs/spec/sai35/check_sai34_boundary_without_candidate.py"
 # Checked when present; the zh-TW summary may be added to the branch separately.
 OPTIONAL_DOCUMENTS = ("docs/spec/sai35/REPORT.zh-TW.md",)
 
@@ -157,14 +163,26 @@ def read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
+def git(*args: str) -> str:
+    return subprocess.check_output(["git", *args], cwd=ROOT, encoding="utf-8").strip()
+
+
+def changed_paths() -> set[str]:
+    """Paths the working tree changes relative to the base, as the SAI 3.4 checker sees them."""
+    changed = set(git("diff", "--name-only", BASE_REVISION).splitlines())
+    untracked = set(git("ls-files", "--others", "--exclude-standard").splitlines())
+    return (changed | untracked) - {""}
+
+
 def load() -> dict:
     registry = yaml.safe_load(read(REGISTRY))
-    paths = [*registry["documents"], ACTIVE_SPEC, WORKFLOW]
+    paths = [*registry["documents"], ACTIVE_SPEC, WORKFLOW, CANDIDATE_PATHS]
     paths += [path for path in OPTIONAL_DOCUMENTS if (ROOT / path).is_file()]
     return {
         "registry": registry,
         "texts": {path: read(path) for path in paths},
         "protected": {path: (ROOT / path).read_bytes() for path in PROTECTED},
+        "changed": changed_paths(),
     }
 
 
@@ -229,7 +247,7 @@ def check(state: dict) -> None:
     assert "READY_FOR_REAL_RESEARCH = false" in spec, "spec must state readiness false"
     assert "G0 is NOT PASSED" in spec, "spec must state G0 is NOT PASSED"
     for path, text in texts.items():
-        if path not in (ACTIVE_SPEC, WORKFLOW):
+        if path not in (ACTIVE_SPEC, WORKFLOW, CANDIDATE_PATHS):
             assert data["spec_version"] in text, f"version missing in {path}"
         for pattern in CONTRADICTIONS:
             assert not pattern.search(text), f"{path}: {pattern.pattern}"
@@ -350,13 +368,36 @@ def check(state: dict) -> None:
         row = next((x for x in decisions.splitlines() if x.startswith(f"| {decision} |")), "")
         assert row.endswith("| OPEN |"), f"decision {decision} missing or not OPEN"
 
-    # 6. CI runs this checker beside the SAI 3.4 checkers.
+    # 6. CI runs this checker beside the SAI 3.4 checkers; the SAI 3.4 activation checker runs only
+    #    through the OD-10 proposal A' wrapper, on the tree without the candidate.
     steps = yaml.safe_load(texts[WORKFLOW])["jobs"]["spec-conformance"]["steps"]
     runs = [str(step.get("run", "")) for step in steps]
-    for command in ("docs/spec/sai34/check_candidate.py --self-test",
-                    "docs/spec/sai34/check_activation.py --self-test",
+    wrapped = (
+        f"python {BOUNDARY_WRAPPER} --self-test -- python docs/spec/sai34/check_activation.py "
+        "--self-test"
+    )
+    for command in ("docs/spec/sai34/check_candidate.py --self-test", wrapped,
                     "docs/spec/sai35/check_candidate.py --self-test"):  # fmt: skip
         assert any(command in run for run in runs), f"CI lacks {command}"
+    for run in runs:
+        if "check_activation.py" in run:
+            assert run.strip() == wrapped, f"SAI 3.4 checker run outside the wrapper: {run!r}"
+
+    # 6b. candidate-paths.txt lists exactly what the candidate changes (ci.yml excepted).
+    listed = [
+        line.strip()
+        for line in texts[CANDIDATE_PATHS].splitlines()
+        if line.strip() and not line.startswith("#")
+    ]
+    assert listed == sorted(set(listed)), "candidate-paths.txt must be sorted and unique"
+    assert set(listed) == state["changed"] - {WORKFLOW}, (
+        "candidate-paths.txt differs from the actual changed paths: "
+        f"unlisted {sorted(state['changed'] - {WORKFLOW} - set(listed))}, "
+        f"listed but unchanged {sorted(set(listed) - state['changed'])}"
+    )
+    forbidden = ("src/", "migrations/", "tests/", "scripts/", ".github/", "docs/spec/sai34/")
+    for path in listed:
+        assert path not in PROTECTED and not path.startswith(forbidden), path
 
     # 7. Local links resolve.
     for path, text in texts.items():
@@ -445,8 +486,19 @@ MUTATIONS: dict[str, Callable[[dict], None]] = {
     "e2e_term_removed": _replace(SPEC, "*cost-governed*", "*priced*"),
     "decision_text_closed": _replace(
         "docs/spec/sai35/decisions-and-review.md",
-        "keep SAI 3.5 on its own branch until integration | OPEN |",
-        "keep SAI 3.5 on its own branch until integration | CLOSED |",
+        "off the integration line, on its own branch | OPEN |",
+        "off the integration line, on its own branch | CLOSED |",
+    ),
+    "bare_sai34_checker_in_ci": _replace(
+        WORKFLOW,
+        "python docs/spec/sai35/check_sai34_boundary_without_candidate.py --self-test\n"
+        "          -- python docs/spec/sai34/check_activation.py --self-test",
+        "python docs/spec/sai34/check_activation.py --self-test",
+    ),
+    "candidate_path_unlisted": lambda s: s["changed"].add("docs/spec/sai35/extra.md"),
+    "candidate_path_runtime": lambda s: s.__setitem__(
+        "texts",
+        {**s["texts"], CANDIDATE_PATHS: s["texts"][CANDIDATE_PATHS] + "src/lab_brain/x.py\n"},
     ),
     "ci_step_removed": _replace(
         WORKFLOW, "python docs/spec/sai35/check_candidate.py --self-test", "true"
@@ -477,5 +529,8 @@ if __name__ == "__main__":
     count = len(current["registry"]["normative_statements"])
     print(
         f"SAI 3.5 Discovery Candidate structure OK: {count} D-NNN statements, all SPECIFIED; "
-        "NOT ACTIVE; SAI 3.3/3.4 and ACTIVE_SPEC.yaml unchanged; no G-D level evaluated."
+        "NOT ACTIVE; every SAI 3.3/3.4 file and ACTIVE_SPEC.yaml byte-identical to "
+        f"{BASE_REVISION[:7]} (no exception); candidate-paths.txt equals the "
+        f"{len(current['changed'] - {WORKFLOW})} changed paths; CI runs the SAI 3.4 checker "
+        "only via the OD-10 proposal A' wrapper; no G-D level evaluated."
     )

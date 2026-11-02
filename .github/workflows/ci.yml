@@ -83,8 +83,15 @@ jobs:
       - name: SAI 3.4 candidate documentation (not runtime acceptance)
         run: python docs/spec/sai34/check_candidate.py --self-test
 
-      - name: SAI 3.4 phased activation mapping and documentation-only boundary
-        run: python docs/spec/sai34/check_activation.py --self-test
+      # OD-10 proposal A' (pending Owner decision). The SAI 3.4 checker below is byte-identical to
+      # a38ad63. It runs inside a temporary worktree of HEAD from which exactly the paths listed in
+      # docs/spec/sai35/candidate-paths.txt are deleted; the wrapper refuses if any listed path is
+      # protected, runtime, migration, test or script, or if the list and the real diff differ.
+      # Its --self-test also proves the same SAI 3.4 checker still FAILS with the candidate present.
+      - name: SAI 3.4 boundary on the tree without the SAI 3.5 candidate (OD-10 proposal; SAI 3.4 checker unmodified)
+        run: >-
+          python docs/spec/sai35/check_sai34_boundary_without_candidate.py --self-test
+          -- python docs/spec/sai34/check_activation.py --self-test
 
       - name: SAI 3.5 discovery candidate documentation (not active, not runtime acceptance)
         run: python docs/spec/sai35/check_candidate.py --self-test

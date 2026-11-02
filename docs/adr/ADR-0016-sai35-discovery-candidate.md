@@ -26,9 +26,9 @@ anything new. Meanwhile the work sits on separate branches:
 
 ## Constraints
 
-SAI 3.3 and SAI 3.4 stay byte-identical, including ACTIVE_SPEC.yaml. The one exception is the SAI
-3.4 change-boundary allowlist (`sai34/activation.yaml`, `check_activation.py`), widened in its own
-commit by the twelve documentation-only SAI 3.5 paths, pending Owner decision OD-10.
+SAI 3.3 and SAI 3.4 stay byte-identical, including ACTIVE_SPEC.yaml, with no exception. An
+earlier commit on this branch (`9d44198`) widened the SAI 3.4 change-boundary allowlist; it is
+reverted. The SAI 3.4 boundary is instead held by OD-10 proposal A' (below), pending the Owner.
 G0–G9 conditions stay intact. READY_FOR_REAL_RESEARCH stays false. No runtime, migration, test or
 dependency changes in this delivery. No merge or cherry-pick from other branches. Owner gates for
 money, licenses, physical experiments and publication are not bypassed.
@@ -38,8 +38,8 @@ money, licenses, physical experiments and publication are not bypassed.
 1. **Propose SAI 3.5 as a documentation-only candidate on its own branch from `a38ad63`
    (chosen).** It is reviewable now, it changes nothing that is active, and it states the
    integration questions instead of deciding them. Cost: the SAI 3.4 activation checker's closed
-   documentation allowlist rejects the new files, so its CI step fails on this branch until the
-   Owner decides OD-10. A second cost: a third line of documents to keep consistent.
+   documentation allowlist rejects the new files; OD-10 proposal A' runs that checker, unmodified,
+   on the tree without the candidate. A second cost: a third line of documents to keep consistent.
 2. **Amend SAI 3.4 with discovery requirements.** Rejected. It would reopen an architecture that
    was just integrated under a narrow Owner authorization, change protected files, and blur G0–G9
    with a different kind of acceptance.
@@ -53,7 +53,15 @@ money, licenses, physical experiments and publication are not bypassed.
 
 Propose `docs/spec/SAI_3.5_Discovery_Candidate.md` with its companion documents in
 `docs/spec/sai35/`, a candidate registry of D-001–D-046, and a checker that proves the candidate is
-not active and that the SAI 3.3/3.4 files are untouched. Add only a CI step for that checker.
+not active and that the SAI 3.3/3.4 files are untouched. Add a CI step for that checker.
+
+OD-10 proposal A' (a proposal, pending the Owner): `docs/spec/sai35/candidate-paths.txt` lists
+every path the candidate adds; `check_sai34_boundary_without_candidate.py` deletes exactly those
+paths in a temporary worktree of HEAD and runs the unmodified SAI 3.4 activation checker there.
+It refuses protected, runtime, migration, test and script paths and any difference between the
+list and the real diff. The CI step that ran the SAI 3.4 checker now runs it through this wrapper.
+Alternatives: (B) an Owner-approved widening of the SAI 3.4 allowlist; (C) SAI 3.5 stays off the
+integration line.
 
 The candidate defines an independent G-D acceptance framework (G-D0 to G-D4). Completing G0–G9
 alone never implies discovery, and a G-D level passes only by an independent evaluator. Whether
@@ -70,14 +78,15 @@ Positive: discovery has a precise, falsifiable target and an acceptance route th
 satisfied by G0–G9 progress or by the implementer's own report. The current active contracts are
 unaffected and checked byte for byte.
 
-Negative: there are now three unintegrated lines; the SAI 3.4 activation checker fails on this
-branch until OD-10 is decided; the normative text is English while SAI 3.3/3.4 are mostly zh-TW
+Negative: there are now three unintegrated lines; the bare SAI 3.4 activation checker fails on
+the full tree of this branch by design, and CI relies on proposal A' until OD-10 is decided; the
+normative text is English while SAI 3.3/3.4 are mostly zh-TW
 (OD-13); the candidate depends on rules (`011p`/`011s`) and tooling that exist only on the G0 line.
 
 ## Migration / Rollback
 
-No runtime, schema or data migration. Rolling back means deleting the new files and the one CI
-step. If the candidate is later activated, that needs its own ADR revision, an integration plan, an
+No runtime, schema or data migration. Rolling back means deleting the new files, removing the
+SAI 3.5 CI step and restoring the SAI 3.4 CI step to its `a38ad63` command. If the candidate is later activated, that needs its own ADR revision, an integration plan, an
 SAI 3.4 checker scope change and a migration of D-NNN into the active registry with real tests.
 
 ## Tests / Evidence
