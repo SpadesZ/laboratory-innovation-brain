@@ -13,7 +13,8 @@ G0–G9. Supersedes the `D0`…`D6` phases of the discovery candidate (see the
   its forged-authorization read-path bypass is fixed on the unmerged branch
   `g0-authorization-read-path-closure`, pending audit.
 - The offline Discovery Loop (`118a4ac`) is unintegrated and not independently reviewed; its
-  independent hidden-world evaluation is being designed on `discovery-independent-evaluation`.
+  protocol and tooling for its independent hidden-world evaluation are on `discovery-independent-evaluation` @ `d7ec9f2` (pushed, not
+  reviewed; no independent worlds yet).
 - SAI 3.4 tracks P-G0 and P-MODEL may start (SAI 3.4 §2); P-LICENSED and P-PHYSICAL need their
   Owner decisions; nothing is licensed.
 

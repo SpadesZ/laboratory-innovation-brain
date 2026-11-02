@@ -79,8 +79,9 @@ The benchmark is built and sealed by the independent evaluator before any arm ru
 | Physical cases (G-D3, G-D4) | at G-D3 evaluator-built licensed simulation cases with a hidden configuration or mechanism; at G-D4 real devices or processes with pre-registered measurements | sealed by the evaluator; independent measurement at G-D4 |
 
 Every case in the frozen list stays in the denominator; exclusions follow only the pre-registered
-contamination rule (§7). An independent hidden-world evaluation is being designed on the branch
-`discovery-independent-evaluation` (in progress, not reviewed).
+contamination rule (§7). A protocol, a sealed hidden-world format and tooling for an independent
+hidden-world evaluation are on `discovery-independent-evaluation` @ `d7ec9f2` (pushed, not reviewed); no independent world author has yet
+supplied worlds, so no independent result exists.
 
 ## 5. Metrics
 

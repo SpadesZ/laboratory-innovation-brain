@@ -715,7 +715,7 @@ Action: **refined** → S35-CMP-004
 | Field | Audit |
 |---|---|
 | Meaning and scope | The benchmark is frozen and sealed before any arm runs, with synthetic worlds, held-out literature and later physical cases; implementers never see truth; every case stays in the denominator. |
-| Dependencies and owner | Depends on OD-02; discovery-independent-evaluation (in progress). Owner of the successor(s): EvaluationPlane. |
+| Dependencies and owner | Depends on OD-02; discovery-independent-evaluation @ d7ec9f2 (protocol and tooling pushed, not reviewed). Owner of the successor(s): EvaluationPlane. |
 | I/O, schemas, states, trust boundaries | Inputs: generator, case material. Output: sealed benchmark. |
 | Behavior | Expected: commitments before runs. Failure: implementer access. Stop: re-seal. |
 | Phase and prerequisites | Old phase D0; successor phase P35-3; gates G-D0, G-D1, G-D2, G-D3, G-D4 (see [roadmap](roadmap.md)). |

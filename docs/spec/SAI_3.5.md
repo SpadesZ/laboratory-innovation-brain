@@ -180,8 +180,11 @@ there is fixed on the unmerged branch `g0-authorization-read-path-closure`, pend
 audit. The unintegrated discovery line (`118a4ac`) holds an offline Discovery Loop prototype whose
 synthetic result (0.89 correct outcomes for the discovery arm) is engineering evidence only: the
 worlds share an author with the engine, its baseline B0 is a deterministic stand-in rather than an
-LLM, and its B1 re-implements the loop policy rather than running the real LIB. An independent
-hidden-world evaluation is being designed on `discovery-independent-evaluation` (in progress). No
+LLM, and its B1 re-implements the loop policy rather than running the real LIB. A protocol and
+tooling for an independent hidden-world evaluation are on `discovery-independent-evaluation` @ `d7ec9f2` (pushed, not reviewed); its
+offline results are again same-author engineering evidence, and they show the discovery arm
+force-fitting when the true mechanism family is missing from its vocabulary (0.40 force-fit at
+budget 12) and spending about four times the realized cost of B1. No
 licensed simulation, model construction or physical validation exists. Details:
 [implementation status](sai35/implementation-status.md).
 

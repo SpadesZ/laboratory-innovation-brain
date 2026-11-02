@@ -85,7 +85,9 @@ complete 只有三條文件層級的需求。它不代表任何能力已經存�
   還要經過獨立審查。
 - 離線 Discovery Loop（`118a4ac`）的 0.89 只是合成世界上的工程證據。
   B0 是固定規則的替身，不是 LLM。B1 是重寫的政策，不是真正的 LIB。
-- 獨立的隱藏世界評估正在 `discovery-independent-evaluation` 分支設計中。
+- 獨立隱藏世界評估的協定與工具在 `discovery-independent-evaluation`(`d7ec9f2`),已推送,未審查。
+  還沒有獨立作者提供世界,所以沒有獨立結果。同作者的離線結果顯示:真機制家族不在詞彙裡時,
+  Discovery 會硬套(預算 12 時 0.40),而且實際成本約是 B1 的 4 倍。
 
 ## 6. 需要 Owner 決定
 
