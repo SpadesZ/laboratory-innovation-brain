@@ -1,7 +1,8 @@
 # Discovery Loop v0(離線)交接
 
-日期:2026-11-01
+日期:2026-11-01(第 1–9 節);2026-11-02 評估精煉(第 10 節)
 分支:`discovery-loop-offline`,基底 `58c68be`(`g0-owner-boundary-closure`)。沒有 push。
+評估精煉分支:`discovery-independent-evaluation`,基底 `118a4ac`(本分支的最後一個 commit)。沒有 push。
 狀態:工程候選。`READY_FOR_REAL_RESEARCH` 仍為 false。G0 仍為 NOT PASSED。
 
 ## 1. 這是什麼
@@ -101,3 +102,76 @@ B2 有 2 次錯誤發現:漏掉弱的第二效應一次;把小幅度的耦合間
 4. 只有雜訊時「停止不宣稱」是否可接受。
 5. 是否安排不同作者的獨立盲測。
 6. 擴充是否只限已宣告類別。
+
+## 10. 評估精煉(2026-11-02,分支 `discovery-independent-evaluation`)
+
+基底 `118a4ac`。沒有 push。引擎 `src/lab_brain/discovery/` 一個位元都沒有改。
+2026-11-01 的凍結證據沒有動。新證據放在新目錄。
+報告:`docs/audit/discovery-independent-evaluation-2026-11-02/REPORT.zh-TW.md`。
+
+### 10.1 做了什麼
+
+- **獨立評估協定**:`docs/evaluation/discovery-independent-evaluation-protocol.md`(英文)、
+  `docs/evaluation/discovery-independent-evaluation-protocol.zh-TW.md`(摘要)。
+  角色分離、先承諾後揭露、凍結的引擎 SHA 與環境 manifest、盲跑、評估者評分、
+  沒見過的機制家族(正確 = 不宣稱)、實際成本曲線(AUC、第一次答對的預算)、
+  arm A/B/C 的真正定義與目前替身、預先登記的統計、否證條件、仍未驗證的事。
+- **評估工具** `src/lab_brain/discovery_eval/`(放在引擎旁邊,因為 2026-11-01 的 manifest 雜湊引擎目錄的每個檔案):
+  `blind`、`curves`、`held_out`、`hidden_worlds`。和引擎一樣受 §24.2 匯入禁令約束,有自己的結構測試。
+- **隱藏世界格式**:`benchmarks/discovery_independent/hidden-worlds.schema.json` 與
+  `example.hidden-worlds.json`(EXAMPLE ONLY,不是隱藏集;載入器預設拒絕把它當隱藏集)。
+- **腳本** `scripts/discovery_independent_eval.py`(組合根;`pyproject.toml` 只對它新增一行 TID251 豁免)。
+- **證據** `docs/audit/discovery-independent-evaluation-2026-11-02/evidence/`(在 `54eb00e` 產生)。
+
+### 10.2 Commit
+
+| commit | 內容 |
+|---|---|
+| `d43ea14` | 評估工具套件、範例檔與 schema、單元/對抗/治理測試 |
+| `54eb00e` | 評估腳本(組合根)、`pyproject.toml` 一行豁免 |
+| `af1ee9e` | 一次完整執行的凍結證據(在 `54eb00e` 產生)、凍結檢查測試 |
+| `c71a9d7` | 協定(英文+中文摘要)、設計文件第 10 節、報告 |
+| (最後一個) | 本交接更新、重新產生的 `IMPLEMENTATION_STATUS.md` |
+
+### 10.3 結果摘要(合成世界,同一作者系譜)
+
+| | B0 單一假說(不是 LLM) | B1 現有 LIB 風格(不是 PostgreSQL LIB) | B2 LIB + Discovery |
+|---|---|---|---|
+| 正確率,上限 4 | 0.080 | 0.295 [0.236, 0.362] | 0.345 [0.283, 0.413] |
+| 正確率,上限 12 | 0.080 | 0.300 [0.241, 0.367] | 0.865 [0.811, 0.906] |
+| 正確率,上限 24 | 0.080 | 0.300 | 0.970 [0.936, 0.986] |
+| 實際成本,上限 12 | 1.21 | 1.92 | 7.70 [7.30, 8.10] |
+| 每個正確結果的實際成本,上限 12 | 15.1 | **6.38** [5.31, 7.92] | 8.90 [8.14, 9.78] |
+| 錯誤發現率,上限 12 | 0.340 | 0.245 | 0.020 [0.008, 0.050] |
+| AUC(正確率對上限) | 0.080 | 0.299 [0.240, 0.359] | 0.823 [0.790, 0.852] |
+| held-out 強行套用率,預算 12(n=195) | 0.395 | 0.533 | 0.400 [0.334, 0.470] |
+| held-out 強行套用率,預算 24 | 0.395 | 0.554 | 0.472 [0.403, 0.542] |
+
+- 上限 4:B2 − B1 正確率 +0.050 [−0.025, 0.130],Holm p = 0.25,不顯著。
+- B2 在每個上限的效率都比 B1 差。
+- 真機制家族不在目錄時,B2 和 B0 一樣常強行套用;預算越多越常。家族留在目錄時,B2 答對 0.908。
+- 引擎確認:來源雜湊與 2026-11-01 manifest 相同;凍結的主評估逐位元重現。
+
+### 10.4 沒有改的東西
+
+- 沒有改 `src/lab_brain/discovery/`、`discovery_catalog.py`、`docs/audit/discovery-loop-offline-2026-11-01/evidence/`。
+- 沒有改 `src/lab_brain/verification/prospective.py`、`src/lab_brain/evaluation/*`、migrations、`docs/spec/*`。
+- 沒有 migration。沒有接研究流程。沒有寫資料庫(除了測試自己新建的 `lab_brain_p3_full`)。
+- 沒有 LLM、網路、模擬器或付費呼叫。
+
+### 10.5 合併注意
+
+- `IMPLEMENTATION_STATUS.md` 會和其他分支衝突;合併後重跑 `python scripts/update_status.py`。
+- `pyproject.toml` 只新增一行 per-file-ignore。
+- `tests/e2e/test_discovery_independent_eval_frozen.py` 會在評估工具、腳本、範例或 schema 改動時失敗。
+  改了就要重跑 `python scripts/discovery_independent_eval.py` 並一起提交證據。
+  引擎改動則兩個凍結檢查(2026-11-01 與 2026-11-02)都會失敗。
+
+### 10.6 新的 Owner 決策
+
+1. 是否核准獨立評估協定並固定其值;指派世界作者(至少兩位)、評估者、審查者(不可是引擎作者系譜)。
+2. arm A 的模型(本機或有支出上限的雲端)與固定方式。
+3. arm B:是否建立驅動真正 PostgreSQL LIB 的 harness(需要 OutcomeSpace 決定)。
+4. 實驗室是否做成獨立行程服務。
+5. Discovery 在詞彙缺口時會強行套用:是否要求在接研究流程前先處理。本分支沒有改引擎。
+6. B2 在低預算時對簡單世界比 B1 差:是否接受這個取捨。
