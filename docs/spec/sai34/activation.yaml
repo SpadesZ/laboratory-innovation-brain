@@ -189,12 +189,10 @@ allowed_documentation_paths:
 - README.md
 - docs/adr/ADR-0013-autonomous-scientific-modeling-candidate.md
 - docs/adr/ADR-0014-phased-sai34-activation.md
-- docs/adr/ADR-0016-sai35-discovery-candidate.md
 - docs/architecture/sai34-autonomous-modeling.md
 - docs/spec/ACTIVE_SPEC.yaml
 - docs/spec/SAI_3.4.md
 - docs/spec/SAI_3.4_Candidate.md
-- docs/spec/SAI_3.5_Discovery_Candidate.md
 - docs/spec/sai34/acceptance.md
 - docs/spec/sai34/activation.yaml
 - docs/spec/sai34/change-impact.md
@@ -204,16 +202,6 @@ allowed_documentation_paths:
 - docs/spec/sai34/implementation-gap.md
 - docs/spec/sai34/integration-activation.md
 - docs/spec/sai34/normative-statements.yaml
-- docs/spec/sai35/REPORT.zh-TW.md
-- docs/spec/sai35/acceptance-gd.md
-- docs/spec/sai35/architecture-end-to-end.md
-- docs/spec/sai35/check_candidate.py
-- docs/spec/sai35/decisions-and-review.md
-- docs/spec/sai35/implementation-status.md
-- docs/spec/sai35/matched-budget-protocol.md
-- docs/spec/sai35/normative-statements.yaml
-- docs/spec/sai35/roadmap.md
-- docs/spec/sai35/traceability.md
 coordination:
   agent_a_branch: pre-lumerical-acceptance
   observed_sha: 567dee323e515eb16c697ebbb9dcebe6f4f096da
