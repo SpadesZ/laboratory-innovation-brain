@@ -34,6 +34,17 @@ Migration 順序:`... 011t → 011u → 011s → 011v → 011w`(`scripts/migrate
 - 盲測:`run_blind` 不再接受 `environment_sha256` 字串;要傳 `environment=` 與 `observe_environment=`。
   `g0_eval_environment.py` 多了 `--database-url`。scorer 版本 2.3.0。
 
+## 後續(2026-11-02,分支 `g0-authorization-read-path-closure`,起點 `f41758c`)
+
+- 審查者發現:偽造簽章的授權能通過 SQL 外框,而且以它為依據的 SUPPORTS 會進入信念決定的輸入。已證明並關閉。
+- 新規則:`SqlRelationStore(connection, support_verifier=...)`。篩檢後假說的 SUPPORTS 只有驗證通過才算;
+  沒有驗證函式就一律不算。產品用 `prospective_support_verifier(connection, trust)`。
+  **新增任何做決定的讀取時,一定要傳 `support_verifier`**(結構測試會檢查 research/service.py 與 confirmation.py)。
+- 事件頁面會把不能驗證的支持標成「不計入」。
+- 盲測評分:`--purpose acceptance --environment-verification verification.json` 才是正式驗收;
+  預設 `diagnostic` 會寫明不是驗收結果。驗證紀錄用 `g0_eval_environment.py verify --verifier <id> --out`。
+- 報告第 8 節:`docs/audit/g0-reliability-authenticity-2026-11-01/REPORT.zh-TW.md`;設計第 4、5 節:`design.md`。
+
 ## 測試要知道的事
 
 - PostgreSQL 測試的假模型伺服器(127.0.0.1)會被當成「已宣告免費」(`tests/conftest.py`)。

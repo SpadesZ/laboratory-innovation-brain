@@ -29,8 +29,17 @@ observable at all (the weights behind a model whose server reports no digest).
 - Reading C: as A, and a model whose digest is only declared (not served) may not be used for a
   G0 acceptance run at all.
 
+## Follow-up (2026-11-02)
+
+An ACCEPTANCE score now requires the runner's before/after check and the evaluator's own
+verification record (no difference, clean tree, served model digest). A DIAGNOSTIC score says it
+is not an acceptance result. The served-digest requirement for acceptance applies reading C
+provisionally.
+
 ## What needs an Owner / maintainer decision
 
 1. Accept A, or define the B list.
 2. Whether a declared-only model digest is acceptable for an acceptance run (C).
 3. Whether the evaluator must pass `--database-url` (the applied-schema pin) for every run.
+4. Whether an acceptance verification must be signed with an enrolled evaluator key (today the
+   verifier's id is asserted).

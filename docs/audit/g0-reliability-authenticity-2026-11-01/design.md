@@ -106,3 +106,51 @@ runner, not the hypothesis's author) are not applied to authorizations yet.
 
 Every recorded difference invalidates a run (the strictest reading); whether some may be allowed,
 and whether a declared-only digest is acceptable for an acceptance run, is the Owner's decision.
+
+## 4. Follow-up (auditor finding): the forged-authorization read path
+
+### Defect
+
+A verification authorization with a forged signature passes 011w's SQL frame (SQL cannot verify
+Ed25519), and a SUPPORTS relation resting on it is admitted by the database. The evaluation
+collector rejected it, but the collector only scores. `evidence/forged_authorization_read_path_before.log`
+(3 of 4 tests failed on f41758c) shows that both rows can be written by the deployment's
+least-privilege SERVICES role, and that the forged support was then returned by
+`SqlRelationStore.admitted_for_subject` -- the one function every belief decision reads: the
+transition authorization's decision inputs (`core.episode`), the verification loop's confirmation
+rule (through `SqlEvidenceSink`), and the confirmation re-check a conclusion must pass before it is
+reused (`research.confirmation`).
+
+### Change
+
+| reader | rule |
+|---|---|
+| `SqlRelationStore.admitted_for_subject` | for a hypothesis with a screening conditioning record, a SUPPORTS is admitted only when the store's `support_verifier` finds no problem; with no verifier it is never admitted (fail closed: a reader built without one loses post-screening support, it never gains a forged one) |
+| `prospective_support_verifier(connection, trust)` | `support_problem`: 011s's SQL rules on the rows as they are now, then the signatures of the authorization the basis runs are bound to, under the pinned review authorities |
+| research service, confirmation re-check | every relation reader they decide from is built with the verifier (a structural test checks each construction site) |
+| episode view | a recorded post-screening SUPPORTS that does not verify (or that the view could not check) is shown as "recorded as support, but not counted" in both languages |
+| `from_observation` | unchanged on purpose: the confirmation rule uses it to find rival affirmations, so an extra relation there can only block a confirmation, never grant one |
+
+### Residual
+
+A writer holding the services' role can still write any row SQL's frames admit -- a belief event
+or a decision row included. Those are re-derived and verified on read where the product relies on
+them (the projection, the confirmation re-check); the general boundary is the A12 deployment
+boundary (separate roles for the services, the migrator and the Owner), not a property any SQL
+frame can supply. SQL cannot verify Ed25519; a database extension that can (for example pgsodium)
+would move the signature check into the admission trigger and is an Owner/deployment decision.
+
+## 5. Follow-up: acceptance scores need an independently verified environment
+
+On f41758c every score was the same kind of score. Now `score_run(purpose=...)`:
+
+- `ACCEPTANCE` refuses unless the runner verified the environment before the first case and after
+  the last, AND the evaluator's own verification record (`g0_eval_environment.py verify --verifier
+  <id> --out verification.json`, `environment.verification_record`) is of that same environment,
+  found no difference, saw a clean tree and a model digest the local server measured, names its
+  verifier and hashes to itself.
+- `DIAGNOSTIC` (the default) scores whatever ran and its `standing` says it is not an acceptance
+  result -- and, when so, that its environment was not independently verified.
+
+Residual: `verifier_id` is asserted, not signed. Whether an acceptance verification must be signed
+with an enrolled evaluator key is an Owner decision (SPEC-ISSUE-019).

@@ -54,8 +54,12 @@
    - 每個凍結案例都有一筆輸出;執行失敗記為 CRASHED,留在分母。
    - 正式產品不儲存提示原文,所以本機真實模型的執行會記錄 `prompts_captured: false`;
      這時「輸入洩漏」檢查是 **NOT VERIFIED**,不是通過。生成端從頭到尾沒有拿到真值,這是由封存與套件載入器保證。
-6. **重現檢查**(評分前):用同一份 `environment.json` 執行 `g0_eval_environment.py verify`;有任何差異就不評分。
-7. **揭露並評分**:`scripts/g0_eval_score.py`(scorer 2.3.0 以上:預先授權必須有可驗證的簽章)。揭露的真值必須符合凍結的承諾。
+6. **重現檢查**(評分前):評估者在自己的環境執行
+   `g0_eval_environment.py verify environment.json --verifier <評估者 id> --out verification.json ...`;有任何差異就不評分。
+7. **揭露並評分**:`scripts/g0_eval_score.py`(scorer 2.3.0 以上:預先授權必須有可驗證的簽章)。
+   **正式驗收**要加 `--purpose acceptance --environment-verification verification.json`:
+   runner 執行前後都驗證過環境,而且評估者的驗證紀錄是同一個環境、沒有差異、工作區乾淨、模型摘要是伺服器量到的。
+   少一項就拒絕評分。沒有加的預設是 `diagnostic`(診斷):照樣評分,但會寫明「不是驗收結果」。揭露的真值必須符合凍結的承諾。
    報告每個指標的 n、k、比例、Wilson 95% 區間、固定 seed 的 bootstrap 區間,以及把排除案例算失敗的保守數字。
 8. **獨立審查**:G0-S 的「科學有用性」需要具領域資格、獨立於產生者的審查者逐項判斷;分數只是必要條件。
 

@@ -41,8 +41,19 @@ enrolment and the hypothesis, not in the future; rule (l) re-reads it), Python v
 signature on every read that counts it, and the scorer requires `unverified_authorization` to be
 false (2.3.0).
 
+## Follow-up (2026-11-02): the read path
+
+An auditor showed that a SUPPORTS resting on a forged authorization, which SQL admits, could reach
+the inputs of belief decisions. Every relation reader the product decides from now admits a
+post-screening SUPPORTS only when its authorization verifies, and admits none when it was given no
+verifier (`SqlRelationStore(support_verifier=...)`, branch `g0-authorization-read-path-closure`).
+The open question is unchanged: the trust root, and whether SQL itself should verify signatures
+(a database extension), are the Owner's.
+
 ## What needs an Owner / maintainer decision
 
 1. Accept Reading B, or require C.
 2. Name the authority (or authorities) for verification authorizations and their key custody.
 3. Rotation period and revocation procedure for authorizer keys.
+4. Whether to install a database extension that verifies Ed25519 (for example pgsodium), so the
+   signature is checked at admission and not only on read.
