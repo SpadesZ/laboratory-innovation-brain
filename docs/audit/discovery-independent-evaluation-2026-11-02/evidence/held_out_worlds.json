@@ -1,0 +1,5132 @@
+[
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610200,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.0892
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-00"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610201,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.4404
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-01"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610202,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          0.8501
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-02"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610203,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.6728
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-03"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610204,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.614
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-04"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610205,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.2404
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-05"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610206,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.6728
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-06"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610207,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.5259
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-07"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610208,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.6332
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-08"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610209,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.2178
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-09"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610210,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.3277
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-10"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610211,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.734
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-11"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610212,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.8329
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-12"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610213,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.5783
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-13"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.fiber",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026610214,
+      "truth": [
+        [
+          "chain.fiber_coupling",
+          1.3495
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.fiber_coupling-14"
+    },
+    "truth_class": "chain.fiber_coupling"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611200,
+      "truth": [
+        [
+          "chain.laser_drift",
+          60.1712
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-00"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611201,
+      "truth": [
+        [
+          "chain.laser_drift",
+          45.8406
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-01"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611202,
+      "truth": [
+        [
+          "chain.laser_drift",
+          69.3341
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-02"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611203,
+      "truth": [
+        [
+          "chain.laser_drift",
+          92.4985
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-03"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611204,
+      "truth": [
+        [
+          "chain.laser_drift",
+          36.1478
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-04"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611205,
+      "truth": [
+        [
+          "chain.laser_drift",
+          102.1497
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-05"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611206,
+      "truth": [
+        [
+          "chain.laser_drift",
+          92.2455
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-06"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611207,
+      "truth": [
+        [
+          "chain.laser_drift",
+          52.287
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-07"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611208,
+      "truth": [
+        [
+          "chain.laser_drift",
+          109.062
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-08"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611209,
+      "truth": [
+        [
+          "chain.laser_drift",
+          48.9586
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-09"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611210,
+      "truth": [
+        [
+          "chain.laser_drift",
+          77.2581
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-10"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611211,
+      "truth": [
+        [
+          "chain.laser_drift",
+          101.9252
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-11"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611212,
+      "truth": [
+        [
+          "chain.laser_drift",
+          38.3856
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-12"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611213,
+      "truth": [
+        [
+          "chain.laser_drift",
+          84.7288
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-13"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.laser",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026611214,
+      "truth": [
+        [
+          "chain.laser_drift",
+          45.4797
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.laser_drift-14"
+    },
+    "truth_class": "chain.laser_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612200,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          1.4209
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-00"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612201,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          1.4434
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-01"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612202,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          0.7287
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-02"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612203,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          1.2971
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-03"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612204,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          1.5618
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-04"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612205,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          1.185
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-05"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612206,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          0.9609
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-06"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612207,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          1.0859
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-07"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612208,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          1.0928
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-08"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612209,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          1.142
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-09"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612210,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          1.6477
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-10"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612211,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          0.9635
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-11"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612212,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          1.8015
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-12"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612213,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          0.7626
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-13"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [],
+    "family": "chain.polarization",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026612214,
+      "truth": [
+        [
+          "chain.polarization_drift",
+          1.5991
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-chain.polarization_drift-14"
+    },
+    "truth_class": "chain.polarization_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613200,
+      "truth": [
+        [
+          "cladding.index_drift",
+          69.336
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-00"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613201,
+      "truth": [
+        [
+          "cladding.index_drift",
+          82.6697
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-01"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613202,
+      "truth": [
+        [
+          "cladding.index_drift",
+          70.8492
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-02"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613203,
+      "truth": [
+        [
+          "cladding.index_drift",
+          86.8686
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-03"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613204,
+      "truth": [
+        [
+          "cladding.index_drift",
+          66.0904
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-04"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613205,
+      "truth": [
+        [
+          "cladding.index_drift",
+          51.3929
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-05"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613206,
+      "truth": [
+        [
+          "cladding.index_drift",
+          40.9519
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-06"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613207,
+      "truth": [
+        [
+          "cladding.index_drift",
+          42.6029
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-07"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613208,
+      "truth": [
+        [
+          "cladding.index_drift",
+          58.2822
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-08"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613209,
+      "truth": [
+        [
+          "cladding.index_drift",
+          44.4625
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-09"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613210,
+      "truth": [
+        [
+          "cladding.index_drift",
+          79.3122
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-10"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613211,
+      "truth": [
+        [
+          "cladding.index_drift",
+          49.6998
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-11"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613212,
+      "truth": [
+        [
+          "cladding.index_drift",
+          48.6429
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-12"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613213,
+      "truth": [
+        [
+          "cladding.index_drift",
+          44.463
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-13"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [
+      "hyp:geometry.gap_large+geometry.width_wide"
+    ],
+    "family": "cladding",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026613214,
+      "truth": [
+        [
+          "cladding.index_drift",
+          81.1593
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-cladding.index_drift-14"
+    },
+    "truth_class": "cladding.index_drift"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614200,
+      "truth": [
+        [
+          "fcd.static",
+          0.9843
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-00"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614201,
+      "truth": [
+        [
+          "fcd.static",
+          1.4897
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-01"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614202,
+      "truth": [
+        [
+          "fcd.static",
+          1.0479
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-02"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614203,
+      "truth": [
+        [
+          "fcd.static",
+          0.7122
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-03"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614204,
+      "truth": [
+        [
+          "fcd.static",
+          1.3864
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-04"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614205,
+      "truth": [
+        [
+          "fcd.static",
+          1.4264
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-05"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614206,
+      "truth": [
+        [
+          "fcd.static",
+          1.0847
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-06"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614207,
+      "truth": [
+        [
+          "fcd.static",
+          1.8277
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-07"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614208,
+      "truth": [
+        [
+          "fcd.static",
+          1.8014
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-08"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614209,
+      "truth": [
+        [
+          "fcd.static",
+          1.4988
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-09"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614210,
+      "truth": [
+        [
+          "fcd.static",
+          1.3121
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-10"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614211,
+      "truth": [
+        [
+          "fcd.static",
+          1.6267
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-11"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614212,
+      "truth": [
+        [
+          "fcd.static",
+          1.7443
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-12"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614213,
+      "truth": [
+        [
+          "fcd.static",
+          1.1648
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-13"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [],
+    "family": "fcd",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026614214,
+      "truth": [
+        [
+          "fcd.static",
+          1.1491
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-fcd.static-14"
+    },
+    "truth_class": "fcd.static"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615200,
+      "truth": [
+        [
+          "geometry.gap_large",
+          7.184
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-00"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615201,
+      "truth": [
+        [
+          "geometry.gap_large",
+          18.8171
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-01"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615202,
+      "truth": [
+        [
+          "geometry.gap_large",
+          20.8091
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-02"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615203,
+      "truth": [
+        [
+          "geometry.gap_large",
+          19.0375
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-03"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615204,
+      "truth": [
+        [
+          "geometry.gap_large",
+          15.6139
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-04"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615205,
+      "truth": [
+        [
+          "geometry.gap_large",
+          8.3035
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-05"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615206,
+      "truth": [
+        [
+          "geometry.gap_large",
+          21.2783
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-06"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615207,
+      "truth": [
+        [
+          "geometry.gap_large",
+          13.1822
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-07"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615208,
+      "truth": [
+        [
+          "geometry.gap_large",
+          14.7475
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-08"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615209,
+      "truth": [
+        [
+          "geometry.gap_large",
+          12.9274
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-09"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615210,
+      "truth": [
+        [
+          "geometry.gap_large",
+          15.9842
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-10"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615211,
+      "truth": [
+        [
+          "geometry.gap_large",
+          13.1209
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-11"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615212,
+      "truth": [
+        [
+          "geometry.gap_large",
+          12.3469
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-12"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615213,
+      "truth": [
+        [
+          "geometry.gap_large",
+          22.3839
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-13"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.width_narrow"
+    ],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026615214,
+      "truth": [
+        [
+          "geometry.gap_large",
+          10.8202
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_large-14"
+    },
+    "truth_class": "geometry.gap_large"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616200,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -21.2578
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-00"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616201,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -20.0524
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-01"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616202,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -11.2759
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-02"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616203,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -8.4502
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-03"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616204,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -18.2118
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-04"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616205,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -8.81
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-05"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616206,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -15.7132
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-06"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616207,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -22.3139
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-07"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616208,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -13.6022
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-08"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616209,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -19.0002
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-09"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616210,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -7.821
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-10"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616211,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -17.9207
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-11"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616212,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -20.4221
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-12"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616213,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -10.6793
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-13"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.gap",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026616214,
+      "truth": [
+        [
+          "geometry.gap_small",
+          -14.2085
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.gap_small-14"
+    },
+    "truth_class": "geometry.gap_small"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617200,
+      "truth": [
+        [
+          "geometry.thickness",
+          3.675
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-00"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617201,
+      "truth": [
+        [
+          "geometry.thickness",
+          4.5353
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-01"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617202,
+      "truth": [
+        [
+          "geometry.thickness",
+          3.637
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-02"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617203,
+      "truth": [
+        [
+          "geometry.thickness",
+          7.0374
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-03"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617204,
+      "truth": [
+        [
+          "geometry.thickness",
+          6.4904
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-04"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617205,
+      "truth": [
+        [
+          "geometry.thickness",
+          5.5811
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-05"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617206,
+      "truth": [
+        [
+          "geometry.thickness",
+          8.603
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-06"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617207,
+      "truth": [
+        [
+          "geometry.thickness",
+          7.2287
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-07"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617208,
+      "truth": [
+        [
+          "geometry.thickness",
+          3.5625
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-08"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617209,
+      "truth": [
+        [
+          "geometry.thickness",
+          3.5109
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-09"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617210,
+      "truth": [
+        [
+          "geometry.thickness",
+          8.7076
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-10"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617211,
+      "truth": [
+        [
+          "geometry.thickness",
+          3.7869
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-11"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617212,
+      "truth": [
+        [
+          "geometry.thickness",
+          6.9011
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-12"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617213,
+      "truth": [
+        [
+          "geometry.thickness",
+          7.7273
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-13"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.thickness",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026617214,
+      "truth": [
+        [
+          "geometry.thickness",
+          5.473
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.thickness-14"
+    },
+    "truth_class": "geometry.thickness"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618200,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -6.8754
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-00"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618201,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -7.1427
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-01"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618202,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -5.1151
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-02"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618203,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -3.3217
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-03"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618204,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -6.0185
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-04"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618205,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -4.6563
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-05"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618206,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -5.5784
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-06"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618207,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -6.7727
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-07"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618208,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -7.6522
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-08"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618209,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -3.5448
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-09"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618210,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -7.9129
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-10"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618211,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -7.735
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-11"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618212,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -3.7128
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-12"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618213,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -3.7052
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-13"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026618214,
+      "truth": [
+        [
+          "geometry.width_narrow",
+          -6.6291
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_narrow-14"
+    },
+    "truth_class": "geometry.width_narrow"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619200,
+      "truth": [
+        [
+          "geometry.width_wide",
+          3.2457
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-00"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619201,
+      "truth": [
+        [
+          "geometry.width_wide",
+          9.1569
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-01"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619202,
+      "truth": [
+        [
+          "geometry.width_wide",
+          4.7994
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-02"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619203,
+      "truth": [
+        [
+          "geometry.width_wide",
+          6.4349
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-03"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619204,
+      "truth": [
+        [
+          "geometry.width_wide",
+          7.6655
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-04"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619205,
+      "truth": [
+        [
+          "geometry.width_wide",
+          4.8295
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-05"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619206,
+      "truth": [
+        [
+          "geometry.width_wide",
+          3.9005
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-06"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619207,
+      "truth": [
+        [
+          "geometry.width_wide",
+          4.8859
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-07"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619208,
+      "truth": [
+        [
+          "geometry.width_wide",
+          3.532
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-08"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619209,
+      "truth": [
+        [
+          "geometry.width_wide",
+          4.5345
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-09"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619210,
+      "truth": [
+        [
+          "geometry.width_wide",
+          4.3295
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-10"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619211,
+      "truth": [
+        [
+          "geometry.width_wide",
+          8.9343
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-11"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619212,
+      "truth": [
+        [
+          "geometry.width_wide",
+          8.7073
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-12"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619213,
+      "truth": [
+        [
+          "geometry.width_wide",
+          5.2074
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-13"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [
+      "hyp:cladding.index_drift+geometry.gap_small"
+    ],
+    "family": "geometry.width",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026619214,
+      "truth": [
+        [
+          "geometry.width_wide",
+          6.1522
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-geometry.width_wide-14"
+    },
+    "truth_class": "geometry.width_wide"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620200,
+      "truth": [
+        [
+          "leakage.substrate",
+          1.6758
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-00"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620201,
+      "truth": [
+        [
+          "leakage.substrate",
+          2.2253
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-01"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620202,
+      "truth": [
+        [
+          "leakage.substrate",
+          0.7079
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-02"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620203,
+      "truth": [
+        [
+          "leakage.substrate",
+          2.2255
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-03"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620204,
+      "truth": [
+        [
+          "leakage.substrate",
+          2.0935
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-04"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620205,
+      "truth": [
+        [
+          "leakage.substrate",
+          1.3252
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-05"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620206,
+      "truth": [
+        [
+          "leakage.substrate",
+          1.1414
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-06"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620207,
+      "truth": [
+        [
+          "leakage.substrate",
+          0.8433
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-07"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620208,
+      "truth": [
+        [
+          "leakage.substrate",
+          1.7661
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-08"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620209,
+      "truth": [
+        [
+          "leakage.substrate",
+          1.6571
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-09"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620210,
+      "truth": [
+        [
+          "leakage.substrate",
+          0.8775
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-10"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620211,
+      "truth": [
+        [
+          "leakage.substrate",
+          1.3741
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-11"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620212,
+      "truth": [
+        [
+          "leakage.substrate",
+          2.0871
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-12"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620213,
+      "truth": [
+        [
+          "leakage.substrate",
+          1.4231
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-13"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "leakage",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026620214,
+      "truth": [
+        [
+          "leakage.substrate",
+          1.0594
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-leakage.substrate-14"
+    },
+    "truth_class": "leakage.substrate"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621200,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          0.7823
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-00"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621201,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          1.3732
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-01"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621202,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          1.8153
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-02"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621203,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          0.6998
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-03"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621204,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          0.8392
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-04"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621205,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          1.0985
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-05"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621206,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          1.1624
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-06"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621207,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          1.8131
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-07"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621208,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          1.4112
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-08"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621209,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          1.5188
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-09"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621210,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          0.9017
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-10"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621211,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          0.7123
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-11"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621212,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          1.8064
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-12"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621213,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          1.5914
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-13"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026621214,
+      "truth": [
+        [
+          "nonlinear.fca_dominated",
+          1.5553
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.fca_dominated-14"
+    },
+    "truth_class": "nonlinear.fca_dominated"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622200,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.0757
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-00"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622201,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.1116
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-01"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622202,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.4031
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-02"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622203,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.2628
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-03"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622204,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.4181
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-04"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622205,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.5443
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-05"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622206,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.4429
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-06"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622207,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.7336
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-07"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622208,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.3646
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-08"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622209,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.0791
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-09"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622210,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.6352
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-10"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622211,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.2908
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-11"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622212,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.6442
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-12"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622213,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.6515
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-13"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "nonlinear",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026622214,
+      "truth": [
+        [
+          "nonlinear.tpa_fca",
+          1.8262
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-nonlinear.tpa_fca-14"
+    },
+    "truth_class": "nonlinear.tpa_fca"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623200,
+      "truth": [
+        [
+          "scatter.sidewall",
+          1.0765
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-00"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623201,
+      "truth": [
+        [
+          "scatter.sidewall",
+          1.5697
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-01"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623202,
+      "truth": [
+        [
+          "scatter.sidewall",
+          2.2121
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-02"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623203,
+      "truth": [
+        [
+          "scatter.sidewall",
+          2.2648
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-03"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623204,
+      "truth": [
+        [
+          "scatter.sidewall",
+          1.0605
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-04"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623205,
+      "truth": [
+        [
+          "scatter.sidewall",
+          1.7069
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-05"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623206,
+      "truth": [
+        [
+          "scatter.sidewall",
+          0.9918
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-06"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623207,
+      "truth": [
+        [
+          "scatter.sidewall",
+          0.9644
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-07"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623208,
+      "truth": [
+        [
+          "scatter.sidewall",
+          2.0961
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-08"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623209,
+      "truth": [
+        [
+          "scatter.sidewall",
+          0.9988
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-09"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623210,
+      "truth": [
+        [
+          "scatter.sidewall",
+          0.7045
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-10"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623211,
+      "truth": [
+        [
+          "scatter.sidewall",
+          1.0317
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-11"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623212,
+      "truth": [
+        [
+          "scatter.sidewall",
+          2.1174
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-12"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623213,
+      "truth": [
+        [
+          "scatter.sidewall",
+          2.036
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-13"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "scatter",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026623214,
+      "truth": [
+        [
+          "scatter.sidewall",
+          2.142
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-scatter.sidewall-14"
+    },
+    "truth_class": "scatter.sidewall"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624200,
+      "truth": [
+        [
+          "thermo.ambient",
+          0.6196
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-00"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624201,
+      "truth": [
+        [
+          "thermo.ambient",
+          0.6921
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-01"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624202,
+      "truth": [
+        [
+          "thermo.ambient",
+          0.6887
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-02"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624203,
+      "truth": [
+        [
+          "thermo.ambient",
+          1.6884
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-03"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624204,
+      "truth": [
+        [
+          "thermo.ambient",
+          0.9848
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-04"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624205,
+      "truth": [
+        [
+          "thermo.ambient",
+          0.9226
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-05"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624206,
+      "truth": [
+        [
+          "thermo.ambient",
+          0.6187
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-06"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624207,
+      "truth": [
+        [
+          "thermo.ambient",
+          1.4251
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-07"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624208,
+      "truth": [
+        [
+          "thermo.ambient",
+          0.7364
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-08"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624209,
+      "truth": [
+        [
+          "thermo.ambient",
+          1.7578
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-09"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624210,
+      "truth": [
+        [
+          "thermo.ambient",
+          1.5959
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-10"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624211,
+      "truth": [
+        [
+          "thermo.ambient",
+          1.7035
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-11"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624212,
+      "truth": [
+        [
+          "thermo.ambient",
+          1.7932
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-12"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624213,
+      "truth": [
+        [
+          "thermo.ambient",
+          0.619
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-13"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026624214,
+      "truth": [
+        [
+          "thermo.ambient",
+          1.7955
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.ambient-14"
+    },
+    "truth_class": "thermo.ambient"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625200,
+      "truth": [
+        [
+          "thermo.self_heating",
+          0.7293
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-00"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625201,
+      "truth": [
+        [
+          "thermo.self_heating",
+          1.0725
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-01"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625202,
+      "truth": [
+        [
+          "thermo.self_heating",
+          0.9494
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-02"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625203,
+      "truth": [
+        [
+          "thermo.self_heating",
+          1.1237
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-03"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625204,
+      "truth": [
+        [
+          "thermo.self_heating",
+          0.6464
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-04"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625205,
+      "truth": [
+        [
+          "thermo.self_heating",
+          1.087
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-05"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625206,
+      "truth": [
+        [
+          "thermo.self_heating",
+          1.2677
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-06"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625207,
+      "truth": [
+        [
+          "thermo.self_heating",
+          1.3523
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-07"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625208,
+      "truth": [
+        [
+          "thermo.self_heating",
+          0.9904
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-08"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625209,
+      "truth": [
+        [
+          "thermo.self_heating",
+          1.2633
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-09"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625210,
+      "truth": [
+        [
+          "thermo.self_heating",
+          0.5593
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-10"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625211,
+      "truth": [
+        [
+          "thermo.self_heating",
+          1.1486
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-11"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625212,
+      "truth": [
+        [
+          "thermo.self_heating",
+          1.3741
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-12"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625213,
+      "truth": [
+        [
+          "thermo.self_heating",
+          0.68
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-13"
+    },
+    "truth_class": "thermo.self_heating"
+  },
+  {
+    "aliases": [],
+    "family": "thermo",
+    "spec": {
+      "glitch_first": false,
+      "glitch_motivating": false,
+      "glitch_sigma": 7.0,
+      "kind": "held_out",
+      "removed": [],
+      "seed": 2026625214,
+      "truth": [
+        [
+          "thermo.self_heating",
+          0.7236
+        ]
+      ],
+      "undeclared": null,
+      "world_id": "held_out-thermo.self_heating-14"
+    },
+    "truth_class": "thermo.self_heating"
+  }
+]

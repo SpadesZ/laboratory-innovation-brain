@@ -1,0 +1,101 @@
+{
+  "code_commit": "54eb00eee20b63d3f9e45d5ff1d235e917205a69",
+  "engine": {
+    "frozen_by": "docs/audit/discovery-loop-offline-2026-11-01/evidence",
+    "frozen_code_commit": "b3bbb55d14e4ebf329c88bc2cfc73dd56698da9e",
+    "frozen_manifest_sha256": "sha256:d58ffb401a26a14a614d80b56bcda18505d40c44bea5195baebe6323ada3e9d9",
+    "sources_match_frozen_manifest": true,
+    "sources_sha256": {
+      "src/lab_brain/discovery/__init__.py": "f5323b19446b0a9735c3e179926ed1bc42e73ff370a17de400ce198acd3b3ac7",
+      "src/lab_brain/discovery/baselines.py": "0c0a7b30e083f3e355feed4cfd277768487e21449800d7cb8aedd39771539b71",
+      "src/lab_brain/discovery/benchmark.py": "b4ce02b4ec056ec8d23e8bbf3e1cfc9d42d42837f90be5eaab2ea69d0ba73ce8",
+      "src/lab_brain/discovery/catalog.py": "5da22d60a1c76a3de693f841b71c3ae8a2ed31df15c159262c968900aaea4902",
+      "src/lab_brain/discovery/distinguish.py": "ae9d68d5a7ea1ab44ca367fa4f193b7bb99894dc14b1de2672b2edf830a1d832",
+      "src/lab_brain/discovery/forward.py": "6a5abdd4ef7fc1bc3a68198b73b60c0d37a0f683b906318c877e53a3f9113a91",
+      "src/lab_brain/discovery/handover.py": "8eb267f08cab171b75acad8ceb2186cbc9f3601450cec4d6a692b62cd367a440",
+      "src/lab_brain/discovery/loop.py": "84df6bd9e68537fe52aedd3b081e95fbe80300f24f7a4675e59e99bef7a1f843",
+      "src/lab_brain/discovery/metrics.py": "46df826cdf2fef9467d3bb84241d3b075b448a48657990719873a707ae8796c0",
+      "src/lab_brain/discovery/model.py": "2d66903c7b517612cb181e9bdec97a280cb59cbfdc83aeaf3a3453f3495bafba",
+      "src/lab_brain/discovery/numerics.py": "6dcc879dfc45d88eb7e8f0fb7dca7232fce0e366e5129e768892d5af312b4248",
+      "src/lab_brain/discovery/protocol.py": "9ed5d770c4bbdaeb60306b6f794242577e46856154c4e45d7a478a32a25bc4c0",
+      "src/lab_brain/discovery/worlds.py": "b1961dca14dcd1cb53ac40e6e9d24e97a2fc735972aa574d04386fe5295bcf88",
+      "src/lab_brain/domains/silicon_photonics/discovery_catalog.py": "2b0ce8ff59f59be3787aee36a04a22db5735393b041b91a655ba8a799e8d6c62"
+    }
+  },
+  "evaluation_sources_sha256": {
+    "benchmarks/discovery_independent/example.hidden-worlds.json": "2873f7e7bb4ba52487e74c60e04c3706091fdc8be9ba23bc4df057425338ef1d",
+    "benchmarks/discovery_independent/hidden-worlds.schema.json": "5d8c65b66b5d999760095b26463c09bff2516643d20e1dda3cf16c6c8b40f6fc",
+    "scripts/discovery_independent_eval.py": "7299f6d3510f7cbf7e1597518dd20468338feedbc7904b1895c575982f3cb232",
+    "src/lab_brain/discovery_eval/__init__.py": "419eeb7ec8b643bf0660c83d292dfb3200df6c8804083ceed0d05910fbeb1d4c",
+    "src/lab_brain/discovery_eval/blind.py": "e6447c650f46a7e48602ce5af9c776e9ad63731f0180025ea29aab1da809abd3",
+    "src/lab_brain/discovery_eval/curves.py": "d39b7cb4db083cd103d14b25fc09f1781ec9869ae9e85e8150133f9ff59443a9",
+    "src/lab_brain/discovery_eval/held_out.py": "7a3407cf09d104ed29ed5e83981052d6c4c9330bd5bf66e13d7f0e13fc900b16",
+    "src/lab_brain/discovery_eval/hidden_worlds.py": "1d09eeebcb826f6e5c313a8566ca8053464e5090d0327648d5eeaeb95afd0366"
+  },
+  "inputs": {
+    "arms": [
+      {
+        "arm": "B0",
+        "label": "single hypothesis (deterministic stand-in, not an LLM)",
+        "protocol_digest": "sha256:5473507ce99d2f41918361c35ebf33efa18770e91baf7a7d8f76008462560c97"
+      },
+      {
+        "arm": "B1",
+        "label": "existing LIB style (fixed set + verification)",
+        "protocol_digest": "sha256:e032d575092f47e80e7c645f9c7554a38b116dbd25e76a8949bd0fce7cbc3bed"
+      },
+      {
+        "arm": "B2",
+        "label": "LIB + Discovery",
+        "protocol_digest": "sha256:5473507ce99d2f41918361c35ebf33efa18770e91baf7a7d8f76008462560c97"
+      }
+    ],
+    "caps": [
+      4,
+      6,
+      8,
+      10,
+      12,
+      16,
+      20,
+      24
+    ],
+    "catalog": {
+      "digest": "sha256:69c86963d6e1ae31832208530654539a9283bded6638cad8f0877848553d9119",
+      "ref": "sp.ring_drift_loss.discovery@0.1.0"
+    },
+    "curve_worlds": {
+      "base_seed": 2026110200,
+      "count": 200,
+      "seeds_per_kind": 25,
+      "specs_digest": "sha256:d4d249c1bc64915f2264442ab294fb22719b5f21b28024925ca928670e5b99e9"
+    },
+    "example_sha256": "2873f7e7bb4ba52487e74c60e04c3706091fdc8be9ba23bc4df057425338ef1d",
+    "held_out_budgets": [
+      12,
+      24
+    ],
+    "held_out_worlds": {
+      "base_seed": 2026610200,
+      "count": 240,
+      "seeds_per_class": 15,
+      "specs_digest": "sha256:9ed29068990bdc0c04389ac5d4a651f89ea20a611551f6d42ba31b775c38bff6"
+    },
+    "scaffold_budget": 12
+  },
+  "inputs_digest": "sha256:59f32900ce3305ba2262c4d92f2e78e73b25a3c693ab24d650a1ec9b99f085a4",
+  "interpreter": "CPython 3.13.17",
+  "kind": "lab-brain/discovery-independent-evaluation-manifest@1",
+  "manifest_sha256": "sha256:c0172f3f275b1d74a4a1af8324d898ae837fbcd68b8675769b45660e2b20efad",
+  "not_claimed": [
+    "scientific validity of any mechanism or forward model",
+    "an independent or blind evaluation: worlds, held-out families and the engine share an author lineage",
+    "anything about a real device, real literature, a language model (B0 is not one) or the real PostgreSQL LIB workflow (B1 is not it)"
+  ],
+  "statistics": {
+    "bootstrap_seed": 20261102,
+    "interval": "95% (Wilson for proportions, seeded percentile bootstrap otherwise)",
+    "multiplicity": "exact McNemar per cap and comparison, Holm-adjusted; Bonferroni-widened paired bootstrap intervals",
+    "resamples": 2000
+  }
+}

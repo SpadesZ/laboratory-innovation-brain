@@ -1,0 +1,694 @@
+{
+  "aliases": {
+    "example-06": [
+      "hyp:cladding.index_drift+geometry.gap_small",
+      "hyp:geometry.gap_large+geometry.width_wide",
+      "hyp:geometry.gap_small+geometry.width_wide",
+      "hyp:geometry.width_wide"
+    ]
+  },
+  "categories": {
+    "example-01": "declared",
+    "example-02": "composition",
+    "example-03": "null",
+    "example-04": "declared",
+    "example-05": "held_out",
+    "example-06": "aliased_held_out",
+    "example-07": "non_stationary",
+    "example-08": "declared"
+  },
+  "engine_package": {
+    "cases": [
+      {
+        "case_id": "case-180b412886c5",
+        "public": {
+          "removed": [
+            [
+              "width_array",
+              "this die carries a single ring width"
+            ]
+          ]
+        }
+      },
+      {
+        "case_id": "case-2005cf85e7a0",
+        "public": {
+          "removed": []
+        }
+      },
+      {
+        "case_id": "case-29ab2494b6f5",
+        "public": {
+          "removed": []
+        }
+      },
+      {
+        "case_id": "case-38b08c1c3ffd",
+        "public": {
+          "removed": []
+        }
+      },
+      {
+        "case_id": "case-6aa2f5179e16",
+        "public": {
+          "removed": []
+        }
+      },
+      {
+        "case_id": "case-80822ca9b054",
+        "public": {
+          "removed": []
+        }
+      },
+      {
+        "case_id": "case-b037fda316ac",
+        "public": {
+          "removed": []
+        }
+      },
+      {
+        "case_id": "case-c12e549c1f6f",
+        "public": {
+          "removed": []
+        }
+      }
+    ],
+    "commitments": {
+      "case-180b412886c5": "b7702219a721b7ea5fa38bbe9007452b42965787d22388c78c08791f9ebe2154",
+      "case-2005cf85e7a0": "61cdf9faf49047b3f7b33099f58995bd55b3b8681969fca4a626520f6e416eb5",
+      "case-29ab2494b6f5": "88f9c5a959ae0e683612916659fab593aad2e9397cc19b1f16beb4a247d1a4bf",
+      "case-38b08c1c3ffd": "23b5d6d6778c69fb1e0268fa4d7263a99a8a839bba6e67e79e4b8b5a5f234dbd",
+      "case-6aa2f5179e16": "e9b682792d8f9f058425504184a6343cec1896afefebc628b6e0758debf16358",
+      "case-80822ca9b054": "2e8d8a0bf4539231c041567b4e4918962b983eac0ebc5a13758566c6fd035796",
+      "case-b037fda316ac": "7aa818652082a432212f67bb1680fca700944b80170aff8a6496e3b886a683e5",
+      "case-c12e549c1f6f": "70071f766694258be25a27e6153e65a5171f0d11233eb9cfdbf86aecf3381355"
+    },
+    "example_only": true,
+    "interface": {
+      "catalog_digest": "sha256:69c86963d6e1ae31832208530654539a9283bded6638cad8f0877848553d9119",
+      "catalog_ref": "sp.ring_drift_loss.discovery@0.1.0",
+      "motivating_experiment": "baseline"
+    },
+    "kind": "lab-brain/discovery-engine-cases@1",
+    "root": "sha256:e95a214b6ba42072a96b2f7c3e7f55784fe5cfc5bc959db23d61d100ad7977e8",
+    "suite": "format-example"
+  },
+  "example_file": "benchmarks/discovery_independent/example.hidden-worlds.json",
+  "example_sha256": "2873f7e7bb4ba52487e74c60e04c3706091fdc8be9ba23bc4df057425338ef1d",
+  "kind": "lab-brain/discovery-hidden-world-scaffold-demo@1",
+  "notice": "EXAMPLE ONLY. The example file is public and written by the engine author's lineage; the salts are reproducible demonstration values and therefore NOT secret. Nothing here is a hidden set, an independent evaluation or a result about the engine.",
+  "outputs_digest": "sha256:49092063c37eaedf1348b4f1559ee024ff8f04d904eb5cdc72d9306171baf83c",
+  "refusals_demonstrated": {
+    "example_used_as_hidden_set": "example.hidden-worlds.json is an example, not a hidden set (allow_example is for the scaffold demonstration only)",
+    "public_part_altered_after_commitment": "case-180b412886c5: the package's public part was altered",
+    "removal_reason_names_the_truth": "world example-01: the removal reason for tec_stabilized names the truth ['ambient', 'ambient temperature offset']; it is shown to every arm"
+  },
+  "rows": [
+    {
+      "arm": "B0",
+      "case_id": "case-180b412886c5",
+      "category": "declared",
+      "claim": [
+        "hyp:geometry.width_wide"
+      ],
+      "correct": false,
+      "false_discovery": false,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 1,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-04"
+    },
+    {
+      "arm": "B1",
+      "case_id": "case-180b412886c5",
+      "category": "declared",
+      "claim": [
+        "hyp:geometry.width_wide"
+      ],
+      "correct": false,
+      "false_discovery": false,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 1,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-04"
+    },
+    {
+      "arm": "B2",
+      "case_id": "case-180b412886c5",
+      "category": "declared",
+      "claim": [
+        "hyp:geometry.thickness",
+        "hyp:geometry.width_wide"
+      ],
+      "correct": true,
+      "false_discovery": false,
+      "outcome": "INDISTINGUISHABLE_CLASS_PENDING_WARRANT_GATE",
+      "spent": 4,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-04"
+    },
+    {
+      "arm": "B0",
+      "case_id": "case-2005cf85e7a0",
+      "category": "composition",
+      "claim": [],
+      "correct": false,
+      "false_discovery": false,
+      "outcome": "STOPPED_INSUFFICIENT_VALIDATION",
+      "spent": 0,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-02"
+    },
+    {
+      "arm": "B1",
+      "case_id": "case-2005cf85e7a0",
+      "category": "composition",
+      "claim": [],
+      "correct": false,
+      "false_discovery": false,
+      "outcome": "STOPPED_UNEXPLAINED",
+      "spent": 1,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-02"
+    },
+    {
+      "arm": "B2",
+      "case_id": "case-2005cf85e7a0",
+      "category": "composition",
+      "claim": [
+        "hyp:scatter.sidewall+thermo.ambient"
+      ],
+      "correct": true,
+      "false_discovery": false,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 8,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-02"
+    },
+    {
+      "arm": "B0",
+      "case_id": "case-29ab2494b6f5",
+      "category": "declared",
+      "claim": [
+        "hyp:thermo.ambient"
+      ],
+      "correct": false,
+      "false_discovery": true,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 1,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-08"
+    },
+    {
+      "arm": "B1",
+      "case_id": "case-29ab2494b6f5",
+      "category": "declared",
+      "claim": [
+        "hyp:chain.laser_drift"
+      ],
+      "correct": true,
+      "false_discovery": false,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 3,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-08"
+    },
+    {
+      "arm": "B2",
+      "case_id": "case-29ab2494b6f5",
+      "category": "declared",
+      "claim": [
+        "hyp:chain.laser_drift"
+      ],
+      "correct": true,
+      "false_discovery": false,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 10,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-08"
+    },
+    {
+      "arm": "B0",
+      "case_id": "case-38b08c1c3ffd",
+      "category": "aliased_held_out",
+      "claim": [
+        "hyp:geometry.width_wide"
+      ],
+      "correct": false,
+      "false_discovery": false,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 1,
+      "status": "SCORED",
+      "surrogate": true,
+      "within_cap": true,
+      "world_id": "example-06"
+    },
+    {
+      "arm": "B1",
+      "case_id": "case-38b08c1c3ffd",
+      "category": "aliased_held_out",
+      "claim": [
+        "hyp:geometry.width_wide"
+      ],
+      "correct": false,
+      "false_discovery": false,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 1,
+      "status": "SCORED",
+      "surrogate": true,
+      "within_cap": true,
+      "world_id": "example-06"
+    },
+    {
+      "arm": "B2",
+      "case_id": "case-38b08c1c3ffd",
+      "category": "aliased_held_out",
+      "claim": [
+        "hyp:geometry.width_wide"
+      ],
+      "correct": false,
+      "false_discovery": false,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 8,
+      "status": "SCORED",
+      "surrogate": true,
+      "within_cap": true,
+      "world_id": "example-06"
+    },
+    {
+      "arm": "B0",
+      "case_id": "case-6aa2f5179e16",
+      "category": "declared",
+      "claim": [
+        "hyp:thermo.ambient"
+      ],
+      "correct": true,
+      "false_discovery": false,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 1,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-01"
+    },
+    {
+      "arm": "B1",
+      "case_id": "case-6aa2f5179e16",
+      "category": "declared",
+      "claim": [
+        "hyp:thermo.ambient"
+      ],
+      "correct": true,
+      "false_discovery": false,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 3,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-01"
+    },
+    {
+      "arm": "B2",
+      "case_id": "case-6aa2f5179e16",
+      "category": "declared",
+      "claim": [
+        "hyp:thermo.ambient"
+      ],
+      "correct": true,
+      "false_discovery": false,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 6,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-01"
+    },
+    {
+      "arm": "B0",
+      "case_id": "case-80822ca9b054",
+      "category": "null",
+      "claim": [],
+      "correct": false,
+      "false_discovery": false,
+      "outcome": "STOPPED_INSUFFICIENT_VALIDATION",
+      "spent": 0,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-03"
+    },
+    {
+      "arm": "B1",
+      "case_id": "case-80822ca9b054",
+      "category": "null",
+      "claim": [
+        "hyp:scatter.sidewall"
+      ],
+      "correct": false,
+      "false_discovery": true,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 2,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-03"
+    },
+    {
+      "arm": "B2",
+      "case_id": "case-80822ca9b054",
+      "category": "null",
+      "claim": [],
+      "correct": false,
+      "false_discovery": false,
+      "outcome": "STOPPED_INSUFFICIENT_VALIDATION",
+      "spent": 12,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-03"
+    },
+    {
+      "arm": "B0",
+      "case_id": "case-b037fda316ac",
+      "category": "non_stationary",
+      "claim": [
+        "hyp:geometry.width_wide"
+      ],
+      "correct": false,
+      "false_discovery": true,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 1,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-07"
+    },
+    {
+      "arm": "B1",
+      "case_id": "case-b037fda316ac",
+      "category": "non_stationary",
+      "claim": [
+        "hyp:chain.laser_drift"
+      ],
+      "correct": false,
+      "false_discovery": true,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 2,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-07"
+    },
+    {
+      "arm": "B2",
+      "case_id": "case-b037fda316ac",
+      "category": "non_stationary",
+      "claim": [],
+      "correct": true,
+      "false_discovery": false,
+      "outcome": "STOPPED_UNEXPLAINED",
+      "spent": 9,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-07"
+    },
+    {
+      "arm": "B0",
+      "case_id": "case-c12e549c1f6f",
+      "category": "held_out",
+      "claim": [
+        "hyp:thermo.ambient"
+      ],
+      "correct": false,
+      "false_discovery": true,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 1,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-05"
+    },
+    {
+      "arm": "B1",
+      "case_id": "case-c12e549c1f6f",
+      "category": "held_out",
+      "claim": [
+        "hyp:chain.laser_drift"
+      ],
+      "correct": false,
+      "false_discovery": true,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 3,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-05"
+    },
+    {
+      "arm": "B2",
+      "case_id": "case-c12e549c1f6f",
+      "category": "held_out",
+      "claim": [
+        "hyp:cladding.index_drift"
+      ],
+      "correct": false,
+      "false_discovery": true,
+      "outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "spent": 9,
+      "status": "SCORED",
+      "surrogate": false,
+      "within_cap": true,
+      "world_id": "example-05"
+    }
+  ],
+  "schema_file": "benchmarks/discovery_independent/hidden-worlds.schema.json",
+  "score": {
+    "arms": {
+      "B0": {
+        "all_within_cap_and_metered": true,
+        "correct": {
+          "k": 1,
+          "n": 7,
+          "rate": 0.1429,
+          "wilson95": [
+            0.0257,
+            0.5131
+          ]
+        },
+        "false_discovery": {
+          "k": 3,
+          "n": 7,
+          "rate": 0.4286,
+          "wilson95": [
+            0.1582,
+            0.7495
+          ]
+        },
+        "missing": 0,
+        "per_category": {
+          "aliased_held_out": {
+            "correct": 0,
+            "false_discovery": 0,
+            "n": 1,
+            "surrogate": 1
+          },
+          "composition": {
+            "correct": 0,
+            "false_discovery": 0,
+            "n": 1,
+            "surrogate": 0
+          },
+          "declared": {
+            "correct": 1,
+            "false_discovery": 1,
+            "n": 3,
+            "surrogate": 0
+          },
+          "held_out": {
+            "correct": 0,
+            "false_discovery": 1,
+            "n": 1,
+            "surrogate": 0
+          },
+          "non_stationary": {
+            "correct": 0,
+            "false_discovery": 1,
+            "n": 1,
+            "surrogate": 0
+          },
+          "null": {
+            "correct": 0,
+            "false_discovery": 0,
+            "n": 1,
+            "surrogate": 0
+          }
+        },
+        "realized_cost": {
+          "bootstrap95": [
+            0.375,
+            1.0
+          ],
+          "mean": 0.75,
+          "n": 8
+        }
+      },
+      "B1": {
+        "all_within_cap_and_metered": true,
+        "correct": {
+          "k": 2,
+          "n": 7,
+          "rate": 0.2857,
+          "wilson95": [
+            0.0822,
+            0.6411
+          ]
+        },
+        "false_discovery": {
+          "k": 3,
+          "n": 7,
+          "rate": 0.4286,
+          "wilson95": [
+            0.1582,
+            0.7495
+          ]
+        },
+        "missing": 0,
+        "per_category": {
+          "aliased_held_out": {
+            "correct": 0,
+            "false_discovery": 0,
+            "n": 1,
+            "surrogate": 1
+          },
+          "composition": {
+            "correct": 0,
+            "false_discovery": 0,
+            "n": 1,
+            "surrogate": 0
+          },
+          "declared": {
+            "correct": 2,
+            "false_discovery": 0,
+            "n": 3,
+            "surrogate": 0
+          },
+          "held_out": {
+            "correct": 0,
+            "false_discovery": 1,
+            "n": 1,
+            "surrogate": 0
+          },
+          "non_stationary": {
+            "correct": 0,
+            "false_discovery": 1,
+            "n": 1,
+            "surrogate": 0
+          },
+          "null": {
+            "correct": 0,
+            "false_discovery": 1,
+            "n": 1,
+            "surrogate": 0
+          }
+        },
+        "realized_cost": {
+          "bootstrap95": [
+            1.375,
+            2.5
+          ],
+          "mean": 2.0,
+          "n": 8
+        }
+      },
+      "B2": {
+        "all_within_cap_and_metered": true,
+        "correct": {
+          "k": 5,
+          "n": 7,
+          "rate": 0.7143,
+          "wilson95": [
+            0.3589,
+            0.9178
+          ]
+        },
+        "false_discovery": {
+          "k": 1,
+          "n": 7,
+          "rate": 0.1429,
+          "wilson95": [
+            0.0257,
+            0.5131
+          ]
+        },
+        "missing": 0,
+        "per_category": {
+          "aliased_held_out": {
+            "correct": 0,
+            "false_discovery": 0,
+            "n": 1,
+            "surrogate": 1
+          },
+          "composition": {
+            "correct": 1,
+            "false_discovery": 0,
+            "n": 1,
+            "surrogate": 0
+          },
+          "declared": {
+            "correct": 3,
+            "false_discovery": 0,
+            "n": 3,
+            "surrogate": 0
+          },
+          "held_out": {
+            "correct": 0,
+            "false_discovery": 1,
+            "n": 1,
+            "surrogate": 0
+          },
+          "non_stationary": {
+            "correct": 1,
+            "false_discovery": 0,
+            "n": 1,
+            "surrogate": 0
+          },
+          "null": {
+            "correct": 0,
+            "false_discovery": 0,
+            "n": 1,
+            "surrogate": 0
+          }
+        },
+        "realized_cost": {
+          "bootstrap95": [
+            6.625,
+            9.875
+          ],
+          "mean": 8.25,
+          "n": 8
+        }
+      }
+    },
+    "cases": 8,
+    "package_root": "sha256:e95a214b6ba42072a96b2f7c3e7f55784fe5cfc5bc959db23d61d100ad7977e8"
+  }
+}

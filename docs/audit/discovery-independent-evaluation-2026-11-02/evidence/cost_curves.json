@@ -1,0 +1,2551 @@
+{
+  "base_seed": 2026110200,
+  "determinism": {
+    "compared": 192,
+    "identical": 192,
+    "rerun": "first world of each kind, every cap and arm"
+  },
+  "invariants": {
+    "meter_equals_engine_report": true,
+    "meter_mismatch": [],
+    "over_cap": [],
+    "realized_within_cap": true,
+    "runs": 4800,
+    "unconstrained_runs_identical_at_larger_caps": {
+      "comparisons": 3309,
+      "violations": []
+    },
+    "unconstrained_share_by_cap": {
+      "B0": [
+        0.76,
+        0.98,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "B1": [
+        0.52,
+        0.96,
+        0.98,
+        0.985,
+        0.995,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "B2": [
+        0.0,
+        0.07,
+        0.21,
+        0.515,
+        0.7,
+        0.895,
+        0.975,
+        0.99
+      ]
+    },
+    "unconstrained_share_non_decreasing": true
+  },
+  "kind": "lab-brain/discovery-cost-curves@1",
+  "labels": {
+    "B0": "single hypothesis (deterministic stand-in, not an LLM)",
+    "B1": "existing LIB style (fixed set + verification)",
+    "B2": "LIB + Discovery"
+  },
+  "never_confirmed": true,
+  "scenario": "sp.ring_drift_loss",
+  "seeds_per_kind": 25,
+  "summary": {
+    "arms": [
+      "B0",
+      "B1",
+      "B2"
+    ],
+    "auc_correct_vs_cap": {
+      "B0": {
+        "bootstrap95": [
+          0.045,
+          0.12
+        ],
+        "mean": 0.08
+      },
+      "B1": {
+        "bootstrap95": [
+          0.24,
+          0.3588
+        ],
+        "mean": 0.2988
+      },
+      "B2": {
+        "bootstrap95": [
+          0.79,
+          0.852
+        ],
+        "mean": 0.8225
+      }
+    },
+    "auc_paired": {
+      "B2_minus_B0": {
+        "bootstrap95": [
+          0.6935,
+          0.7853
+        ],
+        "mean": 0.7425,
+        "worlds": 200
+      },
+      "B2_minus_B1": {
+        "bootstrap95": [
+          0.4635,
+          0.5892
+        ],
+        "mean": 0.5238,
+        "worlds": 200
+      }
+    },
+    "budget_to_first_correct": {
+      "B0": {
+        "median_first_correct_cap": null,
+        "median_first_correct_cap_bootstrap95": [
+          null,
+          null
+        ],
+        "realized_cost_at_first_correct": {
+          "bootstrap95": [
+            1.1875,
+            2.0
+          ],
+          "mean": 1.5625,
+          "n": 16
+        },
+        "solved_within_grid": {
+          "k": 16,
+          "n": 200,
+          "rate": 0.08,
+          "wilson95": [
+            0.0498,
+            0.126
+          ]
+        },
+        "stays_correct_at_every_larger_cap": {
+          "k": 16,
+          "n": 16,
+          "rate": 1.0,
+          "wilson95": [
+            0.8064,
+            1.0
+          ]
+        }
+      },
+      "B1": {
+        "median_first_correct_cap": null,
+        "median_first_correct_cap_bootstrap95": [
+          null,
+          null
+        ],
+        "realized_cost_at_first_correct": {
+          "bootstrap95": [
+            2.3167,
+            2.9
+          ],
+          "mean": 2.5833,
+          "n": 60
+        },
+        "solved_within_grid": {
+          "k": 60,
+          "n": 200,
+          "rate": 0.3,
+          "wilson95": [
+            0.2407,
+            0.3668
+          ]
+        },
+        "stays_correct_at_every_larger_cap": {
+          "k": 60,
+          "n": 60,
+          "rate": 1.0,
+          "wilson95": [
+            0.9398,
+            1.0
+          ]
+        }
+      },
+      "B2": {
+        "median_first_correct_cap": 8,
+        "median_first_correct_cap_bootstrap95": [
+          6,
+          8
+        ],
+        "realized_cost_at_first_correct": {
+          "bootstrap95": [
+            6.8196,
+            7.8866
+          ],
+          "mean": 7.3351,
+          "n": 194
+        },
+        "solved_within_grid": {
+          "k": 194,
+          "n": 200,
+          "rate": 0.97,
+          "wilson95": [
+            0.9361,
+            0.9862
+          ]
+        },
+        "stays_correct_at_every_larger_cap": {
+          "k": 188,
+          "n": 194,
+          "rate": 0.9691,
+          "wilson95": [
+            0.9342,
+            0.9857
+          ]
+        }
+      }
+    },
+    "caps": [
+      4,
+      6,
+      8,
+      10,
+      12,
+      16,
+      20,
+      24
+    ],
+    "correct_rate_decreases": {
+      "B0": [],
+      "B1": [],
+      "B2": []
+    },
+    "cumulative_solved_by_cap": {
+      "B0": {
+        "10": 0.08,
+        "12": 0.08,
+        "16": 0.08,
+        "20": 0.08,
+        "24": 0.08,
+        "4": 0.08,
+        "6": 0.08,
+        "8": 0.08
+      },
+      "B1": {
+        "10": 0.3,
+        "12": 0.3,
+        "16": 0.3,
+        "20": 0.3,
+        "24": 0.3,
+        "4": 0.295,
+        "6": 0.295,
+        "8": 0.295
+      },
+      "B2": {
+        "10": 0.775,
+        "12": 0.87,
+        "16": 0.955,
+        "20": 0.965,
+        "24": 0.97,
+        "4": 0.345,
+        "6": 0.485,
+        "8": 0.71
+      }
+    },
+    "curve_points_cap_realized_correct": {
+      "B0": [
+        [
+          4,
+          1.21,
+          0.08
+        ],
+        [
+          6,
+          1.21,
+          0.08
+        ],
+        [
+          8,
+          1.21,
+          0.08
+        ],
+        [
+          10,
+          1.21,
+          0.08
+        ],
+        [
+          12,
+          1.21,
+          0.08
+        ],
+        [
+          16,
+          1.21,
+          0.08
+        ],
+        [
+          20,
+          1.21,
+          0.08
+        ],
+        [
+          24,
+          1.21,
+          0.08
+        ]
+      ],
+      "B1": [
+        [
+          4,
+          1.825,
+          0.295
+        ],
+        [
+          6,
+          1.87,
+          0.295
+        ],
+        [
+          8,
+          1.9,
+          0.295
+        ],
+        [
+          10,
+          1.915,
+          0.3
+        ],
+        [
+          12,
+          1.915,
+          0.3
+        ],
+        [
+          16,
+          1.915,
+          0.3
+        ],
+        [
+          20,
+          1.915,
+          0.3
+        ],
+        [
+          24,
+          1.915,
+          0.3
+        ]
+      ],
+      "B2": [
+        [
+          4,
+          3.89,
+          0.345
+        ],
+        [
+          6,
+          5.5,
+          0.485
+        ],
+        [
+          8,
+          6.59,
+          0.705
+        ],
+        [
+          10,
+          7.205,
+          0.755
+        ],
+        [
+          12,
+          7.695,
+          0.865
+        ],
+        [
+          16,
+          8.065,
+          0.955
+        ],
+        [
+          20,
+          8.17,
+          0.965
+        ],
+        [
+          24,
+          8.215,
+          0.97
+        ]
+      ]
+    },
+    "multiplicity": {
+      "adjustment": "Holm-Bonferroni",
+      "bonferroni_interval_confidence": 0.996875,
+      "family": "per-cap paired correct-rate comparisons",
+      "size": 16,
+      "test": "exact McNemar (two-sided)"
+    },
+    "paired_per_cap": {
+      "B2_minus_B0@10": {
+        "a_only": 136,
+        "b_only": 1,
+        "correct_ci95": [
+          0.6,
+          0.74
+        ],
+        "correct_ci_bonferroni": [
+          0.575,
+          0.77
+        ],
+        "correct_difference": 0.675,
+        "false_discovery_ci95": [
+          -0.385,
+          -0.255
+        ],
+        "false_discovery_difference": -0.32,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          5.64,
+          6.34
+        ],
+        "realized_cost_difference": 5.995
+      },
+      "B2_minus_B0@12": {
+        "a_only": 157,
+        "b_only": 0,
+        "correct_ci95": [
+          0.725,
+          0.84
+        ],
+        "correct_ci_bonferroni": [
+          0.695,
+          0.87
+        ],
+        "correct_difference": 0.785,
+        "false_discovery_ci95": [
+          -0.39,
+          -0.25
+        ],
+        "false_discovery_difference": -0.32,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          6.045,
+          6.925
+        ],
+        "realized_cost_difference": 6.485
+      },
+      "B2_minus_B0@16": {
+        "a_only": 175,
+        "b_only": 0,
+        "correct_ci95": [
+          0.83,
+          0.92
+        ],
+        "correct_ci_bonferroni": [
+          0.795,
+          0.945
+        ],
+        "correct_difference": 0.875,
+        "false_discovery_ci95": [
+          -0.39,
+          -0.255
+        ],
+        "false_discovery_difference": -0.32,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          6.325,
+          7.39
+        ],
+        "realized_cost_difference": 6.855
+      },
+      "B2_minus_B0@20": {
+        "a_only": 177,
+        "b_only": 0,
+        "correct_ci95": [
+          0.84,
+          0.93
+        ],
+        "correct_ci_bonferroni": [
+          0.815,
+          0.945
+        ],
+        "correct_difference": 0.885,
+        "false_discovery_ci95": [
+          -0.385,
+          -0.25
+        ],
+        "false_discovery_difference": -0.32,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          6.395,
+          7.505
+        ],
+        "realized_cost_difference": 6.96
+      },
+      "B2_minus_B0@24": {
+        "a_only": 178,
+        "b_only": 0,
+        "correct_ci95": [
+          0.845,
+          0.935
+        ],
+        "correct_ci_bonferroni": [
+          0.82,
+          0.95
+        ],
+        "correct_difference": 0.89,
+        "false_discovery_ci95": [
+          -0.385,
+          -0.26
+        ],
+        "false_discovery_difference": -0.32,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          6.445,
+          7.605
+        ],
+        "realized_cost_difference": 7.005
+      },
+      "B2_minus_B0@4": {
+        "a_only": 61,
+        "b_only": 8,
+        "correct_ci95": [
+          0.19,
+          0.335
+        ],
+        "correct_ci_bonferroni": [
+          0.155,
+          0.37
+        ],
+        "correct_difference": 0.265,
+        "false_discovery_ci95": [
+          -0.395,
+          -0.265
+        ],
+        "false_discovery_difference": -0.33,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          2.525,
+          2.83
+        ],
+        "realized_cost_difference": 2.68
+      },
+      "B2_minus_B0@6": {
+        "a_only": 85,
+        "b_only": 4,
+        "correct_ci95": [
+          0.335,
+          0.48
+        ],
+        "correct_ci_bonferroni": [
+          0.3,
+          0.515
+        ],
+        "correct_difference": 0.405,
+        "false_discovery_ci95": [
+          -0.395,
+          -0.265
+        ],
+        "false_discovery_difference": -0.325,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          4.09,
+          4.475
+        ],
+        "realized_cost_difference": 4.29
+      },
+      "B2_minus_B0@8": {
+        "a_only": 125,
+        "b_only": 0,
+        "correct_ci95": [
+          0.555,
+          0.69
+        ],
+        "correct_ci_bonferroni": [
+          0.53,
+          0.725
+        ],
+        "correct_difference": 0.625,
+        "false_discovery_ci95": [
+          -0.395,
+          -0.25
+        ],
+        "false_discovery_difference": -0.32,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          5.115,
+          5.64
+        ],
+        "realized_cost_difference": 5.38
+      },
+      "B2_minus_B1@10": {
+        "a_only": 94,
+        "b_only": 3,
+        "correct_ci95": [
+          0.38,
+          0.525
+        ],
+        "correct_ci_bonferroni": [
+          0.33,
+          0.56
+        ],
+        "correct_difference": 0.455,
+        "false_discovery_ci95": [
+          -0.285,
+          -0.165
+        ],
+        "false_discovery_difference": -0.225,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          4.95,
+          5.6
+        ],
+        "realized_cost_difference": 5.29
+      },
+      "B2_minus_B1@12": {
+        "a_only": 113,
+        "b_only": 0,
+        "correct_ci95": [
+          0.495,
+          0.635
+        ],
+        "correct_ci_bonferroni": [
+          0.46,
+          0.66
+        ],
+        "correct_difference": 0.565,
+        "false_discovery_ci95": [
+          -0.285,
+          -0.17
+        ],
+        "false_discovery_difference": -0.225,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          5.35,
+          6.195
+        ],
+        "realized_cost_difference": 5.78
+      },
+      "B2_minus_B1@16": {
+        "a_only": 131,
+        "b_only": 0,
+        "correct_ci95": [
+          0.59,
+          0.72
+        ],
+        "correct_ci_bonferroni": [
+          0.56,
+          0.75
+        ],
+        "correct_difference": 0.655,
+        "false_discovery_ci95": [
+          -0.285,
+          -0.17
+        ],
+        "false_discovery_difference": -0.225,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          5.675,
+          6.655
+        ],
+        "realized_cost_difference": 6.15
+      },
+      "B2_minus_B1@20": {
+        "a_only": 133,
+        "b_only": 0,
+        "correct_ci95": [
+          0.595,
+          0.73
+        ],
+        "correct_ci_bonferroni": [
+          0.565,
+          0.755
+        ],
+        "correct_difference": 0.665,
+        "false_discovery_ci95": [
+          -0.29,
+          -0.17
+        ],
+        "false_discovery_difference": -0.225,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          5.74,
+          6.765
+        ],
+        "realized_cost_difference": 6.255
+      },
+      "B2_minus_B1@24": {
+        "a_only": 134,
+        "b_only": 0,
+        "correct_ci95": [
+          0.6,
+          0.735
+        ],
+        "correct_ci_bonferroni": [
+          0.57,
+          0.76
+        ],
+        "correct_difference": 0.67,
+        "false_discovery_ci95": [
+          -0.285,
+          -0.17
+        ],
+        "false_discovery_difference": -0.225,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          5.775,
+          6.86
+        ],
+        "realized_cost_difference": 6.3
+      },
+      "B2_minus_B1@4": {
+        "a_only": 36,
+        "b_only": 26,
+        "correct_ci95": [
+          -0.025,
+          0.13
+        ],
+        "correct_ci_bonferroni": [
+          -0.065,
+          0.165
+        ],
+        "correct_difference": 0.05,
+        "false_discovery_ci95": [
+          -0.28,
+          -0.165
+        ],
+        "false_discovery_difference": -0.22,
+        "holm_p": 0.252854,
+        "mcnemar_p": 0.252854,
+        "realized_cost_ci95": [
+          1.935,
+          2.19
+        ],
+        "realized_cost_difference": 2.065
+      },
+      "B2_minus_B1@6": {
+        "a_only": 56,
+        "b_only": 18,
+        "correct_ci95": [
+          0.11,
+          0.27
+        ],
+        "correct_ci_bonferroni": [
+          0.075,
+          0.31
+        ],
+        "correct_difference": 0.19,
+        "false_discovery_ci95": [
+          -0.275,
+          -0.165
+        ],
+        "false_discovery_difference": -0.22,
+        "holm_p": 2.2e-05,
+        "mcnemar_p": 1.1e-05,
+        "realized_cost_ci95": [
+          3.465,
+          3.785
+        ],
+        "realized_cost_difference": 3.63
+      },
+      "B2_minus_B1@8": {
+        "a_only": 83,
+        "b_only": 1,
+        "correct_ci95": [
+          0.345,
+          0.48
+        ],
+        "correct_ci_bonferroni": [
+          0.315,
+          0.505
+        ],
+        "correct_difference": 0.41,
+        "false_discovery_ci95": [
+          -0.28,
+          -0.165
+        ],
+        "false_discovery_difference": -0.22,
+        "holm_p": 0.0,
+        "mcnemar_p": 0.0,
+        "realized_cost_ci95": [
+          4.44,
+          4.945
+        ],
+        "realized_cost_difference": 4.69
+      }
+    },
+    "per_cap": {
+      "10": {
+        "B0": {
+          "claims_made": {
+            "k": 107,
+            "n": 200,
+            "rate": 0.535,
+            "wilson95": [
+              0.4659,
+              0.6028
+            ]
+          },
+          "correct": {
+            "k": 16,
+            "n": 200,
+            "rate": 0.08,
+            "wilson95": [
+              0.0498,
+              0.126
+            ]
+          },
+          "correct_count": 16,
+          "discriminating_share": 0.3476,
+          "exhausted": {
+            "k": 0,
+            "n": 200,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0188
+            ]
+          },
+          "false_discovery": {
+            "k": 68,
+            "n": 200,
+            "rate": 0.34,
+            "wilson95": [
+              0.2779,
+              0.4081
+            ]
+          },
+          "mean_experiments": 0.82,
+          "nominal_total": 2000,
+          "realized_cost": {
+            "bootstrap95": [
+              1.055,
+              1.365
+            ],
+            "mean": 1.21,
+            "n": 200
+          },
+          "realized_cost_max": 4,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              10.0417,
+              27.5
+            ],
+            "point": 15.125,
+            "undefined_resamples": 0
+          },
+          "realized_total": 242,
+          "unconstrained": {
+            "k": 200,
+            "n": 200,
+            "rate": 1.0,
+            "wilson95": [
+              0.9812,
+              1.0
+            ]
+          },
+          "utilisation": 0.121
+        },
+        "B1": {
+          "claims_made": {
+            "k": 114,
+            "n": 200,
+            "rate": 0.57,
+            "wilson95": [
+              0.5007,
+              0.6367
+            ]
+          },
+          "correct": {
+            "k": 60,
+            "n": 200,
+            "rate": 0.3,
+            "wilson95": [
+              0.2407,
+              0.3668
+            ]
+          },
+          "correct_count": 60,
+          "discriminating_share": 0.8882,
+          "exhausted": {
+            "k": 1,
+            "n": 200,
+            "rate": 0.005,
+            "wilson95": [
+              0.0009,
+              0.0278
+            ]
+          },
+          "false_discovery": {
+            "k": 49,
+            "n": 200,
+            "rate": 0.245,
+            "wilson95": [
+              0.1906,
+              0.309
+            ]
+          },
+          "mean_experiments": 1.7,
+          "nominal_total": 2000,
+          "realized_cost": {
+            "bootstrap95": [
+              1.74,
+              2.11
+            ],
+            "mean": 1.915,
+            "n": 200
+          },
+          "realized_cost_max": 10,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              5.3243,
+              7.9167
+            ],
+            "point": 6.3833,
+            "undefined_resamples": 0
+          },
+          "realized_total": 383,
+          "unconstrained": {
+            "k": 197,
+            "n": 200,
+            "rate": 0.985,
+            "wilson95": [
+              0.9568,
+              0.9949
+            ]
+          },
+          "utilisation": 0.1915
+        },
+        "B2": {
+          "claims_made": {
+            "k": 130,
+            "n": 200,
+            "rate": 0.65,
+            "wilson95": [
+              0.5816,
+              0.7127
+            ]
+          },
+          "correct": {
+            "k": 151,
+            "n": 200,
+            "rate": 0.755,
+            "wilson95": [
+              0.691,
+              0.8094
+            ]
+          },
+          "correct_count": 151,
+          "discriminating_share": 0.5008,
+          "exhausted": {
+            "k": 51,
+            "n": 200,
+            "rate": 0.255,
+            "wilson95": [
+              0.1996,
+              0.3196
+            ]
+          },
+          "false_discovery": {
+            "k": 4,
+            "n": 200,
+            "rate": 0.02,
+            "wilson95": [
+              0.0078,
+              0.0503
+            ]
+          },
+          "mean_experiments": 5.96,
+          "nominal_total": 2000,
+          "realized_cost": {
+            "bootstrap95": [
+              6.905,
+              7.525
+            ],
+            "mean": 7.205,
+            "n": 200
+          },
+          "realized_cost_max": 10,
+          "realized_cost_median": 7,
+          "realized_cost_p90": 10,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              8.5963,
+              10.705
+            ],
+            "point": 9.543,
+            "undefined_resamples": 0
+          },
+          "realized_total": 1441,
+          "unconstrained": {
+            "k": 103,
+            "n": 200,
+            "rate": 0.515,
+            "wilson95": [
+              0.4461,
+              0.5833
+            ]
+          },
+          "utilisation": 0.7205
+        }
+      },
+      "12": {
+        "B0": {
+          "claims_made": {
+            "k": 107,
+            "n": 200,
+            "rate": 0.535,
+            "wilson95": [
+              0.4659,
+              0.6028
+            ]
+          },
+          "correct": {
+            "k": 16,
+            "n": 200,
+            "rate": 0.08,
+            "wilson95": [
+              0.0498,
+              0.126
+            ]
+          },
+          "correct_count": 16,
+          "discriminating_share": 0.3476,
+          "exhausted": {
+            "k": 0,
+            "n": 200,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0188
+            ]
+          },
+          "false_discovery": {
+            "k": 68,
+            "n": 200,
+            "rate": 0.34,
+            "wilson95": [
+              0.2779,
+              0.4081
+            ]
+          },
+          "mean_experiments": 0.82,
+          "nominal_total": 2400,
+          "realized_cost": {
+            "bootstrap95": [
+              1.065,
+              1.36
+            ],
+            "mean": 1.21,
+            "n": 200
+          },
+          "realized_cost_max": 4,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              10.0417,
+              27.375
+            ],
+            "point": 15.125,
+            "undefined_resamples": 0
+          },
+          "realized_total": 242,
+          "unconstrained": {
+            "k": 200,
+            "n": 200,
+            "rate": 1.0,
+            "wilson95": [
+              0.9812,
+              1.0
+            ]
+          },
+          "utilisation": 0.1008
+        },
+        "B1": {
+          "claims_made": {
+            "k": 114,
+            "n": 200,
+            "rate": 0.57,
+            "wilson95": [
+              0.5007,
+              0.6367
+            ]
+          },
+          "correct": {
+            "k": 60,
+            "n": 200,
+            "rate": 0.3,
+            "wilson95": [
+              0.2407,
+              0.3668
+            ]
+          },
+          "correct_count": 60,
+          "discriminating_share": 0.8882,
+          "exhausted": {
+            "k": 0,
+            "n": 200,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0188
+            ]
+          },
+          "false_discovery": {
+            "k": 49,
+            "n": 200,
+            "rate": 0.245,
+            "wilson95": [
+              0.1906,
+              0.309
+            ]
+          },
+          "mean_experiments": 1.7,
+          "nominal_total": 2400,
+          "realized_cost": {
+            "bootstrap95": [
+              1.745,
+              2.11
+            ],
+            "mean": 1.915,
+            "n": 200
+          },
+          "realized_cost_max": 10,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              5.3099,
+              7.9184
+            ],
+            "point": 6.3833,
+            "undefined_resamples": 0
+          },
+          "realized_total": 383,
+          "unconstrained": {
+            "k": 199,
+            "n": 200,
+            "rate": 0.995,
+            "wilson95": [
+              0.9722,
+              0.9991
+            ]
+          },
+          "utilisation": 0.1596
+        },
+        "B2": {
+          "claims_made": {
+            "k": 152,
+            "n": 200,
+            "rate": 0.76,
+            "wilson95": [
+              0.6963,
+              0.8139
+            ]
+          },
+          "correct": {
+            "k": 173,
+            "n": 200,
+            "rate": 0.865,
+            "wilson95": [
+              0.8107,
+              0.9055
+            ]
+          },
+          "correct_count": 173,
+          "discriminating_share": 0.4882,
+          "exhausted": {
+            "k": 37,
+            "n": 200,
+            "rate": 0.185,
+            "wilson95": [
+              0.1373,
+              0.2446
+            ]
+          },
+          "false_discovery": {
+            "k": 4,
+            "n": 200,
+            "rate": 0.02,
+            "wilson95": [
+              0.0078,
+              0.0503
+            ]
+          },
+          "mean_experiments": 6.35,
+          "nominal_total": 2400,
+          "realized_cost": {
+            "bootstrap95": [
+              7.295,
+              8.095
+            ],
+            "mean": 7.695,
+            "n": 200
+          },
+          "realized_cost_max": 12,
+          "realized_cost_median": 7,
+          "realized_cost_p90": 12,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              8.1366,
+              9.7791
+            ],
+            "point": 8.896,
+            "undefined_resamples": 0
+          },
+          "realized_total": 1539,
+          "unconstrained": {
+            "k": 140,
+            "n": 200,
+            "rate": 0.7,
+            "wilson95": [
+              0.6332,
+              0.7593
+            ]
+          },
+          "utilisation": 0.6412
+        }
+      },
+      "16": {
+        "B0": {
+          "claims_made": {
+            "k": 107,
+            "n": 200,
+            "rate": 0.535,
+            "wilson95": [
+              0.4659,
+              0.6028
+            ]
+          },
+          "correct": {
+            "k": 16,
+            "n": 200,
+            "rate": 0.08,
+            "wilson95": [
+              0.0498,
+              0.126
+            ]
+          },
+          "correct_count": 16,
+          "discriminating_share": 0.3476,
+          "exhausted": {
+            "k": 0,
+            "n": 200,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0188
+            ]
+          },
+          "false_discovery": {
+            "k": 68,
+            "n": 200,
+            "rate": 0.34,
+            "wilson95": [
+              0.2779,
+              0.4081
+            ]
+          },
+          "mean_experiments": 0.82,
+          "nominal_total": 3200,
+          "realized_cost": {
+            "bootstrap95": [
+              1.06,
+              1.36
+            ],
+            "mean": 1.21,
+            "n": 200
+          },
+          "realized_cost_max": 4,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              10.2273,
+              27.75
+            ],
+            "point": 15.125,
+            "undefined_resamples": 0
+          },
+          "realized_total": 242,
+          "unconstrained": {
+            "k": 200,
+            "n": 200,
+            "rate": 1.0,
+            "wilson95": [
+              0.9812,
+              1.0
+            ]
+          },
+          "utilisation": 0.0756
+        },
+        "B1": {
+          "claims_made": {
+            "k": 114,
+            "n": 200,
+            "rate": 0.57,
+            "wilson95": [
+              0.5007,
+              0.6367
+            ]
+          },
+          "correct": {
+            "k": 60,
+            "n": 200,
+            "rate": 0.3,
+            "wilson95": [
+              0.2407,
+              0.3668
+            ]
+          },
+          "correct_count": 60,
+          "discriminating_share": 0.8882,
+          "exhausted": {
+            "k": 0,
+            "n": 200,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0188
+            ]
+          },
+          "false_discovery": {
+            "k": 49,
+            "n": 200,
+            "rate": 0.245,
+            "wilson95": [
+              0.1906,
+              0.309
+            ]
+          },
+          "mean_experiments": 1.7,
+          "nominal_total": 3200,
+          "realized_cost": {
+            "bootstrap95": [
+              1.74,
+              2.1
+            ],
+            "mean": 1.915,
+            "n": 200
+          },
+          "realized_cost_max": 10,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              5.2609,
+              7.9792
+            ],
+            "point": 6.3833,
+            "undefined_resamples": 0
+          },
+          "realized_total": 383,
+          "unconstrained": {
+            "k": 200,
+            "n": 200,
+            "rate": 1.0,
+            "wilson95": [
+              0.9812,
+              1.0
+            ]
+          },
+          "utilisation": 0.1197
+        },
+        "B2": {
+          "claims_made": {
+            "k": 170,
+            "n": 200,
+            "rate": 0.85,
+            "wilson95": [
+              0.7939,
+              0.8929
+            ]
+          },
+          "correct": {
+            "k": 191,
+            "n": 200,
+            "rate": 0.955,
+            "wilson95": [
+              0.9167,
+              0.9761
+            ]
+          },
+          "correct_count": 191,
+          "discriminating_share": 0.4782,
+          "exhausted": {
+            "k": 7,
+            "n": 200,
+            "rate": 0.035,
+            "wilson95": [
+              0.0171,
+              0.0705
+            ]
+          },
+          "false_discovery": {
+            "k": 4,
+            "n": 200,
+            "rate": 0.02,
+            "wilson95": [
+              0.0078,
+              0.0503
+            ]
+          },
+          "mean_experiments": 6.65,
+          "nominal_total": 3200,
+          "realized_cost": {
+            "bootstrap95": [
+              7.59,
+              8.555
+            ],
+            "mean": 8.065,
+            "n": 200
+          },
+          "realized_cost_max": 16,
+          "realized_cost_median": 7,
+          "realized_cost_p90": 14,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              7.8438,
+              9.0847
+            ],
+            "point": 8.445,
+            "undefined_resamples": 0
+          },
+          "realized_total": 1613,
+          "unconstrained": {
+            "k": 179,
+            "n": 200,
+            "rate": 0.895,
+            "wilson95": [
+              0.8448,
+              0.9303
+            ]
+          },
+          "utilisation": 0.5041
+        }
+      },
+      "20": {
+        "B0": {
+          "claims_made": {
+            "k": 107,
+            "n": 200,
+            "rate": 0.535,
+            "wilson95": [
+              0.4659,
+              0.6028
+            ]
+          },
+          "correct": {
+            "k": 16,
+            "n": 200,
+            "rate": 0.08,
+            "wilson95": [
+              0.0498,
+              0.126
+            ]
+          },
+          "correct_count": 16,
+          "discriminating_share": 0.3476,
+          "exhausted": {
+            "k": 0,
+            "n": 200,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0188
+            ]
+          },
+          "false_discovery": {
+            "k": 68,
+            "n": 200,
+            "rate": 0.34,
+            "wilson95": [
+              0.2779,
+              0.4081
+            ]
+          },
+          "mean_experiments": 0.82,
+          "nominal_total": 4000,
+          "realized_cost": {
+            "bootstrap95": [
+              1.065,
+              1.355
+            ],
+            "mean": 1.21,
+            "n": 200
+          },
+          "realized_cost_max": 4,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              9.88,
+              26.9
+            ],
+            "point": 15.125,
+            "undefined_resamples": 0
+          },
+          "realized_total": 242,
+          "unconstrained": {
+            "k": 200,
+            "n": 200,
+            "rate": 1.0,
+            "wilson95": [
+              0.9812,
+              1.0
+            ]
+          },
+          "utilisation": 0.0605
+        },
+        "B1": {
+          "claims_made": {
+            "k": 114,
+            "n": 200,
+            "rate": 0.57,
+            "wilson95": [
+              0.5007,
+              0.6367
+            ]
+          },
+          "correct": {
+            "k": 60,
+            "n": 200,
+            "rate": 0.3,
+            "wilson95": [
+              0.2407,
+              0.3668
+            ]
+          },
+          "correct_count": 60,
+          "discriminating_share": 0.8882,
+          "exhausted": {
+            "k": 0,
+            "n": 200,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0188
+            ]
+          },
+          "false_discovery": {
+            "k": 49,
+            "n": 200,
+            "rate": 0.245,
+            "wilson95": [
+              0.1906,
+              0.309
+            ]
+          },
+          "mean_experiments": 1.7,
+          "nominal_total": 4000,
+          "realized_cost": {
+            "bootstrap95": [
+              1.75,
+              2.105
+            ],
+            "mean": 1.915,
+            "n": 200
+          },
+          "realized_cost_max": 10,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              5.3108,
+              7.9388
+            ],
+            "point": 6.3833,
+            "undefined_resamples": 0
+          },
+          "realized_total": 383,
+          "unconstrained": {
+            "k": 200,
+            "n": 200,
+            "rate": 1.0,
+            "wilson95": [
+              0.9812,
+              1.0
+            ]
+          },
+          "utilisation": 0.0958
+        },
+        "B2": {
+          "claims_made": {
+            "k": 172,
+            "n": 200,
+            "rate": 0.86,
+            "wilson95": [
+              0.8051,
+              0.9013
+            ]
+          },
+          "correct": {
+            "k": 193,
+            "n": 200,
+            "rate": 0.965,
+            "wilson95": [
+              0.9295,
+              0.9829
+            ]
+          },
+          "correct_count": 193,
+          "discriminating_share": 0.4744,
+          "exhausted": {
+            "k": 4,
+            "n": 200,
+            "rate": 0.02,
+            "wilson95": [
+              0.0078,
+              0.0503
+            ]
+          },
+          "false_discovery": {
+            "k": 4,
+            "n": 200,
+            "rate": 0.02,
+            "wilson95": [
+              0.0078,
+              0.0503
+            ]
+          },
+          "mean_experiments": 6.745,
+          "nominal_total": 4000,
+          "realized_cost": {
+            "bootstrap95": [
+              7.665,
+              8.725
+            ],
+            "mean": 8.17,
+            "n": 200
+          },
+          "realized_cost_max": 20,
+          "realized_cost_median": 7,
+          "realized_cost_p90": 14,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              7.8629,
+              9.1406
+            ],
+            "point": 8.4663,
+            "undefined_resamples": 0
+          },
+          "realized_total": 1634,
+          "unconstrained": {
+            "k": 195,
+            "n": 200,
+            "rate": 0.975,
+            "wilson95": [
+              0.9428,
+              0.9893
+            ]
+          },
+          "utilisation": 0.4085
+        }
+      },
+      "24": {
+        "B0": {
+          "claims_made": {
+            "k": 107,
+            "n": 200,
+            "rate": 0.535,
+            "wilson95": [
+              0.4659,
+              0.6028
+            ]
+          },
+          "correct": {
+            "k": 16,
+            "n": 200,
+            "rate": 0.08,
+            "wilson95": [
+              0.0498,
+              0.126
+            ]
+          },
+          "correct_count": 16,
+          "discriminating_share": 0.3476,
+          "exhausted": {
+            "k": 0,
+            "n": 200,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0188
+            ]
+          },
+          "false_discovery": {
+            "k": 68,
+            "n": 200,
+            "rate": 0.34,
+            "wilson95": [
+              0.2779,
+              0.4081
+            ]
+          },
+          "mean_experiments": 0.82,
+          "nominal_total": 4800,
+          "realized_cost": {
+            "bootstrap95": [
+              1.07,
+              1.355
+            ],
+            "mean": 1.21,
+            "n": 200
+          },
+          "realized_cost_max": 4,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              10.0455,
+              26.4444
+            ],
+            "point": 15.125,
+            "undefined_resamples": 0
+          },
+          "realized_total": 242,
+          "unconstrained": {
+            "k": 200,
+            "n": 200,
+            "rate": 1.0,
+            "wilson95": [
+              0.9812,
+              1.0
+            ]
+          },
+          "utilisation": 0.0504
+        },
+        "B1": {
+          "claims_made": {
+            "k": 114,
+            "n": 200,
+            "rate": 0.57,
+            "wilson95": [
+              0.5007,
+              0.6367
+            ]
+          },
+          "correct": {
+            "k": 60,
+            "n": 200,
+            "rate": 0.3,
+            "wilson95": [
+              0.2407,
+              0.3668
+            ]
+          },
+          "correct_count": 60,
+          "discriminating_share": 0.8882,
+          "exhausted": {
+            "k": 0,
+            "n": 200,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0188
+            ]
+          },
+          "false_discovery": {
+            "k": 49,
+            "n": 200,
+            "rate": 0.245,
+            "wilson95": [
+              0.1906,
+              0.309
+            ]
+          },
+          "mean_experiments": 1.7,
+          "nominal_total": 4800,
+          "realized_cost": {
+            "bootstrap95": [
+              1.74,
+              2.105
+            ],
+            "mean": 1.915,
+            "n": 200
+          },
+          "realized_cost_max": 10,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              5.3286,
+              7.9808
+            ],
+            "point": 6.3833,
+            "undefined_resamples": 0
+          },
+          "realized_total": 383,
+          "unconstrained": {
+            "k": 200,
+            "n": 200,
+            "rate": 1.0,
+            "wilson95": [
+              0.9812,
+              1.0
+            ]
+          },
+          "utilisation": 0.0798
+        },
+        "B2": {
+          "claims_made": {
+            "k": 173,
+            "n": 200,
+            "rate": 0.865,
+            "wilson95": [
+              0.8107,
+              0.9055
+            ]
+          },
+          "correct": {
+            "k": 194,
+            "n": 200,
+            "rate": 0.97,
+            "wilson95": [
+              0.9361,
+              0.9862
+            ]
+          },
+          "correct_count": 194,
+          "discriminating_share": 0.4716,
+          "exhausted": {
+            "k": 2,
+            "n": 200,
+            "rate": 0.01,
+            "wilson95": [
+              0.0027,
+              0.0357
+            ]
+          },
+          "false_discovery": {
+            "k": 4,
+            "n": 200,
+            "rate": 0.02,
+            "wilson95": [
+              0.0078,
+              0.0503
+            ]
+          },
+          "mean_experiments": 6.785,
+          "nominal_total": 4800,
+          "realized_cost": {
+            "bootstrap95": [
+              7.665,
+              8.775
+            ],
+            "mean": 8.215,
+            "n": 200
+          },
+          "realized_cost_max": 24,
+          "realized_cost_median": 7,
+          "realized_cost_p90": 14,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              7.8426,
+              9.1337
+            ],
+            "point": 8.4691,
+            "undefined_resamples": 0
+          },
+          "realized_total": 1643,
+          "unconstrained": {
+            "k": 198,
+            "n": 200,
+            "rate": 0.99,
+            "wilson95": [
+              0.9643,
+              0.9973
+            ]
+          },
+          "utilisation": 0.3423
+        }
+      },
+      "4": {
+        "B0": {
+          "claims_made": {
+            "k": 107,
+            "n": 200,
+            "rate": 0.535,
+            "wilson95": [
+              0.4659,
+              0.6028
+            ]
+          },
+          "correct": {
+            "k": 16,
+            "n": 200,
+            "rate": 0.08,
+            "wilson95": [
+              0.0498,
+              0.126
+            ]
+          },
+          "correct_count": 16,
+          "discriminating_share": 0.3476,
+          "exhausted": {
+            "k": 4,
+            "n": 200,
+            "rate": 0.02,
+            "wilson95": [
+              0.0078,
+              0.0503
+            ]
+          },
+          "false_discovery": {
+            "k": 68,
+            "n": 200,
+            "rate": 0.34,
+            "wilson95": [
+              0.2779,
+              0.4081
+            ]
+          },
+          "mean_experiments": 0.82,
+          "nominal_total": 800,
+          "realized_cost": {
+            "bootstrap95": [
+              1.065,
+              1.36
+            ],
+            "mean": 1.21,
+            "n": 200
+          },
+          "realized_cost_max": 4,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              10.0833,
+              27.2222
+            ],
+            "point": 15.125,
+            "undefined_resamples": 0
+          },
+          "realized_total": 242,
+          "unconstrained": {
+            "k": 152,
+            "n": 200,
+            "rate": 0.76,
+            "wilson95": [
+              0.6963,
+              0.8139
+            ]
+          },
+          "utilisation": 0.3025
+        },
+        "B1": {
+          "claims_made": {
+            "k": 110,
+            "n": 200,
+            "rate": 0.55,
+            "wilson95": [
+              0.4808,
+              0.6174
+            ]
+          },
+          "correct": {
+            "k": 59,
+            "n": 200,
+            "rate": 0.295,
+            "wilson95": [
+              0.2361,
+              0.3616
+            ]
+          },
+          "correct_count": 59,
+          "discriminating_share": 0.9224,
+          "exhausted": {
+            "k": 8,
+            "n": 200,
+            "rate": 0.04,
+            "wilson95": [
+              0.0204,
+              0.0769
+            ]
+          },
+          "false_discovery": {
+            "k": 46,
+            "n": 200,
+            "rate": 0.23,
+            "wilson95": [
+              0.1771,
+              0.2931
+            ]
+          },
+          "mean_experiments": 1.61,
+          "nominal_total": 800,
+          "realized_cost": {
+            "bootstrap95": [
+              1.7,
+              1.955
+            ],
+            "mean": 1.825,
+            "n": 200
+          },
+          "realized_cost_max": 4,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              5.1622,
+              7.7292
+            ],
+            "point": 6.1864,
+            "undefined_resamples": 0
+          },
+          "realized_total": 365,
+          "unconstrained": {
+            "k": 104,
+            "n": 200,
+            "rate": 0.52,
+            "wilson95": [
+              0.451,
+              0.5882
+            ]
+          },
+          "utilisation": 0.4562
+        },
+        "B2": {
+          "claims_made": {
+            "k": 46,
+            "n": 200,
+            "rate": 0.23,
+            "wilson95": [
+              0.1771,
+              0.2931
+            ]
+          },
+          "correct": {
+            "k": 69,
+            "n": 200,
+            "rate": 0.345,
+            "wilson95": [
+              0.2826,
+              0.4132
+            ]
+          },
+          "correct_count": 69,
+          "discriminating_share": 0.6027,
+          "exhausted": {
+            "k": 178,
+            "n": 200,
+            "rate": 0.89,
+            "wilson95": [
+              0.8391,
+              0.9262
+            ]
+          },
+          "false_discovery": {
+            "k": 2,
+            "n": 200,
+            "rate": 0.01,
+            "wilson95": [
+              0.0027,
+              0.0357
+            ]
+          },
+          "mean_experiments": 3.385,
+          "nominal_total": 800,
+          "realized_cost": {
+            "bootstrap95": [
+              3.845,
+              3.93
+            ],
+            "mean": 3.89,
+            "n": 200
+          },
+          "realized_cost_max": 4,
+          "realized_cost_median": 4,
+          "realized_cost_p90": 4,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              9.3735,
+              13.875
+            ],
+            "point": 11.2754,
+            "undefined_resamples": 0
+          },
+          "realized_total": 778,
+          "unconstrained": {
+            "k": 0,
+            "n": 200,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0188
+            ]
+          },
+          "utilisation": 0.9725
+        }
+      },
+      "6": {
+        "B0": {
+          "claims_made": {
+            "k": 107,
+            "n": 200,
+            "rate": 0.535,
+            "wilson95": [
+              0.4659,
+              0.6028
+            ]
+          },
+          "correct": {
+            "k": 16,
+            "n": 200,
+            "rate": 0.08,
+            "wilson95": [
+              0.0498,
+              0.126
+            ]
+          },
+          "correct_count": 16,
+          "discriminating_share": 0.3476,
+          "exhausted": {
+            "k": 0,
+            "n": 200,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0188
+            ]
+          },
+          "false_discovery": {
+            "k": 68,
+            "n": 200,
+            "rate": 0.34,
+            "wilson95": [
+              0.2779,
+              0.4081
+            ]
+          },
+          "mean_experiments": 0.82,
+          "nominal_total": 1200,
+          "realized_cost": {
+            "bootstrap95": [
+              1.065,
+              1.355
+            ],
+            "mean": 1.21,
+            "n": 200
+          },
+          "realized_cost_max": 4,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              10.087,
+              26.5
+            ],
+            "point": 15.125,
+            "undefined_resamples": 0
+          },
+          "realized_total": 242,
+          "unconstrained": {
+            "k": 196,
+            "n": 200,
+            "rate": 0.98,
+            "wilson95": [
+              0.9497,
+              0.9922
+            ]
+          },
+          "utilisation": 0.2017
+        },
+        "B1": {
+          "claims_made": {
+            "k": 111,
+            "n": 200,
+            "rate": 0.555,
+            "wilson95": [
+              0.4857,
+              0.6222
+            ]
+          },
+          "correct": {
+            "k": 59,
+            "n": 200,
+            "rate": 0.295,
+            "wilson95": [
+              0.2361,
+              0.3616
+            ]
+          },
+          "correct_count": 59,
+          "discriminating_share": 0.9033,
+          "exhausted": {
+            "k": 4,
+            "n": 200,
+            "rate": 0.02,
+            "wilson95": [
+              0.0078,
+              0.0503
+            ]
+          },
+          "false_discovery": {
+            "k": 47,
+            "n": 200,
+            "rate": 0.235,
+            "wilson95": [
+              0.1816,
+              0.2984
+            ]
+          },
+          "mean_experiments": 1.655,
+          "nominal_total": 1200,
+          "realized_cost": {
+            "bootstrap95": [
+              1.715,
+              2.025
+            ],
+            "mean": 1.87,
+            "n": 200
+          },
+          "realized_cost_max": 6,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              5.25,
+              7.8776
+            ],
+            "point": 6.339,
+            "undefined_resamples": 0
+          },
+          "realized_total": 374,
+          "unconstrained": {
+            "k": 192,
+            "n": 200,
+            "rate": 0.96,
+            "wilson95": [
+              0.9231,
+              0.9796
+            ]
+          },
+          "utilisation": 0.3117
+        },
+        "B2": {
+          "claims_made": {
+            "k": 75,
+            "n": 200,
+            "rate": 0.375,
+            "wilson95": [
+              0.3109,
+              0.4439
+            ]
+          },
+          "correct": {
+            "k": 97,
+            "n": 200,
+            "rate": 0.485,
+            "wilson95": [
+              0.4167,
+              0.5539
+            ]
+          },
+          "correct_count": 97,
+          "discriminating_share": 0.5463,
+          "exhausted": {
+            "k": 153,
+            "n": 200,
+            "rate": 0.765,
+            "wilson95": [
+              0.7016,
+              0.8184
+            ]
+          },
+          "false_discovery": {
+            "k": 3,
+            "n": 200,
+            "rate": 0.015,
+            "wilson95": [
+              0.0051,
+              0.0432
+            ]
+          },
+          "mean_experiments": 4.54,
+          "nominal_total": 1200,
+          "realized_cost": {
+            "bootstrap95": [
+              5.365,
+              5.625
+            ],
+            "mean": 5.5,
+            "n": 200
+          },
+          "realized_cost_max": 6,
+          "realized_cost_median": 6,
+          "realized_cost_p90": 6,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              9.8364,
+              13.3214
+            ],
+            "point": 11.3402,
+            "undefined_resamples": 0
+          },
+          "realized_total": 1100,
+          "unconstrained": {
+            "k": 14,
+            "n": 200,
+            "rate": 0.07,
+            "wilson95": [
+              0.0422,
+              0.1141
+            ]
+          },
+          "utilisation": 0.9167
+        }
+      },
+      "8": {
+        "B0": {
+          "claims_made": {
+            "k": 107,
+            "n": 200,
+            "rate": 0.535,
+            "wilson95": [
+              0.4659,
+              0.6028
+            ]
+          },
+          "correct": {
+            "k": 16,
+            "n": 200,
+            "rate": 0.08,
+            "wilson95": [
+              0.0498,
+              0.126
+            ]
+          },
+          "correct_count": 16,
+          "discriminating_share": 0.3476,
+          "exhausted": {
+            "k": 0,
+            "n": 200,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0188
+            ]
+          },
+          "false_discovery": {
+            "k": 68,
+            "n": 200,
+            "rate": 0.34,
+            "wilson95": [
+              0.2779,
+              0.4081
+            ]
+          },
+          "mean_experiments": 0.82,
+          "nominal_total": 1600,
+          "realized_cost": {
+            "bootstrap95": [
+              1.07,
+              1.36
+            ],
+            "mean": 1.21,
+            "n": 200
+          },
+          "realized_cost_max": 4,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              9.96,
+              27.8
+            ],
+            "point": 15.125,
+            "undefined_resamples": 0
+          },
+          "realized_total": 242,
+          "unconstrained": {
+            "k": 200,
+            "n": 200,
+            "rate": 1.0,
+            "wilson95": [
+              0.9812,
+              1.0
+            ]
+          },
+          "utilisation": 0.1512
+        },
+        "B1": {
+          "claims_made": {
+            "k": 112,
+            "n": 200,
+            "rate": 0.56,
+            "wilson95": [
+              0.4907,
+              0.627
+            ]
+          },
+          "correct": {
+            "k": 59,
+            "n": 200,
+            "rate": 0.295,
+            "wilson95": [
+              0.2361,
+              0.3616
+            ]
+          },
+          "correct_count": 59,
+          "discriminating_share": 0.8902,
+          "exhausted": {
+            "k": 3,
+            "n": 200,
+            "rate": 0.015,
+            "wilson95": [
+              0.0051,
+              0.0432
+            ]
+          },
+          "false_discovery": {
+            "k": 48,
+            "n": 200,
+            "rate": 0.24,
+            "wilson95": [
+              0.1861,
+              0.3037
+            ]
+          },
+          "mean_experiments": 1.685,
+          "nominal_total": 1600,
+          "realized_cost": {
+            "bootstrap95": [
+              1.735,
+              2.075
+            ],
+            "mean": 1.9,
+            "n": 200
+          },
+          "realized_cost_max": 8,
+          "realized_cost_median": 1,
+          "realized_cost_p90": 3,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              5.3194,
+              8.0833
+            ],
+            "point": 6.4407,
+            "undefined_resamples": 0
+          },
+          "realized_total": 380,
+          "unconstrained": {
+            "k": 196,
+            "n": 200,
+            "rate": 0.98,
+            "wilson95": [
+              0.9497,
+              0.9922
+            ]
+          },
+          "utilisation": 0.2375
+        },
+        "B2": {
+          "claims_made": {
+            "k": 120,
+            "n": 200,
+            "rate": 0.6,
+            "wilson95": [
+              0.5308,
+              0.6654
+            ]
+          },
+          "correct": {
+            "k": 141,
+            "n": 200,
+            "rate": 0.705,
+            "wilson95": [
+              0.6384,
+              0.7639
+            ]
+          },
+          "correct_count": 141,
+          "discriminating_share": 0.5211,
+          "exhausted": {
+            "k": 91,
+            "n": 200,
+            "rate": 0.455,
+            "wilson95": [
+              0.3875,
+              0.5242
+            ]
+          },
+          "false_discovery": {
+            "k": 4,
+            "n": 200,
+            "rate": 0.02,
+            "wilson95": [
+              0.0078,
+              0.0503
+            ]
+          },
+          "mean_experiments": 5.46,
+          "nominal_total": 1600,
+          "realized_cost": {
+            "bootstrap95": [
+              6.355,
+              6.805
+            ],
+            "mean": 6.59,
+            "n": 200
+          },
+          "realized_cost_max": 8,
+          "realized_cost_median": 7,
+          "realized_cost_p90": 8,
+          "realized_cost_per_correct": {
+            "bootstrap95": [
+              8.4379,
+              10.4436
+            ],
+            "point": 9.3475,
+            "undefined_resamples": 0
+          },
+          "realized_total": 1318,
+          "unconstrained": {
+            "k": 42,
+            "n": 200,
+            "rate": 0.21,
+            "wilson95": [
+              0.1593,
+              0.2716
+            ]
+          },
+          "utilisation": 0.8237
+        }
+      }
+    },
+    "worlds": 200
+  },
+  "world_kinds": [
+    "composition",
+    "confounded_measurement_chain",
+    "in_catalog_single",
+    "inseparable_pair",
+    "noise_glitch",
+    "noise_only_null",
+    "outside_all_declared",
+    "outside_initial_prior"
+  ]
+}

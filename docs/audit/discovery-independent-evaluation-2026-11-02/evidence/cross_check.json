@@ -1,0 +1,23 @@
+{
+  "base_seed": 2026110100,
+  "budget": 12,
+  "correct": {
+    "B0": 16,
+    "B1": 62,
+    "B2": 178
+  },
+  "correct_matches": true,
+  "engine_sources_match_frozen_manifest": true,
+  "frozen_code_commit": "b3bbb55d14e4ebf329c88bc2cfc73dd56698da9e",
+  "frozen_correct": {
+    "B0": 16,
+    "B1": 62,
+    "B2": 178
+  },
+  "frozen_evidence": "docs/audit/discovery-loop-offline-2026-11-01/evidence",
+  "frozen_manifest_sha256": "sha256:d58ffb401a26a14a614d80b56bcda18505d40c44bea5195baebe6323ada3e9d9",
+  "frozen_run_digest": "sha256:e98bd4c20156e8e1beec4528a632a728108f119e42a47f7d73c17b11821e9dfd",
+  "harness": "curves.run_grid (blind, metered laboratory) reproduces benchmark.run exactly",
+  "run_digest": "sha256:e98bd4c20156e8e1beec4528a632a728108f119e42a47f7d73c17b11821e9dfd",
+  "run_digest_matches": true
+}

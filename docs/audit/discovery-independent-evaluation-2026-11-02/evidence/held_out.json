@@ -1,0 +1,1104 @@
+{
+  "aliasing": {
+    "chain.fiber_coupling": {
+      "aliased": false,
+      "aliases": [],
+      "family": "chain.fiber"
+    },
+    "chain.laser_drift": {
+      "aliased": false,
+      "aliases": [],
+      "family": "chain.laser"
+    },
+    "chain.polarization_drift": {
+      "aliased": false,
+      "aliases": [],
+      "family": "chain.polarization"
+    },
+    "cladding.index_drift": {
+      "aliased": true,
+      "aliases": [
+        "hyp:geometry.gap_large+geometry.width_wide"
+      ],
+      "family": "cladding"
+    },
+    "fcd.static": {
+      "aliased": false,
+      "aliases": [],
+      "family": "fcd"
+    },
+    "geometry.gap_large": {
+      "aliased": true,
+      "aliases": [
+        "hyp:cladding.index_drift+geometry.width_narrow"
+      ],
+      "family": "geometry.gap"
+    },
+    "geometry.gap_small": {
+      "aliased": false,
+      "aliases": [],
+      "family": "geometry.gap"
+    },
+    "geometry.thickness": {
+      "aliased": false,
+      "aliases": [],
+      "family": "geometry.thickness"
+    },
+    "geometry.width_narrow": {
+      "aliased": false,
+      "aliases": [],
+      "family": "geometry.width"
+    },
+    "geometry.width_wide": {
+      "aliased": true,
+      "aliases": [
+        "hyp:cladding.index_drift+geometry.gap_small"
+      ],
+      "family": "geometry.width"
+    },
+    "leakage.substrate": {
+      "aliased": false,
+      "aliases": [],
+      "family": "leakage"
+    },
+    "nonlinear.fca_dominated": {
+      "aliased": false,
+      "aliases": [],
+      "family": "nonlinear"
+    },
+    "nonlinear.tpa_fca": {
+      "aliased": false,
+      "aliases": [],
+      "family": "nonlinear"
+    },
+    "scatter.sidewall": {
+      "aliased": false,
+      "aliases": [],
+      "family": "scatter"
+    },
+    "thermo.ambient": {
+      "aliased": false,
+      "aliases": [],
+      "family": "thermo"
+    },
+    "thermo.self_heating": {
+      "aliased": false,
+      "aliases": [],
+      "family": "thermo"
+    }
+  },
+  "author_note": "SAME AUTHOR LINEAGE: the held-out families were declared in the catalog the engine was developed against, by the same author lineage. This tests behaviour with an incomplete vocabulary; it is not an independent test of unseen mechanisms.",
+  "base_seed": 2026610200,
+  "budget_never_exceeded": true,
+  "budgets": [
+    12,
+    24
+  ],
+  "classes": 16,
+  "control_family_left_in_catalog": {
+    "arms": {
+      "B0": {
+        "correct": {
+          "k": 74,
+          "n": 240,
+          "rate": 0.3083,
+          "wilson95": [
+            0.2533,
+            0.3694
+          ]
+        },
+        "false_discovery": {
+          "k": 81,
+          "n": 240,
+          "rate": 0.3375,
+          "wilson95": [
+            0.2807,
+            0.3995
+          ]
+        }
+      },
+      "B1": {
+        "correct": {
+          "k": 135,
+          "n": 240,
+          "rate": 0.5625,
+          "wilson95": [
+            0.4992,
+            0.6238
+          ]
+        },
+        "false_discovery": {
+          "k": 64,
+          "n": 240,
+          "rate": 0.2667,
+          "wilson95": [
+            0.2147,
+            0.326
+          ]
+        }
+      },
+      "B2": {
+        "correct": {
+          "k": 218,
+          "n": 240,
+          "rate": 0.9083,
+          "wilson95": [
+            0.8651,
+            0.9387
+          ]
+        },
+        "false_discovery": {
+          "k": 1,
+          "n": 240,
+          "rate": 0.0042,
+          "wilson95": [
+            0.0007,
+            0.0232
+          ]
+        }
+      }
+    },
+    "budget": 12,
+    "worlds": 240
+  },
+  "correct_outcome": "no claim (STOPPED_UNEXPLAINED or STOPPED_INSUFFICIENT_VALIDATION)",
+  "descriptive_mentions_of_removed_family": {
+    "chain.fiber": [],
+    "chain.laser": [],
+    "chain.polarization": [],
+    "cladding": [],
+    "fcd": [
+      "$.mechanisms[3].regime: 'fcd'"
+    ],
+    "geometry.gap": [],
+    "geometry.thickness": [],
+    "geometry.width": [],
+    "leakage": [],
+    "nonlinear": [],
+    "scatter": [],
+    "thermo": []
+  },
+  "false_null": "NO_EFFECT_BEYOND_NOISE (the effect is real)",
+  "force_fit": "a claimed mechanism class (false discovery)",
+  "kind": "lab-brain/discovery-held-out-class@1",
+  "never_confirmed": true,
+  "seeds_per_class": 15,
+  "summary": {
+    "12": {
+      "arms": {
+        "B0": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 29,
+            "other_claim": 16,
+            "surrogate_claim": 0
+          },
+          "correct_no_claim": {
+            "k": 118,
+            "n": 195,
+            "rate": 0.6051,
+            "wilson95": [
+              0.5351,
+              0.6711
+            ]
+          },
+          "correct_with_record": {
+            "k": 0,
+            "n": 195,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0193
+            ]
+          },
+          "false_null": {
+            "k": 0,
+            "n": 195,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0193
+            ]
+          },
+          "force_fit": {
+            "k": 77,
+            "n": 195,
+            "rate": 0.3949,
+            "wilson95": [
+              0.3289,
+              0.4649
+            ]
+          },
+          "outcomes": {
+            "STOPPED_INSUFFICIENT_VALIDATION": 118,
+            "SURVIVING_PENDING_WARRANT_GATE": 77
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 0
+            },
+            "chain.laser": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "chain.polarization": {
+              "correct": 10,
+              "false_null": 0,
+              "force_fit": 5,
+              "n": 15,
+              "with_record": 0
+            },
+            "fcd": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.gap": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.thickness": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.width": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 0
+            },
+            "leakage": {
+              "correct": 2,
+              "false_null": 0,
+              "force_fit": 13,
+              "n": 15,
+              "with_record": 0
+            },
+            "nonlinear": {
+              "correct": 24,
+              "false_null": 0,
+              "force_fit": 6,
+              "n": 30,
+              "with_record": 0
+            },
+            "scatter": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 0
+            },
+            "thermo": {
+              "correct": 9,
+              "false_null": 0,
+              "force_fit": 21,
+              "n": 30,
+              "with_record": 0
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              1.1949,
+              1.5897
+            ],
+            "mean": 1.3897,
+            "n": 195
+          }
+        },
+        "B1": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 26,
+            "other_claim": 19,
+            "surrogate_claim": 0
+          },
+          "correct_no_claim": {
+            "k": 71,
+            "n": 195,
+            "rate": 0.3641,
+            "wilson95": [
+              0.2998,
+              0.4337
+            ]
+          },
+          "correct_with_record": {
+            "k": 0,
+            "n": 195,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0193
+            ]
+          },
+          "false_null": {
+            "k": 20,
+            "n": 195,
+            "rate": 0.1026,
+            "wilson95": [
+              0.0674,
+              0.1531
+            ]
+          },
+          "force_fit": {
+            "k": 104,
+            "n": 195,
+            "rate": 0.5333,
+            "wilson95": [
+              0.4633,
+              0.602
+            ]
+          },
+          "outcomes": {
+            "NO_EFFECT_BEYOND_NOISE": 20,
+            "STOPPED_INSUFFICIENT_VALIDATION": 15,
+            "STOPPED_UNEXPLAINED": 56,
+            "SURVIVING_PENDING_WARRANT_GATE": 104
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 0
+            },
+            "chain.laser": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "chain.polarization": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "fcd": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.gap": {
+              "correct": 7,
+              "false_null": 8,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.thickness": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.width": {
+              "correct": 11,
+              "false_null": 0,
+              "force_fit": 4,
+              "n": 15,
+              "with_record": 0
+            },
+            "leakage": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "nonlinear": {
+              "correct": 15,
+              "false_null": 12,
+              "force_fit": 3,
+              "n": 30,
+              "with_record": 0
+            },
+            "scatter": {
+              "correct": 1,
+              "false_null": 0,
+              "force_fit": 14,
+              "n": 15,
+              "with_record": 0
+            },
+            "thermo": {
+              "correct": 7,
+              "false_null": 0,
+              "force_fit": 23,
+              "n": 30,
+              "with_record": 0
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              2.4718,
+              3.4256
+            ],
+            "mean": 2.9436,
+            "n": 195
+          }
+        },
+        "B2": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 5,
+            "other_claim": 18,
+            "surrogate_claim": 22
+          },
+          "correct_no_claim": {
+            "k": 100,
+            "n": 195,
+            "rate": 0.5128,
+            "wilson95": [
+              0.4431,
+              0.582
+            ]
+          },
+          "correct_with_record": {
+            "k": 100,
+            "n": 195,
+            "rate": 0.5128,
+            "wilson95": [
+              0.4431,
+              0.582
+            ]
+          },
+          "false_null": {
+            "k": 17,
+            "n": 195,
+            "rate": 0.0872,
+            "wilson95": [
+              0.0551,
+              0.1352
+            ]
+          },
+          "force_fit": {
+            "k": 78,
+            "n": 195,
+            "rate": 0.4,
+            "wilson95": [
+              0.3338,
+              0.4701
+            ]
+          },
+          "outcomes": {
+            "NO_EFFECT_BEYOND_NOISE": 17,
+            "STOPPED_INSUFFICIENT_VALIDATION": 30,
+            "STOPPED_UNEXPLAINED": 70,
+            "SURVIVING_PENDING_WARRANT_GATE": 78
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.laser": {
+              "correct": 9,
+              "false_null": 0,
+              "force_fit": 6,
+              "n": 15,
+              "with_record": 9
+            },
+            "chain.polarization": {
+              "correct": 2,
+              "false_null": 0,
+              "force_fit": 13,
+              "n": 15,
+              "with_record": 2
+            },
+            "fcd": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "geometry.gap": {
+              "correct": 5,
+              "false_null": 6,
+              "force_fit": 4,
+              "n": 15,
+              "with_record": 5
+            },
+            "geometry.thickness": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.width": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 14
+            },
+            "leakage": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "nonlinear": {
+              "correct": 18,
+              "false_null": 11,
+              "force_fit": 1,
+              "n": 30,
+              "with_record": 18
+            },
+            "scatter": {
+              "correct": 1,
+              "false_null": 0,
+              "force_fit": 14,
+              "n": 15,
+              "with_record": 1
+            },
+            "thermo": {
+              "correct": 21,
+              "false_null": 0,
+              "force_fit": 9,
+              "n": 30,
+              "with_record": 21
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              6.0821,
+              7.0872
+            ],
+            "mean": 6.5641,
+            "n": 195
+          }
+        }
+      },
+      "paired": {
+        "B2_minus_B0_correct": {
+          "a_only": 32,
+          "b_only": 50,
+          "ci95": [
+            -0.1795,
+            -0.0051
+          ],
+          "mean": -0.0923,
+          "worlds": 195
+        },
+        "B2_minus_B0_force_fit": {
+          "a_only": 34,
+          "b_only": 33,
+          "ci95": [
+            -0.0769,
+            0.0872
+          ],
+          "mean": 0.0051,
+          "worlds": 195
+        },
+        "B2_minus_B1_correct": {
+          "a_only": 34,
+          "b_only": 5,
+          "ci95": [
+            0.0872,
+            0.2103
+          ],
+          "mean": 0.1487,
+          "worlds": 195
+        },
+        "B2_minus_B1_force_fit": {
+          "a_only": 5,
+          "b_only": 31,
+          "ci95": [
+            -0.1897,
+            -0.0769
+          ],
+          "mean": -0.1333,
+          "worlds": 195
+        }
+      },
+      "worlds_aliased": 45,
+      "worlds_primary": 195
+    },
+    "24": {
+      "arms": {
+        "B0": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 29,
+            "other_claim": 16,
+            "surrogate_claim": 0
+          },
+          "correct_no_claim": {
+            "k": 118,
+            "n": 195,
+            "rate": 0.6051,
+            "wilson95": [
+              0.5351,
+              0.6711
+            ]
+          },
+          "correct_with_record": {
+            "k": 0,
+            "n": 195,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0193
+            ]
+          },
+          "false_null": {
+            "k": 0,
+            "n": 195,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0193
+            ]
+          },
+          "force_fit": {
+            "k": 77,
+            "n": 195,
+            "rate": 0.3949,
+            "wilson95": [
+              0.3289,
+              0.4649
+            ]
+          },
+          "outcomes": {
+            "STOPPED_INSUFFICIENT_VALIDATION": 118,
+            "SURVIVING_PENDING_WARRANT_GATE": 77
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 0
+            },
+            "chain.laser": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "chain.polarization": {
+              "correct": 10,
+              "false_null": 0,
+              "force_fit": 5,
+              "n": 15,
+              "with_record": 0
+            },
+            "fcd": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.gap": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.thickness": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.width": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 0
+            },
+            "leakage": {
+              "correct": 2,
+              "false_null": 0,
+              "force_fit": 13,
+              "n": 15,
+              "with_record": 0
+            },
+            "nonlinear": {
+              "correct": 24,
+              "false_null": 0,
+              "force_fit": 6,
+              "n": 30,
+              "with_record": 0
+            },
+            "scatter": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 0
+            },
+            "thermo": {
+              "correct": 9,
+              "false_null": 0,
+              "force_fit": 21,
+              "n": 30,
+              "with_record": 0
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              1.1897,
+              1.5795
+            ],
+            "mean": 1.3897,
+            "n": 195
+          }
+        },
+        "B1": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 24,
+            "other_claim": 21,
+            "surrogate_claim": 0
+          },
+          "correct_no_claim": {
+            "k": 59,
+            "n": 195,
+            "rate": 0.3026,
+            "wilson95": [
+              0.2424,
+              0.3703
+            ]
+          },
+          "correct_with_record": {
+            "k": 0,
+            "n": 195,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0193
+            ]
+          },
+          "false_null": {
+            "k": 28,
+            "n": 195,
+            "rate": 0.1436,
+            "wilson95": [
+              0.1013,
+              0.1997
+            ]
+          },
+          "force_fit": {
+            "k": 108,
+            "n": 195,
+            "rate": 0.5538,
+            "wilson95": [
+              0.4837,
+              0.6219
+            ]
+          },
+          "outcomes": {
+            "NO_EFFECT_BEYOND_NOISE": 28,
+            "STOPPED_INSUFFICIENT_VALIDATION": 3,
+            "STOPPED_UNEXPLAINED": 56,
+            "SURVIVING_PENDING_WARRANT_GATE": 108
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 0
+            },
+            "chain.laser": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "chain.polarization": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "fcd": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.gap": {
+              "correct": 7,
+              "false_null": 8,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.thickness": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.width": {
+              "correct": 11,
+              "false_null": 0,
+              "force_fit": 4,
+              "n": 15,
+              "with_record": 0
+            },
+            "leakage": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "nonlinear": {
+              "correct": 3,
+              "false_null": 20,
+              "force_fit": 7,
+              "n": 30,
+              "with_record": 0
+            },
+            "scatter": {
+              "correct": 1,
+              "false_null": 0,
+              "force_fit": 14,
+              "n": 15,
+              "with_record": 0
+            },
+            "thermo": {
+              "correct": 7,
+              "false_null": 0,
+              "force_fit": 23,
+              "n": 30,
+              "with_record": 0
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              2.7795,
+              4.2256
+            ],
+            "mean": 3.4769,
+            "n": 195
+          }
+        },
+        "B2": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 1,
+            "other_claim": 20,
+            "surrogate_claim": 24
+          },
+          "correct_no_claim": {
+            "k": 78,
+            "n": 195,
+            "rate": 0.4,
+            "wilson95": [
+              0.3338,
+              0.4701
+            ]
+          },
+          "correct_with_record": {
+            "k": 78,
+            "n": 195,
+            "rate": 0.4,
+            "wilson95": [
+              0.3338,
+              0.4701
+            ]
+          },
+          "false_null": {
+            "k": 25,
+            "n": 195,
+            "rate": 0.1282,
+            "wilson95": [
+              0.0884,
+              0.1824
+            ]
+          },
+          "force_fit": {
+            "k": 92,
+            "n": 195,
+            "rate": 0.4718,
+            "wilson95": [
+              0.403,
+              0.5417
+            ]
+          },
+          "outcomes": {
+            "INDISTINGUISHABLE_CLASS_PENDING_WARRANT_GATE": 1,
+            "NO_EFFECT_BEYOND_NOISE": 25,
+            "STOPPED_INSUFFICIENT_VALIDATION": 5,
+            "STOPPED_UNEXPLAINED": 73,
+            "SURVIVING_PENDING_WARRANT_GATE": 91
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.laser": {
+              "correct": 1,
+              "false_null": 0,
+              "force_fit": 14,
+              "n": 15,
+              "with_record": 1
+            },
+            "chain.polarization": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "fcd": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 14
+            },
+            "geometry.gap": {
+              "correct": 5,
+              "false_null": 6,
+              "force_fit": 4,
+              "n": 15,
+              "with_record": 5
+            },
+            "geometry.thickness": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.width": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 14
+            },
+            "leakage": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "nonlinear": {
+              "correct": 8,
+              "false_null": 19,
+              "force_fit": 3,
+              "n": 30,
+              "with_record": 8
+            },
+            "scatter": {
+              "correct": 1,
+              "false_null": 0,
+              "force_fit": 14,
+              "n": 15,
+              "with_record": 1
+            },
+            "thermo": {
+              "correct": 20,
+              "false_null": 0,
+              "force_fit": 10,
+              "n": 30,
+              "with_record": 20
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              6.7538,
+              8.3897
+            ],
+            "mean": 7.559,
+            "n": 195
+          }
+        }
+      },
+      "paired": {
+        "B2_minus_B0_correct": {
+          "a_only": 17,
+          "b_only": 57,
+          "ci95": [
+            -0.2821,
+            -0.1231
+          ],
+          "mean": -0.2051,
+          "worlds": 195
+        },
+        "B2_minus_B0_force_fit": {
+          "a_only": 36,
+          "b_only": 21,
+          "ci95": [
+            0.0051,
+            0.1538
+          ],
+          "mean": 0.0769,
+          "worlds": 195
+        },
+        "B2_minus_B1_correct": {
+          "a_only": 25,
+          "b_only": 6,
+          "ci95": [
+            0.041,
+            0.1538
+          ],
+          "mean": 0.0974,
+          "worlds": 195
+        },
+        "B2_minus_B1_force_fit": {
+          "a_only": 6,
+          "b_only": 22,
+          "ci95": [
+            -0.1385,
+            -0.0359
+          ],
+          "mean": -0.0821,
+          "worlds": 195
+        }
+      },
+      "worlds_aliased": 45,
+      "worlds_primary": 195
+    }
+  },
+  "worlds": 240
+}

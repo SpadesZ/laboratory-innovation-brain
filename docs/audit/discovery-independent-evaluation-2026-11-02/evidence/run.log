@@ -1,0 +1,41 @@
+cross-check on the 2026-11-01 evaluation seeds at cap 12: run digest matches; correct {'B0': 16, 'B1': 62, 'B2': 178}
+cost curves: 200 worlds x 8 caps x 3 arms = 4800 runs, base seed 2026110200 (59.2s)
+cap  arm  correct [95% CI]           false-disc  realized mean  utilisation
+  4  B0   0.080 (0.0498, 0.126)  0.340       1.21          0.302
+  4  B1   0.295 (0.2361, 0.3616)  0.230       1.82          0.456
+  4  B2   0.345 (0.2826, 0.4132)  0.010       3.89          0.973
+  6  B0   0.080 (0.0498, 0.126)  0.340       1.21          0.202
+  6  B1   0.295 (0.2361, 0.3616)  0.235       1.87          0.312
+  6  B2   0.485 (0.4167, 0.5539)  0.015       5.50          0.917
+  8  B0   0.080 (0.0498, 0.126)  0.340       1.21          0.151
+  8  B1   0.295 (0.2361, 0.3616)  0.240       1.90          0.237
+  8  B2   0.705 (0.6384, 0.7639)  0.020       6.59          0.824
+ 10  B0   0.080 (0.0498, 0.126)  0.340       1.21          0.121
+ 10  B1   0.300 (0.2407, 0.3668)  0.245       1.92          0.192
+ 10  B2   0.755 (0.691, 0.8094)  0.020       7.21          0.721
+ 12  B0   0.080 (0.0498, 0.126)  0.340       1.21          0.101
+ 12  B1   0.300 (0.2407, 0.3668)  0.245       1.92          0.160
+ 12  B2   0.865 (0.8107, 0.9055)  0.020       7.70          0.641
+ 16  B0   0.080 (0.0498, 0.126)  0.340       1.21          0.076
+ 16  B1   0.300 (0.2407, 0.3668)  0.245       1.92          0.120
+ 16  B2   0.955 (0.9167, 0.9761)  0.020       8.06          0.504
+ 20  B0   0.080 (0.0498, 0.126)  0.340       1.21          0.060
+ 20  B1   0.300 (0.2407, 0.3668)  0.245       1.92          0.096
+ 20  B2   0.965 (0.9295, 0.9829)  0.020       8.17          0.408
+ 24  B0   0.080 (0.0498, 0.126)  0.340       1.21          0.050
+ 24  B1   0.300 (0.2407, 0.3668)  0.245       1.92          0.080
+ 24  B2   0.970 (0.9361, 0.9862)  0.020       8.21          0.342
+AUC (correct vs cap): {'B0': {'mean': 0.08, 'bootstrap95': (0.045, 0.12)}, 'B1': {'mean': 0.2988, 'bootstrap95': (0.24, 0.3588)}, 'B2': {'mean': 0.8225, 'bootstrap95': (0.79, 0.852)}}
+AUC paired: {'B2_minus_B1': {'mean': 0.5238, 'bootstrap95': (0.4635, 0.5892), 'worlds': 200}, 'B2_minus_B0': {'mean': 0.7425, 'bootstrap95': (0.6935, 0.7853), 'worlds': 200}}
+held-out: 240 worlds x 3 arms at budget 12 (10.8s)
+held-out: 240 worlds x 3 arms at budget 24 (11.8s)
+held-out budget 12: primary worlds 195, aliased 45
+  B0 correct(no claim) 0.605 force-fit 0.395 false-null 0.000 with-record 0.000 realized 1.39
+  B1 correct(no claim) 0.364 force-fit 0.533 false-null 0.103 with-record 0.000 realized 2.94
+  B2 correct(no claim) 0.513 force-fit 0.400 false-null 0.087 with-record 0.513 realized 6.56
+held-out budget 24: primary worlds 195, aliased 45
+  B0 correct(no claim) 0.605 force-fit 0.395 false-null 0.000 with-record 0.000 realized 1.39
+  B1 correct(no claim) 0.303 force-fit 0.554 false-null 0.144 with-record 0.000 realized 3.48
+  B2 correct(no claim) 0.400 force-fit 0.472 false-null 0.128 with-record 0.400 realized 7.56
+scaffold example: 8 EXAMPLE worlds sealed (demo salts), root sha256:e95a214b6ba42072a..., refusals demonstrated: ['example_used_as_hidden_set', 'public_part_altered_after_commitment', 'removal_reason_names_the_truth']
+elapsed 122.8s
