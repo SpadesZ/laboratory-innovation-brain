@@ -131,7 +131,9 @@ B2 有 2 次錯誤發現:漏掉弱的第二效應一次;把小幅度的耦合間
 | `54eb00e` | 評估腳本(組合根)、`pyproject.toml` 一行豁免 |
 | `af1ee9e` | 一次完整執行的凍結證據(在 `54eb00e` 產生)、凍結檢查測試 |
 | `c71a9d7` | 協定(英文+中文摘要)、設計文件第 10 節、報告 |
-| (最後一個) | 本交接更新、重新產生的 `IMPLEMENTATION_STATUS.md` |
+| `c7e0eab` | 本交接第 10 節 |
+| `73a3caa` | 重新產生的 `IMPLEMENTATION_STATUS.md`(測試清單 3579 → 3701) |
+| (最後一個) | 本交接的測試結果(10.4) |
 
 ### 10.3 結果摘要(合成世界,同一作者系譜)
 
@@ -152,14 +154,44 @@ B2 有 2 次錯誤發現:漏掉弱的第二效應一次;把小幅度的耦合間
 - 真機制家族不在目錄時,B2 和 B0 一樣常強行套用;預算越多越常。家族留在目錄時,B2 答對 0.908。
 - 引擎確認:來源雜湊與 2026-11-01 manifest 相同;凍結的主評估逐位元重現。
 
-### 10.4 沒有改的東西
+### 10.4 測試指令與結果
+
+全部用主 checkout 的 venv,`PYTHONPATH` 指向本 worktree 的 `src`
+(`python -c "import lab_brain;print(lab_brain.__file__)"` 指向本 worktree)。
+
+| 指令 | 結果 |
+|---|---|
+| `ruff check src tests scripts` | All checks passed |
+| `ruff format --check src tests scripts` | 610 files already formatted |
+| `mypy src` | Success: no issues found in 301 source files |
+| 新增的離線測試(4 個單元檔 + 凍結檢查) | 全部通過;全部 discovery 測試 217 passed(重新產生證據前),凍結檢查 5 passed |
+| 全部非 PostgreSQL 測試 | **2498 passed, 1203 skipped**(PostgreSQL 等後端閘門、本地模型、Lumerical、網路、Windows),99.7 秒 |
+| `python scripts/discovery_independent_eval.py --check` | evidence is current(另一個行程,約 130 秒) |
+| `python scripts/discovery_benchmark.py` 的凍結檢查 `tests/e2e/test_discovery_benchmark_frozen.py` | 通過(引擎沒變) |
+| `python scripts/check_commit_messages.py --range 58c68be..HEAD` | no AI authorship found |
+| `python scripts/rebuild_obligation_inventory.py --check` | 84 occurrences, in sync |
+| `python scripts/update_status.py` 然後 `--check`、`--check --requirements-only` | 重新產生;`IMPLEMENTATION_STATUS.md is up to date`。測試清單 3579 → 3701 |
+| 全部測試 + PostgreSQL(`lab_brain_p3_full`) | **未完成,見下** |
+
+PostgreSQL 全套測試:
+- 新建 `lab_brain_p3_full` 並 migrate:81 個 migration 全部套用,`--status` 顯示 pending 0,再跑一次 migrate 顯示 up to date。
+- 之後 127.0.0.1:5433 的伺服器停止了(用量上限重置時容器重啟;資料目錄 `/home/user/pgdata` 最後寫入 12:58 UTC)。
+  這個 sandbox 拒絕切換使用者的指令(`su`、`runuser`),所以無法以 `postgres` 身分重新啟動它。
+- 伺服器停止時跑過一次:2527 passed、1170 skipped、1 failed、3 errors。
+  失敗與錯誤**全部**是 `Connection refused`,不是程式結果,不能當作 PostgreSQL 全套的證據。
+- 需要:有人以 `postgres` 身分重新啟動伺服器(`pg_ctl -D /home/user/pgdata -o "-p 5433 ..." start`),
+  再重建 `lab_brain_p3_full` 並執行
+  `LAB_BRAIN_TEST_POSTGRES=1 LAB_BRAIN_DATABASE_URL=postgresql://lab_brain:lab_brain@127.0.0.1:5433/lab_brain_p3_full python -m pytest -q -p no:cacheprovider -rs`。
+- 本分支沒有改任何 PostgreSQL 相關的程式碼、migration 或測試;新的程式只在離線套件裡。
+
+### 10.5 沒有改的東西
 
 - 沒有改 `src/lab_brain/discovery/`、`discovery_catalog.py`、`docs/audit/discovery-loop-offline-2026-11-01/evidence/`。
 - 沒有改 `src/lab_brain/verification/prospective.py`、`src/lab_brain/evaluation/*`、migrations、`docs/spec/*`。
 - 沒有 migration。沒有接研究流程。沒有寫資料庫(除了測試自己新建的 `lab_brain_p3_full`)。
 - 沒有 LLM、網路、模擬器或付費呼叫。
 
-### 10.5 合併注意
+### 10.6 合併注意
 
 - `IMPLEMENTATION_STATUS.md` 會和其他分支衝突;合併後重跑 `python scripts/update_status.py`。
 - `pyproject.toml` 只新增一行 per-file-ignore。
@@ -167,7 +199,7 @@ B2 有 2 次錯誤發現:漏掉弱的第二效應一次;把小幅度的耦合間
   改了就要重跑 `python scripts/discovery_independent_eval.py` 並一起提交證據。
   引擎改動則兩個凍結檢查(2026-11-01 與 2026-11-02)都會失敗。
 
-### 10.6 新的 Owner 決策
+### 10.7 新的 Owner 決策
 
 1. 是否核准獨立評估協定並固定其值;指派世界作者(至少兩位)、評估者、審查者(不可是引擎作者系譜)。
 2. arm A 的模型(本機或有支出上限的雲端)與固定方式。
