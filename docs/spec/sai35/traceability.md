@@ -1,114 +1,154 @@
-# SAI 3.5 Discovery Candidate — Traceability to SAI 3.4, SAI 3.3 and G0–G9
+# SAI 3.5 — Appendix K: Traceability matrix (requirement → component → test → gate → phase)
 
-Version: `3.5.0-discovery-candidate.1`.
-Status: **CANDIDATE — NOT ACTIVE.** This page shows how SAI 3.5 relates to the existing
-specifications. It changes none of them. `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.1`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Authority: normative. Every row is generated from, and checked against, the
+[registry](normative-statements.yaml) by the [candidate checker](check_candidate.py). Supersedes the
+`3.5.0-discovery-candidate.1` version of this file (kept in git history).
 
-## 1. What stays exactly as it is
+## 1. How to use this matrix
 
-| Item | State | How it is held |
-|---|---|---|
-| [ACTIVE_SPEC.yaml](../ACTIVE_SPEC.yaml) | unchanged; still names SAI 3.4 `3.4.0-phased.1` and the SAI 3.3 executable profile | SHA-256 and field values checked by [check_candidate.py](check_candidate.py) |
-| [SAI 3.3](../SAI_3.3.md), [active registry](../../normative_statements.yaml), [milestones](../../milestones.yaml) | unchanged; 60 requirements and tests, M0a–M8 | SHA-256 checked here and by the SAI 3.4 checkers |
-| [SAI 3.4 phased basis](../SAI_3.4.md) and every file in `docs/spec/sai34/` | unchanged; ASM-001–018, G0–G9, D-01–D-08 | SHA-256 checked here |
-| [SAI 3.4 candidate](../SAI_3.4_Candidate.md), [architecture](../../architecture/sai34-autonomous-modeling.md), [ADR-0013](../../adr/ADR-0013-autonomous-scientific-modeling-candidate.md), [ADR-0014](../../adr/ADR-0014-phased-sai34-activation.md) | unchanged | SHA-256 checked here |
-| G0 status | NOT PASSED | not affected by this candidate |
-| Owner decisions D-01–D-08, G0 decisions A–F, security decisions A3/A9/A12 | OPEN | not affected by this candidate |
+- **Owner component**: the component of [Appendix B](architecture-end-to-end.md) §2 that must
+  implement the requirement and own its test.
+- **Planned test**: `T-S35-<AREA>-NNN`, specified by the acceptance clause of the statement in
+  [SAI 3.5](../SAI_3.5.md) §3. Planned tests are obligations, never evidence; none is implemented.
+- **Gates**: the SAI 3.4 G gates and SAI 3.5 G-D levels whose evidence would show the requirement in
+  operation. A gate here is never satisfied by the requirement's test alone.
+- **Phase**: the [roadmap](roadmap.md) phase in which the requirement must be built.
+- **Status**: complete, partial, proposed, blocked or untested, with evidence in
+  [implementation status](implementation-status.md).
+- Inherited SAI 3.3 and SAI 3.4 links are in [compatibility.md](compatibility.md) §4.
 
-## 2. Section relation
+## 2. Matrix
 
-| SAI 3.5 section | Builds on | Relation |
-|---|---|---|
-| §0 Status and authority | SAI 3.4 §1, §4; SAI 3.3 §0 | additive; conflicts follow AGT-015 (D-001) |
-| §1 Product vision | SAI 3.4 candidate §1 (ASM-001) | widens the long-term target from autonomous modeling to autonomous discovery; adds claim discipline |
-| §2 End-to-end architecture | SAI 3.4 candidate §1–§10; architecture contract §1–§4 | reuses the ASM chain unchanged and adds discovery stages before and around it |
-| §3 Discovery Loop | SAI 3.3 §8 (hypotheses), §9 (least-cost verification) | new; uses admission, typed predictions and sufficiency as they are |
-| §4 Discovery and validation | SAI 3.3 §8.2, §17.13; Causal Warrant Gate V1.1; SAI 3.4 ASM-010, ASM-013 | new role separation and claim-state projection; the CWG stays the only path to CONFIRMED |
-| §5 Oversight and governance | SAI 3.3 §14; SAI 3.4 ASM-014 | adds the four Owner gate classes for discovery; roles unchanged |
-| §6 G-D framework | SAI 3.4 acceptance (G0–G9) | separate framework; neither substitutes for the other |
-| §7 Matched-budget comparison | SAI 3.3 §15; SAI 3.4 acceptance §4 | new evaluation protocol for discovery |
-| §8 Non-goals and falsification | — | new |
-| §9 Activation boundary | SAI 3.4 §4 (P-FULL-RUNTIME) | activation would need its own decision and migration |
-
-## 3. G0–G9 and G-D
-
-| G gate | Role for G-D | Never means |
-|---|---|---|
-| G0 | entry condition for G-D2 (the product configuration evaluated must have G0 accepted) | that discovery works |
-| G1, G2, G3 | entry conditions for G-D3 for the model family | that the system found a new mechanism |
-| G4, G5, G6 | entry conditions for G-D4 for the scope | that a mechanism was discovered prospectively |
-| G7-SITE | entry condition for G-D3 and G-D4 | cross-worker or cross-site discovery |
-| G7-WORKER | only when a cross-worker discovery claim is made | — |
-| G8 | licensed parts are entry conditions for G-D3 | — |
-| G9 | none directly; T-D-006 and G9 both test the absence of external coding agents and can share evidence, but each issues its own result | that the product discovers |
-
-Completing all of G0–G9 never implies any G-D level (D-035). No G-D result changes any G gate
-(D-037).
-
-## 4. Requirement mapping
-
-`related_sai34` names the ASM obligations each D-NNN builds on. `related_sai33` names inherited
-SAI 3.3 requirements it relies on. Neither field changes those requirements. The G-D column lists
-the levels whose evidence would show the requirement in operation. The phase is the
-[roadmap](roadmap.md) phase where it is first needed.
-
-| D-NNN | Key | § | SAI 3.4 ASM | SAI 3.3 requirements | G-D levels | Phase |
+| Requirement | Key | Owner component | Planned test | Gates | Phase | Status |
 |---|---|---|---|---|---|---|
-| D-001 | `candidate.additive` | §0 | ASM-018 | TST-002, TST-003 | G-D0 | D0 |
-| D-002 | `vision.target` | §1 | ASM-001, ASM-002 | SYS-001 | G-D1, G-D2, G-D3, G-D4 | D0 |
-| D-003 | `vision.claim_discipline` | §1 | ASM-018 | UX-006 | G-D0, G-D1, G-D2, G-D3, G-D4 | D0 |
-| D-004 | `vision.novelty_falsifiability` | §1 | ASM-003 | SRC-003, VER-004, VER-006 | G-D2, G-D3, G-D4 | D2 |
-| D-005 | `e2e.chain` | §2 | ASM-002, ASM-017 | SYS-001, OPS-001, OPS-003 | G-D1, G-D2, G-D3 | D2 |
-| D-006 | `autonomy.no_external_coding_agent` | §2 | ASM-001 | SIM-003 | G-D3, G-D4 | D4 |
-| D-007 | `e2e.literature` | §2 | ASM-003 | SRC-001, SRC-002, SEC-001, SEC-004 | G-D2 | D3 |
-| D-008 | `e2e.model_from_scratch` | §2 | ASM-004, ASM-005 | SIM-003, EVI-002 | G-D3 | D4 |
-| D-009 | `e2e.licensed_internal_workers` | §2 | ASM-006, ASM-007, ASM-015 | TST-001, COST-001, OPS-001, SIM-001 | G-D3, G-D4 | D4 |
-| D-010 | `e2e.sweeps` | §2 | ASM-002, ASM-012 | EVI-009, SIM-001 | G-D3 | D4 |
-| D-011 | `e2e.convergence` | §2 | ASM-008 | SIM-002 | G-D3 | D4 |
-| D-012 | `e2e.refinement` | §2 | ASM-011 | EPI-005 | G-D3 | D4 |
-| D-013 | `e2e.physical_validation` | §2 | ASM-009, ASM-010 | EVI-004, DOM-SP-002 | G-D4 | D5 |
-| D-014 | `e2e.bilingual_report` | §2 | ASM-016 | UX-006 | G-D2, G-D3, G-D4 | D2 |
-| D-015 | `loop.problem_discovery` | §3 | ASM-014 | SEC-001, SEC-002 | G-D1, G-D2 | D1 |
-| D-016 | `loop.mechanism_classes` | §3 | — | EPI-001, LLM-002 | G-D1, G-D2, G-D3 | D1 |
-| D-017 | `loop.mechanism_class_definition` | §3 | — | VER-006, VER-008 | G-D1, G-D2, G-D3 | D1 |
-| D-018 | `loop.anomaly_state` | §3 | ASM-012, ASM-013 | EPI-003, EPI-006 | G-D1, G-D2, G-D3 | D1 |
-| D-019 | `loop.reframing` | §3 | ASM-011, ASM-012 | EPI-003, EPI-005 | G-D1, G-D2, G-D3 | D1 |
-| D-020 | `loop.reframing_accounting` | §3 | ASM-010 | EPI-003 | G-D1, G-D2, G-D3 | D1 |
-| D-021 | `loop.experiment_selection` | §3 | ASM-002 | VER-001, VER-002, VER-003, VER-005 | G-D1, G-D2, G-D3 | D1 |
-| D-022 | `loop.termination` | §3 | ASM-007, ASM-011 | COST-001 | G-D1, G-D2, G-D3 | D1 |
-| D-023 | `validation.role_separation` | §4 | ASM-010, ASM-013 | SEC-002, EPI-005 | G-D1, G-D2, G-D3, G-D4 | D2 |
-| D-024 | `validation.preregistration` | §4 | ASM-010 | VER-006, EPI-005 | G-D1, G-D2, G-D3, G-D4 | D2 |
-| D-025 | `validation.no_retrospective_self_support` | §4 | ASM-012, ASM-013 | EVI-004, EVI-009, EPI-002 | G-D1, G-D2, G-D3, G-D4 | D2 |
-| D-026 | `validation.cwg_only_confirmed` | §4 | ASM-013 | EPI-002, EPI-004, EPI-005 | G-D1, G-D2, G-D3, G-D4 | D2 |
-| D-027 | `validation.epistemic_states` | §4 | ASM-013, ASM-018 | EPI-003, EPI-005, SYS-001 | G-D1, G-D2, G-D3, G-D4 | D2 |
-| D-028 | `validation.stop_insufficient` | §4 | ASM-011, ASM-018 | EPI-001 | G-D1, G-D2, G-D3, G-D4 | D1 |
-| D-029 | `validation.uncertainty` | §4 | ASM-008, ASM-009, ASM-016 | EVI-001, EVI-002 | G-D2, G-D3, G-D4 | D2 |
-| D-030 | `oversight.owner_gates` | §5 | ASM-007, ASM-014 | COST-001, OPS-002, SEC-002 | G-D1, G-D2, G-D3, G-D4 | D2 |
-| D-031 | `oversight.evidence_governance` | §5 | ASM-012 | EVI-003, EVI-009, SYS-001 | G-D1, G-D2, G-D3, G-D4 | D2 |
-| D-032 | `oversight.provenance` | §5 | ASM-002, ASM-017 | LLM-001, OPS-003, ART-001 | G-D1, G-D2, G-D3, G-D4 | D2 |
-| D-033 | `oversight.project_isolation` | §5 | ASM-014 | SEC-002 | G-D1, G-D2, G-D3, G-D4 | D2 |
-| D-034 | `oversight.accounts` | §5 | ASM-014 | SEC-002 | G-D0, G-D2, G-D4 | D0 |
-| D-035 | `gd.independence` | §6 | ASM-018 | TST-003 | G-D0, G-D1, G-D2, G-D3, G-D4 | D0 |
-| D-036 | `gd.levels` | §6 | ASM-018 | LLM-002 | G-D0, G-D1, G-D2, G-D3, G-D4 | D0 |
-| D-037 | `gd.no_substitution` | §6 | ASM-018 | — | G-D2, G-D3, G-D4 | D0 |
-| D-038 | `compare.three_arms` | §7 | — | LLM-002 | G-D1, G-D2, G-D3, G-D4 | D1 |
-| D-039 | `compare.matching` | §7 | — | COST-001, VER-003 | G-D1, G-D2, G-D3, G-D4 | D1 |
-| D-040 | `compare.blinding` | §7 | ASM-010 | — | G-D1, G-D2, G-D3, G-D4 | D1 |
-| D-041 | `compare.benchmark` | §7 | ASM-010 | LLM-002 | G-D0, G-D1, G-D2, G-D3, G-D4 | D0 |
-| D-042 | `compare.metrics` | §7 | ASM-017 | LLM-002 | G-D1, G-D2, G-D3, G-D4 | D1 |
-| D-043 | `compare.statistics` | §7 | — | LLM-002 | G-D0, G-D1, G-D2, G-D3, G-D4 | D0 |
-| D-044 | `compare.contamination` | §7 | ASM-010 | EVI-004 | G-D0, G-D1, G-D2 | D0 |
-| D-045 | `compare.stopping` | §7 | ASM-007 | COST-001 | G-D1, G-D2, G-D3, G-D4 | D1 |
-| D-046 | `compare.zero_cost_first` | §7 | ASM-007, ASM-018 | COST-001 | G-D1, G-D2 | D1 |
+| S35-GOV-001 | `gov.precedence` | SpecMaintenance | T-S35-GOV-001 | G-D0 | P35-0 | complete |
+| S35-GOV-002 | `gov.product_target` | SpecMaintenance | T-S35-GOV-002 | G-D1, G-D2, G-D3, G-D4 | P35-0 | complete |
+| S35-GOV-003 | `gov.product_category` | CampaignOrchestrator | T-S35-GOV-003 | G9, G-D1 | P35-4 | proposed |
+| S35-GOV-004 | `gov.claim_discipline` | SpecMaintenance | T-S35-GOV-004 | G-D0, G-D1, G-D2, G-D3, G-D4 | P35-0 | partial |
+| S35-GOV-005 | `gov.not_active` | SpecMaintenance | T-S35-GOV-005 | G-D0 | P35-0 | complete |
+| S35-LIFE-001 | `life.persisted_stages` | CampaignOrchestrator | T-S35-LIFE-001 | G8, G-D1 | P35-2 | partial |
+| S35-LIFE-002 | `life.campaign_states` | CampaignOrchestrator | T-S35-LIFE-002 | G8, G-D1 | P35-2 | proposed |
+| S35-LIFE-003 | `life.termination` | CampaignOrchestrator | T-S35-LIFE-003 | G8, G-D1 | P35-2 | partial |
+| S35-PROB-001 | `prob.research_problem` | ProblemDiscovery | T-S35-PROB-001 | G-D1, G-D2 | P35-2 | proposed |
+| S35-PROB-002 | `prob.valuation` | ProblemDiscovery | T-S35-PROB-002 | G-D1, G-D2 | P35-2 | proposed |
+| S35-PROB-003 | `prob.anomaly_registry` | ProblemDiscovery | T-S35-PROB-003 | G-D1, G-D2, G-D3 | P35-2 | partial |
+| S35-PROB-004 | `prob.contradictions_gaps` | ProblemDiscovery | T-S35-PROB-004 | G-D1, G-D2 | P35-2 | partial |
+| S35-HYP-001 | `hyp.epistemic_stages` | DiscoveryLoop | T-S35-HYP-001 | G6, G-D1 | P35-2 | partial |
+| S35-HYP-002 | `hyp.testable_mechanistic` | HypothesisBrain | T-S35-HYP-002 | G-D1, G-D2 | P35-2 | partial |
+| S35-HYP-003 | `hyp.claim_states` | ValidationLoop | T-S35-HYP-003 | G6, G-D1 | P35-2 | proposed |
+| S35-HYP-004 | `hyp.generation` | HypothesisBrain | T-S35-HYP-004 | G0, G-D1, G-D2 | P35-2 | partial |
+| S35-MECH-001 | `mech.distinguishable_classes` | MechanismExplorer | T-S35-MECH-001 | G-D1, G-D2, G-D3 | P35-2 | partial |
+| S35-MECH-002 | `mech.search_space_expansion` | MechanismExplorer | T-S35-MECH-002 | G-D1, G-D2 | P35-2 | partial |
+| S35-REF-001 | `ref.triggers_and_kinds` | ResearchReframing | T-S35-REF-001 | G-D1, G-D2, G-D3 | P35-2 | partial |
+| S35-REF-002 | `ref.failure_history` | ResearchReframing | T-S35-REF-002 | G-D1, G-D2, G-D3 | P35-2 | partial |
+| S35-REF-003 | `ref.accounting` | ResearchReframing | T-S35-REF-003 | G-D1, G-D2, G-D3 | P35-2 | partial |
+| S35-SEL-001 | `sel.discrimination_per_cost` | VerificationPlanner | T-S35-SEL-001 | G-D1, G-D2, G-D3 | P35-2 | partial |
+| S35-SEL-002 | `sel.competing_explanations` | ValidationLoop | T-S35-SEL-002 | G6, G-D1, G-D2 | P35-2 | partial |
+| S35-MOD-001 | `mod.from_scratch` | PhysicalModelBuilder | T-S35-MOD-001 | G1, G9 | P35-6 | proposed |
+| S35-MOD-002 | `mod.typed_operations` | PhysicalModelBuilder | T-S35-MOD-002 | G1, G8 | P35-6 | proposed |
+| S35-MOD-003 | `mod.qualification` | ModelQualification | T-S35-MOD-003 | G1, G3, G-D3 | P35-6 | proposed |
+| S35-SIM-001 | `sim.licensed_internal` | SimulatorWorkers | T-S35-SIM-001 | G2, G8 | P35-7 | blocked |
+| S35-SIM-002 | `sim.per_product_qualification` | ModelQualification | T-S35-SIM-002 | G2, G7-SITE, G8 | P35-7 | blocked |
+| S35-SIM-003 | `sim.worker_contract` | SimulatorWorkers | T-S35-SIM-003 | G8 | P35-6 | proposed |
+| S35-VAL-001 | `val.sweeps` | NumericalValidation | T-S35-VAL-001 | G2, G3 | P35-6 | proposed |
+| S35-VAL-002 | `val.convergence` | NumericalValidation | T-S35-VAL-002 | G3, G-D3 | P35-7 | partial |
+| S35-VAL-003 | `val.uncertainty` | NumericalValidation | T-S35-VAL-003 | G4, G5, G-D2, G-D3 | P35-2 | partial |
+| S35-VAL-004 | `val.bounded_refinement` | PhysicalModelBuilder | T-S35-VAL-004 | G3, G6, G8 | P35-6 | proposed |
+| S35-VAL-005 | `val.physical_validation` | PhysicalValidation | T-S35-VAL-005 | G4, G5, G-D4 | P35-8 | blocked |
+| S35-LOOP-001 | `loop.propose_never_confirm` | DiscoveryLoop | T-S35-LOOP-001 | G6, G8, G-D1 | P35-2 | partial |
+| S35-LOOP-002 | `loop.feedback` | ValidationLoop | T-S35-LOOP-002 | G-D1, G-D2, G-D3 | P35-2 | partial |
+| S35-LOOP-003 | `loop.stop_insufficient` | ValidationLoop | T-S35-LOOP-003 | G-D1, G-D2, G-D3, G-D4 | P35-2 | partial |
+| S35-CWG-001 | `cwg.exclusive_confirmation` | CausalWarrantGate | T-S35-CWG-001 | G6, G-D1, G-D2, G-D3, G-D4 | P35-2 | partial |
+| S35-CWG-002 | `cwg.consequential_authorization` | CausalWarrantGate | T-S35-CWG-002 | G6, G-D2, G-D4 | P35-4 | partial |
+| S35-REG-001 | `reg.prospective` | RegistrationRegistry | T-S35-REG-001 | G0, G6, G-D1 | P35-2 | partial |
+| S35-REG-002 | `reg.envelope_registration` | RegistrationRegistry | T-S35-REG-002 | G8, G-D1 | P35-4 | proposed |
+| S35-REG-003 | `reg.envelope_limits` | RegistrationRegistry | T-S35-REG-003 | G6, G-D1 | P35-4 | proposed |
+| S35-REG-004 | `reg.no_retrospective_support` | ValidationLoop | T-S35-REG-004 | G0, G6, G-D1 | P35-2 | partial |
+| S35-NOV-001 | `nov.prior_art_bound` | NoveltyAuditor | T-S35-NOV-001 | G-D2, G-D3, G-D4 | P35-2 | partial |
+| S35-NOV-002 | `nov.classification` | NoveltyAuditor | T-S35-NOV-002 | G-D2, G-D3, G-D4 | P35-5 | proposed |
+| S35-NOV-003 | `nov.literature` | NoveltyAuditor | T-S35-NOV-003 | G0, G-D2 | P35-5 | partial |
+| S35-EVI-001 | `evi.proposals_not_evidence` | ValidationLoop | T-S35-EVI-001 | G6, G-D1 | P35-2 | partial |
+| S35-EVI-002 | `evi.provenance` | GovernancePlane | T-S35-EVI-002 | G0, G6, G-D1 | P35-2 | partial |
+| S35-EVI-003 | `evi.independence` | ValidationLoop | T-S35-EVI-003 | G4, G6, G-D2 | P35-2 | partial |
+| S35-EVI-004 | `evi.contamination` | EvaluationPlane | T-S35-EVI-004 | G4, G-D1, G-D2 | P35-3 | partial |
+| S35-RPT-001 | `rpt.bilingual_traceable` | ReportGenerator | T-S35-RPT-001 | G0, G9, G-D2 | P35-4 | partial |
+| S35-RPT-002 | `rpt.reproducible_bundle` | ReportGenerator | T-S35-RPT-002 | G7-SITE, G9, G-D1 | P35-4 | partial |
+| S35-RPT-003 | `rpt.terminology_language` | ReportGenerator | T-S35-RPT-003 | G0, G9 | P35-4 | proposed |
+| S35-RPT-004 | `rpt.researcher_ux` | ResearcherWorkspace | T-S35-RPT-004 | G0, G9 | P35-4 | partial |
+| S35-AUTO-001 | `auto.no_external_coding_agent` | DeploymentOperations | T-S35-AUTO-001 | G9, G-D3 | P35-4 | untested |
+| S35-AUTO-002 | `auto.deployment_composition` | DeploymentOperations | T-S35-AUTO-002 | G8, G9 | P35-4 | untested |
+| S35-AUTO-003 | `auto.out_of_envelope_stop` | CampaignOrchestrator | T-S35-AUTO-003 | G9 | P35-4 | proposed |
+| S35-SEC-001 | `sec.autonomy_levels` | GovernancePlane | T-S35-SEC-001 | G8, G9 | P35-4 | proposed |
+| S35-SEC-002 | `sec.owner_gates` | GovernancePlane | T-S35-SEC-002 | G8, G-D1, G-D3, G-D4 | P35-4 | partial |
+| S35-SEC-003 | `sec.project_isolation` | GovernancePlane | T-S35-SEC-003 | G8, G-D1 | P35-2 | partial |
+| S35-SEC-004 | `sec.identity` | GovernancePlane | T-S35-SEC-004 | G0, G8, G-D0 | P35-2 | partial |
+| S35-SEC-005 | `sec.least_privilege` | GovernancePlane | T-S35-SEC-005 | G8 | P35-2 | proposed |
+| S35-SEC-006 | `sec.owner_stop` | GovernancePlane | T-S35-SEC-006 | G8 | P35-4 | proposed |
+| S35-COST-001 | `cost.realized_consumption` | CostGovernance | T-S35-COST-001 | G8, G-D1 | P35-2 | partial |
+| S35-COST-002 | `cost.ceilings` | CostGovernance | T-S35-COST-002 | G8 | P35-4 | partial |
+| S35-GD-001 | `gd.independence` | EvaluationPlane | T-S35-GD-001 | G-D0, G-D1, G-D2, G-D3, G-D4 | P35-3 | blocked |
+| S35-GD-002 | `gd.levels` | EvaluationPlane | T-S35-GD-002 | G-D0, G-D1, G-D2, G-D3, G-D4 | P35-3 | blocked |
+| S35-GD-003 | `gd.no_substitution` | EvaluationPlane | T-S35-GD-003 | G-D2, G-D3, G-D4 | P35-3 | proposed |
+| S35-CMP-001 | `cmp.three_arms` | EvaluationPlane | T-S35-CMP-001 | G-D1, G-D2, G-D3, G-D4 | P35-3 | partial |
+| S35-CMP-002 | `cmp.matching` | EvaluationPlane | T-S35-CMP-002 | G-D1, G-D2, G-D3, G-D4 | P35-3 | partial |
+| S35-CMP-003 | `cmp.blinding` | EvaluationPlane | T-S35-CMP-003 | G-D1, G-D2, G-D3, G-D4 | P35-3 | proposed |
+| S35-CMP-004 | `cmp.hidden_worlds` | EvaluationPlane | T-S35-CMP-004 | G-D0, G-D1, G-D2, G-D3, G-D4 | P35-3 | proposed |
+| S35-CMP-005 | `cmp.metrics` | EvaluationPlane | T-S35-CMP-005 | G-D1, G-D2, G-D3, G-D4 | P35-3 | partial |
+| S35-CMP-006 | `cmp.statistics` | EvaluationPlane | T-S35-CMP-006 | G-D0, G-D1, G-D2, G-D3, G-D4 | P35-3 | partial |
+| S35-CMP-007 | `cmp.contamination` | EvaluationPlane | T-S35-CMP-007 | G-D0, G-D1, G-D2 | P35-3 | partial |
+| S35-CMP-008 | `cmp.stopping` | EvaluationPlane | T-S35-CMP-008 | G-D1, G-D2, G-D3, G-D4 | P35-3 | partial |
+| S35-CMP-009 | `cmp.zero_cost_first` | EvaluationPlane | T-S35-CMP-009 | G-D1, G-D2 | P35-3 | partial |
+
+## 3. Coverage by capability
+
+| Capability | Requirements | Statuses |
+|---|---|---|
+| CAP-01 | S35-PROB-001, S35-PROB-002, S35-PROB-003, S35-PROB-004 | partial 2, proposed 2 |
+| CAP-02 | S35-HYP-002, S35-HYP-004, S35-MECH-001, S35-NOV-001, S35-NOV-002, S35-NOV-003 | partial 5, proposed 1 |
+| CAP-03 | S35-MECH-001, S35-MECH-002 | partial 2 |
+| CAP-04 | S35-REF-001, S35-REF-002, S35-REF-003 | partial 3 |
+| CAP-05 | S35-SEL-001, S35-SEL-002, S35-LOOP-001 | partial 3 |
+| CAP-06 | S35-MOD-001, S35-MOD-002, S35-MOD-003 | proposed 3 |
+| CAP-07 | S35-SIM-001, S35-SIM-002, S35-SIM-003 | blocked 2, proposed 1 |
+| CAP-08 | S35-VAL-001, S35-VAL-002, S35-VAL-003, S35-VAL-004, S35-VAL-005 | blocked 1, partial 2, proposed 2 |
+| CAP-09 | S35-HYP-001, S35-HYP-003, S35-LOOP-001, S35-LOOP-002, S35-LOOP-003, S35-EVI-001, S35-CWG-001, S35-CWG-002, S35-REG-001, S35-REG-004 | partial 9, proposed 1 |
+| CAP-10 | S35-RPT-001, S35-RPT-002, S35-RPT-003, S35-RPT-004, S35-VAL-003 | partial 4, proposed 1 |
+| CAP-11 | S35-AUTO-001, S35-AUTO-002, S35-AUTO-003, S35-GOV-003, S35-LIFE-001, S35-LIFE-002, S35-LIFE-003 | partial 2, proposed 3, untested 2 |
+| CAP-12 | S35-SEC-001, S35-SEC-002, S35-SEC-003, S35-SEC-004, S35-SEC-005, S35-SEC-006, S35-COST-001, S35-COST-002, S35-EVI-002, S35-EVI-003, S35-EVI-004, S35-REG-002, S35-REG-003 | partial 8, proposed 5 |
+
+## 4. Coverage by gate
+
+| Gate | Requirements whose evidence it would carry |
+|---|---|
+| G0 | S35-HYP-004, S35-REG-001, S35-REG-004, S35-NOV-003, S35-EVI-002, S35-RPT-001, S35-RPT-003, S35-RPT-004, S35-SEC-004 |
+| G1 | S35-MOD-001, S35-MOD-002, S35-MOD-003 |
+| G2 | S35-SIM-001, S35-SIM-002, S35-VAL-001 |
+| G3 | S35-MOD-003, S35-VAL-001, S35-VAL-002, S35-VAL-004 |
+| G4 | S35-VAL-003, S35-VAL-005, S35-EVI-003, S35-EVI-004 |
+| G5 | S35-VAL-003, S35-VAL-005 |
+| G6 | S35-HYP-001, S35-HYP-003, S35-SEL-002, S35-VAL-004, S35-LOOP-001, S35-CWG-001, S35-CWG-002, S35-REG-001, S35-REG-003, S35-REG-004, S35-EVI-001, S35-EVI-002, S35-EVI-003 |
+| G7-SITE | S35-SIM-002, S35-RPT-002 |
+| G7-WORKER | — |
+| G8 | S35-LIFE-001, S35-LIFE-002, S35-LIFE-003, S35-MOD-002, S35-SIM-001, S35-SIM-002, S35-SIM-003, S35-VAL-004, S35-LOOP-001, S35-REG-002, S35-AUTO-002, S35-SEC-001, S35-SEC-002, S35-SEC-003, S35-SEC-004, S35-SEC-005, S35-SEC-006, S35-COST-001, S35-COST-002 |
+| G9 | S35-GOV-003, S35-MOD-001, S35-RPT-001, S35-RPT-002, S35-RPT-003, S35-RPT-004, S35-AUTO-001, S35-AUTO-002, S35-AUTO-003, S35-SEC-001 |
+| G-D0 | S35-GOV-001, S35-GOV-004, S35-GOV-005, S35-SEC-004, S35-GD-001, S35-GD-002, S35-CMP-004, S35-CMP-006, S35-CMP-007 |
+| G-D1 | S35-GOV-002, S35-GOV-003, S35-GOV-004, S35-LIFE-001, S35-LIFE-002, S35-LIFE-003, S35-PROB-001, S35-PROB-002, S35-PROB-003, S35-PROB-004, S35-HYP-001, S35-HYP-002, S35-HYP-003, S35-HYP-004, S35-MECH-001, S35-MECH-002, S35-REF-001, S35-REF-002, S35-REF-003, S35-SEL-001, S35-SEL-002, S35-LOOP-001, S35-LOOP-002, S35-LOOP-003, S35-CWG-001, S35-REG-001, S35-REG-002, S35-REG-003, S35-REG-004, S35-EVI-001, S35-EVI-002, S35-EVI-004, S35-RPT-002, S35-SEC-002, S35-SEC-003, S35-COST-001, S35-GD-001, S35-GD-002, S35-CMP-001, S35-CMP-002, S35-CMP-003, S35-CMP-004, S35-CMP-005, S35-CMP-006, S35-CMP-007, S35-CMP-008, S35-CMP-009 |
+| G-D2 | S35-GOV-002, S35-GOV-004, S35-PROB-001, S35-PROB-002, S35-PROB-003, S35-PROB-004, S35-HYP-002, S35-HYP-004, S35-MECH-001, S35-MECH-002, S35-REF-001, S35-REF-002, S35-REF-003, S35-SEL-001, S35-SEL-002, S35-VAL-003, S35-LOOP-002, S35-LOOP-003, S35-CWG-001, S35-CWG-002, S35-NOV-001, S35-NOV-002, S35-NOV-003, S35-EVI-003, S35-EVI-004, S35-RPT-001, S35-GD-001, S35-GD-002, S35-GD-003, S35-CMP-001, S35-CMP-002, S35-CMP-003, S35-CMP-004, S35-CMP-005, S35-CMP-006, S35-CMP-007, S35-CMP-008, S35-CMP-009 |
+| G-D3 | S35-GOV-002, S35-GOV-004, S35-PROB-003, S35-MECH-001, S35-REF-001, S35-REF-002, S35-REF-003, S35-SEL-001, S35-MOD-003, S35-VAL-002, S35-VAL-003, S35-LOOP-002, S35-LOOP-003, S35-CWG-001, S35-NOV-001, S35-NOV-002, S35-AUTO-001, S35-SEC-002, S35-GD-001, S35-GD-002, S35-GD-003, S35-CMP-001, S35-CMP-002, S35-CMP-003, S35-CMP-004, S35-CMP-005, S35-CMP-006, S35-CMP-008 |
+| G-D4 | S35-GOV-002, S35-GOV-004, S35-VAL-005, S35-LOOP-003, S35-CWG-001, S35-CWG-002, S35-NOV-001, S35-NOV-002, S35-SEC-002, S35-GD-001, S35-GD-002, S35-GD-003, S35-CMP-001, S35-CMP-002, S35-CMP-003, S35-CMP-004, S35-CMP-005, S35-CMP-006, S35-CMP-008 |
 
 ## 5. Namespaces
 
 | Namespace | Meaning | Defined in |
 |---|---|---|
-| `D-001`…`D-046` | SAI 3.5 candidate requirements | this candidate |
-| `T-D-001`…`T-D-046` | planned tests (obligations, not evidence) | [registry](normative-statements.yaml) |
+| `S35-<AREA>-NNN` | SAI 3.5 requirements | [SAI 3.5](../SAI_3.5.md) §3; scheme in the [change register](change-register.md) §1 |
+| `T-S35-<AREA>-NNN` | planned tests (obligations, not evidence) | the acceptance clause of each statement |
+| `CAP-01`…`CAP-12` | the twelve final capabilities | [SAI 3.5](../SAI_3.5.md) §2.2 |
 | `G-D0`…`G-D4` | discovery acceptance levels | [acceptance-gd.md](acceptance-gd.md) |
-| `D0`…`D6` | SAI 3.5 roadmap phases | [roadmap.md](roadmap.md) |
-| `OD-01`…`OD-13` | SAI 3.5 Owner decisions | [decisions-and-review.md](decisions-and-review.md) |
+| `P35-0`…`P35-9` | SAI 3.5 roadmap phases | [roadmap.md](roadmap.md) |
+| `OD-01`…`OD-16` | SAI 3.5 Owner decisions | [decisions-and-review.md](decisions-and-review.md) |
+| `S35-ISSUE-NN` | SAI 3.5 spec issues | [open-spec-issues.md](open-spec-issues.md) |
+| `D-001`…`D-046` | retired discovery-candidate requirements | [change register](change-register.md), [requirement audit](requirement-audit.md) |
 | `D-01`…`D-08` | SAI 3.4 Owner decisions (unchanged) | [SAI 3.4 decisions](../sai34/decisions-and-review.md) |
 | `ASM-001`…`ASM-018`, `G0`…`G9` | SAI 3.4 obligations and gates (unchanged) | [SAI 3.4 candidate](../SAI_3.4_Candidate.md) |

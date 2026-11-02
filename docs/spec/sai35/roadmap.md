@@ -1,44 +1,63 @@
-# SAI 3.5 Discovery Candidate — Roadmap
+# SAI 3.5 — Appendix H: Dependency-aware roadmap from the current G0 state to the complete product
 
-Version: `3.5.0-discovery-candidate.1`.
-Status: **CANDIDATE — NOT ACTIVE.** These phases are proposals. None has started under this
-candidate, and none changes `docs/milestones.yaml` (M0a–M8), the SAI 3.4 profile milestones or the
-G0–G9 gates. No durations are given because none has been measured.
+Version: `3.5.0-master-candidate.1`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Authority: normative for phase prerequisites, exit evidence and Owner gates; informative for
+ordering where no dependency is stated. No durations are given because none has been measured.
+These phases change neither `docs/milestones.yaml` (M0a–M8), the SAI 3.4 profile milestones nor
+G0–G9. Supersedes the `D0`…`D6` phases of the discovery candidate (see the
+[change register](change-register.md)).
 
-## 1. Phases
+## 1. Starting point (2026-11-02)
 
-Phase IDs `D0`…`D6` are SAI 3.5 roadmap phases. They are not SAI 3.4 Owner decisions (`D-01`–`D-08`)
-and not SAI 3.5 requirements (`D-001`…).
+- G0 is NOT PASSED. The G0 line (`f41758c`) is unintegrated and awaits the Independent Chief Auditor;
+  its forged-authorization read-path bypass is fixed on the unmerged branch
+  `g0-authorization-read-path-closure`, pending audit.
+- The offline Discovery Loop (`118a4ac`) is unintegrated and not independently reviewed; its
+  independent hidden-world evaluation is being designed on `discovery-independent-evaluation`.
+- SAI 3.4 tracks P-G0 and P-MODEL may start (SAI 3.4 §2); P-LICENSED and P-PHYSICAL need their
+  Owner decisions; nothing is licensed.
 
-| Phase | Goal | Depends on (SAI 3.4 / G0–G9 / SAI 3.5) | Acceptance (exit evidence) | Owner gates |
+## 2. Phases
+
+| Phase | Goal | Prerequisites | Exit evidence | Owner gates |
 |---|---|---|---|---|
-| D0 | Candidate review and G-D0 protocol freeze | SAI 3.4 P0-BASIS (in force on this line); nothing licensed; independent of P-G0 and P-MODEL | Owner decision on the candidate (OD-01); evaluator and custodian assigned (OD-02); protocol values approved (OD-03); synthetic benchmark sealed; G-D0 PASS by the evaluator | OD-01, OD-02, OD-03, OD-04 |
-| D1 | Offline Discovery Loop v0 and G-D1 at zero cost | D0 for any scored claim; development can start earlier, but results before the freeze are exploratory; no license, no paid API | the Discovery Loop records of SAI 3.5 §3 work offline in synthetic worlds; arms A, B and C run under the matched-budget protocol; independent G-D1 verdict (PASS, FAIL or INVALID, reported whatever it is) | OD-04 (local models declared free); no money |
-| D2 | Integrate the Discovery Loop into the governed product | an integration decision for the G0 line and the SAI 3.4 line (OD-09); SAI 3.4 activation-checker scope (OD-10); D1 reviewed | persistent records with ADRs and migrations; epistemic-state projection (D-027); bilingual discovery reports (D-014); project isolation tests; PostgreSQL suite in CI; no G-D level passes by integration alone | OD-09, OD-10 |
-| D3 | Retrospective held-out literature discovery (G-D2) | D2; G0 accepted for the product configuration (P-G0 acceptance); literature case rights (OD-06) | sealed literature benchmark with contamination controls; local-model stage first; blinded expert review; independent G-D2 verdict | OD-06; OD-05 only if a paid model stage is proposed |
-| D4 | Prospective simulation discovery (G-D3) | D3; SAI 3.4 P-LICENSED (SAI 3.4 D-02, D-04, D-05, D-06); for the model family G1, G2, G3, G7-SITE and licensed G8 accepted | evaluator-sealed licensed simulation cases on internal workers; convergence evidence for each discriminating observable; independent G-D3 verdict | OD-07, plus the SAI 3.4 license decisions |
-| D5 | Prospective physical discovery (G-D4) | D4; SAI 3.4 P-PHYSICAL (SAI 3.4 D-02, D-03, D-08); G4, G5 and G6 for the scope | pre-registered predictions before fabrication or measurement; independent measurements; confirmation through the Causal Warrant Gate; independent G-D4 verdict | OD-08 for each experiment and for any publication |
-| D6 | Activation and runtime conformance of SAI 3.5 (optional) | an Owner decision to activate; ADR-0016 accepted; a migration path like SAI 3.4 P-FULL-RUNTIME | D-NNN migrated into the active registry with real tests; checkers and status inventory updated; full CI | Owner activation decision |
+| P35-0 | Candidate review and integration plan | this candidate | Independent Chief Auditor review of SAI 3.5; Owner decisions OD-01 (candidate), OD-09 (integration order), OD-10 (SAI 3.4 boundary mechanism) | OD-01, OD-09, OD-10 |
+| P35-1 | G0 closure on an integrated line (SAI 3.4 P-G0) | independent audit of the G0 line including the read-path fix; integration per OD-09 | the G0 blind evaluation run by an independent evaluator on the integrated line; G0 accepted by the Owner (SAI 3.4 G0-A/L/S/B/P) | G0 Owner decisions A–F on that line; SAI 3.4 D-07 for identity |
+| P35-2 | Discovery records and the offline loop in the product, at zero cost | P35-0; integration of the reviewed discovery line (OD-09); development may start earlier, results before the G-D0 freeze are exploratory | migrations, ADRs and tests for the records of [Appendix C](records-and-states.md); the Discovery and Validation sides with separate identities; claim-state projection; FeedbackRecords; StopRecords; PostgreSQL suite and mutation entries in CI | OD-12 (reframing caps) |
+| P35-3 | G-D0 freeze and G-D1 at zero cost | P35-2; evaluator, generator owner and custodian assigned; protocol values approved; local models declared free | G-D0 PASS (frozen protocol, sealed evaluator-generated hidden worlds, contamination report); arms A, B and C run; independent G-D1 verdict (PASS, FAIL or INVALID, reported whatever it is) | OD-02, OD-03, OD-04 |
+| P35-4 | Envelope-bounded production workflow without external coding agents (before licensing) | P35-1 (G0 accepted for the configuration); P35-2 | ResearchEnvelope and automatic registration; autonomy levels AL1–AL3; Owner gates and stop; realized-cost governance; bilingual discovery reports and bundles; T-S35-AUTO-002 audit and T-S35-AUTO-001 check without licensed simulation | OD-14 (envelope and rule (l)), OD-15 (autonomy levels), OD-05 only if paid models are used |
+| P35-5 | G-D2: retrospective held-out literature discovery | P35-3 (G-D0 for the literature benchmark); P35-4; G0 accepted for the configuration evaluated | sealed literature benchmark with contamination controls; local-model stage first; blinded expert review of novelty class and falsifiability; independent G-D2 verdict | OD-06; OD-05 if a paid stage is proposed; OD-11 |
+| P35-6 | Pre-license physical model construction (SAI 3.4 P-MODEL) | P35-0; a named SAI 3.4 C34-A0 offline-slice approval; may run in parallel with P35-1 to P35-5 | PhysicalModelSpec, operation catalog, deterministic constructor, readback double, model qualification records, fake worker with fencing; G1 offline parts; T-S35-MOD-001/002/003 offline parts | SAI 3.4 D-01, D-03, D-05, D-06 (C34-A0 scope) |
+| P35-7 | Licensed simulation (SAI 3.4 P-LICENSED) and G-D3 | P35-6; G-D2 PASS for G-D3 entry; SAI 3.4 D-02, D-04, D-05, D-06 | qualified CHARGE worker first, then MODE, FDTD, INTERCONNECT each qualified separately; G1, G2, G3, G7-SITE and licensed G8 for the model family; AL4 envelopes; evaluator-sealed simulation cases; independent G-D3 verdict | OD-07 and the SAI 3.4 license decisions |
+| P35-8 | Physical validation (SAI 3.4 P-PHYSICAL) and G-D4 | P35-7; G-D3 PASS for the scope; SAI 3.4 D-02, D-03, D-08 | independent references; G4, G5, G6 and G9 for the scope; pre-registered physical experiments; confirmation through the Causal Warrant Gate; independent G-D4 verdict | OD-08 for each experiment and publication |
+| P35-9 | Activation and runtime conformance of SAI 3.5 | P35-0; Independent Chief Auditor review; explicit Owner approval; may happen before or after the capability phases, but never turns a requirement's status into complete by itself | the steps of the [activation proposal](activation-proposal.md): registry migration with real test bindings, checker and ACTIVE_SPEC changes, status inventory | OD-16 |
 
-## 2. Dependency picture
+## 3. Dependency picture
 
 ```text
-SAI 3.4 P0-BASIS ──► D0 ──► D1 ──────────────► D2 ──► D3 ──► D4 ──► D5
-                              (zero cost)       ▲      ▲      ▲      ▲
-G0 line integration (OD-09) ────────────────────┘      │      │      │
-P-G0 acceptance (G0) ──────────────────────────────────┘      │      │
-P-LICENSED + G1/G2/G3/G7-SITE/G8 ──────────────────────────────┘      │
-P-PHYSICAL + G4/G5/G6 ─────────────────────────────────────────────────┘
-D6 (activation) is separate and optional at any point after D2.
+P35-0 ──► P35-2 ──► P35-3 (G-D0, G-D1) ──► P35-5 (G-D2) ──► P35-7 (G-D3) ──► P35-8 (G-D4)
+  │          │                                 ▲                ▲                ▲
+  │          └──────► P35-4 (envelope, AUTO) ──┘                │                │
+  ├──► P35-1 (G0 accepted) ──► P35-4, P35-5                     │                │
+  ├──► P35-6 (P-MODEL, offline construction) ───────────────────┘                │
+  │        SAI 3.4 P-LICENSED decisions ──► P35-7                                 │
+  │        SAI 3.4 P-PHYSICAL decisions ─────────────────────────────────────────┘
+  └──► P35-9 (activation; Independent Chief Auditor + Owner) — separate, optional timing
 ```
 
-## 3. Rules for every phase
+The complete product for a scope is reached at the end of P35-8 for that scope, together with the
+Owner's readiness decision (SAI 3.5 §2.3).
+
+## 4. Rules for every phase
 
 - A phase is DONE only when its exit evidence exists and the right party accepts it: the Owner for
-  decisions, the independent evaluator for G-D verdicts. A developer, a coding agent or CI cannot
-  mark a phase DONE.
-- A FAIL or INVALID verdict is a legitimate outcome. It is recorded. The next phase can still be
-  planned, but no claim can rest on the failed level.
-- No phase relaxes an SAI 3.4 or G0–G9 condition to make progress. A conflict stops the slice
-  (D-001, AGT-015).
-- Licensed, paid and physical work happens only after its Owner gate (D-030).
+  decisions and acceptance, the independent evaluator for G-D verdicts, the Independent Chief
+  Auditor for audits. A developer, a coding agent or CI cannot mark a phase DONE.
+- A FAIL or INVALID verdict is a legitimate outcome. It is recorded; the next phase can be planned,
+  but no claim can rest on the failed level.
+- No phase relaxes an SAI 3.3 or SAI 3.4 condition, or a G0–G9 condition, to make progress. A
+  conflict stops the slice (S35-GOV-001, AGT-015).
+- Money, licenses, physical experiments and publication happen only after their Owner gate
+  (S35-SEC-002).
+- Each phase's requirements are those whose registry `phase` field names it
+  ([traceability](traceability.md)).

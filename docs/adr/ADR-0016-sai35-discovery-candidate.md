@@ -1,10 +1,16 @@
 # ADR-0016: Propose SAI 3.5 autonomous discovery as a candidate, not activate it, and keep the branches unintegrated
 
-Status: Proposed — candidate only; not accepted
+Status: Superseded in part by [ADR-0017](ADR-0017-sai35-master-specification-scope.md) (2026-11-02, SAI `3.5.0-master-candidate.1`) — candidate only; not accepted
 Date: 2026-11-01
 Affected Requirements: D-001–D-046 (SAI 3.5 candidate namespace); none of the SAI 3.3 requirements or SAI 3.4 ASM-001–018 are changed
 Human Approval Required: Yes — Owner decision OD-01 on the candidate; activation would need a separate decision
 Spec revision: SAI `3.5.0-discovery-candidate.1`; active profile unchanged (SAI 3.4 `3.4.0-phased.1` with the SAI 3.3 executable profile)
+
+Supersession note (2026-11-02): the master specification candidate `3.5.0-master-candidate.1`
+([SAI_3.5.md](../spec/SAI_3.5.md)) replaces the discovery candidate this ADR proposed and retires
+D-001–D-046 ([change register](../spec/sai35/change-register.md)). The OD-10 handling below is
+superseded by proposal A' as recorded in ADR-0017. The text below is kept as the record of
+2026-11-01, corrected only where it stated something false about the SAI 3.4 files.
 
 Number note: ADR-0015 is used on the unintegrated G0 line (`58c68be`) for exploratory screening.
 This ADR therefore takes 0016 so the two never collide when the lines are integrated.

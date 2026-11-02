@@ -1,159 +1,143 @@
-# SAI 3.5 Discovery Candidate — End-to-end architecture
+# SAI 3.5 — Appendix B: Architecture, components and responsibility boundaries
 
-Version: `3.5.0-discovery-candidate.1`. Refines §2–§5 of the
-[candidate](../SAI_3.5_Discovery_Candidate.md) and builds on the SAI 3.4
-[architecture contract](../../architecture/sai34-autonomous-modeling.md), which is unchanged.
-Status: **CANDIDATE — NOT ACTIVE.** This is a target design. Most components do not exist; see
-[implementation status](implementation-status.md).
+Version: `3.5.0-master-candidate.1`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Authority: normative for component responsibilities, prohibitions and trust boundaries; refines
+[SAI 3.5](../SAI_3.5.md) §3 and builds on the unchanged SAI 3.4
+[architecture contract](../../architecture/sai34-autonomous-modeling.md). This is a target design;
+most components do not exist ([implementation status](implementation-status.md)).
+Supersedes the `3.5.0-discovery-candidate.1` version of this file (kept in git history).
 
-## 1. Components
+## 1. Planes
+
+| Plane | Contains | Crosses to |
+|---|---|---|
+| Researcher plane | ResearcherWorkspace, Owner and member decisions | control plane through authenticated sessions (TB-1) |
+| Control plane | CampaignOrchestrator, GovernancePlane, CostGovernance, RegistrationRegistry, ReportGenerator | every other plane |
+| Discovery side | DiscoveryLoop: ProblemDiscovery, HypothesisBrain, MechanismExplorer, ResearchReframing; NoveltyAuditor (search and classification only) | proposes to the validation side; reads feedback records only |
+| Validation side | VerificationPlanner, ValidationLoop, NumericalValidation, PhysicalValidation, ModelQualification, CausalWarrantGate | writes verdicts, belief events and confirmations; never generates the hypotheses it validates |
+| Model and worker plane | PhysicalModelBuilder, SimulatorWorkers | license boundary (TB-3); raw outputs only |
+| Evaluation plane | EvaluationPlane (sealed vault, hidden-world generator, independent evaluator, scorer, arm-label custodian) | reads outputs; nothing flows back (TB-4) |
+| Development plane | developers and coding agents, CI | never reaches production at run time (TB-6) |
+
+## 2. Components
+
+Each component runs under its own service identity with the least privilege of the permission
+matrix ([governance-security.md](governance-security.md) §5). "Reuses" names existing code on the
+SAI 3.4 integration line (`a38ad63`) unless another commit is given.
+
+| Component | Responsibility | Holds or produces | Must not | Reuses | Requirements |
+|---|---|---|---|---|---|
+| CampaignOrchestrator | runs the lifecycle stages and the campaign state machine; checkpoints and restart; termination | ResearchCampaign, stage checkpoints, StopRecord | set episode or belief states; widen an envelope; call a coding agent | `research/service.py`, `tools/execution.py` | S35-LIFE-001–003, S35-GOV-003, S35-AUTO-003 |
+| ProblemDiscovery | detects anomalies, contradictions and knowledge gaps; creates and values ResearchProblems; keeps the anomaly registry | ResearchProblem, ProblemValuation, Anomaly and its state events | send non-PUBLIC material out; consume more than the zero-cost tier outside an envelope or acceptance | `core/models/conflict.py` (Conflicts) | S35-PROB-001–004 |
+| HypothesisBrain | generates exploratory ideas and candidate mechanisms through ScientificLLM and ModelRouter; submits ideas with typed predictions to admission | ExploratoryIdea with InferenceProvenance | set any state; count as evidence; read sealed material | `cognition/debate.py`, `llm_runtime/runtime.py` | S35-HYP-002, S35-HYP-004 |
+| MechanismExplorer | computes the mechanism class partition under the experiment set; expands the search space after failure or residuals | MechanismClassPartition, ExperimentSet version, expansion records | count hypotheses as diversity; resolve indistinguishable pairs by fiat | offline prototype `118a4ac:src/lab_brain/discovery/distinguish.py` | S35-MECH-001, S35-MECH-002 |
+| ResearchReframing | creates typed, append-only Reframings when assumptions, observables, models or hypotheses fail | Reframing | edit or hide failure history; turn failure into support | offline prototype `118a4ac:src/lab_brain/discovery/loop.py` | S35-REF-001–003 |
+| DiscoveryLoop | the Discovery side as a whole: proposes problems, ideas, classes, reframings and candidate experiments; hands claims over to validation | hand-over packets, always pending the Causal Warrant Gate | write verdicts, belief states or confirmations; change validators, protocols, tolerances or scoring; read sealed material | offline prototype `118a4ac:src/lab_brain/discovery/handover.py` | S35-HYP-001, S35-LOOP-001 |
+| NoveltyAuditor | runs authorized literature and prior-art search; assigns novelty classes bounded by coverage | PriorArtSearchRecord, NoveltyAssessment | present internal novelty as global; assert new physical knowledge before stage 3 and physical validation | `cognition/novelty.py`, `research/literature.py` | S35-NOV-001–003 |
+| VerificationPlanner | selects discriminating experiments per unit cost with SAI 3.3 §9 sufficiency and a deterministic SelectionPolicy | SelectionDecision | use uncalibrated expected information gain; dispatch a gated experiment before its authorization | `verification/least_cost.py`, `verification/sufficiency.py` | S35-SEL-001 |
+| RegistrationRegistry | creates immutable prospective Registrations, automatically inside an envelope or under a signed human authorization; stores envelopes and their revocations | Registration, ResearchEnvelope, EnvelopeRevocation | edit a registration; accept a client timestamp; let an envelope authorize a conclusion | `f41758c:src/lab_brain/verification/prospective.py` | S35-REG-001–003 |
+| PhysicalModelBuilder | lowers a PhysicalModelSpec into the closed typed operation catalog; builds from scratch; reads back; applies bounded ModelPatches | typed operation plan, BuildManifest, ModelReadback, child spec versions | run generated code; reuse a hidden prebuilt project; fill unknowns with defaults | none (SAI 3.4 SPECIFIED) | S35-MOD-001, S35-MOD-002, S35-VAL-004 |
+| ModelQualification | qualifies model families and each licensed product per worker | qualification records with scope | transfer one product's or worker's qualification to another | none | S35-MOD-003, S35-SIM-002 |
+| SimulatorWorkers | run CHARGE, MODE, FDTD and INTERCONNECT on internal qualified workers under Job, registration, fencing and reservation | Runs, raw artifacts, readback, attempt and checkout records | return verdicts; reach the network beyond the license endpoint; share caches across projects; be operated by a coding agent | `tools/simulation.py`, `tools/execution.py`; today only `tool_providers/lumerical/mock.py` | S35-SIM-001, S35-SIM-003 |
+| NumericalValidation | registered sweeps, convergence studies, per-source uncertainty | sweep plans and results, convergence records, uncertainty records | let an unconverged observable discriminate | `domains/silicon_photonics/validators.py` (trend rules only) | S35-VAL-001–003 |
+| PhysicalValidation | validation against independent references with uncertainty | validation reports, split manifest checks | accept simulation agreement or trend as physical validation | none | S35-VAL-005 |
+| ValidationLoop | evaluates competing explanations independently, admits evidence, runs TransitionPolicy, projects claim states, emits FeedbackRecords and StopRecords | Attestations, RelationJudgments, BeliefRevisionEvents, claim-state projection, FeedbackRecord, StopRecord | generate the hypotheses it validates; write CONFIRMED | `research/service.py`, `core/hypothesis_admission.py` | S35-SEL-002, S35-HYP-003, S35-LOOP-002, S35-LOOP-003, S35-EVI-001, S35-EVI-003, S35-REG-004 |
+| CausalWarrantGate | the exclusive confirmation authority (V1.1, unchanged) | warrant decisions, signed reviews, CONFIRMED | be bypassed, widened (DISCRIMINATION, multi-cause) or replaced by automation | `core/warrant.py`, `security/reviewer_identity.py`, `research/confirmation.py` | S35-CWG-001, S35-CWG-002 |
+| ReportGenerator | bilingual traceable reports, reproducible bundles, glossary terms | Report, ReportBundle | translate over a canonical record; show an unpassed step as verified | `research/report.py`, `research/render.py` | S35-RPT-001–003, S35-VAL-003 |
+| ResearcherWorkspace | bilingual researcher UX: campaigns, stages, anomalies, authorizations, budgets, envelope, stops | ReviewItem resolutions | collect consent by timeout; hide UNKNOWN or NOT_PERFORMED | `interfaces/web/i18n.py` and the web workspace | S35-RPT-004 |
+| GovernancePlane | identities, ACL, egress, Owner gates, autonomy levels, permission matrix, provenance rules, Owner stop | authorizations, revocations, audit events | sign for the Owner; treat a timeout as consent | `accounts/service.py`, `security/egress.py`, `core/review_queue.py` | S35-SEC-001–006, S35-EVI-002 |
+| CostGovernance | reservations before side effects, realized consumption, ceilings | CostLedger entries, reconciliation | presume an endpoint free; raise a ceiling without the Owner | `core/budget.py`; `f41758c:migrations/011v_llm_spend_local_is_not_free.sql` | S35-COST-001, S35-COST-002 |
+| EvaluationPlane | independent G-D evaluation: sealed vault, hidden-world generator, evaluator, blinded scorer, arm-label custodian; contamination defenses | frozen protocols, sealed benchmarks, verdicts | send anything to the control plane; be operated by the implementer | `f41758c:src/lab_brain/evaluation/` (G0 tooling) | S35-GD-001–003, S35-CMP-001–009, S35-EVI-004 |
+| DeploymentOperations | release images, egress allowlists, the no-coding-agent audits | release inventory and audit reports | ship a coding-agent binary, credential or route; give research services write access to code | `deployment/` | S35-AUTO-001, S35-AUTO-002 |
+| SpecMaintenance | this specification, its registry and checkers, spec issues | checker results, spec issues | resolve a conflict by preference; activate SAI 3.5 | `docs/spec/sai35/check_candidate.py` | S35-GOV-001, S35-GOV-002, S35-GOV-004, S35-GOV-005 |
+
+## 3. Data flow
 
 ```mermaid
 flowchart TD
-  subgraph USER[Researcher plane]
-    UI[zh-TW / en research workspace]
-    OWNER[Human Owner gates: money, licenses, physical experiments, publication]
+  subgraph RP[Researcher plane]
+    UX[ResearcherWorkspace zh-TW / en]
+    OWNER[Owner: envelopes, gates, stop]
   end
-
-  subgraph CONTROL[Product control plane, inside the deployment]
-    EP[ResearchEpisodeService]
-    subgraph DISC[Discovery Loop - proposes only]
-      PD[Problem Discovery]
-      AR[Anomaly Registry - explicit states]
-      ME[Mechanism Expansion + class partition under E]
-      RF[Reframing Ledger - append-only]
-      DS[Discrimination-per-cost Selection]
-    end
-    LIT[Literature and Prior-Art Search via ExternalSourceAdapter]
-    ADM[Hypothesis Admission - SAI 3.3 section 8]
-    PRE[Pre-registration Registry - prospective, immutable]
-    VP[Least-cost Verification Planner]
-    GATE[ACL / egress / BudgetGate / capability gate]
-    MB[Typed Model Builder - PhysicalModelSpec to typed operations]
-    JOB[Job / ResourceBroker / Run / CostLedger]
+  subgraph CP[Control plane]
+    ORCH[CampaignOrchestrator]
+    GOV[GovernancePlane + CostGovernance]
+    REG[RegistrationRegistry]
+    REP[ReportGenerator]
   end
-
-  subgraph WORKERS[License boundary: internal workers]
-    W1[CHARGE worker]
-    W2[MODE worker]
-    W3[FDTD worker]
-    W4[INTERCONNECT worker]
+  subgraph DS[Discovery side - proposes only]
+    PD[ProblemDiscovery + anomaly registry]
+    HB[HypothesisBrain]
+    ME[MechanismExplorer]
+    RF[ResearchReframing]
+    NA[NoveltyAuditor]
   end
-
-  subgraph VALID[Validation plane - disposes]
-    NV[Numerical validation: convergence, conservation, sensitivity]
-    PV[Physical validation: DomainPack validators, independent references]
-    EVA[Evidence admission: Artifact / Observation / Attestation]
-    TP[TransitionPolicy + Causal Warrant Gate]
-    EVT[BeliefRevisionEvent / Decision / replay]
+  subgraph VS[Validation side - disposes]
+    VP[VerificationPlanner]
+    VL[ValidationLoop: admission, TransitionPolicy, projection]
+    NV[NumericalValidation]
+    PV[PhysicalValidation]
+    MQ[ModelQualification]
+    CWG[CausalWarrantGate - exclusive confirmation]
   end
-
-  subgraph EVAL[Evaluation plane - sealed, separate identities]
-    VAULT[Sealed benchmark vault and truth]
-    IE[Independent evaluator + blinded scorer]
-    KEY[Arm-label custodian]
+  subgraph WP[Model and worker plane - license boundary]
+    MB[PhysicalModelBuilder]
+    W[SimulatorWorkers CHARGE / MODE / FDTD / INTERCONNECT]
   end
-
-  REP[Bilingual traceable report]
-
-  UI --> EP --> PD
-  AR --> PD
-  PD --> LIT --> ME
-  ME --> ADM --> DS --> PRE --> VP --> GATE
-  OWNER -. authorizes .-> GATE
-  GATE --> MB --> JOB
-  GATE --> JOB
-  JOB --> W1 & W2 & W3 & W4
-  W1 & W2 & W3 & W4 --> NV --> PV --> EVA --> TP --> EVT
-  EVT --> AR
-  EVT --> RF --> PD
-  EVT --> REP --> UI
-  VAULT --> IE
-  KEY --> IE
-  REP -. outputs only .-> IE
+  subgraph EP[Evaluation plane - sealed]
+    EV[Evaluator, hidden worlds, scorer, custodian]
+  end
+  UX --> ORCH
+  OWNER -. signs .-> GOV
+  ORCH --> PD --> NA --> HB --> ME --> VL
+  VL --> VP --> REG
+  GOV -. bounds .-> REG
+  REG --> MB --> W
+  REG --> W
+  W --> NV --> VL
+  NV --> PV --> VL
+  MQ -. qualifies .-> MB
+  VL --> CWG
+  VL -- FeedbackRecord --> PD
+  VL -- FeedbackRecord --> ME
+  VL -- FeedbackRecord --> RF --> PD
+  CWG --> REP
+  VL --> REP --> UX
+  REP -. outputs only .-> EV
 ```
 
-No arrow leads from the evaluation plane into the control plane or the Discovery Loop. The
-evaluator reads outputs; nothing it holds flows back.
-
-## 2. Responsibilities and prohibitions
-
-| Component | Holds | Must not hold or do |
-|---|---|---|
-| Discovery Loop | problems, anomaly states, mechanism class partitions, reframing records, selection decisions | write belief states or validation verdicts; read sealed truth; change validators, protocols or tolerances (D-023) |
-| Literature search | pinned passages, licenses, PriorArtSearchRecords | send non-PUBLIC queries; treat a fixture corpus as live search (D-007) |
-| Pre-registration Registry | immutable registrations dated by the database clock, with the authorizing human | edit a registration in place (D-024) |
-| Model Builder | typed operations, BuildManifest, readback | run model-generated code; reuse a hidden prebuilt project (D-008) |
-| Internal workers | a vendor session per job, checkout records, raw outputs | network beyond the allowlisted license endpoint; cross-project caches; any coding agent (D-006, D-009) |
-| Validation plane | numerical and physical validation reports, admission, warrants | accept a discovery-side verdict; confirm outside the Causal Warrant Gate (D-026) |
-| Evaluation plane | sealed benchmark, truth, arm-label key, scorer | send anything to the control plane; be operated by the implementer (D-035, D-040) |
-
-## 3. Data flow of one campaign
-
-1. A researcher opens an episode or an anomaly is flagged. Problem Discovery creates a
-   ResearchProblem with its origin and links (D-015). Non-zero-cost work waits for a human member to
-   accept the problem.
-2. Literature and prior-art search runs only on a query declared PUBLIC, through authorized
-   adapters, and records its coverage (D-007, D-004).
-3. Mechanism Expansion proposes hypotheses. Admission (SAI 3.3 §8) admits those with mechanism,
-   typed predictions, falsifier, assumptions and minimum test. The class partition is computed under
-   the current experiment set *E* (D-016, D-017).
-4. Discrimination-per-cost Selection proposes the next experiments (D-021). An experiment needing
-   money, a license, a physical experiment or publication goes to the Owner gate (D-030).
-5. Each chosen test is pre-registered before its data exists (D-024).
-6. If a simulation is needed, the Model Builder lowers a PhysicalModelSpec into typed operations;
-   a Job reserves budget and a license seat; an internal worker builds, reads back and solves
-   (D-008, D-009). Sweeps run as pre-registered plans (D-010).
-7. Numerical validation runs the convergence study before any simulated observable may discriminate
-   (D-011). Physical validation uses independent references (D-013).
-8. Evidence admission records Observations and Attestations. TransitionPolicy decides belief moves;
-   only the Causal Warrant Gate confirms (D-026). Evidence that fails the prospective rules is
-   recorded as CITES (D-025).
-9. Anomaly states and the class partition update. Failed or inconclusive hypotheses can trigger
-   Research Reframing, which appends a record and starts a new lineage (D-019, D-020).
-10. The campaign ends on success, on INSUFFICIENT_VALIDATION or on STOPPED (D-022, D-028). The
-    bilingual report lists every state, failure, stop reason and cost (D-014).
+No arrow leads from the evaluation plane into any other plane. The Discovery side reads validation
+results only through FeedbackRecords (S35-LOOP-002).
 
 ## 4. Trust boundaries
 
 | ID | Boundary | Crossing rule | Current limit |
 |---|---|---|---|
-| TB-1 | researcher ↔ product | authenticated session, project membership and clearance on every request | session and account controls exist on this line; A3/A9/A12 stay open |
-| TB-2 | product ↔ model and literature providers | egress gate by sensitivity, project declaration and budget; typed outputs only | spend administration and the free-endpoint declaration exist only on the G0 line (`58c68be`, `011t`) |
-| TB-3 | control plane ↔ internal workers (license boundary) | Job binding, fencing token, typed operations only, recorded checkout | no worker exists; the Lumerical provider is a mock |
-| TB-4 | everything ↔ evaluation plane | outputs flow out to the evaluator; nothing flows back; separate identities | not built for G-D; G0 tooling exists only on the G0 line |
-| TB-5 | application ↔ database authority | database triggers hold rules for normal writers | a superuser or migrator can bypass triggers (A12); on the G0 line `011u` detects account changes but does not prevent them |
-| TB-6 | development plane ↔ production | coding agents and developer sessions exist only in development; no runtime path | not yet tested by a deployment-equivalent check (T-D-006) |
+| TB-1 | researcher ↔ product | authenticated session, project membership and clearance on every request | accounts exist on the integration line; A3, A9 and A12 open |
+| TB-2 | product ↔ model and literature providers | egress by sensitivity, project declaration and budget; typed outputs only; no endpoint presumed free | local-endpoint metering (`011v`) exists only on the unintegrated G0 line |
+| TB-3 | control plane ↔ workers (license boundary) | Job, registration id, fencing token, typed operations, recorded checkout | no worker exists; the Lumerical provider is a mock |
+| TB-4 | everything ↔ evaluation plane | outputs flow out; nothing flows back; separate identities | G0 evaluation tooling only, on the G0 line |
+| TB-5 | application ↔ database authority | database rules hold the permission matrix for normal writers | a superuser or migrator can bypass rules (A12); `011u` on the G0 line detects account changes but does not prevent them |
+| TB-6 | development plane ↔ production | no coding agent, developer session or credential in production | not tested (S35-AUTO-001, S35-AUTO-002) |
+| TB-7 | Discovery side ↔ Validation side | proposals and hand-overs only; FeedbackRecords back; separate identities | not built; the offline prototype hands over a pending packet |
 
 ## 5. Internal Lumerical workers
 
-The design follows ASM-005, ASM-006, ASM-007 and the SAI 3.4 architecture §3–§4, unchanged. In
-summary:
-
-- **Ownership.** Workers run inside the deployment under a non-human worker service identity. They
-  are never operated by a developer or a coding agent.
-- **Products.** CHARGE, MODE, FDTD and INTERCONNECT are separate capabilities, each qualified on
-  its own: install, SDK compatibility, design-environment license, solve and HPC entitlements, OS
-  and version matrix. One product's qualification does not transfer to another.
-- **Isolation.** Non-administrator account, a per-job workspace root, path normalization and
-  symlink-escape refusal, read-only inputs, memory and output limits, a process allowlist, no
-  network except the allowlisted license endpoint, hash-pinned packages and templates, and a clean
-  session per job.
-- **Execution.** Only typed operations from the Model Builder are accepted. Readback is compared
-  independently with the spec. Every attempt records start and end, exit status, logs, output
-  arrays and the actual license checkout and release.
-- **Governance.** A run needs a Job with reserved budget and a valid Owner license authorization
-  for the campaign. Heartbeats, fencing tokens and timeouts apply; a stale worker cannot write
-  back. An outcome that cannot be determined is UNKNOWN and is reconciled before any retry.
-- **Today.** None of this exists. `src/lab_brain/tool_providers/lumerical/` contains a
-  deterministic mock only, and `tests/e2e/test_vs_sp_001_licensed_replay.py` fails by design when
-  the licensed gate is enabled because no licensed provider exists.
+Unchanged from SAI 3.4 ASM-005, ASM-006 and ASM-007 and the SAI 3.4 architecture §3–§4: workers run
+inside the deployment under a non-human worker service identity; each product (CHARGE, MODE, FDTD,
+INTERCONNECT) is qualified separately; isolation is per job (non-administrator account, workspace
+root, path normalization and symlink-escape refusal, read-only inputs, resource limits, process
+allowlist, network only to the allowlisted license endpoint, hash-pinned packages and templates,
+clean session); only typed operations are accepted; readback is compared independently; every
+attempt records its checkout and release; heartbeats, fencing and timeouts apply; an undeterminable
+outcome is UNKNOWN and is reconciled before any retry. SAI 3.5 adds only the registration binding
+and the raw-outputs-only rule of S35-SIM-003. Today none of this exists.
 
 ## 6. Reuse before new parts
 
-Discovery reuses the existing research service, structured debate, admission gate, least-cost
-planner, Job/Run/budget seams, evidence admission, TransitionPolicy and the Causal Warrant Gate. It
-does not add a second queue, budget ledger, belief store, ReviewQueue or development-agent control
-plane. New persistent records (ResearchProblem, AnomalyState, MechanismClassPartition, Reframing,
-PreRegistration where not already present) would need their own ADR, schema migration and tests in
-a later, separately approved slice.
+The product reuses the research service, structured debate, the §8 admission gate, the least-cost
+planner, Job/Run/budget seams, evidence admission, TransitionPolicy, ReviewQueue and the Causal
+Warrant Gate. It adds no second queue, budget ledger, belief store, ReviewQueue or development-agent
+control plane. New persistent records ([records-and-states.md](records-and-states.md)) each need an
+ADR, a schema migration and tests in a separately approved slice; the offline prototype on
+`118a4ac` is input to that work, not a substitute for it.

@@ -1,8 +1,10 @@
-# SAI 3.5 Discovery Candidate registry. CANDIDATE, NOT ACTIVE, not integrated.
-# The active SAI 3.3 registry, the SAI 3.4 activation registry and ACTIVE_SPEC.yaml are unchanged.
-# planned_tests are obligations, never implementation or executed-test evidence.
-schema_version: 1
-spec_version: 3.5.0-discovery-candidate.1
+# SAI 3.5 master specification registry. CANDIDATE — NOT ACTIVE; not integrated.
+# Machine-readable mirror of docs/spec/SAI_3.5.md §3, checked statement by statement by
+# docs/spec/sai35/check_candidate.py. The active SAI 3.3 registry, the SAI 3.4 activation registry
+# and ACTIVE_SPEC.yaml are unchanged. planned_tests are obligations, never executed-test evidence;
+# every statement has tests: []. Evidence is "<commit>:<path>" or a path on this branch.
+schema_version: 2
+spec_version: 3.5.0-master-candidate.1
 status: CANDIDATE
 activation_status: NOT_ACTIVE
 integrated: false
@@ -12,695 +14,3142 @@ g0_status: NOT_PASSED
 changes_sai34: false
 changes_g0_g9: false
 base_revision: a38ad63a4f4ad83c895cbd1e32b2e760d878f356
-g0_line_revision: 58c68be8ad5af63c9335e3b99ce8e0fd403815e9
-spec_document: docs/spec/SAI_3.5_Discovery_Candidate.md
+evidence_lines:
+  a38ad63: integration-integrity-accounts (SAI 3.4 integration line, base)
+  f41758c: g0-reliability-authenticity-closure (G0 line, WS1; unintegrated, G0 NOT PASSED)
+  118a4ac: discovery-loop-offline (offline Discovery Loop v0, WS2; unintegrated, not independently reviewed)
+in_progress_branches:
+  g0-authorization-read-path-closure: from f41758c; forged-authorization read-path bypass fixed on this unmerged branch, pending
+    independent audit
+  discovery-independent-evaluation: independent hidden-world evaluation design; in progress, not reviewed
+spec_document: docs/spec/SAI_3.5.md
+superseded_documents:
+- docs/spec/SAI_3.5_Discovery_Candidate.md
 review_at: '2026-12-01'
-review_trigger: Owner decision OD-01 on the candidate; G-D0 cannot start before OD-02, OD-03 and OD-04.
-deferred_rationale: Candidate only. Activation needs an Owner decision, an accepted ADR-0016, a branch integration plan, an SAI 3.4 activation-checker scope change and real implementation tests. No runtime delivery is claimed.
+review_trigger: Independent Chief Auditor review and Owner decision OD-01; G-D0 cannot start before OD-02, OD-03 and OD-04.
+deferred_rationale: Candidate only. Activation needs an Independent Chief Auditor review and explicit Owner approval (OD-16)
+  by the steps of activation-proposal.md. No runtime delivery is claimed.
+id_scheme: S35-<AREA>-NNN
+retired_ids: D-001..D-046 (3.5.0-discovery-candidate.1), mapped in change-register.md
+areas:
+  GOV:
+    section: '3.1'
+    title: Governance of this specification
+  LIFE:
+    section: '3.2'
+    title: Research lifecycle
+  PROB:
+    section: '3.3'
+    title: Problem discovery
+  HYP:
+    section: '3.4'
+    title: Hypotheses and epistemic stages
+  MECH:
+    section: '3.5'
+    title: Mechanism space
+  REF:
+    section: '3.6'
+    title: Research Reframing
+  SEL:
+    section: '3.7'
+    title: Competing explanations and experiment selection
+  MOD:
+    section: '3.8'
+    title: Physical model construction
+  SIM:
+    section: '3.9'
+    title: Licensed simulation on internal workers
+  VAL:
+    section: '3.10'
+    title: Sweeps, convergence, uncertainty, refinement and physical validation
+  LOOP:
+    section: '3.11'
+    title: Discovery–Validation feedback loop
+  CWG:
+    section: '3.12'
+    title: Confirmation authority
+  REG:
+    section: '3.13'
+    title: Prospective registration and the research envelope
+  NOV:
+    section: '3.14'
+    title: Novelty and prior art
+  EVI:
+    section: '3.15'
+    title: Evidence, provenance, independence and contamination
+  RPT:
+    section: '3.16'
+    title: Reports and researcher experience
+  AUTO:
+    section: '3.17'
+    title: Production autonomy without external coding agents
+  SEC:
+    section: '3.18'
+    title: Identity, permissions, autonomy levels and Owner authority
+  COST:
+    section: '3.19'
+    title: Cost governance
+  GD:
+    section: '3.20'
+    title: G-D acceptance
+  CMP:
+    section: '3.21'
+    title: Matched-budget comparison
+appendices:
+- id: A
+  path: docs/spec/sai35/lifecycle.md
+  authority: normative
+- id: B
+  path: docs/spec/sai35/architecture-end-to-end.md
+  authority: normative
+- id: C
+  path: docs/spec/sai35/records-and-states.md
+  authority: normative
+- id: D
+  path: docs/spec/sai35/provenance-novelty-independence.md
+  authority: normative
+- id: E
+  path: docs/spec/sai35/governance-security.md
+  authority: normative
+- id: F
+  path: docs/spec/sai35/ux-reports-glossary.md
+  authority: normative
+- id: G
+  path: docs/spec/sai35/deployment-autonomy.md
+  authority: normative
+- id: H
+  path: docs/spec/sai35/roadmap.md
+  authority: normative
+- id: I
+  path: docs/spec/sai35/acceptance-gd.md
+  authority: normative
+- id: J
+  path: docs/spec/sai35/matched-budget-protocol.md
+  authority: normative
+- id: K
+  path: docs/spec/sai35/traceability.md
+  authority: normative
+- id: L
+  path: docs/spec/sai35/implementation-status.md
+  authority: informative
+- id: M
+  path: docs/spec/sai35/compatibility.md
+  authority: normative
+- id: N
+  path: docs/spec/sai35/activation-proposal.md
+  authority: informative
+- id: O
+  path: docs/spec/sai35/decisions-and-review.md
+  authority: informative
+- id: P
+  path: docs/spec/sai35/open-spec-issues.md
+  authority: informative
+- id: Q
+  path: docs/spec/sai35/requirement-audit.md
+  authority: informative
+- id: R
+  path: docs/spec/sai35/change-register.md
+  authority: informative
 documents:
-  - docs/spec/SAI_3.5_Discovery_Candidate.md
-  - docs/spec/sai35/acceptance-gd.md
-  - docs/spec/sai35/matched-budget-protocol.md
-  - docs/spec/sai35/architecture-end-to-end.md
-  - docs/spec/sai35/implementation-status.md
-  - docs/spec/sai35/roadmap.md
-  - docs/spec/sai35/decisions-and-review.md
-  - docs/spec/sai35/traceability.md
-  - docs/adr/ADR-0016-sai35-discovery-candidate.md
-gd_levels: [G-D0, G-D1, G-D2, G-D3, G-D4]
+- docs/spec/SAI_3.5.md
+- docs/spec/sai35/lifecycle.md
+- docs/spec/sai35/architecture-end-to-end.md
+- docs/spec/sai35/records-and-states.md
+- docs/spec/sai35/provenance-novelty-independence.md
+- docs/spec/sai35/governance-security.md
+- docs/spec/sai35/ux-reports-glossary.md
+- docs/spec/sai35/deployment-autonomy.md
+- docs/spec/sai35/roadmap.md
+- docs/spec/sai35/acceptance-gd.md
+- docs/spec/sai35/matched-budget-protocol.md
+- docs/spec/sai35/traceability.md
+- docs/spec/sai35/implementation-status.md
+- docs/spec/sai35/compatibility.md
+- docs/spec/sai35/activation-proposal.md
+- docs/spec/sai35/decisions-and-review.md
+- docs/spec/sai35/open-spec-issues.md
+- docs/spec/sai35/requirement-audit.md
+- docs/spec/sai35/change-register.md
+- docs/spec/sai35/REPORT.zh-TW.md
+- docs/adr/ADR-0017-sai35-master-specification-scope.md
+- docs/adr/ADR-0016-sai35-discovery-candidate.md
+- docs/spec/SAI_3.5_Discovery_Candidate.md
+components:
+- CampaignOrchestrator
+- ProblemDiscovery
+- HypothesisBrain
+- MechanismExplorer
+- ResearchReframing
+- DiscoveryLoop
+- NoveltyAuditor
+- VerificationPlanner
+- RegistrationRegistry
+- PhysicalModelBuilder
+- ModelQualification
+- SimulatorWorkers
+- NumericalValidation
+- PhysicalValidation
+- ValidationLoop
+- CausalWarrantGate
+- ReportGenerator
+- ResearcherWorkspace
+- GovernancePlane
+- CostGovernance
+- EvaluationPlane
+- DeploymentOperations
+- SpecMaintenance
+roadmap_phases:
+- P35-0
+- P35-1
+- P35-2
+- P35-3
+- P35-4
+- P35-5
+- P35-6
+- P35-7
+- P35-8
+- P35-9
+gates:
+- G0
+- G1
+- G2
+- G3
+- G4
+- G5
+- G6
+- G7-SITE
+- G7-WORKER
+- G8
+- G9
+- G-D0
+- G-D1
+- G-D2
+- G-D3
+- G-D4
+status_values:
+- complete
+- partial
+- proposed
+- blocked
+- untested
+capabilities:
+- id: CAP-01
+  name: Discover valuable research problems, anomalies, contradictions and knowledge gaps
+  requirements:
+  - S35-PROB-001
+  - S35-PROB-002
+  - S35-PROB-003
+  - S35-PROB-004
+  gates:
+  - G-D1
+  - G-D2
+- id: CAP-02
+  name: Generate genuinely novel, mechanistically distinguishable, falsifiable hypotheses
+  requirements:
+  - S35-HYP-002
+  - S35-HYP-004
+  - S35-MECH-001
+  - S35-NOV-001
+  - S35-NOV-002
+  - S35-NOV-003
+  gates:
+  - G-D2
+  - G-D3
+- id: CAP-03
+  name: Explore alternative physical mechanisms and expand the effective search space
+  requirements:
+  - S35-MECH-001
+  - S35-MECH-002
+  gates:
+  - G-D1
+  - G-D2
+- id: CAP-04
+  name: Research Reframing when assumptions, observables, models or hypotheses fail
+  requirements:
+  - S35-REF-001
+  - S35-REF-002
+  - S35-REF-003
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+- id: CAP-05
+  name: Independently evaluate competing explanations and select discriminating experiments
+  requirements:
+  - S35-SEL-001
+  - S35-SEL-002
+  - S35-LOOP-001
+  gates:
+  - G6
+  - G-D1
+  - G-D2
+  - G-D3
+- id: CAP-06
+  name: Construct physical models from scratch through governed typed scientific operations
+  requirements:
+  - S35-MOD-001
+  - S35-MOD-002
+  - S35-MOD-003
+  gates:
+  - G1
+  - G9
+- id: CAP-07
+  name: Autonomously execute licensed Lumerical CHARGE, MODE, FDTD and INTERCONNECT through internal workers
+  requirements:
+  - S35-SIM-001
+  - S35-SIM-002
+  - S35-SIM-003
+  gates:
+  - G2
+  - G7-SITE
+  - G8
+- id: CAP-08
+  name: Parameter sweeps, convergence studies, uncertainty analysis, model refinement and independent physical validation
+  requirements:
+  - S35-VAL-001
+  - S35-VAL-002
+  - S35-VAL-003
+  - S35-VAL-004
+  - S35-VAL-005
+  gates:
+  - G3
+  - G4
+  - G5
+- id: CAP-09
+  name: A continuous Discovery–Validation feedback loop with immutable evidence and independent causal confirmation
+  requirements:
+  - S35-HYP-001
+  - S35-HYP-003
+  - S35-LOOP-001
+  - S35-LOOP-002
+  - S35-LOOP-003
+  - S35-EVI-001
+  - S35-CWG-001
+  - S35-CWG-002
+  - S35-REG-001
+  - S35-REG-004
+  gates:
+  - G6
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+- id: CAP-10
+  name: Reproducible, traceable, bilingual (zh-TW/en) reports with explicit uncertainty and limitations
+  requirements:
+  - S35-RPT-001
+  - S35-RPT-002
+  - S35-RPT-003
+  - S35-RPT-004
+  - S35-VAL-003
+  gates:
+  - G0
+  - G9
+- id: CAP-11
+  name: The complete production research workflow without external coding agents
+  requirements:
+  - S35-AUTO-001
+  - S35-AUTO-002
+  - S35-AUTO-003
+  - S35-GOV-003
+  - S35-LIFE-001
+  - S35-LIFE-002
+  - S35-LIFE-003
+  gates:
+  - G9
+- id: CAP-12
+  name: Project isolation, identity, permissions, safety, provenance, cost limits, Owner authority and scientific governance
+  requirements:
+  - S35-SEC-001
+  - S35-SEC-002
+  - S35-SEC-003
+  - S35-SEC-004
+  - S35-SEC-005
+  - S35-SEC-006
+  - S35-COST-001
+  - S35-COST-002
+  - S35-EVI-002
+  - S35-EVI-003
+  - S35-EVI-004
+  - S35-REG-002
+  - S35-REG-003
+  gates:
+  - G0
+  - G8
+epistemic_stages:
+- EXPLORATORY_IDEA
+- TESTABLE_HYPOTHESIS
+- EVIDENCE_SUPPORTED_CONCLUSION
+claim_states:
+- PROPOSED
+- ADMITTED
+- REGISTERED
+- UNDER_TEST
+- SUPPORTED
+- CHALLENGED
+- CONTRADICTED
+- INCONCLUSIVE
+- CONFIRMED
+- INSUFFICIENT_VALIDATION
+- STOPPED
+- WITHDRAWN
+anomaly_states:
+- UNEXPLAINED
+- UNDER_INVESTIGATION
+- ACCOMMODATED
+- PROVISIONALLY_EXPLAINED
+- EXPLAINED
+- ATTRIBUTED_TO_NOISE
+- ARTIFACT
+- UNRESOLVED_INSUFFICIENT
+- WITHDRAWN
+reframing_kinds:
+- QUESTION_ASSUMPTION
+- CHANGE_OBSERVABLE
+- CORRECT_MODEL
+- QUESTION_MEASUREMENT_CHAIN
+- WIDEN_MECHANISM_SPACE
+- NARROW_SCOPE
+- STOP_INSUFFICIENT
+campaign_states:
+- DRAFT
+- SCOPED
+- RUNNING
+- AWAITING_REGISTRATION_AUTHORIZATION
+- AWAITING_RESOURCE
+- AWAITING_HUMAN
+- AWAITING_JOB
+- REPORTING
+- CLOSED_CONCLUDED
+- CLOSED_INSUFFICIENT_VALIDATION
+- CLOSED_STOPPED
+autonomy_levels:
+- AL0
+- AL1
+- AL2
+- AL3
+- AL4
+novelty_classes:
+- KNOWN_MECHANISM_REDISCOVERY
+- ENGINEERING_OPTIMIZATION
+- MODEL_CORRECTION
+- NEW_PHYSICAL_KNOWLEDGE_CANDIDATE
+- NEW_PHYSICAL_KNOWLEDGE
+envelope:
+  automatic_registration_inside_bounds: true
+  authorizes_conclusions: false
+  never_inside:
+  - physical_experiments
+  - fabrication
+  - publication
+  - irreversible_actions
+  - non_public_egress
+  - validator_protocol_policy_changes
+  satisfies_per_hypothesis_preauthorization: NO_UNTIL_OD-14
+gd_levels:
+- G-D0
+- G-D1
+- G-D2
+- G-D3
+- G-D4
 gd_framework:
   separate_from_g0_g9: true
   g0_g9_completion_implies_discovery: false
   requires_independent_evaluator: true
   implementer_may_sign: false
   substitutes_for_g_gates: false
+  synthetic_success_is_real_discovery_validation: false
   evaluated_levels: []
 comparison_arms:
-  A: single LLM
-  B: existing LIB
+  A: single frontier LLM
+  B: existing LIB workflow
   C: LIB with Discovery
-matching_dimensions: [models, token_budget, compute_budget, experiment_budget, tools_and_data, time_limit, seeds, environment]
+matched_on:
+- model_versions
+- information_exposure
+- experimental_conditions
+- resource_caps
+- realized_consumption
 metrics:
-  - true-mechanism discovery rate
-  - distinguishable diversity
-  - experimental efficiency
-  - false discoveries
-  - reproducibility
-epistemic_states: [PROPOSED, ADMITTED, PREREGISTERED, UNDER_TEST, SUPPORTED, CHALLENGED, CONTRADICTED, INCONCLUSIVE, CONFIRMED, INSUFFICIENT_VALIDATION, STOPPED, REFRAMED, WITHDRAWN]
-anomaly_states: [UNEXPLAINED, UNDER_INVESTIGATION, PROVISIONALLY_EXPLAINED, EXPLAINED, ARTIFACT, UNRESOLVED_INSUFFICIENT, WITHDRAWN]
-stop_outcomes: [INSUFFICIENT_VALIDATION, STOPPED]
+- true-cause discovery
+- effective mechanism diversity
+- discriminating-experiment efficiency
+- false discoveries
+- independent reproducibility
+stop_outcomes:
+- INSUFFICIENT_VALIDATION
+- STOPPED
 stop_outcome_is_governance_success: true
 confirmed_only_via: causal_warrant_gate
 production_depends_on_external_coding_agent: false
-licensed_products: [CHARGE, MODE, FDTD, INTERCONNECT]
-owner_gates: [money, licenses, physical_experiments, publication]
-human_account_roles: [ADMIN, MEMBER]
-unresolved_security_decisions: [A3, A9, A12]
-roadmap_phases: [D0, D1, D2, D3, D4, D5, D6]
-owner_decisions: [OD-01, OD-02, OD-03, OD-04, OD-05, OD-06, OD-07, OD-08, OD-09, OD-10, OD-11, OD-12, OD-13]
-decision_statuses: {OD-01: OPEN, OD-02: OPEN, OD-03: OPEN, OD-04: OPEN, OD-05: OPEN, OD-06: OPEN, OD-07: OPEN, OD-08: OPEN, OD-09: OPEN, OD-10: OPEN, OD-11: OPEN, OD-12: OPEN, OD-13: OPEN}
+licensed_products:
+- CHARGE
+- MODE
+- FDTD
+- INTERCONNECT
+owner_gates:
+- money
+- licenses
+- physical_experiments
+- publication
+human_account_roles:
+- ADMIN
+- MEMBER
+unresolved_security_decisions:
+- A3
+- A9
+- A12
+owner_decisions:
+- OD-01
+- OD-02
+- OD-03
+- OD-04
+- OD-05
+- OD-06
+- OD-07
+- OD-08
+- OD-09
+- OD-10
+- OD-11
+- OD-12
+- OD-13
+- OD-14
+- OD-15
+- OD-16
+decision_statuses:
+  OD-01: OPEN
+  OD-02: OPEN
+  OD-03: OPEN
+  OD-04: OPEN
+  OD-05: OPEN
+  OD-06: OPEN
+  OD-07: OPEN
+  OD-08: OPEN
+  OD-09: OPEN
+  OD-10: OPEN
+  OD-11: OPEN
+  OD-12: OPEN
+  OD-13: OPEN
+  OD-14: OPEN
+  OD-15: OPEN
+  OD-16: OPEN
+open_spec_issues:
+- S35-ISSUE-01
+- S35-ISSUE-02
+- S35-ISSUE-03
+- S35-ISSUE-04
+- S35-ISSUE-05
+- S35-ISSUE-06
+- S35-ISSUE-07
+- S35-ISSUE-08
+- S35-ISSUE-09
+- S35-ISSUE-10
+counts:
+  retired: 46
+  requirements: 77
+  audit_actions:
+    refined: 19
+    replaced: 1
+    split: 5
+    kept: 19
+    merged: 2
+  new_requirements: 27
+  status:
+    complete: 3
+    proposed: 22
+    partial: 45
+    blocked: 5
+    untested: 2
 normative_statements:
-  - key: candidate.additive
-    section: '0'
-    level: MUST
-    requirement_id: D-001
-    tests: []
-    planned_tests: [T-D-001]
-    pass_condition: SAI 3.3 and SAI 3.4 files, registries, milestones and ACTIVE_SPEC.yaml stay byte-identical to the base; a later conflict opens a spec issue and stops the affected slice.
-    gates: [G-D0]
-    milestone: D0
-    related_sai34: [ASM-018]
-    related_sai33: [TST-002, TST-003]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Only the documentation checker exists; spec-issue handling for SAI 3.5 is not yet exercised.
-  - key: vision.target
-    section: '1'
-    level: MUST
-    requirement_id: D-002
-    tests: []
-    planned_tests: [T-D-002]
-    pass_condition: Each of the four capabilities has an operational definition tied to records and to the G-D level that would evidence it; none is described as present.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D0
-    related_sai34: [ASM-001, ASM-002]
-    related_sai33: [SYS-001]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Product target only; no discovery capability exists.
-  - key: vision.claim_discipline
-    section: '1'
-    level: MUST
-    requirement_id: D-003
-    tests: []
-    planned_tests: [T-D-003]
-    pass_condition: A claim audit of documents, UI strings, reports and status files finds no capability claim above the highest independently passed G-D level, and engineering results are labeled as engineering validity.
-    gates: [G-D0, G-D1, G-D2, G-D3, G-D4]
-    milestone: D0
-    related_sai34: [ASM-018]
-    related_sai33: [UX-006]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No claim audit tooling for discovery claims exists.
-  - key: vision.novelty_falsifiability
-    section: '1'
-    level: MUST
-    requirement_id: D-004
-    tests: []
-    planned_tests: [T-D-004]
-    pass_condition: A novelty status without a PriorArtSearchRecord with coverage is refused; a hypothesis without a CONTRADICTS prediction over a measurable observable in a frozen outcome space is not called falsifiable.
-    gates: [G-D2, G-D3, G-D4]
-    milestone: D2
-    related_sai34: [ASM-003]
-    related_sai33: [SRC-003, VER-004, VER-006]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: SRC-003 records exist; discovery-level novelty and falsifiability checks do not.
-  - key: e2e.chain
-    section: '2'
-    level: MUST
-    requirement_id: D-005
-    tests: []
-    planned_tests: [T-D-005]
-    pass_condition: Every stage of a campaign persists scoped, hashed, versioned inputs, outputs and decisions with restartable checkpoints; a skipped stage records its reason.
-    gates: [G-D1, G-D2, G-D3]
-    milestone: D2
-    related_sai34: [ASM-002, ASM-017]
-    related_sai33: [SYS-001, OPS-001, OPS-003]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Discovery stages are not implemented or integrated.
-  - key: autonomy.no_external_coding_agent
-    section: '2'
-    level: MUST
-    requirement_id: D-006
-    tests: []
-    planned_tests: [T-D-006]
-    pass_condition: In a deployment-equivalent environment with coding-agent binaries absent and their endpoints blocked, the full chain runs from a blank workspace to a bilingual report on an in-envelope case; audit logs show zero coding-agent invocations, refused attempts are logged and every human intervention is a ReviewItem.
-    gates: [G-D3, G-D4]
-    milestone: D4
-    related_sai34: [ASM-001]
-    related_sai33: [SIM-003]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Requires the full autonomous chain, including licensed workers, none of which exists; G9 has not run.
-  - key: e2e.literature
-    section: '2'
-    level: MUST
-    requirement_id: D-007
-    tests: []
-    planned_tests: [T-D-007]
-    pass_condition: Non-PUBLIC queries never leave the deployment; every passage is pinned with version, hash and license class; unreachable providers appear in the search record's limitations.
-    gates: [G-D2]
-    milestone: D3
-    related_sai34: [ASM-003]
-    related_sai33: [SRC-001, SRC-002, SEC-001, SEC-004]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Only a local fixture literature corpus exists; no live provider or autonomous query planning.
-  - key: e2e.model_from_scratch
-    section: '2'
-    level: MUST
-    requirement_id: D-008
-    tests: []
-    planned_tests: [T-D-008]
-    pass_condition: A new project is built from a typed PhysicalModelSpec in a blank workspace through typed operations only, with independent readback; unknown parameters block instead of defaulting.
-    gates: [G-D3]
-    milestone: D4
-    related_sai34: [ASM-004, ASM-005]
-    related_sai33: [SIM-003, EVI-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: PhysicalModelSpec and the typed constructor are SPECIFIED in SAI 3.4 and not implemented.
-  - key: e2e.licensed_internal_workers
-    section: '2'
-    level: MUST
-    requirement_id: D-009
-    tests: []
-    planned_tests: [T-D-009]
-    pass_condition: Each licensed run records real entitlement checkout, solver identity, Owner authorization and reconciled cost on a qualified internal worker; a missing license or authorization blocks and never returns a mock success.
-    gates: [G-D3, G-D4]
-    milestone: D4
-    related_sai34: [ASM-006, ASM-007, ASM-015]
-    related_sai33: [TST-001, COST-001, OPS-001, SIM-001]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: The Lumerical provider is mock only; no worker, license or qualification exists.
-  - key: e2e.sweeps
-    section: '2'
-    level: MUST
-    requirement_id: D-010
-    tests: []
-    planned_tests: [T-D-010]
-    pass_condition: A sweep without a frozen plan is refused; every point is a Run with lineage to spec and plan; sweep outputs are admitted only as simulated, never as measured.
-    gates: [G-D3]
-    milestone: D4
-    related_sai34: [ASM-002, ASM-012]
-    related_sai33: [EVI-009, SIM-001]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Only a mock DC-sweep capability exists.
-  - key: e2e.convergence
-    section: '2'
-    level: MUST
-    requirement_id: D-011
-    tests: []
-    planned_tests: [T-D-011]
-    pass_condition: A simulated observable without a passed ASM-008 convergence study cannot change the mechanism class partition or any belief state; non-asymptotic cases are UNKNOWN or FAIL.
-    gates: [G-D3]
-    milestone: D4
-    related_sai34: [ASM-008]
-    related_sai33: [SIM-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Only trend validators and a mock mesh-sensitivity capability exist.
-  - key: e2e.refinement
-    section: '2'
-    level: MUST
-    requirement_id: D-012
-    tests: []
-    planned_tests: [T-D-012]
-    pass_condition: Refinement produces immutable child versions within approved bounds; a mechanism change creates a new hypothesis lineage with admission and pre-registration.
-    gates: [G-D3]
-    milestone: D4
-    related_sai34: [ASM-011]
-    related_sai33: [EPI-005]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: ModelPatch and bounded refinement are not implemented.
-  - key: e2e.physical_validation
-    section: '2'
-    level: MUST
-    requirement_id: D-013
-    tests: []
-    planned_tests: [T-D-013]
-    pass_condition: A physical discovery claim without independent reference data and measurement uncertainty is refused; simulation-only agreement cannot pass G-D4.
-    gates: [G-D4]
-    milestone: D5
-    related_sai34: [ASM-009, ASM-010]
-    related_sai33: [EVI-004, DOM-SP-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No independent physical validation path or reference data exists.
-  - key: e2e.bilingual_report
-    section: '2'
-    level: MUST
-    requirement_id: D-014
-    tests: []
-    planned_tests: [T-D-014]
-    pass_condition: zh-TW and en reports cover the eight ASM-016 classes plus problem provenance, mechanism classes with experiment-set version, anomaly states, reframing history, pre-registrations, validation outcomes and stop reasons, with identical identifiers, numbers and states and unchanged canonical hashes.
-    gates: [G-D2, G-D3, G-D4]
-    milestone: D2
-    related_sai34: [ASM-016]
-    related_sai33: [UX-006]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Discovery content does not exist; bilingual semantic quality is not verified on the G0 line.
-  - key: loop.problem_discovery
-    section: '3'
-    level: MUST
-    requirement_id: D-015
-    tests: []
-    planned_tests: [T-D-015]
-    pass_condition: Every ResearchProblem has an origin and resolvable links; a problem not accepted by an active human member consumes no non-zero-cost resource; INTERNAL material never passes the egress gate.
-    gates: [G-D1, G-D2]
-    milestone: D1
-    related_sai34: [ASM-014]
-    related_sai33: [SEC-001, SEC-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No problem discovery exists; the offline v0 is in progress and not reviewed.
-  - key: loop.mechanism_classes
-    section: '3'
-    level: MUST
-    requirement_id: D-016
-    tests: []
-    planned_tests: [T-D-016]
-    pass_condition: No report or metric presents a raw hypothesis count as diversity; every class count names its experiment-set version.
-    gates: [G-D1, G-D2, G-D3]
-    milestone: D1
-    related_sai34: []
-    related_sai33: [EPI-001, LLM-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No class partition exists.
-  - key: loop.mechanism_class_definition
-    section: '3'
-    level: MUST
-    requirement_id: D-017
-    tests: []
-    planned_tests: [T-D-017]
-    pass_condition: The partition is deterministic and versioned, recomputed when the experiment set changes, merges undecidable pairs conservatively and lists them.
-    gates: [G-D1, G-D2, G-D3]
-    milestone: D1
-    related_sai34: []
-    related_sai33: [VER-006, VER-008]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Requires comparable typed predictions per experiment; not implemented.
-  - key: loop.anomaly_state
-    section: '3'
-    level: MUST
-    requirement_id: D-018
-    tests: []
-    planned_tests: [T-D-018]
-    pass_condition: Anomalies move only through the listed states with append-only events; EXPLAINED requires a Causal Warrant Gate confirmation; no anomaly disappears from records or reports.
-    gates: [G-D1, G-D2, G-D3]
-    milestone: D1
-    related_sai34: [ASM-012, ASM-013]
-    related_sai33: [EPI-003, EPI-006]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No general anomaly registry exists.
-  - key: loop.reframing
-    section: '3'
-    level: MUST
-    requirement_id: D-019
-    tests: []
-    planned_tests: [T-D-019]
-    pass_condition: A reframing appends a record linked to failed hypotheses, anomalies and the prior problem; no failure record is deleted or edited; evidence that failed a hypothesis never supports it or its successor.
-    gates: [G-D1, G-D2, G-D3]
-    milestone: D1
-    related_sai34: [ASM-011, ASM-012]
-    related_sai33: [EPI-003, EPI-005]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Research Reframing does not exist on either line.
-  - key: loop.reframing_accounting
-    section: '3'
-    level: MUST
-    requirement_id: D-020
-    tests: []
-    planned_tests: [T-D-020]
-    pass_condition: Reframed hypotheses carry new lineage and need prospective validation; every reframing and abandoned branch stays in metric denominators; the reframing cap is enforced.
-    gates: [G-D1, G-D2, G-D3]
-    milestone: D1
-    related_sai34: [ASM-010]
-    related_sai33: [EPI-003]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Depends on reframing records and prospective rules, which exist only on the G0 line for screening.
-  - key: loop.experiment_selection
-    section: '3'
-    level: MUST
-    requirement_id: D-021
-    tests: []
-    planned_tests: [T-D-021]
-    pass_condition: Identical state and policy yield an identical ranked plan by classes separated per CostVector; no uncalibrated information-gain value is used; gated experiments are only proposed until authorized.
-    gates: [G-D1, G-D2, G-D3]
-    milestone: D1
-    related_sai34: [ASM-002]
-    related_sai33: [VER-001, VER-002, VER-003, VER-005]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: The least-cost planner exists; class-based discrimination per cost does not.
-  - key: loop.termination
-    section: '3'
-    level: MUST
-    requirement_id: D-022
-    tests: []
-    planned_tests: [T-D-022]
-    pass_condition: Every campaign terminates within its budgets with a recorded reason; exhaustion and stagnation end as STOPPED or INSUFFICIENT_VALIDATION and are never reported as discoveries.
-    gates: [G-D1, G-D2, G-D3]
-    milestone: D1
-    related_sai34: [ASM-007, ASM-011]
-    related_sai33: [COST-001]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No campaign controller exists.
-  - key: validation.role_separation
-    section: '4'
-    level: MUST
-    requirement_id: D-023
-    tests: []
-    planned_tests: [T-D-023]
-    pass_condition: Discovery identities cannot write verdicts, change validators, protocols or scoring, or read sealed material; validation does not generate the hypotheses it validates; access attempts are refused and logged.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D2
-    related_sai34: [ASM-010, ASM-013]
-    related_sai33: [SEC-002, EPI-005]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Role separation for discovery is designed, not built.
-  - key: validation.preregistration
-    section: '4'
-    level: MUST
-    requirement_id: D-024
-    tests: []
-    planned_tests: [T-D-024]
-    pass_condition: A validation without an earlier immutable registration supports nothing; registrations are dated by the database clock and need human authorization when money, licenses or physical experiments are used.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D2
-    related_sai34: [ASM-010]
-    related_sai33: [VER-006, EPI-005]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Pre-authorization exists only for post-screening hypotheses on the G0 line (011s).
-  - key: validation.no_retrospective_self_support
-    section: '4'
-    level: MUST
-    requirement_id: D-025
-    tests: []
-    planned_tests: [T-D-025]
-    pass_condition: Every 011p/011s refusal case, applied to discovery and reframed hypotheses, records CITES instead of SUPPORTS; a genuinely new, pre-registered, clean-lineage check can support.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D2
-    related_sai34: [ASM-012, ASM-013]
-    related_sai33: [EVI-004, EVI-009, EPI-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: The rules exist only on the unintegrated G0 line and only for post-screening hypotheses.
-  - key: validation.cwg_only_confirmed
-    section: '4'
-    level: MUST
-    requirement_id: D-026
-    tests: []
-    planned_tests: [T-D-026]
-    pass_condition: The number of CONFIRMED discovery claims not re-derivable through the Causal Warrant Gate is zero; no discovery component can mint a warrant.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D2
-    related_sai34: [ASM-013]
-    related_sai33: [EPI-002, EPI-004, EPI-005]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: The Causal Warrant Gate exists; its use by discovery is not wired.
-  - key: validation.epistemic_states
-    section: '4'
-    level: MUST
-    requirement_id: D-027
-    tests: []
-    planned_tests: [T-D-027]
-    pass_condition: The projection is rebuilt from canonical records alone; every transition outside the allowed table is refused and logged; the projection never writes a belief state.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D2
-    related_sai34: [ASM-013, ASM-018]
-    related_sai33: [EPI-003, EPI-005, SYS-001]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No discovery-claim projection exists.
-  - key: validation.stop_insufficient
-    section: '4'
-    level: MUST
-    requirement_id: D-028
-    tests: []
-    planned_tests: [T-D-028]
-    pass_condition: In no-mechanism-validatable cases the system ends with INSUFFICIENT_VALIDATION or STOPPED with reason, attempts, cost and needs; the scorer counts it as correct; a confident claim there counts as a false discovery.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D1
-    related_sai34: [ASM-011, ASM-018]
-    related_sai33: [EPI-001]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Reports show unperformed checks; a typed discovery-level stop outcome does not exist.
-  - key: validation.uncertainty
-    section: '4'
-    level: MUST
-    requirement_id: D-029
-    tests: []
-    planned_tests: [T-D-029]
-    pass_condition: Each claim lists uncertainty by source with UNKNOWN where unknown; no uncalibrated number is displayed as a probability of truth.
-    gates: [G-D2, G-D3, G-D4]
-    milestone: D2
-    related_sai34: [ASM-008, ASM-009, ASM-016]
-    related_sai33: [EVI-001, EVI-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No discovery-claim uncertainty model exists.
-  - key: oversight.owner_gates
-    section: '5'
-    level: MUST
-    requirement_id: D-030
-    tests: []
-    planned_tests: [T-D-030]
-    pass_condition: Money, license, physical-experiment and publication actions without a valid recorded Owner authorization produce zero side effects; timeouts never authorize.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D2
-    related_sai34: [ASM-007, ASM-014]
-    related_sai33: [COST-001, OPS-002, SEC-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: An Owner-only spend role exists on the G0 line; license, physical and publication gates for discovery do not.
-  - key: oversight.evidence_governance
-    section: '5'
-    level: MUST
-    requirement_id: D-031
-    tests: []
-    planned_tests: [T-D-031]
-    pass_condition: No discovery output is admitted as evidence outside the admission path; corrections are new events and originals remain.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D2
-    related_sai34: [ASM-012]
-    related_sai33: [EVI-003, EVI-009, SYS-001]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: The admission path exists; discovery records are not wired to it.
-  - key: oversight.provenance
-    section: '5'
-    level: MUST
-    requirement_id: D-032
-    tests: []
-    planned_tests: [T-D-032]
-    pass_condition: Every discovery record carries input hashes, producer and version, InferenceProvenance, policy versions and trace; a record without them cannot justify a transition.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D2
-    related_sai34: [ASM-002, ASM-017]
-    related_sai33: [LLM-001, OPS-003, ART-001]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Discovery records do not exist.
-  - key: oversight.project_isolation
-    section: '5'
-    level: MUST
-    requirement_id: D-033
-    tests: []
-    planned_tests: [T-D-033]
-    pass_condition: Cross-project reads of discovery records, benchmarks, sessions or caches are refused without a project occurrence; sealed material is unreachable from the control plane.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D2
-    related_sai34: [ASM-014]
-    related_sai33: [SEC-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Project isolation exists for current records; discovery and evaluation planes are not built.
-  - key: oversight.accounts
-    section: '5'
-    level: MUST
-    requirement_id: D-034
-    tests: []
-    planned_tests: [T-D-034]
-    pass_condition: Only ADMIN and MEMBER account roles exist; evaluator and reviewer independence is not satisfied by a second account of the same natural person; A3, A9 and A12 remain OPEN.
-    gates: [G-D0, G-D2, G-D4]
-    milestone: D0
-    related_sai34: [ASM-014]
-    related_sai33: [SEC-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Natural-person independence cannot be verified by software; it is an Owner responsibility.
-  - key: gd.independence
-    section: '6'
-    level: MUST
-    requirement_id: D-035
-    tests: []
-    planned_tests: [T-D-035]
-    pass_condition: Every G-D verdict is signed by an Owner-assigned evaluator who is not the implementer; no G-D status is derived from G0-G9 results; the system cannot issue a verdict.
-    gates: [G-D0, G-D1, G-D2, G-D3, G-D4]
-    milestone: D0
-    related_sai34: [ASM-018]
-    related_sai33: [TST-003]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No evaluator is assigned (OD-02).
-  - key: gd.levels
-    section: '6'
-    level: MUST
-    requirement_id: D-036
-    tests: []
-    planned_tests: [T-D-036]
-    pass_condition: Each level has frozen entry conditions, evidence and pass or fail criteria before evaluation; a missing threshold makes the level BLOCKED; results name their scope.
-    gates: [G-D0, G-D1, G-D2, G-D3, G-D4]
-    milestone: D0
-    related_sai34: [ASM-018]
-    related_sai33: [LLM-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Protocol values are not approved (OD-03).
-  - key: gd.no_substitution
-    section: '6'
-    level: MUST
-    requirement_id: D-037
-    tests: []
-    planned_tests: [T-D-037]
-    pass_condition: No G gate changes because of a G-D result and no G-D level passes without its listed G prerequisites; earlier runs are labeled exploratory.
-    gates: [G-D2, G-D3, G-D4]
-    milestone: D0
-    related_sai34: [ASM-018]
-    related_sai33: []
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No G-D level and no G0-G9 gate has been accepted.
-  - key: compare.three_arms
-    section: '7'
-    level: MUST
-    requirement_id: D-038
-    tests: []
-    planned_tests: [T-D-038]
-    pass_condition: Every G-D1 to G-D4 evaluation reports arms A, B and C on the same cases with the same answer schema, including the stop option.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D1
-    related_sai34: []
-    related_sai33: [LLM-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No comparison harness exists.
-  - key: compare.matching
-    section: '7'
-    level: MUST
-    requirement_id: D-039
-    tests: []
-    planned_tests: [T-D-039]
-    pass_condition: Budget ledgers show identical caps per case for every arm across models, tokens, compute, experiments, licensed time, tools, data, time, seeds and environment; any mismatch makes the comparison INVALID.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D1
-    related_sai34: []
-    related_sai33: [COST-001, VER-003]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No comparison harness exists.
-  - key: compare.blinding
-    section: '7'
-    level: MUST
-    requirement_id: D-040
-    tests: []
-    planned_tests: [T-D-040]
-    pass_condition: The evaluator scores with sealed arm labels held by a custodian; the scorer is hash-frozen; at G-D2 and above two independent blinded reviewers judge novelty and falsifiability with agreement reported.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D1
-    related_sai34: [ASM-010]
-    related_sai33: []
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No evaluator, custodian or G-D scorer exists.
-  - key: compare.benchmark
-    section: '7'
-    level: MUST
-    requirement_id: D-041
-    tests: []
-    planned_tests: [T-D-041]
-    pass_condition: The benchmark is sealed before any arm runs, contains hidden-mechanism synthetic worlds including no-mechanism-validatable worlds, held-out literature cases and later physical cases, and keeps every case in the denominator.
-    gates: [G-D0, G-D1, G-D2, G-D3, G-D4]
-    milestone: D0
-    related_sai34: [ASM-010]
-    related_sai33: [LLM-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No G-D benchmark exists; synthetic worlds are in progress on the unreviewed offline branch.
-  - key: compare.metrics
-    section: '7'
-    level: MUST
-    requirement_id: D-042
-    tests: []
-    planned_tests: [T-D-042]
-    pass_condition: All five metrics are reported per arm with definition, n, estimate and interval; diversity is counted only as equivalence classes; drifted re-runs are INVALID; exactly one primary metric is pre-registered.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D1
-    related_sai34: [ASM-017]
-    related_sai33: [LLM-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No G-D scorer exists.
-  - key: compare.statistics
-    section: '7'
-    level: MUST
-    requirement_id: D-043
-    tests: []
-    planned_tests: [T-D-043]
-    pass_condition: The frozen protocol names unit, paired tests, intervals, minimum effect, margins, multiplicity, sample size and interim rules before unsealing; the analysis follows it exactly.
-    gates: [G-D0, G-D1, G-D2, G-D3, G-D4]
-    milestone: D0
-    related_sai34: []
-    related_sai33: [LLM-002]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Protocol values await OD-03.
-  - key: compare.contamination
-    section: '7'
-    level: MUST
-    requirement_id: D-044
-    tests: []
-    planned_tests: [T-D-044]
-    pass_condition: Every case has recorded cutoff comparison, overlap check and memorization probe results; contaminated cases follow the rule frozen before unsealing and are reported.
-    gates: [G-D0, G-D1, G-D2]
-    milestone: D0
-    related_sai34: [ASM-010]
-    related_sai33: [EVI-004]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: Contamination tooling exists only for G0 on the G0 line.
-  - key: compare.stopping
-    section: '7'
-    level: MUST
-    requirement_id: D-045
-    tests: []
-    planned_tests: [T-D-045]
-    pass_condition: Cases and studies end only by the frozen rules; governance incidents invalidate affected runs; paid stages end at the Owner ceiling and are reported as partial.
-    gates: [G-D1, G-D2, G-D3, G-D4]
-    milestone: D1
-    related_sai34: [ASM-007]
-    related_sai33: [COST-001]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No comparison harness exists.
-  - key: compare.zero_cost_first
-    section: '7'
-    level: MUST
-    requirement_id: D-046
-    tests: []
-    planned_tests: [T-D-046]
-    pass_condition: The zero-cost stage runs and is reported before any paid, licensed or physical stage; spend ledgers for that stage are zero; later stages carry an Owner authorization with a ceiling.
-    gates: [G-D1, G-D2]
-    milestone: D1
-    related_sai34: [ASM-007, ASM-018]
-    related_sai33: [COST-001]
-    status: SPECIFIED
-    review_at: '2026-12-01'
-    deferred_rationale: No stage has run.
+- requirement_id: S35-GOV-001
+  key: gov.precedence
+  level: MUST
+  area: GOV
+  section: '3.1'
+  text: SAI 3.5 inherits every SAI 3.3 obligation (P1–P28, the 60 requirements and their tests, the HARD-LOCKs) and every
+    SAI 3.4 obligation (ASM-001–018, G0–G9, Owner decisions D-01–D-08, security decisions A3, A9 and A12) unchanged. Until
+    SAI 3.5 is activated, the inherited text wins on any conflict. No S35 statement may weaken, replace, reinterpret or reorder
+    an inherited MUST, gate or Owner gate. A conflict found later is recorded as an S35 spec issue in open-spec-issues.md
+    and stops the affected slice (AGT-015); it is never resolved by assuming that the newer text wins.
+  acceptance_kind: deterministic
+  acceptance: the candidate checker proves every SAI 3.3/3.4 file and ACTIVE_SPEC.yaml byte-identical to a38ad63 with no exception
+    and rejects a one-byte mutation; compatibility.md lists every inherited obligation family with a no-weakening verdict;
+    every recorded conflict has an open spec issue.
+  planned_tests:
+  - T-S35-GOV-001
+  tests: []
+  owner_component: SpecMaintenance
+  phase: P35-0
+  gates:
+  - G-D0
+  status: complete
+  evidence:
+  - docs/spec/sai35/check_candidate.py
+  - docs/spec/sai35/compatibility.md
+  - docs/spec/sai35/open-spec-issues.md
+  missing: nothing for the documentation scope; the procedure is exercised only when a conflict is found
+  inherited:
+    sai34:
+    - ASM-018
+    sai33:
+    - TST-002
+    - TST-003
+  replaces:
+  - D-001
+- requirement_id: S35-GOV-002
+  key: gov.product_target
+  level: MUST
+  area: GOV
+  section: '3.1'
+  text: 'The product target of SiPh Lab (LIB) is an autonomous AI scientist for silicon photonics with the twelve capabilities
+    CAP-01 to CAP-12 of §2, each defined operationally by the S35 requirements it lists and evidenced only by the gates it
+    names. This is a target, not a description of the current system: no capability may be described as present beyond the
+    evidence recorded in implementation-status.md.'
+  acceptance_kind: deterministic
+  acceptance: the checker finds all twelve capability rows in §2, each naming at least one registered requirement and at least
+    one gate, and the registry's capability list matches; the claim audit of S35-GOV-004 finds no capability described as
+    present without an evidence path.
+  planned_tests:
+  - T-S35-GOV-002
+  tests: []
+  owner_component: SpecMaintenance
+  phase: P35-0
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+  status: complete
+  evidence:
+  - docs/spec/SAI_3.5.md
+  - docs/spec/sai35/check_candidate.py
+  missing: 'specification scope only: no capability is demonstrated'
+  inherited:
+    sai34:
+    - ASM-001
+    - ASM-002
+    sai33:
+    - SYS-001
+  replaces:
+  - D-002
+- requirement_id: S35-GOV-003
+  key: gov.product_category
+  level: MUST
+  area: GOV
+  section: '3.1'
+  text: LIB is a research agent, not a literature summarizer, chatbot, simulation launcher or hypothesis-review assistant.
+    A campaign is complete only when the system has itself selected, registered and run at least one discriminating test and
+    the campaign ends in a validated outcome state (a claim CONFIRMED through the Causal Warrant Gate, or a hypothesis CONTRADICTED
+    or INCONCLUSIVE under a registered test) or in an explicit INSUFFICIENT_VALIDATION or STOPPED record. A workflow that
+    ends at a summary, an answer, a launched run or a list of hypotheses for a human to review does not meet the product target.
+  acceptance_kind: empirical
+  acceptance: on the frozen G9 and G-D1 case sets, every completed campaign carries at least one registered test the system
+    selected and ran and ends in one of the listed outcome states; a campaign that ends with only a summary, an answer, a
+    launched run or an unreviewed hypothesis list is scored as not meeting the target.
+  planned_tests:
+  - T-S35-GOV-003
+  tests: []
+  owner_component: CampaignOrchestrator
+  phase: P35-4
+  gates:
+  - G9
+  - G-D1
+  status: proposed
+  evidence: []
+  missing: no campaign aggregate, no closed loop from selection to registered test in the product
+  inherited:
+    sai34:
+    - ASM-001
+    sai33:
+    - SYS-001
+    - VER-001
+  replaces: []
+- requirement_id: S35-GOV-004
+  key: gov.claim_discipline
+  level: MUST
+  area: GOV
+  section: '3.1'
+  text: 'No document, interface, report, status file or release note may claim a capability beyond verified evidence: an evidence
+    path at a named commit and, for discovery capability, the highest G-D level an independent evaluator has passed for the
+    stated scope. Engineering results (tests, CI, mutation batteries, deterministic or synthetic benchmarks) are reported
+    as engineering validity and never as scientific validity; success on a synthetic benchmark is never reported as validation
+    of real discovery.'
+  acceptance_kind: deterministic
+  acceptance: the candidate checker rejects its listed forbidden claims (readiness set to true, G0 marked as passed, SAI 3.5
+    marked as active) in every SAI 3.5 document; before activation, a claim audit of UI strings, reports and status files
+    lists every capability statement with its evidence path and G-D level and finds none without.
+  planned_tests:
+  - T-S35-GOV-004
+  tests: []
+  owner_component: SpecMaintenance
+  phase: P35-0
+  gates:
+  - G-D0
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+  status: partial
+  evidence:
+  - docs/spec/sai35/check_candidate.py
+  missing: the checker scans SAI 3.5 documents only; no claim audit of UI strings, reports or status files exists
+  inherited:
+    sai34:
+    - ASM-018
+    sai33:
+    - UX-006
+  replaces:
+  - D-003
+- requirement_id: S35-GOV-005
+  key: gov.not_active
+  level: MUST
+  area: GOV
+  section: '3.1'
+  text: SAI 3.5 is CANDIDATE — NOT ACTIVE until an Independent Chief Auditor has reviewed it and the Owner has explicitly
+    approved its activation (OD-16) by the steps of activation-proposal.md. Until then ACTIVE_SPEC.yaml, the SAI 3.3 executable
+    profile and the SAI 3.4 phased registry stay unchanged, and no runtime code, test, report or status may cite an S35 requirement
+    as an active obligation or as satisfied.
+  acceptance_kind: deterministic
+  acceptance: the checker verifies registry status CANDIDATE and activation_status NOT_ACTIVE, the master status line, the
+    ACTIVE_SPEC.yaml values and hash, and that no S35 identifier appears in src/, tests/, docs/normative_statements.yaml or
+    docs/milestones.yaml.
+  planned_tests:
+  - T-S35-GOV-005
+  tests: []
+  owner_component: SpecMaintenance
+  phase: P35-0
+  gates:
+  - G-D0
+  status: complete
+  evidence:
+  - docs/spec/sai35/check_candidate.py
+  missing: nothing for the candidate state; activation itself is OD-16
+  inherited:
+    sai34:
+    - ASM-018
+    sai33:
+    - TST-003
+  replaces: []
+- requirement_id: S35-LIFE-001
+  key: life.persisted_stages
+  level: MUST
+  area: LIFE
+  section: '3.2'
+  text: 'Every campaign persists, for every lifecycle stage of lifecycle.md, its versioned inputs, outputs, governance decisions
+    and a restartable checkpoint. Each output is bound to project, campaign, episode, trace, content hash, schema version
+    and producer (component, version and identity). The cheapest sufficient path is chosen: a stage may be skipped only with
+    a recorded reason, and a restart resumes from the last committed checkpoint without repeating a side effect.'
+  acceptance_kind: deterministic
+  acceptance: a fault-injection test stops the orchestrator after each stage's commit and restarts it; the campaign resumes
+    at the next stage, no side effect repeats, and every output row carries every binding field; a skipped stage without a
+    reason is refused.
+  planned_tests:
+  - T-S35-LIFE-001
+  tests: []
+  owner_component: CampaignOrchestrator
+  phase: P35-2
+  gates:
+  - G8
+  - G-D1
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/research/service.py
+  - a38ad63:src/lab_brain/tools/execution.py
+  missing: research episodes and Jobs persist; campaign stages, discovery checkpoints and skip reasons do not exist
+  inherited:
+    sai34:
+    - ASM-002
+    - ASM-007
+    - ASM-017
+    sai33:
+    - SYS-001
+    - OPS-001
+    - OPS-003
+    - OPS-004
+  replaces:
+  - D-005
+- requirement_id: S35-LIFE-002
+  key: life.campaign_states
+  level: MUST
+  area: LIFE
+  section: '3.2'
+  text: 'A campaign has exactly the states and transitions of the campaign state machine of lifecycle.md: DRAFT, SCOPED, RUNNING,
+    the waiting states, REPORTING and the three closed states CLOSED_CONCLUDED, CLOSED_INSUFFICIENT_VALIDATION and CLOSED_STOPPED.
+    A campaign contains SAI 3.3 research episodes and does not replace the §12.1 episode state machine. Any other transition
+    is refused and logged.'
+  acceptance_kind: deterministic
+  acceptance: a table-driven test attempts every (state, event) pair; exactly the listed transitions succeed and every refusal
+    is logged with its reason; episodes inside a campaign still follow §12.1.
+  planned_tests:
+  - T-S35-LIFE-002
+  tests: []
+  owner_component: CampaignOrchestrator
+  phase: P35-2
+  gates:
+  - G8
+  - G-D1
+  status: proposed
+  evidence: []
+  missing: no campaign record or state machine on any line
+  inherited:
+    sai34:
+    - ASM-002
+    sai33:
+    - OPS-001
+    - OPS-003
+  replaces: []
+- requirement_id: S35-LIFE-003
+  key: life.termination
+  level: MUST
+  area: LIFE
+  section: '3.2'
+  text: Every campaign runs under explicit budgets (tokens, compute, money, experiments, licensed seat time, wall time and
+    reframings) and a versioned stopping policy fixed before it starts. It always terminates and records its termination reason.
+    Budget exhaustion, stagnation or an unresolvable class ends it as CLOSED_INSUFFICIENT_VALIDATION or CLOSED_STOPPED; neither
+    is ever reported as a discovery.
+  acceptance_kind: deterministic
+  acceptance: a property test over randomized campaigns with finite budgets shows every run terminating within its caps with
+    a recorded reason; a campaign closed by exhaustion is never rendered or exported as a finding.
+  planned_tests:
+  - T-S35-LIFE-003
+  tests: []
+  owner_component: CampaignOrchestrator
+  phase: P35-2
+  gates:
+  - G8
+  - G-D1
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/loop.py
+  - a38ad63:src/lab_brain/core/budget.py
+  missing: the offline loop terminates under a fixed budget; no product campaign with a versioned stopping policy exists
+  inherited:
+    sai34:
+    - ASM-007
+    - ASM-011
+    sai33:
+    - COST-001
+  replaces:
+  - D-022
+- requirement_id: S35-PROB-001
+  key: prob.research_problem
+  level: MUST
+  area: PROB
+  section: '3.3'
+  text: Problem Discovery produces ResearchProblem records. Each records its origin (ANOMALY, CONTRADICTION, KNOWLEDGE_GAP,
+    FAILED_HYPOTHESIS, VALIDATION_RESIDUAL, LITERATURE_GAP or OWNER_QUESTION), links the records behind it by id and hash,
+    and carries provenance (S35-EVI-002). A problem may consume resources beyond the zero-cost tier only inside an active
+    ResearchEnvelope that covers it (S35-REG-002) or after an active human project member accepts it. Problem discovery never
+    sends non-PUBLIC material past the egress gate.
+  acceptance_kind: deterministic
+  acceptance: a ResearchProblem without origin, source links or provenance is refused; a problem outside every envelope and
+    not accepted cannot reserve non-zero budget; an egress audit shows no INTERNAL-labelled source in any outbound query.
+  planned_tests:
+  - T-S35-PROB-001
+  tests: []
+  owner_component: ProblemDiscovery
+  phase: P35-2
+  gates:
+  - G-D1
+  - G-D2
+  status: proposed
+  evidence: []
+  missing: no ResearchProblem record on any line
+  inherited:
+    sai34:
+    - ASM-014
+    sai33:
+    - SEC-001
+    - SEC-002
+  replaces:
+  - D-015
+- requirement_id: S35-PROB-002
+  key: prob.valuation
+  level: MUST
+  area: PROB
+  section: '3.3'
+  text: 'Problem Discovery ranks candidate problems by a recorded ProblemValuation over the versioned criteria of records-and-states.md:
+    decision relevance (which belief or design choice the answer can change), discriminability with the available experiments,
+    expected cost, weight of unexplained evidence, and novelty potential bounded by prior-art coverage. The ranking is deterministic
+    for identical inputs and policy version. A model''s opinion may be one recorded input but never the ranking itself.'
+  acceptance_kind: deterministic
+  acceptance: identical inputs and policy version give an identical ranking; a valuation missing a criterion or its rationale
+    is refused; inverting the model-opinion input changes at most that criterion's score, never the ordering rule.
+  planned_tests:
+  - T-S35-PROB-002
+  tests: []
+  owner_component: ProblemDiscovery
+  phase: P35-2
+  gates:
+  - G-D1
+  - G-D2
+  status: proposed
+  evidence: []
+  missing: no problem valuation on any line
+  inherited:
+    sai34:
+    - ASM-002
+    sai33:
+    - VER-001
+    - VER-005
+  replaces: []
+- requirement_id: S35-PROB-003
+  key: prob.anomaly_registry
+  level: MUST
+  area: PROB
+  section: '3.3'
+  text: 'Unexplained observations are kept in an anomaly registry with the explicit, append-only states of records-and-states.md:
+    UNEXPLAINED, UNDER_INVESTIGATION, ACCOMMODATED, PROVISIONALLY_EXPLAINED, EXPLAINED, ATTRIBUTED_TO_NOISE, ARTIFACT, UNRESOLVED_INSUFFICIENT
+    and WITHDRAWN. An anomaly is never deleted and never silently dropped from a report. Every state change records its trigger,
+    evidence references and the actor or policy. ACCOMMODATED and PROVISIONALLY_EXPLAINED are never displayed as explained,
+    and EXPLAINED requires a Causal Warrant Gate confirmation.'
+  acceptance_kind: deterministic
+  acceptance: a transition-table test lets only the listed transitions succeed; the database refuses UPDATE and DELETE on
+    anomaly rows; a campaign report lists every anomaly with its current state; EXPLAINED without a Causal Warrant Gate decision
+    reference is refused.
+  planned_tests:
+  - T-S35-PROB-003
+  tests: []
+  owner_component: ProblemDiscovery
+  phase: P35-2
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/model.py
+  missing: offline frozen anomaly records with four states only; no persistent registry, no CWG link
+  inherited:
+    sai34:
+    - ASM-012
+    - ASM-013
+    sai33:
+    - EPI-003
+    - EPI-006
+  replaces:
+  - D-018
+- requirement_id: S35-PROB-004
+  key: prob.contradictions_gaps
+  level: MUST
+  area: PROB
+  section: '3.3'
+  text: 'Problem Discovery detects contradictions and knowledge gaps from canonical records. A contradiction is a typed SAI
+    3.3 Conflict (EPI-006) between admitted evidence, or between admitted evidence and an admitted prediction, under comparable
+    conditions. A knowledge gap is a recorded absence: an UNKNOWN or NOT_REPORTED field that blocks a decision, an untested
+    prediction of a live hypothesis, or a prior-art area the coverage record marks as not searched. Each detected contradiction
+    or gap is recorded with its basis and may originate a ResearchProblem.'
+  acceptance_kind: deterministic
+  acceptance: fixtures with two condition-compatible contradicting observations yield one Conflict and one CONTRADICTION problem;
+    condition-incompatible ones yield none (P4); a blocking UNKNOWN field yields a KNOWLEDGE_GAP problem citing the field.
+  planned_tests:
+  - T-S35-PROB-004
+  tests: []
+  owner_component: ProblemDiscovery
+  phase: P35-2
+  gates:
+  - G-D1
+  - G-D2
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/core/models/conflict.py
+  - a38ad63:src/lab_brain/core/repositories/conflicts.py
+  missing: typed Conflict records exist; no detector turns conflicts or gaps into problems
+  inherited:
+    sai34:
+    - ASM-012
+    sai33:
+    - EPI-006
+    - EVI-002
+    - EVI-005
+  replaces: []
+- requirement_id: S35-HYP-001
+  key: hyp.epistemic_stages
+  level: MUST
+  area: HYP
+  section: '3.4'
+  text: 'Every scientific object is in exactly one of three epistemic stages: (1) exploratory idea, any proposal not yet admitted;
+    (2) testable hypothesis, admitted under the SAI 3.3 §8 Hypothesis Admission Gate and assigned to a mechanism class; (3)
+    evidence-supported conclusion, a claim CONFIRMED through the Causal Warrant Gate that still re-derives. Discovery may
+    propose but never confirm: no Discovery component writes stage 3, and a stage-1 object may not consume more than the zero-cost
+    tier or be shown as a hypothesis or a finding.'
+  acceptance_kind: deterministic
+  acceptance: static and contract tests show Discovery identities have no write path to CONFIRMED or to Causal Warrant Gate
+    tables; every rendered object shows its stage; a stage-1 object cannot reserve non-zero budget; a stage-3 label without
+    a re-derivable Causal Warrant Gate decision is refused on read.
+  planned_tests:
+  - T-S35-HYP-001
+  tests: []
+  owner_component: DiscoveryLoop
+  phase: P35-2
+  gates:
+  - G6
+  - G-D1
+  status: partial
+  evidence:
+  - 118a4ac:tests/unit/test_discovery_governance.py
+  - a38ad63:src/lab_brain/core/hypothesis_admission.py
+  missing: the offline loop has no CONFIRMED by design and the product has an admission gate; no stage field or projection
+    exists
+  inherited:
+    sai34:
+    - ASM-013
+    sai33:
+    - EPI-001
+    - EPI-002
+    - EPI-005
+    - SYS-001
+  replaces:
+  - D-027
+- requirement_id: S35-HYP-002
+  key: hyp.testable_mechanistic
+  level: MUST
+  area: HYP
+  section: '3.4'
+  text: A hypothesis is admitted (stage 2) only with a stated physical or measurement-chain mechanism, assumptions, confounders,
+    a minimal test and at least one typed Prediction bound to a declared OutcomeSpace version that carries a CONTRADICTS effect
+    over an observable some available or Owner-approvable experiment can measure (SAI 3.3 §8 and §17.5.1). It is called falsifiable
+    only under those conditions, and mechanistically distinct only when S35-MECH-001 separates it from every held hypothesis;
+    otherwise it joins that hypothesis's class.
+  acceptance_kind: deterministic
+  acceptance: admission refuses a hypothesis lacking any listed field, a prediction not bound to a declared OutcomeSpace,
+    or one with no CONTRADICTS effect; a renamed duplicate (identical forward model) is recorded as an alias, never as a new
+    class.
+  planned_tests:
+  - T-S35-HYP-002
+  tests: []
+  owner_component: HypothesisBrain
+  phase: P35-2
+  gates:
+  - G-D1
+  - G-D2
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/core/hypothesis_admission.py
+  - a38ad63:src/lab_brain/core/models/prediction.py
+  missing: the §8 admission gate and typed predictions exist; mechanistic distinctness under an experiment set is not checked
+    in the product
+  inherited:
+    sai34: []
+    sai33:
+    - VER-004
+    - VER-006
+    - EPI-001
+  replaces:
+  - D-004
+- requirement_id: S35-HYP-003
+  key: hyp.claim_states
+  level: MUST
+  area: HYP
+  section: '3.4'
+  text: 'Every discovery claim carries a claim state from the transition table of records-and-states.md: PROPOSED, ADMITTED,
+    REGISTERED, UNDER_TEST, SUPPORTED, CHALLENGED, CONTRADICTED, INCONCLUSIVE, CONFIRMED, INSUFFICIENT_VALIDATION, STOPPED
+    and WITHDRAWN, with REFRAMED as an annotation. The state is a projection derived from canonical records (admission, registrations,
+    BeliefRevisionEvents, Causal Warrant Gate decisions and governance outcomes); it never writes a belief state, and it maps
+    onto, without replacing, the SAI 3.3 §8.2 lifecycle. Only the listed transitions are allowed.'
+  acceptance_kind: deterministic
+  acceptance: replaying the canonical event log reproduces every projected state; each forbidden transition of the table is
+    attempted and refused; deleting the projection and rebuilding it gives identical states.
+  planned_tests:
+  - T-S35-HYP-003
+  tests: []
+  owner_component: ValidationLoop
+  phase: P35-2
+  gates:
+  - G6
+  - G-D1
+  status: proposed
+  evidence: []
+  missing: no claim-state projection over canonical records; the offline loop has its own six hypothesis states
+  inherited:
+    sai34:
+    - ASM-013
+    - ASM-018
+    sai33:
+    - EPI-003
+    - EPI-005
+    - SYS-001
+  replaces:
+  - D-027
+- requirement_id: S35-HYP-004
+  key: hyp.generation
+  level: MUST
+  area: HYP
+  section: '3.4'
+  text: 'The Hypothesis Brain generates exploratory ideas and candidate mechanisms through ScientificLLM and ModelRouter only,
+    from a canonical EvidenceBundle, with InferenceProvenance on every output. It may draw on the domain mechanism catalog,
+    literature, anomalies, residuals and reframing records, and it may propose mechanisms absent from the catalog when they
+    come with typed predictions. Its outputs are stage-1 proposals: they never set a state, never count as evidence (P3),
+    and are generated without access to sealed references, holdouts or evaluation truth.'
+  acceptance_kind: deterministic
+  acceptance: the model-call wrapper refuses a call without a bundle hash; every idea row carries InferenceProvenance; a static
+    and database test proves the Hypothesis Brain identity cannot read sealed tables; an idea without typed predictions cannot
+    be submitted for admission.
+  planned_tests:
+  - T-S35-HYP-004
+  tests: []
+  owner_component: HypothesisBrain
+  phase: P35-2
+  gates:
+  - G0
+  - G-D1
+  - G-D2
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/cognition/debate.py
+  - a38ad63:src/lab_brain/llm_runtime/runtime.py
+  missing: debate generates competing hypotheses with provenance; no real-model research is G0-accepted; no proposal of mechanisms
+    outside a catalog
+  inherited:
+    sai34:
+    - ASM-002
+    sai33:
+    - LLM-001
+    - EVI-003
+    - EVI-006
+  replaces: []
+- requirement_id: S35-MECH-001
+  key: mech.distinguishable_classes
+  level: MUST
+  area: MECH
+  section: '3.5'
+  text: Mechanism diversity is the number of distinguishable mechanism classes under the experiment set E available to the
+    campaign, never a raw count of hypotheses. Two admitted hypotheses are in the same class under E when no experiment in
+    E, at the declared replicates, separates their typed predictions beyond the pre-registered threshold over their whole
+    parameter ranges (worst case); undecidable pairs are merged, which is conservative. The partition is deterministic, versioned
+    and recomputed whenever E changes; every reported count names the version of E and lists the merged pairs.
+  acceptance_kind: deterministic
+  acceptance: adding fifty renamed or indistinguishable variants leaves the class count unchanged; identical inputs give an
+    identical partition; changing E recomputes it; the report generator refuses a diversity figure without an E version.
+  planned_tests:
+  - T-S35-MECH-001
+  tests: []
+  owner_component: MechanismExplorer
+  phase: P35-2
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/distinguish.py
+  - 118a4ac:src/lab_brain/discovery/metrics.py
+  missing: offline prototype on linear toy forward models; not integrated, not independently reviewed
+  inherited:
+    sai34: []
+    sai33:
+    - EPI-001
+    - LLM-002
+    - VER-006
+    - VER-008
+  replaces:
+  - D-016
+  - D-017
+- requirement_id: S35-MECH-002
+  key: mech.search_space_expansion
+  level: MUST
+  area: MECH
+  section: '3.5'
+  text: 'When every live class fails, when a tested anomaly persists, or when validation leaves residual structure, the Mechanism
+    Explorer expands the effective search space in a recorded order: measurement-chain classes, regime variants of declared
+    mechanisms, compositions of classes, extended declared classes, and new mechanisms proposed by the Hypothesis Brain (S35-HYP-004).
+    It adds only candidates that the admitted data do not already refute and that are distinguishable from everything held.
+    The record states the search space before and after, the classes never considered, and that a truth outside every considered
+    class can only be reported as unexplained.'
+  acceptance_kind: deterministic and empirical
+  acceptance: 'deterministic: on a world whose truth is a composition or lies outside the initial prior, expansion registers
+    it when distinguishable and lists the never-considered classes otherwise; empirical: in G-D1 hidden worlds of those kinds,
+    arm C''s true-cause discovery is reported per world kind.'
+  planned_tests:
+  - T-S35-MECH-002
+  tests: []
+  owner_component: MechanismExplorer
+  phase: P35-2
+  gates:
+  - G-D1
+  - G-D2
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/loop.py
+  missing: offline widening draws only on declared classes and pairwise compositions; no model-proposed new mechanism
+  inherited:
+    sai34: []
+    sai33:
+    - EPI-001
+  replaces: []
+- requirement_id: S35-REF-001
+  key: ref.triggers_and_kinds
+  level: MUST
+  area: REF
+  section: '3.6'
+  text: 'Research Reframing is triggered when an assumption, an observable, a model or a hypothesis fails: every live hypothesis
+    is contradicted, a tested anomaly persists, an assumption is shown false, an observable cannot discriminate, or a model
+    fails qualification or validation. Each reframing has one kind from records-and-states.md (QUESTION_ASSUMPTION, CHANGE_OBSERVABLE,
+    CORRECT_MODEL, QUESTION_MEASUREMENT_CHAIN, WIDEN_MECHANISM_SPACE, NARROW_SCOPE or STOP_INSUFFICIENT) and states its trigger,
+    what changes and why.'
+  acceptance_kind: deterministic
+  acceptance: a fixture for each trigger produces a Reframing of an allowed kind citing the trigger record; a Reframing without
+    trigger, kind or rationale is refused.
+  planned_tests:
+  - T-S35-REF-001
+  tests: []
+  owner_component: ResearchReframing
+  phase: P35-2
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/loop.py
+  missing: offline reframing covers four kinds over hypotheses and anomalies; assumption, observable and model failures are
+    not triggers
+  inherited:
+    sai34:
+    - ASM-011
+    sai33:
+    - EPI-003
+  replaces: []
+- requirement_id: S35-REF-002
+  key: ref.failure_history
+  level: MUST
+  area: REF
+  section: '3.6'
+  text: 'A Reframing record is append-only and links every failed or inconclusive hypothesis, anomaly, assumption, observable,
+    model and earlier problem that led to it. Reframing never deletes, edits or hides failure history. It cannot turn failure
+    into support: earlier hypotheses keep their last belief state, and evidence that failed them cannot be reinterpreted as
+    support for them or for a successor.'
+  acceptance_kind: deterministic
+  acceptance: the database refuses UPDATE and DELETE on reframing and failure records; after a reframing every failed hypothesis
+    is still listed with its last state in the report; a SUPPORTS relation from evidence that contradicted the predecessor
+    to the successor is refused.
+  planned_tests:
+  - T-S35-REF-002
+  tests: []
+  owner_component: ResearchReframing
+  phase: P35-2
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/model.py
+  missing: offline append-only records; no persistence, no relation-level refusal
+  inherited:
+    sai34:
+    - ASM-011
+    - ASM-012
+    sai33:
+    - EPI-003
+    - EPI-005
+  replaces:
+  - D-019
+- requirement_id: S35-REF-003
+  key: ref.accounting
+  level: MUST
+  area: REF
+  section: '3.6'
+  text: A reframed hypothesis is a new hypothesis with its own lineage, marked as proposed after the failure, and it needs
+    a new prospective registration (S35-REG-001); evidence available when it was proposed cannot support it. Every reframing
+    and every abandoned branch stays in the denominators of the discovery metrics. Reframings per problem and per campaign
+    are capped by a versioned policy (OD-12) and by the budget.
+  acceptance_kind: deterministic
+  acceptance: the successor's lineage names its predecessor and the reframing; pre-existing evidence is stored as CITES; the
+    metric computation counts abandoned branches; reaching the cap ends further reframing with STOP_INSUFFICIENT.
+  planned_tests:
+  - T-S35-REF-003
+  tests: []
+  owner_component: ResearchReframing
+  phase: P35-2
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/loop.py
+  missing: offline caps (two widening rounds) and prospective support rule; no product lineage or policy
+  inherited:
+    sai34:
+    - ASM-010
+    sai33:
+    - EPI-003
+  replaces:
+  - D-020
+- requirement_id: S35-SEL-001
+  key: sel.discrimination_per_cost
+  level: MUST
+  area: SEL
+  section: '3.7'
+  text: 'The Verification Planner selects experiments that discriminate among the currently surviving mechanism classes per
+    unit of cost: it prefers the experiment that separates the most surviving classes, weighted as the versioned policy states,
+    for the lowest CostVector, using SAI 3.3 §9 sufficiency and a versioned deterministic SelectionPolicy. Uncalibrated expected-information-gain
+    numbers are not used (SAI 3.3 §9.2). An experiment that needs money, a license, a physical experiment or publication is
+    proposed and runs only after its gate (S35-SEC-002, S35-REG-002).'
+  acceptance_kind: deterministic
+  acceptance: identical inputs and policy give an identical ranked plan; an experiment that separates no surviving pair is
+    never ranked above one that does at equal cost; a gated experiment is never dispatched before its authorization record
+    exists.
+  planned_tests:
+  - T-S35-SEL-001
+  tests: []
+  owner_component: VerificationPlanner
+  phase: P35-2
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/verification/least_cost.py
+  - 118a4ac:src/lab_brain/discovery/loop.py
+  missing: least-cost sufficient verification exists over fixed rivals; class-level discrimination per cost exists only offline
+  inherited:
+    sai34:
+    - ASM-002
+    sai33:
+    - VER-001
+    - VER-002
+    - VER-003
+    - VER-005
+  replaces:
+  - D-021
+- requirement_id: S35-SEL-002
+  key: sel.competing_explanations
+  level: MUST
+  area: SEL
+  section: '3.7'
+  text: Competing explanations are evaluated independently of the component that generated them. Before any claim leaves the
+    Discovery side, the Validation Loop evaluates every live explanation against the same admitted evidence with the same
+    pre-registered rule, registers every declared rival of no greater complexity that the data do not refute and that is distinguishable
+    from the candidate (rival closure), and discriminates it too. A refutation is never applied to a hypothesis while a hypothesis
+    it cannot be separated from survives. A claim reports its whole class and what cannot be excluded.
+  acceptance_kind: deterministic
+  acceptance: with a declared but unregistered rival, no claim is handed over until the rival is registered and discriminated;
+    an indistinguishable pair is reported as one class; the evaluation runs under a Validation identity distinct from the
+    generator's.
+  planned_tests:
+  - T-S35-SEL-002
+  tests: []
+  owner_component: ValidationLoop
+  phase: P35-2
+  gates:
+  - G6
+  - G-D1
+  - G-D2
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/loop.py
+  - 118a4ac:src/lab_brain/discovery/handover.py
+  missing: offline rival and class closure; no separate Validation identity
+  inherited:
+    sai34:
+    - ASM-013
+    sai33:
+    - EPI-001
+    - VER-006
+  replaces: []
+- requirement_id: S35-MOD-001
+  key: mod.from_scratch
+  level: MUST
+  area: MOD
+  section: '3.8'
+  text: 'The Physical Model Builder constructs physical models from scratch in a blank workspace from a versioned, unit-checked
+    PhysicalModelSpec (ASM-004): geometry, materials, doping, contacts and boundaries, meshes, solver settings and observables.
+    No hidden prebuilt project is reused as if it were new, and no unknown or contradictory parameter is filled with a solver
+    default; a missing authoritative parameter is UNKNOWN and blocks construction or creates a ReviewItem.'
+  acceptance_kind: deterministic, then licensed
+  acceptance: offline, a fixed spec yields a typed operation plan whose readback double matches the spec within tolerance,
+    a spec with a missing required field is refused, and the before and after workspace inventories show no prebuilt project;
+    licensed (G1), the same on a qualified worker.
+  planned_tests:
+  - T-S35-MOD-001
+  tests: []
+  owner_component: PhysicalModelBuilder
+  phase: P35-6
+  gates:
+  - G1
+  - G9
+  status: proposed
+  evidence: []
+  missing: SPECIFIED in SAI 3.4 only; no PhysicalModelSpec, constructor or readback on any line
+  inherited:
+    sai34:
+    - ASM-004
+    - ASM-005
+    sai33:
+    - SIM-003
+    - EVI-002
+  replaces:
+  - D-008
+- requirement_id: S35-MOD-002
+  key: mod.typed_operations
+  level: MUST
+  area: MOD
+  section: '3.8'
+  text: 'Model construction uses only the closed, versioned catalog of governed typed scientific operations of a reviewed
+    deterministic constructor (ASM-005): region, material, contact, doping, solver, mesh and monitor operations with typed
+    parameters. No model-generated code, script, shell or free-form solver command runs. A new operation enters the catalog
+    only through normal software review and a new catalog version, never at run time. Every build produces a BuildManifest
+    and an independent readback comparison.'
+  acceptance_kind: deterministic
+  acceptance: a static test proves no operation accepts free text that reaches the solver; a plan naming an operation absent
+    from the pinned catalog version is refused; every BuildManifest carries the spec hash, operation DAG hash, catalog version
+    and readback result.
+  planned_tests:
+  - T-S35-MOD-002
+  tests: []
+  owner_component: PhysicalModelBuilder
+  phase: P35-6
+  gates:
+  - G1
+  - G8
+  status: proposed
+  evidence: []
+  missing: no operation catalog or constructor on any line
+  inherited:
+    sai34:
+    - ASM-005
+    - ASM-015
+    sai33:
+    - SIM-003
+  replaces:
+  - D-008
+- requirement_id: S35-MOD-003
+  key: mod.qualification
+  level: MUST
+  area: MOD
+  section: '3.8'
+  text: 'Model Qualification qualifies each model family (DomainPack payload version, constructor version and solver product)
+    before its outputs may discriminate between mechanisms: analytical limits, manufactured or conservation cases, readback
+    and units round-trip, each with a recorded scope. Outputs of an unqualified or out-of-scope model family are recorded
+    as exploratory; they cannot move a claim beyond stage 2 or count in the discovery metrics.'
+  acceptance_kind: deterministic
+  acceptance: a run under a model family without an in-scope qualification record is admitted only as exploratory; qualification
+    evidence names its cases and scope; a new constructor version invalidates the qualification.
+  planned_tests:
+  - T-S35-MOD-003
+  tests: []
+  owner_component: ModelQualification
+  phase: P35-6
+  gates:
+  - G1
+  - G3
+  - G-D3
+  status: proposed
+  evidence: []
+  missing: no model-family qualification record on any line
+  inherited:
+    sai34:
+    - ASM-008
+    - ASM-009
+    sai33:
+    - SIM-001
+    - DOM-SP-001
+  replaces: []
+- requirement_id: S35-SIM-001
+  key: sim.licensed_internal
+  level: MUST
+  area: SIM
+  section: '3.9'
+  text: Licensed Lumerical CHARGE, MODE, FDTD and INTERCONNECT run only on internal, qualified workers owned by the deployment,
+    through a dedicated provider behind the SimulationBackend seam. Execution is license-governed (actual entitlement checkout
+    and release are recorded; a missing or mismatched license blocks the run), Owner-authorized (only under an Owner authorization
+    or a ResearchEnvelope naming product, scope, seat-time ceiling and period) and cost-governed (budget reserved before execution,
+    every attempt reconciled). A mock never stands in for a licensed run, and no external agent operates a solver.
+  acceptance_kind: deterministic offline, then licensed
+  acceptance: offline, a run request without authorization, budget reservation or qualified worker is refused before any side
+    effect, and the mock provider can never serve a run marked licensed; licensed (G2), every attempt record carries checkout
+    and release, exit status, logs and output arrays.
+  planned_tests:
+  - T-S35-SIM-001
+  tests: []
+  owner_component: SimulatorWorkers
+  phase: P35-7
+  gates:
+  - G2
+  - G8
+  status: blocked
+  evidence:
+  - a38ad63:src/lab_brain/tool_providers/lumerical/mock.py
+  missing: mock only; no licensed provider or worker; blocked by license, site entitlement and SAI 3.4 D-04
+  inherited:
+    sai34:
+    - ASM-006
+    - ASM-007
+    sai33:
+    - TST-001
+    - COST-001
+    - OPS-001
+    - SIM-001
+  replaces:
+  - D-009
+- requirement_id: S35-SIM-002
+  key: sim.per_product_qualification
+  level: MUST
+  area: SIM
+  section: '3.9'
+  text: 'Each licensed product (CHARGE, MODE, FDTD, INTERCONNECT) and each worker is qualified separately: installation, SDK
+    compatibility, design-environment license, solve and HPC entitlements, and the OS and version matrix. Qualifying one product
+    or worker never qualifies another, and a coupling of products is qualified as a coupling (ASM-015).'
+  acceptance_kind: deterministic and licensed
+  acceptance: the capability registry refuses to dispatch a product whose qualification record is missing for the worker;
+    a CHARGE qualification does not enable MODE; licensed qualification runs are recorded per product and worker.
+  planned_tests:
+  - T-S35-SIM-002
+  tests: []
+  owner_component: ModelQualification
+  phase: P35-7
+  gates:
+  - G2
+  - G7-SITE
+  - G8
+  status: blocked
+  evidence:
+  - a38ad63:src/lab_brain/tool_providers/lumerical/__init__.py
+  missing: provider slot declares mock only; blocked by license and site qualification (SAI 3.4 D-04)
+  inherited:
+    sai34:
+    - ASM-006
+    - ASM-015
+    sai33:
+    - SIM-001
+  replaces:
+  - D-009
+- requirement_id: S35-SIM-003
+  key: sim.worker_contract
+  level: MUST
+  area: SIM
+  section: '3.9'
+  text: A simulator worker accepts only a typed operation plan or SimulationRequest bound to a Job, a registration id (S35-REG-001)
+    and a fencing token, runs it in an isolated per-job workspace under a non-human worker service identity, and returns raw
+    artifacts, readback and attempt records only, never a verdict or a belief move. Heartbeats, fencing and timeouts apply;
+    a stale worker cannot write back; an undeterminable outcome is UNKNOWN and is reconciled before any retry (ASM-005, ASM-007).
+  acceptance_kind: deterministic
+  acceptance: fault injection with a fake worker yields one accepted result for duplicate and late callbacks; a request without
+    registration id or valid fencing token is refused; the worker identity has no write access to belief, warrant or registration
+    tables.
+  planned_tests:
+  - T-S35-SIM-003
+  tests: []
+  owner_component: SimulatorWorkers
+  phase: P35-6
+  gates:
+  - G8
+  status: proposed
+  evidence:
+  - a38ad63:src/lab_brain/tools/execution.py
+  missing: Job/Run and lease seams exist; no worker, fencing token or registration binding
+  inherited:
+    sai34:
+    - ASM-005
+    - ASM-007
+    sai33:
+    - OPS-001
+    - OPS-004
+    - SIM-003
+  replaces: []
+- requirement_id: S35-VAL-001
+  key: val.sweeps
+  level: MUST
+  area: VAL
+  section: '3.10'
+  text: 'A parameter sweep is registered before it runs: parameters, ranges, sampling, observables, stopping rule and budget.
+    Each sweep point is its own Run with lineage to the spec and the sweep plan. Sweep outputs are model outputs under stated
+    conditions and are never presented as measurements.'
+  acceptance_kind: deterministic
+  acceptance: a sweep without a registered plan is refused; every point Run references the plan; the report labels sweep outputs
+    as simulated under their conditions.
+  planned_tests:
+  - T-S35-VAL-001
+  tests: []
+  owner_component: NumericalValidation
+  phase: P35-6
+  gates:
+  - G2
+  - G3
+  status: proposed
+  evidence:
+  - a38ad63:src/lab_brain/tool_providers/lumerical/mock_vertical.py
+  missing: a mock DC sweep only; no registered sweep plan
+  inherited:
+    sai34:
+    - ASM-002
+    - ASM-012
+    sai33:
+    - EVI-009
+    - SIM-001
+  replaces:
+  - D-010
+- requirement_id: S35-VAL-002
+  key: val.convergence
+  level: MUST
+  area: VAL
+  section: '3.10'
+  text: 'A simulated observable may discriminate between mechanisms only after the numerical convergence study required by
+    ASM-008 has passed for that observable: frozen residual and conservation checks, at least three comparable mesh or step
+    levels, and domain-size studies. A solver''s converged flag is not enough. Non-asymptotic, oscillating or multi-branch
+    results are UNKNOWN or FAIL and cannot discriminate.'
+  acceptance_kind: deterministic offline, then licensed
+  acceptance: a discrimination step citing an observable without a passed convergence record is refused; manufactured non-monotone
+    sequences yield UNKNOWN; licensed (G3), convergence evidence exists per observable.
+  planned_tests:
+  - T-S35-VAL-002
+  tests: []
+  owner_component: NumericalValidation
+  phase: P35-7
+  gates:
+  - G3
+  - G-D3
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/domains/silicon_photonics/validators.py
+  missing: trend validators and a mock mesh-sensitivity capability only; no convergence study on real runs
+  inherited:
+    sai34:
+    - ASM-008
+    sai33:
+    - SIM-002
+  replaces:
+  - D-011
+- requirement_id: S35-VAL-003
+  key: val.uncertainty
+  level: MUST
+  area: VAL
+  section: '3.10'
+  text: 'Every claim reports its uncertainty separately by source: numerical, input parameters, measurement or reference,
+    model form, extraction and mapping. Sources are combined only when their independence assumptions hold; otherwise covariance
+    or conservative bounds are kept. Belief stays ordinal (SAI 3.3 §8.1) until calibration exists; an uncalibrated number
+    is never shown as the probability that a claim is true, and unknown uncertainty is shown as UNKNOWN.'
+  acceptance_kind: deterministic
+  acceptance: a claim payload missing a source field is refused (UNKNOWN is allowed); the renderer never prints a probability
+    for an uncalibrated belief; a combination without its recorded independence assumption is refused.
+  planned_tests:
+  - T-S35-VAL-003
+  tests: []
+  owner_component: NumericalValidation
+  phase: P35-2
+  gates:
+  - G4
+  - G5
+  - G-D2
+  - G-D3
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/research/report.py
+  missing: reports keep UNKNOWN and unperformed checks visible; no per-source uncertainty record
+  inherited:
+    sai34:
+    - ASM-008
+    - ASM-009
+    - ASM-016
+    sai33:
+    - EVI-001
+    - EVI-002
+  replaces:
+  - D-029
+- requirement_id: S35-VAL-004
+  key: val.bounded_refinement
+  level: MUST
+  area: VAL
+  section: '3.10'
+  text: 'Model refinement stays within ASM-011: pre-approved assumptions, parameter ranges, development data and budget, producing
+    immutable child versions, with every validation re-run for the child. Refinement may not quietly change the hypothesis
+    under test to improve the fit: a change of physical mechanism is a new hypothesis with its own lineage, admission and
+    registration, and a correction of model form is classified MODEL_CORRECTION (S35-NOV-002).'
+  acceptance_kind: deterministic
+  acceptance: a ModelPatch outside the approved fields or ranges is refused before any side effect; a patch classified as
+    a mechanism change creates a new hypothesis instead of a child version; a child inherits no PASS from its parent.
+  planned_tests:
+  - T-S35-VAL-004
+  tests: []
+  owner_component: PhysicalModelBuilder
+  phase: P35-6
+  gates:
+  - G3
+  - G6
+  - G8
+  status: proposed
+  evidence: []
+  missing: no ModelPatch, refinement policy or lineage on any line
+  inherited:
+    sai34:
+    - ASM-011
+    sai33:
+    - EPI-005
+  replaces:
+  - D-012
+- requirement_id: S35-VAL-005
+  key: val.physical_validation
+  level: MUST
+  area: VAL
+  section: '3.10'
+  text: 'A physical claim needs independent physical validation (ASM-009, ASM-010): reference data independent of the construction
+    and calibration sources, with measurement uncertainty, under comparable conditions, scored by a process the builder does
+    not control. Agreement between simulations, or a plausible trend, never validates a physical claim on its own.'
+  acceptance_kind: deterministic split checks, empirical acceptance
+  acceptance: the split manifest proves the holdout disjoint from construction and calibration families; a claim citing only
+    simulation agreement cannot reach stage 3; G4 and G5 evidence exists per observable.
+  planned_tests:
+  - T-S35-VAL-005
+  tests: []
+  owner_component: PhysicalValidation
+  phase: P35-8
+  gates:
+  - G4
+  - G5
+  - G-D4
+  status: blocked
+  evidence: []
+  missing: no independent reference data, holdout or validator; blocked by SAI 3.4 D-02 (data and accuracy thresholds)
+  inherited:
+    sai34:
+    - ASM-009
+    - ASM-010
+    sai33:
+    - EVI-004
+    - DOM-SP-002
+  replaces:
+  - D-013
+- requirement_id: S35-LOOP-001
+  key: loop.propose_never_confirm
+  level: MUST
+  area: LOOP
+  section: '3.11'
+  text: 'Discovery and validation are separate roles with separate service identities and permissions. The Discovery side
+    (Problem Discovery, Hypothesis Brain, Mechanism Explorer, Research Reframing) proposes: it cannot write validation verdicts,
+    belief states or confirmations, cannot change validators, protocols, tolerances or scoring, and cannot read sealed references,
+    holdouts, ground truth or scoring credentials. The Validation side does not generate the hypotheses it validates. A component
+    that has seen a sealed answer no longer counts as independent for that case.'
+  acceptance_kind: deterministic
+  acceptance: a permission-matrix test runs every Discovery identity against every validation, belief, warrant and sealed
+    table and expects refusal; a validation run whose identity authored the hypothesis is refused.
+  planned_tests:
+  - T-S35-LOOP-001
+  tests: []
+  owner_component: DiscoveryLoop
+  phase: P35-2
+  gates:
+  - G6
+  - G8
+  - G-D1
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/handover.py
+  missing: offline hand-over is always pending the gate; no separate service identities or database permissions
+  inherited:
+    sai34:
+    - ASM-010
+    - ASM-013
+    sai33:
+    - SEC-002
+    - EPI-005
+  replaces:
+  - D-023
+- requirement_id: S35-LOOP-002
+  key: loop.feedback
+  level: MUST
+  area: LOOP
+  section: '3.11'
+  text: 'Every validation outcome feeds back to Discovery as an append-only FeedbackRecord within the same campaign: the outcome
+    and its state, refutation bases, anomalies created or changed, failed assumptions, unconverged or unqualified observables,
+    and the residual structure left after the best surviving fit. Discovery reads validation results only through these records,
+    and each FeedbackRecord is consumed by Problem Discovery, the Mechanism Explorer or Research Reframing with a recorded
+    disposition.'
+  acceptance_kind: deterministic
+  acceptance: after each validation outcome a FeedbackRecord exists; each record has a disposition before the campaign may
+    close; a residual above the pre-registered threshold yields a VALIDATION_RESIDUAL problem or a reframing.
+  planned_tests:
+  - T-S35-LOOP-002
+  tests: []
+  owner_component: ValidationLoop
+  phase: P35-2
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/loop.py
+  missing: offline loop feeds refutations and anomalies back in memory; no FeedbackRecord or disposition
+  inherited:
+    sai34:
+    - ASM-012
+    sai33:
+    - EPI-003
+    - OPS-003
+  replaces: []
+- requirement_id: S35-LOOP-003
+  key: loop.stop_insufficient
+  level: MUST
+  area: LOOP
+  section: '3.11'
+  text: The system must be able to stop. When validation is insufficient, the outcome is an explicit INSUFFICIENT_VALIDATION
+    or STOPPED record with its reason, what was tried, what it cost and what would be needed to continue. Such an outcome
+    is a success of governance, not a failure of the system, and it is scored as correct where no mechanism can be validated
+    with the available means. A confident claim where a stop was warranted is a false discovery.
+  acceptance_kind: deterministic and empirical
+  acceptance: 'deterministic: a campaign that cannot discriminate within budget ends with a StopRecord carrying all four fields;
+    empirical: in G-D1 no-mechanism worlds a correct stop is scored correct and a confident claim is scored a false discovery.'
+  planned_tests:
+  - T-S35-LOOP-003
+  tests: []
+  owner_component: ValidationLoop
+  phase: P35-2
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/loop.py
+  - a38ad63:src/lab_brain/research/report.py
+  missing: offline STOPPED_INSUFFICIENT_VALIDATION outcome; no typed product StopRecord
+  inherited:
+    sai34:
+    - ASM-011
+    - ASM-018
+    sai33:
+    - EPI-001
+  replaces:
+  - D-028
+- requirement_id: S35-CWG-001
+  key: cwg.exclusive_confirmation
+  level: MUST
+  area: CWG
+  section: '3.12'
+  text: 'The existing Causal Warrant Gate (V1.1) is the exclusive confirmation authority: it is the only path to CONFIRMED
+    and to stage 3. No other component, including Discovery, the Validation Loop, the report generator or an evaluator, writes
+    or displays CONFIRMED except as a projection of a re-derivable Causal Warrant Gate decision. SAI 3.5 adds no shortcut,
+    no automatic warrant and no widening of DISCRIMINATION review or multi-cause confirmation (SAI 3.4 D-03 stays open), and
+    it does not enable SP 1.1.0. A numerical match, a reproduced trend or model agreement never upgrades a claim by itself.'
+  acceptance_kind: deterministic
+  acceptance: a database and static test proves no writer other than the gate's path can produce CONFIRMED; a CONFIRMED projection
+    whose decision fails re-derivation is withdrawn on read; every discovery hand-over carries the status PENDING_CAUSAL_WARRANT_GATE.
+  planned_tests:
+  - T-S35-CWG-001
+  tests: []
+  owner_component: CausalWarrantGate
+  phase: P35-2
+  gates:
+  - G6
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/core/warrant.py
+  - a38ad63:src/lab_brain/research/confirmation.py
+  - 118a4ac:src/lab_brain/discovery/handover.py
+  missing: the gate exists with limited scientific scope; it is not yet wired to discovery claims
+  inherited:
+    sai34:
+    - ASM-013
+    sai33:
+    - EPI-002
+    - EPI-004
+    - EPI-005
+  replaces:
+  - D-026
+- requirement_id: S35-CWG-002
+  key: cwg.consequential_authorization
+  level: MUST
+  area: CWG
+  section: '3.12'
+  text: 'A consequential conclusion (a CONFIRMED claim, any claim released outside the project, and any claim used to justify
+    a physical experiment, fabrication or publication) requires independent human authorization: the Causal Warrant Gate''s
+    signed review by an enrolled reviewer who is not the campaign''s runner, not an author of the hypothesis and not a second
+    account of either, plus the Owner gate for the action. No ResearchEnvelope, autonomy level, automation or timeout provides
+    this authorization.'
+  acceptance_kind: deterministic
+  acceptance: a confirmation signed under the enrolment of the hypothesis author, the runner or a second account of either
+    is refused; a release or physical-experiment request citing a claim without a qualifying signed review is refused; the
+    presence of an envelope changes neither result.
+  planned_tests:
+  - T-S35-CWG-002
+  tests: []
+  owner_component: CausalWarrantGate
+  phase: P35-4
+  gates:
+  - G6
+  - G-D2
+  - G-D4
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/security/reviewer_identity.py
+  missing: signed review exists for warrant answers; release and physical-experiment gating by claim does not; second-account
+    detection depends on A3
+  inherited:
+    sai34:
+    - ASM-013
+    - ASM-014
+    sai33:
+    - SEC-002
+    - EPI-005
+  replaces: []
+- requirement_id: S35-REG-001
+  key: reg.prospective
+  level: MUST
+  area: REG
+  section: '3.13'
+  text: Every validation test is registered prospectively, before its data exists. A Registration names the hypothesis, the
+    predictions, the capability and its declaration hash, the analysis-plan hash and the decision rule. It is dated by the
+    database clock, immutable and bound to exactly one Job, and it carries either a signed human authorization or a reference
+    to a ResearchEnvelope that covers it (S35-REG-002). A change after registration is a new registration; the old one and
+    its outcome stay on record.
+  acceptance_kind: deterministic
+  acceptance: a Job running a validation without a registration is refused; UPDATE of a registration is refused; a client-supplied
+    timestamp is ignored; one registration binds one Job only; a registration with neither a valid signed authorization nor
+    a covering envelope is refused.
+  planned_tests:
+  - T-S35-REG-001
+  tests: []
+  owner_component: RegistrationRegistry
+  phase: P35-2
+  gates:
+  - G0
+  - G6
+  - G-D1
+  status: partial
+  evidence:
+  - f41758c:src/lab_brain/verification/prospective.py
+  - f41758c:migrations/011s_prospective_evidence_authorization.sql
+  - f41758c:migrations/011w_signed_verification_authorizations.sql
+  missing: signed per-hypothesis authorizations exist on the unintegrated G0 line; the forged-authorization read-path bypass
+    found there is fixed on the pushed, unmerged branch g0-authorization-read-path-closure (source at 2a96ee8), pending independent
+    audit; no envelope reference
+  inherited:
+    sai34:
+    - ASM-010
+    sai33:
+    - VER-006
+    - EPI-005
+  replaces:
+  - D-024
+- requirement_id: S35-REG-002
+  key: reg.envelope_registration
+  level: MUST
+  area: REG
+  section: '3.13'
+  text: 'Inside an active ResearchEnvelope the system may create a Registration without a per-registration human action. A
+    ResearchEnvelope is an Owner-approved record signed by an enrolled authorizer (scope RESEARCH_ENVELOPE), unexpired and
+    unrevoked, with machine-checkable bounds: project, problem scope, mechanism families, capabilities and their declaration
+    hashes, model routes, licensed products and seat-time ceilings, money and compute ceilings, maximum registrations and
+    reframings, autonomy level and validity period. An automatic registration is valid only if every bound holds at registration
+    time; otherwise a signed per-registration human authorization is required. Physical experiments, fabrication, publication,
+    irreversible actions, non-PUBLIC egress and changes to validators, protocols or policies are never inside an envelope.'
+  acceptance_kind: deterministic
+  acceptance: for each bound, a registration just outside it is refused and one inside it is accepted; an expired, revoked,
+    unsigned or wrongly scoped envelope covers nothing; an envelope naming a physical-experiment, fabrication or publication
+    capability is refused at creation.
+  planned_tests:
+  - T-S35-REG-002
+  tests: []
+  owner_component: RegistrationRegistry
+  phase: P35-4
+  gates:
+  - G8
+  - G-D1
+  status: proposed
+  evidence: []
+  missing: no ResearchEnvelope on any line
+  inherited:
+    sai34:
+    - ASM-007
+    - ASM-014
+    sai33:
+    - COST-001
+    - SEC-002
+  replaces: []
+- requirement_id: S35-REG-003
+  key: reg.envelope_limits
+  level: MUST
+  area: REG
+  section: '3.13'
+  text: 'Automatic registration never weakens the independent authorization of consequential conclusions. An envelope authorizes
+    registration and execution only: it never authorizes CONFIRMED, a signed review, a warrant, a release or a belief move,
+    and evidence gathered under it passes every admission and prospective-evidence rule unchanged (S35-REG-004). Whether an
+    envelope registration satisfies a rule that requires a per-hypothesis human pre-authorization (rule (l) of migration 011s
+    with the 011w signatures on the G0 line) is Owner decision OD-14; until it is decided it does not, and such evidence is
+    recorded as CITES for those hypotheses.'
+  acceptance_kind: deterministic
+  acceptance: a CONFIRMED path that cites only an envelope authorization is refused; for a post-screening hypothesis, a SUPPORTS
+    relation whose only authorization is an envelope registration is stored as CITES while OD-14 is open.
+  planned_tests:
+  - T-S35-REG-003
+  tests: []
+  owner_component: RegistrationRegistry
+  phase: P35-4
+  gates:
+  - G6
+  - G-D1
+  status: proposed
+  evidence: []
+  missing: no envelope; the rule (l) interaction is an open Owner decision (OD-14)
+  inherited:
+    sai34:
+    - ASM-013
+    - ASM-014
+    sai33:
+    - EPI-005
+    - SEC-002
+  replaces: []
+- requirement_id: S35-REG-004
+  key: reg.no_retrospective_support
+  level: MUST
+  area: REG
+  section: '3.13'
+  text: 'There is no retrospective self-support. Evidence that existed before a hypothesis was registered, evidence the hypothesis
+    was derived from, evidence with an unknown capture time, and evidence whose lineage reaches any of these cannot support
+    that hypothesis; it is recorded as context (CITES), never as SUPPORTS. These rules are at least as strict as the prospective-evidence
+    rules of migrations 011p and 011s (rules (a)–(k)) on the G0 line at f41758c: known capture time, clean lineage to depth
+    16, declared capability kind and fail-closed classification.'
+  acceptance_kind: deterministic
+  acceptance: the eleven 011s defect fixtures (unknown capture time, lineage to screening output, cycles, depth over 16, misdeclared
+    kind) applied to discovery hypotheses are all stored as CITES; a hypothesis registered after an observation cannot cite
+    it as support.
+  planned_tests:
+  - T-S35-REG-004
+  tests: []
+  owner_component: ValidationLoop
+  phase: P35-2
+  gates:
+  - G0
+  - G6
+  - G-D1
+  status: partial
+  evidence:
+  - f41758c:migrations/011p_screening_support_is_prospective_in_time.sql
+  - f41758c:migrations/011s_prospective_evidence_authorization.sql
+  - 118a4ac:src/lab_brain/discovery/loop.py
+  missing: rules exist for post-screening hypotheses on the unintegrated G0 line and offline in the loop; not applied to discovery
+    records
+  inherited:
+    sai34:
+    - ASM-012
+    - ASM-013
+    sai33:
+    - EVI-004
+    - EVI-009
+    - EPI-002
+  replaces:
+  - D-025
+- requirement_id: S35-NOV-001
+  key: nov.prior_art_bound
+  level: MUST
+  area: NOV
+  section: '3.14'
+  text: A novelty claim is bounded by prior-art coverage. It cites a PriorArtSearchRecord (SAI 3.3 §17.20, SRC-003) recording
+    the sources actually searched, queries, date range, coverage classes (at least literature and patents unless OD-11 decides
+    otherwise) and limitations. Internal novelty is never presented as global novelty, a claim is never broader than its coverage
+    record supports, and the record states each model's training cutoff against the prior-art dates it relies on.
+  acceptance_kind: deterministic
+  acceptance: a novelty status without a covering record is refused; a record without coverage classes or limitations is refused;
+    the report prints the coverage scope next to every novelty statement.
+  planned_tests:
+  - T-S35-NOV-001
+  tests: []
+  owner_component: NoveltyAuditor
+  phase: P35-2
+  gates:
+  - G-D2
+  - G-D3
+  - G-D4
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/cognition/novelty.py
+  missing: SRC-003 records exist; coverage classes, cutoff fields and bounding of discovery claims do not
+  inherited:
+    sai34:
+    - ASM-003
+    sai33:
+    - SRC-003
+  replaces:
+  - D-004
+- requirement_id: S35-NOV-002
+  key: nov.classification
+  level: MUST
+  area: NOV
+  section: '3.14'
+  text: 'Every finding carries one novelty class assigned by the Novelty Auditor with the criteria of provenance-novelty-independence.md:
+    KNOWN_MECHANISM_REDISCOVERY (the mechanism class appears in covered prior art), ENGINEERING_OPTIMIZATION (a better design
+    or operating point within known mechanisms, with no mechanism claim), MODEL_CORRECTION (a change of model form or parameters
+    that removes a residual under known physics) or NEW_PHYSICAL_KNOWLEDGE (a mechanism or quantitative relation absent from
+    covered prior art). NEW_PHYSICAL_KNOWLEDGE may be asserted only for a stage-3 claim with independent physical validation
+    (S35-VAL-005); before that the strongest label is NEW_PHYSICAL_KNOWLEDGE_CANDIDATE, shown with its stage.'
+  acceptance_kind: deterministic and blinded review
+  acceptance: 'deterministic: a NEW_PHYSICAL_KNOWLEDGE label without stage 3, S35-VAL-005 evidence and a covering prior-art
+    record is refused; empirical (G-D2 and above): blinded reviewers'' class assignments are compared with the auditor''s
+    and the agreement is reported.'
+  planned_tests:
+  - T-S35-NOV-002
+  tests: []
+  owner_component: NoveltyAuditor
+  phase: P35-5
+  gates:
+  - G-D2
+  - G-D3
+  - G-D4
+  status: proposed
+  evidence: []
+  missing: no novelty classification on any line
+  inherited:
+    sai34:
+    - ASM-009
+    - ASM-013
+    sai33:
+    - SRC-003
+  replaces: []
+- requirement_id: S35-NOV-003
+  key: nov.literature
+  level: MUST
+  area: NOV
+  section: '3.14'
+  text: Autonomous literature search runs only through ExternalSourceAdapter providers the project has authorized. A query
+    leaves the deployment only when declared PUBLIC. Every retrieved passage is pinned by version and hash and carries its
+    license class; read, execute, modify and redistribute rights are judged separately (ASM-003). A search records what was
+    actually searched, not what was configured, and an unreachable provider appears in the record's limitations.
+  acceptance_kind: deterministic
+  acceptance: a non-PUBLIC query is refused before egress; every passage row has version, hash and license class; a provider
+    outage appears in the limitations of the search record.
+  planned_tests:
+  - T-S35-NOV-003
+  tests: []
+  owner_component: NoveltyAuditor
+  phase: P35-5
+  gates:
+  - G0
+  - G-D2
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/research/literature.py
+  missing: PUBLIC-query egress exists; the literature provider is a JSON fixture corpus, not a live API
+  inherited:
+    sai34:
+    - ASM-003
+    sai33:
+    - SRC-001
+    - SRC-002
+    - SEC-001
+    - SEC-004
+  replaces:
+  - D-007
+- requirement_id: S35-EVI-001
+  key: evi.proposals_not_evidence
+  level: MUST
+  area: EVI
+  section: '3.15'
+  text: Discovery outputs are proposals, not evidence. They enter the scientific record only through the existing Artifact,
+    Observation and Attestation admission path (ASM-012), keeping Run, validity, conditions, uncertainty, source dependence
+    and model-family identity. Scientific records are append-only; corrections and withdrawals are new events that leave the
+    original in place.
+  acceptance_kind: deterministic
+  acceptance: a discovery output submitted as an Observation without a Run or Artifact reference is refused (EVI-009); UPDATE
+    and DELETE on scientific records are refused; a withdrawal leaves the original readable.
+  planned_tests:
+  - T-S35-EVI-001
+  tests: []
+  owner_component: ValidationLoop
+  phase: P35-2
+  gates:
+  - G6
+  - G-D1
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/research/service.py
+  missing: the admission path exists for the research workflow; discovery outputs are not wired to it
+  inherited:
+    sai34:
+    - ASM-012
+    sai33:
+    - EVI-003
+    - EVI-009
+    - SYS-001
+  replaces:
+  - D-031
+- requirement_id: S35-EVI-002
+  key: evi.provenance
+  level: MUST
+  area: EVI
+  section: '3.15'
+  text: 'Every discovery record (problem, valuation, anomaly state change, idea, mechanism class partition, reframing, registration,
+    envelope, selection decision, feedback, stop and novelty assessment) carries provenance: inputs by hash, the producing
+    component, version and identity, InferenceProvenance for every model call, the policy versions in force, and the trace.
+    A record without provenance cannot justify a later transition.'
+  acceptance_kind: deterministic
+  acceptance: inserting any listed record type without a provenance field is refused; a transition citing a record that lacks
+    provenance is refused.
+  planned_tests:
+  - T-S35-EVI-002
+  tests: []
+  owner_component: GovernancePlane
+  phase: P35-2
+  gates:
+  - G0
+  - G6
+  - G-D1
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/research/service.py
+  - f41758c:src/lab_brain/research/run_provenance.py
+  missing: InferenceProvenance and run provenance exist; discovery record types do not
+  inherited:
+    sai34:
+    - ASM-002
+    - ASM-017
+    sai33:
+    - LLM-001
+    - OPS-003
+    - ART-001
+  replaces:
+  - D-032
+- requirement_id: S35-EVI-003
+  key: evi.independence
+  level: MUST
+  area: EVI
+  section: '3.15'
+  text: 'Evidence independence for discovery claims follows SAI 3.3 claim identity and SAI 3.4 source families: observations
+    sharing a source work, a source family, a device or process batch, a model family or shared modeling assumptions count
+    once; repeated runs, mesh levels and sweep points of one model never increase the count of independent evidence; DEPENDENCE_UNKNOWN
+    counts zero. Evidence produced by the campaign that generated the hypothesis counts as independent only if it was registered
+    before it existed (S35-REG-001) and its lineage is clean (S35-REG-004).'
+  acceptance_kind: deterministic
+  acceptance: three runs of one model, a preprint and its journal version, and two solvers sharing one material model each
+    yield an independent count of one; an unknown dependence yields zero.
+  planned_tests:
+  - T-S35-EVI-003
+  tests: []
+  owner_component: ValidationLoop
+  phase: P35-2
+  gates:
+  - G4
+  - G6
+  - G-D2
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/evidence/independence.py
+  missing: source-work independence exists; model-family and shared-assumption dependence do not
+  inherited:
+    sai34:
+    - ASM-010
+    - ASM-012
+    sai33:
+    - EVI-004
+  replaces: []
+- requirement_id: S35-EVI-004
+  key: evi.contamination
+  level: MUST
+  area: EVI
+  section: '3.15'
+  text: 'The deployment defends against contamination in research, not only in evaluation: sealed references, holdouts and
+    evaluation truth live in the evaluation plane and are unreadable by Discovery and Validation identities; every read of
+    sealed material is audited; a component or model route that has seen a sealed answer is marked non-independent for that
+    case; novelty and rediscovery claims about literature record the model training cutoff and a memorization-probe result;
+    a detected contamination is reported and never silently dropped.'
+  acceptance_kind: deterministic
+  acceptance: every non-evaluation identity is refused on sealed tables and each refusal is logged; a case whose answer was
+    read by a route marks that route non-independent in the case record; a literature novelty claim without cutoff and probe
+    fields is refused.
+  planned_tests:
+  - T-S35-EVI-004
+  tests: []
+  owner_component: EvaluationPlane
+  phase: P35-3
+  gates:
+  - G4
+  - G-D1
+  - G-D2
+  status: partial
+  evidence:
+  - f41758c:src/lab_brain/evaluation/contamination.py
+  - f41758c:src/lab_brain/evaluation/sealing.py
+  missing: G0 evaluation sealing and contamination tooling on the unintegrated G0 line; no production-side sealed plane
+  inherited:
+    sai34:
+    - ASM-010
+    sai33:
+    - EVI-004
+    - SEC-002
+  replaces: []
+- requirement_id: S35-RPT-001
+  key: rpt.bilingual_traceable
+  level: MUST
+  area: RPT
+  section: '3.16'
+  text: Every campaign report is traceable and bilingual (zh-TW and en) under ASM-016. Beyond the eight ASM-016 content classes
+    (hypotheses, predictions, observations, interpretations, uncertainty, conclusions, limitations, exports), it covers the
+    problem and its provenance, the epistemic stage of every object, mechanism classes with their experiment-set version,
+    anomalies and their states, the reframing history including failed hypotheses, the registrations and envelopes used, every
+    validation outcome, the novelty class with its coverage scope, realized cost and every stop reason. Both languages carry
+    the same identifiers, numbers, units, states and uncertainty; a translation never overwrites a canonical record.
+  acceptance_kind: deterministic and bilingual review
+  acceptance: a structural parity test over both languages and every export format finds every applicable field present with
+    equal identifiers, numbers, units and states; canonical hashes are unchanged after rendering; an independent bilingual
+    reviewer checks semantic parity on the frozen case set.
+  planned_tests:
+  - T-S35-RPT-001
+  tests: []
+  owner_component: ReportGenerator
+  phase: P35-4
+  gates:
+  - G0
+  - G9
+  - G-D2
+  status: partial
+  evidence:
+  - f41758c:src/lab_brain/research/render.py
+  - a38ad63:src/lab_brain/interfaces/web/i18n.py
+  missing: zh-TW science export and structural parity on the G0 line (semantic quality not verified); no discovery content
+  inherited:
+    sai34:
+    - ASM-016
+    sai33:
+    - UX-006
+  replaces:
+  - D-014
+- requirement_id: S35-RPT-002
+  key: rpt.reproducible_bundle
+  level: MUST
+  area: RPT
+  section: '3.16'
+  text: 'Every report ships with a machine-verifiable bundle: canonical record identifiers and hashes for every statement,
+    the environment manifest (commit, schema, packages, model identifiers and digests, solver versions), the policy versions,
+    registrations, budgets and realized consumption, so that an independent party can re-derive every state and re-score every
+    metric from the bundle without access to the original session.'
+  acceptance_kind: deterministic
+  acceptance: re-deriving every claim state and metric from the bundle in a clean environment reproduces the report's values;
+    a bundle missing any listed element fails validation.
+  planned_tests:
+  - T-S35-RPT-002
+  tests: []
+  owner_component: ReportGenerator
+  phase: P35-4
+  gates:
+  - G7-SITE
+  - G9
+  - G-D1
+  status: partial
+  evidence:
+  - f41758c:src/lab_brain/evaluation/environment.py
+  missing: an environment manifest exists for G0 blind evaluation; no report bundle
+  inherited:
+    sai34:
+    - ASM-017
+    sai33:
+    - OPS-003
+    - ART-001
+  replaces: []
+- requirement_id: S35-RPT-003
+  key: rpt.terminology_language
+  level: MUST
+  area: RPT
+  section: '3.16'
+  text: 'Scientific and governance terms in reports, interfaces and messages use the bilingual glossary of ux-reports-glossary.md:
+    each English term has exactly one canonical zh-TW term, and state names and identifiers are never translated. The normative
+    text of this specification is English; a zh-TW normative edition is Owner decision OD-13 and, if approved, is checked
+    term by term against the glossary. User-facing error text still comes from the versioned MessageCatalog (UX-006).'
+  acceptance_kind: deterministic
+  acceptance: a glossary lint over the MessageCatalog and report templates finds every glossary term rendered with its canonical
+    zh-TW term and every state name untranslated; no English term in the glossary has two zh-TW terms.
+  planned_tests:
+  - T-S35-RPT-003
+  tests: []
+  owner_component: ReportGenerator
+  phase: P35-4
+  gates:
+  - G0
+  - G9
+  status: proposed
+  evidence: []
+  missing: the glossary exists in this specification only; no lint
+  inherited:
+    sai34:
+    - ASM-016
+    sai33:
+    - UX-006
+  replaces: []
+- requirement_id: S35-RPT-004
+  key: rpt.researcher_ux
+  level: MUST
+  area: RPT
+  section: '3.16'
+  text: The researcher workspace shows, for every campaign and in both languages, the current stage and state of each object,
+    open anomalies, pending registrations and authorizations, budgets with realized consumption, the active envelope and autonomy
+    level, and every stop reason. No step that has not passed is shown as verified or green; UNKNOWN, NOT_PERFORMED and INSUFFICIENT_VALIDATION
+    are shown as such; every authorization a researcher gives is a recorded ReviewItem resolution with actor and time.
+  acceptance_kind: deterministic
+  acceptance: UI tests in both locales show each listed element; a fixture with an unperformed simulation renders NOT_PERFORMED,
+    never a success style; every approve action creates a ReviewItem resolution event.
+  planned_tests:
+  - T-S35-RPT-004
+  tests: []
+  owner_component: ResearcherWorkspace
+  phase: P35-4
+  gates:
+  - G0
+  - G9
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/interfaces/web/i18n.py
+  missing: a bilingual research workspace exists; no campaign, envelope or discovery views
+  inherited:
+    sai34:
+    - ASM-014
+    - ASM-016
+    sai33:
+    - UX-002
+    - UX-005
+    - UX-007
+    - OPS-002
+  replaces: []
+- requirement_id: S35-AUTO-001
+  key: auto.no_external_coding_agent
+  level: MUST
+  area: AUTO
+  section: '3.17'
+  text: 'The complete production research workflow runs without external coding agents: production research must not depend
+    on Codex, Claude Code or any other external coding agent. No stage hands work to such an agent, edits the repository,
+    runs generated code, or waits for a developer to write model code. Governed model calls through ScientificLLM and ModelRouter
+    are allowed under the egress, sensitivity and budget gates; they return typed proposals only, with no shell, raw SDK,
+    arbitrary code or deployment rights.'
+  acceptance_kind: empirical acceptance check
+  acceptance: in a deployment-equivalent environment where coding-agent executables are absent and their network endpoints
+    are blocked, the full workflow runs from a blank workspace to a bilingual report on the frozen in-envelope cases (before
+    licensing without licensed simulation; under G9 with it); process, network and repository audit logs show zero coding-agent
+    invocations; every attempt to reach one is refused and logged; every human intervention is a recorded ReviewItem. The
+    procedure is deployment-autonomy.md §4.
+  planned_tests:
+  - T-S35-AUTO-001
+  tests: []
+  owner_component: DeploymentOperations
+  phase: P35-4
+  gates:
+  - G9
+  - G-D3
+  status: untested
+  evidence: []
+  missing: the product is not designed around coding agents, but no deployment-equivalent check has ever run
+  inherited:
+    sai34:
+    - ASM-001
+    sai33:
+    - SIM-003
+  replaces:
+  - D-006
+- requirement_id: S35-AUTO-002
+  key: auto.deployment_composition
+  level: MUST
+  area: AUTO
+  section: '3.17'
+  text: A production deployment contains no coding-agent executable, session, personal developer login, credential or network
+    route, and no path by which a research stage can modify the deployed code or configuration. Development tools exist only
+    in the development plane. Each release records an image inventory and an egress allowlist from which this can be audited.
+  acceptance_kind: deterministic
+  acceptance: a static audit of each release image and egress allowlist finds no coding-agent binary, package, credential,
+    configuration directory or endpoint from the maintained denylist, and no writable path from research services to code
+    or configuration; the audit report is attached to the release.
+  planned_tests:
+  - T-S35-AUTO-002
+  tests: []
+  owner_component: DeploymentOperations
+  phase: P35-4
+  gates:
+  - G8
+  - G9
+  status: untested
+  evidence: []
+  missing: no release image audit exists
+  inherited:
+    sai34:
+    - ASM-001
+    sai33:
+    - SIM-003
+    - SEC-001
+  replaces:
+  - D-006
+- requirement_id: S35-AUTO-003
+  key: auto.out_of_envelope_stop
+  level: MUST
+  area: AUTO
+  section: '3.17'
+  text: 'A request outside the versioned capability envelope (ASM-001) or outside the active ResearchEnvelope stops safely:
+    the campaign records what is out of scope and creates a ReviewItem with the exact gap and at most two options. It never
+    asks for a coding agent or a developer to continue, and it never widens its own envelope.'
+  acceptance_kind: deterministic
+  acceptance: out-of-envelope fixtures (unknown model family, unqualified product, exceeded bound) each produce a stop and
+    a ReviewItem with the gap and options; no outbound connection to a development endpoint occurs; no envelope row changes.
+  planned_tests:
+  - T-S35-AUTO-003
+  tests: []
+  owner_component: CampaignOrchestrator
+  phase: P35-4
+  gates:
+  - G9
+  status: proposed
+  evidence: []
+  missing: no envelope or out-of-envelope stop
+  inherited:
+    sai34:
+    - ASM-001
+    - ASM-014
+    sai33:
+    - OPS-002
+    - UX-005
+  replaces: []
+- requirement_id: S35-SEC-001
+  key: sec.autonomy_levels
+  level: MUST
+  area: SEC
+  section: '3.18'
+  text: 'Autonomy is set per project by the autonomy levels of governance-security.md: AL0 manual, AL1 propose-only (the default
+    without an envelope), AL2 envelope-autonomous at zero cost, AL3 envelope-autonomous with budgeted model and compute use,
+    and AL4 envelope-autonomous with licensed simulation on qualified workers. The level is a bound of the active ResearchEnvelope
+    and never exceeds the maximum the Owner set for the project (OD-15). No level covers physical experiments, fabrication,
+    publication, CONFIRMED, or changes to validators, protocols, thresholds or policies.'
+  acceptance_kind: deterministic
+  acceptance: for each level, an action of the next level is refused and an action of the level is permitted; without an envelope
+    only AL1 actions are permitted; an envelope above the project maximum is refused at creation.
+  planned_tests:
+  - T-S35-SEC-001
+  tests: []
+  owner_component: GovernancePlane
+  phase: P35-4
+  gates:
+  - G8
+  - G9
+  status: proposed
+  evidence: []
+  missing: no autonomy levels on any line
+  inherited:
+    sai34:
+    - ASM-014
+    sai33:
+    - SEC-002
+    - COST-001
+  replaces: []
+- requirement_id: S35-SEC-002
+  key: sec.owner_gates
+  level: MUST
+  area: SEC
+  section: '3.18'
+  text: 'Four classes of action need a recorded Owner gate before they happen: spending money (paid models, paid compute,
+    purchases), using licenses (Lumerical products, seats, entitlements), physical experiments (fabrication, measurement,
+    lab time) and publication (any external release of findings, data or claims). An Owner-signed ResearchEnvelope may pre-authorize
+    money and license use within its ceilings; physical experiments and publication are authorized per action. Every authorization
+    names actor, time, scope, ceiling and expiry; automation never signs for the Owner, and a timeout is never consent.'
+  acceptance_kind: deterministic
+  acceptance: each action class without a covering authorization is refused before any side effect; an expired authorization
+    covers nothing; a physical-experiment or publication request citing only an envelope is refused.
+  planned_tests:
+  - T-S35-SEC-002
+  tests: []
+  owner_component: GovernancePlane
+  phase: P35-4
+  gates:
+  - G8
+  - G-D1
+  - G-D3
+  - G-D4
+  status: partial
+  evidence:
+  - f41758c:migrations/011t_llm_spend_administration.sql
+  missing: an Owner-only spend administration role on the unintegrated G0 line; no license, physical-experiment or publication
+    gate
+  inherited:
+    sai34:
+    - ASM-007
+    - ASM-014
+    sai33:
+    - COST-001
+    - OPS-002
+    - SEC-002
+  replaces:
+  - D-030
+- requirement_id: S35-SEC-003
+  key: sec.project_isolation
+  level: MUST
+  area: SEC
+  section: '3.18'
+  text: Discovery records, envelopes, registrations, benchmark material, worker sessions, caches and evaluator access are
+    scoped to a project and to the reader's current clearance. A record from another project is never reused without a project
+    occurrence. Sealed evaluation material is reachable only by the evaluation plane.
+  acceptance_kind: deterministic
+  acceptance: the route and repository access matrix extended to discovery records refuses every cross-project read and write;
+    every worker cache key includes the project id; sealed reads from non-evaluation identities are refused.
+  planned_tests:
+  - T-S35-SEC-003
+  tests: []
+  owner_component: GovernancePlane
+  phase: P35-2
+  gates:
+  - G8
+  - G-D1
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/accounts/service.py
+  missing: project isolation exists for the current records; discovery records, workers and evaluator scope do not exist
+  inherited:
+    sai34:
+    - ASM-014
+    sai33:
+    - SEC-002
+  replaces:
+  - D-033
+- requirement_id: S35-SEC-004
+  key: sec.identity
+  level: MUST
+  area: SEC
+  section: '3.18'
+  text: Human account roles stay ADMIN and MEMBER. Project membership, independent scientific reviewer authorization, independent
+    evaluator assignment, envelope-authorizer enrolment and worker service identity are separate governance concepts and grant
+    no account role. A second account of the same natural person never counts as an independent reviewer or evaluator. The
+    SAI 3.4 security decisions A3, A9 and A12 stay open and are not settled here.
+  acceptance_kind: deterministic
+  acceptance: the account model admits only ADMIN and MEMBER; granting reviewer, evaluator or authorizer status changes no
+    account role; enrolment refuses a key already enrolled to another person.
+  planned_tests:
+  - T-S35-SEC-004
+  tests: []
+  owner_component: GovernancePlane
+  phase: P35-2
+  gates:
+  - G0
+  - G8
+  - G-D0
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/accounts/service.py
+  - f41758c:migrations/011w_signed_verification_authorizations.sql
+  missing: ADMIN/MEMBER and key enrolment exist; A3, A9 and A12 open; no evaluator or envelope-authorizer enrolment
+  inherited:
+    sai34:
+    - ASM-014
+    sai33:
+    - SEC-002
+  replaces:
+  - D-034
+- requirement_id: S35-SEC-005
+  key: sec.least_privilege
+  level: MUST
+  area: SEC
+  section: '3.18'
+  text: Every component acts under its own service identity with the least privilege of the permission matrix in governance-security.md,
+    which is the authority for which identity may read or write which record class. Database rules hold the matrix for every
+    normal writer; application checks do not replace them. A change to the matrix needs an ADR and an Owner-visible ReviewItem.
+  acceptance_kind: deterministic
+  acceptance: a generated test enumerates every (identity, record class, operation) cell and expects exactly the matrix's
+    allow or deny at the database layer, using non-superuser roles.
+  planned_tests:
+  - T-S35-SEC-005
+  tests: []
+  owner_component: GovernancePlane
+  phase: P35-2
+  gates:
+  - G8
+  status: proposed
+  evidence: []
+  missing: services share one database role today; no per-component identities
+  inherited:
+    sai34:
+    - ASM-014
+    sai33:
+    - SEC-002
+    - OPS-004
+  replaces: []
+- requirement_id: S35-SEC-006
+  key: sec.owner_stop
+  level: MUST
+  area: SEC
+  section: '3.18'
+  text: The Owner can stop any campaign and revoke any envelope or authorization at any time. A stop or revocation takes effect
+    before the next side effect of every affected Job (it is checked at reservation and at dispatch); running work is cancelled
+    under ASM-007 with its costs kept; and the campaign closes as CLOSED_STOPPED with the stop recorded.
+  acceptance_kind: deterministic
+  acceptance: after a revocation every subsequent reservation and dispatch under the envelope is refused; a running fake job
+    is cancelled and its partial cost recorded; the campaign state becomes CLOSED_STOPPED.
+  planned_tests:
+  - T-S35-SEC-006
+  tests: []
+  owner_component: GovernancePlane
+  phase: P35-4
+  gates:
+  - G8
+  status: proposed
+  evidence: []
+  missing: no campaign or envelope to stop
+  inherited:
+    sai34:
+    - ASM-007
+    - ASM-014
+    sai33:
+    - OPS-001
+    - COST-001
+  replaces: []
+- requirement_id: S35-COST-001
+  key: cost.realized_consumption
+  level: MUST
+  area: COST
+  section: '3.19'
+  text: 'Every model call, compute use, licensed run and experiment reserves budget before its side effect and records its
+    actual realized consumption afterwards (tokens, compute seconds, money, seat time, wall time), including failures, retries
+    and parsing repairs. Realized consumption is reconciled against reservations per campaign and per envelope and reported
+    with every result. No endpoint, local or remote, is presumed free: a free declaration is an Owner act for one exact model
+    at one endpoint (rule 011v of the G0 line).'
+  acceptance_kind: deterministic
+  acceptance: a call without a reservation is refused before sending; ledger totals equal the sum of attempt records including
+    failures; a request to an undeclared local endpoint is refused unsent; a wildcard free declaration is refused.
+  planned_tests:
+  - T-S35-COST-001
+  tests: []
+  owner_component: CostGovernance
+  phase: P35-2
+  gates:
+  - G8
+  - G-D1
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/core/budget.py
+  - f41758c:migrations/011v_llm_spend_local_is_not_free.sql
+  missing: BudgetGate and CostLedger exist; local metering is on the unintegrated G0 line; no campaign or envelope reconciliation
+  inherited:
+    sai34:
+    - ASM-007
+    sai33:
+    - COST-001
+    - VER-003
+  replaces: []
+- requirement_id: S35-COST-002
+  key: cost.ceilings
+  level: MUST
+  area: COST
+  section: '3.19'
+  text: Campaigns and envelopes have money, token, compute, seat-time and wall-time ceilings. Reaching a ceiling stops further
+    reservations and closes or pauses the campaign with the reason; it never triggers an automatic increase. Raising a ceiling
+    is an Owner authorization through the approval path of SAI 3.3 requirement COST-001 and never happens by timeout.
+  acceptance_kind: deterministic
+  acceptance: at the ceiling the next reservation is refused and the campaign records the stop; a ceiling change without an
+    Owner authorization record is refused.
+  planned_tests:
+  - T-S35-COST-002
+  tests: []
+  owner_component: CostGovernance
+  phase: P35-4
+  gates:
+  - G8
+  status: partial
+  evidence:
+  - a38ad63:src/lab_brain/core/budget.py
+  missing: session budgets with an approval path exist; campaign and envelope ceilings do not
+  inherited:
+    sai34:
+    - ASM-007
+    sai33:
+    - COST-001
+  replaces: []
+- requirement_id: S35-GD-001
+  key: gd.independence
+  level: MUST
+  area: GD
+  section: '3.20'
+  text: 'G-D acceptance is independent of G0–G9: completing G0–G9 never implies successful autonomous discovery. A G-D level
+    passes only when an independent evaluator, assigned by the Owner and neither the implementer nor a second account of the
+    implementer, issues the verdict on that level''s frozen protocol; the system, its developers and any development agent
+    cannot issue a G-D verdict. Synthetic benchmark success is never reported as real discovery validation.'
+  acceptance_kind: deterministic
+  acceptance: every G-D verdict record names an evaluator outside the implementer list and a frozen protocol hash; the claim
+    audit rejects any document stating a G-D result without a signed verdict.
+  planned_tests:
+  - T-S35-GD-001
+  tests: []
+  owner_component: EvaluationPlane
+  phase: P35-3
+  gates:
+  - G-D0
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+  status: blocked
+  evidence: []
+  missing: no evaluator assigned (OD-02); no G-D level evaluated
+  inherited:
+    sai34:
+    - ASM-018
+    sai33:
+    - TST-003
+  replaces:
+  - D-035
+- requirement_id: S35-GD-002
+  key: gd.levels
+  level: MUST
+  area: GD
+  section: '3.20'
+  text: G-D has five levels, G-D0 to G-D4, defined in acceptance-gd.md, each with entry conditions, required evidence and
+    pass and fail criteria frozen before evaluation. Passing a lower level never implies a higher one. A level's result applies
+    only to the scope it was evaluated in (benchmark, model family, product commit, model identifiers and environment).
+  acceptance_kind: deterministic
+  acceptance: each verdict record names its level, scope and frozen protocol hash; a protocol changed after freezing makes
+    the verdict INVALID.
+  planned_tests:
+  - T-S35-GD-002
+  tests: []
+  owner_component: EvaluationPlane
+  phase: P35-3
+  gates:
+  - G-D0
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+  status: blocked
+  evidence: []
+  missing: no frozen protocol, evaluator or benchmark (OD-02, OD-03)
+  inherited:
+    sai34:
+    - ASM-018
+    sai33:
+    - LLM-002
+  replaces:
+  - D-036
+- requirement_id: S35-GD-003
+  key: gd.no_substitution
+  level: MUST
+  area: GD
+  section: '3.20'
+  text: G-D and G0–G9 do not substitute for each other in either direction. No G-D result passes any G gate. G-D2 needs G0
+    accepted for the product configuration it evaluates; G-D3 needs, for its model family, G1, G2, G3, G7-SITE and the licensed
+    parts of G8; G-D4 additionally needs G4, G5 and G6 for its scope. A run before its prerequisites is exploratory and cannot
+    be signed as a G-D pass.
+  acceptance_kind: deterministic
+  acceptance: a G-D verdict record without its prerequisite gate records is refused; no G gate record may cite a G-D verdict
+    as evidence.
+  planned_tests:
+  - T-S35-GD-003
+  tests: []
+  owner_component: EvaluationPlane
+  phase: P35-3
+  gates:
+  - G-D2
+  - G-D3
+  - G-D4
+  status: proposed
+  evidence: []
+  missing: no verdict records exist to check
+  inherited:
+    sai34:
+    - ASM-018
+    sai33: []
+  replaces:
+  - D-037
+- requirement_id: S35-CMP-001
+  key: cmp.three_arms
+  level: MUST
+  area: CMP
+  section: '3.21'
+  text: 'Every G-D1 to G-D4 evaluation compares three arms on the same cases: (A) single frontier LLM, one model driven by
+    a frozen minimal prompt-and-tool loop without LIB''s governance, debate, planner or Discovery Loop; (B) existing LIB workflow,
+    the frozen product research workflow with the Discovery Loop off; (C) LIB with Discovery, arm B plus the Discovery Loop.
+    In the primary comparison arm A and every LIB model slot use the same model: in a zero-cost stage it is the strongest
+    local model the Owner approved (OD-04), and a frontier model is used only in an Owner-authorized paid stage (OD-05). All
+    arms return the same answer schema, including the option to stop with INSUFFICIENT_VALIDATION.'
+  acceptance_kind: deterministic
+  acceptance: the frozen arm configurations differ only in the listed components; their model identifiers and digests are
+    equal; every case output of every arm validates against the one answer schema.
+  planned_tests:
+  - T-S35-CMP-001
+  tests: []
+  owner_component: EvaluationPlane
+  phase: P35-3
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/baselines.py
+  - 118a4ac:src/lab_brain/discovery/benchmark.py
+  missing: 'offline arms B0, B1 and B2 only: B0 is a deterministic stand-in, not an LLM, so arm A does not exist; B1 re-implements
+    the loop policy, not the real LIB workflow'
+  inherited:
+    sai34: []
+    sai33:
+    - LLM-002
+  replaces:
+  - D-038
+- requirement_id: S35-CMP-002
+  key: cmp.matching
+  level: MUST
+  area: CMP
+  section: '3.21'
+  text: The arms are matched on model versions (identifier, digest and decoding settings); on information exposure (the same
+    corpus snapshot, case material, tool descriptions and experiment catalog, no arm sees sealed truth, and prompts and tool
+    outputs are logged for audit); on experimental conditions (the same cost table, simulator access, time limit, seeds per
+    case and environment manifest); and on resources, by actual realized consumption, not only by caps. Every arm runs under
+    the same caps; the primary analysis compares arms at matched realized consumption by the pre-registered rule of matched-budget-protocol.md,
+    and a comparison whose realized consumption cannot be matched within the frozen tolerance is reported as COST_UNMATCHED
+    and cannot support a claim that one arm is better at equal budget.
+  acceptance_kind: deterministic
+  acceptance: the evaluation harness refuses to score an arm whose manifest differs from another's in a matched field; realized
+    consumption per case and arm is recorded including failures; the analysis applies the frozen matching rule and labels
+    COST_UNMATCHED where it fails.
+  planned_tests:
+  - T-S35-CMP-002
+  tests: []
+  owner_component: EvaluationPlane
+  phase: P35-3
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/benchmark.py
+  missing: 'the offline run matched worlds, seeds and caps, but not realized consumption: B2 spent about four times B1''s
+    budget'
+  inherited:
+    sai34: []
+    sai33:
+    - COST-001
+    - VER-003
+  replaces:
+  - D-039
+- requirement_id: S35-CMP-003
+  key: cmp.blinding
+  level: MUST
+  area: CMP
+  section: '3.21'
+  text: Scoring is blinded. The evaluator is not the implementer. Arm identities are replaced by sealed labels held by a custodian
+    until scoring is complete. The scorer is deterministic and hash-frozen. Human judgments, such as novelty class and falsifiability
+    at G-D2 and above, come from at least two independent blinded domain reviewers, with their agreement reported and a pre-registered
+    adjudication rule.
+  acceptance_kind: deterministic
+  acceptance: the scorer's hash equals the frozen hash; outputs shown to reviewers carry sealed labels only; the custodian's
+    key is unsealed only after every score is recorded.
+  planned_tests:
+  - T-S35-CMP-003
+  tests: []
+  owner_component: EvaluationPlane
+  phase: P35-3
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+  status: proposed
+  evidence: []
+  missing: no blinded scoring of discovery outputs; the offline run was scored by its author
+  inherited:
+    sai34:
+    - ASM-010
+    sai33: []
+  replaces:
+  - D-040
+- requirement_id: S35-CMP-004
+  key: cmp.hidden_worlds
+  level: MUST
+  area: CMP
+  section: '3.21'
+  text: The benchmark is frozen and sealed by the independent evaluator before any arm runs. Synthetic worlds come from a
+    hidden-world generator owned and seeded by the evaluator after the freeze, which the implementers cannot read; worlds
+    written by the implementer of the system under test are development material only and never G-D evidence. The benchmark
+    includes worlds with hidden true mechanisms, observationally equivalent rivals, compositions, measurement-chain confounds,
+    anomalies and noise, and worlds where no mechanism can be validated; later strata are held-out literature cases and physical
+    cases. Every case stays in the denominator.
+  acceptance_kind: deterministic
+  acceptance: the G-D0 package holds generator commitments and seeds drawn after the freeze; the implementer access log shows
+    no read of generator parameters or truth; the case-list hash is unchanged at scoring.
+  planned_tests:
+  - T-S35-CMP-004
+  tests: []
+  owner_component: EvaluationPlane
+  phase: P35-3
+  gates:
+  - G-D0
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+  status: proposed
+  evidence: []
+  missing: the offline worlds share an author with the engine; an independent hidden-world evaluation is being designed on
+    discovery-independent-evaluation (in progress, not reviewed)
+  inherited:
+    sai34:
+    - ASM-010
+    sai33:
+    - LLM-002
+  replaces:
+  - D-041
+- requirement_id: S35-CMP-005
+  key: cmp.metrics
+  level: MUST
+  area: CMP
+  section: '3.21'
+  text: 'Five metrics are reported for every arm, each with definition, unit, n and interval: (1) true-cause discovery, the
+    share of cases whose final claim lies in the true cause''s equivalence class (a correct stop counts in no-mechanism cases);
+    (2) effective mechanism diversity, the number of distinguishable mechanism classes examined under the case''s experiment
+    set, never raw hypothesis counts; (3) discriminating-experiment efficiency, experiments and realized cost until correct
+    discrimination, censored at the budget; (4) false discoveries, the false-discovery rate at SUPPORTED or higher plus a
+    weighted score in which confident wrong claims weigh more; (5) independent reproducibility, the share of a pre-registered
+    subset that the evaluator reproduces in a fresh environment from the frozen manifest, where any manifest drift makes the
+    re-run invalid. Exactly one primary metric is pre-registered.'
+  acceptance_kind: deterministic
+  acceptance: the scorer computes all five metrics from the frozen outputs; recomputation from the bundle gives identical
+    numbers; a report missing a metric, its n or its interval is rejected.
+  planned_tests:
+  - T-S35-CMP-005
+  tests: []
+  owner_component: EvaluationPlane
+  phase: P35-3
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/metrics.py
+  missing: offline correct outcome, false discovery, class diversity and budget metrics; no independent reproducibility
+  inherited:
+    sai34:
+    - ASM-017
+    sai33:
+    - LLM-002
+  replaces:
+  - D-042
+- requirement_id: S35-CMP-006
+  key: cmp.statistics
+  level: MUST
+  area: CMP
+  section: '3.21'
+  text: 'Statistics are pre-registered before unsealing: the experimental unit (case), paired comparisons across arms on the
+    same cases, interval methods, the minimum effect of interest, non-inferiority margins, multiplicity correction across
+    metrics and comparisons, sample size with its justification, and any interim analysis with its error-spending rule. There
+    is no optional stopping, no cherry-picked seed and no post-hoc exclusion.'
+  acceptance_kind: deterministic
+  acceptance: the frozen protocol contains every listed element; the analysis code reads only the frozen values; an exclusion
+    not produced by a pre-registered rule invalidates the run.
+  planned_tests:
+  - T-S35-CMP-006
+  tests: []
+  owner_component: EvaluationPlane
+  phase: P35-3
+  gates:
+  - G-D0
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/metrics.py
+  - f41758c:src/lab_brain/evaluation/stats.py
+  missing: Wilson and bootstrap intervals exist; no evaluator-frozen statistical plan
+  inherited:
+    sai34: []
+    sai33:
+    - LLM-002
+  replaces:
+  - D-043
+- requirement_id: S35-CMP-007
+  key: cmp.contamination
+  level: MUST
+  area: CMP
+  section: '3.21'
+  text: 'Contamination controls are frozen with the protocol: model training cutoff against case resolution dates, overlap
+    checks of case material against development data and public corpora, memorization probes, fresh synthetic seeds generated
+    after the freeze, and a pre-registered rule for contaminated cases decided before unsealing. A contamination finding is
+    reported and never silently dropped.'
+  acceptance_kind: deterministic
+  acceptance: the G-D0 package contains the contamination report; every excluded case names the rule that excluded it; the
+    report lists every finding.
+  planned_tests:
+  - T-S35-CMP-007
+  tests: []
+  owner_component: EvaluationPlane
+  phase: P35-3
+  gates:
+  - G-D0
+  - G-D1
+  - G-D2
+  status: partial
+  evidence:
+  - f41758c:src/lab_brain/evaluation/contamination.py
+  missing: G0 contamination tooling on the unintegrated G0 line; no G-D contamination report
+  inherited:
+    sai34:
+    - ASM-010
+    sai33:
+    - EVI-004
+  replaces:
+  - D-044
+- requirement_id: S35-CMP-008
+  key: cmp.stopping
+  level: MUST
+  area: CMP
+  section: '3.21'
+  text: Stopping rules are frozen with the protocol. A case ends on budget exhaustion, time limit, or the arm's own STOPPED
+    or INSUFFICIENT_VALIDATION outcome, and the answer held at that point is scored. A study ends at its pre-registered n,
+    at a pre-registered interim boundary, or on a governance incident (any arm breaching egress, budget or isolation), which
+    invalidates the affected runs. A paid stage ends at the Owner's ceiling and is reported as partial.
+  acceptance_kind: deterministic
+  acceptance: a case exceeding a cap is cut at the cap and scored; an incident marks the affected runs INVALID; a paid stage
+    at its ceiling is labelled partial.
+  planned_tests:
+  - T-S35-CMP-008
+  tests: []
+  owner_component: EvaluationPlane
+  phase: P35-3
+  gates:
+  - G-D1
+  - G-D2
+  - G-D3
+  - G-D4
+  status: partial
+  evidence:
+  - 118a4ac:src/lab_brain/discovery/benchmark.py
+  missing: offline per-case budget stops; no study-level or incident rules
+  inherited:
+    sai34:
+    - ASM-007
+    sai33:
+    - COST-001
+  replaces:
+  - D-045
+- requirement_id: S35-CMP-009
+  key: cmp.zero_cost_first
+  level: MUST
+  area: CMP
+  section: '3.21'
+  text: 'A zero-cost first stage comes before any paid stage: local models declared free under the spend administration, and
+    offline hidden synthetic worlds, with no paid API, no license and no physical experiment. Its result is reported to the
+    Owner whatever it shows. A paid, licensed or physical stage starts only after an Owner authorization with a ceiling (S35-SEC-002),
+    and a negative zero-cost result is not overridden by running a bigger model on the same sealed cases.'
+  acceptance_kind: deterministic
+  acceptance: the paid-stage harness refuses to start without the zero-cost report reference and an Owner authorization; re-running
+    sealed cases with another model is refused.
+  planned_tests:
+  - T-S35-CMP-009
+  tests: []
+  owner_component: EvaluationPlane
+  phase: P35-3
+  gates:
+  - G-D1
+  - G-D2
+  status: partial
+  evidence:
+  - 118a4ac:docs/audit/discovery-loop-offline-2026-11-01/REPORT.zh-TW.md
+  missing: the offline run was zero-cost engineering evidence, not a G-D stage reported to the Owner
+  inherited:
+    sai34:
+    - ASM-007
+    - ASM-018
+    sai33:
+    - COST-001
+  replaces:
+  - D-046
