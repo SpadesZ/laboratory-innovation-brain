@@ -1,0 +1,143 @@
+{
+  "kind": "lab-brain/discovery-hidden-worlds@1",
+  "suite": "format-example",
+  "example_only": true,
+  "notice": "EXAMPLE ONLY. Written by the engine author's lineage to document the hidden-world format. It is NOT hidden, NOT independent and NOT a held-out set; its truths are in this public file. The loader refuses it as a hidden set unless the caller runs the scaffold demonstration. A real hidden set is written by a different author, kept outside the repository and sealed before any run (docs/evaluation/discovery-independent-evaluation-protocol.md).",
+  "author": {
+    "role": "world_author",
+    "label": "example (engine author lineage; not independent)"
+  },
+  "interface": {
+    "catalog_ref": "sp.ring_drift_loss.discovery@0.1.0",
+    "catalog_digest": "sha256:69c86963d6e1ae31832208530654539a9283bded6638cad8f0877848553d9119",
+    "motivating_experiment": "baseline"
+  },
+  "worlds": [
+    {
+      "world_id": "example-01",
+      "public": {"removed": []},
+      "hidden": {
+        "category": "declared",
+        "seed": 101,
+        "effects": [{"declared_class": "thermo.ambient", "amplitude": "1.2"}],
+        "noise": {"scale": "1", "glitch_motivating": false, "glitch_first": false, "glitch_sigma": "7"}
+      }
+    },
+    {
+      "world_id": "example-02",
+      "public": {"removed": []},
+      "hidden": {
+        "category": "composition",
+        "seed": 102,
+        "effects": [
+          {"declared_class": "scatter.sidewall", "amplitude": "1.5"},
+          {"declared_class": "thermo.ambient", "amplitude": "0.9"}
+        ],
+        "noise": {"scale": "1", "glitch_motivating": false, "glitch_first": false, "glitch_sigma": "7"}
+      }
+    },
+    {
+      "world_id": "example-03",
+      "public": {"removed": []},
+      "hidden": {
+        "category": "null",
+        "seed": 103,
+        "effects": [],
+        "noise": {"scale": "1", "glitch_motivating": true, "glitch_first": true, "glitch_sigma": "7"}
+      }
+    },
+    {
+      "world_id": "example-04",
+      "public": {"removed": [["width_array", "this die carries a single ring width"]]},
+      "hidden": {
+        "category": "declared",
+        "seed": 104,
+        "effects": [{"declared_class": "geometry.thickness", "amplitude": "6.0"}],
+        "noise": {"scale": "1", "glitch_motivating": false, "glitch_first": false, "glitch_sigma": "7"}
+      }
+    },
+    {
+      "world_id": "example-05",
+      "public": {"removed": []},
+      "hidden": {
+        "category": "held_out",
+        "seed": 105,
+        "effects": [
+          {
+            "effect_id": "example.unseen_mechanism",
+            "amplitude": "1.0",
+            "session_slope": "0",
+            "sensitivity": [
+              ["baseline", "shift", "40.0"],
+              ["tec_stabilized", "shift", "40.0"],
+              ["gas_cell_reference", "shift", "40.0"],
+              ["polarization_controlled", "er_change", "2.0"],
+              ["width_array", "shift_contrast", "-6.0"],
+              ["wavelength_span", "shift_span", "-10.0"]
+            ]
+          }
+        ],
+        "noise": {"scale": "1", "glitch_motivating": false, "glitch_first": false, "glitch_sigma": "7"}
+      }
+    },
+    {
+      "world_id": "example-06",
+      "public": {"removed": []},
+      "hidden": {
+        "category": "aliased_held_out",
+        "seed": 106,
+        "effects": [
+          {
+            "effect_id": "example.renamed_copy",
+            "amplitude": "6.0",
+            "session_slope": "0",
+            "sensitivity": [
+              ["baseline", "shift", "6.0"],
+              ["baseline", "kappa", "0.8"],
+              ["tec_stabilized", "shift", "6.0"],
+              ["gas_cell_reference", "shift", "6.0"],
+              ["width_array", "shift_contrast", "5.0"],
+              ["gap_array", "kappa_g150", "1.2"],
+              ["gap_array", "kappa_g200", "0.8"],
+              ["gap_array", "kappa_g250", "0.5"],
+              ["wavelength_span", "shift_span", "0.8"]
+            ]
+          }
+        ],
+        "noise": {"scale": "1", "glitch_motivating": false, "glitch_first": false, "glitch_sigma": "7"}
+      }
+    },
+    {
+      "world_id": "example-07",
+      "public": {"removed": []},
+      "hidden": {
+        "category": "non_stationary",
+        "seed": 107,
+        "effects": [
+          {
+            "effect_id": "example.growing_effect",
+            "amplitude": "1.0",
+            "session_slope": "0.5",
+            "sensitivity": [
+              ["baseline", "shift", "10.0"],
+              ["tec_stabilized", "shift", "10.0"],
+              ["gas_cell_reference", "shift", "10.0"],
+              ["baseline", "loss", "0.1"]
+            ]
+          }
+        ],
+        "noise": {"scale": "1", "glitch_motivating": false, "glitch_first": false, "glitch_sigma": "7"}
+      }
+    },
+    {
+      "world_id": "example-08",
+      "public": {"removed": []},
+      "hidden": {
+        "category": "declared",
+        "seed": 108,
+        "effects": [{"declared_class": "chain.laser_drift", "amplitude": "60"}],
+        "noise": {"scale": "1", "glitch_motivating": false, "glitch_first": false, "glitch_sigma": "7"}
+      }
+    }
+  ]
+}

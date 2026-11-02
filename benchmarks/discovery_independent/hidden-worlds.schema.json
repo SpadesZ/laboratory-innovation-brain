@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lab-brain/discovery-hidden-worlds@1",
+  "title": "Discovery Loop hidden worlds (author file)",
+  "description": "The file a world author (never the engine's author) writes. The authoritative validator is lab_brain.discovery_eval.hidden_worlds.parse_hidden_worlds, which also checks what a schema cannot: the interface digest, declared ranges, the category against the effects, distinguishability for held_out, and truth leaking into the public part. tests/unit/test_discovery_hidden_worlds.py holds this schema's key sets equal to the validator's.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "suite", "example_only", "notice", "author", "interface", "worlds"],
+  "properties": {
+    "kind": {"const": "lab-brain/discovery-hidden-worlds@1"},
+    "suite": {"type": "string", "minLength": 1, "maxLength": 80},
+    "example_only": {"type": "boolean"},
+    "notice": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "label"],
+      "properties": {
+        "role": {"const": "world_author"},
+        "label": {"type": "string", "minLength": 1, "maxLength": 200}
+      }
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalog_ref", "catalog_digest", "motivating_experiment"],
+      "properties": {
+        "catalog_ref": {"type": "string"},
+        "catalog_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "motivating_experiment": {"type": "string"}
+      }
+    },
+    "worlds": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["world_id", "public", "hidden"],
+        "properties": {
+          "world_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$"},
+          "public": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["removed"],
+            "properties": {
+              "removed": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "prefixItems": [
+                    {"type": "string"},
+                    {"type": "string", "minLength": 1, "maxLength": 200}
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              }
+            }
+          },
+          "hidden": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["category", "seed", "effects", "noise"],
+            "properties": {
+              "category": {
+                "enum": [
+                  "declared",
+                  "composition",
+                  "null",
+                  "held_out",
+                  "aliased_held_out",
+                  "non_stationary"
+                ]
+              },
+              "seed": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+              "effects": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["declared_class", "amplitude"],
+                      "properties": {
+                        "declared_class": {"type": "string"},
+                        "amplitude": {"$ref": "#/$defs/decimal"}
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["effect_id", "amplitude", "session_slope", "sensitivity"],
+                      "properties": {
+                        "effect_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$"},
+                        "amplitude": {"$ref": "#/$defs/decimal"},
+                        "session_slope": {"$ref": "#/$defs/decimal"},
+                        "sensitivity": {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": "array",
+                            "prefixItems": [
+                              {"type": "string"},
+                              {"type": "string"},
+                              {"$ref": "#/$defs/decimal"}
+                            ],
+                            "minItems": 3,
+                            "maxItems": 3
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "noise": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["scale", "glitch_motivating", "glitch_first", "glitch_sigma"],
+                "properties": {
+                  "scale": {"$ref": "#/$defs/decimal"},
+                  "glitch_motivating": {"type": "boolean"},
+                  "glitch_first": {"type": "boolean"},
+                  "glitch_sigma": {"$ref": "#/$defs/decimal"}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "decimal": {
+      "type": "string",
+      "pattern": "^-?[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?$",
+      "description": "Non-integer numbers are decimal strings: the commitment hashes canonical JSON, which refuses floats."
+    }
+  }
+}
