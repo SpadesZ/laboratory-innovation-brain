@@ -50,6 +50,7 @@ from lab_brain.evaluation.manifest import scorer_sources
 from lab_brain.llm_runtime.provider import is_this_machine_url
 
 ENVIRONMENT_KIND = "g0-eval/environment@1"
+VERIFICATION_KIND = "g0-eval/environment-verification@1"
 
 
 class EnvironmentRefused(ValueError):
@@ -284,13 +285,76 @@ def verify(recorded: Mapping[str, Any], now: Mapping[str, Any]) -> list[str]:
     return drift
 
 
+def verification_record(
+    recorded: Mapping[str, Any],
+    now: Mapping[str, Any],
+    *,
+    verifier_id: str,
+    verified_at: str,
+) -> dict[str, Any]:
+    """The evaluator's record that they re-captured the environment and compared it with the
+    recorded one (`verify`): what was compared, by whom, when, and every difference. An
+    ACCEPTANCE score requires one with no difference (`manifest.score_run`)."""
+    if not verifier_id.strip():
+        raise EnvironmentRefused("a verification names who verified (the evaluator's id)")
+    model: Mapping[str, Any] = now["model"] if isinstance(now.get("model"), Mapping) else {}
+    code: Mapping[str, Any] = now["code"] if isinstance(now.get("code"), Mapping) else {}
+    record: dict[str, Any] = {
+        "kind": VERIFICATION_KIND,
+        "recorded_sha256": recorded.get("environment_sha256"),
+        "now_sha256": now.get("environment_sha256"),
+        "drift": verify(recorded, now),
+        "digest_source": model.get("digest_source"),
+        "clean": code.get("clean"),
+        "verifier_id": verifier_id.strip(),
+        "verified_at": verified_at,
+    }
+    record["record_sha256"] = _sha256(
+        json.dumps(record, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    )
+    return record
+
+
+def verification_problems(
+    record: Mapping[str, Any] | None, environment_sha256: str | None
+) -> list[str]:
+    """Why `record` does not make an environment verified for an ACCEPTANCE score; empty when
+    it does. Strict by default: a model digest only declared -- never measured -- does not
+    qualify (SPEC-ISSUE-019, Owner decision E5)."""
+    if record is None:
+        return ["no independent environment verification (g0_eval_environment.py verify --out)"]
+    problems: list[str] = []
+    body = {k: v for k, v in record.items() if k != "record_sha256"}
+    digest = _sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    if record.get("kind") != VERIFICATION_KIND:
+        problems.append(f"not an environment verification ({VERIFICATION_KIND})")
+    if digest != record.get("record_sha256"):
+        problems.append("the verification does not hash to its own record_sha256")
+    if environment_sha256 is None or record.get("recorded_sha256") != environment_sha256:
+        problems.append("the verification is of another environment than the run's")
+    if record.get("drift") != []:
+        problems.append(
+            "the verification found differences: " + "; ".join(record.get("drift") or ["?"])
+        )
+    if record.get("digest_source") != "served":
+        problems.append("the model digest was only declared, not served by the model server")
+    if record.get("clean") is not True:
+        problems.append("the verified working tree was not clean")
+    if not str(record.get("verifier_id") or "").strip():
+        problems.append("the verification names no verifier")
+    return problems
+
+
 __all__ = [
     "ENVIRONMENT_KIND",
+    "VERIFICATION_KIND",
     "EnvironmentRefused",
     "capture",
     "environment_hash",
     "schema_state",
     "served_model_digest",
     "settings_state",
+    "verification_problems",
+    "verification_record",
     "verify",
 ]

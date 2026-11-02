@@ -222,8 +222,21 @@ def score_run(
     root: Path,
     outputs: Mapping[str, Any],
     truth: SealedTruth,
+    purpose: str = "DIAGNOSTIC",
+    environment_verification: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Verify everything, then score every frozen case. Raises `ScoringRefused` otherwise."""
+    """Verify everything, then score every frozen case. Raises `ScoringRefused` otherwise.
+
+    `purpose` ACCEPTANCE (a score a gate may rely on) also requires the runner to have verified
+    the environment before the first case and after the last, and an independent verification
+    record (`environment.verification_record`, made by the evaluator) of that same environment
+    with no difference, a clean tree and a model digest the server measured. DIAGNOSTIC scores
+    whatever ran and says plainly when its environment was not verified."""
+    # Imported here: `environment` imports this module (the scorer's sources it pins).
+    from lab_brain.evaluation.environment import verification_problems
+
+    if purpose not in ("ACCEPTANCE", "DIAGNOSTIC"):
+        raise ScoringRefused(f"purpose is ACCEPTANCE or DIAGNOSTIC, not {purpose!r}")
     try:
         verify_frozen(manifest, root)
     except FreezeDrift as exc:
@@ -238,6 +251,17 @@ def score_run(
             "the environment changed during the run: " + "; ".join(ran_in["drift_after"])
         )
     verified = bool(ran_in.get("verified_before")) and ran_in.get("drift_after") == []
+    independent = verification_problems(
+        environment_verification, ran_in.get("sha256") if verified else None
+    )
+    if purpose == "ACCEPTANCE":
+        if not verified:
+            raise ScoringRefused(
+                "an ACCEPTANCE score needs outputs whose environment the runner verified before "
+                "the first case and after the last; this run's was not"
+            )
+        if independent:
+            raise ScoringRefused("an ACCEPTANCE score needs " + "; ".join(independent))
     records: Mapping[str, Any] = outputs["cases"]
     unknown = sorted(set(records) - set(manifest["cases"]))
     if unknown:
@@ -285,6 +309,24 @@ def score_run(
         # Whether the runner checked the recorded environment before the first case and after the
         # last. False: the score is of outputs whose environment nobody verified.
         "environment": {"verified": verified, "sha256": ran_in.get("sha256") if verified else None},
+        "purpose": purpose,
+        # ACCEPTANCE only when everything above held; a DIAGNOSTIC score never stands in for one.
+        "standing": (
+            "ACCEPTANCE: environment verified by the runner and independently"
+            if purpose == "ACCEPTANCE"
+            else "DIAGNOSTIC: not an acceptance result"
+            + ("" if verified and not independent else " (environment not independently verified)")
+        ),
+        "environment_verification": (
+            None
+            if environment_verification is None
+            else {
+                "verifier_id": environment_verification.get("verifier_id"),
+                "verified_at": environment_verification.get("verified_at"),
+                "record_sha256": environment_verification.get("record_sha256"),
+                "problems": independent,
+            }
+        ),
         "summary": scoring.summarize(
             rows, seed=stats["bootstrap_seed"], resamples=stats["bootstrap_resamples"]
         ),

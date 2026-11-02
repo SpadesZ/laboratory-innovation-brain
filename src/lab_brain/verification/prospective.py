@@ -483,6 +483,21 @@ def support_problem(
     return basis_authorization_problem(connection, relation, trust)
 
 
+def prospective_support_verifier(
+    connection: Any, trust: ReviewerTrust | None = None
+) -> Callable[[RelationJudgment], str | None]:
+    """The verifier the product gives every relation reader it decides from
+    (`SqlRelationStore(support_verifier=...)`): `support_problem` under the pinned review
+    authorities (default `LAB_BRAIN_REVIEW_AUTHORITIES`, read once here). A SUPPORTS a writer put
+    in the table on a forged authorization -- which SQL cannot tell -- is then not support."""
+    pinned = _trust(trust)
+
+    def verify(relation: RelationJudgment) -> str | None:
+        return support_problem(connection, relation, pinned)
+
+    return verify
+
+
 def _sql_support_problem(connection: Any, relation: RelationJudgment) -> str | None:
     row = connection.execute(
         "SELECT prospective_basis_problem(c, h.created_at, %s, %s)"
@@ -738,6 +753,7 @@ __all__ = [
     "basis_authorization_problem",
     "bound_authorization_problem",
     "enrol_authorizer",
+    "prospective_support_verifier",
     "record_authorized_measurement",
     "revoke_authorizer",
     "support_problem",

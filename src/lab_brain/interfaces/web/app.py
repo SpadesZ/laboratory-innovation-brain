@@ -168,6 +168,7 @@ from lab_brain.security.reviewer_identity import ReviewerTrust
 from lab_brain.storage.artifacts.interface import ArtifactStoreError
 from lab_brain.storage.artifacts.local import LocalArtifactStore
 from lab_brain.surface.disclosure import ErrorNotFound
+from lab_brain.verification.prospective import prospective_support_verifier
 
 #: The largest request body the workspace reads (all uploads of one run together).
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -1259,6 +1260,13 @@ class Workspace:
             authority_policies=vertical.authority_policies,
         )
 
+    def _support_verifier(self, c: Any) -> Any:
+        """The check every decision applies to a post-screening SUPPORTS (011w), for showing
+        which recorded supports are not counted."""
+        return prospective_support_verifier(
+            c, ReviewerTrust.configured_at(self._settings.review_authorities)
+        )
+
     def _terms(self, req: _Req) -> pages.Terms:
         """The installed vertical's declared words in this request's language."""
         if self._presentation is None:
@@ -1299,6 +1307,7 @@ class Workspace:
             project_id=opened.project_id,
             episode_id=episode_id,
             verify=self._confirmation_verifier(c),
+            support_verifier=self._support_verifier(c),
         )
         return Response(
             "200 OK",
@@ -1428,7 +1437,11 @@ class Workspace:
         the export (the record's export, English). Then the same in `terms`' language, naming
         the record export's SHA-256. And the read model that said so. Nothing is written."""
         view = load_episode_view(
-            c, project_id=project_id, episode_id=episode_id, verify=self._confirmation_verifier(c)
+            c,
+            project_id=project_id,
+            episode_id=episode_id,
+            verify=self._confirmation_verifier(c),
+            support_verifier=self._support_verifier(c),
         )
         authorized = self._authorized(c, report)
         canonical = render_markdown(authorized) + render_recorded_since(view.conclusions)
@@ -3219,7 +3232,11 @@ class Workspace:
         says about its conclusions now. For oversight only: the caller has recorded the
         look."""
         view = load_episode_view(
-            c, project_id=project_id, episode_id=episode_id, verify=self._confirmation_verifier(c)
+            c,
+            project_id=project_id,
+            episode_id=episode_id,
+            verify=self._confirmation_verifier(c),
+            support_verifier=self._support_verifier(c),
         )
         since = render_recorded_since(view.conclusions)
         return [
@@ -3255,6 +3272,7 @@ class Workspace:
                         project_id=project_id,
                         episode_id=episode_id,
                         verify=self._confirmation_verifier(c),
+                        support_verifier=self._support_verifier(c),
                     )
                     text = pages.markdown_export(
                         recorded.report,

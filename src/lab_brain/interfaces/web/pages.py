@@ -1166,7 +1166,11 @@ def _evidence_status(
             h(
                 "<div>{} {}{}</div>",
                 _observation(s, t),
-                mh(m, "v.ev.effect", effect=_words("rt", rel.relation_type, m)),
+                (
+                    mh(m, "v.ev.not_counted")
+                    if rel.not_counted is not None
+                    else mh(m, "v.ev.effect", effect=_words("rt", rel.relation_type, m))
+                ),
                 # A relation the governed path did not act on leaves the state where it was.
                 # One or two lines here: the four-part account is in the sections below.
                 h(" {}", _moved(rel, t)) if not rel.transitions else Html(""),

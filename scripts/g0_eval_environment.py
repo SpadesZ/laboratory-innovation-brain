@@ -14,13 +14,19 @@ every difference when the environment is not the one recorded. `--database-url` 
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from lab_brain.evaluation.environment import EnvironmentRefused, capture, verify
+from lab_brain.evaluation.environment import (
+    EnvironmentRefused,
+    capture,
+    verification_record,
+    verify,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -43,6 +49,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--allow-dirty", action="store_true", help="a dry run that proves nothing")
     parser.add_argument("--database-url", default=os.environ.get("LAB_BRAIN_DATABASE_URL", ""))
     parser.add_argument("--out")
+    parser.add_argument(
+        "--verifier", help="verify: the evaluator's id, recorded in the verification (--out)"
+    )
     args = parser.parse_args(argv)
     connection = None
     try:
@@ -80,7 +89,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if not args.recorded:
         parser.error("verify needs the recorded environment.json")
-    drift = verify(json.loads(Path(args.recorded).read_text(encoding="utf-8")), now)
+    recorded = json.loads(Path(args.recorded).read_text(encoding="utf-8"))
+    drift = verify(recorded, now)
+    if args.out:
+        if not args.verifier:
+            parser.error("verify --out records who verified: pass --verifier <evaluator id>")
+        record = verification_record(
+            recorded,
+            now,
+            verifier_id=args.verifier,
+            verified_at=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+        )
+        Path(args.out).write_text(json.dumps(record, indent=1, sort_keys=True) + "\n", "utf-8")
     for line in drift:
         print(f"drift: {line}", file=sys.stderr)
     if not drift:

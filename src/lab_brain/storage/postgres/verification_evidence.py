@@ -19,17 +19,30 @@ from lab_brain.core.models.enums import SecretScanStatus, SourceOrigin
 from lab_brain.core.models.observation import Observation
 from lab_brain.core.models.relation import RelationJudgment
 from lab_brain.core.repositories.conditions import SqlConditionMatchStore
-from lab_brain.core.repositories.evidence import SqlAttestationStore, SqlRelationStore
+from lab_brain.core.repositories.evidence import (
+    SqlAttestationStore,
+    SqlRelationStore,
+    SupportVerifier,
+)
 from lab_brain.core.repositories.observations import SqlObservationStore
 from lab_brain.tools.outputs import RunOutputSink
 
 
 class SqlEvidenceSink:
-    def __init__(self, *, connection: Any, outputs: RunOutputSink) -> None:
+    """`support_verifier`: see `SqlRelationStore` -- the loop's confirmation rule reads the
+    admitted relations through it, so a post-screening support counts only when it verifies."""
+
+    def __init__(
+        self,
+        *,
+        connection: Any,
+        outputs: RunOutputSink,
+        support_verifier: SupportVerifier | None = None,
+    ) -> None:
         self._connection = connection
         self._observations = SqlObservationStore(connection)
         self._attestations = SqlAttestationStore(connection)
-        self._relations = SqlRelationStore(connection)
+        self._relations = SqlRelationStore(connection, support_verifier=support_verifier)
         self._matches = SqlConditionMatchStore(connection)
         self._outputs = outputs
 

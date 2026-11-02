@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any
 
@@ -32,6 +32,8 @@ from lab_brain.core.models.enums import EpistemicType
 from lab_brain.core.models.failure import ResolutionStatus
 from lab_brain.core.models.hypothesis_set import HypothesisCertificate
 from lab_brain.core.models.prediction import Prediction
+from lab_brain.core.models.relation import RelationJudgment
+from lab_brain.core.repositories.evidence import SqlRelationStore
 from lab_brain.core.repositories.failures import (
     ConfirmationVerifier,
     SqlFailureStore,
@@ -93,6 +95,9 @@ class Relation:
     prediction_id: str | None
     transitions: tuple[Transition, ...]
     decisions: tuple[Decision, ...]
+    #: 011w: why a recorded SUPPORTS of a post-screening hypothesis is NOT counted as support --
+    #: its pre-registration does not verify, or nothing here could check it. None otherwise.
+    not_counted: str | None = None
 
 
 @dataclass(frozen=True)
@@ -268,11 +273,14 @@ def load_episode_view(
     project_id: str,
     episode_id: str,
     verify: ConfirmationVerifier | None = None,
+    support_verifier: Callable[[RelationJudgment], str | None] | None = None,
 ) -> EpisodeView:
     """The read model of one episode: every verification Run it has, and what each meant.
 
     `verify` is the deployment's confirmation verifier (reviewer signatures); without it, a
-    confirmation resting on a reviewer's answer is shown as not relied on."""
+    confirmation resting on a reviewer's answer is shown as not relied on. `support_verifier`
+    (011w) checks a recorded SUPPORTS of a post-screening hypothesis the way every decision
+    does; without it such a relation is shown as not counted."""
     set_row = connection.execute(
         "SELECT hypothesis_set_id FROM research_runs WHERE project_id = %s AND episode_id = %s"
         " AND hypothesis_set_id IS NOT NULL ORDER BY ordinal LIMIT 1",
@@ -339,7 +347,7 @@ def load_episode_view(
             over = [p for p in declared.values() if p.observable == observable]
             matched, unmatched, incomparable = _split(over, typed, observed)
             relations = tuple(
-                _relation(connection, project_id, episode_id, row, mechanisms)
+                _relation(connection, project_id, episode_id, row, mechanisms, support_verifier)
                 for row in connection.execute(
                     "SELECT relation_id, relation_type, to_entity_id,"
                     " attributes ->> 'prediction_id' FROM relation_judgments"
@@ -378,9 +386,13 @@ def _relation(
     episode_id: str,
     row: Sequence[Any],
     mechanisms: Mapping[str, str],
+    support_verifier: Callable[[RelationJudgment], str | None] | None = None,
 ) -> Relation:
     relation_id, relation_type, hypothesis_id, prediction_id = (str(v) if v else None for v in row)
     assert relation_id and relation_type and hypothesis_id
+    not_counted = _not_counted(
+        connection, project_id, relation_id, relation_type, hypothesis_id, support_verifier
+    )
     transitions = tuple(
         Transition(
             event_id=str(r[0]),
@@ -429,7 +441,32 @@ def _relation(
         prediction_id=prediction_id,
         transitions=transitions,
         decisions=decisions,
+        not_counted=not_counted,
     )
+
+
+def _not_counted(
+    connection: Any,
+    project_id: str,
+    relation_id: str,
+    relation_type: str,
+    hypothesis_id: str,
+    support_verifier: Callable[[RelationJudgment], str | None] | None,
+) -> str | None:
+    """Why this SUPPORTS is not counted (the reason every decision applies, 011w), or None."""
+    if relation_type != "SUPPORTS":
+        return None
+    conditioned = connection.execute(
+        "SELECT 1 FROM screening_conditioned_hypotheses WHERE project_id = %s"
+        " AND hypothesis_id = %s",
+        (project_id, hypothesis_id),
+    ).fetchone()
+    if conditioned is None:
+        return None
+    if support_verifier is None:
+        return "no authorization check is configured for this view"
+    relation = SqlRelationStore(connection).get(project_id, relation_id)
+    return None if relation is None else support_verifier(relation)
 
 
 __all__ = [

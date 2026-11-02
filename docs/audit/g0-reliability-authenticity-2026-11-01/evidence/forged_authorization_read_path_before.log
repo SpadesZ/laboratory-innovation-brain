@@ -1,0 +1,78 @@
+FF.F                                                                     [100%]
+=================================== FAILURES ===================================
+________ test_a_forged_authorization_never_reaches_the_decision_inputs _________
+
+guarded = <tests.e2e.test_g0_screening_independence_postgres.Guarded object at 0x7f44fa136510>
+roles = Roles(app='lbt_sp_app_6aed00d6', reader='lbt_sp_rd_6aed00d6', owner='lbt_sp_own_6aed00d6', password='8fee633af1e6752ed1bdea25bce07715c8dfa933b4cb59e5')
+
+    def test_a_forged_authorization_never_reaches_the_decision_inputs(guarded, roles):
+        g = guarded
+        forged_signature = SigningKey.generate().sign(b"a statement the person never signed")
+        with roles.connect(roles.app) as app:
+            authorization = _forge(app, g, "forged", forged_signature)
+            observation, evidence = g.measured("forged", authorization=authorization)
+            relation = _support_as(app, g, observation, evidence)
+        # The services' role wrote both rows, and the database admitted them (the frame holds).
+        assert rows(
+            g.db, "SELECT relation_type FROM relation_judgments WHERE relation_id = %s", relation
+        ) == [("SUPPORTS",)]
+    
+        # Every reader the product decides from, as constructed by default ...
+>       assert relation not in _decision_inputs(g, SqlRelationStore(g.db)), (
+            "the forged support reached the transition authorization's inputs"
+        )
+E       AssertionError: the forged support reached the transition authorization's inputs
+E       assert 'rel:obs:ind-forged' not in {'rel:obs:ind-forged'}
+E        +  where {'rel:obs:ind-forged'} = _decision_inputs(<tests.e2e.test_g0_screening_independence_postgres.Guarded object at 0x7f44fa136510>, <lab_brain.core.repositories.evidence.SqlRelationStore object at 0x7f44fa1c1c80>)
+E        +    where <lab_brain.core.repositories.evidence.SqlRelationStore object at 0x7f44fa1c1c80> = SqlRelationStore(<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_p2) at 0x7f44fa136900>)
+E        +      where <psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_p2) at 0x7f44fa136900> = <tests.e2e.test_g0_screening_independence_postgres.Guarded object at 0x7f44fa136510>.db
+
+tests/e2e/test_g0_forged_authorization_read_path_postgres.py:124: AssertionError
+________________ test_a_signed_authorization_still_reaches_them ________________
+
+guarded = <tests.e2e.test_g0_screening_independence_postgres.Guarded object at 0x7f44fa14fd90>
+
+    def test_a_signed_authorization_still_reaches_them(guarded):
+        g = guarded
+        authorization = g.authorize("signed")
+        observation, evidence = g.measured("signed", authorization=authorization)
+        g.support(observation, [evidence], prediction=g.prediction())
+        relation = f"rel:{observation}"
+        verified = SqlRelationStore(
+>           g.db, support_verifier=prospective.prospective_support_verifier(g.db, g.keys.trust)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        )
+E       AttributeError: module 'lab_brain.verification.prospective' has no attribute 'prospective_support_verifier'
+
+tests/e2e/test_g0_forged_authorization_read_path_postgres.py:158: AttributeError
+_________ test_every_product_reader_that_decides_is_given_the_verifier _________
+
+    def test_every_product_reader_that_decides_is_given_the_verifier():
+        """The research service and the confirmation re-check build their relation readers with the
+        verifier. (A reader built without one still fails closed -- it admits no post-screening
+        support at all -- so a forgotten site loses support, never gains a forged one.)"""
+        from pathlib import Path
+    
+        root = Path(__file__).resolve().parents[2] / "src" / "lab_brain"
+        for path in ("research/service.py", "research/confirmation.py"):
+            text = (root / path).read_text("utf-8")
+            for constructor in ("SqlRelationStore(", "SqlEvidenceSink("):
+                start = 0
+                while (at := text.find(constructor, start)) != -1:
+                    call = text[at : text.find(")", at) + 1]
+                    if "outputs=None" in call and "load_artifact" in text[at : at + 120]:
+                        start = at + 1  # an artifact loader, not a relation reader
+                        continue
+                    if ".from_observation" in text[at : at + 80] or ").get" in text[at : at + 40]:
+                        start = at + 1  # reads one relation by id, not the admitted set
+                        continue
+>                   assert "support_verifier" in text[at : at + 200], (path, call)
+E                   AssertionError: ('research/service.py', 'SqlRelationStore(c)')
+E                   assert 'support_verifier' in 'SqlRelationStore(c),\n            authority_classes=attestations,\n            conflicts=SqlConflictStore(c),\n            reviews=SqlReviewItemStore(c),\n            ids=UuidEpisodeIds(),\n            aut'
+
+tests/e2e/test_g0_forged_authorization_read_path_postgres.py:213: AssertionError
+=========================== short test summary info ============================
+FAILED tests/e2e/test_g0_forged_authorization_read_path_postgres.py::test_a_forged_authorization_never_reaches_the_decision_inputs
+FAILED tests/e2e/test_g0_forged_authorization_read_path_postgres.py::test_a_signed_authorization_still_reaches_them
+FAILED tests/e2e/test_g0_forged_authorization_read_path_postgres.py::test_every_product_reader_that_decides_is_given_the_verifier
+3 failed, 1 passed in 9.82s

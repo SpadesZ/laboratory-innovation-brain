@@ -80,6 +80,7 @@ from lab_brain.core.models.hypothesis_set import typed_falsifier_text
 from lab_brain.core.models.identifiers import new_id
 from lab_brain.core.models.inference import LogicalSlot
 from lab_brain.core.models.job import JobState
+from lab_brain.core.models.relation import RelationJudgment
 from lab_brain.core.models.review import ReviewItem
 from lab_brain.core.models.transition import TransitionPolicy
 from lab_brain.core.repositories.belief_events import (
@@ -195,6 +196,7 @@ from lab_brain.verification.prospective import (
     AuthorizedJobs,
     ProspectiveEvidenceSink,
     SqlVerificationAuthorizations,
+    prospective_support_verifier,
 )
 from lab_brain.verification.screening import (
     RESEARCH_SCREENING_POLICY,
@@ -1013,7 +1015,11 @@ class ResearchEpisodeService:
             run.stage("ingestion", "SKIPPED", "no research documents were given")
             run.stage("evidence", "SKIPPED", "no documents to read statements from")
             return
-        evidence_sink = SqlEvidenceSink(connection=self._connection, outputs=None)  # type: ignore[arg-type]
+        evidence_sink = SqlEvidenceSink(
+            connection=self._connection,
+            outputs=None,  # type: ignore[arg-type]
+            support_verifier=self._support_verifier(self._connection),
+        )
         admitter = StatementAdmitter(
             service=self._service,
             load_artifact=evidence_sink.load_artifact,
@@ -1463,7 +1469,9 @@ class ResearchEpisodeService:
         regs = vertical.registry.registries
         jobs = SqlJobStore(c)
         outputs = SqlRunOutputSink(connection=c, store=self._store, now=self._clock)
-        evidence = SqlEvidenceSink(connection=c, outputs=outputs)
+        evidence = SqlEvidenceSink(
+            connection=c, outputs=outputs, support_verifier=self._support_verifier(c)
+        )
         executor = ScreeningExecutor(
             capabilities=regs.capabilities,
             workflows=regs.workflows,
@@ -1521,7 +1529,11 @@ class ResearchEpisodeService:
             or run.verification_artifact is None
         ):
             return None
-        evidence = SqlEvidenceSink(connection=self._connection, outputs=None)  # type: ignore[arg-type]
+        evidence = SqlEvidenceSink(
+            connection=self._connection,
+            outputs=None,  # type: ignore[arg-type]
+            support_verifier=self._support_verifier(self._connection),
+        )
         if not evidence.artifact_in_project(run.verification_artifact, request.project_id):
             run.notes.append("structure summary skipped: the input is not this project's")
             return None
@@ -1605,7 +1617,7 @@ class ResearchEpisodeService:
             policies=SqlTransitionPolicyStore(c),
             decisions=SqlBeliefTransitionDecisionStore(c),
             events=events,
-            relations=SqlRelationStore(c),
+            relations=SqlRelationStore(c, support_verifier=self._support_verifier(c)),
             authority_classes=attestations,
             conflicts=SqlConflictStore(c),
             reviews=SqlReviewItemStore(c),
@@ -1635,6 +1647,12 @@ class ResearchEpisodeService:
         return brain, episode
 
     # -- 6. verification: M4's loop, and 7. the pending question --------------------------------
+
+    def _support_verifier(self, c: Any) -> Callable[[RelationJudgment], str | None]:
+        """What every relation reader this service decides from is given (011w): a post-screening
+        SUPPORTS counts only when 011s's rules hold on the rows now and the authorization it rests
+        on verifies under the pinned review authorities -- the warrant gate's own trust."""
+        return prospective_support_verifier(c, self._trust)
 
     def _expire_overdue_reviews(self, request: ResearchRequest, trace_id: str, run: _Run) -> None:
         """Close the project's overdue DIAGNOSTIC_WARRANT reviews through OPS-002's declared path
@@ -1696,7 +1714,9 @@ class ResearchEpisodeService:
         regs = vertical.registry.registries
         jobs = SqlJobStore(c)
         outputs = SqlRunOutputSink(connection=c, store=self._store, now=self._clock)
-        evidence = SqlEvidenceSink(connection=c, outputs=outputs)
+        evidence = SqlEvidenceSink(
+            connection=c, outputs=outputs, support_verifier=self._support_verifier(c)
+        )
         # Case memory relies only on conclusions it can re-derive (`research.confirmation`).
         failures = SqlFailureStore(
             c,
@@ -1961,7 +1981,7 @@ class ResearchEpisodeService:
                 policies=SqlTransitionPolicyStore(c),
                 decisions=SqlBeliefTransitionDecisionStore(c),
                 events=SqlBeliefEventStore(c),
-                relations=SqlRelationStore(c),
+                relations=SqlRelationStore(c, support_verifier=self._support_verifier(c)),
                 authority_classes=SqlAttestationStore(c),
                 conflicts=SqlConflictStore(c),
                 reviews=SqlReviewItemStore(c),

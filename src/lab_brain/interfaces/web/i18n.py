@@ -748,6 +748,10 @@ _M: dict[str, tuple[str, str]] = {
         "{check}：觀察到 {observable} = {outcome}",
     ),
     "v.ev.effect": ("-- this {effect} it.", "——{effect}此假說。"),
+    "v.ev.not_counted": (
+        "-- recorded as support, but not counted: its pre-registration does not verify.",
+        "——記錄為支持，但不計入：它的預先授權無法驗證。",
+    ),
     "v.ev.unrecorded": (
         "-- comparable to its declared prediction, but no relation is recorded.",
         "——與它事先宣告的預測可比較，但沒有記錄任何關係。",

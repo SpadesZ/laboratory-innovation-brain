@@ -52,6 +52,7 @@ from lab_brain.storage.postgres.warrants import (
 )
 from lab_brain.storage.postgres.warrants import episode_outcomes, sql_warrant_resolver
 from lab_brain.verification.loop import ConfirmationRule
+from lab_brain.verification.prospective import prospective_support_verifier
 
 
 class _NoIds:
@@ -90,7 +91,10 @@ def confirmation_verifier(
 ) -> ConfirmationVerifier:
     """The deployment's reuse check, for `SqlFailureStore(verify=...)` and the episode page."""
     first = answers_and_declarations(connection, trust, declaration_sets=declaration_sets)
-    relations = SqlRelationStore(connection)
+    # A post-screening support counts in the re-check only when its authorization verifies (011w).
+    relations = SqlRelationStore(
+        connection, support_verifier=prospective_support_verifier(connection, trust)
+    )
     hypotheses = SqlHypothesisStore(connection)
     belief = BeliefEpisode(
         policies=SqlTransitionPolicyStore(connection),

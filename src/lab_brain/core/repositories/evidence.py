@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from lab_brain.core.models.attestation import Attestation
 from lab_brain.core.models.enums import RelationType
@@ -168,12 +168,28 @@ class SqlAttestationStore:
         )
 
 
-class SqlRelationStore:
-    """§17.8 relation judgments against the `004` table."""
+#: Why a SUPPORTS of a post-screening hypothesis is not support, or None when it is (011s/011w).
+SupportVerifier = Callable[[RelationJudgment], str | None]
 
-    def __init__(self, connection: SqlConnection) -> None:
+
+class SqlRelationStore:
+    """§17.8 relation judgments against the `004` table.
+
+    `support_verifier` (011w): SQL cannot verify the Ed25519 signature on a verification
+    authorization, so a SUPPORTS relation of a hypothesis proposed after screening can be in the
+    table on a forged authorization -- any writer holding the services' role can put it there.
+    `admitted_for_subject`, which every belief decision reads, therefore admits such a relation
+    only when this verifier finds no problem with it (the product passes
+    `verification.prospective.prospective_support_verifier`). Without a verifier it admits none:
+    a reader built without one loses post-screening support, it never gains a forged one.
+    """
+
+    def __init__(
+        self, connection: SqlConnection, *, support_verifier: SupportVerifier | None = None
+    ) -> None:
         require_durable_connection(connection)
         self._connection = connection
+        self._support_verifier = support_verifier
 
     def add(self, relation: RelationJudgment) -> RelationJudgment:
         require_durable_connection(self._connection)
@@ -237,6 +253,10 @@ class SqlRelationStore:
           decision against a relation somebody has since withdrawn produces a belief the lab does
           not hold.
         * **this project's** -- SEC-002.
+        * **verified, after screening** -- for a hypothesis with a screening conditioning record,
+          a SUPPORTS is admitted only when the store's `support_verifier` finds nothing wrong
+          with it (011s's rules on the rows as they are now, and the signature of the
+          authorization it rests on); with no verifier, never (011w).
 
         Ordered by `(valid_from, relation_id)`, a total order, because the result goes into a
         `DecisionInputSnapshot` that is canonicalized and hashed: two runs that read the same rows
@@ -254,7 +274,23 @@ class SqlRelationStore:
                 sorted(kind.value for kind in EPISTEMIC_RELATION_TYPES),
             ),
         ).fetchall()
-        return tuple(self._hydrate(row) for row in rows)
+        relations = tuple(self._hydrate(row) for row in rows)
+        if not any(r.relation_type is RelationType.SUPPORTS for r in relations):
+            return relations
+        conditioned = self._connection.execute(
+            "SELECT 1 FROM screening_conditioned_hypotheses"
+            " WHERE project_id = %s AND hypothesis_id = %s",
+            (project_id, subject_id),
+        ).fetchone()
+        if conditioned is None:
+            return relations
+        verifier = self._support_verifier
+        return tuple(
+            r
+            for r in relations
+            if r.relation_type is not RelationType.SUPPORTS
+            or (verifier is not None and verifier(r) is None)
+        )
 
     def invalidate(
         self, *, project_id: str, relation_id: str, reason: str, actor_id: str, at: dt.datetime
