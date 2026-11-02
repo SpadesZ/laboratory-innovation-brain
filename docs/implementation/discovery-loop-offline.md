@@ -6,6 +6,12 @@ G0 stays NOT PASSED. No migration, no database write, no model call, no simulato
 
 Audit package (Traditional Chinese report, frozen evidence):
 [`docs/audit/discovery-loop-offline-2026-11-01/`](../audit/discovery-loop-offline-2026-11-01/).
+Evaluation refinements on branch `discovery-independent-evaluation` (realized-cost curves,
+held-out mechanism classes, the hidden-world scaffold; the engine unchanged):
+[`docs/audit/discovery-independent-evaluation-2026-11-02/`](../audit/discovery-independent-evaluation-2026-11-02/),
+and the protocol for a genuinely independent evaluation:
+[`docs/evaluation/discovery-independent-evaluation-protocol.md`](../evaluation/discovery-independent-evaluation-protocol.md)
+(§10 below).
 Handoff: [`discovery-loop-offline-handoff.zh-TW.md`](discovery-loop-offline-handoff.zh-TW.md).
 
 ---
@@ -217,3 +223,62 @@ Wilson intervals for proportions, seeded bootstrap for means. Results:
 - **B2 spends more budget** than the baselines (severity, replications, rival closure).
 - **The gate is not invoked.** The handover is a packet; nothing here exercises admission, warrant
   or `ConfirmationRule` on discovery output.
+
+## 10. Evaluation limits, the refinements, and the independent protocol
+
+The §8 benchmark compares arms at one nominal budget, on worlds whose generator, kinds and catalog
+share the engine's author, with two baselines that are deterministic substitutes. Branch
+`discovery-independent-evaluation` adds three offline refinements and a protocol, without touching
+the engine (its sources still match the 2026-11-01 manifest, and the frozen main run reproduces
+digest for digest through the new harness).
+
+**Tooling** (`src/lab_brain/discovery_eval/`, beside the frozen package because its manifest hashes
+every file in `lab_brain/discovery`; under the same §24.2 import ban, with its own structural test):
+
+| module | role |
+|---|---|
+| `blind.py` | a laboratory exposing only `motivating`/`measure`; refuses unavailable experiments and readings that are not exactly the declared entries; a cost meter that counts and caps **realized** cost independently of the engine; a token-level truth-leak search |
+| `curves.py` | every world × cap × arm through the blind, metered laboratory; per cap: rates (Wilson), realized cost (bootstrap, median, p90, max), utilisation, exhaustion, realized cost per correct (ratio bootstrap); paired McNemar with Holm; AUC of correct rate over caps; censored budget-to-first-correct; invariants |
+| `held_out.py` | worlds whose true mechanism **family** is removed from the engine's catalog and prior (all tiers), aliasing classified before any run, scoring as correct (no claim) / force-fit / false null / surrogate; a control with the family left in |
+| `hidden_worlds.py` | the format in which a different author supplies sealed hidden worlds (schema `benchmarks/discovery_independent/hidden-worlds.schema.json`), validation that refuses malformed or truth-leaking files, commit-then-reveal sealing after `evaluation.sealing`, an engine package with opaque case ids, a blind runner and the evaluator's scorer |
+
+`scripts/discovery_independent_eval.py` runs it once and freezes the evidence; `--check` re-runs.
+
+**What the refinements show** (synthetic, same author lineage; details and intervals in the
+2026-11-02 report):
+
+- **Realized cost.** On fresh seeds, B2's correct rate rises with the cap (0.345 at cap 4 to 0.97
+  at 24) while it actually spends 3.9 to 8.2 units; B1 stays near 0.30 spending about 1.9, B0 near
+  0.08 spending 1.2. At cap 4 B2 is not significantly better than B1 (+0.05, Holm p = 0.25) and is
+  worse on easy in-catalog worlds (11/25 vs 24/25): severity and replication spend the budget first.
+  Realized cost per correct outcome is lower for B1 at every cap. B2's false-discovery rate stays
+  at 0.01-0.02 at every cap, B1's near 0.24.
+- **Held-out families.** With the true family absent from the catalog, B2 force-fits 0.40 of the
+  non-aliased worlds at cap 12 (B0 0.395, B1 0.53) and 0.47 at cap 24. Its guarantee is relative to
+  the declared rivals: it runs only experiments that separate declared hypotheses, so a surrogate
+  that matches the truth on those experiments is claimed. Every B2 no-claim leaves a record (an open
+  anomaly or a reframing); B0's are mostly silent. With the family left in, B2 is correct on 0.91 of
+  the same worlds.
+- **Invariants.** Realized cost never exceeds the cap; the meter equals the engine's report; a run
+  that ended with at least the dearest experiment's cost unspent is the same run at every larger cap
+  (3309 comparisons, no violation).
+
+**Limits that remain** until the independent protocol runs:
+
+- the worlds, the held-out families, the example file and the tooling share the engine's author
+  lineage; fresh seeds guard against seed-level, not design-level, overfitting;
+- B0 is not a language model and B1 is not the PostgreSQL `VerificationLoop`; arm A needs an
+  Owner-approved pinned model, arm B a harness driving the real LIB (and an OutcomeSpace decision);
+- the blind laboratory is in-process (accidental exposure only); the protocol requires a separate
+  laboratory process the engine cannot read;
+- the truth-leak checks are lexical;
+- nothing here is physical, literature-based or model-based evidence, and the Causal Warrant Gate
+  is still never invoked.
+
+**The protocol** ([`discovery-independent-evaluation-protocol.md`](../evaluation/discovery-independent-evaluation-protocol.md))
+fixes roles (world author ≠ engine author ≠ evaluator, an engine-author AI lineage included),
+commit-then-reveal over sealed worlds, a frozen engine SHA and environment manifest, blind runs,
+evaluator scoring, held-out families with "no claim" as the correct outcome, realized-cost curves
+with AUC and budget-to-first-correct, the real definitions of arms A/B/C next to their current
+substitutes, pre-registered statistics with one primary endpoint, and the results that would
+falsify "Discovery helps".
