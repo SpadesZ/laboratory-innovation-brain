@@ -1,5 +1,5 @@
 {
-  "code_commit": "0660c8100df620a1711aaa02579ce901a18e2ca3",
+  "code_commit": "98c5ad9c98aca76d81e2ae5044edfd8feb775475",
   "engine_and_evaluation_tooling": {
     "engine_sources_match_frozen_manifest": true,
     "evaluation_sources_match_frozen_manifest": true,
@@ -69,7 +69,7 @@
   "inputs_digest": "sha256:7ed1a977ae99e670eea9ee6df6d5c20489aa0999ea82c29c40c186b81b769b41",
   "interpreter": "CPython 3.13.18",
   "kind": "lab-brain/discovery-safety-evaluation-manifest@1",
-  "manifest_sha256": "sha256:255cad27344821a4d83232e831a3e54f976a0ed093f44e99bfd8b95436b27458",
+  "manifest_sha256": "sha256:7cec0221f0653425a35d69642e4dde505f64224d5b418cd8c0452647ab9081a8",
   "not_claimed": [
     "scientific validity of any mechanism, forward model or proposal",
     "an independent or blind evaluation: worlds, held-out families, the engine and the safety gate share an author lineage",
@@ -80,7 +80,7 @@
     "scripts/discovery_safety_eval.py": "bb0a954c6da28585b71f88ed415dd1a9d91732e3cf15ec5accf90cbdabc71539",
     "src/lab_brain/discovery_safety/__init__.py": "795fb9d228dfd47f0ab74937e377eca343051807105f0987ddfb3d74da7b64c1",
     "src/lab_brain/discovery_safety/evaluation.py": "6053f36be0ed3723c039e58daf5de86a539a441093a2cd9cb515c7fc2ee26f7c",
-    "src/lab_brain/discovery_safety/gate.py": "1672e1184512229e4623f508a2a2f3eb0ef0ba09a0d0f85a17f5f8752f6ffdfe",
+    "src/lab_brain/discovery_safety/gate.py": "b4af6978c12de51b40df8d838d6896d8eef661674af3c5b008e9a8a298f4de6f",
     "src/lab_brain/discovery_safety/model.py": "f6e8488d2d8e26e2fb4b30a3827367d0ce94498cc3fb993f77dc29fc46955149",
     "src/lab_brain/discovery_safety/pairwise.py": "b6d6fdc6402557496090f7d48b9a1174fbdd20a65b41cba81b2692dfb615e7be"
   }

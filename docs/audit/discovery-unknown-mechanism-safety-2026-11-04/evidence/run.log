@@ -32,4 +32,4 @@ sensitivity coverage 0.5 budget 12: force-fit 15/195, control correct 214/240
 sensitivity coverage 0.5 budget 24: force-fit 6/195, control correct 236/240
 sensitivity coverage 0.0 budget 12: force-fit 16/195, control correct 217/240
 sensitivity coverage 0.0 budget 24: force-fit 7/195, control correct 236/240
-elapsed 701.0s
+elapsed 638.0s

@@ -14,8 +14,8 @@ Not pushed, not merged, not deployed.
 
 Evidence (frozen, reproducible with `--check`):
 [`docs/audit/discovery-unknown-mechanism-safety-2026-11-04/evidence/`](../audit/discovery-unknown-mechanism-safety-2026-11-04/evidence/),
-produced by `scripts/discovery_safety_eval.py` at code commit `0660c81` (recorded in its
-`manifest.json`).
+produced by `scripts/discovery_safety_eval.py` at the final code commit `98c5ad9` (recorded in its
+`manifest.json`; first generated at `0660c81`, re-bound after a type-only fix with every result file byte-identical).
 
 ---
 
