@@ -384,6 +384,9 @@ _ROLE_NAME = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 #: The migrations ledger: written by the migrator, read by anyone, never written by a service.
 _LEDGER = "schema_migrations"
 
+#: The transition policies (`005b`): registered by the schema owner, read by everyone (`011x`).
+_POLICIES = "transition_policies"
+
 #: The Owner's spend administration (`011t`): its members alone create budgets, declare prices and
 #: free endpoints, change ceilings and close circuits. Neither the services nor an auditor is one.
 SPEND_ADMIN_ROLE = "lab_brain_spend_admin"
@@ -430,6 +433,10 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
     a role that could undo what is granted here -- a superuser; one that can create roles or
     databases, replicate, bypass row security or set `session_replication_role`; one that owns an
     object in this database; or a member of a role that is or does any of those.
+
+    THE RULES (`011x`, G0 F2). `transition_policies` is read-only to `app_role`: a policy is the
+    rule a belief transition is re-derived under, so the services must not register one. The
+    schema owner registers the product's declared policies (`lab-brain admin register-policies`).
 
     THE MONEY (`011t`). `app_role` reads the spend tables and changes them only by executing
     `llm_spend_reserve`, `llm_spend_settle` and `llm_spend_retain` -- the migrator's SECURITY
@@ -513,6 +520,12 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
             f"REVOKE SELECT ON accounts, account_sessions, account_tokens FROM {reader}",
             f"GRANT SELECT ({_ACCOUNT_COLUMNS}) ON accounts TO {reader}",
         )
+    # Transition policies (`005b`, `011x`, G0 F2): registered by the schema owner only, so the
+    # services cannot choose the rule their own belief transitions are re-derived under. Revoked on
+    # every run, since the grant on ALL TABLES above reaches this table too; `011x`'s trigger
+    # refuses a non-owner's INSERT even if the privilege is ever granted by mistake.
+    if c.execute("SELECT to_regclass('public.transition_policies')").fetchone()[0] is not None:
+        statements += (f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {_POLICIES} FROM {app}",)
     # The account change audit (`011u`) is written only by its migrator-owned triggers; the services
     # get no row privilege on it either, so a forged audit row is refused twice.
     if c.execute("SELECT to_regclass('public.account_change_audit')").fetchone()[0] is not None:
@@ -569,7 +582,7 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
     tables = 0 if row is None else int(row[0])
     lines = [
         f"database role {app_role}: reads and writes rows of {tables} tables -- no TRUNCATE, no "
-        f"ownership, {_LEDGER} read-only; the triggers bind it",
+        f"ownership, {_LEDGER} and {_POLICIES} read-only; the triggers bind it",
         f"database role {reader_role}: reads them",
     ]
     if spend:

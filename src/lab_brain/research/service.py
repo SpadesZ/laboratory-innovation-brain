@@ -991,10 +991,10 @@ class ResearchEpisodeService:
         schemas.ensure(DOCUMENT_STATEMENT_SCHEMA)
         for registration in vertical.condition_schemas:
             schemas.ensure(registration)
-        policies = SqlTransitionPolicyStore(c)
-        for policy in (ADMISSION_POLICY, *vertical.transition_policies):
-            if policies.get(policy.policy_id, policy.version) is None:
-                policies.register(policy)
+        # The rules every transition is re-derived under are the schema owner's to register
+        # (`011x`, G0 F2): under the owner the missing ones are registered here, as before; under
+        # the services' role a missing one refuses the run before anything is written.
+        register_vertical_policies(c, vertical)
         # The confirmation rule is evaluated in SQL for every writer (`012p`), over the
         # declarations this code registers -- exactly, or not at all.
         SqlDeclarationSetStore(c).ensure(vertical.declaration_sets, vertical.active_declarations)
@@ -2639,6 +2639,45 @@ class ResearchEpisodeService:
         return tuple(lines)
 
 
+class PolicyRegistrationRefused(RuntimeError):
+    """The connection's role may not register transition policies (`011x`, G0 F2)."""
+
+
+def declared_policies(vertical: ProductVertical) -> tuple[TransitionPolicy, ...]:
+    """The policies the product's code declares: the admission policy and the vertical's."""
+    return (ADMISSION_POLICY, *vertical.transition_policies)
+
+
+def missing_policies(c: Any, vertical: ProductVertical) -> tuple[TransitionPolicy, ...]:
+    """The declared policies not registered in this database."""
+    policies = SqlTransitionPolicyStore(c)
+    return tuple(
+        p for p in declared_policies(vertical) if policies.get(p.policy_id, p.version) is None
+    )
+
+
+def register_vertical_policies(c: Any, vertical: ProductVertical) -> tuple[str, ...]:
+    """The operator's path (`011x`, G0 F2): register the declared policies `vertical` needs that
+    are not registered yet, as the schema owner; the `policy@version` of each one registered.
+
+    Refused outright under any other role -- a policy written by the services' role is a rule the
+    system under test chose for its own transitions. Registered rows are never edited (`005b`): a
+    declared policy already present is left as it is.
+    """
+    policies = SqlTransitionPolicyStore(c)
+    missing = missing_policies(c, vertical)
+    if missing and not policies.may_register():
+        names = ", ".join(f"{p.policy_id}@{p.version}" for p in missing)
+        raise PolicyRegistrationRefused(
+            f"transition policies {names} are not registered, and only the schema owner (the "
+            "operator's migrator) registers them (011x): run `lab-brain admin register-policies` "
+            "as the migrator"
+        )
+    for policy in missing:
+        policies.register(policy)
+    return tuple(f"{p.policy_id}@{p.version}" for p in missing)
+
+
 def declare_vertical_capabilities(c: Any, vertical: ProductVertical) -> tuple[str, ...]:
     """The operator's path (`011s`): register `vertical`'s condition schemas and capability
     declarations as the schema owner; the capability ids still undeclared afterwards.
@@ -3026,9 +3065,13 @@ __all__ = [
     "EpisodeInProgress",
     "EpisodeNotContinuable",
     "InputDocument",
+    "PolicyRegistrationRefused",
     "QuestionNotCleared",
     "ResearchEpisodeService",
     "ResearchFeatures",
     "ResearchRequest",
     "UuidEpisodeIds",
+    "declared_policies",
+    "missing_policies",
+    "register_vertical_policies",
 ]

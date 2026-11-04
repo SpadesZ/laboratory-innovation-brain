@@ -19,6 +19,9 @@
 #     member whose standing decision authorises its expiry (v3.3-a15: never inferred), and only if
 #     none is declared already. Without one, a diagnostic warrant question cannot be asked and the
 #     episode records that nobody could be (fail closed).
+# The transition policies the product declares are registered here, by the migrator (`011x`):
+# the services' role reads them and cannot register one, so it cannot choose the rule its own
+# belief transitions are judged by (G0 F2). Idempotent; a registered policy is never edited.
 # The researcher, their membership and their LLM administration are written on the FIRST
 # start only (`--if-absent`): from then on the workspace's accounts manage them -- an
 # administrator's changes, or a suspension, are not undone by the next start.
@@ -31,6 +34,7 @@ lab-brain admin project "$LAB_BRAIN_PROJECT" --name "$LAB_BRAIN_PROJECT_NAME"
 lab-brain admin member "$LAB_BRAIN_PROJECT" "$LAB_BRAIN_ACTOR" \
     --clearance "$LAB_BRAIN_CLEARANCE" --scope LLM_EGRESS --if-absent
 lab-brain admin llm-admin "$LAB_BRAIN_ACTOR" --if-absent
+lab-brain admin register-policies
 if [ -n "${LAB_BRAIN_REVIEW_QUEUE_DECLARED_BY:-}" ]; then
     lab-brain admin review-queue "$LAB_BRAIN_PROJECT" \
         --declared-by "$LAB_BRAIN_REVIEW_QUEUE_DECLARED_BY" --if-absent

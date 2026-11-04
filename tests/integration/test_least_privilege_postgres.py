@@ -30,7 +30,7 @@ from psycopg.conninfo import conninfo_to_dict
 from lab_brain.interfaces import cli
 from lab_brain.verification.loop import StopReason
 from tests.postgres_fixtures import database_url
-from tests.vertical_fixtures import case_by_id, load_fixture, run_case
+from tests.vertical_fixtures import case_by_id, load_fixture, register_case_policies, run_case
 
 pytestmark = pytest.mark.postgres
 
@@ -88,6 +88,9 @@ def test_the_product_runs_a_whole_episode_as_the_services_role(db, roles):  # ty
     code, out = _main("admin", "db-roles", "--app-role", app, "--reader-role", reader)
     assert code == 0, out
     assert f"database role {app}: reads and writes rows" in out
+    # The operator registers the transition policies as the schema owner (`011x`, G0 F2): the
+    # services' role reads them and may not register one.
+    register_case_policies(db)
     fx = load_fixture()
     with _connect_as(app, password) as as_app:
         assert as_app.execute(
@@ -121,6 +124,7 @@ _ESCAPES = (
 def test_the_services_role_cannot_step_past_the_rules_that_bind_it(db, roles):  # type: ignore[no-untyped-def]
     app, reader, password = roles
     assert _main("admin", "db-roles", "--app-role", app, "--reader-role", reader)[0] == 0
+    register_case_policies(db)  # the operator's part, as the schema owner (`011x`)
     fx = load_fixture()
     with _connect_as(app, password) as as_app:
         run_case(as_app, fx, case_by_id(fx, "contact-open-via"))

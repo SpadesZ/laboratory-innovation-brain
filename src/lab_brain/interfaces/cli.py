@@ -614,6 +614,18 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"the product vertical (an entry point in {ENTRY_POINT_GROUP}); "
         "default: the only one installed",
     )
+    policies = admin_sub.add_parser(
+        "register-policies",
+        help=(
+            "011x: register the transition policies the product declares (the admission policy "
+            "and the vertical's) that are not registered yet (schema owner only)"
+        ),
+    )
+    policies.add_argument(
+        "--domain",
+        help=f"the product vertical (an entry point in {ENTRY_POINT_GROUP}); "
+        "default: the only one installed",
+    )
     admin_sub.add_parser("show", help="list actors, projects, memberships, LLM administrators")
     return parser
 
@@ -1165,6 +1177,8 @@ def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
                 raise deployment.OperatorRefused("\n".join(lines))
         elif args.admin_command == "declare-capabilities":
             lines = _declare_capabilities(args, connection)
+        elif args.admin_command == "register-policies":
+            lines = _register_policies(args, connection)
         else:
             lines = deployment.describe(connection)
     except deployment.OperatorRefused as refused:
@@ -1222,6 +1236,42 @@ def _declare_capabilities(args: argparse.Namespace, connection: Any) -> list[str
     lines += [f"UNDECLARED  {capability}" for capability in sorted(undeclared)]
     if undeclared:
         raise deployment.OperatorRefused("\n".join(lines))
+    return lines
+
+
+def _register_policies(args: argparse.Namespace, connection: Any) -> list[str]:
+    """`admin register-policies`: the operator registers the declared transition policies
+    (`011x`, G0 F2). Idempotent: a policy already registered is left exactly as it is."""
+    from lab_brain.interfaces import deployment
+    from lab_brain.research.service import (
+        PolicyRegistrationRefused,
+        declared_policies,
+        register_vertical_policies,
+    )
+
+    try:
+        factory = load_vertical_factory(args.domain or _only_vertical())
+    except (VerticalNotFound, ConfigurationError) as exc:
+        raise deployment.OperatorRefused(str(exc)) from exc
+    vertical = factory(outputs=None, jobs=None, broker=None, now=lambda: dt.datetime.now(dt.UTC))
+    try:
+        with connection.transaction():
+            registered = set(register_vertical_policies(connection, vertical))
+    except PolicyRegistrationRefused as refused:
+        raise deployment.OperatorRefused(str(refused)) from refused
+    lines = []
+    declared = set()
+    for policy in declared_policies(vertical):
+        name = f"{policy.policy_id}@{policy.version}"
+        declared.add(name)
+        lines.append(f"{'registered' if name in registered else 'present   '}  {name}")
+    # For the operator's audit: rows this product does not declare -- registered by hand, by a
+    # test, or (before `011x`) by whoever held the services' role. Listed, never touched.
+    for (name,) in connection.execute(
+        "SELECT policy_id || '@' || version FROM transition_policies ORDER BY 1"
+    ).fetchall():
+        if name not in declared:
+            lines.append(f"undeclared  {name}")
     return lines
 
 

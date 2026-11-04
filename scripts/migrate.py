@@ -334,6 +334,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # A verification authorization is signed by its person under an authorizer key a pinned
     # review authority enrolled; rule (l) admits only the signed frame. After 011v.
     "011w_signed_verification_authorizations.sql",
+    # G0 F2: a transition policy is registered by the schema owner only (a BEFORE INSERT guard on
+    # 005b's table, the 011s boundary); rows already registered are untouched. After 011w.
+    "011x_transition_policies_are_the_owners.sql",
 )
 
 _BOOTSTRAP = """

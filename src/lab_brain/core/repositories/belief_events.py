@@ -272,6 +272,16 @@ class SqlTransitionPolicyStore:
         require_durable_connection(connection)
         self._connection = connection
 
+    def may_register(self) -> bool:
+        """Whether this connection's role may register a policy: the schema owner only (`011x`,
+        G0 F2). The services' role reads policies; a policy it could write would be the rule its
+        own transitions are re-derived under."""
+        row = self._connection.execute(
+            "SELECT pg_has_role(current_user, relowner, 'MEMBER') FROM pg_class"
+            " WHERE oid = 'transition_policies'::regclass"
+        ).fetchone()
+        return bool(row and row[0])
+
     def register(self, policy: TransitionPolicy) -> TransitionPolicy:
         self._connection.execute(
             "INSERT INTO transition_policies ("

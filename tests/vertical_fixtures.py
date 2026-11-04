@@ -43,6 +43,7 @@ from lab_brain.core.models.capability import ActionType, Availability
 from lab_brain.core.models.cost import BudgetCaps, CostVector
 from lab_brain.core.models.enums import SensitivityLabel, TrustClass
 from lab_brain.core.models.job import Job, JobState
+from lab_brain.core.models.transition import TransitionPolicy
 from lab_brain.core.models.verification import PlanDecision
 from lab_brain.core.repositories.belief_events import (
     SqlBeliefEventStore,
@@ -358,6 +359,25 @@ def _ensure_episode(connection: Any, episode_id: str) -> None:
         " VALUES (%s, %s, %s, 'diagnose the Rs anomaly', %s) ON CONFLICT DO NOTHING",
         (episode_id, PROJECT, TRACE, dt.datetime(2026, 9, 26, 9, 0, tzinfo=dt.UTC)),
     )
+
+
+def case_transition_policies() -> tuple[TransitionPolicy, ...]:
+    """The transition policies `run_case` needs: the debate's admission policy and the vertical's."""
+    return (
+        ADMISSION_POLICY,
+        *transition_policies(),
+        *warranted_transition_policies(),
+        *sp_vertical.vertical_transition_policies(),
+    )
+
+
+def register_case_policies(owner: Any) -> None:
+    """The operator's part (`011x`, G0 F2): the schema owner registers the policies `run_case`
+    needs, so a run under the services' role -- which may not register one -- finds them."""
+    store = SqlTransitionPolicyStore(owner)
+    for policy in case_transition_policies():
+        if store.get(policy.policy_id, policy.version) is None:
+            store.register(policy)
 
 
 def run_case(

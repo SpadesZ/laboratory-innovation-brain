@@ -7980,6 +7980,59 @@ MUTATIONS: tuple[Mutation, ...] = (
         new='            else "ACCEPTANCE: environment verified by the runner and independently"\n',
         tests=("tests/unit/test_g0_blind_acceptance.py",),
     ),
+    # G0 F2: owner-only transition policy registration (`011x`, `grant_database_roles`). Each
+    # layer is mutated alone; the end-to-end attack test needs BOTH layers off to succeed, so
+    # each entry is killed by the test that checks its own layer.
+    Mutation(
+        name="f2_services_role_keeps_insert_on_policies",
+        guards="G0 F2 -- db-roles revokes INSERT/UPDATE/DELETE/TRUNCATE on transition_policies",
+        path="src/lab_brain/interfaces/deployment.py",
+        old='f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {_POLICIES} FROM {app}",',
+        new='f"REVOKE TRUNCATE ON {_POLICIES} FROM {app}",',
+        tests=("tests/e2e/test_g0_f2_policy_registration_postgres.py",),
+    ),
+    Mutation(
+        name="f2_policy_guard_admits_every_role",
+        guards="G0 F2 -- 011x: only a member of the table's owner registers a policy",
+        path="migrations/011x_transition_policies_are_the_owners.sql",
+        old="    IF NOT pg_has_role(current_user, v_owner, 'MEMBER') THEN",
+        new="    IF FALSE THEN",
+        tests=("tests/e2e/test_g0_f2_policy_registration_postgres.py",),
+    ),
+    Mutation(
+        name="f2_policy_guard_only_warns",
+        guards="G0 F2 -- 011x: a non-owner's policy row is refused, not merely reported",
+        path="migrations/011x_transition_policies_are_the_owners.sql",
+        old="        RAISE EXCEPTION\n",
+        new="        RAISE WARNING\n",
+        tests=("tests/e2e/test_g0_f2_policy_registration_postgres.py",),
+    ),
+    Mutation(
+        name="f2_policy_guard_fires_on_update",
+        guards="G0 F2 -- 011x: the guard fires on INSERT (a policy is only ever inserted)",
+        path="migrations/011x_transition_policies_are_the_owners.sql",
+        old="    BEFORE INSERT ON transition_policies\n",
+        new="    BEFORE UPDATE ON transition_policies\n",
+        tests=("tests/e2e/test_g0_f2_policy_registration_postgres.py",),
+    ),
+    Mutation(
+        name="f2_service_registers_policies_as_any_role",
+        guards="G0 F2 -- the research service refuses a missing policy under a non-owner role",
+        path="src/lab_brain/research/service.py",
+        old="    if missing and not policies.may_register():",
+        new="    if False:",
+        tests=("tests/e2e/test_g0_f2_policy_registration_postgres.py",),
+    ),
+    Mutation(
+        name="f2_every_role_may_register_policies",
+        guards="G0 F2 -- SqlTransitionPolicyStore.may_register asks for the table's owner",
+        path="src/lab_brain/core/repositories/belief_events.py",
+        old="            \" WHERE oid = 'transition_policies'::regclass\"\n        ).fetchone()\n"
+        "        return bool(row and row[0])",
+        new="            \" WHERE oid = 'transition_policies'::regclass\"\n        ).fetchone()\n"
+        "        return True",
+        tests=("tests/e2e/test_g0_f2_policy_registration_postgres.py",),
+    ),
 )
 
 
