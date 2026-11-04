@@ -1,0 +1,116 @@
+# v1.1 design development log -- DEVELOPMENT SEEDS ONLY (bases 7000000 x15/class, 5000000 x6, 1 x6)
+# No evaluation seed (P3 2026610200, v1.0-new 2026810400, or the v1.1 held-out range) was run while
+# designing. Columns: held-out force-fits/false-nulls (family removed, primary worlds) and in-catalog
+# control correct/false-discoveries (family left in), per arm. B4 = v1.1 as of that iteration;
+# FIX = B4 with localized_check off; LOC = B4 with refit_fixpoint off.
+
+## iteration 1: refit fixpoint + localized checks (Holm, alpha 0.01), localized failures replicated at once
+## (base 7000000 only)
+b 8 held-out ff/fn: B2 62/12 B3 2/10 B4 2/7 FIX 2/10 LOC 2/7 | control correct/fd: B2 159/1 B3 66/0 B4 66/0 FIX 66/0 LOC 66/0
+b12 held-out ff/fn: B2 84/21 B3 10/14 B4 8/12 FIX 9/14 LOC 9/12 | control correct/fd: B2 213/1 B3 153/0 B4 153/0 FIX 153/0 LOC 153/0
+    B3 force-fits: ['held_out-geometry.gap_small-07:hyp:fcd.static+geometry.thickness', 'held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-geometry.width_narrow-00:hyp:fcd.static+geometry.gap_large', 'held_out-geometry.width_wide-08:hyp:geometry.thickness', 'held_out-leakage.substrate-01:hyp:scatter.sidewall', 'held_out-leakage.substrate-03:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall', 'held_out-leakage.substrate-11:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-leakage.substrate-14:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+    B4 force-fits: ['held_out-geometry.gap_small-07:hyp:fcd.static+geometry.thickness', 'held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-geometry.width_wide-08:hyp:geometry.thickness', 'held_out-leakage.substrate-01:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall', 'held_out-leakage.substrate-11:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-nonlinear.tpa_fca-04:hyp:leakage.substrate', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+    FIX force-fits: ['held_out-geometry.gap_small-07:hyp:fcd.static+geometry.thickness', 'held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-geometry.width_wide-08:hyp:geometry.thickness', 'held_out-leakage.substrate-01:hyp:scatter.sidewall', 'held_out-leakage.substrate-03:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall', 'held_out-leakage.substrate-11:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-leakage.substrate-14:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+    LOC force-fits: ['held_out-geometry.gap_small-07:hyp:fcd.static+geometry.thickness', 'held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-geometry.width_narrow-00:hyp:fcd.static+geometry.gap_large', 'held_out-geometry.width_wide-08:hyp:geometry.thickness', 'held_out-leakage.substrate-01:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall', 'held_out-leakage.substrate-11:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-nonlinear.tpa_fca-04:hyp:leakage.substrate', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+b24 held-out ff/fn: B2 93/25 B3 4/9 B4 2/6 FIX 4/9 LOC 2/6 | control correct/fd: B2 239/1 B3 238/0 B4 238/0 FIX 238/0 LOC 238/0
+    B3 force-fits: ['held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-09:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-leakage.substrate-14:hyp:scatter.sidewall']
+    B4 force-fits: ['held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-13:hyp:scatter.sidewall']
+    FIX force-fits: ['held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-09:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-leakage.substrate-14:hyp:scatter.sidewall']
+    LOC force-fits: ['held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-13:hyp:scatter.sidewall']
+b48 held-out ff/fn: B2 93/29 B3 4/10 B4 2/7 FIX 4/10 LOC 2/7 | control correct/fd: B2 239/1 B3 239/0 B4 239/0 FIX 239/0 LOC 239/0
+n primary 195 n 240 time 276
+
+## finding: B4 force-fit nonlinear.tpa_fca-04 at budget 12 that B3 did not -- the localized false alarm on the
+## engine's fiber_recouple run was replicated first and spent the unit the decisive power_sweep probe needed.
+## change: defer_localized_replication = True (a localized-only failure is replicated once nothing is left to probe)
+
+## iteration 2 (deferral), base 7m
+b 8 held-out ff/fn: B2 62/12 B3 2/10 B4 2/8 FIX 2/10 LOC 2/8 | control correct/fd: B2 159/1 B3 66/0 B4 65/0 FIX 66/0 LOC 65/0
+b12 held-out ff/fn: B2 84/21 B3 10/14 B4 7/13 FIX 9/14 LOC 8/13 | control correct/fd: B2 213/1 B3 153/0 B4 152/0 FIX 153/0 LOC 152/0
+    B3 force-fits: ['held_out-geometry.gap_small-07:hyp:fcd.static+geometry.thickness', 'held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-geometry.width_narrow-00:hyp:fcd.static+geometry.gap_large', 'held_out-geometry.width_wide-08:hyp:geometry.thickness', 'held_out-leakage.substrate-01:hyp:scatter.sidewall', 'held_out-leakage.substrate-03:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall', 'held_out-leakage.substrate-11:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-leakage.substrate-14:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+    B4 force-fits: ['held_out-geometry.gap_small-07:hyp:fcd.static+geometry.thickness', 'held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-geometry.width_wide-08:hyp:geometry.thickness', 'held_out-leakage.substrate-01:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall', 'held_out-leakage.substrate-11:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+    FIX force-fits: ['held_out-geometry.gap_small-07:hyp:fcd.static+geometry.thickness', 'held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-geometry.width_wide-08:hyp:geometry.thickness', 'held_out-leakage.substrate-01:hyp:scatter.sidewall', 'held_out-leakage.substrate-03:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall', 'held_out-leakage.substrate-11:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-leakage.substrate-14:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+    LOC force-fits: ['held_out-geometry.gap_small-07:hyp:fcd.static+geometry.thickness', 'held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-geometry.width_narrow-00:hyp:fcd.static+geometry.gap_large', 'held_out-geometry.width_wide-08:hyp:geometry.thickness', 'held_out-leakage.substrate-01:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall', 'held_out-leakage.substrate-11:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+b24 held-out ff/fn: B2 93/25 B3 4/9 B4 2/7 FIX 4/9 LOC 2/7 | control correct/fd: B2 239/1 B3 238/0 B4 238/0 FIX 238/0 LOC 238/0
+    B3 force-fits: ['held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-09:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-leakage.substrate-14:hyp:scatter.sidewall']
+    B4 force-fits: ['held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-13:hyp:scatter.sidewall']
+    FIX force-fits: ['held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-09:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-leakage.substrate-14:hyp:scatter.sidewall']
+    LOC force-fits: ['held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-13:hyp:scatter.sidewall']
+b48 held-out ff/fn: B2 93/29 B3 4/10 B4 2/8 FIX 4/10 LOC 2/8 | control correct/fd: B2 239/1 B3 239/0 B4 239/0 FIX 239/0 LOC 239/0
+n primary 195 n 240 time 284
+## iteration 2 (deferral), base 5m
+b 8 held-out ff/fn: B2 25/3 B3 0/1 B4 0/1 FIX 0/1 LOC 0/1 | control correct/fd: B2 60/1 B3 26/0 B4 26/0 FIX 26/0 LOC 26/0
+b12 held-out ff/fn: B2 30/5 B3 4/0 B4 3/0 FIX 4/0 LOC 3/0 | control correct/fd: B2 86/1 B3 61/0 B4 60/0 FIX 60/0 LOC 61/0
+    B3 force-fits: ['held_out-geometry.gap_small-00:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-00:hyp:scatter.sidewall', 'held_out-leakage.substrate-04:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+    B4 force-fits: ['held_out-geometry.gap_small-00:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-00:hyp:scatter.sidewall', 'held_out-leakage.substrate-04:hyp:scatter.sidewall']
+    FIX force-fits: ['held_out-geometry.gap_small-00:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-00:hyp:scatter.sidewall', 'held_out-leakage.substrate-04:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+    LOC force-fits: ['held_out-geometry.gap_small-00:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-00:hyp:scatter.sidewall', 'held_out-leakage.substrate-04:hyp:scatter.sidewall']
+b24 held-out ff/fn: B2 34/11 B3 1/0 B4 2/0 FIX 2/0 LOC 1/0 | control correct/fd: B2 94/1 B3 94/0 B4 93/0 FIX 94/0 LOC 93/0
+    B3 force-fits: ['held_out-leakage.substrate-00:hyp:scatter.sidewall']
+    B4 force-fits: ['held_out-leakage.substrate-00:hyp:scatter.sidewall', 'held_out-leakage.substrate-03:hyp:scatter.sidewall']
+    FIX force-fits: ['held_out-leakage.substrate-00:hyp:scatter.sidewall', 'held_out-leakage.substrate-03:hyp:scatter.sidewall']
+    LOC force-fits: ['held_out-leakage.substrate-00:hyp:scatter.sidewall']
+b48 held-out ff/fn: B2 35/11 B3 1/0 B4 1/0 FIX 1/0 LOC 1/0 | control correct/fd: B2 95/1 B3 95/0 B4 95/0 FIX 95/0 LOC 95/0
+n primary 78 n 96 time 127
+## iteration 2 (deferral), base 1
+b 8 held-out ff/fn: B2 26/1 B3 0/0 B4 0/0 FIX 0/0 LOC 0/0 | control correct/fd: B2 56/2 B3 24/1 B4 24/1 FIX 24/1 LOC 24/1
+b12 held-out ff/fn: B2 31/8 B3 2/4 B4 2/4 FIX 2/4 LOC 2/4 | control correct/fd: B2 84/2 B3 61/1 B4 61/1 FIX 61/1 LOC 61/1
+    B3 force-fits: ['held_out-geometry.width_wide-01:hyp:geometry.thickness', 'held_out-leakage.substrate-02:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall']
+    B4 force-fits: ['held_out-geometry.width_wide-01:hyp:geometry.thickness', 'held_out-leakage.substrate-02:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall']
+    FIX force-fits: ['held_out-geometry.width_wide-01:hyp:geometry.thickness', 'held_out-leakage.substrate-02:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall']
+    LOC force-fits: ['held_out-geometry.width_wide-01:hyp:geometry.thickness', 'held_out-leakage.substrate-02:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall']
+b24 held-out ff/fn: B2 38/9 B3 1/2 B4 1/2 FIX 1/2 LOC 1/2 | control correct/fd: B2 94/2 B3 92/0 B4 92/0 FIX 92/0 LOC 92/0
+    B3 force-fits: ['held_out-leakage.substrate-02:hyp:scatter.sidewall']
+    B4 force-fits: ['held_out-leakage.substrate-02:hyp:scatter.sidewall']
+    FIX force-fits: ['held_out-leakage.substrate-02:hyp:scatter.sidewall']
+    LOC force-fits: ['held_out-leakage.substrate-02:hyp:scatter.sidewall']
+b48 held-out ff/fn: B2 38/12 B3 1/2 B4 1/2 FIX 1/2 LOC 1/2 | control correct/fd: B2 94/2 B3 94/0 B4 94/0 FIX 94/0 LOC 94/0
+n primary 78 n 96 time 121
+## finding: base 5000000, budget 24: B4 (and FIX) endorsed leakage.substrate-03 as scatter.sidewall -- two of
+## three cutback runs were excluded as noise one after the other (the v1.0 exclusion ratchet).
+## change: max_noise_exclusions_per_experiment = 1
+
+## iteration 3 (FROZEN DESIGN), base 7m
+b 8 held-out ff/fn: B2 62/12 B3 2/10 B4 1/8 FIX 1/10 LOC 1/8 | control correct/fd: B2 159/1 B3 66/0 B4 65/0 FIX 66/0 LOC 65/0
+b12 held-out ff/fn: B2 84/21 B3 10/14 B4 7/13 FIX 9/14 LOC 8/13 | control correct/fd: B2 213/1 B3 153/0 B4 151/0 FIX 152/0 LOC 151/0
+    B3 force-fits: ['held_out-geometry.gap_small-07:hyp:fcd.static+geometry.thickness', 'held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-geometry.width_narrow-00:hyp:fcd.static+geometry.gap_large', 'held_out-geometry.width_wide-08:hyp:geometry.thickness', 'held_out-leakage.substrate-01:hyp:scatter.sidewall', 'held_out-leakage.substrate-03:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall', 'held_out-leakage.substrate-11:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-leakage.substrate-14:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+    B4 force-fits: ['held_out-geometry.gap_small-07:hyp:fcd.static+geometry.thickness', 'held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-geometry.width_wide-08:hyp:geometry.thickness', 'held_out-leakage.substrate-01:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall', 'held_out-leakage.substrate-11:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+    FIX force-fits: ['held_out-geometry.gap_small-07:hyp:fcd.static+geometry.thickness', 'held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-geometry.width_wide-08:hyp:geometry.thickness', 'held_out-leakage.substrate-01:hyp:scatter.sidewall', 'held_out-leakage.substrate-03:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall', 'held_out-leakage.substrate-11:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-leakage.substrate-14:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+    LOC force-fits: ['held_out-geometry.gap_small-07:hyp:fcd.static+geometry.thickness', 'held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-geometry.width_narrow-00:hyp:fcd.static+geometry.gap_large', 'held_out-geometry.width_wide-08:hyp:geometry.thickness', 'held_out-leakage.substrate-01:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall', 'held_out-leakage.substrate-11:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+b24 held-out ff/fn: B2 93/25 B3 4/9 B4 2/7 FIX 4/9 LOC 2/7 | control correct/fd: B2 239/1 B3 238/0 B4 237/0 FIX 237/0 LOC 237/0
+    B3 force-fits: ['held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-09:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-leakage.substrate-14:hyp:scatter.sidewall']
+    B4 force-fits: ['held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-13:hyp:scatter.sidewall']
+    FIX force-fits: ['held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-09:hyp:scatter.sidewall', 'held_out-leakage.substrate-13:hyp:scatter.sidewall', 'held_out-leakage.substrate-14:hyp:scatter.sidewall']
+    LOC force-fits: ['held_out-geometry.gap_small-08:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-13:hyp:scatter.sidewall']
+b48 held-out ff/fn: B2 93/29 B3 4/10 B4 2/8 FIX 4/10 LOC 2/8 | control correct/fd: B2 239/1 B3 239/0 B4 238/0 FIX 238/0 LOC 238/0
+n primary 195 n 240 time 278
+## iteration 3 (FROZEN DESIGN), base 5m
+b 8 held-out ff/fn: B2 25/3 B3 0/1 B4 0/1 FIX 0/1 LOC 0/1 | control correct/fd: B2 60/1 B3 26/0 B4 26/0 FIX 26/0 LOC 26/0
+b12 held-out ff/fn: B2 30/5 B3 4/0 B4 3/0 FIX 4/0 LOC 3/0 | control correct/fd: B2 86/1 B3 61/0 B4 60/0 FIX 60/0 LOC 61/0
+    B3 force-fits: ['held_out-geometry.gap_small-00:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-00:hyp:scatter.sidewall', 'held_out-leakage.substrate-04:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+    B4 force-fits: ['held_out-geometry.gap_small-00:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-00:hyp:scatter.sidewall', 'held_out-leakage.substrate-04:hyp:scatter.sidewall']
+    FIX force-fits: ['held_out-geometry.gap_small-00:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-00:hyp:scatter.sidewall', 'held_out-leakage.substrate-04:hyp:scatter.sidewall', 'held_out-scatter.sidewall-00:hyp:leakage.substrate']
+    LOC force-fits: ['held_out-geometry.gap_small-00:hyp:fcd.static+geometry.thickness', 'held_out-leakage.substrate-00:hyp:scatter.sidewall', 'held_out-leakage.substrate-04:hyp:scatter.sidewall']
+b24 held-out ff/fn: B2 34/11 B3 1/0 B4 1/0 FIX 1/0 LOC 1/0 | control correct/fd: B2 94/1 B3 94/0 B4 92/0 FIX 93/0 LOC 92/0
+    B3 force-fits: ['held_out-leakage.substrate-00:hyp:scatter.sidewall']
+    B4 force-fits: ['held_out-leakage.substrate-00:hyp:scatter.sidewall']
+    FIX force-fits: ['held_out-leakage.substrate-00:hyp:scatter.sidewall']
+    LOC force-fits: ['held_out-leakage.substrate-00:hyp:scatter.sidewall']
+b48 held-out ff/fn: B2 35/11 B3 1/0 B4 1/0 FIX 1/0 LOC 1/0 | control correct/fd: B2 95/1 B3 95/0 B4 94/0 FIX 94/0 LOC 94/0
+n primary 78 n 96 time 125
+## iteration 3 (FROZEN DESIGN), base 1
+b 8 held-out ff/fn: B2 26/1 B3 0/0 B4 0/0 FIX 0/0 LOC 0/0 | control correct/fd: B2 56/2 B3 24/1 B4 24/1 FIX 24/1 LOC 24/1
+b12 held-out ff/fn: B2 31/8 B3 2/4 B4 2/4 FIX 2/4 LOC 2/4 | control correct/fd: B2 84/2 B3 61/1 B4 61/1 FIX 61/1 LOC 61/1
+    B3 force-fits: ['held_out-geometry.width_wide-01:hyp:geometry.thickness', 'held_out-leakage.substrate-02:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall']
+    B4 force-fits: ['held_out-geometry.width_wide-01:hyp:geometry.thickness', 'held_out-leakage.substrate-02:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall']
+    FIX force-fits: ['held_out-geometry.width_wide-01:hyp:geometry.thickness', 'held_out-leakage.substrate-02:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall']
+    LOC force-fits: ['held_out-geometry.width_wide-01:hyp:geometry.thickness', 'held_out-leakage.substrate-02:hyp:scatter.sidewall', 'held_out-leakage.substrate-05:hyp:scatter.sidewall']
+b24 held-out ff/fn: B2 38/9 B3 1/2 B4 1/2 FIX 1/2 LOC 1/2 | control correct/fd: B2 94/2 B3 92/0 B4 92/0 FIX 92/0 LOC 92/0
+    B3 force-fits: ['held_out-leakage.substrate-02:hyp:scatter.sidewall']
+    B4 force-fits: ['held_out-leakage.substrate-02:hyp:scatter.sidewall']
+    FIX force-fits: ['held_out-leakage.substrate-02:hyp:scatter.sidewall']
+    LOC force-fits: ['held_out-leakage.substrate-02:hyp:scatter.sidewall']
+b48 held-out ff/fn: B2 38/12 B3 1/2 B4 1/2 FIX 1/2 LOC 1/2 | control correct/fd: B2 94/2 B3 94/0 B4 94/0 FIX 94/0 LOC 94/0
+n primary 78 n 96 time 120
+## decision: freeze iteration 3. B4 <= B3 force-fits at every budget on every development range; in-catalog
+## correct within 0-2 worlds of B3. alpha_localized (0.01) and z thresholds were NOT tuned: v1.0's values kept.
