@@ -737,22 +737,19 @@ class _Gate:
                 if not untested:
                     # Every experiment it predicts a signal in was run: its prospective tests are
                     # the never-run experiments where it predicts the most (worst case vs null).
-                    ranked = sorted(
+                    by_signal: list[tuple[float, str]] = sorted(
                         (
-                            (
-                                -self.oracle.experiment_separation(
-                                    h, NULL_HYPOTHESIS, x.experiment_id
-                                ),
-                                x.experiment_id,
-                            )
-                            for h in candidates
-                            for x in self.available
-                            if x.experiment_id not in observed
-                        ),
+                            -self.oracle.experiment_separation(h, NULL_HYPOTHESIS, x.experiment_id),
+                            x.experiment_id,
+                        )
+                        for h in candidates
+                        for x in self.available
+                        if x.experiment_id not in observed
                     )
-                    untested = sorted(
-                        {x for s, x in ranked if s < 0}, key=[x for _, x in ranked].index
-                    )[:2]
+                    untested = []
+                    for score, experiment_id in by_signal:
+                        if score < 0 and experiment_id not in untested and len(untested) < 2:
+                            untested.append(experiment_id)
                 requests = self.coverage_requests(
                     candidates,
                     untested,
