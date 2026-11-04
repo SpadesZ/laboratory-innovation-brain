@@ -1,0 +1,11 @@
+# Finding (not fixed in this pass; Owner decision): the services' least-privilege role can REGISTER a
+# transition policy (INSERT on transition_policies is granted by grant_database_roles), then
+# record an ALLOW decision and event under it that the product's projection re-derives and folds in.
+# No counted SUPPORTS is needed at all. Probe run on baseline 367163b with a temporary test that was
+# not committed (tests/e2e/test_zz_policy_probe_postgres.py, reproduced verbatim in the report).
+# Date: 2026-11-04T05:50:37Z  HEAD: 367163b710db999e6d549d646a3c9e86931f425b
+FINDING: services role registered policy:services-written required_relation_types=()
+FINDING: services-role transition outcome ALLOW event bre:sa-239ee4dc9ddd401396530f8227dc992e
+FINDING: snapshot relations []
+FINDING: honest product projection -> SUPPORTED
+1 passed in 3.99s

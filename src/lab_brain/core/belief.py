@@ -75,7 +75,7 @@ EPI-003's whole claim is that replaying the same history twice gives the same an
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
@@ -103,6 +103,7 @@ from lab_brain.core.models.decision import (
     DecisionInputSnapshot,
     DecisionType,
 )
+from lab_brain.core.models.enums import RelationType
 from lab_brain.core.models.relation import RelationJudgment
 from lab_brain.core.models.transition import (
     HypothesisView,
@@ -275,6 +276,9 @@ class VerificationFailure(StrEnum):
     #: A support warrant in the snapshot does not re-check against its source, or nothing was
     #: supplied to re-check it with.
     WARRANT_UNVERIFIED = "WARRANT_UNVERIFIED"
+    #: A SUPPORTS in the snapshot is not support now: its verification authorization does not
+    #: verify, it is not the relation stored, or nothing was supplied to check it (011w).
+    SUPPORT_UNVERIFIED = "SUPPORT_UNVERIFIED"
 
 
 class UnverifiedBeliefRevision(RuntimeError):
@@ -352,6 +356,12 @@ class WarrantVerifier(Protocol):
     ) -> None: ...
 
 
+#: Why a SUPPORTS relation in a stored snapshot is not support, or None when it is. The product's
+#: is `SqlRelationStore.support_problem`: a SUPPORTS of a post-screening hypothesis counts only when
+#: its verification authorization verifies (011w), which SQL cannot check.
+SupportCheck = Callable[[RelationJudgment], str | None]
+
+
 def _enforce_requested_scope(
     project_id: str,
     target_id: str,
@@ -394,6 +404,7 @@ def verify_stored_revision(
     policies: PolicyLookup,
     authority_policies: Mapping[tuple[str, str], AuthorityPolicy] = MappingProxyType({}),
     warrant_verifier: WarrantVerifier | None = None,
+    support_check: SupportCheck | None = None,
 ) -> VerifiedBeliefRevision:
     """Re-derive a stored event's authorization, or refuse to let it change a belief.
 
@@ -542,6 +553,34 @@ def verify_stored_revision(
                     f"{record.warrant_ref or 'unwarranted'}, which does not re-check: {exc}",
                 ) from exc
 
+    # The same question for the supports the snapshot counted (011w): re-deriving proves the
+    # verdict follows from them, not that a forged pre-registration was not among them. Every
+    # reader of current relations asks it (`SqlRelationStore.admitted_for_subject`); a decision
+    # row recorded by a writer that did not is refused here, before it becomes a belief.
+    if support_check is not None:
+        for relation in snapshot.admitted_relations:
+            if relation.relation_type is not RelationType.SUPPORTS:
+                continue
+            if (relation.project_id, relation.to_entity_id) != (
+                authorization.project_id,
+                authorization.subject_id,
+            ):
+                problem: str | None = (
+                    f"it is a relation to {relation.to_entity_id} in {relation.project_id}, not "
+                    f"to {authorization.subject_id} in {authorization.project_id}"
+                )
+            else:
+                try:
+                    problem = support_check(relation)
+                except Exception as exc:  # a check that cannot run is a refusal, never a pass
+                    problem = f"it could not be checked: {exc}"
+            if problem is not None:
+                raise UnverifiedBeliefRevision(
+                    VerificationFailure.SUPPORT_UNVERIFIED,
+                    f"authorization {authorization.decision_id} counts {relation.relation_id} as "
+                    f"SUPPORTS, which is not support now: {problem}",
+                )
+
     try:
         rederive_decision(
             authorization=authorization,
@@ -569,6 +608,7 @@ def verified_history(
     policies: PolicyLookup,
     authority_policies: Mapping[tuple[str, str], AuthorityPolicy] = MappingProxyType({}),
     warrant_verifier: WarrantVerifier | None = None,
+    support_check: SupportCheck | None = None,
 ) -> tuple[VerifiedBeliefRevision, ...]:
     """Verify a whole stored history, in order, refusing the first revision that cannot be.
 
@@ -586,6 +626,7 @@ def verified_history(
             policies=policies,
             authority_policies=authority_policies,
             warrant_verifier=warrant_verifier,
+            support_check=support_check,
         )
         for event in sorted(events, key=lambda e: (e.occurred_at, e.event_id))
     )

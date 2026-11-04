@@ -353,6 +353,10 @@ class BeliefEpisode:
             policies=self._policies,
             authority_policies=self._authority_policies,
             warrant_verifier=None if self._warrants is None else self._warrants.verify,
+            # 011w: a SUPPORTS a decision counted is re-checked as every current read checks it
+            # (`SqlRelationStore.support_problem`). A relation source without the check (the
+            # in-memory stores, which hold no screening records) adds nothing.
+            support_check=getattr(self._relations, "support_problem", None),
         )
         return replay(
             project_id,

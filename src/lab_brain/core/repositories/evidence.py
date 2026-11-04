@@ -172,6 +172,20 @@ class SqlAttestationStore:
 SupportVerifier = Callable[[RelationJudgment], str | None]
 
 
+def _relation_content(relation: RelationJudgment) -> tuple[object, ...]:
+    """What a relation says, without its validity window -- which an invalidation may close."""
+    return (
+        relation.relation_id,
+        relation.project_id,
+        relation.from_entity_id,
+        relation.to_entity_id,
+        relation.relation_type,
+        dict(relation.attributes),
+        tuple(relation.supporting_attestation_ids),
+        relation.condition_match_ref,
+    )
+
+
 class SqlRelationStore:
     """§17.8 relation judgments against the `004` table.
 
@@ -291,6 +305,42 @@ class SqlRelationStore:
             if r.relation_type is not RelationType.SUPPORTS
             or (verifier is not None and verifier(r) is None)
         )
+
+    def support_problem(self, relation: RelationJudgment) -> str | None:
+        """Why `relation`, as some record holds a copy of it, is not support now -- or None.
+
+        For the belief projection (`core.belief.verify_stored_revision(support_check=...)`): a
+        stored decision's snapshot carries its own copies of the relations it counted, so the
+        check `admitted_for_subject` makes of the table must be made of those copies too, or a
+        decision row recorded by a writer that skipped it becomes a belief. Only a SUPPORTS of a
+        hypothesis with a screening conditioning record is checked (011s/011w):
+
+        * the copy is the relation the database admitted (same content; its validity window may
+          have closed since) -- otherwise its write-time rules never saw it;
+        * the store's `support_verifier` finds nothing wrong with it; with no verifier, it is
+          not support (fail closed, as in `admitted_for_subject`).
+        """
+        if relation.relation_type is not RelationType.SUPPORTS:
+            return None
+        conditioned = self._connection.execute(
+            "SELECT 1 FROM screening_conditioned_hypotheses"
+            " WHERE project_id = %s AND hypothesis_id = %s",
+            (relation.project_id, relation.to_entity_id),
+        ).fetchone()
+        if conditioned is None:
+            return None
+        stored = self.get(relation.project_id, relation.relation_id)
+        if stored is None or _relation_content(stored) != _relation_content(relation):
+            return (
+                f"{relation.relation_id} is not the relation stored; a SUPPORTS of a hypothesis "
+                "proposed after screening counts only as the database admitted it (011s)"
+            )
+        if self._support_verifier is None:
+            return (
+                "no authorization check was given to this reader; a SUPPORTS of a hypothesis "
+                "proposed after screening is not support unverified (011w)"
+            )
+        return self._support_verifier(relation)
 
     def invalidate(
         self, *, project_id: str, relation_id: str, reason: str, actor_id: str, at: dt.datetime

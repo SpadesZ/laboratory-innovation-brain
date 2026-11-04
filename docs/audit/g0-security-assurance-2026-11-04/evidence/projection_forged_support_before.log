@@ -1,0 +1,11 @@
+# Reproduction on baseline 367163b (before the fix): the belief projection folds in a decision
+# whose snapshot rests on a SUPPORTS with a forged verification authorization.
+# Command: LAB_BRAIN_TEST_POSTGRES=1 .venv/bin/python -m pytest tests/e2e/test_g0_security_assurance_postgres.py -k projection -q -s -p no:cacheprovider --tb=short
+# Date: 2026-11-04T05:49:51Z  HEAD: 367163b710db999e6d549d646a3c9e86931f425b
+REPRODUCTION: honest product projection of hyp:77691c87-6226-460b-bf18-365e66bdaaf0 -> SUPPORTED applied ('bre:757c9eec-1c46-4a18-950e-956010c66189', 'bre:sa-0f5462d7791b491c82d63c5728c1c965')
+REPRODUCTION: product transition inputs [] forged relation rel:obs:ind-projection-forged
+E   Failed: DID NOT RAISE UnverifiedBeliefRevision
+E   AttributeError: 'SqlRelationStore' object has no attribute 'support_problem'
+FAILED tests/e2e/test_g0_security_assurance_postgres.py::test_the_projection_refuses_a_decision_resting_on_a_forged_support
+FAILED tests/e2e/test_g0_security_assurance_postgres.py::test_the_projection_refuses_a_snapshot_support_that_is_not_the_stored_relation
+2 failed, 1 passed, 14 deselected in 9.79s
