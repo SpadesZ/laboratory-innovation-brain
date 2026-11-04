@@ -341,6 +341,23 @@ budget 12 with 64 in-catalog abstentions.
   author, no blind evaluation. Scientific acceptance remains **NOT PASSED**; G-D remains
   **NOT PASSED**.
 
-## 11. Verification
+## 11. Verification (observed on this branch, code at `98c5ad9`, status at `4f31408`)
 
-Recorded in the handoff message of this branch's final commit (commands and exact counts).
+| Check | Command | Result |
+|---|---|---|
+| Lint | `.venv/bin/python -m ruff check src tests scripts` | all checks passed |
+| Format | `.venv/bin/python -m ruff format --check src tests scripts` | 620 files already formatted |
+| Types | `.venv/bin/python -m mypy` | no issues in 306 source files |
+| Spec conformance | `.venv/bin/python -m pytest tests/spec -q` | 245 passed |
+| Focused safety tests | the three `tests/unit/test_discovery_safety*.py` files, `tests/e2e/test_discovery_safety_eval_frozen.py`, `tests/unit/test_discovery_eval_governance.py` | 104 passed |
+| Default suite | `.venv/bin/python -m pytest -q` (no backend variables) | 2572 passed, 1203 skipped (backend-gated) |
+| PostgreSQL suite | fresh `lib_disc` (dropdb/createdb), `scripts/migrate.py` twice (81 applied, then 0 pending), `LAB_BRAIN_TEST_POSTGRES=1 pytest -q` | 3771 passed, 4 skipped (Windows-only / no-seat skips) in 26 min 40 s |
+| Requirement coverage | `scripts/check_requirement_coverage.py` after the PostgreSQL run | all four checks ok |
+| Status inventory | `scripts/update_status.py` then `--check` and `--check --requirements-only` | up to date (collected tests 3701 -> 3775) |
+| Evidence | `scripts/discovery_safety_eval.py --check` | evidence is current |
+| Mutation | the nine `safety_*` entries of `scripts/mutation_battery.py` | 9/9 killed (and 9/9 when the safety test files are run without `-x`; per-mutant killing tests in the branch handoff) |
+| Commit hygiene | `scripts/check_commit_messages.py` | no AI authorship found |
+| GOV-005 | `grep -rn "S35-" src tests` | 0 hits |
+
+The PostgreSQL server had stopped between sessions (stale pid file) and was restarted with
+`pg_ctlcluster 16 main start` before the fresh database was created; only `lib_disc` was touched.
