@@ -116,6 +116,10 @@ known-first-party = ["lab_brain", "tests"]
 # evaluation package (`src/lab_brain/discovery_eval`) stays under the ban and has its own structural
 # test (`tests/unit/test_discovery_eval_governance.py`).
 "scripts/discovery_independent_eval.py" = ["TID251"]
+# The same for the out-of-catalog safety evaluation: this script is its composition root and names
+# the scenario; the safety package (`src/lab_brain/discovery_safety`) stays under the ban and has
+# its own structural test (`tests/unit/test_discovery_safety_governance.py`).
+"scripts/discovery_safety_eval.py" = ["TID251"]
 # The mutation battery's `old=` fields are verbatim excerpts of the source lines they anchor on.
 # Wrapping them with implicit concatenation would keep the line length and make the anchor
 # unreadable -- and an anchor a reviewer cannot compare against the source by eye is the one

@@ -106,7 +106,10 @@ def test_nothing_in_the_shipped_product_imports_discovery():
     offenders = []
     for path, tree in _modules(SRC):
         relative = path.relative_to(SRC).parts
-        if relative[0] in ("discovery", "discovery_eval"):
+        # The safety gate (`discovery_safety`) is a sibling offline package over the frozen engine;
+        # it has its own isolation test (test_discovery_safety_governance), which also holds that
+        # nothing in the product imports IT.
+        if relative[0] in ("discovery", "discovery_eval", "discovery_safety"):
             continue
         for module in _imports(tree):
             if module.startswith(("lab_brain.discovery", "lab_brain.discovery_eval")):
