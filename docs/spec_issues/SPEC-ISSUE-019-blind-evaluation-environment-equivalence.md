@@ -43,3 +43,9 @@ provisionally.
 3. Whether the evaluator must pass `--database-url` (the applied-schema pin) for every run.
 4. Whether an acceptance verification must be signed with an enrolled evaluator key (today the
    verifier's id is asserted).
+
+## Follow-up (2026-11-04)
+
+A design for independently signed evaluator-environment attestations, with negative controls, is
+proposed in §8 of [the G0 security assurance report](../audit/g0-security-assurance-2026-11-04/REPORT.md).
+It is specification text only and awaits the Owner decision of item 4.

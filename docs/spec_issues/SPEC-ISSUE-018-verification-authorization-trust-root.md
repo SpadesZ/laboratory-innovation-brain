@@ -57,3 +57,12 @@ The open question is unchanged: the trust root, and whether SQL itself should ve
 3. Rotation period and revocation procedure for authorizer keys.
 4. Whether to install a database extension that verifies Ed25519 (for example pgsodium), so the
    signature is checked at admission and not only on read.
+
+## Follow-up (2026-11-04)
+
+The belief projection now re-checks every SUPPORTS a stored decision counted
+(`SUPPORT_UNVERIFIED`, commit `7f203df`). Finding F2 of
+[the G0 security assurance report](../audit/g0-security-assurance-2026-11-04/REPORT.md) is open:
+the services' role can register transition policies, which bypasses signed authorizations entirely.
+Item 4 (in-database Ed25519 verification) is analysed in §7 of that report; no extension was
+installed.
