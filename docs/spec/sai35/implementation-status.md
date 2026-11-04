@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix L: Implementation status
 
-Version: `3.5.0-master-candidate.2` · Inspected: 2026-11-02.
+Version: `3.5.0-master-candidate.2` · Inspected: 2026-11-04 (candidate.1: 2026-11-02).
 Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`. G0 is NOT PASSED.
 Authority: informative. The status column is checked against the
 [registry](normative-statements.yaml); evidence paths are checked to exist at their commits when
@@ -88,8 +88,8 @@ Evidence written `<commit>:<path>` exists at that commit; a path without a prefi
 | S35-HYP-002 | partial | `a38ad63:src/lab_brain/core/hypothesis_admission.py`<br>`a38ad63:src/lab_brain/core/models/prediction.py` | the §8 admission gate and typed predictions exist; mechanistic distinctness under an experiment set is not checked in the product |
 | S35-HYP-003 | proposed | — | no claim-state projection over canonical records; the offline loop has its own six hypothesis states |
 | S35-HYP-004 | partial | `a38ad63:src/lab_brain/cognition/debate.py`<br>`a38ad63:src/lab_brain/llm_runtime/runtime.py` | debate generates competing hypotheses with provenance; no real-model research is G0-accepted; no proposal of mechanisms outside a catalog |
-| S35-MECH-001 | partial | `118a4ac:src/lab_brain/discovery/distinguish.py`<br>`118a4ac:src/lab_brain/discovery/metrics.py` | offline prototype on linear toy forward models; not integrated, not independently reviewed |
-| S35-MECH-002 | partial | `118a4ac:src/lab_brain/discovery/loop.py` | offline widening draws only on declared classes and pairwise compositions; no model-proposed new mechanism |
+| S35-MECH-001 | partial | `118a4ac:src/lab_brain/discovery/distinguish.py`<br>`118a4ac:src/lab_brain/discovery/metrics.py` | offline prototype on linear toy forward models; its `classes()` computes connected components (a transitive merge), which candidate.2 forbids, so only its pairwise separation oracle is reusable; the revised definition exists only as executable documentation (`docs/spec/sai35/semantic_reference.py`), not as product code; not integrated, not independently reviewed |
+| S35-MECH-002 | partial | `118a4ac:src/lab_brain/discovery/loop.py` | offline widening draws only on declared classes and pairwise compositions; no model-proposed new mechanism; on `d7ec9f2` the discovery arm force-fits an available mechanism when the true family is absent (about 0.40 at budget 12, 0.47 at 24, same-author worlds); the adequacy-before-endorsement rule of candidate.2 is not implemented in the product |
 | S35-REF-001 | partial | `118a4ac:src/lab_brain/discovery/loop.py` | offline reframing covers four kinds over hypotheses and anomalies; assumption, observable and model failures are not triggers |
 | S35-REF-002 | partial | `118a4ac:src/lab_brain/discovery/model.py` | offline append-only records; no persistence, no relation-level refusal |
 | S35-REF-003 | partial | `118a4ac:src/lab_brain/discovery/loop.py` | offline caps (two widening rounds) and prospective support rule; no product lineage or policy |
@@ -141,10 +141,10 @@ Evidence written `<commit>:<path>` exists at that commit; a path without a prefi
 | S35-GD-002 | blocked | — | no frozen protocol, evaluator or benchmark (OD-02, OD-03) |
 | S35-GD-003 | proposed | — | no verdict records exist to check |
 | S35-CMP-001 | partial | `118a4ac:src/lab_brain/discovery/baselines.py`<br>`118a4ac:src/lab_brain/discovery/benchmark.py` | offline arms B0, B1 and B2 only: B0 is a deterministic stand-in, not an LLM, so arm A does not exist; B1 re-implements the loop policy, not the real LIB workflow |
-| S35-CMP-002 | partial | `118a4ac:src/lab_brain/discovery/benchmark.py` | the offline run matched worlds, seeds and caps, but not realized consumption: B2 spent about four times B1's budget |
+| S35-CMP-002 | partial | `118a4ac:src/lab_brain/discovery/benchmark.py` | the offline run matched worlds, seeds and caps, but not realized consumption: B2 spent about four times B1's budget; no evaluator implements the frozen realized-cost checkpoints of candidate.2 (the rule exists only in `docs/spec/sai35/semantic_reference.py`) |
 | S35-CMP-003 | proposed | — | no blinded scoring of discovery outputs; the offline run was scored by its author |
 | S35-CMP-004 | proposed | — | the offline worlds share an author with the engine; protocol and tooling for an independent hidden-world evaluation are on discovery-independent-evaluation @ d7ec9f2 (pushed, not reviewed); no independent worlds yet |
-| S35-CMP-005 | partial | `118a4ac:src/lab_brain/discovery/metrics.py` | offline correct outcome, false discovery, class diversity and budget metrics; no independent reproducibility |
+| S35-CMP-005 | partial | `118a4ac:src/lab_brain/discovery/metrics.py` | offline correct outcome, false discovery, class diversity and budget metrics; its class diversity is a transitive count, not the certified diversity of candidate.2; no independent reproducibility |
 | S35-CMP-006 | partial | `118a4ac:src/lab_brain/discovery/metrics.py`<br>`f41758c:src/lab_brain/evaluation/stats.py` | Wilson and bootstrap intervals exist; no evaluator-frozen statistical plan |
 | S35-CMP-007 | partial | `f41758c:src/lab_brain/evaluation/contamination.py` | G0 contamination tooling on the unintegrated G0 line; no G-D contamination report |
 | S35-CMP-008 | partial | `118a4ac:src/lab_brain/discovery/benchmark.py` | offline per-case budget stops; no study-level or incident rules |
@@ -176,5 +176,7 @@ Evidence written `<commit>:<path>` exists at that commit; a path without a prefi
 | A3, A9, A12 open | identity independence and database-authority limits unresolved (SAI 3.4) |
 | implementer-written synthetic worlds | not G-D evidence; the independent evaluation is still in design |
 | arm A missing | no single-LLM arm exists on any line |
-| matched budget by caps only | realized consumption differed fourfold offline; S35-CMP-002 requires matching on realized consumption |
+| matched budget by caps only | realized consumption differed fourfold offline; S35-CMP-002 (candidate.2) requires scoring at frozen realized-cost checkpoints; no evaluator implements it |
+| transitive mechanism classes in the prototype | `118a4ac` and its descendants count connected components; any metric computed that way is not an S35-MECH-001 figure |
+| force-fit when the true family is absent | measured on `d7ec9f2` (same-author worlds); S35-MECH-002 now forbids it; parameters OD-18 open |
 | three unintegrated lines plus this candidate | integration order is OD-09 |
