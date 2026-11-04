@@ -1,0 +1,16 @@
+# F2 reproduction on baseline 47451e124f629907c7350f7e3ead7d1c19aaef63 (no source change), 2026-11-04T12:52:46Z
+# PostgreSQL: PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.; services role created per test by deployment/docker/service_roles.py + grant_database_roles
+# (1) --runxfail: the secure assertions, run as if unmarked, FAIL on the baseline
+$ pytest tests/e2e/test_g0_f2_policy_registration_postgres.py -q -rxX -s --runxfail
+F2: services role registering policy:g0-f2-services-written-c61ca25c4388: refused=None
+F2: services-role transition ALLOW event=bre:sa-86b6138e86ed489c81873962b4f1470d snapshot relations=[]
+F2: honest product projection of hyp:384e7420-ee98-4504-87eb-26dcb5e66d39 -> SUPPORTED
+E       AssertionError: the services' role registered a transition policy
+E       assert None is not None
+1 failed in 3.36s
+
+# (2) as committed (xfail strict): XFAIL on the baseline, suite stays green
+$ pytest tests/e2e/test_g0_f2_policy_registration_postgres.py -q -rxX
+=========================== short test summary info ============================
+XFAIL tests/e2e/test_g0_f2_policy_registration_postgres.py::test_the_services_role_cannot_register_a_policy_that_makes_a_hypothesis_supported - G0 finding F2 is OPEN: grant_database_roles grants INSERT on transition_policies to the services' role and migration 005b refuses only UPDATE and DELETE, so the services' role registers an empty ACTIVE->SUPPORTED policy and the honest projection reads SUPPORTED. The fix (owner-only policy registration) awaits the Owner's decision.
+1 xfailed in 3.95s
