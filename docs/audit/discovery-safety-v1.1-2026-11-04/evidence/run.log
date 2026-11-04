@@ -1,0 +1,19 @@
+HELD_OUT_FOR_V1_1 3931910000 budget 8: B2 force-fit 65/195 false-null 11 | control correct 162/240; B3 force-fit 0/195 false-null 7 | control correct 61/240; B4 force-fit 0/195 false-null 6 | control correct 61/240
+HELD_OUT_FOR_V1_1 3931910000 budget 12: B2 force-fit 80/195 false-null 19 | control correct 211/240; B3 force-fit 6/195 false-null 9 | control correct 160/240; B4 force-fit 4/195 false-null 8 | control correct 156/240
+HELD_OUT_FOR_V1_1 3931910000 budget 24: B2 force-fit 95/195 false-null 29 | control correct 236/240; B3 force-fit 4/195 false-null 8 | control correct 234/240; B4 force-fit 3/195 false-null 3 | control correct 229/240
+HELD_OUT_FOR_V1_1 3931910000 budget 48: B2 force-fit 96/195 false-null 30 | control correct 236/240; B3 force-fit 3/195 false-null 8 | control correct 236/240; B4 force-fit 2/195 false-null 4 | control correct 231/240
+benchmark 3320367000 budget 8: B2 correct 106 force-fit/false-discovery 8; B3 correct 47 force-fit/false-discovery 1; B4 correct 47 force-fit/false-discovery 1
+benchmark 3320367000 budget 12: B2 correct 144 force-fit/false-discovery 8; B3 correct 108 force-fit/false-discovery 2; B4 correct 107 force-fit/false-discovery 2
+benchmark 3320367000 budget 24: B2 correct 164 force-fit/false-discovery 8; B3 correct 164 force-fit/false-discovery 3; B4 correct 164 force-fit/false-discovery 2
+benchmark 3320367000 budget 48: B2 correct 166 force-fit/false-discovery 8; B3 correct 166 force-fit/false-discovery 3; B4 correct 166 force-fit/false-discovery 2
+PREVIOUSLY_INSPECTED_NOT_HELD_OUT_FOR_V1_1 2026610200 budget 8: B2 force-fit 60/195 false-null 9 | control correct 158/240; B3 force-fit 0/195 false-null 6 | control correct 63/240; B4 force-fit 0/195 false-null 6 | control correct 63/240
+PREVIOUSLY_INSPECTED_NOT_HELD_OUT_FOR_V1_1 2026610200 budget 12: B2 force-fit 78/195 false-null 17 | control correct 218/240; B3 force-fit 9/195 false-null 6 | control correct 153/240; B4 force-fit 6/195 false-null 6 | control correct 152/240
+PREVIOUSLY_INSPECTED_NOT_HELD_OUT_FOR_V1_1 2026610200 budget 24: B2 force-fit 92/195 false-null 25 | control correct 238/240; B3 force-fit 5/195 false-null 3 | control correct 236/240; B4 force-fit 4/195 false-null 1 | control correct 235/240
+PREVIOUSLY_INSPECTED_NOT_HELD_OUT_FOR_V1_1 2026610200 budget 48: B2 force-fit 94/195 false-null 28 | control correct 238/240; B3 force-fit 4/195 false-null 2 | control correct 237/240; B4 force-fit 3/195 false-null 0 | control correct 237/240
+  v1.0 recorded B2/B3 digests reproduced: 1920/1920
+PREVIOUSLY_INSPECTED_NOT_HELD_OUT_FOR_V1_1 2026810400 budget 8: B2 force-fit 63/195 false-null 8 | control correct 153/240; B3 force-fit 0/195 false-null 4 | control correct 65/240; B4 force-fit 0/195 false-null 3 | control correct 64/240
+PREVIOUSLY_INSPECTED_NOT_HELD_OUT_FOR_V1_1 2026810400 budget 12: B2 force-fit 79/195 false-null 19 | control correct 214/240; B3 force-fit 11/195 false-null 9 | control correct 151/240; B4 force-fit 9/195 false-null 7 | control correct 149/240
+PREVIOUSLY_INSPECTED_NOT_HELD_OUT_FOR_V1_1 2026810400 budget 24: B2 force-fit 88/195 false-null 25 | control correct 235/240; B3 force-fit 7/195 false-null 6 | control correct 234/240; B4 force-fit 7/195 false-null 3 | control correct 233/240
+PREVIOUSLY_INSPECTED_NOT_HELD_OUT_FOR_V1_1 2026810400 budget 48: B2 force-fit 90/195 false-null 27 | control correct 235/240; B3 force-fit 7/195 false-null 6 | control correct 235/240; B4 force-fit 7/195 false-null 3 | control correct 234/240
+  v1.0 recorded B2/B3 digests reproduced: 1920/1920
+elapsed 688.3s
