@@ -1,0 +1,42 @@
+# Services-role privileges on trust-root tables, before (baseline 47451e1 grant code) and after (fix). Database lib_g0_f2chk, migrated to 84 (011x present in both rows; 'before' therefore shows the baseline GRANT, plus the 011x trigger that the baseline did not have).
+# before: grant_database_roles from deployment_baseline.py; services role lbt_mx_app_62de69
+transition_policies                      SELECT,INSERT,UPDATE,DELETE    insert-triggers=transition_policies_registered_by_the_owner
+belief_transition_decisions              SELECT,INSERT,UPDATE,DELETE    insert-triggers=-
+belief_revision_events                   SELECT,INSERT,UPDATE,DELETE    insert-triggers=belief_revision_events_cite_evidence,belief_revision_events_match_their_policy,belief_revision_events_not_under_a_superseded_policy,belief_revision_events_require_authorization,belief_revisions_are_adjudicated_by_evidence,hypothesis_revisions_meet_m3_preconditions_trg
+relation_judgments                       SELECT,INSERT,UPDATE,DELETE    insert-triggers=relation_judgments_cite_their_project,relation_judgments_describe_their_observation,relation_judgments_not_quarantined_trg,relation_judgments_screening_guard_trg
+attestations                             SELECT,INSERT,UPDATE,DELETE    insert-triggers=attestation_evidence_unit_present,attestations_cite_their_project,attestations_external_material_is_reported_trg,attestations_not_from_quarantined_snapshot_trg,attestations_validate_conditions
+verification_authorizations              SELECT,INSERT,UPDATE,DELETE    insert-triggers=verification_authorization_is_prospective_trg,verification_authorization_is_signed_trg
+verification_authorizer_enrolments       SELECT,INSERT,UPDATE,DELETE    insert-triggers=verification_authorizer_enrolments_are_for_members
+verification_authorizer_revocations      SELECT,INSERT,UPDATE,DELETE    insert-triggers=-
+warrant_reviewer_enrolments              SELECT,INSERT,UPDATE,DELETE    insert-triggers=warrant_reviewer_enrolments_are_for_members
+warrant_reviewer_revocations             SELECT,INSERT,UPDATE,DELETE    insert-triggers=-
+capability_declarations                  SELECT,INSERT,UPDATE,DELETE    insert-triggers=capability_declarations_are_the_packs_trg
+capabilities                             SELECT,INSERT,UPDATE,DELETE    insert-triggers=-
+diagnostic_declaration_sets              SELECT,INSERT,UPDATE,DELETE    insert-triggers=diagnostic_declaration_sets_are_well_formed
+diagnostic_warrant_grants                SELECT,INSERT,UPDATE,DELETE    insert-triggers=diagnostic_warrant_grants_are_closures,diagnostic_warrant_grants_match_their_review
+review_resolutions                       SELECT,INSERT,UPDATE,DELETE    insert-triggers=review_resolutions_cross_table_invariant,review_resolutions_warrant_kind_matches_subject
+review_queue_policies                    SELECT,INSERT,UPDATE,DELETE    insert-triggers=-
+schema_migrations                        SELECT                         insert-triggers=-
+llm_spend_budgets                        SELECT                         insert-triggers=llm_spend_budgets_guarded
+account_change_audit                     SELECT                         insert-triggers=account_change_audit_seal
+
+# after: grant_database_roles from deployment.py; services role lbt_mx_app_570608
+transition_policies                      SELECT                         insert-triggers=transition_policies_registered_by_the_owner
+belief_transition_decisions              SELECT,INSERT,UPDATE,DELETE    insert-triggers=-
+belief_revision_events                   SELECT,INSERT,UPDATE,DELETE    insert-triggers=belief_revision_events_cite_evidence,belief_revision_events_match_their_policy,belief_revision_events_not_under_a_superseded_policy,belief_revision_events_require_authorization,belief_revisions_are_adjudicated_by_evidence,hypothesis_revisions_meet_m3_preconditions_trg
+relation_judgments                       SELECT,INSERT,UPDATE,DELETE    insert-triggers=relation_judgments_cite_their_project,relation_judgments_describe_their_observation,relation_judgments_not_quarantined_trg,relation_judgments_screening_guard_trg
+attestations                             SELECT,INSERT,UPDATE,DELETE    insert-triggers=attestation_evidence_unit_present,attestations_cite_their_project,attestations_external_material_is_reported_trg,attestations_not_from_quarantined_snapshot_trg,attestations_validate_conditions
+verification_authorizations              SELECT,INSERT,UPDATE,DELETE    insert-triggers=verification_authorization_is_prospective_trg,verification_authorization_is_signed_trg
+verification_authorizer_enrolments       SELECT,INSERT,UPDATE,DELETE    insert-triggers=verification_authorizer_enrolments_are_for_members
+verification_authorizer_revocations      SELECT,INSERT,UPDATE,DELETE    insert-triggers=-
+warrant_reviewer_enrolments              SELECT,INSERT,UPDATE,DELETE    insert-triggers=warrant_reviewer_enrolments_are_for_members
+warrant_reviewer_revocations             SELECT,INSERT,UPDATE,DELETE    insert-triggers=-
+capability_declarations                  SELECT,INSERT,UPDATE,DELETE    insert-triggers=capability_declarations_are_the_packs_trg
+capabilities                             SELECT,INSERT,UPDATE,DELETE    insert-triggers=-
+diagnostic_declaration_sets              SELECT,INSERT,UPDATE,DELETE    insert-triggers=diagnostic_declaration_sets_are_well_formed
+diagnostic_warrant_grants                SELECT,INSERT,UPDATE,DELETE    insert-triggers=diagnostic_warrant_grants_are_closures,diagnostic_warrant_grants_match_their_review
+review_resolutions                       SELECT,INSERT,UPDATE,DELETE    insert-triggers=review_resolutions_cross_table_invariant,review_resolutions_warrant_kind_matches_subject
+review_queue_policies                    SELECT,INSERT,UPDATE,DELETE    insert-triggers=-
+schema_migrations                        SELECT                         insert-triggers=-
+llm_spend_budgets                        SELECT                         insert-triggers=llm_spend_budgets_guarded
+account_change_audit                     SELECT                         insert-triggers=account_change_audit_seal

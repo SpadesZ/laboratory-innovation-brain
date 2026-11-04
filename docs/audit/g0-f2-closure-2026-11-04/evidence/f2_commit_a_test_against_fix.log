@@ -1,0 +1,12 @@
+# Commit A's test file (4f646bc, strict xfail marker kept) run against the fix code at ef5d713, 2026-11-04T13:07:32Z
+# fresh database (84 migrations incl. 011x); the copy is a temporary file, not committed
+$ pytest <commit A test file> -q -rxX -s
+F2: services role registering policy:g0-f2-services-written-9bf9b38d51c4: refused=InsufficientPrivilege('permission denied for table transition_policies')
+F2: honest product projection of hyp:7f5fff5e-83fe-4c3d-a7fe-d11d4ce1ba80 -> ACTIVE
+[XPASS(strict)] G0 finding F2 is OPEN: grant_database_roles grants INSERT on transition_policies to the services' role and migration 005b refuses only UPDATE and DELETE, so the services' role registers an empty ACTIVE->SUPPORTED policy and the honest projection reads SUPPORTED. The fix (owner-only policy registration) awaits the Owner's decision.
+1 failed in 3.92s
+
+# Commit B's test (marker removed) on the same code:
+F2: services role registering policy:g0-f2-services-written-75cee140e1f4: refused=InsufficientPrivilege('permission denied for table transition_policies')
+F2: honest product projection of hyp:f64a557b-7e6e-4d32-9142-d449f3c5913b -> ACTIVE
+1 passed in 3.71s

@@ -1,0 +1,11 @@
+# Suite results at ef5d713, 2026-11-04T16:30:19Z
+$ LAB_BRAIN_TEST_POSTGRES=1 pytest -q   (fresh lib_g0, see fresh_database_migrate.log)
+3617 passed, 4 skipped in 1518.77s (0:25:18)
+$ pytest -q   (default)
+2348 passed, 1273 skipped in 75.10s (0:01:15)
+$ pytest tests/spec -q
+245 passed in 15.33s
+$ scripts/update_status.py --check ; --check --requirements-only   (after the PostgreSQL run)
+IMPLEMENTATION_STATUS.md is up to date (both)
+$ scripts/check_requirement_coverage.py   (after the PostgreSQL run)
+exit 0

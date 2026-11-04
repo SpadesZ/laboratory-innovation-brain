@@ -1,0 +1,30 @@
+# f2_* mutation entries at ef5d713, 2026-11-04T16:29:24Z; LAB_BRAIN_TEST_POSTGRES=1, base database lib_g0 (SQL mutants on cloned templates)
+$ python scripts/mutation_battery.py --only f2_...
+6 mutations
+
+[KILLED ] f2_services_role_keeps_insert_on_policies
+           G0 F2 -- db-roles revokes INSERT/UPDATE/DELETE/TRUNCATE on transition_policies
+           killed by FAILED tests/e2e/test_g0_f2_policy_registration_postgres.py::test_the_guard_refuses_the_services_rol
+
+[KILLED ] f2_policy_guard_admits_every_role
+           G0 F2 -- 011x: only a member of the table's owner registers a policy
+           killed by FAILED tests/e2e/test_g0_f2_policy_registration_postgres.py::test_the_guard_refuses_the_services_rol
+
+[KILLED ] f2_policy_guard_only_warns
+           G0 F2 -- 011x: a non-owner's policy row is refused, not merely reported
+           killed by FAILED tests/e2e/test_g0_f2_policy_registration_postgres.py::test_the_guard_refuses_the_services_rol
+
+[KILLED ] f2_policy_guard_fires_on_update
+           G0 F2 -- 011x: the guard fires on INSERT (a policy is only ever inserted)
+           killed by FAILED tests/e2e/test_g0_f2_policy_registration_postgres.py::test_the_guard_refuses_the_services_rol
+
+[KILLED ] f2_service_registers_policies_as_any_role
+           G0 F2 -- the research service refuses a missing policy under a non-owner role
+           killed by FAILED tests/e2e/test_g0_f2_policy_registration_postgres.py::test_the_service_path_refuses_a_missing
+
+[KILLED ] f2_every_role_may_register_policies
+           G0 F2 -- SqlTransitionPolicyStore.may_register asks for the table's owner
+           killed by FAILED tests/e2e/test_g0_f2_policy_registration_postgres.py::test_the_service_path_refuses_a_missing
+
+6/6 killed
+exit=0

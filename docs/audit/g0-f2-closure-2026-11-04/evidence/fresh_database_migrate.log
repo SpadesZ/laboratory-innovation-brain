@@ -1,0 +1,18 @@
+# fresh lib_g0 at ef5d713, 2026-11-04T16:01:50Z
+$ scripts/migrate.py (1)
+  applied  011x_transition_policies_are_the_owners.sql
+applied 84 migration(s)
+$ scripts/migrate.py (2)
+database : localhost:5432/lib_g0
+declared : 84
+applied  : 84
+pending  : 0
+migrations up to date
+$ scripts/migrate.py --status (head and tail)
+database : localhost:5432/lib_g0
+declared : 84
+applied  : 84
+pending  : 0
+  ...
+  applied  011w_signed_verification_authorizations.sql
+  applied  011x_transition_policies_are_the_owners.sql
