@@ -1,0 +1,243 @@
+{
+  "notice": "Owner option, reported for transparency. The default (signal_coverage = 1.0) was fixed before these numbers were computed and is not chosen from them.",
+  "options": {
+    "0.0": {
+      "12": {
+        "control_correct": {
+          "k": 217,
+          "n": 240,
+          "rate": 0.9042,
+          "wilson95": [
+            0.8603,
+            0.9353
+          ]
+        },
+        "control_false_discovery": {
+          "k": 1,
+          "n": 240,
+          "rate": 0.0042,
+          "wilson95": [
+            0.0007,
+            0.0232
+          ]
+        },
+        "held_out_false_null": {
+          "k": 6,
+          "n": 195,
+          "rate": 0.0308,
+          "wilson95": [
+            0.0142,
+            0.0655
+          ]
+        },
+        "held_out_force_fit": {
+          "k": 16,
+          "n": 195,
+          "rate": 0.0821,
+          "wilson95": [
+            0.0511,
+            0.1291
+          ]
+        }
+      },
+      "24": {
+        "control_correct": {
+          "k": 236,
+          "n": 240,
+          "rate": 0.9833,
+          "wilson95": [
+            0.9579,
+            0.9935
+          ]
+        },
+        "control_false_discovery": {
+          "k": 1,
+          "n": 240,
+          "rate": 0.0042,
+          "wilson95": [
+            0.0007,
+            0.0232
+          ]
+        },
+        "held_out_false_null": {
+          "k": 3,
+          "n": 195,
+          "rate": 0.0154,
+          "wilson95": [
+            0.0052,
+            0.0442
+          ]
+        },
+        "held_out_force_fit": {
+          "k": 7,
+          "n": 195,
+          "rate": 0.0359,
+          "wilson95": [
+            0.0175,
+            0.0722
+          ]
+        }
+      },
+      "safety_digest": "sha256:7aa7d14ac9467901e6c39408c56ea9f6c5ac3ed3674d06c861f206d8ae9747d2"
+    },
+    "0.5": {
+      "12": {
+        "control_correct": {
+          "k": 214,
+          "n": 240,
+          "rate": 0.8917,
+          "wilson95": [
+            0.846,
+            0.925
+          ]
+        },
+        "control_false_discovery": {
+          "k": 1,
+          "n": 240,
+          "rate": 0.0042,
+          "wilson95": [
+            0.0007,
+            0.0232
+          ]
+        },
+        "held_out_false_null": {
+          "k": 6,
+          "n": 195,
+          "rate": 0.0308,
+          "wilson95": [
+            0.0142,
+            0.0655
+          ]
+        },
+        "held_out_force_fit": {
+          "k": 15,
+          "n": 195,
+          "rate": 0.0769,
+          "wilson95": [
+            0.0472,
+            0.123
+          ]
+        }
+      },
+      "24": {
+        "control_correct": {
+          "k": 236,
+          "n": 240,
+          "rate": 0.9833,
+          "wilson95": [
+            0.9579,
+            0.9935
+          ]
+        },
+        "control_false_discovery": {
+          "k": 1,
+          "n": 240,
+          "rate": 0.0042,
+          "wilson95": [
+            0.0007,
+            0.0232
+          ]
+        },
+        "held_out_false_null": {
+          "k": 3,
+          "n": 195,
+          "rate": 0.0154,
+          "wilson95": [
+            0.0052,
+            0.0442
+          ]
+        },
+        "held_out_force_fit": {
+          "k": 6,
+          "n": 195,
+          "rate": 0.0308,
+          "wilson95": [
+            0.0142,
+            0.0655
+          ]
+        }
+      },
+      "safety_digest": "sha256:138e30c13fcf23a8323888a8cc79b85909b47b4715382ea4db489e51dd884e8e"
+    },
+    "1.0": {
+      "12": {
+        "control_correct": {
+          "k": 153,
+          "n": 240,
+          "rate": 0.6375,
+          "wilson95": [
+            0.575,
+            0.6957
+          ]
+        },
+        "control_false_discovery": {
+          "k": 1,
+          "n": 240,
+          "rate": 0.0042,
+          "wilson95": [
+            0.0007,
+            0.0232
+          ]
+        },
+        "held_out_false_null": {
+          "k": 6,
+          "n": 195,
+          "rate": 0.0308,
+          "wilson95": [
+            0.0142,
+            0.0655
+          ]
+        },
+        "held_out_force_fit": {
+          "k": 9,
+          "n": 195,
+          "rate": 0.0462,
+          "wilson95": [
+            0.0245,
+            0.0854
+          ]
+        }
+      },
+      "24": {
+        "control_correct": {
+          "k": 236,
+          "n": 240,
+          "rate": 0.9833,
+          "wilson95": [
+            0.9579,
+            0.9935
+          ]
+        },
+        "control_false_discovery": {
+          "k": 1,
+          "n": 240,
+          "rate": 0.0042,
+          "wilson95": [
+            0.0007,
+            0.0232
+          ]
+        },
+        "held_out_false_null": {
+          "k": 3,
+          "n": 195,
+          "rate": 0.0154,
+          "wilson95": [
+            0.0052,
+            0.0442
+          ]
+        },
+        "held_out_force_fit": {
+          "k": 5,
+          "n": 195,
+          "rate": 0.0256,
+          "wilson95": [
+            0.011,
+            0.0586
+          ]
+        }
+      },
+      "safety_digest": "sha256:27fc5feb4916271c37b5b1800998ea08ba816e0f2311711d96d7e55689675b25"
+    }
+  },
+  "worlds": "P3 held-out worlds (frozen seeds), primary only; control = family left in"
+}

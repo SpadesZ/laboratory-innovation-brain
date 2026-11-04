@@ -1,0 +1,35 @@
+reproduction B2 budget 12: 240/240 digests identical; force-fit 78/195 (recorded 78)
+reproduction B2 budget 24: 240/240 digests identical; force-fit 92/195 (recorded 92)
+held-out P3 seeds budget 8: force-fit B2 60/195 -> B3 0/195; false null 9 -> 6; abstained 126 -> 189
+held-out P3 seeds budget 12: force-fit B2 78/195 -> B3 9/195; false null 17 -> 6; abstained 100 -> 180
+held-out P3 seeds budget 24: force-fit B2 92/195 -> B3 5/195; false null 25 -> 3; abstained 78 -> 187
+held-out P3 seeds budget 48: force-fit B2 94/195 -> B3 4/195; false null 28 -> 2; abstained 73 -> 189
+held-out NEW seeds budget 8: force-fit B2 63/195 -> B3 0/195; false null 8 -> 4; abstained 124 -> 191
+held-out NEW seeds budget 12: force-fit B2 79/195 -> B3 11/195; false null 19 -> 9; abstained 97 -> 175
+held-out NEW seeds budget 24: force-fit B2 88/195 -> B3 7/195; false null 25 -> 6; abstained 82 -> 182
+held-out NEW seeds budget 48: force-fit B2 90/195 -> B3 7/195; false null 27 -> 6; abstained 78 -> 182
+control (P3 seeds) budget 8: in-catalog correct B2 158/240 -> B3 63; false discoveries 0 -> 0
+control (P3 seeds) budget 12: in-catalog correct B2 218/240 -> B3 153; false discoveries 1 -> 1
+control (P3 seeds) budget 24: in-catalog correct B2 238/240 -> B3 236; false discoveries 2 -> 1
+control (P3 seeds) budget 48: in-catalog correct B2 238/240 -> B3 237; false discoveries 2 -> 1
+control (NEW seeds) budget 8: in-catalog correct B2 153/240 -> B3 65; false discoveries 3 -> 1
+control (NEW seeds) budget 12: in-catalog correct B2 214/240 -> B3 151; false discoveries 5 -> 5
+control (NEW seeds) budget 24: in-catalog correct B2 235/240 -> B3 234; false discoveries 5 -> 2
+control (NEW seeds) budget 48: in-catalog correct B2 235/240 -> B3 235; false discoveries 5 -> 2
+curves cap 4: correct B2 69 -> B3 33 of 200; false discoveries 2 -> 0
+curves cap 6: correct B2 97 -> B3 39 of 200; false discoveries 3 -> 0
+curves cap 8: correct B2 141 -> B3 77 of 200; false discoveries 4 -> 1
+curves cap 10: correct B2 151 -> B3 103 of 200; false discoveries 4 -> 1
+curves cap 12: correct B2 173 -> B3 130 of 200; false discoveries 4 -> 1
+curves cap 16: correct B2 191 -> B3 174 of 200; false discoveries 4 -> 1
+curves cap 20: correct B2 193 -> B3 191 of 200; false discoveries 4 -> 0
+curves cap 24: correct B2 194 -> B3 193 of 200; false discoveries 4 -> 0
+curves cap 48: correct B2 196 -> B3 196 of 200; false discoveries 4 -> 0
+curves: B2 digests identical to the P3 record 1600/1600
+sensitivity coverage 1.0 budget 12: force-fit 9/195, control correct 153/240
+sensitivity coverage 1.0 budget 24: force-fit 5/195, control correct 236/240
+sensitivity coverage 0.5 budget 12: force-fit 15/195, control correct 214/240
+sensitivity coverage 0.5 budget 24: force-fit 6/195, control correct 236/240
+sensitivity coverage 0.0 budget 12: force-fit 16/195, control correct 217/240
+sensitivity coverage 0.0 budget 24: force-fit 7/195, control correct 236/240
+elapsed 701.0s

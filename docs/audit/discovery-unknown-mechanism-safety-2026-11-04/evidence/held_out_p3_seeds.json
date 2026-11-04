@@ -1,0 +1,1865 @@
+{
+  "base_seed": 2026610200,
+  "budget_monotonicity": {
+    "B2": {
+      "budgets": [
+        8,
+        12,
+        24,
+        48
+      ],
+      "force_fit_escalations": [
+        "held_out-chain.laser_drift-00: 12 -> 24",
+        "held_out-chain.laser_drift-01: 8 -> 12",
+        "held_out-chain.laser_drift-02: 12 -> 24",
+        "held_out-chain.laser_drift-03: 8 -> 12",
+        "held_out-chain.laser_drift-04: 12 -> 24",
+        "held_out-chain.laser_drift-05: 12 -> 24",
+        "held_out-chain.laser_drift-06: 8 -> 12",
+        "held_out-chain.laser_drift-07: 12 -> 24",
+        "held_out-chain.laser_drift-09: 8 -> 12",
+        "held_out-chain.laser_drift-10: 12 -> 24",
+        "held_out-chain.laser_drift-11: 8 -> 12",
+        "held_out-chain.laser_drift-12: 12 -> 24",
+        "held_out-chain.laser_drift-13: 12 -> 24",
+        "held_out-chain.laser_drift-14: 8 -> 12",
+        "held_out-chain.polarization_drift-02: 12 -> 24",
+        "held_out-chain.polarization_drift-08: 8 -> 12",
+        "held_out-chain.polarization_drift-09: 8 -> 12",
+        "held_out-chain.polarization_drift-13: 12 -> 24",
+        "held_out-fcd.static-03: 12 -> 24",
+        "held_out-geometry.gap_small-08: 8 -> 12",
+        "held_out-nonlinear.fca_dominated-08: 24 -> 48",
+        "held_out-nonlinear.tpa_fca-01: 8 -> 12",
+        "held_out-nonlinear.tpa_fca-08: 12 -> 24",
+        "held_out-nonlinear.tpa_fca-12: 12 -> 24",
+        "held_out-nonlinear.tpa_fca-13: 24 -> 48",
+        "held_out-thermo.self_heating-01: 8 -> 12",
+        "held_out-thermo.self_heating-03: 8 -> 12",
+        "held_out-thermo.self_heating-05: 8 -> 12",
+        "held_out-thermo.self_heating-06: 8 -> 12",
+        "held_out-thermo.self_heating-07: 8 -> 12",
+        "held_out-thermo.self_heating-08: 8 -> 12",
+        "held_out-thermo.self_heating-09: 8 -> 12",
+        "held_out-thermo.self_heating-11: 8 -> 12",
+        "held_out-thermo.self_heating-12: 12 -> 24",
+        "held_out-thermo.self_heating-14: 8 -> 12"
+      ],
+      "worlds": 195
+    },
+    "B3": {
+      "budgets": [
+        8,
+        12,
+        24,
+        48
+      ],
+      "force_fit_escalations": [
+        "held_out-geometry.gap_small-08: 8 -> 12",
+        "held_out-geometry.width_narrow-03: 8 -> 12",
+        "held_out-leakage.substrate-00: 8 -> 12",
+        "held_out-leakage.substrate-02: 12 -> 24",
+        "held_out-leakage.substrate-05: 8 -> 12",
+        "held_out-leakage.substrate-07: 8 -> 12",
+        "held_out-leakage.substrate-10: 8 -> 12",
+        "held_out-leakage.substrate-11: 8 -> 12",
+        "held_out-leakage.substrate-13: 8 -> 12",
+        "held_out-leakage.substrate-14: 8 -> 12",
+        "held_out-scatter.sidewall-10: 12 -> 24"
+      ],
+      "worlds": 195
+    }
+  },
+  "budget_never_exceeded": true,
+  "budgets": [
+    8,
+    12,
+    24,
+    48
+  ],
+  "correct_outcome": "no claim (STOPPED_UNEXPLAINED / STOPPED_INSUFFICIENT_VALIDATION)",
+  "frozen_summary": {
+    "12": {
+      "arms": {
+        "B2": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 5,
+            "other_claim": 18,
+            "surrogate_claim": 22
+          },
+          "correct_no_claim": {
+            "k": 100,
+            "n": 195,
+            "rate": 0.5128,
+            "wilson95": [
+              0.4431,
+              0.582
+            ]
+          },
+          "correct_with_record": {
+            "k": 100,
+            "n": 195,
+            "rate": 0.5128,
+            "wilson95": [
+              0.4431,
+              0.582
+            ]
+          },
+          "false_null": {
+            "k": 17,
+            "n": 195,
+            "rate": 0.0872,
+            "wilson95": [
+              0.0551,
+              0.1352
+            ]
+          },
+          "force_fit": {
+            "k": 78,
+            "n": 195,
+            "rate": 0.4,
+            "wilson95": [
+              0.3338,
+              0.4701
+            ]
+          },
+          "outcomes": {
+            "NO_EFFECT_BEYOND_NOISE": 17,
+            "STOPPED_INSUFFICIENT_VALIDATION": 30,
+            "STOPPED_UNEXPLAINED": 70,
+            "SURVIVING_PENDING_WARRANT_GATE": 78
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.laser": {
+              "correct": 9,
+              "false_null": 0,
+              "force_fit": 6,
+              "n": 15,
+              "with_record": 9
+            },
+            "chain.polarization": {
+              "correct": 2,
+              "false_null": 0,
+              "force_fit": 13,
+              "n": 15,
+              "with_record": 2
+            },
+            "fcd": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "geometry.gap": {
+              "correct": 5,
+              "false_null": 6,
+              "force_fit": 4,
+              "n": 15,
+              "with_record": 5
+            },
+            "geometry.thickness": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.width": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 14
+            },
+            "leakage": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "nonlinear": {
+              "correct": 18,
+              "false_null": 11,
+              "force_fit": 1,
+              "n": 30,
+              "with_record": 18
+            },
+            "scatter": {
+              "correct": 1,
+              "false_null": 0,
+              "force_fit": 14,
+              "n": 15,
+              "with_record": 1
+            },
+            "thermo": {
+              "correct": 21,
+              "false_null": 0,
+              "force_fit": 9,
+              "n": 30,
+              "with_record": 21
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              6.0923,
+              7.0667
+            ],
+            "mean": 6.5641,
+            "n": 195
+          }
+        },
+        "B3": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 31,
+            "other_claim": 2,
+            "surrogate_claim": 12
+          },
+          "correct_no_claim": {
+            "k": 180,
+            "n": 195,
+            "rate": 0.9231,
+            "wilson95": [
+              0.877,
+              0.9528
+            ]
+          },
+          "correct_with_record": {
+            "k": 180,
+            "n": 195,
+            "rate": 0.9231,
+            "wilson95": [
+              0.877,
+              0.9528
+            ]
+          },
+          "false_null": {
+            "k": 6,
+            "n": 195,
+            "rate": 0.0308,
+            "wilson95": [
+              0.0142,
+              0.0655
+            ]
+          },
+          "force_fit": {
+            "k": 9,
+            "n": 195,
+            "rate": 0.0462,
+            "wilson95": [
+              0.0245,
+              0.0854
+            ]
+          },
+          "outcomes": {
+            "NO_EFFECT_BEYOND_NOISE": 6,
+            "STOPPED_INSUFFICIENT_VALIDATION": 37,
+            "STOPPED_UNEXPLAINED": 143,
+            "SURVIVING_PENDING_WARRANT_GATE": 9
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.laser": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.polarization": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "fcd": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "geometry.gap": {
+              "correct": 9,
+              "false_null": 5,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 9
+            },
+            "geometry.thickness": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "geometry.width": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 14
+            },
+            "leakage": {
+              "correct": 8,
+              "false_null": 0,
+              "force_fit": 7,
+              "n": 15,
+              "with_record": 8
+            },
+            "nonlinear": {
+              "correct": 29,
+              "false_null": 1,
+              "force_fit": 0,
+              "n": 30,
+              "with_record": 29
+            },
+            "scatter": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "thermo": {
+              "correct": 30,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 30,
+              "with_record": 30
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              7.6769,
+              8.7846
+            ],
+            "mean": 8.2462,
+            "n": 195
+          }
+        }
+      },
+      "paired": {
+        "B3_minus_B2_correct": {
+          "a_only": 80,
+          "b_only": 0,
+          "ci95": [
+            0.3385,
+            0.4821
+          ],
+          "mean": 0.4103,
+          "worlds": 195
+        },
+        "B3_minus_B2_force_fit": {
+          "a_only": 0,
+          "b_only": 69,
+          "ci95": [
+            -0.4205,
+            -0.2872
+          ],
+          "mean": -0.3538,
+          "worlds": 195
+        }
+      },
+      "worlds_aliased": 45,
+      "worlds_primary": 195
+    },
+    "24": {
+      "arms": {
+        "B2": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 1,
+            "other_claim": 20,
+            "surrogate_claim": 24
+          },
+          "correct_no_claim": {
+            "k": 78,
+            "n": 195,
+            "rate": 0.4,
+            "wilson95": [
+              0.3338,
+              0.4701
+            ]
+          },
+          "correct_with_record": {
+            "k": 78,
+            "n": 195,
+            "rate": 0.4,
+            "wilson95": [
+              0.3338,
+              0.4701
+            ]
+          },
+          "false_null": {
+            "k": 25,
+            "n": 195,
+            "rate": 0.1282,
+            "wilson95": [
+              0.0884,
+              0.1824
+            ]
+          },
+          "force_fit": {
+            "k": 92,
+            "n": 195,
+            "rate": 0.4718,
+            "wilson95": [
+              0.403,
+              0.5417
+            ]
+          },
+          "outcomes": {
+            "INDISTINGUISHABLE_CLASS_PENDING_WARRANT_GATE": 1,
+            "NO_EFFECT_BEYOND_NOISE": 25,
+            "STOPPED_INSUFFICIENT_VALIDATION": 5,
+            "STOPPED_UNEXPLAINED": 73,
+            "SURVIVING_PENDING_WARRANT_GATE": 91
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.laser": {
+              "correct": 1,
+              "false_null": 0,
+              "force_fit": 14,
+              "n": 15,
+              "with_record": 1
+            },
+            "chain.polarization": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "fcd": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 14
+            },
+            "geometry.gap": {
+              "correct": 5,
+              "false_null": 6,
+              "force_fit": 4,
+              "n": 15,
+              "with_record": 5
+            },
+            "geometry.thickness": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.width": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 14
+            },
+            "leakage": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "nonlinear": {
+              "correct": 8,
+              "false_null": 19,
+              "force_fit": 3,
+              "n": 30,
+              "with_record": 8
+            },
+            "scatter": {
+              "correct": 1,
+              "false_null": 0,
+              "force_fit": 14,
+              "n": 15,
+              "with_record": 1
+            },
+            "thermo": {
+              "correct": 20,
+              "false_null": 0,
+              "force_fit": 10,
+              "n": 30,
+              "with_record": 20
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              6.7744,
+              8.3949
+            ],
+            "mean": 7.559,
+            "n": 195
+          }
+        },
+        "B3": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 21,
+            "other_claim": 1,
+            "surrogate_claim": 23
+          },
+          "correct_no_claim": {
+            "k": 187,
+            "n": 195,
+            "rate": 0.959,
+            "wilson95": [
+              0.9211,
+              0.9791
+            ]
+          },
+          "correct_with_record": {
+            "k": 187,
+            "n": 195,
+            "rate": 0.959,
+            "wilson95": [
+              0.9211,
+              0.9791
+            ]
+          },
+          "false_null": {
+            "k": 3,
+            "n": 195,
+            "rate": 0.0154,
+            "wilson95": [
+              0.0052,
+              0.0442
+            ]
+          },
+          "force_fit": {
+            "k": 5,
+            "n": 195,
+            "rate": 0.0256,
+            "wilson95": [
+              0.011,
+              0.0586
+            ]
+          },
+          "outcomes": {
+            "NO_EFFECT_BEYOND_NOISE": 3,
+            "STOPPED_INSUFFICIENT_VALIDATION": 7,
+            "STOPPED_UNEXPLAINED": 180,
+            "SURVIVING_PENDING_WARRANT_GATE": 5
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.laser": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.polarization": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "fcd": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "geometry.gap": {
+              "correct": 14,
+              "false_null": 1,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 14
+            },
+            "geometry.thickness": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "geometry.width": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "leakage": {
+              "correct": 11,
+              "false_null": 0,
+              "force_fit": 4,
+              "n": 15,
+              "with_record": 11
+            },
+            "nonlinear": {
+              "correct": 28,
+              "false_null": 2,
+              "force_fit": 0,
+              "n": 30,
+              "with_record": 28
+            },
+            "scatter": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 14
+            },
+            "thermo": {
+              "correct": 30,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 30,
+              "with_record": 30
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              9.8205,
+              11.7897
+            ],
+            "mean": 10.8205,
+            "n": 195
+          }
+        }
+      },
+      "paired": {
+        "B3_minus_B2_correct": {
+          "a_only": 109,
+          "b_only": 0,
+          "ci95": [
+            0.4872,
+            0.6256
+          ],
+          "mean": 0.559,
+          "worlds": 195
+        },
+        "B3_minus_B2_force_fit": {
+          "a_only": 0,
+          "b_only": 87,
+          "ci95": [
+            -0.5179,
+            -0.3795
+          ],
+          "mean": -0.4462,
+          "worlds": 195
+        }
+      },
+      "worlds_aliased": 45,
+      "worlds_primary": 195
+    },
+    "48": {
+      "arms": {
+        "B2": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 1,
+            "other_claim": 20,
+            "surrogate_claim": 24
+          },
+          "correct_no_claim": {
+            "k": 73,
+            "n": 195,
+            "rate": 0.3744,
+            "wilson95": [
+              0.3095,
+              0.4441
+            ]
+          },
+          "correct_with_record": {
+            "k": 73,
+            "n": 195,
+            "rate": 0.3744,
+            "wilson95": [
+              0.3095,
+              0.4441
+            ]
+          },
+          "false_null": {
+            "k": 28,
+            "n": 195,
+            "rate": 0.1436,
+            "wilson95": [
+              0.1013,
+              0.1997
+            ]
+          },
+          "force_fit": {
+            "k": 94,
+            "n": 195,
+            "rate": 0.4821,
+            "wilson95": [
+              0.4129,
+              0.5519
+            ]
+          },
+          "outcomes": {
+            "INDISTINGUISHABLE_CLASS_PENDING_WARRANT_GATE": 1,
+            "NO_EFFECT_BEYOND_NOISE": 28,
+            "STOPPED_UNEXPLAINED": 73,
+            "SURVIVING_PENDING_WARRANT_GATE": 93
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.laser": {
+              "correct": 1,
+              "false_null": 0,
+              "force_fit": 14,
+              "n": 15,
+              "with_record": 1
+            },
+            "chain.polarization": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "fcd": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 14
+            },
+            "geometry.gap": {
+              "correct": 5,
+              "false_null": 6,
+              "force_fit": 4,
+              "n": 15,
+              "with_record": 5
+            },
+            "geometry.thickness": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.width": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 14
+            },
+            "leakage": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "nonlinear": {
+              "correct": 3,
+              "false_null": 22,
+              "force_fit": 5,
+              "n": 30,
+              "with_record": 3
+            },
+            "scatter": {
+              "correct": 1,
+              "false_null": 0,
+              "force_fit": 14,
+              "n": 15,
+              "with_record": 1
+            },
+            "thermo": {
+              "correct": 20,
+              "false_null": 0,
+              "force_fit": 10,
+              "n": 30,
+              "with_record": 20
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              6.9282,
+              8.6462
+            ],
+            "mean": 7.759,
+            "n": 195
+          }
+        },
+        "B3": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 21,
+            "other_claim": 1,
+            "surrogate_claim": 23
+          },
+          "correct_no_claim": {
+            "k": 189,
+            "n": 195,
+            "rate": 0.9692,
+            "wilson95": [
+              0.9345,
+              0.9858
+            ]
+          },
+          "correct_with_record": {
+            "k": 189,
+            "n": 195,
+            "rate": 0.9692,
+            "wilson95": [
+              0.9345,
+              0.9858
+            ]
+          },
+          "false_null": {
+            "k": 2,
+            "n": 195,
+            "rate": 0.0103,
+            "wilson95": [
+              0.0028,
+              0.0366
+            ]
+          },
+          "force_fit": {
+            "k": 4,
+            "n": 195,
+            "rate": 0.0205,
+            "wilson95": [
+              0.008,
+              0.0515
+            ]
+          },
+          "outcomes": {
+            "NO_EFFECT_BEYOND_NOISE": 2,
+            "STOPPED_UNEXPLAINED": 189,
+            "SURVIVING_PENDING_WARRANT_GATE": 4
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.laser": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.polarization": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "fcd": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "geometry.gap": {
+              "correct": 14,
+              "false_null": 1,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 14
+            },
+            "geometry.thickness": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "geometry.width": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "leakage": {
+              "correct": 11,
+              "false_null": 0,
+              "force_fit": 4,
+              "n": 15,
+              "with_record": 11
+            },
+            "nonlinear": {
+              "correct": 29,
+              "false_null": 1,
+              "force_fit": 0,
+              "n": 30,
+              "with_record": 29
+            },
+            "scatter": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "thermo": {
+              "correct": 30,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 30,
+              "with_record": 30
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              10.1282,
+              12.3128
+            ],
+            "mean": 11.2,
+            "n": 195
+          }
+        }
+      },
+      "paired": {
+        "B3_minus_B2_correct": {
+          "a_only": 116,
+          "b_only": 0,
+          "ci95": [
+            0.5231,
+            0.6615
+          ],
+          "mean": 0.5949,
+          "worlds": 195
+        },
+        "B3_minus_B2_force_fit": {
+          "a_only": 0,
+          "b_only": 90,
+          "ci95": [
+            -0.5282,
+            -0.3897
+          ],
+          "mean": -0.4615,
+          "worlds": 195
+        }
+      },
+      "worlds_aliased": 45,
+      "worlds_primary": 195
+    },
+    "8": {
+      "arms": {
+        "B2": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 18,
+            "other_claim": 16,
+            "surrogate_claim": 11
+          },
+          "correct_no_claim": {
+            "k": 126,
+            "n": 195,
+            "rate": 0.6462,
+            "wilson95": [
+              0.5768,
+              0.7099
+            ]
+          },
+          "correct_with_record": {
+            "k": 126,
+            "n": 195,
+            "rate": 0.6462,
+            "wilson95": [
+              0.5768,
+              0.7099
+            ]
+          },
+          "false_null": {
+            "k": 9,
+            "n": 195,
+            "rate": 0.0462,
+            "wilson95": [
+              0.0245,
+              0.0854
+            ]
+          },
+          "force_fit": {
+            "k": 60,
+            "n": 195,
+            "rate": 0.3077,
+            "wilson95": [
+              0.2471,
+              0.3757
+            ]
+          },
+          "outcomes": {
+            "NO_EFFECT_BEYOND_NOISE": 9,
+            "STOPPED_INSUFFICIENT_VALIDATION": 58,
+            "STOPPED_UNEXPLAINED": 68,
+            "SURVIVING_PENDING_WARRANT_GATE": 60
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.laser": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.polarization": {
+              "correct": 3,
+              "false_null": 0,
+              "force_fit": 12,
+              "n": 15,
+              "with_record": 3
+            },
+            "fcd": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "geometry.gap": {
+              "correct": 6,
+              "false_null": 6,
+              "force_fit": 3,
+              "n": 15,
+              "with_record": 6
+            },
+            "geometry.thickness": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "geometry.width": {
+              "correct": 14,
+              "false_null": 0,
+              "force_fit": 1,
+              "n": 15,
+              "with_record": 14
+            },
+            "leakage": {
+              "correct": 0,
+              "false_null": 0,
+              "force_fit": 15,
+              "n": 15,
+              "with_record": 0
+            },
+            "nonlinear": {
+              "correct": 27,
+              "false_null": 3,
+              "force_fit": 0,
+              "n": 30,
+              "with_record": 27
+            },
+            "scatter": {
+              "correct": 1,
+              "false_null": 0,
+              "force_fit": 14,
+              "n": 15,
+              "with_record": 1
+            },
+            "thermo": {
+              "correct": 30,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 30,
+              "with_record": 30
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              5.1795,
+              5.8308
+            ],
+            "mean": 5.5026,
+            "n": 195
+          }
+        },
+        "B3": {
+          "aliased": {
+            "n": 45,
+            "no_claim": 45,
+            "other_claim": 0,
+            "surrogate_claim": 0
+          },
+          "correct_no_claim": {
+            "k": 189,
+            "n": 195,
+            "rate": 0.9692,
+            "wilson95": [
+              0.9345,
+              0.9858
+            ]
+          },
+          "correct_with_record": {
+            "k": 189,
+            "n": 195,
+            "rate": 0.9692,
+            "wilson95": [
+              0.9345,
+              0.9858
+            ]
+          },
+          "false_null": {
+            "k": 6,
+            "n": 195,
+            "rate": 0.0308,
+            "wilson95": [
+              0.0142,
+              0.0655
+            ]
+          },
+          "force_fit": {
+            "k": 0,
+            "n": 195,
+            "rate": 0.0,
+            "wilson95": [
+              0.0,
+              0.0193
+            ]
+          },
+          "outcomes": {
+            "NO_EFFECT_BEYOND_NOISE": 6,
+            "STOPPED_INSUFFICIENT_VALIDATION": 84,
+            "STOPPED_UNEXPLAINED": 105
+          },
+          "per_family": {
+            "chain.fiber": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.laser": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "chain.polarization": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "fcd": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "geometry.gap": {
+              "correct": 10,
+              "false_null": 5,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 10
+            },
+            "geometry.thickness": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "geometry.width": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "leakage": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "nonlinear": {
+              "correct": 29,
+              "false_null": 1,
+              "force_fit": 0,
+              "n": 30,
+              "with_record": 29
+            },
+            "scatter": {
+              "correct": 15,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 15,
+              "with_record": 15
+            },
+            "thermo": {
+              "correct": 30,
+              "false_null": 0,
+              "force_fit": 0,
+              "n": 30,
+              "with_record": 30
+            }
+          },
+          "realized_cost": {
+            "bootstrap95": [
+              5.9692,
+              6.6205
+            ],
+            "mean": 6.2872,
+            "n": 195
+          }
+        }
+      },
+      "paired": {
+        "B3_minus_B2_correct": {
+          "a_only": 63,
+          "b_only": 0,
+          "ci95": [
+            0.2615,
+            0.3897
+          ],
+          "mean": 0.3231,
+          "worlds": 195
+        },
+        "B3_minus_B2_force_fit": {
+          "a_only": 0,
+          "b_only": 60,
+          "ci95": [
+            -0.3744,
+            -0.2462
+          ],
+          "mean": -0.3077,
+          "worlds": 195
+        }
+      },
+      "worlds_aliased": 45,
+      "worlds_primary": 195
+    }
+  },
+  "headline_primary": {
+    "12": {
+      "B2": {
+        "abstained_correctly": {
+          "k": 100,
+          "n": 195,
+          "rate": 0.5128,
+          "wilson95": [
+            0.4431,
+            0.582
+          ]
+        },
+        "abstained_with_record": {
+          "k": 100,
+          "n": 195,
+          "rate": 0.5128,
+          "wilson95": [
+            0.4431,
+            0.582
+          ]
+        },
+        "false_null": {
+          "k": 17,
+          "n": 195,
+          "rate": 0.0872,
+          "wilson95": [
+            0.0551,
+            0.1352
+          ]
+        },
+        "force_fit": {
+          "k": 78,
+          "n": 195,
+          "rate": 0.4,
+          "wilson95": [
+            0.3338,
+            0.4701
+          ]
+        },
+        "realized_cost_mean": 6.5641
+      },
+      "B3": {
+        "abstained_correctly": {
+          "k": 180,
+          "n": 195,
+          "rate": 0.9231,
+          "wilson95": [
+            0.877,
+            0.9528
+          ]
+        },
+        "abstained_with_record": {
+          "k": 180,
+          "n": 195,
+          "rate": 0.9231,
+          "wilson95": [
+            0.877,
+            0.9528
+          ]
+        },
+        "false_null": {
+          "k": 6,
+          "n": 195,
+          "rate": 0.0308,
+          "wilson95": [
+            0.0142,
+            0.0655
+          ]
+        },
+        "force_fit": {
+          "k": 9,
+          "n": 195,
+          "rate": 0.0462,
+          "wilson95": [
+            0.0245,
+            0.0854
+          ]
+        },
+        "realized_cost_mean": 8.2462
+      }
+    },
+    "24": {
+      "B2": {
+        "abstained_correctly": {
+          "k": 78,
+          "n": 195,
+          "rate": 0.4,
+          "wilson95": [
+            0.3338,
+            0.4701
+          ]
+        },
+        "abstained_with_record": {
+          "k": 78,
+          "n": 195,
+          "rate": 0.4,
+          "wilson95": [
+            0.3338,
+            0.4701
+          ]
+        },
+        "false_null": {
+          "k": 25,
+          "n": 195,
+          "rate": 0.1282,
+          "wilson95": [
+            0.0884,
+            0.1824
+          ]
+        },
+        "force_fit": {
+          "k": 92,
+          "n": 195,
+          "rate": 0.4718,
+          "wilson95": [
+            0.403,
+            0.5417
+          ]
+        },
+        "realized_cost_mean": 7.559
+      },
+      "B3": {
+        "abstained_correctly": {
+          "k": 187,
+          "n": 195,
+          "rate": 0.959,
+          "wilson95": [
+            0.9211,
+            0.9791
+          ]
+        },
+        "abstained_with_record": {
+          "k": 187,
+          "n": 195,
+          "rate": 0.959,
+          "wilson95": [
+            0.9211,
+            0.9791
+          ]
+        },
+        "false_null": {
+          "k": 3,
+          "n": 195,
+          "rate": 0.0154,
+          "wilson95": [
+            0.0052,
+            0.0442
+          ]
+        },
+        "force_fit": {
+          "k": 5,
+          "n": 195,
+          "rate": 0.0256,
+          "wilson95": [
+            0.011,
+            0.0586
+          ]
+        },
+        "realized_cost_mean": 10.8205
+      }
+    },
+    "48": {
+      "B2": {
+        "abstained_correctly": {
+          "k": 73,
+          "n": 195,
+          "rate": 0.3744,
+          "wilson95": [
+            0.3095,
+            0.4441
+          ]
+        },
+        "abstained_with_record": {
+          "k": 73,
+          "n": 195,
+          "rate": 0.3744,
+          "wilson95": [
+            0.3095,
+            0.4441
+          ]
+        },
+        "false_null": {
+          "k": 28,
+          "n": 195,
+          "rate": 0.1436,
+          "wilson95": [
+            0.1013,
+            0.1997
+          ]
+        },
+        "force_fit": {
+          "k": 94,
+          "n": 195,
+          "rate": 0.4821,
+          "wilson95": [
+            0.4129,
+            0.5519
+          ]
+        },
+        "realized_cost_mean": 7.759
+      },
+      "B3": {
+        "abstained_correctly": {
+          "k": 189,
+          "n": 195,
+          "rate": 0.9692,
+          "wilson95": [
+            0.9345,
+            0.9858
+          ]
+        },
+        "abstained_with_record": {
+          "k": 189,
+          "n": 195,
+          "rate": 0.9692,
+          "wilson95": [
+            0.9345,
+            0.9858
+          ]
+        },
+        "false_null": {
+          "k": 2,
+          "n": 195,
+          "rate": 0.0103,
+          "wilson95": [
+            0.0028,
+            0.0366
+          ]
+        },
+        "force_fit": {
+          "k": 4,
+          "n": 195,
+          "rate": 0.0205,
+          "wilson95": [
+            0.008,
+            0.0515
+          ]
+        },
+        "realized_cost_mean": 11.2
+      }
+    },
+    "8": {
+      "B2": {
+        "abstained_correctly": {
+          "k": 126,
+          "n": 195,
+          "rate": 0.6462,
+          "wilson95": [
+            0.5768,
+            0.7099
+          ]
+        },
+        "abstained_with_record": {
+          "k": 126,
+          "n": 195,
+          "rate": 0.6462,
+          "wilson95": [
+            0.5768,
+            0.7099
+          ]
+        },
+        "false_null": {
+          "k": 9,
+          "n": 195,
+          "rate": 0.0462,
+          "wilson95": [
+            0.0245,
+            0.0854
+          ]
+        },
+        "force_fit": {
+          "k": 60,
+          "n": 195,
+          "rate": 0.3077,
+          "wilson95": [
+            0.2471,
+            0.3757
+          ]
+        },
+        "realized_cost_mean": 5.5026
+      },
+      "B3": {
+        "abstained_correctly": {
+          "k": 189,
+          "n": 195,
+          "rate": 0.9692,
+          "wilson95": [
+            0.9345,
+            0.9858
+          ]
+        },
+        "abstained_with_record": {
+          "k": 189,
+          "n": 195,
+          "rate": 0.9692,
+          "wilson95": [
+            0.9345,
+            0.9858
+          ]
+        },
+        "false_null": {
+          "k": 6,
+          "n": 195,
+          "rate": 0.0308,
+          "wilson95": [
+            0.0142,
+            0.0655
+          ]
+        },
+        "force_fit": {
+          "k": 0,
+          "n": 195,
+          "rate": 0.0,
+          "wilson95": [
+            0.0,
+            0.0193
+          ]
+        },
+        "realized_cost_mean": 6.2872
+      }
+    }
+  },
+  "label": "held-out P3 seeds",
+  "never_confirmed": true,
+  "safe_arm_decisions": {
+    "12": {
+      "aliased": {
+        "abstained_with_open_anomaly": 18,
+        "catalog_incomplete_detected": 9,
+        "confidence": {
+          "ADEQUATE": 14,
+          "NONE": 21,
+          "PROVISIONAL": 10
+        },
+        "decisions": {
+          "ABSTAIN": 31,
+          "ENDORSE_PENDING_WARRANT_GATE": 14
+        },
+        "engine_claim_withheld": 26,
+        "engine_claimed": 40,
+        "inadequacy_reproduced": 15,
+        "n": 45,
+        "probe_units_mean": 2.6889,
+        "proposals": 9,
+        "proposals_fitting_observed": 9,
+        "proposals_stage_1_only": true,
+        "reasons": {
+          "ADEQUACY_UNVERIFIED": 10,
+          "CATALOG_INCOMPLETE": 7,
+          "CATALOG_INCOMPLETE_UNREPLICATED": 1,
+          "CLAIM_INADEQUATE": 8,
+          "ENDORSED": 14,
+          "NO_ENGINE_CLAIM": 5
+        },
+        "with_discriminating_request": 27,
+        "with_reframed_question": 27
+      },
+      "primary": {
+        "abstained_with_open_anomaly": 144,
+        "catalog_incomplete_detected": 128,
+        "confidence": {
+          "ADEQUATE": 15,
+          "NONE": 173,
+          "PROVISIONAL": 7
+        },
+        "decisions": {
+          "ABSTAIN": 180,
+          "ENDORSE_PENDING_WARRANT_GATE": 15
+        },
+        "engine_claim_withheld": 80,
+        "engine_claimed": 95,
+        "inadequacy_reproduced": 53,
+        "n": 195,
+        "probe_units_mean": 1.6821,
+        "proposals": 128,
+        "proposals_fitting_observed": 126,
+        "proposals_stage_1_only": true,
+        "reasons": {
+          "ADEQUACY_UNVERIFIED": 7,
+          "CATALOG_INCOMPLETE": 42,
+          "CATALOG_INCOMPLETE_UNREPLICATED": 16,
+          "CLAIM_INADEQUATE": 15,
+          "ENDORSED": 15,
+          "NO_ENGINE_CLAIM": 100
+        },
+        "with_discriminating_request": 150,
+        "with_reframed_question": 150
+      }
+    },
+    "24": {
+      "aliased": {
+        "abstained_with_open_anomaly": 21,
+        "catalog_incomplete_detected": 9,
+        "confidence": {
+          "ADEQUATE": 24,
+          "NONE": 21
+        },
+        "decisions": {
+          "ABSTAIN": 21,
+          "ENDORSE_PENDING_WARRANT_GATE": 24
+        },
+        "engine_claim_withheld": 20,
+        "engine_claimed": 44,
+        "inadequacy_reproduced": 19,
+        "n": 45,
+        "probe_units_mean": 8.6889,
+        "proposals": 9,
+        "proposals_fitting_observed": 9,
+        "proposals_stage_1_only": true,
+        "reasons": {
+          "CATALOG_INCOMPLETE": 8,
+          "CLAIM_INADEQUATE": 12,
+          "ENDORSED": 24,
+          "NO_ENGINE_CLAIM": 1
+        },
+        "with_discriminating_request": 17,
+        "with_reframed_question": 21
+      },
+      "primary": {
+        "abstained_with_open_anomaly": 181,
+        "catalog_incomplete_detected": 168,
+        "confidence": {
+          "ADEQUATE": 8,
+          "NONE": 185,
+          "PROVISIONAL": 2
+        },
+        "decisions": {
+          "ABSTAIN": 187,
+          "ENDORSE_PENDING_WARRANT_GATE": 8
+        },
+        "engine_claim_withheld": 109,
+        "engine_claimed": 117,
+        "inadequacy_reproduced": 105,
+        "n": 195,
+        "probe_units_mean": 3.2615,
+        "proposals": 168,
+        "proposals_fitting_observed": 165,
+        "proposals_stage_1_only": true,
+        "reasons": {
+          "ADEQUACY_UNVERIFIED": 2,
+          "CATALOG_INCOMPLETE": 93,
+          "CATALOG_INCOMPLETE_UNREPLICATED": 2,
+          "CLAIM_INADEQUATE": 12,
+          "ENDORSED": 8,
+          "NO_ENGINE_CLAIM": 78
+        },
+        "with_discriminating_request": 182,
+        "with_reframed_question": 182
+      }
+    },
+    "48": {
+      "aliased": {
+        "abstained_with_open_anomaly": 21,
+        "catalog_incomplete_detected": 9,
+        "confidence": {
+          "ADEQUATE": 24,
+          "NONE": 21
+        },
+        "decisions": {
+          "ABSTAIN": 21,
+          "ENDORSE_PENDING_WARRANT_GATE": 24
+        },
+        "engine_claim_withheld": 20,
+        "engine_claimed": 44,
+        "inadequacy_reproduced": 20,
+        "n": 45,
+        "probe_units_mean": 9.0444,
+        "proposals": 9,
+        "proposals_fitting_observed": 9,
+        "proposals_stage_1_only": true,
+        "reasons": {
+          "CATALOG_INCOMPLETE": 8,
+          "CLAIM_INADEQUATE": 12,
+          "ENDORSED": 24,
+          "NO_ENGINE_CLAIM": 1
+        },
+        "with_discriminating_request": 17,
+        "with_reframed_question": 21
+      },
+      "primary": {
+        "abstained_with_open_anomaly": 189,
+        "catalog_incomplete_detected": 177,
+        "confidence": {
+          "ADEQUATE": 6,
+          "NONE": 189
+        },
+        "decisions": {
+          "ABSTAIN": 189,
+          "ENDORSE_PENDING_WARRANT_GATE": 6
+        },
+        "engine_claim_withheld": 116,
+        "engine_claimed": 122,
+        "inadequacy_reproduced": 115,
+        "n": 195,
+        "probe_units_mean": 3.441,
+        "proposals": 177,
+        "proposals_fitting_observed": 174,
+        "proposals_stage_1_only": true,
+        "reasons": {
+          "CATALOG_INCOMPLETE": 103,
+          "CATALOG_INCOMPLETE_UNREPLICATED": 1,
+          "CLAIM_INADEQUATE": 12,
+          "ENDORSED": 6,
+          "NO_ENGINE_CLAIM": 73
+        },
+        "with_discriminating_request": 189,
+        "with_reframed_question": 189
+      }
+    },
+    "8": {
+      "aliased": {
+        "abstained_with_open_anomaly": 21,
+        "catalog_incomplete_detected": 8,
+        "confidence": {
+          "NONE": 33,
+          "PROVISIONAL": 12
+        },
+        "decisions": {
+          "ABSTAIN": 45
+        },
+        "engine_claim_withheld": 27,
+        "engine_claimed": 27,
+        "inadequacy_reproduced": 0,
+        "n": 45,
+        "probe_units_mean": 0.8444,
+        "proposals": 8,
+        "proposals_fitting_observed": 8,
+        "proposals_stage_1_only": true,
+        "reasons": {
+          "ADEQUACY_UNVERIFIED": 12,
+          "CATALOG_INCOMPLETE_UNREPLICATED": 7,
+          "CLAIM_INADEQUATE": 8,
+          "NO_ENGINE_CLAIM": 18
+        },
+        "with_discriminating_request": 28,
+        "with_reframed_question": 28
+      },
+      "primary": {
+        "abstained_with_open_anomaly": 113,
+        "catalog_incomplete_detected": 102,
+        "confidence": {
+          "ADEQUATE": 6,
+          "NONE": 163,
+          "PROVISIONAL": 26
+        },
+        "decisions": {
+          "ABSTAIN": 189,
+          "ENDORSE_PENDING_WARRANT_GATE": 6
+        },
+        "engine_claim_withheld": 63,
+        "engine_claimed": 69,
+        "inadequacy_reproduced": 20,
+        "n": 195,
+        "probe_units_mean": 0.7846,
+        "proposals": 102,
+        "proposals_fitting_observed": 99,
+        "proposals_stage_1_only": true,
+        "reasons": {
+          "ADEQUACY_UNVERIFIED": 26,
+          "CATALOG_INCOMPLETE": 16,
+          "CATALOG_INCOMPLETE_UNREPLICATED": 15,
+          "CLAIM_INADEQUATE": 6,
+          "ENDORSED": 6,
+          "NO_ENGINE_CLAIM": 126
+        },
+        "with_discriminating_request": 134,
+        "with_reframed_question": 134
+      }
+    }
+  },
+  "seeds_per_class": 15,
+  "specs_digest": "sha256:9ed29068990bdc0c04389ac5d4a651f89ea20a611551f6d42ba31b775c38bff6",
+  "worlds": 240,
+  "worlds_aliased": 45,
+  "worlds_primary": 195
+}

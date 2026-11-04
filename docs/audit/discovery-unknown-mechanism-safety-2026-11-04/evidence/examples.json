@@ -1,0 +1,308 @@
+{
+  "catalog_incomplete": {
+    "assessment": {
+      "adequacy": [
+        {
+          "adequate": false,
+          "chi2": 7439.201822,
+          "dof": 35,
+          "fingerprint": "sha256:73442395adb915d8de34916ee44de64de8a1a57a6a9eba39867688a8b83161a0",
+          "hypothesis_id": "hyp:cladding.index_drift",
+          "n": 36,
+          "p_value": 0.0,
+          "worst_observation": "obs:12",
+          "worst_z": 52.298683
+        }
+      ],
+      "adequate_alternatives": [],
+      "anomalies": [
+        "anm:3",
+        "anm:4",
+        "anm:5",
+        "anm:6",
+        "anm:7",
+        "anm:8",
+        "anm:9",
+        "anm:10",
+        "anm:11",
+        "anm:12"
+      ],
+      "catalog_incomplete": true,
+      "confidence": "NONE",
+      "decision": "ABSTAIN",
+      "discriminating_tests_passed": 0,
+      "distinct_hypotheses_checked": 117,
+      "engine_claim": [
+        "hyp:cladding.index_drift"
+      ],
+      "engine_outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "excluded_as_noise": [],
+      "inadequacy_reproduced": true,
+      "notes": [],
+      "probes": [
+        {
+          "claim_signal": true,
+          "experiment_id": "gas_cell_reference",
+          "max_abs_z_under_claim": 51.87497,
+          "observation_id": "obs:11",
+          "purpose": "ADEQUACY_PROBE",
+          "replicates": null
+        },
+        {
+          "claim_signal": true,
+          "experiment_id": "gas_cell_reference",
+          "max_abs_z_under_claim": 52.298683,
+          "observation_id": "obs:12",
+          "purpose": "PROBE_REPLICATION",
+          "replicates": "obs:11"
+        }
+      ],
+      "proposal": {
+        "closest_declared": "hyp:cladding.index_drift",
+        "closest_separation": 58.783205,
+        "fit_p_value": 0.296312,
+        "fits_observed": true,
+        "observed_null": [
+          [
+            "baseline",
+            "il"
+          ],
+          [
+            "baseline",
+            "kappa"
+          ],
+          [
+            "baseline",
+            "loss"
+          ],
+          [
+            "gas_cell_reference",
+            "shift"
+          ],
+          [
+            "power_sweep",
+            "dloss"
+          ],
+          [
+            "power_sweep",
+            "dshift"
+          ],
+          [
+            "tec_stabilized",
+            "loss"
+          ]
+        ],
+        "proposal_id": "proposal:234f38e769f7",
+        "required_next": "a prospective test on an experiment NOT used to derive the signature (one of the experiments never run, or a declared one first extended with a forward model for this family), and a forward model a person writes for it -- the table read off the residuals supports nothing by itself",
+        "signature": [
+          {
+            "entry_id": "shift",
+            "experiment_id": "baseline",
+            "mean": 80.022161,
+            "runs": 6,
+            "z": 65.33782
+          },
+          {
+            "entry_id": "refline",
+            "experiment_id": "gas_cell_reference",
+            "mean": 78.130239,
+            "runs": 2,
+            "z": 73.661896
+          },
+          {
+            "entry_id": "shift",
+            "experiment_id": "tec_stabilized",
+            "mean": 78.84867,
+            "runs": 2,
+            "z": 37.16962
+          }
+        ],
+        "stage": "STAGE_1_EXPLORATORY_IDEA",
+        "statement": "PROPOSAL (stage-1 exploratory idea, not a claim): an effect outside the declared catalog, none of whose 117 distinct forward models is adequate to the admitted data, with the tabulated signature [baseline.shift +80 (+65.3 SE, 6 run(s)); gas_cell_reference.refline +78.1 (+73.7 SE, 2 run(s)); tec_stabilized.shift +78.8 (+37.2 SE, 2 run(s))]; no significant effect on 7 other observed entries; nothing is predicted for the 7 experiment(s) never run",
+        "status": "PROPOSAL_NOT_A_CLAIM",
+        "unobserved_experiments": [
+          "fiber_recouple",
+          "polarization_controlled",
+          "width_array",
+          "gap_array",
+          "radius_array",
+          "wavelength_span",
+          "cutback"
+        ]
+      },
+      "protocol_digest": "sha256:27fc5feb4916271c37b5b1800998ea08ba816e0f2311711d96d7e55689675b25",
+      "reason": "CATALOG_INCOMPLETE",
+      "reframed_question": "Reframed: which mechanism OUTSIDE the declared catalog ('why has the ring's resonance drifted and its loss risen above design?') produces the signature of proposal:234f38e769f7? None of the 117 distinct forward models the catalog expresses (noise model, single classes, family pairs) is adequate to the admitted data.",
+      "requests": [
+        {
+          "available": true,
+          "experiment_id": "gas_cell_reference",
+          "pairs": [
+            [
+              "proposal:234f38e769f7",
+              "hyp:cladding.index_drift",
+              58.089697
+            ],
+            [
+              "proposal:234f38e769f7",
+              "hyp:geometry.gap_large+geometry.thickness",
+              58.029871
+            ],
+            [
+              "proposal:234f38e769f7",
+              "hyp:geometry.gap_large+geometry.width_wide",
+              58.029871
+            ]
+          ],
+          "purpose": "DISCRIMINATE_PROPOSAL",
+          "rationale": "the stage-1 proposal and the declared candidate predict outcomes that differ by the stated separation in one run; a replicate tests the proposal on data not used to derive it",
+          "replicates_needed": 1
+        }
+      ],
+      "signal_covered": [
+        "baseline",
+        "tec_stabilized",
+        "gas_cell_reference"
+      ],
+      "signal_experiments": [
+        "baseline",
+        "tec_stabilized",
+        "gas_cell_reference",
+        "width_array"
+      ],
+      "spent_by_engine": 12,
+      "spent_on_probes": 4
+    },
+    "budget": 24,
+    "engine_claim": [
+      "hyp:cladding.index_drift"
+    ],
+    "engine_outcome": "SURVIVING_PENDING_WARRANT_GATE",
+    "world_id_revealed_after_run": "held_out-chain.laser_drift-00"
+  },
+  "in_catalog_endorsed": {
+    "assessment": {
+      "adequacy": [
+        {
+          "adequate": true,
+          "chi2": 24.448226,
+          "dof": 22,
+          "fingerprint": "sha256:dd597c33d05e4fbbf42296cb900591a9e91ad4c7db3fd42981a8fe876584fea0",
+          "hypothesis_id": "hyp:chain.fiber_coupling",
+          "n": 23,
+          "p_value": 0.324181,
+          "worst_observation": "obs:4",
+          "worst_z": 2.145961
+        }
+      ],
+      "adequate_alternatives": [],
+      "anomalies": [],
+      "catalog_incomplete": false,
+      "confidence": "ADEQUATE",
+      "decision": "ENDORSE_PENDING_WARRANT_GATE",
+      "discriminating_tests_passed": 7,
+      "distinct_hypotheses_checked": 1,
+      "engine_claim": [
+        "hyp:chain.fiber_coupling"
+      ],
+      "engine_outcome": "SURVIVING_PENDING_WARRANT_GATE",
+      "excluded_as_noise": [
+        "obs:1"
+      ],
+      "inadequacy_reproduced": null,
+      "notes": [],
+      "probes": [
+        {
+          "claim_signal": false,
+          "experiment_id": "power_sweep",
+          "max_abs_z_under_claim": 2.145961,
+          "observation_id": "obs:4",
+          "purpose": "ADEQUACY_PROBE",
+          "replicates": null
+        },
+        {
+          "claim_signal": false,
+          "experiment_id": "polarization_controlled",
+          "max_abs_z_under_claim": 0.690195,
+          "observation_id": "obs:5",
+          "purpose": "ADEQUACY_PROBE",
+          "replicates": null
+        },
+        {
+          "claim_signal": false,
+          "experiment_id": "wavelength_span",
+          "max_abs_z_under_claim": 0.862065,
+          "observation_id": "obs:6",
+          "purpose": "ADEQUACY_PROBE",
+          "replicates": null
+        },
+        {
+          "claim_signal": false,
+          "experiment_id": "tec_stabilized",
+          "max_abs_z_under_claim": 0.564137,
+          "observation_id": "obs:7",
+          "purpose": "ADEQUACY_PROBE",
+          "replicates": null
+        },
+        {
+          "claim_signal": false,
+          "experiment_id": "gas_cell_reference",
+          "max_abs_z_under_claim": 0.853225,
+          "observation_id": "obs:8",
+          "purpose": "ADEQUACY_PROBE",
+          "replicates": null
+        },
+        {
+          "claim_signal": false,
+          "experiment_id": "width_array",
+          "max_abs_z_under_claim": 1.795435,
+          "observation_id": "obs:9",
+          "purpose": "ADEQUACY_PROBE",
+          "replicates": null
+        },
+        {
+          "claim_signal": false,
+          "experiment_id": "gap_array",
+          "max_abs_z_under_claim": 0.755046,
+          "observation_id": "obs:10",
+          "purpose": "ADEQUACY_PROBE",
+          "replicates": null
+        },
+        {
+          "claim_signal": false,
+          "experiment_id": "radius_array",
+          "max_abs_z_under_claim": 0.972052,
+          "observation_id": "obs:11",
+          "purpose": "ADEQUACY_PROBE",
+          "replicates": null
+        },
+        {
+          "claim_signal": false,
+          "experiment_id": "cutback",
+          "max_abs_z_under_claim": 0.252014,
+          "observation_id": "obs:12",
+          "purpose": "ADEQUACY_PROBE",
+          "replicates": null
+        }
+      ],
+      "proposal": null,
+      "protocol_digest": "sha256:27fc5feb4916271c37b5b1800998ea08ba816e0f2311711d96d7e55689675b25",
+      "reason": null,
+      "reframed_question": null,
+      "requests": [],
+      "signal_covered": [
+        "baseline",
+        "fiber_recouple"
+      ],
+      "signal_experiments": [
+        "baseline",
+        "fiber_recouple"
+      ],
+      "spent_by_engine": 3,
+      "spent_on_probes": 16
+    },
+    "budget": 24,
+    "truth_in_catalog": true,
+    "world_id": "held_out-chain.fiber_coupling-00"
+  }
+}

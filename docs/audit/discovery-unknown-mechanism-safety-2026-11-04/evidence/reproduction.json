@@ -1,0 +1,29 @@
+{
+  "B2": {
+    "12": {
+      "digest_identical_to_recorded": 240,
+      "force_fit": 78,
+      "force_fit_rate": 0.4,
+      "primary_worlds": 195,
+      "recorded_force_fit": 78,
+      "runs": 240
+    },
+    "24": {
+      "digest_identical_to_recorded": 240,
+      "force_fit": 92,
+      "force_fit_rate": 0.4718,
+      "primary_worlds": 195,
+      "recorded_force_fit": 92,
+      "runs": 240
+    }
+  },
+  "engine_sources_match_frozen_manifest": true,
+  "evaluation_sources_match_frozen_manifest": true,
+  "frozen_engine_evidence": "docs/audit/discovery-loop-offline-2026-11-01/evidence",
+  "frozen_engine_manifest_sha256": "sha256:d58ffb401a26a14a614d80b56bcda18505d40c44bea5195baebe6323ada3e9d9",
+  "frozen_evaluation_evidence": "docs/audit/discovery-independent-evaluation-2026-11-02/evidence",
+  "frozen_evaluation_manifest_sha256": "sha256:c0172f3f275b1d74a4a1af8324d898ae837fbcd68b8675769b45660e2b20efad",
+  "held_out_worlds_specs_digest": "sha256:9ed29068990bdc0c04389ac5d4a651f89ea20a611551f6d42ba31b775c38bff6",
+  "recorded_held_out_worlds_specs_digest": "sha256:9ed29068990bdc0c04389ac5d4a651f89ea20a611551f6d42ba31b775c38bff6",
+  "reproduced": true
+}
