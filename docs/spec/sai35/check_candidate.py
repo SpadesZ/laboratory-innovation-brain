@@ -53,7 +53,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[3]
 REGISTRY = "docs/spec/sai35/normative-statements.yaml"
 BASE_REVISION = "a38ad63a4f4ad83c895cbd1e32b2e760d878f356"
-VERSION = "3.5.0-master-candidate.2"
+VERSION = "3.5.0-master-candidate.3"
 MASTER = "docs/spec/SAI_3.5.md"
 ACTIVE_SPEC = "docs/spec/ACTIVE_SPEC.yaml"
 WORKFLOW = ".github/workflows/ci.yml"
@@ -187,12 +187,18 @@ DISTINGUISHABILITY = {
     "transitive_merge_allowed": False,
     "diversity": "max_pairwise_certified_distinguishable_set",
     "unresolved_counts_in_headline": False,
+    "near_duplicate_invariant": False,
+    "diversity_role": "descriptive_never_primary",
     "adequacy_required_before_endorsement": True,
 }
 MATCHED_COST = {
     "primary_rule": "frozen_realized_cost_checkpoints",
     "checkpoints_frozen_before_any_arm_runs": True,
-    "charge_attempts_at_start": True,
+    "reservation_before_start": True,
+    "checkpoint_accounting": "retrospective_on_settled_cost",
+    "operations_charged_from_start": True,
+    "unsettled_charged_at": "reservation",
+    "overrun_or_missing_headroom": "incident_cost_unmatched",
     "straddling_attempt_supplies_checkpoint": False,
     "score_depends_only_on_own_trace": True,
     "min_final_cost_rule": "secondary_only",
@@ -204,8 +210,19 @@ TERMINATION_DIMENSIONS = {
     "scientific_acceptance": ["NONE", "PENDING_CAUSAL_WARRANT_GATE", "ACCEPTED_DISCOVERY"],
     "stop_before_experiment": ["VALID", "NOT_PERFORMED", "NONE"],
 }
-S1_COUNTEREXAMPLES = [f"S1-CE-{n}" for n in range(1, 11)]
-S2_COUNTEREXAMPLES = [f"S2-CE-{n}" for n in range(1, 7)]
+S1_COUNTEREXAMPLES = [*(f"S1-CE-{n}" for n in range(1, 12)), "S3-CE"]
+S2_COUNTEREXAMPLES = [f"S2-CE-{n}" for n in range(1, 11)]
+EVALUATION_OUTCOMES = [
+    "EXACT_IDENTIFICATION",
+    "INDISTINGUISHABLE_ALTERNATIVE",
+    "UNRESOLVED_ALTERNATIVE",
+    "CORRECT_ABSTENTION",
+    "FALSE_NULL",
+    "FORCE_FIT",
+    "WRONG_CLAIM",
+    "VALIDATED_NEW_MECHANISM",
+    "NEW_MECHANISM_PROPOSAL_ONLY",
+]
 GD_FRAMEWORK = {
     "separate_from_g0_g9": True,
     "g0_g9_completion_implies_discovery": False,
@@ -257,13 +274,25 @@ REQUIRED_PHRASES = {
         "(B) existing LIB workflow",
         "(C) LIB with Discovery",
     ),
-    "cmp.metrics": (*METRICS, "never raw hypothesis counts", "invalid"),
+    "cmp.metrics": (
+        *METRICS,
+        "never raw hypothesis counts",
+        "invalid",
+        "never merged: exact identification",
+        "experimentally indistinguishable alternative",
+        "correct abstention",
+        "independently validated new-mechanism discovery",
+        "counted only as a proposal",
+        "no outcome category is folded into another",
+    ),
     "cmp.matching": (
         "actual realized consumption",
         "COST_UNMATCHED",
         "information exposure",
         "frozen before any arm runs and independent of outcomes",
-        "charged its full realized cost when it starts",
+        "reserves its maximum cost before it starts",
+        "settles its realized cost after it ends",
+        "checkpoints are evaluated retrospectively on settled costs",
         "straddles a checkpoint supplies nothing to it",
         "early stopping cannot move the comparison point",
         "only a labelled secondary sensitivity analysis",
@@ -275,6 +304,8 @@ REQUIRED_PHRASES = {
         "may merge pairs transitively",
         "never a raw count of hypotheses",
         "A = 0, B = 0.75 and C = 1.50 at threshold 1",
+        "it is not invariant under near-duplicates",
+        "{0, 0.9, 1.8, 2.7} at threshold 1 giving diversity 2 that rises to 3",
         "diversity 2 (neither 1 nor 3)",
     ),
     "mech.search_space_expansion": (
@@ -639,6 +670,12 @@ def check(state: dict) -> None:  # one linear list of document rules
     assert data["matched_cost"] == MATCHED_COST, "matched-cost flags changed"
     assert data["epistemic_stage_scope"] == EPISTEMIC_STAGE_SCOPE, "epistemic stage scope changed"
     assert data["termination_dimensions"] == TERMINATION_DIMENSIONS, "termination dimensions"
+    assert data["evaluation_outcomes"] == EVALUATION_OUTCOMES, "evaluation outcomes changed"
+    for outcome in EVALUATION_OUTCOMES:
+        assert f"| `{outcome}` |" in texts[DISTINGUISH], f"outcome {outcome} not tabled"
+    for claim in ("Near-duplicates cannot raise", "non-gameable", "near-duplicate invariant"):
+        for path in NORMATIVE_TEXTS:
+            assert claim not in texts[path], f"{path}: unsupported guarantee {claim!r}"
     for ce in S1_COUNTEREXAMPLES:
         assert f"| {ce} |" in texts[DISTINGUISH], f"Appendix S lacks counterexample {ce}"
     for ce in S2_COUNTEREXAMPLES:
@@ -971,6 +1008,35 @@ MUTATIONS: dict[str, Callable[[dict], None]] = {
     "ladder_removed": _replace(GOVERNANCE, "## 9. Authorization ladder", "## 9. Notes"),
     "termination_row_removed": _first_line(LIFECYCLE, "| experimental completion |", "| x |"),
     "consistency_row_removed": _first_line(CONSISTENCY, "| S35-CMP-002 |", "| removed |"),
+    # candidate.3
+    "near_duplicate_invariance_claimed": _set(
+        "distinguishability", "near_duplicate_invariant", value=True
+    ),
+    "diversity_primary": _set("distinguishability", "diversity_role", value="primary"),
+    "checkpoints_on_reservation": _set(
+        "matched_cost", "checkpoint_accounting", value="charged_at_reservation"
+    ),
+    "overrun_tolerated": _set("matched_cost", "overrun_or_missing_headroom", value="tolerated"),
+    "outcomes_merged": lambda s: s["registry"]["evaluation_outcomes"].remove(
+        "INDISTINGUISHABLE_ALTERNATIVE"
+    ),
+    "guarantee_reasserted": _replace(
+        DISTINGUISH, "What it does **not** guarantee", "Near-duplicates cannot raise it"
+    ),
+    "s1_ce11_removed": _first_line(DISTINGUISH, "| S1-CE-11 |", "| removed |"),
+    "s2_ce7_removed": _first_line(PROTOCOL, "| S2-CE-7 |", "| removed |"),
+    "outcome_row_removed": _replace(
+        DISTINGUISH, "| `VALIDATED_NEW_MECHANISM` |", "| VALIDATED_NEW_MECHANISM |"
+    ),
+    "near_dup_text_removed": _both(
+        "it is not invariant under near-duplicates", "it is invariant under near-duplicates"
+    ),
+    "settlement_text_removed": _both(
+        "checkpoints are evaluated retrospectively on settled costs", "checkpoints use caps"
+    ),
+    "outcomes_text_merged": _both(
+        "no outcome category is folded into another", "categories may be summed"
+    ),
 }
 
 

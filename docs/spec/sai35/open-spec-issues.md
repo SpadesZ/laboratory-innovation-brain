@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix P: Open spec issues
 
-Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: informative register. A conflict found between SAI 3.5 and an inherited text, or inside
 SAI 3.5, is recorded here and stops the affected slice (S35-GOV-001, SAI 3.3 AGT-015). These issues
 use the prefix `S35-ISSUE-` so they never collide with `docs/spec_issues/SPEC-ISSUE-NNN` on any line.
@@ -23,4 +23,7 @@ implementation slice until resolved.
 | S35-ISSUE-12 | Candidate.1 matched arms at the smallest final realized consumption, chosen after execution and dependent on outcomes | A: post-hoc level; B: frozen realized-cost checkpoints | B ([Appendix J](matched-budget-protocol.md) §3.3); values under OD-03 | G-D0 | CORRECTED IN CANDIDATE.2, pending review |
 | S35-ISSUE-13 | Candidate.1 S35-HYP-001 gave every "scientific object" an epistemic stage, which no problem, observation, anomaly or registration can have | A: universal stages; B: hypotheses and claims only | B (S35-HYP-001, Appendix C §3.1) | P35-2 projection | CORRECTED IN CANDIDATE.2, pending review |
 | S35-ISSUE-14 | Exploration under AL3 versus "stage 1 zero-cost only"; a safe stop called a "complete" campaign | A: candidate.1 wording; B: authorization ladder and three termination dimensions | B (Appendix E §9, lifecycle.md §3.1) | P35-2 orchestrator, P35-4 envelope | CORRECTED IN CANDIDATE.2, pending review |
+| S35-ISSUE-16 | Candidate.2 claimed that near-duplicates cannot raise the maximum-clique diversity; {0, 0.9, 1.8, 2.7} plus 1.1 at τ = 1 raises it from 2 to 3 | A: change the metric; B: keep the definition, remove the guarantee, make diversity descriptive only | B (Appendix S §4, S1-CE-11) | G-D0 scorer | CORRECTED IN CANDIDATE.3, pending review |
+| S35-ISSUE-17 | Candidate.2 charged each attempt its "full realized cost when it starts", which is unknowable for variable-cost model calls | A: charge reservations; B: reserve before, settle after, account retrospectively on settled costs | B (Appendix J §3.3, S2-CE-7…10) | G-D0 harness | CORRECTED IN CANDIDATE.3, pending review |
+| S35-ISSUE-18 | Candidate.2 credited exact and indistinguishable claims together and counted a correct stop inside true-cause discovery; validated new mechanisms were not separated from proposals | A: one merged score; B: separate outcome categories | B (Appendix S §6, S35-CMP-005) | G-D0 scorer | CORRECTED IN CANDIDATE.3, pending review; primary category under OD-03 |
 | S35-ISSUE-15 | Force-fit when the true mechanism family is absent from the held set: no requirement forbade endorsing the best-fitting inadequate mechanism | A: best fit wins; B: adequacy before endorsement, abstention allowed | B (S35-MECH-002, Appendix S §8); criterion under OD-18; engineering design on branch `claude/lib-implementation-agent-47evs0-discovery` | P35-2 Discovery integration; G-D1 | OPEN (OD-18) |

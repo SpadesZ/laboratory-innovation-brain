@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix J: Matched-budget A/B/C comparison protocol
 
-Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** Nothing in this protocol
+Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** Nothing in this protocol
 has been run. Values marked *proposed* are recommendations for Owner decision OD-03, not frozen.
 Authority: normative. Refines S35-CMP-001–009 of [SAI 3.5](../SAI_3.5.md). Supersedes the
 `3.5.0-discovery-candidate.1` version of this file (kept in git history).
@@ -69,23 +69,35 @@ sensitivity analysis (§3.5).
    ladder at 25 %, 50 % and 100 % of the cap; OD-03). The ladder, c*, the cost table and the
    tolerance are in the protocol hash. A checkpoint not in the frozen ladder is refused by the
    analysis code (S2-CE-5).
-2. **Charging.** Every atomic attempt (model call, tool call, simulation, experiment request,
-   retry, parsing repair, failed or timed-out attempt) is charged its full realized cost, converted
-   by the frozen cost table, **at the moment it starts**. Local and declared-free model calls are
-   charged in cost units like any other (S35-COST-001). The cumulative charge at time t is the sum
-   over every attempt started at or before t, including attempts still in flight.
-3. **Answer held at a checkpoint.** An arm's answer at checkpoint c is the last anytime answer it
-   committed while its cumulative charge was ≤ c. If none, it holds no claim at c.
-4. **Atomic actions.** Because charges are taken at start, an attempt that straddles c (its start
-   charge takes the cumulative charge above c) cannot supply evidence to the answer at c: the answer
-   at c was committed before that attempt (S2-CE-2). An arm cannot split an atomic experiment to
-   claim part of its result, and cannot receive a result it did not pay for within c.
+2. **Reservation before execution.** Every atomic operation (model call, tool call, simulation,
+   experiment request, retry, parsing repair) reserves its **maximum** cost in frozen cost units
+   before it starts: for a model call, the maximum input and output tokens it may consume times the
+   frozen price; for an experiment, its cost-table entry; for a timed operation, its timeout times
+   the rate. It may start only if the settled cost of everything before it plus the reservations of
+   everything in flight, including its own, fits under the cap. This is what prevents overspend; it
+   is enforced at run time (S35-COST-001).
+3. **Settlement after execution.** When the operation ends, its realized cost is settled from the
+   meter or provider ledger and the unused part of the reservation is released. A settlement above
+   the reservation is an **overrun incident**. An operation that cannot be settled (crash, missing
+   bill) is charged its full reservation, so missing data can only make an arm look more expensive.
+   Local and declared-free model calls are settled in cost units like any other.
+4. **Retrospective checkpoint accounting.** After the case, the analysis replays the trace with
+   settled costs. The cumulative charge at time t is the settled cost of every operation **started**
+   at or before t, including operations still in flight at t, charged in full. An arm's answer at
+   checkpoint c is the last anytime answer it committed while that charge was ≤ c; if none, it holds
+   no claim at c. Because an operation's result can only be used after it ends, and the operation is
+   charged from its start, an operation that straddles c (the charge before it ≤ c, the charge
+   including it > c) cannot supply evidence to the answer at c (S2-CE-2), whatever its realized cost
+   turns out to be. Variable-cost operations are therefore counted at what they actually cost
+   (S2-CE-7), without letting the runtime spend beyond its reservations and without letting a result
+   leak into an earlier checkpoint.
 5. **Early stopping.** An arm that stops at cumulative charge s holds its final answer at every
    checkpoint ≥ s. Stopping moves no checkpoint and changes no other arm's score: each arm's answer
    at c is a function of its own trace only (S2-CE-1). An arm that stops early with a wrong answer is
    scored wrong at every later checkpoint.
-6. **Cap.** Reaching the cap ends the case as `STOPPED (budget)`; an attempt whose start would
-   exceed the cap is refused and is an incident if it runs (S35-CMP-008).
+6. **Cap.** Reaching the cap ends the case as `STOPPED (budget)`; an operation whose reservation
+   does not fit under the remaining cap is refused before it starts and is an incident if it runs
+   (S35-CMP-008).
 7. **Primary result.** The primary analysis compares arms on their answers at c*, paired by case,
    with the statistics of §6. The other checkpoints give the pre-registered anytime curve, reported
    in full and never used to pick the primary point.
@@ -99,7 +111,10 @@ A case is **COST_UNMATCHED** at a checkpoint when any compared arm, for that cas
 - has no anytime answer stamped with its cumulative charge;
 - ran under a different cap, cost table or environment manifest (S2-CE-6), or the checkpoint exceeds
   its cap;
-- has consumption in a dimension the frozen cost table cannot convert.
+- has consumption in a dimension the frozen cost table cannot convert;
+- started an operation without reservation headroom under the cap, or settled an operation above
+  its reservation (S2-CE-8, S2-CE-9): these are budget incidents (§8), and the affected run is also
+  INVALID under S35-CMP-008.
 
 A COST_UNMATCHED case stays in the denominator. In the primary analysis it is scored, for each claim
 of superiority, against the arm whose records are deficient (that arm is scored incorrect when the
@@ -130,6 +145,10 @@ fixtures.
 | S2-CE-4 | twenty model calls of 2 units, then a 5-unit experiment | calls ignored as "free" | charged 45: no claim at 25, claim at 50 |
 | S2-CE-5 | the analyst picks checkpoint 30 after seeing results | accepted | refused |
 | S2-CE-6 | one arm with a lower cap | compared anyway | COST_UNMATCHED |
+| S2-CE-7 | a model call reserves 30, settles 5, then the decisive answer | charged 30 (or ignored) | charged 5 retrospectively: the answer counts at checkpoint 25 |
+| S2-CE-8 | 80 settled, then a call reserving 30 under a cap of 100 (it settles at 10) | accepted because the settlement fit | incident: started without reservation headroom; COST_UNMATCHED |
+| S2-CE-9 | a call reserves 10 and settles 12 | charged 12 silently | overrun incident; COST_UNMATCHED |
+| S2-CE-10 | a call reserving 40 crashes without a bill, then an answer | charged 0 | charged its reservation 40: no claim at 25, claim at 50 |
 
 ## 4. Benchmark and hidden-world generation
 
@@ -153,8 +172,8 @@ every arm, with n, the estimate and an interval.
 
 | Metric | Definition | Notes |
 |---|---|---|
-| **true-cause discovery** | share of cases whose answer at the primary checkpoint names the true mechanism or one certified `INDISTINGUISHABLE` from it under the case's full experiment set ([Appendix S](mechanism-distinguishability.md) §6); `UNRESOLVED` is credited only in the reported upper bound; in a no-mechanism case a correct `INSUFFICIENT_VALIDATION` counts as correct | scored at the claim's stated state; a correct mechanism held only as an exploratory idea does not count |
-| **effective mechanism diversity** | certified lower bound (with the upper bound) on the largest number of the arm's admitted hypotheses that are pairwise `DISTINGUISHABLE` under the case's full experiment set ([Appendix S](mechanism-distinguishability.md) §4), and whether the true mechanism was held | never raw hypothesis counts and never a transitive class count; `UNRESOLVED` pairs are listed |
+| **true-cause discovery** (outcome categories; candidate.3) | at the primary checkpoint, each case gets one outcome of [Appendix S](mechanism-distinguishability.md) §6: exact identification, indistinguishable alternative, unresolved alternative, correct abstention, false null, force-fit, wrong claim, validated new mechanism, proposal only; every category's rate is reported separately with n and a Wilson interval, and none is folded into another | the primary scalar is one pre-registered category (*proposed*: exact-identification rate over the cases whose truth is in the arm's catalog, with force-fit and correct-abstention rates as pre-registered safety endpoints); proposals never count as discoveries |
+| **effective mechanism diversity** | certified lower bound (with the upper bound) on the largest number of the arm's admitted hypotheses that are pairwise `DISTINGUISHABLE` under the case's full experiment set ([Appendix S](mechanism-distinguishability.md) §4), and whether the true mechanism was held | never raw hypothesis counts and never a transitive class count; `UNRESOLVED` pairs are listed; descriptive only: not invariant under near-duplicates (S1-CE-11), reported with the raw count and the span, never primary and never by itself evidence that an arm discovers better |
 | **discriminating-experiment efficiency** | experiments and realized cost units charged until every surviving held mechanism is in the true mechanism's neighbourhood (none certified distinguishable from it survives) and every other is refuted | censored at the cap; reported as a cost-to-discrimination curve and median with censoring |
 | **false discoveries** | false-discovery rate (wrong claims at SUPPORTED or higher ÷ claims at SUPPORTED or higher) and a weighted score: wrong CONFIRMED × w_c, wrong SUPPORTED × w_s, confident claim where a stop was correct × w_stop | *proposed* w_c = 10, w_s = 3, w_stop = 3 (OD-03) |
 | **independent reproducibility** | share of a pre-registered subset that the evaluator re-runs in a fresh environment from the frozen manifest with the same final claim and state | any manifest drift makes the re-run invalid, not reproduced; an invalid rate above the frozen limit invalidates the comparison |

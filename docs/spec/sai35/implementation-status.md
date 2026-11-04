@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix L: Implementation status
 
-Version: `3.5.0-master-candidate.2` · Inspected: 2026-11-04 (candidate.1: 2026-11-02).
+Version: `3.5.0-master-candidate.3` · Inspected: 2026-11-04, candidate.3 (candidate.1: 2026-11-02).
 Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`. G0 is NOT PASSED.
 Authority: informative. The status column is checked against the
 [registry](normative-statements.yaml); evidence paths are checked to exist at their commits when
@@ -144,10 +144,10 @@ Evidence written `<commit>:<path>` exists at that commit; a path without a prefi
 | S35-GD-002 | blocked | — | no frozen protocol, evaluator or benchmark (OD-02, OD-03) |
 | S35-GD-003 | proposed | — | no verdict records exist to check |
 | S35-CMP-001 | partial | `118a4ac:src/lab_brain/discovery/baselines.py`<br>`118a4ac:src/lab_brain/discovery/benchmark.py` | offline arms B0, B1 and B2 only: B0 is a deterministic stand-in, not an LLM, so arm A does not exist; B1 re-implements the loop policy, not the real LIB workflow |
-| S35-CMP-002 | partial | `118a4ac:src/lab_brain/discovery/benchmark.py` | the offline run matched worlds, seeds and caps, but not realized consumption: B2 spent about four times B1's budget; no evaluator implements the frozen realized-cost checkpoints of candidate.2 (the rule exists only in `docs/spec/sai35/semantic_reference.py`) |
+| S35-CMP-002 | partial | `118a4ac:src/lab_brain/discovery/benchmark.py` | the offline run matched worlds, seeds and caps, but not realized consumption: B2 spent about four times B1's budget; no evaluator implements the frozen realized-cost checkpoints, nor the reservation-before-execution and retrospective settlement of candidate.3 (the rules exist only in `docs/spec/sai35/semantic_reference.py`); equal caps on any line are not matched realized cost |
 | S35-CMP-003 | proposed | — | no blinded scoring of discovery outputs; the offline run was scored by its author |
 | S35-CMP-004 | proposed | — | the offline worlds share an author with the engine; protocol and tooling for an independent hidden-world evaluation are on discovery-independent-evaluation @ d7ec9f2 (pushed, not reviewed); no independent worlds yet |
-| S35-CMP-005 | partial | `118a4ac:src/lab_brain/discovery/metrics.py` | offline correct outcome, false discovery, class diversity and budget metrics; its class diversity is a transitive count, not the certified diversity of candidate.2; no independent reproducibility |
+| S35-CMP-005 | partial | `118a4ac:src/lab_brain/discovery/metrics.py` | offline correct outcome, false discovery, class diversity and budget metrics; its class diversity is a transitive count, not the certified diversity of candidate.2; no scorer separates the nine outcome categories of candidate.3 (Appendix S §6); no independent reproducibility |
 | S35-CMP-006 | partial | `118a4ac:src/lab_brain/discovery/metrics.py`<br>`f41758c:src/lab_brain/evaluation/stats.py` | Wilson and bootstrap intervals exist; no evaluator-frozen statistical plan |
 | S35-CMP-007 | partial | `f41758c:src/lab_brain/evaluation/contamination.py` | G0 contamination tooling on the unintegrated G0 line; no G-D contamination report |
 | S35-CMP-008 | partial | `118a4ac:src/lab_brain/discovery/benchmark.py` | offline per-case budget stops; no study-level or incident rules |

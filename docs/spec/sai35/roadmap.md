@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix H: Dependency-aware roadmap from the current G0 state to the complete product
 
-Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative for phase prerequisites, exit evidence and Owner gates; informative for
 ordering where no dependency is stated. No durations are given because none has been measured.
 These phases change neither `docs/milestones.yaml` (M0a–M8), the SAI 3.4 profile milestones nor

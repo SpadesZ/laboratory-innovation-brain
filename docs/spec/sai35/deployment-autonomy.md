@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix G: Deployment architecture and production autonomy without external coding agents
 
-Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Refines S35-AUTO-001–003 of [SAI 3.5](../SAI_3.5.md) and restates SAI 3.4
 ASM-001 and G9 for discovery without weakening them. Nothing here has been tested.
 

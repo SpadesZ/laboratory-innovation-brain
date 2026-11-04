@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix C: Scientific records, schemas, persistent state and state machines
 
-Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Refines the record and state obligations of [SAI 3.5](../SAI_3.5.md) §3.
 These are logical schemas: no table, migration or runtime model exists for any record introduced
 here. Each needs its own ADR, migration and tests (SAI 3.3 AGT-004, AGT-005).

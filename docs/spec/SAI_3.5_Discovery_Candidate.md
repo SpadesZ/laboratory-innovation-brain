@@ -1,6 +1,6 @@
 > **SUPERSEDED — historical record.** This file is `3.5.0-discovery-candidate.1` of 2026-11-01,
 > kept unchanged below this note. It is superseded by the master specification candidate
-> [SAI_3.5.md](SAI_3.5.md) (`3.5.0-master-candidate.1`, now `3.5.0-master-candidate.2`, CANDIDATE — NOT ACTIVE). Its requirements
+> [SAI_3.5.md](SAI_3.5.md) (`3.5.0-master-candidate.1`, now `3.5.0-master-candidate.3`, CANDIDATE — NOT ACTIVE). Its requirements
 > D-001…D-046 are retired: each is audited in the [requirement audit](sai35/requirement-audit.md)
 > and mapped to `S35-<AREA>-NNN` identifiers in the [change register](sai35/change-register.md).
 > Its companion links now lead to the master's appendices, which were rewritten in place (earlier

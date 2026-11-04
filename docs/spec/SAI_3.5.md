@@ -1,6 +1,6 @@
 # SAI 3.5 — Autonomous AI Scientist for Silicon Photonics (master specification)
 
-Version: `3.5.0-master-candidate.2` · Date: 2026-11-04 ·
+Version: `3.5.0-master-candidate.3` · Date: 2026-11-04 ·
 Base: `integration-integrity-accounts` @ `a38ad63a4f4ad83c895cbd1e32b2e760d878f356`
 
 Status: **CANDIDATE — NOT ACTIVE.** Not integrated; it does not change SAI 3.4 (`3.4.0-phased.1`), SAI 3.3 or the G0–G9 acceptance gates.
@@ -89,6 +89,20 @@ S35-LOOP-003, S35-SEC-001, S35-REG-003, [Appendix E](sai35/governance-security.m
 [semantic consistency report](sai35/semantic-consistency-report.md). The definitions and their
 counterexamples are executable in [semantic_reference.py](sai35/semantic_reference.py), which the
 candidate checker runs.
+
+### 0.6.1 Revision candidate.3
+
+`3.5.0-master-candidate.3` corrects three findings of the Independent Chief Auditor's review of
+candidate.2, again without changing any identifier: (1) the maximum-clique diversity of
+S35-MECH-001 can rise when a near-duplicate is added (counterexample S1-CE-11: {0, 0.9, 1.8, 2.7}
+plus 1.1 at τ = 1 goes from 2 to 3); the definition is kept and the unsupported anti-inflation
+guarantees are removed; (2) S35-CMP-002, S35-COST-001 and Appendix J §3.3 now separate
+pre-execution cost reservation from post-execution settlement and evaluate checkpoints
+retrospectively on settled costs, so variable-cost model calls are counted at what they cost while
+overspend and cross-checkpoint evidence leakage stay impossible (S2-CE-7…10); (3) S35-CMP-005,
+Appendix S §6 and Appendix I §5 separate exact identification, experimentally indistinguishable
+alternatives, correct abstention and independently validated new-mechanism discovery (S3-CE). See
+the [change register](sai35/change-register.md) §7.
 
 ### 0.7 Two kinds of validity
 
@@ -447,16 +461,22 @@ DISTINGUISHABLE, INDISTINGUISHABLE or UNRESOLVED. Pairwise indistinguishability 
 equivalence relation: no count, score, novelty decision or refutation may merge pairs transitively.
 Mechanism diversity is never a raw count of hypotheses: it is the largest number of held hypotheses
 that are pairwise certified DISTINGUISHABLE under E, reported as a lower bound with UNRESOLVED pairs
-treated as not distinguishable and, while any pair is UNRESOLVED, with an upper bound beside it. The
-verdicts are deterministic, versioned and recomputed whenever E, the threshold, the replicates or a
-parameter domain changes; every reported figure names the version of E and lists the aliases and
-UNRESOLVED pairs. *Acceptance (T-S35-MECH-001, deterministic):* the counterexamples S1-CE-1 to
-S1-CE-10 of mechanism-distinguishability.md hold, including A = 0, B = 0.75 and C = 1.50 at
-threshold 1 giving A/B and B/C INDISTINGUISHABLE, A/C DISTINGUISHABLE and diversity 2 (neither 1 nor
-3); adding fifty aliases or near-duplicate variants leaves the diversity unchanged; adding one
-mechanism raises it by at most one; a transitive merge or connected-component count is rejected;
-identical inputs give identical verdicts; changing E recomputes them; the report generator refuses a
-diversity figure without an E version.
+treated as not distinguishable and, while any pair is UNRESOLVED, with an upper bound beside it.
+This figure is invariant under aliases, never decreases when a mechanism is added, rises by at most
+one per added mechanism and never exceeds the packing bound of the predictions' span under E; it is
+not invariant under near-duplicates, which can raise it (counterexample S1-CE-11), so it describes
+the spread of the held set and is never by itself evidence of discovery ability or of distinct
+mechanism families. The verdicts are deterministic, versioned and recomputed whenever E, the
+threshold, the replicates or a parameter domain changes; every reported figure names the version of
+E and lists the aliases and UNRESOLVED pairs. *Acceptance (T-S35-MECH-001, deterministic):* the
+counterexamples S1-CE-1 to S1-CE-11 of mechanism-distinguishability.md hold, including A = 0, B =
+0.75 and C = 1.50 at threshold 1 giving A/B and B/C INDISTINGUISHABLE, A/C DISTINGUISHABLE and
+diversity 2 (neither 1 nor 3), and {0, 0.9, 1.8, 2.7} at threshold 1 giving diversity 2 that rises
+to 3 when the near-duplicate 1.1 is added; adding fifty aliases leaves the diversity unchanged;
+adding one mechanism raises it by at most one; no document or report claims near-duplicate
+invariance; a transitive merge or connected-component count is rejected; identical inputs give
+identical verdicts; changing E recomputes them; the report generator refuses a diversity figure
+without an E version.
 
 <!-- statement: mech.search_space_expansion -->
 **S35-MECH-002 MUST** — When every live hypothesis fails, when a tested anomaly persists, when
@@ -689,14 +709,15 @@ reframing.
 outcome is an explicit INSUFFICIENT_VALIDATION or STOPPED record with its reason, what was tried,
 what it cost and what would be needed to continue. Such an outcome is a valid operational
 termination and a success of governance, not a failure of the system; it is not a completed
-experimental campaign unless S35-GOV-003 holds, and it is never a discovery. It is scored as correct
-where no mechanism can be validated with the available means, and a stop made before any experiment
-is reported with experimental completion NOT_PERFORMED. A confident claim where a stop was warranted
-is a false discovery. *Acceptance (T-S35-LOOP-003, deterministic and empirical):* deterministic: a
-campaign that cannot discriminate within budget ends with a StopRecord carrying all four fields; a
-campaign stopped before any experiment is reported as VALID, NOT_PERFORMED and NONE and is never
-rendered as a finding; empirical: in G-D1 no-mechanism worlds a correct stop is scored correct and a
-confident claim is scored a false discovery.
+experimental campaign unless S35-GOV-003 holds, and it is never a discovery. It is scored as a
+correct abstention, reported separately from identification, where no held mechanism can be
+validated with the available means, and a stop made before any experiment is reported with
+experimental completion NOT_PERFORMED. A confident claim where a stop was warranted is a false
+discovery. *Acceptance (T-S35-LOOP-003, deterministic and empirical):* deterministic: a campaign
+that cannot discriminate within budget ends with a StopRecord carrying all four fields; a campaign
+stopped before any experiment is reported as VALID, NOT_PERFORMED and NONE and is never rendered as
+a finding; empirical: in G-D1 no-mechanism worlds a correct stop is scored correct and a confident
+claim is scored a false discovery.
 
 ### 3.12 Confirmation authority (CWG)
 
@@ -1007,15 +1028,17 @@ CLOSED_STOPPED.
 ### 3.19 Cost governance (COST)
 
 <!-- statement: cost.realized_consumption -->
-**S35-COST-001 MUST** — Every model call, compute use, licensed run and experiment reserves budget
-before its side effect and records its actual realized consumption afterwards (tokens, compute
-seconds, money, seat time, wall time), including failures, retries and parsing repairs. Realized
-consumption is reconciled against reservations per campaign and per envelope and reported with every
-result. No endpoint, local or remote, is presumed free: a free declaration is an Owner act for one
-exact model at one endpoint (rule 011v of the G0 line). *Acceptance (T-S35-COST-001,
-deterministic):* a call without a reservation is refused before sending; ledger totals equal the sum
-of attempt records including failures; a request to an undeclared local endpoint is refused unsent;
-a wildcard free declaration is refused.
+**S35-COST-001 MUST** — Every model call, compute use, licensed run and experiment reserves its
+maximum cost before its side effect (pre-execution reservation) and records its actual realized
+consumption afterwards (post-execution settlement, never above the reservation without an overrun
+incident) (tokens, compute seconds, money, seat time, wall time), including failures, retries and
+parsing repairs. Realized consumption is reconciled against reservations per campaign and per
+envelope and reported with every result. No endpoint, local or remote, is presumed free: a free
+declaration is an Owner act for one exact model at one endpoint (rule 011v of the G0 line).
+*Acceptance (T-S35-COST-001, deterministic):* a call without a reservation is refused before
+sending; ledger totals equal the sum of attempt records including failures; a settlement above its
+reservation is recorded as an overrun incident; a request to an undeclared local endpoint is refused
+unsent; a wildcard free declaration is refused.
 
 <!-- statement: cost.ceilings -->
 **S35-COST-002 MUST** — Campaigns and envelopes have money, token, compute, seat-time and wall-time
@@ -1075,22 +1098,27 @@ experimental conditions (the same cost table, simulator access, time limit, seed
 environment manifest); and on resources, by actual realized consumption, not only by caps. Every arm
 runs under the same caps. The primary analysis scores every arm at the realized-cost checkpoints of
 matched-budget-protocol.md §3.3, frozen before any arm runs and independent of outcomes: every
-attempt (model call, tool call, experiment, retry, repair or failure) is charged its full realized
-cost when it starts; an arm's answer at a checkpoint is the last answer it committed while its
-cumulative charge was within the checkpoint, so an atomic action that straddles a checkpoint
+atomic operation (model call, tool call, experiment, retry, repair or failure) reserves its maximum
+cost before it starts and may start only if that reservation fits under the cap, and settles its
+realized cost after it ends; checkpoints are evaluated retrospectively on settled costs, with every
+operation started before an answer charged in full and an unsettled operation charged its
+reservation; an arm's answer at a checkpoint is the last answer it committed while its cumulative
+settled charge was within the checkpoint, so an atomic operation that straddles a checkpoint
 supplies nothing to it; and an arm's answer depends only on its own trace, so early stopping cannot
 move the comparison point. A case whose consumption records are incomplete, unreconciled or not
-comparable within the frozen tolerance is COST_UNMATCHED; it stays in the denominator, scored
+comparable within the frozen tolerance, or in which an operation started without reservation
+headroom or settled above its reservation, is COST_UNMATCHED; it stays in the denominator, scored
 against the arm whose records are deficient, and a comparison with more such cases than the frozen
 limit cannot support a claim that one arm is better at equal budget. Matching at the smallest final
 realized consumption among the arms, or by any rule chosen after execution, is only a labelled
 secondary sensitivity analysis. *Acceptance (T-S35-CMP-002, deterministic):* the evaluation harness
 refuses to score an arm whose manifest differs from another's in a matched field; realized
 consumption per case and arm is recorded including failures, retries and model calls; the
-counterexamples S2-CE-1 to S2-CE-6 of matched-budget-protocol.md §3.6 hold (an early-stopping arm
-does not move the comparison point, a straddling experiment is excluded at its checkpoint, and an
-unreconciled ledger, unequal caps or a post-hoc checkpoint yield COST_UNMATCHED or a refusal); every
-secondary matching is labelled secondary.
+counterexamples S2-CE-1 to S2-CE-10 of matched-budget-protocol.md §3.6 hold (an early-stopping arm
+does not move the comparison point, a straddling experiment is excluded at its checkpoint, a
+variable-cost call is counted at its settled cost, an unsettled call at its reservation, and an
+unreconciled ledger, unequal caps, missing reservation headroom, an overrun or a post-hoc checkpoint
+yield COST_UNMATCHED or a refusal); every secondary matching is labelled secondary.
 
 <!-- statement: cmp.blinding -->
 **S35-CMP-003 MUST** — Scoring is blinded. The evaluator is not the implementer. Arm identities are
@@ -1115,19 +1143,27 @@ the case-list hash is unchanged at scoring.
 
 <!-- statement: cmp.metrics -->
 **S35-CMP-005 MUST** — Five metrics are reported for every arm, each with definition, unit, n and
-interval: (1) true-cause discovery, the share of cases whose answer at the primary checkpoint names
-the true mechanism or one certified INDISTINGUISHABLE from it under the case's full experiment set,
-with UNRESOLVED credited only in a reported upper bound (a correct stop counts in no-mechanism
-cases); (2) effective mechanism diversity, the certified lower and upper bounds of S35-MECH-001
-under the case's experiment set, never raw hypothesis counts or transitive class counts; (3)
-discriminating-experiment efficiency, experiments and realized cost until no held mechanism
-certified distinguishable from the true one survives, censored at the budget; (4) false discoveries,
-the false-discovery rate at SUPPORTED or higher plus a weighted score in which confident wrong
-claims weigh more; (5) independent reproducibility, the share of a pre-registered subset that the
-evaluator reproduces in a fresh environment from the frozen manifest, where any manifest drift makes
-the re-run invalid. Exactly one primary metric is pre-registered. *Acceptance (T-S35-CMP-005,
-deterministic):* the scorer computes all five metrics from the frozen outputs; recomputation from
-the bundle gives identical numbers; a report missing a metric, its n or its interval is rejected.
+interval: (1) true-cause discovery, reported as separate outcome rates at the primary checkpoint and
+never merged: exact identification (the true mechanism's identity), experimentally indistinguishable
+alternative (another identity certified INDISTINGUISHABLE from it under the case's full experiment
+set), unresolved alternative (never credited), correct abstention (no claim where no held mechanism
+was acceptable), false null, force-fit, other wrong claims, and independently validated
+new-mechanism discovery (a mechanism outside the catalog at case start that matches the truth and
+passed a prospectively registered test the arm did not control), while an exploratory proposal that
+was not so validated is counted only as a proposal; (2) effective mechanism diversity, the certified
+lower and upper bounds of S35-MECH-001 under the case's experiment set, never raw hypothesis counts
+or transitive class counts; (3) discriminating-experiment efficiency, experiments and realized cost
+until no held mechanism certified distinguishable from the true one survives, censored at the
+budget; (4) false discoveries, the false-discovery rate at SUPPORTED or higher plus a weighted score
+in which confident wrong claims weigh more; (5) independent reproducibility, the share of a
+pre-registered subset that the evaluator reproduces in a fresh environment from the frozen manifest,
+where any manifest drift makes the re-run invalid. Exactly one primary metric is pre-registered, and
+no outcome category is folded into another to form it. *Acceptance (T-S35-CMP-005, deterministic):*
+the scorer computes all five metrics from the frozen outputs; the outcome counterexamples S3-CE of
+mechanism-distinguishability.md §9 are classified as stated, including an indistinguishable
+alternative never counted as an exact identification and an unvalidated proposal never counted as a
+discovery; recomputation from the bundle gives identical numbers; a report missing a metric, its n
+or its interval is rejected.
 
 <!-- statement: cmp.statistics -->
 **S35-CMP-006 MUST** — Statistics are pre-registered before unsealing: the experimental unit (case),
@@ -1153,10 +1189,11 @@ exhaustion, time limit, or the arm's own STOPPED or INSUFFICIENT_VALIDATION outc
 the arm held at the frozen realized-cost checkpoints (S35-CMP-002) are scored. A study ends at its
 pre-registered n, at a pre-registered interim boundary, or on a governance incident (any arm
 breaching egress, budget or isolation), which invalidates the affected runs. A paid stage ends at
-the Owner's ceiling and is reported as partial. *Acceptance (T-S35-CMP-008, deterministic):* a case
-exceeding a cap is cut at the cap, an attempt straddling the cap supplies nothing to the scored
-answer, and the case is scored; an incident marks the affected runs INVALID; a paid stage at its
-ceiling is labelled partial.
+the Owner's ceiling and is reported as partial. *Acceptance (T-S35-CMP-008, deterministic):* an
+operation whose reservation does not fit under the remaining cap is refused before it starts; a case
+reaching the cap is scored on the answers it held, an operation straddling a checkpoint supplies
+nothing to it, and the case is scored; an incident marks the affected runs INVALID; a paid stage at
+its ceiling is labelled partial.
 
 <!-- statement: cmp.zero_cost_first -->
 **S35-CMP-009 MUST** — A zero-cost first stage comes before any paid stage: local models declared

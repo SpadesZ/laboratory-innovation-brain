@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix I: G0–G9 and the independent G-D acceptance framework
 
-Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** No G-D level has been
+Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** No G-D level has been
 evaluated. `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Refines S35-GD-001, S35-GD-002 and S35-GD-003 of [SAI 3.5](../SAI_3.5.md).
 Supersedes the `3.5.0-discovery-candidate.1` version of this file (kept in git history).
@@ -70,23 +70,26 @@ Rules at every level:
 
 - **Unit.** One case is one world, one literature case or one physical case. Steps, tokens, sweep
   points and repeated runs never increase n.
-- **Correct stop.** In a case where no mechanism can be validated with the available experiments,
-  `INSUFFICIENT_VALIDATION` or `STOPPED` with a correct reason is the correct answer
-  (S35-LOOP-003). Elsewhere a stop is scored "not discovered", not a false discovery.
-- **True cause.** A claim is correct when its mechanism has the true mechanism's identity or is
-  certified `INDISTINGUISHABLE` from it under the case's full experiment set; `UNRESOLVED` is
-  credited only in the reported upper bound; there is no equivalence class and no transitive merge
-  ([Appendix S](mechanism-distinguishability.md) §6). The evaluator computes the verdicts from sealed
-  truth.
+- **Outcomes.** Each case and arm is scored with exactly one outcome of
+  [Appendix S](mechanism-distinguishability.md) §6 (exact identification, indistinguishable
+  alternative, unresolved alternative, correct abstention, false null, force-fit, wrong claim,
+  validated new mechanism, proposal only), computed by the evaluator from sealed truth; there is no
+  equivalence class and no transitive merge. The rates are reported separately and never merged: a
+  correct abstention is a safety result, not an identification; an indistinguishable alternative is
+  correct within experimental resolution, not an exact identification; an exploratory proposal is
+  never a discovery. In a case where no mechanism can be validated, `INSUFFICIENT_VALIDATION` or
+  `STOPPED` with a correct reason is a correct abstention (S35-LOOP-003); a stop elsewhere is a false
+  null when a held mechanism matched the truth, not a false discovery.
 - **Matched cost.** Every arm is scored on the answers it held at the frozen realized-cost
-  checkpoints, primary at c* ([Appendix J](matched-budget-protocol.md) §3.3); COST_UNMATCHED cases
-  stay in the denominator.
+  checkpoints, primary at c*, with reservation before execution and retrospective settlement
+  ([Appendix J](matched-budget-protocol.md) §3.3); runs at equal caps are not thereby matched;
+  COST_UNMATCHED cases stay in the denominator.
 - **Force-fit.** Endorsing a held mechanism that fails the adequacy criterion, in a case whose true
   family is outside the held set, is a false discovery when stated at SUPPORTED or higher and is
   reported as a force-fit at every level (S35-MECH-002).
 - **Termination dimensions.** Every case reports operational termination, experimental completion
   and scientific acceptance ([lifecycle.md](lifecycle.md) §3.1); a stop before any experiment is
-  scored by the correct-stop rule and is never counted as a completed campaign.
+  scored by the outcome rule above and is never counted as a completed campaign.
 - **Crashes.** A crashed or timed-out case stays in the denominator as "not discovered"; the crash
   is reported.
 - **Governance breaches.** A breach of egress, budget, isolation or an Owner gate marks the case

@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix E: Security, human authorization, autonomy levels, permissions and cost
 
-Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Refines S35-SEC-001–006, S35-COST-001–002, S35-REG-002–003 and S35-CWG-002 of
 [SAI 3.5](../SAI_3.5.md). Inherited security rules (SAI 3.3 §14, SEC-001–004, COST-001; SAI 3.4
 ASM-014) apply unchanged; the SAI 3.4 security decisions A3, A9 and A12 stay OPEN.
@@ -86,7 +86,9 @@ this matrix for every normal writer (S35-SEC-005); the application checks it too
 
 ## 6. Cost governance
 
-- Every side effect reserves budget first and records realized consumption afterwards: tokens,
+- Every side effect reserves its maximum cost first (pre-execution reservation, which enforces the
+  cap) and settles its realized consumption afterwards (post-execution settlement; above the
+  reservation is an overrun incident; unsettled is charged the reservation): tokens,
   compute seconds, money, seat time, wall time, including failures, retries and parsing repairs
   (S35-COST-001, SAI 3.3 COST-001, CostVector §9.4).
 - Reservations reconcile against realized consumption per attempt, per campaign and per envelope.

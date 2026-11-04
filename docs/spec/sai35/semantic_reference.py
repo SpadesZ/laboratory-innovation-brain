@@ -33,7 +33,7 @@ import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
-VERSION = "3.5.0-master-candidate.2"
+VERSION = "3.5.0-master-candidate.3"
 
 DISTINGUISHABLE = "DISTINGUISHABLE"
 INDISTINGUISHABLE = "INDISTINGUISHABLE"
@@ -158,20 +158,61 @@ def neighbourhood(
     )
 
 
-def true_cause_score(
-    claimed: Mechanism | None, truth: Mechanism | None, e: ExperimentSet, threshold: float
-) -> tuple[bool, bool]:
-    """(primary, upper) credit for true-cause discovery (S35-CMP-005 metric 1).
+OUTCOMES = (
+    "EXACT_IDENTIFICATION",  # the claimed mechanism has the true mechanism's identity
+    "INDISTINGUISHABLE_ALTERNATIVE",  # another identity, certified INDISTINGUISHABLE from truth
+    "UNRESOLVED_ALTERNATIVE",  # another identity, UNRESOLVED against truth: never credited
+    "VALIDATED_NEW_MECHANISM",  # outside the catalog at case start, matches truth, prospectively
+    #                             validated by an independent party: the only "new discovery"
+    "NEW_MECHANISM_PROPOSAL_ONLY",  # outside the catalog, not prospectively validated: no credit
+    "CORRECT_ABSTENTION",  # no claim, and no held mechanism was acceptable
+    "FALSE_NULL",  # no claim, although a held mechanism matched truth
+    "FORCE_FIT",  # a held mechanism DISTINGUISHABLE from truth, truth outside the held set
+    "WRONG_CLAIM",  # any other wrong claim
+)
 
-    primary: the claim is credited only when its mechanism is the true one or certified
-    INDISTINGUISHABLE from it under the case's full E; in a no-mechanism case (truth None) only a
-    stop (claimed None) is credited. upper: UNRESOLVED also credited; reported as a sensitivity
-    bound, never as the primary figure.
+
+def classify_outcome(
+    claimed: Mechanism | None,
+    truth: Mechanism | None,
+    catalog: Sequence[Mechanism],
+    e: ExperimentSet,
+    threshold: float,
+    *,
+    prospectively_validated: bool = False,
+) -> str:
+    """One case's scientific-evaluation outcome (Appendix S §6, S35-CMP-005 metric 1).
+
+    The categories are reported separately and never merged: an exact identification, an
+    experimentally indistinguishable alternative, a correct abstention and a validated new
+    mechanism are four different achievements. `catalog` is the arm's held set at case start;
+    `truth` is None in a case where no mechanism can be validated with the available means.
     """
-    if truth is None or claimed is None:
-        return (claimed is None and truth is None,) * 2
+    held = {m.identity for m in catalog}
+
+    def matches(m: Mechanism) -> bool:
+        return truth is not None and pair_verdict(m, truth, e, threshold) == INDISTINGUISHABLE
+
+    if claimed is None:
+        return "FALSE_NULL" if any(matches(m) for m in catalog) else "CORRECT_ABSTENTION"
+    if truth is None:
+        return "WRONG_CLAIM"
+    if claimed.identity not in held:
+        if not prospectively_validated:
+            return "NEW_MECHANISM_PROPOSAL_ONLY"
+        return "VALIDATED_NEW_MECHANISM" if matches(claimed) else "WRONG_CLAIM"
+    if claimed.identity == truth.identity:
+        return "EXACT_IDENTIFICATION"
     verdict = pair_verdict(claimed, truth, e, threshold)
-    return verdict == INDISTINGUISHABLE, verdict != DISTINGUISHABLE
+    if verdict == INDISTINGUISHABLE:
+        return "INDISTINGUISHABLE_ALTERNATIVE"
+    if verdict == UNRESOLVED:
+        return "UNRESOLVED_ALTERNATIVE"
+    return (
+        "WRONG_CLAIM"
+        if truth.identity in held or any(matches(m) for m in catalog)
+        else ("FORCE_FIT")
+    )
 
 
 def novelty_against_prior_art(
@@ -218,11 +259,26 @@ def naive_transitive_classes(
 
 @dataclass(frozen=True)
 class Attempt:
-    """One atomic attempt: a model call, a tool call, an experiment, a retry or a failed try.
-    `cost` is its full realized cost in frozen cost units, charged when the attempt starts."""
+    """One atomic operation: a model call, a tool call, an experiment, a retry or a failed try.
+
+    `reserved` is the maximum cost reserved BEFORE it starts (pre-execution reservation, e.g.
+    max tokens × price, or the experiment's cost-table entry); it is what the runtime uses to
+    enforce the cap. `settled` is the realized cost recorded AFTER it ends (post-execution
+    settlement); None when it could not be settled (crash, missing bill), in which case the
+    reservation is charged. Checkpoint accounting is retrospective and uses `charge`."""
 
     kind: str
-    cost: float
+    reserved: float
+    settled: float | None = field(default=None)
+
+    @property
+    def charge(self) -> float:
+        return self.reserved if self.settled is None else self.settled
+
+
+def fixed(kind: str, cost: float) -> Attempt:
+    """An operation whose cost is known in advance: reservation equals settlement."""
+    return Attempt(kind, cost, cost)
 
 
 @dataclass(frozen=True)
@@ -241,10 +297,12 @@ class ArmTrace:
     manifest_hash: str = "m"
 
     def charged_answers(self) -> list[tuple[float, Answer]]:
+        """Each answer with the retrospective cumulative charge at its commit: the settled cost
+        of every operation started before it (in-flight operations included, in full)."""
         charged, out = 0.0, []
         for event in self.events:
             if isinstance(event, Attempt):
-                charged += event.cost
+                charged += event.charge
             else:
                 out.append((charged, event))
                 if event.stop:
@@ -252,7 +310,25 @@ class ArmTrace:
         return out
 
     def realized_total(self) -> float:
-        return sum(ev.cost for ev in self.events if isinstance(ev, Attempt))
+        return sum(ev.charge for ev in self.events if isinstance(ev, Attempt))
+
+    def settled_total(self) -> float:
+        return sum(ev.settled for ev in self.events if isinstance(ev, Attempt) and ev.settled)
+
+    def runtime_violations(self) -> list[str]:
+        """Pre-execution cap enforcement, replayed: an operation may start only if the settled
+        cost of the operations before it plus its own reservation stays within the cap; a
+        settlement above its reservation is an overrun. Either is a budget incident."""
+        problems, spent = [], 0.0
+        for ev in self.events:
+            if not isinstance(ev, Attempt):
+                continue
+            if spent + ev.reserved > self.cap + 1e-12:
+                problems.append("START_WITHOUT_RESERVATION_HEADROOM")
+            if ev.settled is not None and ev.settled > ev.reserved + 1e-12:
+                problems.append("SETTLEMENT_ABOVE_RESERVATION")
+            spent += ev.charge
+        return problems
 
 
 @dataclass(frozen=True)
@@ -268,11 +344,11 @@ class FrozenProtocol:
 
 
 def answer_at(trace: ArmTrace, checkpoint: float) -> str | None:
-    """The answer held at a checkpoint: the last answer committed while the cumulative charge
-    (the full cost of every attempt started before it) was ≤ checkpoint. An attempt that straddles
-    the checkpoint therefore cannot supply evidence to the checkpoint's answer. With no answer
-    committed in time, the arm holds no claim (scored as a stop without reason: not credited
-    except in a no-mechanism case, where it is still not a *reasoned* stop; see Appendix J §3.4)."""
+    """The answer held at a checkpoint: the last answer committed while the retrospective
+    cumulative charge (the settled cost of every operation started before it) was ≤ checkpoint.
+    An attempt that straddles the checkpoint therefore cannot supply evidence to the
+    checkpoint's answer. With no answer committed in time, the arm holds no claim, which
+    `classify_outcome` scores as CORRECT_ABSTENTION or FALSE_NULL."""
     held: str | None = None
     for charge, answer in trace.charged_answers():
         if charge > checkpoint:
@@ -292,7 +368,9 @@ def cost_matched(
     if len(caps) != 1 or len(manifests) != 1 or checkpoint > next(iter(caps)):
         return False
     for t in traces.values():
-        if abs(t.ledger_total - t.realized_total()) > protocol.tolerance:
+        if t.runtime_violations():
+            return False  # overspend risk or overrun: a budget incident, never matched
+        if abs(t.ledger_total - t.settled_total()) > protocol.tolerance:
             return False  # unrecorded attempts, failures, retries or model calls
         if not t.charged_answers():
             return False  # no anytime answer stamped with cumulative realized cost
@@ -400,6 +478,7 @@ TAU = 1.0
 def check(
     metric: Callable[..., tuple[int, int]] = diversity_bounds,
     score: Callable[..., object] = score_case,
+    classify: Callable[..., str] = classify_outcome,
 ) -> None:
     a, b, c = _m("A", 0.0), _m("B", 0.75), _m("C", 1.5)
 
@@ -416,9 +495,10 @@ def check(
     assert metric([a, b, c, *aliases], E1, TAU) == (2, 2), "aliases inflated diversity"
     assert pair_verdict(b, aliases[0], E1, TAU) == INDISTINGUISHABLE
 
-    # S1-CE-3: near-duplicates. Fifty distinct forward models within 0.1 of B add nothing.
+    # S1-CE-3: near-duplicates inside B's neighbourhood. Here fifty distinct forward models within
+    # 0.1 of B leave the diversity unchanged -- an illustration, NOT a guarantee (see S1-CE-11).
     near = [_m(f"N{i}", 0.70 + 0.002 * i) for i in range(50)]
-    assert metric([a, b, c, *near], E1, TAU) == (2, 2), "near-duplicates inflated diversity"
+    assert metric([a, b, c, *near], E1, TAU) == (2, 2)
 
     # S1-CE-4: parameter uncertainty. Ranges that can be made to agree are not distinguishable,
     # even though their nominal points are 3 apart.
@@ -445,20 +525,36 @@ def check(
     # S1-CE-7: replicates. More replicates shrink the standard error and can separate A and B.
     assert pair_verdict(a, b, ExperimentSet("E1r4", {"x": (1.0, 4)}), TAU) == DISTINGUISHABLE
 
-    # S1-CE-8: a monotone, non-gameable metric: adding one mechanism raises the lower bound by at
-    # most one, and only when it is certified distinguishable from every member of a clique.
+    # S1-CE-8: monotone and +1-bounded: adding one mechanism raises the lower bound by at most one,
+    # and only when it is certified distinguishable from every member of some clique. This does
+    # NOT make the metric non-gameable: S1-CE-11 adds a near-duplicate and gains one.
     for extra in (_m("X", 0.4), _m("Y", 3.0), _m("Z", 1.5, model="fm:C")):
         before, after = metric([a, b, c], E1, TAU)[0], metric([a, b, c, extra], E1, TAU)[0]
         assert after - before in (0, 1)
     assert metric([a, b, c, _m("Y", 3.0)], E1, TAU)[0] == 3
 
-    # S1-CE-9: true-cause scoring ignores names and does not credit unresolved claims.
+    # S1-CE-9 (candidate.3 S3-CE-1..7 below): outcome categories are separate, name-blind and never
+    # merged. Exact identification is identity, not "indistinguishable".
     truth = _m("truth", 0.0)
-    assert true_cause_score(_m("renamed", 0.0, model="fm:truth"), truth, E1, TAU) == (True, True)
-    assert true_cause_score(c, truth, E1, TAU) == (False, False)
-    assert true_cause_score(_m("V", 1.1, grid=0.2), truth, E1, TAU) == (False, True)
-    assert true_cause_score(None, None, E1, TAU) == (True, True)
-    assert true_cause_score(b, None, E1, TAU) == (False, False)
+    near_truth = _m("near", 0.5)  # another identity, INDISTINGUISHABLE from truth under E1
+    catalog = [truth, near_truth, c]
+    assert classify(_m("renamed", 0.0, model="fm:truth"), truth, catalog, E1, TAU) == (
+        "EXACT_IDENTIFICATION"
+    )
+    assert classify(near_truth, truth, catalog, E1, TAU) == "INDISTINGUISHABLE_ALTERNATIVE"
+    assert classify(c, truth, catalog, E1, TAU) == "WRONG_CLAIM"
+
+    # S1-CE-11 (audit counterexample, candidate.3): the maximum-clique diversity CAN rise when a
+    # near-duplicate is added. {0, 0.9, 1.8, 2.7} has diversity 2; adding 1.1, which is
+    # INDISTINGUISHABLE from 0.9, gives {0, 1.1, 2.7}, pairwise distinguishable: diversity 3.
+    chain = [_m(f"K{v}", v) for v in (0.0, 0.9, 1.8, 2.7)]
+    dup = _m("K1.1", 1.1)
+    assert pair_verdict(chain[1], dup, E1, TAU) == INDISTINGUISHABLE
+    assert metric(chain, E1, TAU) == (2, 2)
+    assert metric([*chain, dup], E1, TAU) == (3, 3), "the valid definition gives 3 here"
+    # What does hold: the figure never exceeds the packing bound of the predictions' span.
+    span = max(v for m in [*chain, dup] for p in m.points for v in p.values())
+    assert metric([*chain, dup], E1, TAU)[0] <= int(span / TAU) + 1
 
     # S1-CE-10: novelty cannot be produced by renaming or by an unresolved comparison.
     assert novelty_against_prior_art(_m("new-name", 0.75, model="fm:B"), [b], E1, TAU) == (
@@ -469,6 +565,24 @@ def check(
         "NEW_PHYSICAL_KNOWLEDGE_CANDIDATE"
     )
 
+    # S3-CE: separate evaluation outcomes (S35-CMP-005 metric 1, Appendix S §6).
+    unres = _m("V", 1.1, grid=0.2)  # UNRESOLVED against truth
+    assert classify(unres, truth, [truth, unres], E1, TAU) == "UNRESOLVED_ALTERNATIVE"
+    outside = _m("outside", 0.0, model="fm:hidden")  # true family absent from the catalog
+    assert classify(c, outside, [c], E1, TAU) == "FORCE_FIT"
+    assert classify(None, outside, [c], E1, TAU) == "CORRECT_ABSTENTION"
+    assert classify(None, truth, catalog, E1, TAU) == "FALSE_NULL"
+    assert classify(None, None, [c], E1, TAU) == "CORRECT_ABSTENTION"
+    assert classify(b, None, [b], E1, TAU) == "WRONG_CLAIM"
+    proposal = _m("proposed", 0.1, model="fm:proposed")
+    assert classify(proposal, outside, [c], E1, TAU) == "NEW_MECHANISM_PROPOSAL_ONLY"
+    assert classify(proposal, outside, [c], E1, TAU, prospectively_validated=True) == (
+        "VALIDATED_NEW_MECHANISM"
+    )
+    assert classify(_m("p2", 5.0), outside, [c], E1, TAU, prospectively_validated=True) == (
+        "WRONG_CLAIM"
+    )
+
     # S2 — matched realized cost.
     proto = FrozenProtocol(checkpoints=(25.0, 50.0, 100.0), primary=50.0, tolerance=0.0)
 
@@ -477,7 +591,7 @@ def check(
     ) -> ArmTrace:
         events: list[Attempt | Answer] = [Answer(None)]
         for k, (cost, value) in enumerate(steps):
-            events += [Attempt("experiment", cost), Answer(value, stop=(k == stop_at))]
+            events += [fixed("experiment", cost), Answer(value, stop=(k == stop_at))]
         total = sum(cost for cost, _ in steps[: (stop_at + 1) if stop_at is not None else None])
         return ArmTrace(tuple(events), total if ledger is None else ledger, cap=100.0)
 
@@ -504,8 +618,8 @@ def check(
     lucky = ArmTrace(
         (
             Answer(None),
-            *(Attempt("model_call", 2.0) for _ in range(20)),
-            Attempt("experiment", 5.0),
+            *(fixed("model_call", 2.0) for _ in range(20)),
+            fixed("experiment", 5.0),
             Answer("T"),
         ),
         ledger_total=45.0,
@@ -524,6 +638,39 @@ def check(
     # S2-CE-6: unequal caps or manifests cannot be matched.
     capped = ArmTrace(y.events, y.ledger_total, cap=40.0)
     assert score({"X": x, "C": capped}, proto) == COST_UNMATCHED
+
+    # S2-CE-7 (candidate.3): variable-cost model calls. Each call reserves its maximum (30) before
+    # it starts and settles its realized cost (5) after it ends; checkpoints are evaluated
+    # retrospectively on settled costs, so the answer after it counts at checkpoint 25.
+    variable = ArmTrace(
+        (Answer(None), Attempt("model_call", 30.0, 5.0), Answer("T")), ledger_total=5.0, cap=100.0
+    )
+    assert score({"V": variable, "Y": y}, proto, 25.0)["V"] == "T"
+
+    # S2-CE-8: a call that would start without reservation headroom under the cap is an incident:
+    # 80 settled, then a call reserving 30 under a cap of 100 (it settled at 10, but could have
+    # overspent). The case is COST_UNMATCHED, whatever the settlement turned out to be.
+    risky = ArmTrace(
+        (Answer(None), fixed("experiment", 80.0), Answer(None), Attempt("model_call", 30.0, 10.0),
+         Answer("T")),
+        ledger_total=90.0,
+        cap=100.0,
+    )  # fmt: skip
+    assert risky.runtime_violations() == ["START_WITHOUT_RESERVATION_HEADROOM"]
+    assert score({"R": risky, "Y": y}, proto) == COST_UNMATCHED
+
+    # S2-CE-9: a settlement above its reservation is an overrun incident.
+    overrun = ArmTrace(
+        (Answer(None), Attempt("model_call", 10.0, 12.0), Answer("T")), ledger_total=12.0, cap=100.0
+    )
+    assert score({"O": overrun, "Y": y}, proto) == COST_UNMATCHED
+
+    # S2-CE-10: an unsettled operation (crash, missing bill) is charged its reservation, so it can
+    # only make the arm look more expensive, never cheaper; its result cannot leak below that.
+    crashed = ArmTrace(
+        (Answer(None), Attempt("model_call", 40.0, None), Answer("T")), ledger_total=0.0, cap=100.0
+    )
+    assert answer_at(crashed, 25.0) is None and answer_at(crashed, 50.0) == "T"
 
     # S4 — the ladder: an authorized exploratory model call is spending, not evidence.
     assert reachable({"SPEND_AUTHORIZED": True}) == "SPEND_AUTHORIZED"
@@ -571,7 +718,7 @@ def _wrong_score_no_straddle(traces: Mapping[str, ArmTrace], protocol: FrozenPro
             if isinstance(ev, Attempt):
                 if spent >= c:
                     break
-                spent += ev.cost
+                spent += ev.charge
             else:
                 held = ev.value
         out[arm] = held
@@ -584,6 +731,61 @@ def _wrong_score_no_ledger(traces: Mapping[str, ArmTrace], protocol: FrozenProto
     return {arm: answer_at(t, c) for arm, t in traces.items()}
 
 
+def _wrong_classify_merged(claimed, truth, catalog, e, threshold, **kw):  # type: ignore[no-untyped-def]
+    """WRONG: an indistinguishable alternative reported as an exact identification."""
+    out = classify_outcome(claimed, truth, catalog, e, threshold, **kw)
+    return "EXACT_IDENTIFICATION" if out == "INDISTINGUISHABLE_ALTERNATIVE" else out
+
+
+def _wrong_classify_proposal(claimed, truth, catalog, e, threshold, **kw):  # type: ignore[no-untyped-def]
+    """WRONG: an unvalidated proposal that matches truth counted as a validated discovery."""
+    kw["prospectively_validated"] = True
+    return classify_outcome(claimed, truth, catalog, e, threshold, **kw)
+
+
+def _wrong_greedy_dedup(held, e, threshold):  # type: ignore[no-untyped-def]
+    """WRONG: an 'anti-inflation' heuristic that drops any mechanism indistinguishable from one
+    kept earlier, then counts the rest. It is not the defined quantity (S1-CE-11 gives 2, not 3)."""
+    kept: list[Mechanism] = []
+    for m in held:
+        if all(pair_verdict(m, k, e, threshold) == DISTINGUISHABLE for k in kept):
+            kept.append(m)
+    return diversity_bounds(kept, e, threshold)
+
+
+def _wrong_score_reservation(traces, protocol, checkpoint=None):  # type: ignore[no-untyped-def]
+    """WRONG: retrospective checkpoints charged at reservation instead of settlement."""
+    swapped = {
+        arm: ArmTrace(
+            tuple(
+                Attempt(ev.kind, ev.reserved, ev.reserved) if isinstance(ev, Attempt) else ev
+                for ev in t.events
+            ),
+            t.ledger_total,
+            t.cap,
+            t.manifest_hash,
+        )
+        for arm, t in traces.items()
+    }
+    c = protocol.primary if checkpoint is None else checkpoint
+    if not cost_matched(traces, protocol, c):
+        return COST_UNMATCHED
+    return {arm: answer_at(t, c) for arm, t in swapped.items()}
+
+
+def _wrong_score_no_runtime_check(traces, protocol, checkpoint=None):  # type: ignore[no-untyped-def]
+    """WRONG: ignores reservation headroom and overruns."""
+    c = protocol.primary if checkpoint is None else checkpoint
+    if checkpoint is not None and checkpoint not in protocol.checkpoints:
+        raise ValueError("post-hoc")
+    for t in traces.values():
+        if abs(t.ledger_total - t.settled_total()) > protocol.tolerance:
+            return COST_UNMATCHED
+    if len({t.cap for t in traces.values()}) != 1:
+        return COST_UNMATCHED
+    return {arm: answer_at(t, c) for arm, t in traces.items()}
+
+
 WRONG_VARIANTS: dict[str, dict[str, Callable[..., object]]] = {
     "raw hypothesis count": {"metric": naive_name_count},
     "transitive merge (connected components)": {"metric": naive_transitive_classes},
@@ -593,6 +795,11 @@ WRONG_VARIANTS: dict[str, dict[str, Callable[..., object]]] = {
     "post-hoc smallest-final-cost matching": {"score": _wrong_score_post_hoc},
     "straddling attempt credited to the checkpoint": {"score": _wrong_score_no_straddle},
     "no ledger reconciliation": {"score": _wrong_score_no_ledger},
+    "greedy near-duplicate removal": {"metric": _wrong_greedy_dedup},
+    "indistinguishable alternative counted as exact": {"classify": _wrong_classify_merged},
+    "unvalidated proposal counted as discovery": {"classify": _wrong_classify_proposal},
+    "checkpoints charged at reservation": {"score": _wrong_score_reservation},
+    "no reservation-headroom or overrun check": {"score": _wrong_score_no_runtime_check},
 }
 
 

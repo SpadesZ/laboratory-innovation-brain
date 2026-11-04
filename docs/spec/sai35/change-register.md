@@ -1,6 +1,6 @@
 # SAI 3.5 — Change register (D-NNN → S35 identifiers)
 
-Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: informative record, enforced by the [candidate checker](check_candidate.py): every
 retired `D-NNN` appears here, every new identifier it names is registered, and the counts below are
 recomputed from this table and the [registry](normative-statements.yaml).
@@ -149,6 +149,7 @@ obligation.
 | `OD-01`…`OD-13` | `OD-01`…`OD-18` | meanings of OD-01…OD-13 kept (OD-10 rewritten for proposal A'); OD-14…OD-16 new in candidate.1; OD-17 and OD-18 new in candidate.2 |
 | `3.5.0-discovery-candidate.1` | `3.5.0-master-candidate.1` | version of the candidate |
 | `3.5.0-master-candidate.1` | `3.5.0-master-candidate.2` | semantic revision of the master candidate (§6) |
+| `3.5.0-master-candidate.2` | `3.5.0-master-candidate.3` | correction of three audit findings (§7) |
 | `MechanismClassPartition` (record) | `DistinguishabilityGraph`, `AdequacyAssessment` | [Appendix S](mechanism-distinguishability.md) §7, [Appendix C](records-and-states.md) §2 |
 
 ## 6. Candidate.2 revisions (`3.5.0-master-candidate.1` → `3.5.0-master-candidate.2`)
@@ -177,4 +178,16 @@ conclusion the old text allowed is not a weakening.
 | S5 | S35-PROB-001 | a member's acceptance scopes a problem but never gives the Owner gates for money or licenses | the text let a member's acceptance read as authority to spend, contrary to S35-SEC-002 | no: removes an unsafe reading |
 | S5 | S35-MOD-003, Appendix A L09 | "exploratory" outputs renamed "exploratory runs (a run label, not an epistemic stage)" | collided with stage 1 after S3 | no |
 | S5 | all 77 statements and the normative appendices | reviewed in the [semantic consistency report](semantic-consistency-report.md); findings either fixed above or recorded as open spec issues S35-ISSUE-11…15 | Task S5 | no |
+
+## 7. Candidate.3 revisions (`3.5.0-master-candidate.2` → `3.5.0-master-candidate.3`)
+
+Again no identifier was added, removed or renumbered. Each row corrects a finding of the
+Independent Chief Auditor's review of candidate.2; the executable counterexamples are in
+[semantic_reference.py](semantic_reference.py) (11 wrong variants rejected).
+
+| Finding | Statement or appendix | Change | Weakens? |
+|---|---|---|---|
+| 1 near-duplicate inflation | S35-MECH-001, Appendix S §4 and §9, Appendix J §5 | the maximum-clique definition is kept; the false claim that near-duplicates cannot raise it is removed; counterexample S1-CE-11 ({0, 0.9, 1.8, 2.7} plus 1.1 at τ = 1: 2 → 3); remaining guarantees stated exactly (alias invariance, monotone, +1 per addition, span bound); diversity is descriptive, never primary, reported with the raw count and span; greedy de-duplication rejected as a substitute | no: removes an unsupported guarantee and forbids relying on the metric as evidence |
+| 2 reservation versus settlement | S35-CMP-002, S35-CMP-008, S35-COST-001, Appendix J §3.3, §3.4, §3.6, Appendix E §6 | maximum-cost reservation before execution enforces the cap; realized settlement after execution; checkpoints evaluated retrospectively on settled costs with every started operation charged in full and unsettled operations charged their reservation; missing headroom and overruns are incidents and COST_UNMATCHED; S2-CE-7…10 | no: fewer comparisons qualify as matched; overspend becomes an explicit incident |
+| 3 separated outcomes | S35-CMP-005, S35-LOOP-003, Appendix S §6, Appendix I §5, Appendix J §5 | nine outcome categories (exact identification, indistinguishable alternative, unresolved alternative, correct abstention, false null, force-fit, wrong claim, validated new mechanism, proposal only), reported separately; a correct stop is no longer folded into true-cause discovery; only a prospectively validated out-of-catalog mechanism counts as new-mechanism discovery; S3-CE | no: credit can only become narrower |
 

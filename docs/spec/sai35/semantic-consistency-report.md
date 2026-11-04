@@ -1,9 +1,9 @@
-# SAI 3.5 — Appendix T: Semantic consistency report (candidate.2)
+# SAI 3.5 — Appendix T: Semantic consistency report (candidate.3)
 
-Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`. G0 is NOT PASSED.
+Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`. G0 is NOT PASSED.
 Authority: informative. The record of Task S5: a requirement-by-requirement review of all
 77 statements of [SAI 3.5](../SAI_3.5.md) §3 and the normative appendices, after the
-corrections S1–S4. It is an implementation agent's review, not the Independent Chief Auditor's.
+corrections S1–S4 and the candidate.3 corrections of the Independent Chief Auditor's findings. It is an implementation agent's review, not the Independent Chief Auditor's.
 
 ## 1. Method
 
@@ -21,13 +21,13 @@ byte-identical to `a38ad63`.
 (b) are inputs, outputs and states defined, (c) is the trust and authorization boundary explicit,
 (d) is the acceptance test measurable, (e) does a concrete counterexample break it. Counterexamples
 that concern the corrected definitions are executable in [semantic_reference.py](semantic_reference.py)
-(S1-CE-1…10, S2-CE-1…6, ladder and termination cases) and every known-wrong variant of those
+(S1-CE-1…11, S2-CE-1…10, S3-CE, ladder and termination cases) and every known-wrong variant of those
 definitions is rejected by its self-test. The others are probes stated in the table; each is the
 fixture the planned test must contain.
 
 Verdicts: **consistent** (no change needed), **CORRECTED** (text changed in candidate.2; see
 [change register](change-register.md) §6), **CLARIFIED** (wording made explicit, obligation
-unchanged). 21 of 77 requirements were corrected or clarified; no identifier changed.
+unchanged). 22 of 77 requirements were corrected or clarified; no identifier changed.
 
 ## 2. Findings that changed the specification
 
@@ -39,6 +39,9 @@ unchanged). 21 of 77 requirements were corrected or clarified; no identifier cha
 | F4 exploration, spending and stops conflated | AL3-paid idea; stop before any experiment called complete | HYP-001, SEC-001, GOV-003, LIFE-002, LOOP-003, REG-003 | Appendix E §9; Appendix A §3.1; S35-ISSUE-14 |
 | F5 force-fit when the true family is absent | best-fitting inadequate mechanism endorsed | MECH-002, CMP-005 metric 4 | adequacy before endorsement; S35-ISSUE-15, OD-18 |
 | F6 member acceptance read as spending authority | member accepts, campaign spends money | PROB-001 | Owner gates still required |
+| F7 (candidate.3) near-duplicate inflation of the maximum-clique diversity | (0, 0.9, 1.8, 2.7) plus 1.1, τ = 1: 2 → 3 | MECH-001, CMP-005 | definition kept; guarantee removed; descriptive only; S35-ISSUE-16 |
+| F8 (candidate.3) realized cost unknowable at start | variable-cost model call; overrun; no headroom | CMP-002, CMP-008, COST-001 | reservation / settlement / retrospective checkpoints; S35-ISSUE-17 |
+| F9 (candidate.3) merged evaluation outcomes | indistinguishable alternative counted as exact; stop folded into discovery; proposal as discovery | CMP-005, LOOP-003 | nine separate outcome categories; S35-ISSUE-18 |
 
 ## 3. Requirement-by-requirement table
 
@@ -65,7 +68,7 @@ decisions inherited from other lines.
 | S35-HYP-002 | HypothesisBrain · G-D1, G-D2 · P35-2 · partial | ExploratoryIdea → admitted Hypothesis with identity and verdicts | SAI 3.3 §8 admission gate | deterministic | renamed duplicate admitted as a new mechanism; 'joins that hypothesis's class' under A–B–C | CORRECTED (S1): alias by identity; verdicts, no class | — |
 | S35-HYP-003 | ValidationLoop · G6, G-D1 · P35-2 · proposed | canonical events → ClaimStateProjection | projection never writes belief | deterministic | CONFIRMED projected without CWG decision | consistent; projection exists only for hypotheses and claims (S3) | — |
 | S35-HYP-004 | HypothesisBrain · G0, G-D1, G-D2 · P35-2 · partial | EvidenceBundle → ideas with InferenceProvenance | no sealed reads; stage-1 output only | deterministic | new out-of-catalog mechanism without typed predictions submitted for admission | consistent; out-of-catalog proposals stay stage 1 (Appendix S §8) | — |
-| S35-MECH-001 | MechanismExplorer · G-D1, G-D2, G-D3 · P35-2 · partial | hypotheses, E, τ, replicates → DistinguishabilityGraph and certified diversity | computed by MechanismExplorer; evaluator recomputes from sealed truth for G-D | deterministic | A = 0, B = 0.75, C = 1.50, τ = 1: transitive merge gives 1, raw count 3, correct 2 | CORRECTED (S1): Appendix S; S1-CE-1…10 executable | OD-17 |
+| S35-MECH-001 | MechanismExplorer · G-D1, G-D2, G-D3 · P35-2 · partial | hypotheses, E, τ, replicates → DistinguishabilityGraph and certified diversity | computed by MechanismExplorer; evaluator recomputes from sealed truth for G-D | deterministic | A = 0, B = 0.75, C = 1.50, τ = 1: transitive merge gives 1, raw count 3, correct 2; candidate.3: {0, 0.9, 1.8, 2.7} plus near-duplicate 1.1 raises diversity 2 → 3 | CORRECTED (S1, candidate.3): Appendix S; anti-inflation guarantee removed, diversity descriptive only; S1-CE-1…11 executable | OD-17 |
 | S35-MECH-002 | MechanismExplorer · G-D1, G-D2 · P35-2 · partial | failures, residuals, inadequacy → expansion record, AdequacyAssessment | Hypothesis Brain proposals stay stage 1 | deterministic and empirical | true family absent: best-fitting held mechanism endorsed (force-fit 0.40 at budget 12, 0.47 at 24 on d7ec9f2) | CORRECTED (S1, Discovery safety): adequacy before endorsement; abstain/expand/reframe/discriminate/stop | OD-18 |
 | S35-REF-001 | ResearchReframing · G-D1, G-D2, G-D3 · P35-2 · partial | failure triggers → typed Reframing | append-only; no belief move | deterministic | inadequacy of every held mechanism has no trigger in the text | consistent: inadequacy is routed through S35-MECH-002 and WIDEN_MECHANISM_SPACE (Appendix C §3.4 updated) | OD-12 |
 | S35-REF-002 | ResearchReframing · G-D1, G-D2, G-D3 · P35-2 · partial | failure records → append-only lineage | no reinterpretation of contradicting evidence | deterministic | successor supported by the evidence that contradicted its predecessor | consistent | — |
@@ -85,7 +88,7 @@ decisions inherited from other lines.
 | S35-VAL-005 | PhysicalValidation · G4, G5, G-D4 · P35-8 · blocked | independent references → physical validation | builder does not control scoring | deterministic split checks, empirical acceptance | simulation agreement used as physical validation | consistent; blocked on physical data | OD-08 |
 | S35-LOOP-001 | DiscoveryLoop · G6, G8, G-D1 · P35-2 · partial | Discovery vs Validation identities → permission matrix | no sealed reads; no verdict writes | deterministic | Discovery identity writing CONFIRMED | consistent | — |
 | S35-LOOP-002 | ValidationLoop · G-D1, G-D2, G-D3 · P35-2 · partial | validation outcomes → FeedbackRecords with disposition | read-only for Discovery | deterministic | residual above threshold silently dropped | consistent; adequacy results flow through AdequacyAssessment | — |
-| S35-LOOP-003 | ValidationLoop · G-D1, G-D2, G-D3, G-D4 · P35-2 · partial | insufficient validation → StopRecord | stop is governance success | deterministic and empirical | safe stop before any experiment rendered as completed or as discovery | CORRECTED (S4) | — |
+| S35-LOOP-003 | ValidationLoop · G-D1, G-D2, G-D3, G-D4 · P35-2 · partial | insufficient validation → StopRecord | stop is governance success | deterministic and empirical | safe stop before any experiment rendered as completed or as discovery; candidate.3: correct stop counted as identification | CORRECTED (S4, candidate.3): scored as a separate correct abstention | — |
 | S35-CWG-001 | CausalWarrantGate · G6, G-D1, G-D2, G-D3, G-D4 · P35-2 · partial | warrants → CONFIRMED | exclusive confirmation authority | deterministic | report generator displaying CONFIRMED without re-derivable decision | consistent | — |
 | S35-CWG-002 | CausalWarrantGate · G6, G-D2, G-D4 · P35-4 · partial | signed review → consequential use | independent reviewer; Owner gate | deterministic | envelope or AL level standing in for a signed review; forged signature accepted | consistent; depends on G0 read-path closure (S35-ISSUE-06) | A3 |
 | S35-REG-001 | RegistrationRegistry · G0, G6, G-D1 · P35-2 · partial | SelectionDecision → immutable Registration bound to one Job | signed authorization or covering envelope | deterministic | forged authorization accepted on read | consistent; trust root SPEC-ISSUE-018 open (S35-ISSUE-07) | OD-14 |
@@ -112,19 +115,19 @@ decisions inherited from other lines.
 | S35-SEC-004 | GovernancePlane · G0, G8, G-D0 · P35-2 · partial | accounts → ADMIN/MEMBER only | second accounts never independent | deterministic | reviewer status granting a role | consistent; A3 open | A3 |
 | S35-SEC-005 | GovernancePlane · G8 · P35-2 · proposed | identity × record class → allow/deny at DB | database rules, not only app checks | deterministic | superuser bypass | consistent; A12 open; services share one role today | A12 |
 | S35-SEC-006 | GovernancePlane · G8 · P35-4 · proposed | Owner stop → cancellation before next side effect | checked at reservation and dispatch | deterministic | dispatch after revocation | consistent | — |
-| S35-COST-001 | CostGovernance · G8, G-D1 · P35-2 · partial | attempts → reservations and realized ledger | no endpoint presumed free | deterministic | failed retry missing from ledger | consistent; the same ledger feeds the COST_UNMATCHED check of Appendix J §3.4 | SPEC-ISSUE-017 |
+| S35-COST-001 | CostGovernance · G8, G-D1 · P35-2 · partial | attempts → maximum-cost reservations, then settlements | no endpoint presumed free | deterministic | failed retry missing from ledger; settlement above reservation absorbed silently | CORRECTED (candidate.3): reservation is the maximum cost; overrun is an incident; feeds Appendix J §3.4 | SPEC-ISSUE-017 |
 | S35-COST-002 | CostGovernance · G8 · P35-4 · partial | ceilings → stop reservations | raise only by Owner | deterministic | automatic ceiling increase on timeout | consistent | — |
 | S35-GD-001 | EvaluationPlane · G-D0, G-D1, G-D2, G-D3, G-D4 · P35-3 · blocked | verdict records → independent evaluator | implementer cannot sign | deterministic | implementer-signed G-D verdict | consistent; blocked on OD-02 | OD-02 |
 | S35-GD-002 | EvaluationPlane · G-D0, G-D1, G-D2, G-D3, G-D4 · P35-3 · blocked | levels → frozen protocols | protocol hash | deterministic | protocol edited after freezing | consistent; frozen protocol now includes the checkpoint ladder and τ | OD-03, OD-17 |
 | S35-GD-003 | EvaluationPlane · G-D2, G-D3, G-D4 · P35-3 · proposed | G-D vs G gates → prerequisites | no substitution | deterministic | G-D1 result cited as G0 evidence | consistent | — |
 | S35-CMP-001 | EvaluationPlane · G-D1, G-D2, G-D3, G-D4 · P35-3 · partial | three arms → same model and schema | arm configs differ only in listed components | deterministic | arm A given a larger model | consistent | OD-04, OD-05 |
-| S35-CMP-002 | EvaluationPlane · G-D1, G-D2, G-D3, G-D4 · P35-3 · partial | arm traces, frozen ladder → answers at checkpoints or COST_UNMATCHED | evaluator owns ladder and tolerance | deterministic | early-stopping arm moves the comparison point; straddling experiment credited; hidden retries | CORRECTED (S2): frozen checkpoints; S2-CE-1…6 executable | OD-03 |
+| S35-CMP-002 | EvaluationPlane · G-D1, G-D2, G-D3, G-D4 · P35-3 · partial | arm traces, frozen ladder → answers at checkpoints or COST_UNMATCHED | evaluator owns ladder and tolerance; runtime enforces reservations | deterministic | early-stopping arm moves the comparison point; straddling experiment credited; hidden retries; candidate.3: variable-cost model call whose cost is unknown at start; overrun; start without reservation headroom | CORRECTED (S2, candidate.3): reservation before execution, settlement after, retrospective checkpoints; S2-CE-1…10 executable | OD-03 |
 | S35-CMP-003 | EvaluationPlane · G-D1, G-D2, G-D3, G-D4 · P35-3 · proposed | outputs → sealed labels, frozen scorer | custodian holds labels | deterministic | scorer hash drift | consistent | OD-02 |
 | S35-CMP-004 | EvaluationPlane · G-D0, G-D1, G-D2, G-D3, G-D4 · P35-3 · proposed | evaluator generator → sealed worlds | implementer cannot read truth | deterministic | implementer-written worlds used as G-D evidence (the P3 situation) | consistent; P3 results remain engineering evidence | OD-02 |
-| S35-CMP-005 | EvaluationPlane · G-D1, G-D2, G-D3, G-D4 · P35-3 · partial | frozen outputs → five metrics | scorer frozen | deterministic | 'equivalence class' credit under A–B–C; diversity by class count | CORRECTED (S1, S2): identity/certified credit at the primary checkpoint; certified bounds | OD-03, OD-17 |
+| S35-CMP-005 | EvaluationPlane · G-D1, G-D2, G-D3, G-D4 · P35-3 · partial | frozen outputs → five metrics; nine outcome categories | scorer frozen | deterministic | 'equivalence class' credit under A–B–C; candidate.3: indistinguishable alternative counted as exact; correct stop folded into true-cause discovery; unvalidated proposal counted as discovery | CORRECTED (S1, S2, candidate.3): separate outcome categories (Appendix S §6, S3-CE); diversity descriptive only | OD-03, OD-17 |
 | S35-CMP-006 | EvaluationPlane · G-D0, G-D1, G-D2, G-D3, G-D4 · P35-3 · partial | protocol → pre-registered statistics | analysis reads frozen values only | deterministic | primary checkpoint chosen after unsealing | consistent; ladder is pre-registered (S2) | OD-03 |
 | S35-CMP-007 | EvaluationPlane · G-D0, G-D1, G-D2 · P35-3 · partial | cases → contamination report | exclusions by frozen rule | deterministic | silent exclusion | consistent | OD-06 |
-| S35-CMP-008 | EvaluationPlane · G-D1, G-D2, G-D3, G-D4 · P35-3 · partial | caps, incidents → case/study stops | incidents invalidate | deterministic | case cut at cap credited with a straddling experiment | CORRECTED (S2) | OD-03 |
+| S35-CMP-008 | EvaluationPlane · G-D1, G-D2, G-D3, G-D4 · P35-3 · partial | caps, incidents → case/study stops | incidents invalidate | deterministic | case cut at cap credited with a straddling experiment; an operation started whose reservation exceeds the remaining cap | CORRECTED (S2, candidate.3) | OD-03 |
 | S35-CMP-009 | EvaluationPlane · G-D1, G-D2 · P35-3 · partial | stage order → zero-cost first | paid stage needs Owner authorization | deterministic | negative zero-cost result overridden by a bigger model | consistent | OD-04, OD-05 |
 
 ## 4. Residual issues not resolved by text
