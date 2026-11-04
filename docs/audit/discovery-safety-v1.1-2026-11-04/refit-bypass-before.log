@@ -1,0 +1,11 @@
+# Refit-coverage bypass scan on v1.0 code (lab_brain.discovery_safety.gate, unchanged)
+# code commit: 092860276272fc369836b4ab5c0d54f6c5e12091; interpreter: 3.13.18
+# DEVELOPMENT seeds only. For every v1.0 (arm B3) endorsement: the claim's signal experiments
+# recomputed at the fit to EVERY admitted observation (after the probes); 'never run' lists the
+# ones no admitted observation covers. A non-empty 'never run' is a coverage bypass.
+base seed 5000000, 6/class: 768 runs, 306 endorsements, 1 with a final-fit signal experiment never run (0 of them force-fits)
+  BYPASS family_in_catalog held_out-leakage.substrate-04 (seed 5010004) budget 12: endorsed ['hyp:leakage.substrate']; v1.0 signal set ['radius_array']; final-fit signal set ['baseline', 'tec_stabilized', 'fiber_recouple', 'polarization_controlled', 'radius_array']; never run ['tec_stabilized']; spent 12/12; force-fit=False
+base seed 1, 6/class: 768 runs, 300 endorsements, 0 with a final-fit signal experiment never run (0 of them force-fits)
+base seed 7000000, 15/class: 1920 runs, 829 endorsements, 1 with a final-fit signal experiment never run (1 of them force-fits)
+  BYPASS family_removed held_out-geometry.width_narrow-00 (seed 7008000) budget 12: endorsed ['hyp:fcd.static+geometry.gap_large']; v1.0 signal set ['baseline', 'tec_stabilized', 'gas_cell_reference', 'gap_array']; final-fit signal set ['baseline', 'tec_stabilized', 'gas_cell_reference', 'gap_array', 'cutback']; never run ['cutback']; spent 12/12; force-fit=True
+VERDICT: v1.0 IS VULNERABLE -- coverage is judged at the pre-probe fit only (gate.assess computes `signals` once, before `probe`).
