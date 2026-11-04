@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix F: Researcher experience, reports and bilingual glossary
 
-Version: `3.5.0-master-candidate.1`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative for report content (§2), workspace content (§1) and terms (§3). Refines
 S35-RPT-001–004 of [SAI 3.5](../SAI_3.5.md). Inherited: SAI 3.4 ASM-016 (bilingual scientific
 content, canonical records never overwritten), SAI 3.3 UX-001–007 (MessageCatalog, error classes,
@@ -13,7 +13,7 @@ All views exist in zh-TW and en with the same identifiers, numbers, units and st
 | View | Shows | Actions (each a recorded ReviewItem resolution) |
 |---|---|---|
 | Campaign list | campaigns with state, stage, autonomy level, envelope, budget used versus ceiling, open anomalies | open; Owner stop |
-| Campaign detail | lifecycle stages with checkpoints and skip reasons; every object with its epistemic stage and claim state; mechanism classes with experiment-set version; registrations; FeedbackRecords; reframings with failed hypotheses | accept a problem (outside an envelope); request a report |
+| Campaign detail | lifecycle stages with checkpoints and skip reasons; every hypothesis and claim with its epistemic stage and claim state, every other record with its own state; distinguishability verdicts and certified diversity bounds with experiment-set version; the three termination dimensions; registrations; FeedbackRecords; reframings with failed hypotheses | accept a problem (outside an envelope); request a report |
 | Authorization inbox | registrations awaiting a signed authorization; Owner-gate requests; ReviewItems with the exact gap and at most two options | sign or refuse with rationale |
 | Envelope page | active envelopes, bounds, autonomy level, consumption against ceilings, expiry | Owner revoke; propose a new envelope (needs an Owner decision) |
 | Anomaly registry | every anomaly with state history and evidence | flag a new anomaly |
@@ -36,7 +36,7 @@ canonical records; a translation is a derived presentation bound to the canonica
 | 1 | Summary | outcome state of the campaign, strongest claim and its stage, what was not established | S35-RPT-001 |
 | 2 | Problem | the ResearchProblem, its origin and provenance, valuation | S35-PROB-001, S35-PROB-002 |
 | 3 | Hypotheses | every hypothesis and idea with epistemic stage, claim state, mechanism, predictions and falsifier | S35-HYP-001–003 |
-| 4 | Mechanism classes | partition with experiment-set version, merged pairs, never-considered classes | S35-MECH-001, S35-MECH-002 |
+| 4 | Mechanism distinguishability | experiment-set version, threshold, every pair verdict, aliases, `UNRESOLVED` pairs, certified diversity lower and upper bounds, adequacy results, never-considered families | S35-MECH-001, S35-MECH-002 |
 | 5 | Experiments | selections with their rationale, registrations (envelope or signed), sweeps, Runs | S35-SEL-001, S35-REG-001 |
 | 6 | Observations | admitted observations with conditions; simulated outputs labelled as model outputs | S35-EVI-001, S35-VAL-001 |
 | 7 | Interpretations | relation judgments, kept separate from observations | ASM-016 |
@@ -78,14 +78,24 @@ component names in code font stay in English in both languages.
 | mechanism class | 機制類別 | hypotheses no available experiment can tell apart |
 | distinguishable | 可區分的 | separated by an available experiment beyond the threshold |
 | experiment set | 實驗集合 | the versioned set of experiments available to a campaign |
-| effective search space | 有效搜尋空間 | the mechanism classes actually considered |
+| effective search space | 有效搜尋空間 | the mechanism families actually considered |
 | falsifiable | 可否證的 | has a typed CONTRADICTS prediction over a measurable observable |
 | falsifier | 否證條件 | the observation that would contradict the hypothesis |
 | Research Reframing | 研究重新框定 | a typed, append-only change of the research framing after failure |
 | failure history | 失敗紀錄 | every failed hypothesis, assumption, observable and model, kept |
 | competing explanations | 競爭解釋 | live hypotheses for the same observation |
 | rival closure | 對手閉包 | registering and testing every declared rival of no greater complexity |
-| discriminating experiment | 鑑別性實驗 | an experiment that separates surviving classes |
+| discriminating experiment | 鑑別性實驗 | an experiment that converts a surviving pair to DISTINGUISHABLE |
+| mechanism identity | 機制身分 | the content hash of a canonical forward-model declaration, never its name |
+| alias | 別名 | a hypothesis whose mechanism identity equals one already held |
+| certified distinguishable | 經認證可區分 | pair verdict DISTINGUISHABLE: separated for every parameter choice under E |
+| unresolved pair | 未判定配對 | pair verdict UNRESOLVED: neither verdict can be certified |
+| certified diversity | 經認證多樣性 | the largest number of held mechanisms pairwise certified distinguishable |
+| catalog adequacy | 目錄充分性 | whether any held mechanism fits the admitted data under the pre-registered criterion |
+| realized-cost checkpoint | 實際成本檢查點 | a frozen cumulative-cost level at which every arm's held answer is scored |
+| operational termination | 作業性終止 | how a campaign ended (VALID or INVALID), not what it achieved |
+| experimental completion | 實驗完成度 | NOT_PERFORMED, PARTIAL or COMPLETED |
+| scientific acceptance | 科學接受 | NONE, PENDING_CAUSAL_WARRANT_GATE or ACCEPTED_DISCOVERY |
 | prospective registration | 前瞻登記 | a registration made before the test's data exists |
 | research envelope | 研究授權範圍 | an Owner-approved ResearchEnvelope with machine-checkable bounds |
 | autonomy level | 自主等級 | AL0–AL4 of [Appendix E](governance-security.md) |

@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix D: Provenance, novelty, evidence independence and contamination
 
-Version: `3.5.0-master-candidate.1`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Refines S35-EVI-001–004, S35-NOV-001–003 and S35-REG-004 of
 [SAI 3.5](../SAI_3.5.md).
 
@@ -45,10 +45,10 @@ criteria, in this order; the first that applies wins.
 
 | Class | Criterion | Maximum claim strength |
 |---|---|---|
-| `KNOWN_MECHANISM_REDISCOVERY` | the finding's mechanism class (S35-MECH-001) appears in the covered prior art for comparable conditions | "re-identified a known mechanism for this device and conditions" |
+| `KNOWN_MECHANISM_REDISCOVERY` | the finding's mechanism has the identity of, or is certified `INDISTINGUISHABLE` ([Appendix S](mechanism-distinguishability.md) §6) from, a mechanism in the covered prior art for comparable conditions; renaming never changes this | "re-identified a known mechanism for this device and conditions" |
 | `ENGINEERING_OPTIMIZATION` | the finding improves a design or operating point within known mechanisms and makes no mechanism claim | "a better design or operating point under the stated model and conditions" |
 | `MODEL_CORRECTION` | the finding changes a model's form or parameters to remove a residual, using known physics | "a corrected model for this scope"; requires S35-VAL-004 lineage and re-validation |
-| `NEW_PHYSICAL_KNOWLEDGE_CANDIDATE` | a mechanism or quantitative relation absent from the covered prior art, not yet stage 3 with independent physical validation | shown with its epistemic stage and claim state; never as new knowledge |
+| `NEW_PHYSICAL_KNOWLEDGE_CANDIDATE` | a mechanism certified `DISTINGUISHABLE` from every mechanism in the covered prior art (or `UNRESOLVED` against some, which are then listed and bound the claim), or a quantitative relation absent from it, not yet stage 3 with independent physical validation | shown with its epistemic stage and claim state; never as new knowledge |
 | `NEW_PHYSICAL_KNOWLEDGE` | as the candidate class, and the claim is stage 3 (Causal Warrant Gate) with independent physical validation (S35-VAL-005) and a covering prior-art record | "a mechanism not found in the covered prior art, confirmed on independent physical data", within its scope |
 
 At G-D2 and above, at least two independent blinded domain reviewers assign classes too; their

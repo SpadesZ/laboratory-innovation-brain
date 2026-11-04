@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix O: Owner decisions, risks and self-review
 
-Version: `3.5.0-master-candidate.1`.
+Version: `3.5.0-master-candidate.2`.
 Status: **CANDIDATE — NOT ACTIVE.** Every decision below is **OPEN**. Writing them down decides
 nothing. `READY_FOR_REAL_RESEARCH = false`.
 Authority: informative. Supersedes the `3.5.0-discovery-candidate.1` version of this file (kept in
@@ -16,7 +16,7 @@ A–F and the security decisions A3, A9 and A12 stay as they are and stay open.
 |---|---|---|---|---|
 | OD-01 | Accept the SAI 3.5 master candidate for review, modify it, or reject it | the candidate exists only on its branch; NOT ACTIVE; nothing depends on it | review it with the Independent Chief Auditor; keep it NOT ACTIVE | OPEN |
 | OD-02 | Assign the independent G-D evaluator, the owner of the hidden-world generator and the arm-label custodian | none assigned; G-D0 is BLOCKED | one evaluator who is not the implementer (not a second account of the same person) and who owns the generator; one separate custodian; at G-D2 and above two independent domain reviewers | OPEN |
-| OD-03 | Approve protocol values: primary metric, minimum effect, non-inferiority margins, false-discovery weights, multiplicity method, sample size, re-run invalid limit, no-mechanism share, and the realized-consumption matching rule and tolerance | none; G-D0 is BLOCKED | true-cause discovery primary; +10 points minimum effect; 2-point margins; weights 10/3/3; Holm at α = 0.05; matching at the smallest final realized consumption among arms (protocol §3.2); n from a pilot on separate development worlds | OPEN |
+| OD-03 | Approve protocol values: primary metric, minimum effect, non-inferiority margins, false-discovery weights, multiplicity method, sample size, re-run invalid limit, no-mechanism share, and the realized-consumption matching rule and tolerance | none; G-D0 is BLOCKED | true-cause discovery primary; +10 points minimum effect; 2-point margins; weights 10/3/3; Holm at α = 0.05; primary scoring at frozen realized-cost checkpoints 25 %, 50 % and 100 % of the cap with the primary at the cap (protocol §3.3), COST_UNMATCHED limit 5 %, the candidate.1 smallest-final-cost rule only as a secondary analysis; n from a pilot on separate development worlds | OPEN |
 | OD-04 | Approve the local models for zero-cost stages, which also fix arm A's model there, and declare their endpoints free | none; the zero-cost stage cannot run | one pinned open-weight local model with a served digest, declared free per exact model under the spend administration (G0 decisions A4, A6, E5) | OPEN |
 | OD-05 | Authorize a paid model stage (including a frontier model for arm A), with a ceiling | not authorized | only after the zero-cost G-D1 report, with a small ceiling and a provider-side hard cap (G0 decision A5) | OPEN |
 | OD-06 | Source and rights for held-out literature cases | none; G-D2 is BLOCKED | evaluator-curated cases resolved after every model's training cutoff, with per-source rights recorded and no redistribution of unclear material | OPEN |
@@ -30,12 +30,14 @@ A–F and the security decisions A3, A9 and A12 stay as they are and stay open.
 | OD-14 | Research envelope: who may sign envelopes, which bounds are mandatory, and whether an envelope registration satisfies a per-hypothesis human pre-authorization rule (G0 line `011s` rule (l) with `011w`) | no envelope exists; envelope registration does not satisfy rule (l): such evidence is stored as CITES for post-screening hypotheses | an envelope authorizer distinct from the warrant authority; every bound of S35-REG-002 mandatory; keep the default (rule (l) not satisfied) until G-D1 shows the envelope's discipline | OPEN |
 | OD-15 | Maximum autonomy level per project | AL1 (propose-only) everywhere | AL2 for the zero-cost stage; AL3 only with OD-05; AL4 only with OD-07 | OPEN |
 | OD-16 | Activate SAI 3.5 as the primary master specification, and in which form (architectural basis or executable profile) | not active | decide only after the Independent Chief Auditor review; prefer the architectural-basis form first | OPEN |
+| OD-17 | Mechanism distinguishability parameters: the threshold τ per observable family, the noise model and replicate rule, the certified bound method for [D_lo, D_hi], and the largest campaign size for exact diversity computation ([Appendix S](mechanism-distinguishability.md)) | none; S35-MECH-001 cannot be implemented beyond the reference semantics | τ = 2 standard errors of the replicate mean for the synthetic stage; a finite parameter cover with a recorded Lipschitz bound; exact computation up to 24 held mechanisms, certified bounds above | OPEN |
+| OD-18 | Catalog-adequacy criterion and abstention policy: the goodness-of-fit or residual-structure test, its level, the replicate-consistency rule, and what the system does when no held mechanism is adequate ([Appendix S](mechanism-distinguishability.md) §8) | no held mechanism may be endorsed unless shown adequate; with no criterion, every endorsement is refused and the campaign may only abstain, expand, reframe, request a discriminating experiment or stop | a pre-registered χ²-type residual test at level 0.01 relative to the declared noise model, required on every replicate set, fixed before G-D0 and never tuned on sealed worlds | OPEN |
 
 ## 2. Risks
 
 | ID | Risk | Defense in this candidate | Residual |
 |---|---|---|---|
-| R35-01 | Hypothesis count is mistaken for discovery ability | diversity only as distinguishable classes (S35-MECH-001, S35-CMP-005) | depends on correct prediction typing |
+| R35-01 | Hypothesis count is mistaken for discovery ability | diversity only as certified pairwise distinguishability, never a raw or transitive count (S35-MECH-001, Appendix S, S35-CMP-005) | depends on correct prediction typing and certified separation bounds |
 | R35-02 | Reframing hides failures (garden of forking paths) | append-only reframing, failures in denominators, new registration for successors (S35-REF-002, S35-REF-003) | a writer with database authority can bypass rules (A12) |
 | R35-03 | Discovery certifies itself | separate identities; the Causal Warrant Gate is the exclusive confirmation authority; sealed evaluation plane (S35-LOOP-001, S35-CWG-001, S35-GD-001) | designed, not built |
 | R35-04 | Benchmark contamination inflates results | evaluator-generated hidden worlds, cutoffs, overlap checks, probes (S35-CMP-004, S35-CMP-007) | contamination cannot be excluded completely for literature cases |

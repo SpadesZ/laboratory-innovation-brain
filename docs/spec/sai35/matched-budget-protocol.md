@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix J: Matched-budget A/B/C comparison protocol
 
-Version: `3.5.0-master-candidate.1`. Status: **CANDIDATE — NOT ACTIVE.** Nothing in this protocol
+Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** Nothing in this protocol
 has been run. Values marked *proposed* are recommendations for Owner decision OD-03, not frozen.
 Authority: normative. Refines S35-CMP-001–009 of [SAI 3.5](../SAI_3.5.md). Supersedes the
 `3.5.0-discovery-candidate.1` version of this file (kept in git history).
@@ -28,7 +28,7 @@ multi-model LIB configuration is a separate, separately pre-registered compariso
 Answer schema (all arms, every case): claimed mechanism or none; its epistemic stage and claim state;
 evidence references; uncertainty by source; experiments run with realized costs; an optional
 `INSUFFICIENT_VALIDATION` or `STOPPED` outcome with reason; and an **anytime answer** after every
-experiment or model-call batch, stamped with cumulative realized consumption (needed for §3.2).
+experiment or model-call batch, stamped with its cumulative realized charge (needed for §3.3).
 
 *Offline analogues.* The offline prototype (`118a4ac`) used B0 (single hypothesis), B1 (LIB style)
 and B2 (LIB + Discovery). B0 is a deterministic stand-in, **not an LLM**, so it is not arm A. B1
@@ -47,26 +47,89 @@ worlds, not a G-D1 verdict.
 | Information exposure | the same corpus snapshot (hash), case material, tool descriptions, experiment catalog and cost table; no arm sees sealed truth; prompts and tool outputs logged for audit; no arm receives information another arm generated |
 | Experimental conditions | the same simulator access and qualification, time limit per case, seed per case, egress permissions and environment manifest (commit, schema, packages, model digests, scorer hash) |
 | Resource caps | one cap per case for tokens (input and output, including failures, retries and parsing repairs), compute seconds, experiment cost units, licensed seat time (G-D3 and above) and wall time |
-| Realized consumption | recorded per case and arm for every attempt, converted to cost units by the frozen cost table; the basis of the primary analysis (§3.2) |
+| Realized consumption | recorded per case and arm for every attempt, converted to cost units by the frozen cost table; the basis of the primary analysis at frozen checkpoints (§3.3) |
 
 Unused budget is not carried over. Reaching a cap ends the case as `STOPPED (budget)` and the
 answer held then is scored; an attempt to exceed a cap is an incident.
 
-### 3.2 Comparison at matched realized consumption
+### 3.2 Why candidate.1's rule was replaced
 
-Caps alone do not match arms: an arm may stop early and spend little while another spends its whole
-cap. The primary analysis therefore compares arms at matched **realized** consumption:
+Candidate.1 matched each case at the smallest *final* realized consumption among the arms. That
+level is chosen after execution and depends on outcomes: an arm that happens to be right early and
+stops pulls the comparison point down to where the other arms have not yet converged (S2-CE-1
+below), the comparison budget differs from case to case for reasons the protocol does not control,
+and an arm's score depends on the other arms' traces. It is kept only as a labelled secondary
+sensitivity analysis (§3.5).
 
-1. For each case, the matched level is the smallest final realized consumption among the arms being
-   compared (*proposed* rule; OD-03 freezes the rule).
-2. Each arm is scored on the anytime answer it held when its cumulative realized consumption first
-   reached the matched level, or on its final answer if it never exceeded that level.
-3. Secondary analyses: final answers at the cap; cost-to-discrimination curves; realized cost per
-   correct outcome.
-4. If an arm's realized consumption is incomplete (missing attempt records), or anytime answers are
-   missing, or the measured consumption cannot be compared within the frozen tolerance, the
-   comparison is **COST_UNMATCHED**: it is reported, and it cannot support a claim that one arm is
-   better at equal budget (S35-CMP-002).
+### 3.3 Primary comparison at frozen realized-cost checkpoints
+
+1. **Frozen ladder.** At G-D0, before any arm runs, the evaluator freezes a strictly increasing
+   ladder of realized-cost checkpoints c₁ < … < c_K in frozen cost units, all at or below the common
+   cap, and one **primary checkpoint** c* among them (*proposed*: c* equal to the cap, with the
+   ladder at 25 %, 50 % and 100 % of the cap; OD-03). The ladder, c*, the cost table and the
+   tolerance are in the protocol hash. A checkpoint not in the frozen ladder is refused by the
+   analysis code (S2-CE-5).
+2. **Charging.** Every atomic attempt (model call, tool call, simulation, experiment request,
+   retry, parsing repair, failed or timed-out attempt) is charged its full realized cost, converted
+   by the frozen cost table, **at the moment it starts**. Local and declared-free model calls are
+   charged in cost units like any other (S35-COST-001). The cumulative charge at time t is the sum
+   over every attempt started at or before t, including attempts still in flight.
+3. **Answer held at a checkpoint.** An arm's answer at checkpoint c is the last anytime answer it
+   committed while its cumulative charge was ≤ c. If none, it holds no claim at c.
+4. **Atomic actions.** Because charges are taken at start, an attempt that straddles c (its start
+   charge takes the cumulative charge above c) cannot supply evidence to the answer at c: the answer
+   at c was committed before that attempt (S2-CE-2). An arm cannot split an atomic experiment to
+   claim part of its result, and cannot receive a result it did not pay for within c.
+5. **Early stopping.** An arm that stops at cumulative charge s holds its final answer at every
+   checkpoint ≥ s. Stopping moves no checkpoint and changes no other arm's score: each arm's answer
+   at c is a function of its own trace only (S2-CE-1). An arm that stops early with a wrong answer is
+   scored wrong at every later checkpoint.
+6. **Cap.** Reaching the cap ends the case as `STOPPED (budget)`; an attempt whose start would
+   exceed the cap is refused and is an incident if it runs (S35-CMP-008).
+7. **Primary result.** The primary analysis compares arms on their answers at c*, paired by case,
+   with the statistics of §6. The other checkpoints give the pre-registered anytime curve, reported
+   in full and never used to pick the primary point.
+
+### 3.4 COST_UNMATCHED
+
+A case is **COST_UNMATCHED** at a checkpoint when any compared arm, for that case:
+
+- has an attempt ledger whose total differs from the independent meter or provider ledger by more
+  than the frozen tolerance (missing failures, retries, repairs or model calls; S2-CE-3);
+- has no anytime answer stamped with its cumulative charge;
+- ran under a different cap, cost table or environment manifest (S2-CE-6), or the checkpoint exceeds
+  its cap;
+- has consumption in a dimension the frozen cost table cannot convert.
+
+A COST_UNMATCHED case stays in the denominator. In the primary analysis it is scored, for each claim
+of superiority, against the arm whose records are deficient (that arm is scored incorrect when the
+claim is that it is better, and correct when the claim is that it is worse), so a deficient record
+can never help the arm that produced it. If the share of COST_UNMATCHED cases exceeds the frozen
+limit (*proposed* 5 %), the whole comparison is COST_UNMATCHED and cannot support a claim that one
+arm is better at equal budget (S35-CMP-002).
+
+### 3.5 Secondary sensitivity analyses (never primary)
+
+Labelled secondary, reported with the primary result, and never able to replace or override it:
+final answers at the cap; the candidate.1 rule (each case matched at the smallest final realized
+consumption among the arms); area under the anytime-correctness curve over the frozen ladder;
+cost-to-discrimination curves; realized cost per correct outcome; and any matching that a reviewer
+proposes after unsealing. A conclusion that holds only under a secondary analysis is reported as
+such and is not a G-D result.
+
+### 3.6 Adversarial examples (acceptance fixtures of T-S35-CMP-002)
+
+Executable in [semantic_reference.py](semantic_reference.py); ladder 25, 50, 100; c* = 50 in the
+fixtures.
+
+| ID | Fixture | Candidate.1 rule | Required result |
+|---|---|---|---|
+| S2-CE-1 | X is right at cost 10 and stops; Y is right at 30 | matched at 10: X right, Y wrong, "X better at equal budget" | at c*: both right; Y's score is unchanged when X's trace changes |
+| S2-CE-2 | an experiment starts at 40 and costs 30 (ends at 70) with the decisive result | answer after the experiment credited at 50 | answer at 50 is the one held before the experiment; at 100 the result counts |
+| S2-CE-3 | ledger 35, recorded attempts 10 (hidden failures or retries) | arm looks cheap | COST_UNMATCHED |
+| S2-CE-4 | twenty model calls of 2 units, then a 5-unit experiment | calls ignored as "free" | charged 45: no claim at 25, claim at 50 |
+| S2-CE-5 | the analyst picks checkpoint 30 after seeing results | accepted | refused |
+| S2-CE-6 | one arm with a lower cap | compared anyway | COST_UNMATCHED |
 
 ## 4. Benchmark and hidden-world generation
 
@@ -90,9 +153,9 @@ every arm, with n, the estimate and an interval.
 
 | Metric | Definition | Notes |
 |---|---|---|
-| **true-cause discovery** | share of cases whose final claim lies in the true cause's equivalence class under the case's full experiment set; in a no-mechanism case a correct `INSUFFICIENT_VALIDATION` counts as correct | scored at the claim's stated state; a correct mechanism held only as an exploratory idea does not count |
-| **effective mechanism diversity** | number of distinct distinguishable mechanism classes among the arm's admitted hypotheses under the case's experiment set, and whether the true class was among them | never raw hypothesis counts; undecidable merged pairs are listed |
-| **discriminating-experiment efficiency** | experiments and realized cost units consumed until the true class is the only surviving class | censored at the cap; reported as a cost-to-discrimination curve and median with censoring |
+| **true-cause discovery** | share of cases whose answer at the primary checkpoint names the true mechanism or one certified `INDISTINGUISHABLE` from it under the case's full experiment set ([Appendix S](mechanism-distinguishability.md) §6); `UNRESOLVED` is credited only in the reported upper bound; in a no-mechanism case a correct `INSUFFICIENT_VALIDATION` counts as correct | scored at the claim's stated state; a correct mechanism held only as an exploratory idea does not count |
+| **effective mechanism diversity** | certified lower bound (with the upper bound) on the largest number of the arm's admitted hypotheses that are pairwise `DISTINGUISHABLE` under the case's full experiment set ([Appendix S](mechanism-distinguishability.md) §4), and whether the true mechanism was held | never raw hypothesis counts and never a transitive class count; `UNRESOLVED` pairs are listed |
+| **discriminating-experiment efficiency** | experiments and realized cost units charged until every surviving held mechanism is in the true mechanism's neighbourhood (none certified distinguishable from it survives) and every other is refuted | censored at the cap; reported as a cost-to-discrimination curve and median with censoring |
 | **false discoveries** | false-discovery rate (wrong claims at SUPPORTED or higher ÷ claims at SUPPORTED or higher) and a weighted score: wrong CONFIRMED × w_c, wrong SUPPORTED × w_s, confident claim where a stop was correct × w_stop | *proposed* w_c = 10, w_s = 3, w_stop = 3 (OD-03) |
 | **independent reproducibility** | share of a pre-registered subset that the evaluator re-runs in a fresh environment from the frozen manifest with the same final claim and state | any manifest drift makes the re-run invalid, not reproduced; an invalid rate above the frozen limit invalidates the comparison |
 
@@ -136,7 +199,7 @@ Frozen before unsealing (OD-03):
 
 | Level | Stops when | Result |
 |---|---|---|
-| Case | cap, time limit, or the arm's own STOPPED or INSUFFICIENT_VALIDATION | the answer held then is scored |
+| Case | cap, time limit, or the arm's own STOPPED or INSUFFICIENT_VALIDATION | the answers held at the frozen checkpoints are scored (§3.3) |
 | Study | the pre-registered n, or a pre-registered interim boundary | final analysis |
 | Incident | an arm breaches egress, budget, isolation or an Owner gate | affected runs INVALID and reported; above the frozen limit the study is INVALID |
 | Paid stage | the Owner's ceiling is reached | reported as partial; no extrapolation |
@@ -155,7 +218,7 @@ Frozen before unsealing (OD-03):
 ## 10. What falsifies "Discovery helps"
 
 See SAI 3.5 §4: no primary-metric gain at the minimum effect, worse weighted false discoveries, a
-diversity gain that disappears when counted as distinguishable classes, worse stopping in
+diversity gain that disappears when counted as certified diversity ([Appendix S](mechanism-distinguishability.md)), worse stopping in
 no-mechanism worlds, a gain that disappears at matched realized consumption or depends on a
 mismatch, or an unreproducible gain. If arm A matches arm C, the extra machinery is not justified
 for discovery on that scope.

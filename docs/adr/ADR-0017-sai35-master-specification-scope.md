@@ -4,7 +4,7 @@ Status: Proposed — candidate only; not accepted
 Date: 2026-11-02
 Affected Requirements: S35-GOV-001 … S35-CMP-009 (77 SAI 3.5 candidate requirements; D-001–D-046 retired); no SAI 3.3 requirement and no SAI 3.4 obligation (ASM-001–018, G0–G9) changes
 Human Approval Required: Yes — Owner decisions OD-01 (candidate), OD-10 (boundary mechanism) and, for activation, OD-16 after an Independent Chief Auditor review
-Spec revision: SAI `3.5.0-master-candidate.1`; active profile unchanged (SAI 3.4 `3.4.0-phased.1` with the SAI 3.3 executable profile)
+Spec revision: SAI `3.5.0-master-candidate.1`, amended in place by `3.5.0-master-candidate.2` (2026-11-04: semantic corrections only, scope, identifiers and OD-10 proposal unchanged; [change register](../spec/sai35/change-register.md) §6); active profile unchanged (SAI 3.4 `3.4.0-phased.1` with the SAI 3.3 executable profile)
 
 Supersedes in part [ADR-0016](ADR-0016-sai35-discovery-candidate.md) (scope of the SAI 3.5 candidate
 and its OD-10 handling). ADR-0015 is used on the unintegrated G0 line.

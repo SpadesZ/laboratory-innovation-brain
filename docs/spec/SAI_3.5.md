@@ -1,6 +1,6 @@
 # SAI 3.5 — Autonomous AI Scientist for Silicon Photonics (master specification)
 
-Version: `3.5.0-master-candidate.1` · Date: 2026-11-02 ·
+Version: `3.5.0-master-candidate.2` · Date: 2026-11-04 ·
 Base: `integration-integrity-accounts` @ `a38ad63a4f4ad83c895cbd1e32b2e760d878f356`
 
 Status: **CANDIDATE — NOT ACTIVE.** Not integrated; it does not change SAI 3.4 (`3.4.0-phased.1`), SAI 3.3 or the G0–G9 acceptance gates.
@@ -46,7 +46,7 @@ byte of them differs from the base commit.
    an appendix and §3 is a spec issue. Appendices marked *informative* carry no obligation.
 4. **Machine-readable registry.** [normative-statements.yaml](sai35/normative-statements.yaml) must
    agree with §3 statement by statement; the checker enforces it.
-5. **Decisions stay with the Owner.** Every Owner decision OD-01…OD-16
+5. **Decisions stay with the Owner.** Every Owner decision OD-01…OD-18
    ([decisions](sai35/decisions-and-review.md)) is OPEN. Writing a recommendation decides nothing.
 
 ### 0.4 Reading conventions
@@ -73,7 +73,24 @@ OD-13; until it exists, the [bilingual glossary](sai35/ux-reports-glossary.md) �
 term for every term used here, and the [zh-TW report](sai35/REPORT.zh-TW.md) summarizes the
 candidate for the Owner without normative force.
 
-### 0.6 Two kinds of validity
+### 0.6 Revision candidate.2
+
+`3.5.0-master-candidate.2` revises `3.5.0-master-candidate.1` (branch
+`sai-3.5-master-specification` @ `15586fc`) after the Independent Chief Auditor's CONDITIONAL PASS.
+It keeps every identifier, the 77 requirements, the twelve capabilities and the architecture, and
+corrects four semantic defects: pairwise indistinguishability treated as an equivalence relation
+(S35-MECH-001 and its uses; new [Appendix S](sai35/mechanism-distinguishability.md)); an
+outcome-dependent matched-cost rule (S35-CMP-002, [Appendix J](sai35/matched-budget-protocol.md)
+§3); epistemic stages applied to every record (S35-HYP-001); and an unclear relation between
+exploration, spending, admission, support, confirmation and safe stops (S35-GOV-003, S35-LIFE-002,
+S35-LOOP-003, S35-SEC-001, S35-REG-003, [Appendix E](sai35/governance-security.md) §9,
+[Appendix A](sai35/lifecycle.md) §3.1). Every changed statement is listed in the
+[change register](sai35/change-register.md) §6 and assessed in the
+[semantic consistency report](sai35/semantic-consistency-report.md). The definitions and their
+counterexamples are executable in [semantic_reference.py](sai35/semantic_reference.py), which the
+candidate checker runs.
+
+### 0.7 Two kinds of validity
 
 *Engineering validity*: code, tests, CI, mutation batteries and record integrity show that a rule is
 enforced. *Scientific validity*: an independent evaluation shows that the system finds true causes,
@@ -101,10 +118,13 @@ sufficient. Every document and report keeps the two apart (S35-GOV-004).
 | O | [decisions-and-review.md](sai35/decisions-and-review.md) | informative | Owner decisions, risks, self-review, OD-10 resolution proposal |
 | P | [open-spec-issues.md](sai35/open-spec-issues.md) | informative | open SAI 3.5 spec issues |
 | Q | [requirement-audit.md](sai35/requirement-audit.md) | informative | individual audit of the retired D-001…D-046 |
-| R | [change-register.md](sai35/change-register.md) | informative | old → new identifiers, new requirements, identifier scheme |
+| R | [change-register.md](sai35/change-register.md) | informative | old → new identifiers, new requirements, identifier scheme, candidate.2 revisions |
+| S | [mechanism-distinguishability.md](sai35/mechanism-distinguishability.md) | normative | mechanism identity, pairwise distinguishability, certified diversity bounds, scoring and novelty against prior art, catalog adequacy, counterexamples |
+| T | [semantic-consistency-report.md](sai35/semantic-consistency-report.md) | informative | requirement-by-requirement semantic consistency audit of candidate.2 |
 
 Machine-readable and tooling: [normative-statements.yaml](sai35/normative-statements.yaml)
 (normative registry), [check_candidate.py](sai35/check_candidate.py) (document checker),
+[semantic_reference.py](sai35/semantic_reference.py) (executable definitions and counterexamples),
 [check_sai34_boundary_without_candidate.py](sai35/check_sai34_boundary_without_candidate.py) and
 [candidate-paths.txt](sai35/candidate-paths.txt) (OD-10 proposal A'). Decision records:
 [ADR-0017](../adr/ADR-0017-sai35-master-specification-scope.md) (master scope and the OD-10
@@ -130,8 +150,8 @@ This is a target. Today none of the capabilities below is demonstrated in the pr
 | ID | Capability (final target) | Counts as present only when | Requirements | Evidence gates | Demonstrated today |
 |---|---|---|---|---|---|
 | CAP-01 | Discover valuable research problems, anomalies, contradictions and knowledge gaps | a ResearchProblem with origin, provenance and a recorded valuation is created from canonical records without a human posing the question | S35-PROB-001, S35-PROB-002, S35-PROB-003, S35-PROB-004 | G-D1, G-D2 | no |
-| CAP-02 | Generate genuinely novel, mechanistically distinguishable, falsifiable hypotheses | an admitted hypothesis has a mechanism, a typed CONTRADICTS prediction, a distinct mechanism class under the experiment set, and a novelty class bounded by prior-art coverage | S35-HYP-002, S35-HYP-004, S35-MECH-001, S35-NOV-001, S35-NOV-002, S35-NOV-003 | G-D2, G-D3 | no |
-| CAP-03 | Explore alternative physical mechanisms and expand the effective search space | after failure or residual structure, distinguishable new classes are registered in a recorded order and never-considered classes are listed | S35-MECH-001, S35-MECH-002 | G-D1, G-D2 | no |
+| CAP-02 | Generate genuinely novel, mechanistically distinguishable, falsifiable hypotheses | an admitted hypothesis has a mechanism, a typed CONTRADICTS prediction, certified distinguishability from every held mechanism under the experiment set, and a novelty class bounded by prior-art coverage | S35-HYP-002, S35-HYP-004, S35-MECH-001, S35-NOV-001, S35-NOV-002, S35-NOV-003 | G-D2, G-D3 | no |
+| CAP-03 | Explore alternative physical mechanisms and expand the effective search space | after failure, residual structure or inadequacy of every held mechanism, certified-distinguishable new mechanisms are registered in a recorded order, never-considered families are listed, and no inadequate mechanism is endorsed | S35-MECH-001, S35-MECH-002 | G-D1, G-D2 | no |
 | CAP-04 | Research Reframing when assumptions, observables, models or hypotheses fail | a typed, append-only Reframing with trigger and kind starts a new lineage while the full failure history stays visible and in the denominators | S35-REF-001, S35-REF-002, S35-REF-003 | G-D1, G-D2, G-D3 | no |
 | CAP-05 | Independently evaluate competing explanations and select discriminating experiments | rivals are closed and evaluated by a separate Validation identity, and the next experiment maximizes class discrimination per cost | S35-SEL-001, S35-SEL-002, S35-LOOP-001 | G6, G-D1, G-D2, G-D3 | no |
 | CAP-06 | Construct physical models from scratch through governed typed scientific operations | a qualified model family is built in a blank workspace from a PhysicalModelSpec by catalog operations only, with independent readback | S35-MOD-001, S35-MOD-002, S35-MOD-003 | G1, G9 | no |
@@ -220,16 +240,22 @@ described as present without an evidence path.
 
 <!-- statement: gov.product_category -->
 **S35-GOV-003 MUST** — LIB is a research agent, not a literature summarizer, chatbot, simulation
-launcher or hypothesis-review assistant. A campaign is complete only when the system has itself
-selected, registered and run at least one discriminating test and the campaign ends in a validated
-outcome state (a claim CONFIRMED through the Causal Warrant Gate, or a hypothesis CONTRADICTED or
-INCONCLUSIVE under a registered test) or in an explicit INSUFFICIENT_VALIDATION or STOPPED record. A
-workflow that ends at a summary, an answer, a launched run or a list of hypotheses for a human to
-review does not meet the product target. *Acceptance (T-S35-GOV-003, empirical):* on the frozen G9
-and G-D1 case sets, every completed campaign carries at least one registered test the system
-selected and ran and ends in one of the listed outcome states; a campaign that ends with only a
-summary, an answer, a launched run or an unreviewed hypothesis list is scored as not meeting the
-target.
+launcher or hypothesis-review assistant. A campaign is a completed experimental campaign only when
+the system has itself selected, registered and run at least one discriminating test and the campaign
+ends in a validated outcome state (a claim CONFIRMED through the Causal Warrant Gate, or a
+hypothesis CONTRADICTED or INCONCLUSIVE under a registered test). A campaign that ends in an
+explicit INSUFFICIENT_VALIDATION or STOPPED record, including one stopped safely before any
+experiment ran, is a valid operational termination but not a completed experimental campaign, and it
+is never a discovery; a scientifically accepted discovery further needs a stage-3 claim under
+S35-CWG-001 and S35-CWG-002 and the conditions of §2.3. A workflow that ends at a summary, an
+answer, a launched run or a list of hypotheses for a human to review does not meet the product
+target. *Acceptance (T-S35-GOV-003, empirical):* on the frozen G9 and G-D1 case sets, every campaign
+is classified on the three termination dimensions of lifecycle.md §3.1; every campaign counted as
+completed carries at least one registered test the system selected and ran and ends in a validated
+outcome state; a campaign stopped before any experiment is counted as a valid operational
+termination with experimental completion NOT_PERFORMED and never as completed or as a discovery; a
+campaign that ends with only a summary, an answer, a launched run or an unreviewed hypothesis list
+is scored as not meeting the target.
 
 <!-- statement: gov.claim_discipline -->
 **S35-GOV-004 MUST** — No document, interface, report, status file or release note may claim a
@@ -270,18 +296,24 @@ and every output row carries every binding field; a skipped stage without a reas
 machine of lifecycle.md: DRAFT, SCOPED, RUNNING, the waiting states, REPORTING and the three closed
 states CLOSED_CONCLUDED, CLOSED_INSUFFICIENT_VALIDATION and CLOSED_STOPPED. A campaign contains SAI
 3.3 research episodes and does not replace the §12.1 episode state machine. Any other transition is
-refused and logged. *Acceptance (T-S35-LIFE-002, deterministic):* a table-driven test attempts every
-(state, event) pair; exactly the listed transitions succeed and every refusal is logged with its
-reason; episodes inside a campaign still follow §12.1.
+refused and logged. Every closed campaign records three separate dimensions of lifecycle.md §3.1:
+operational termination (VALID or INVALID), experimental completion (NOT_PERFORMED, PARTIAL or
+COMPLETED) and scientific acceptance (NONE, PENDING_CAUSAL_WARRANT_GATE or ACCEPTED_DISCOVERY); no
+value of one dimension implies a value of another. *Acceptance (T-S35-LIFE-002, deterministic):* a
+table-driven test attempts every (state, event) pair; exactly the listed transitions succeed and
+every refusal is logged with its reason; episodes inside a campaign still follow §12.1; a campaign
+closed CLOSED_STOPPED before any registered test records VALID, NOT_PERFORMED and NONE;
+CLOSED_CONCLUDED without a validated outcome is refused.
 
 <!-- statement: life.termination -->
 **S35-LIFE-003 MUST** — Every campaign runs under explicit budgets (tokens, compute, money,
 experiments, licensed seat time, wall time and reframings) and a versioned stopping policy fixed
 before it starts. It always terminates and records its termination reason. Budget exhaustion,
-stagnation or an unresolvable class ends it as CLOSED_INSUFFICIENT_VALIDATION or CLOSED_STOPPED;
-neither is ever reported as a discovery. *Acceptance (T-S35-LIFE-003, deterministic):* a property
-test over randomized campaigns with finite budgets shows every run terminating within its caps with
-a recorded reason; a campaign closed by exhaustion is never rendered or exported as a finding.
+stagnation or distinguishability that stays UNRESOLVED ends it as CLOSED_INSUFFICIENT_VALIDATION or
+CLOSED_STOPPED; neither is ever reported as a discovery. *Acceptance (T-S35-LIFE-003,
+deterministic):* a property test over randomized campaigns with finite budgets shows every run
+terminating within its caps with a recorded reason; a campaign closed by exhaustion is never
+rendered or exported as a finding.
 
 ### 3.3 Problem discovery (PROB)
 
@@ -290,11 +322,13 @@ a recorded reason; a campaign closed by exhaustion is never rendered or exported
 (ANOMALY, CONTRADICTION, KNOWLEDGE_GAP, FAILED_HYPOTHESIS, VALIDATION_RESIDUAL, LITERATURE_GAP or
 OWNER_QUESTION), links the records behind it by id and hash, and carries provenance (S35-EVI-002). A
 problem may consume resources beyond the zero-cost tier only inside an active ResearchEnvelope that
-covers it (S35-REG-002) or after an active human project member accepts it. Problem discovery never
-sends non-PUBLIC material past the egress gate. *Acceptance (T-S35-PROB-001, deterministic):* a
-ResearchProblem without origin, source links or provenance is refused; a problem outside every
-envelope and not accepted cannot reserve non-zero budget; an egress audit shows no INTERNAL-labelled
-source in any outbound query.
+covers it (S35-REG-002) or after an active human project member accepts it; spending money or using
+a license still needs the Owner gates of S35-SEC-002, which a member's acceptance never gives.
+Problem discovery never sends non-PUBLIC material past the egress gate. *Acceptance (T-S35-PROB-001,
+deterministic):* a ResearchProblem without origin, source links or provenance is refused; a problem
+outside every envelope and not accepted cannot reserve non-zero budget; a problem accepted by a
+member without a covering envelope or Owner gate cannot reserve money or license budget; an egress
+audit shows no INTERNAL-labelled source in any outbound query.
 
 <!-- statement: prob.valuation -->
 **S35-PROB-002 MUST** — Problem Discovery ranks candidate problems by a recorded ProblemValuation
@@ -333,27 +367,39 @@ blocking UNKNOWN field yields a KNOWLEDGE_GAP problem citing the field.
 ### 3.4 Hypotheses and epistemic stages (HYP)
 
 <!-- statement: hyp.epistemic_stages -->
-**S35-HYP-001 MUST** — Every scientific object is in exactly one of three epistemic stages: (1)
-exploratory idea, any proposal not yet admitted; (2) testable hypothesis, admitted under the SAI 3.3
-§8 Hypothesis Admission Gate and assigned to a mechanism class; (3) evidence-supported conclusion, a
-claim CONFIRMED through the Causal Warrant Gate that still re-derives. Discovery may propose but
-never confirm: no Discovery component writes stage 3, and a stage-1 object may not consume more than
-the zero-cost tier or be shown as a hypothesis or a finding. *Acceptance (T-S35-HYP-001,
+**S35-HYP-001 MUST** — Hypotheses and scientific claims, and only they, carry one of three epistemic
+stages: (1) exploratory idea, any proposed hypothesis or claim not yet admitted; (2) testable
+hypothesis, admitted under the SAI 3.3 §8 Hypothesis Admission Gate with its mechanism identity and
+distinguishability verdicts recorded (S35-MECH-001); (3) evidence-supported conclusion, a claim
+CONFIRMED through the Causal Warrant Gate that still re-derives. ResearchProblem, Observation,
+Anomaly, ExperimentSet, Registration, Run, PhysicalModelSpec and every other record keep their own
+schemas and state machines of records-and-states.md and carry no epistemic stage; a stage never sets
+or replaces their states, and their states never imply a stage. Discovery may propose but never
+confirm: no Discovery component writes stage 3. A stage-1 idea is never the subject of a budget
+reservation for a test, never shown as a hypothesis or a finding, and never evidence; the model
+calls that generate or screen ideas are charged to the generating activity under its own
+authorization (AL2 at zero cost, AL3 within the envelope's ceilings, or an Owner gate), and that
+authorization admits nothing (governance-security.md §9). *Acceptance (T-S35-HYP-001,
 deterministic):* static and contract tests show Discovery identities have no write path to CONFIRMED
-or to Causal Warrant Gate tables; every rendered object shows its stage; a stage-1 object cannot
-reserve non-zero budget; a stage-3 label without a re-derivable Causal Warrant Gate decision is
-refused on read.
+or to Causal Warrant Gate tables; every rendered hypothesis and claim shows its stage and no other
+record type renders one; a record of another type submitted with a stage field is refused; a budget
+reservation for a test that names a stage-1 idea is refused, while an authorized idea-generation
+call is charged and its output stays stage 1; a stage-3 label without a re-derivable Causal Warrant
+Gate decision is refused on read.
 
 <!-- statement: hyp.testable_mechanistic -->
 **S35-HYP-002 MUST** — A hypothesis is admitted (stage 2) only with a stated physical or
 measurement-chain mechanism, assumptions, confounders, a minimal test and at least one typed
 Prediction bound to a declared OutcomeSpace version that carries a CONTRADICTS effect over an
 observable some available or Owner-approvable experiment can measure (SAI 3.3 §8 and §17.5.1). It is
-called falsifiable only under those conditions, and mechanistically distinct only when S35-MECH-001
-separates it from every held hypothesis; otherwise it joins that hypothesis's class. *Acceptance
-(T-S35-HYP-002, deterministic):* admission refuses a hypothesis lacking any listed field, a
-prediction not bound to a declared OutcomeSpace, or one with no CONTRADICTS effect; a renamed
-duplicate (identical forward model) is recorded as an alias, never as a new class.
+called falsifiable only under those conditions, and mechanistically distinct only when it is
+certified DISTINGUISHABLE under S35-MECH-001 from every held hypothesis; otherwise it is recorded
+with its verdicts against each held hypothesis it is not certified distinguishable from, and as an
+alias when its mechanism identity equals one already held. *Acceptance (T-S35-HYP-002,
+deterministic):* admission refuses a hypothesis lacking any listed field, a prediction not bound to
+a declared OutcomeSpace, or one with no CONTRADICTS effect; a renamed duplicate (identical
+forward-model identity) is recorded as an alias, never as a new mechanism; a hypothesis that is not
+certified distinguishable from a held one is never reported as mechanistically distinct.
 
 <!-- statement: hyp.claim_states -->
 **S35-HYP-003 MUST** — Every discovery claim carries a claim state from the transition table of
@@ -381,29 +427,49 @@ submitted for admission.
 ### 3.5 Mechanism space (MECH)
 
 <!-- statement: mech.distinguishable_classes -->
-**S35-MECH-001 MUST** — Mechanism diversity is the number of distinguishable mechanism classes under
-the experiment set E available to the campaign, never a raw count of hypotheses. Two admitted
-hypotheses are in the same class under E when no experiment in E, at the declared replicates,
-separates their typed predictions beyond the pre-registered threshold over their whole parameter
-ranges (worst case); undecidable pairs are merged, which is conservative. The partition is
-deterministic, versioned and recomputed whenever E changes; every reported count names the version
-of E and lists the merged pairs. *Acceptance (T-S35-MECH-001, deterministic):* adding fifty renamed
-or indistinguishable variants leaves the class count unchanged; identical inputs give an identical
-partition; changing E recomputes it; the report generator refuses a diversity figure without an E
-version.
+**S35-MECH-001 MUST** — Mechanism identity, distinguishability and diversity follow
+mechanism-distinguishability.md. A mechanism's identity is the content hash of its canonical
+forward-model declaration, never its name; equal identities are aliases. For every pair of held
+hypotheses the Mechanism Explorer computes, under the experiment set E available to the campaign at
+its declared replicates and noise model, a certified interval for the worst-case joint separation
+over both parameter domains, and records one verdict against the pre-registered threshold:
+DISTINGUISHABLE, INDISTINGUISHABLE or UNRESOLVED. Pairwise indistinguishability is not an
+equivalence relation: no count, score, novelty decision or refutation may merge pairs transitively.
+Mechanism diversity is never a raw count of hypotheses: it is the largest number of held hypotheses
+that are pairwise certified DISTINGUISHABLE under E, reported as a lower bound with UNRESOLVED pairs
+treated as not distinguishable and, while any pair is UNRESOLVED, with an upper bound beside it. The
+verdicts are deterministic, versioned and recomputed whenever E, the threshold, the replicates or a
+parameter domain changes; every reported figure names the version of E and lists the aliases and
+UNRESOLVED pairs. *Acceptance (T-S35-MECH-001, deterministic):* the counterexamples S1-CE-1 to
+S1-CE-10 of mechanism-distinguishability.md hold, including A = 0, B = 0.75 and C = 1.50 at
+threshold 1 giving A/B and B/C INDISTINGUISHABLE, A/C DISTINGUISHABLE and diversity 2 (neither 1 nor
+3); adding fifty aliases or near-duplicate variants leaves the diversity unchanged; adding one
+mechanism raises it by at most one; a transitive merge or connected-component count is rejected;
+identical inputs give identical verdicts; changing E recomputes them; the report generator refuses a
+diversity figure without an E version.
 
 <!-- statement: mech.search_space_expansion -->
-**S35-MECH-002 MUST** — When every live class fails, when a tested anomaly persists, or when
-validation leaves residual structure, the Mechanism Explorer expands the effective search space in a
-recorded order: measurement-chain classes, regime variants of declared mechanisms, compositions of
-classes, extended declared classes, and new mechanisms proposed by the Hypothesis Brain
-(S35-HYP-004). It adds only candidates that the admitted data do not already refute and that are
-distinguishable from everything held. The record states the search space before and after, the
-classes never considered, and that a truth outside every considered class can only be reported as
+**S35-MECH-002 MUST** — When every live hypothesis fails, when a tested anomaly persists, when
+validation leaves residual structure, or when no held mechanism is adequate, the Mechanism Explorer
+expands the effective search space in a recorded order: measurement-chain mechanisms, regime
+variants of declared mechanisms, compositions, extended declared mechanisms, and new mechanisms
+proposed by the Hypothesis Brain (S35-HYP-004). It adds only candidates that the admitted data do
+not already refute and that are certified DISTINGUISHABLE from every held mechanism. Before any held
+mechanism is endorsed, each is tested for adequacy against the admitted data by the pre-registered
+criterion of mechanism-distinguishability.md §8 relative to the noise model, never by its rank among
+the held mechanisms; when none is adequate, the system records an UNEXPLAINED anomaly and the
+catalog's incompleteness and may only abstain, expand, reframe, request an experiment that
+discriminates the held mechanisms from "none is adequate", or stop, and a larger budget never
+relaxes the criterion. The record states the search space before and after, the mechanism families
+never considered, and that a truth outside every considered family can only be reported as
 unexplained. *Acceptance (T-S35-MECH-002, deterministic and empirical):* deterministic: on a world
 whose truth is a composition or lies outside the initial prior, expansion registers it when
-distinguishable and lists the never-considered classes otherwise; empirical: in G-D1 hidden worlds
-of those kinds, arm C's true-cause discovery is reported per world kind.
+certified distinguishable and lists the never-considered families otherwise; on a world whose true
+family is absent from the catalog no held mechanism is endorsed at any budget, the anomaly is
+recorded, and the outcome is an abstention, a stage-1 proposal, a reframing, a
+discriminating-experiment request or a stop; empirical: in G-D1 hidden worlds of those kinds, arm
+C's true-cause discovery and its force-fit rate (endorsing an inadequate held mechanism) are
+reported per world kind and per budget.
 
 ### 3.6 Research Reframing (REF)
 
@@ -441,26 +507,30 @@ with STOP_INSUFFICIENT.
 
 <!-- statement: sel.discrimination_per_cost -->
 **S35-SEL-001 MUST** — The Verification Planner selects experiments that discriminate among the
-currently surviving mechanism classes per unit of cost: it prefers the experiment that separates the
-most surviving classes, weighted as the versioned policy states, for the lowest CostVector, using
-SAI 3.3 §9 sufficiency and a versioned deterministic SelectionPolicy. Uncalibrated
+surviving held mechanisms per unit of cost: it prefers the experiment that converts the most
+surviving pairs from not certified distinguishable to DISTINGUISHABLE
+(mechanism-distinguishability.md §5), weighted as the versioned policy states, for the lowest
+CostVector, using SAI 3.3 §9 sufficiency and a versioned deterministic SelectionPolicy. Uncalibrated
 expected-information-gain numbers are not used (SAI 3.3 §9.2). An experiment that needs money, a
 license, a physical experiment or publication is proposed and runs only after its gate (S35-SEC-002,
 S35-REG-002). *Acceptance (T-S35-SEL-001, deterministic):* identical inputs and policy give an
-identical ranked plan; an experiment that separates no surviving pair is never ranked above one that
+identical ranked plan; an experiment that converts no surviving pair is never ranked above one that
 does at equal cost; a gated experiment is never dispatched before its authorization record exists.
 
 <!-- statement: sel.competing_explanations -->
 **S35-SEL-002 MUST** — Competing explanations are evaluated independently of the component that
 generated them. Before any claim leaves the Discovery side, the Validation Loop evaluates every live
 explanation against the same admitted evidence with the same pre-registered rule, registers every
-declared rival of no greater complexity that the data do not refute and that is distinguishable from
-the candidate (rival closure), and discriminates it too. A refutation is never applied to a
-hypothesis while a hypothesis it cannot be separated from survives. A claim reports its whole class
-and what cannot be excluded. *Acceptance (T-S35-SEL-002, deterministic):* with a declared but
-unregistered rival, no claim is handed over until the rival is registered and discriminated; an
-indistinguishable pair is reported as one class; the evaluation runs under a Validation identity
-distinct from the generator's.
+declared rival of no greater complexity that the data do not refute and that is not certified
+INDISTINGUISHABLE from the candidate (rival closure), and discriminates it too. A refutation is
+never applied to a hypothesis while a hypothesis that is not certified distinguishable from it
+survives the same evidence. A claim reports every held hypothesis that is not certified
+distinguishable from it, with its verdict, and what cannot be excluded; this neighbourhood is not an
+equivalence class. *Acceptance (T-S35-SEL-002, deterministic):* with a declared but unregistered
+rival, no claim is handed over until the rival is registered and discriminated; a pair that is not
+certified distinguishable is reported together and neither member is refuted alone; in the A–B–C
+chain of mechanism-distinguishability.md §1 a claim for B lists A and C and a claim for A lists B
+only; the evaluation runs under a Validation identity distinct from the generator's.
 
 ### 3.8 Physical model construction (MOD)
 
@@ -490,11 +560,11 @@ hash, catalog version and readback result.
 **S35-MOD-003 MUST** — Model Qualification qualifies each model family (DomainPack payload version,
 constructor version and solver product) before its outputs may discriminate between mechanisms:
 analytical limits, manufactured or conservation cases, readback and units round-trip, each with a
-recorded scope. Outputs of an unqualified or out-of-scope model family are recorded as exploratory;
-they cannot move a claim beyond stage 2 or count in the discovery metrics. *Acceptance
-(T-S35-MOD-003, deterministic):* a run under a model family without an in-scope qualification record
-is admitted only as exploratory; qualification evidence names its cases and scope; a new constructor
-version invalidates the qualification.
+recorded scope. Outputs of an unqualified or out-of-scope model family are recorded as exploratory
+runs (a run label, not an epistemic stage); they cannot move a claim beyond stage 2 or count in the
+discovery metrics. *Acceptance (T-S35-MOD-003, deterministic):* a run under a model family without
+an in-scope qualification record is admitted only as an exploratory run; qualification evidence
+names its cases and scope; a new constructor version invalidates the qualification.
 
 ### 3.9 Licensed simulation on internal workers (SIM)
 
@@ -607,12 +677,16 @@ reframing.
 <!-- statement: loop.stop_insufficient -->
 **S35-LOOP-003 MUST** — The system must be able to stop. When validation is insufficient, the
 outcome is an explicit INSUFFICIENT_VALIDATION or STOPPED record with its reason, what was tried,
-what it cost and what would be needed to continue. Such an outcome is a success of governance, not a
-failure of the system, and it is scored as correct where no mechanism can be validated with the
-available means. A confident claim where a stop was warranted is a false discovery. *Acceptance
-(T-S35-LOOP-003, deterministic and empirical):* deterministic: a campaign that cannot discriminate
-within budget ends with a StopRecord carrying all four fields; empirical: in G-D1 no-mechanism
-worlds a correct stop is scored correct and a confident claim is scored a false discovery.
+what it cost and what would be needed to continue. Such an outcome is a valid operational
+termination and a success of governance, not a failure of the system; it is not a completed
+experimental campaign unless S35-GOV-003 holds, and it is never a discovery. It is scored as correct
+where no mechanism can be validated with the available means, and a stop made before any experiment
+is reported with experimental completion NOT_PERFORMED. A confident claim where a stop was warranted
+is a false discovery. *Acceptance (T-S35-LOOP-003, deterministic and empirical):* deterministic: a
+campaign that cannot discriminate within budget ends with a StopRecord carrying all four fields; a
+campaign stopped before any experiment is reported as VALID, NOT_PERFORMED and NONE and is never
+rendered as a finding; empirical: in G-D1 no-mechanism worlds a correct stop is scored correct and a
+confident claim is scored a false discovery.
 
 ### 3.12 Confirmation authority (CWG)
 
@@ -670,13 +744,14 @@ envelope naming a physical-experiment, fabrication or publication capability is 
 **S35-REG-003 MUST** — Automatic registration never weakens the independent authorization of
 consequential conclusions. An envelope authorizes registration and execution only: it never
 authorizes CONFIRMED, a signed review, a warrant, a release or a belief move, and evidence gathered
-under it passes every admission and prospective-evidence rule unchanged (S35-REG-004). Whether an
-envelope registration satisfies a rule that requires a per-hypothesis human pre-authorization (rule
-(l) of migration 011s with the 011w signatures on the G0 line) is Owner decision OD-14; until it is
-decided it does not, and such evidence is recorded as CITES for those hypotheses. *Acceptance
-(T-S35-REG-003, deterministic):* a CONFIRMED path that cites only an envelope authorization is
-refused; for a post-screening hypothesis, a SUPPORTS relation whose only authorization is an
-envelope registration is stored as CITES while OD-14 is open.
+under it passes every admission and prospective-evidence rule unchanged (S35-REG-004). A
+ResearchEnvelope never replaces an individual signed authorization that an inherited rule requires.
+Whether an envelope registration satisfies a rule that requires a per-hypothesis human
+pre-authorization (rule (l) of migration 011s with the 011w signatures on the G0 line) is Owner
+decision OD-14; until it is decided it does not, and such evidence is recorded as CITES for those
+hypotheses. *Acceptance (T-S35-REG-003, deterministic):* a CONFIRMED path that cites only an
+envelope authorization is refused; for a post-screening hypothesis, a SUPPORTS relation whose only
+authorization is an envelope registration is stored as CITES while OD-14 is open.
 
 <!-- statement: reg.no_retrospective_support -->
 **S35-REG-004 MUST** — There is no retrospective self-support. Evidence that existed before a
@@ -704,16 +779,20 @@ report prints the coverage scope next to every novelty statement.
 
 <!-- statement: nov.classification -->
 **S35-NOV-002 MUST** — Every finding carries one novelty class assigned by the Novelty Auditor with
-the criteria of provenance-novelty-independence.md: KNOWN_MECHANISM_REDISCOVERY (the mechanism class
-appears in covered prior art), ENGINEERING_OPTIMIZATION (a better design or operating point within
-known mechanisms, with no mechanism claim), MODEL_CORRECTION (a change of model form or parameters
-that removes a residual under known physics) or NEW_PHYSICAL_KNOWLEDGE (a mechanism or quantitative
-relation absent from covered prior art). NEW_PHYSICAL_KNOWLEDGE may be asserted only for a stage-3
-claim with independent physical validation (S35-VAL-005); before that the strongest label is
-NEW_PHYSICAL_KNOWLEDGE_CANDIDATE, shown with its stage. *Acceptance (T-S35-NOV-002, deterministic
-and blinded review):* deterministic: a NEW_PHYSICAL_KNOWLEDGE label without stage 3, S35-VAL-005
-evidence and a covering prior-art record is refused; empirical (G-D2 and above): blinded reviewers'
-class assignments are compared with the auditor's and the agreement is reported.
+the criteria of provenance-novelty-independence.md: KNOWN_MECHANISM_REDISCOVERY (the mechanism has
+the identity of, or is certified INDISTINGUISHABLE under S35-MECH-001 from, a mechanism in covered
+prior art), ENGINEERING_OPTIMIZATION (a better design or operating point within known mechanisms,
+with no mechanism claim), MODEL_CORRECTION (a change of model form or parameters that removes a
+residual under known physics) or NEW_PHYSICAL_KNOWLEDGE (a mechanism certified DISTINGUISHABLE from
+every mechanism in covered prior art, or a quantitative relation absent from it); a mechanism
+UNRESOLVED against a prior-art mechanism is at most a candidate with those pairs listed.
+NEW_PHYSICAL_KNOWLEDGE may be asserted only for a stage-3 claim with independent physical validation
+(S35-VAL-005); before that the strongest label is NEW_PHYSICAL_KNOWLEDGE_CANDIDATE, shown with its
+stage. *Acceptance (T-S35-NOV-002, deterministic and blinded review):* deterministic: a
+NEW_PHYSICAL_KNOWLEDGE label without stage 3, S35-VAL-005 evidence and a covering prior-art record
+is refused; a renamed prior-art mechanism is classed KNOWN_MECHANISM_REDISCOVERY; empirical (G-D2
+and above): blinded reviewers' class assignments are compared with the auditor's and the agreement
+is reported.
 
 <!-- statement: nov.literature -->
 **S35-NOV-003 MUST** — Autonomous literature search runs only through ExternalSourceAdapter
@@ -738,12 +817,12 @@ scientific records are refused; a withdrawal leaves the original readable.
 
 <!-- statement: evi.provenance -->
 **S35-EVI-002 MUST** — Every discovery record (problem, valuation, anomaly state change, idea,
-mechanism class partition, reframing, registration, envelope, selection decision, feedback, stop and
-novelty assessment) carries provenance: inputs by hash, the producing component, version and
-identity, InferenceProvenance for every model call, the policy versions in force, and the trace. A
-record without provenance cannot justify a later transition. *Acceptance (T-S35-EVI-002,
-deterministic):* inserting any listed record type without a provenance field is refused; a
-transition citing a record that lacks provenance is refused.
+distinguishability graph, adequacy assessment, reframing, registration, envelope, selection
+decision, feedback, stop and novelty assessment) carries provenance: inputs by hash, the producing
+component, version and identity, InferenceProvenance for every model call, the policy versions in
+force, and the trace. A record without provenance cannot justify a later transition. *Acceptance
+(T-S35-EVI-002, deterministic):* inserting any listed record type without a provenance field is
+refused; a transition citing a record that lacks provenance is refused.
 
 <!-- statement: evi.independence -->
 **S35-EVI-003 MUST** — Evidence independence for discovery claims follows SAI 3.3 claim identity and
@@ -774,15 +853,16 @@ refused.
 **S35-RPT-001 MUST** — Every campaign report is traceable and bilingual (zh-TW and en) under
 ASM-016. Beyond the eight ASM-016 content classes (hypotheses, predictions, observations,
 interpretations, uncertainty, conclusions, limitations, exports), it covers the problem and its
-provenance, the epistemic stage of every object, mechanism classes with their experiment-set
-version, anomalies and their states, the reframing history including failed hypotheses, the
-registrations and envelopes used, every validation outcome, the novelty class with its coverage
-scope, realized cost and every stop reason. Both languages carry the same identifiers, numbers,
-units, states and uncertainty; a translation never overwrites a canonical record. *Acceptance
-(T-S35-RPT-001, deterministic and bilingual review):* a structural parity test over both languages
-and every export format finds every applicable field present with equal identifiers, numbers, units
-and states; canonical hashes are unchanged after rendering; an independent bilingual reviewer checks
-semantic parity on the frozen case set.
+provenance, the epistemic stage of every hypothesis and claim and the state of every other record,
+the distinguishability verdicts and certified diversity bounds with their experiment-set version,
+anomalies and their states, the reframing history including failed hypotheses, the registrations and
+envelopes used, every validation outcome, the novelty class with its coverage scope, realized cost,
+every stop reason and the three termination dimensions. Both languages carry the same identifiers,
+numbers, units, states and uncertainty; a translation never overwrites a canonical record.
+*Acceptance (T-S35-RPT-001, deterministic and bilingual review):* a structural parity test over both
+languages and every export format finds every applicable field present with equal identifiers,
+numbers, units and states; canonical hashes are unchanged after rendering; an independent bilingual
+reviewer checks semantic parity on the frozen case set.
 
 <!-- statement: rpt.reproducible_bundle -->
 **S35-RPT-002 MUST** — Every report ships with a machine-verifiable bundle: canonical record
@@ -805,13 +885,14 @@ name untranslated; no English term in the glossary has two zh-TW terms.
 
 <!-- statement: rpt.researcher_ux -->
 **S35-RPT-004 MUST** — The researcher workspace shows, for every campaign and in both languages, the
-current stage and state of each object, open anomalies, pending registrations and authorizations,
-budgets with realized consumption, the active envelope and autonomy level, and every stop reason. No
-step that has not passed is shown as verified or green; UNKNOWN, NOT_PERFORMED and
-INSUFFICIENT_VALIDATION are shown as such; every authorization a researcher gives is a recorded
-ReviewItem resolution with actor and time. *Acceptance (T-S35-RPT-004, deterministic):* UI tests in
-both locales show each listed element; a fixture with an unperformed simulation renders
-NOT_PERFORMED, never a success style; every approve action creates a ReviewItem resolution event.
+epistemic stage of each hypothesis and claim, the state of every other record, open anomalies,
+pending registrations and authorizations, budgets with realized consumption, the active envelope and
+autonomy level, and every stop reason. No step that has not passed is shown as verified or green;
+UNKNOWN, NOT_PERFORMED and INSUFFICIENT_VALIDATION are shown as such; every authorization a
+researcher gives is a recorded ReviewItem resolution with actor and time. *Acceptance
+(T-S35-RPT-004, deterministic):* UI tests in both locales show each listed element; a fixture with
+an unperformed simulation renders NOT_PERFORMED, never a success style; every approve action creates
+a ReviewItem resolution event.
 
 ### 3.17 Production autonomy without external coding agents (AUTO)
 
@@ -857,9 +938,13 @@ cost, AL3 envelope-autonomous with budgeted model and compute use, and AL4 envel
 licensed simulation on qualified workers. The level is a bound of the active ResearchEnvelope and
 never exceeds the maximum the Owner set for the project (OD-15). No level covers physical
 experiments, fabrication, publication, CONFIRMED, or changes to validators, protocols, thresholds or
-policies. *Acceptance (T-S35-SEC-001, deterministic):* for each level, an action of the next level
-is refused and an action of the level is permitted; without an envelope only AL1 actions are
-permitted; an envelope above the project maximum is refused at creation.
+policies. A level authorizes actions and spending only: an action it permits, such as an AL3 model
+call, admits no hypothesis, creates no evidence and moves no belief; admission, registration,
+support and confirmation each need their own record and authority (governance-security.md §9).
+*Acceptance (T-S35-SEC-001, deterministic):* for each level, an action of the next level is refused
+and an action of the level is permitted; without an envelope only AL1 actions are permitted; an
+envelope above the project maximum is refused at creation; an AL3 idea-generation call within the
+ceiling is permitted and its output stays stage 1 with no SUPPORTS relation.
 
 <!-- statement: sec.owner_gates -->
 **S35-SEC-002 MUST** — Four classes of action need a recorded Owner gate before they happen:
@@ -978,13 +1063,24 @@ settings); on information exposure (the same corpus snapshot, case material, too
 experiment catalog, no arm sees sealed truth, and prompts and tool outputs are logged for audit); on
 experimental conditions (the same cost table, simulator access, time limit, seeds per case and
 environment manifest); and on resources, by actual realized consumption, not only by caps. Every arm
-runs under the same caps; the primary analysis compares arms at matched realized consumption by the
-pre-registered rule of matched-budget-protocol.md, and a comparison whose realized consumption
-cannot be matched within the frozen tolerance is reported as COST_UNMATCHED and cannot support a
-claim that one arm is better at equal budget. *Acceptance (T-S35-CMP-002, deterministic):* the
-evaluation harness refuses to score an arm whose manifest differs from another's in a matched field;
-realized consumption per case and arm is recorded including failures; the analysis applies the
-frozen matching rule and labels COST_UNMATCHED where it fails.
+runs under the same caps. The primary analysis scores every arm at the realized-cost checkpoints of
+matched-budget-protocol.md §3.3, frozen before any arm runs and independent of outcomes: every
+attempt (model call, tool call, experiment, retry, repair or failure) is charged its full realized
+cost when it starts; an arm's answer at a checkpoint is the last answer it committed while its
+cumulative charge was within the checkpoint, so an atomic action that straddles a checkpoint
+supplies nothing to it; and an arm's answer depends only on its own trace, so early stopping cannot
+move the comparison point. A case whose consumption records are incomplete, unreconciled or not
+comparable within the frozen tolerance is COST_UNMATCHED; it stays in the denominator, scored
+against the arm whose records are deficient, and a comparison with more such cases than the frozen
+limit cannot support a claim that one arm is better at equal budget. Matching at the smallest final
+realized consumption among the arms, or by any rule chosen after execution, is only a labelled
+secondary sensitivity analysis. *Acceptance (T-S35-CMP-002, deterministic):* the evaluation harness
+refuses to score an arm whose manifest differs from another's in a matched field; realized
+consumption per case and arm is recorded including failures, retries and model calls; the
+counterexamples S2-CE-1 to S2-CE-6 of matched-budget-protocol.md §3.6 hold (an early-stopping arm
+does not move the comparison point, a straddling experiment is excluded at its checkpoint, and an
+unreconciled ledger, unequal caps or a post-hoc checkpoint yield COST_UNMATCHED or a refusal); every
+secondary matching is labelled secondary.
 
 <!-- statement: cmp.blinding -->
 **S35-CMP-003 MUST** — Scoring is blinded. The evaluator is not the implementer. Arm identities are
@@ -1009,17 +1105,19 @@ the case-list hash is unchanged at scoring.
 
 <!-- statement: cmp.metrics -->
 **S35-CMP-005 MUST** — Five metrics are reported for every arm, each with definition, unit, n and
-interval: (1) true-cause discovery, the share of cases whose final claim lies in the true cause's
-equivalence class (a correct stop counts in no-mechanism cases); (2) effective mechanism diversity,
-the number of distinguishable mechanism classes examined under the case's experiment set, never raw
-hypothesis counts; (3) discriminating-experiment efficiency, experiments and realized cost until
-correct discrimination, censored at the budget; (4) false discoveries, the false-discovery rate at
-SUPPORTED or higher plus a weighted score in which confident wrong claims weigh more; (5)
-independent reproducibility, the share of a pre-registered subset that the evaluator reproduces in a
-fresh environment from the frozen manifest, where any manifest drift makes the re-run invalid.
-Exactly one primary metric is pre-registered. *Acceptance (T-S35-CMP-005, deterministic):* the
-scorer computes all five metrics from the frozen outputs; recomputation from the bundle gives
-identical numbers; a report missing a metric, its n or its interval is rejected.
+interval: (1) true-cause discovery, the share of cases whose answer at the primary checkpoint names
+the true mechanism or one certified INDISTINGUISHABLE from it under the case's full experiment set,
+with UNRESOLVED credited only in a reported upper bound (a correct stop counts in no-mechanism
+cases); (2) effective mechanism diversity, the certified lower and upper bounds of S35-MECH-001
+under the case's experiment set, never raw hypothesis counts or transitive class counts; (3)
+discriminating-experiment efficiency, experiments and realized cost until no held mechanism
+certified distinguishable from the true one survives, censored at the budget; (4) false discoveries,
+the false-discovery rate at SUPPORTED or higher plus a weighted score in which confident wrong
+claims weigh more; (5) independent reproducibility, the share of a pre-registered subset that the
+evaluator reproduces in a fresh environment from the frozen manifest, where any manifest drift makes
+the re-run invalid. Exactly one primary metric is pre-registered. *Acceptance (T-S35-CMP-005,
+deterministic):* the scorer computes all five metrics from the frozen outputs; recomputation from
+the bundle gives identical numbers; a report missing a metric, its n or its interval is rejected.
 
 <!-- statement: cmp.statistics -->
 **S35-CMP-006 MUST** — Statistics are pre-registered before unsealing: the experimental unit (case),
@@ -1041,12 +1139,14 @@ finding.
 
 <!-- statement: cmp.stopping -->
 **S35-CMP-008 MUST** — Stopping rules are frozen with the protocol. A case ends on budget
-exhaustion, time limit, or the arm's own STOPPED or INSUFFICIENT_VALIDATION outcome, and the answer
-held at that point is scored. A study ends at its pre-registered n, at a pre-registered interim
-boundary, or on a governance incident (any arm breaching egress, budget or isolation), which
-invalidates the affected runs. A paid stage ends at the Owner's ceiling and is reported as partial.
-*Acceptance (T-S35-CMP-008, deterministic):* a case exceeding a cap is cut at the cap and scored; an
-incident marks the affected runs INVALID; a paid stage at its ceiling is labelled partial.
+exhaustion, time limit, or the arm's own STOPPED or INSUFFICIENT_VALIDATION outcome, and the answers
+the arm held at the frozen realized-cost checkpoints (S35-CMP-002) are scored. A study ends at its
+pre-registered n, at a pre-registered interim boundary, or on a governance incident (any arm
+breaching egress, budget or isolation), which invalidates the affected runs. A paid stage ends at
+the Owner's ceiling and is reported as partial. *Acceptance (T-S35-CMP-008, deterministic):* a case
+exceeding a cap is cut at the cap, an attempt straddling the cap supplies nothing to the scored
+answer, and the case is scored; an incident marks the affected runs INVALID; a paid stage at its
+ceiling is labelled partial.
 
 <!-- statement: cmp.zero_cost_first -->
 **S35-CMP-009 MUST** — A zero-cost first stage comes before any paid stage: local models declared
@@ -1066,10 +1166,9 @@ workflow (B)" is falsified if, under the frozen protocol, any of the following h
 1. C does not exceed B on the primary metric by the pre-registered minimum effect, with the interval
    excluding zero after multiplicity correction;
 2. C's weighted false-discovery score is worse than B's beyond the non-inferiority margin;
-3. C's diversity advantage disappears when counted as distinguishable mechanism classes instead of
-   hypotheses;
+3. C's diversity advantage disappears when counted as certified diversity (S35-MECH-001) instead of hypotheses;
 4. C stops correctly in no-mechanism worlds less often than B;
-5. C's advantage disappears at matched realized consumption, or depends on a tool, data or
+5. C's advantage disappears at the frozen realized-cost checkpoints, holds only under a secondary matching, or depends on a tool, data or
    information-exposure mismatch (the comparison is then COST_UNMATCHED or INVALID);
 6. C's independent reproducibility re-runs exceed the pre-registered invalid or disagreement rate.
 

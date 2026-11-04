@@ -1,6 +1,6 @@
 # SAI 3.5 — Change register (D-NNN → S35 identifiers)
 
-Version: `3.5.0-master-candidate.1`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: informative record, enforced by the [candidate checker](check_candidate.py): every
 retired `D-NNN` appears here, every new identifier it names is registered, and the counts below are
 recomputed from this table and the [registry](normative-statements.yaml).
@@ -146,5 +146,35 @@ obligation.
 |---|---|---|
 | `T-D-001`…`T-D-046` | `T-S35-<AREA>-NNN` | planned tests, never executed evidence |
 | roadmap `D0`…`D6` | `P35-0`…`P35-9` | see [roadmap](roadmap.md) |
-| `OD-01`…`OD-13` | `OD-01`…`OD-16` | meanings of OD-01…OD-13 kept (OD-10 rewritten for proposal A'); OD-14…OD-16 new |
+| `OD-01`…`OD-13` | `OD-01`…`OD-18` | meanings of OD-01…OD-13 kept (OD-10 rewritten for proposal A'); OD-14…OD-16 new in candidate.1; OD-17 and OD-18 new in candidate.2 |
 | `3.5.0-discovery-candidate.1` | `3.5.0-master-candidate.1` | version of the candidate |
+| `3.5.0-master-candidate.1` | `3.5.0-master-candidate.2` | semantic revision of the master candidate (§6) |
+| `MechanismClassPartition` (record) | `DistinguishabilityGraph`, `AdequacyAssessment` | [Appendix S](mechanism-distinguishability.md) §7, [Appendix C](records-and-states.md) §2 |
+
+## 6. Candidate.2 revisions (`3.5.0-master-candidate.1` → `3.5.0-master-candidate.2`)
+
+No identifier was added, removed, renumbered or re-keyed; the 77 requirements, their areas, owners,
+gates and phases are unchanged. Every row below changes the text of an existing statement or
+appendix to correct a semantic defect found in review or by the counterexample checks of
+[semantic_reference.py](semantic_reference.py). "Weakens?" is the no-weakening verdict against the
+candidate.1 obligation and the inherited texts (S35-GOV-001): a change that removes an unsafe
+conclusion the old text allowed is not a weakening.
+
+| Task | Statement or appendix | Change | Why | Weakens? |
+|---|---|---|---|---|
+| S1 | S35-MECH-001 | partition by "no experiment separates" (transitive) → mechanism identity by forward-model hash, three pair verdicts with certified bounds, diversity as the largest pairwise-distinguishable set with lower and upper bounds; counterexamples S1-CE-1…10 | A = 0, B = 0.75, C = 1.50 at τ = 1 makes the candidate.1 partition ill-defined (A~B, B~C, A≁C) | no: renaming, near-duplicates and transitive merges can no longer change a count; undecidable pairs stay conservative (lower bound) |
+| S1 | S35-HYP-002 | "joins that hypothesis's class" → recorded with its verdicts; alias by identity | there is no class to join | no |
+| S1 | S35-MECH-002 | expansion adds only certified-distinguishable candidates; new adequacy test before endorsement; abstain, expand, reframe, discriminate or stop when no held mechanism is adequate; budget never relaxes the criterion | force-fit of an available mechanism when the true family is absent (`d7ec9f2`: about 0.40 at budget 12, 0.47 at 24) | no: adds an obligation |
+| S1 | S35-SEL-001, S35-SEL-002 | selection value and claim reporting defined on pairs (neighbourhoods), not classes; refutation rule stated pairwise | the class-based wording presupposed transitivity | no |
+| S1 | S35-NOV-002, Appendix D §3 | rediscovery and new-knowledge criteria by identity and certified verdicts; unresolved bounds the claim | novelty could be produced by renaming or by an unresolved comparison | no |
+| S1 | S35-CMP-005, Appendix J §5, Appendix I §5 | true-cause credit by identity or certified indistinguishability, unresolved only in an upper bound; diversity by certified bounds; efficiency by neighbourhood | "equivalence class" is undefined under a non-transitive relation | no |
+| S1 | S35-EVI-002, Appendix B, C, F | record names: `DistinguishabilityGraph`, `AdequacyAssessment` | follows the definition | no |
+| S2 | S35-CMP-002, S35-CMP-008, Appendix J §3 | smallest final realized consumption (chosen after execution) → frozen realized-cost checkpoints; charge at start; straddling attempts excluded; per-arm independence; COST_UNMATCHED rules and limit; old rule secondary only; counterexamples S2-CE-1…6 | the old level depended on outcomes and let an early-stopping arm choose the comparison point | no: strictly fewer comparisons qualify as "equal budget" |
+| S3 | S35-HYP-001, S35-RPT-001, S35-RPT-004, Appendix C §3.1, Appendix F | stages apply to hypotheses and claims only; every other record keeps its own schema and state machine | "every scientific object" put problems, observations, anomalies and registrations under a stage they cannot have | no |
+| S4 | S35-HYP-001, S35-SEC-001, Appendix E §9 | authorization ladder: spending ≠ admission ≠ support ≠ confirmation; an authorized exploratory call creates no evidence; ideas never the subject of a test reservation | "a stage-1 object may not consume more than the zero-cost tier" conflicted with AL3 idea generation and did not say what spending authorizes | no: the zero-cost rule becomes the stricter "never the subject of a test reservation", and spending is still gated |
+| S4 | S35-GOV-003, S35-LIFE-002, S35-LIFE-003, S35-LOOP-003, Appendix A §3.1 | three termination dimensions; a safe stop before any experiment is a valid operational termination, not a completed experimental campaign, never a discovery | candidate.1 called a campaign "complete" when it ended in a stop record, conflating termination with completion | no: a stop can no longer be counted as a completed campaign |
+| S4 | S35-REG-003 | explicit sentence: an envelope never replaces an individual signed authorization an inherited rule requires (OD-14 default kept) | make the conservative default unambiguous | no |
+| S5 | S35-PROB-001 | a member's acceptance scopes a problem but never gives the Owner gates for money or licenses | the text let a member's acceptance read as authority to spend, contrary to S35-SEC-002 | no: removes an unsafe reading |
+| S5 | S35-MOD-003, Appendix A L09 | "exploratory" outputs renamed "exploratory runs (a run label, not an epistemic stage)" | collided with stage 1 after S3 | no |
+| S5 | all 77 statements and the normative appendices | reviewed in the [semantic consistency report](semantic-consistency-report.md); findings either fixed above or recorded as open spec issues S35-ISSUE-11…15 | Task S5 | no |
+

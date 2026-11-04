@@ -22,7 +22,14 @@ What it proves:
 - docs/spec/sai35/candidate-paths.txt equals the paths actually changed relative to the base
   (ci.yml excepted), and CI runs the SAI 3.4 activation checker only through the OD-10 proposal A'
   wrapper; this part reads git, so the base commit must be present;
-- local links resolve.
+- local links resolve;
+- candidate.2 semantics: the executable definitions and counterexamples of semantic_reference.py
+  hold and every known-wrong variant (raw count, transitive merge, post-hoc cost matching,
+  straddling credit, no ledger reconciliation, unresolved counted as distinct) is rejected; the
+  registry flags for distinguishability, matched cost, epistemic-stage scope and termination
+  dimensions are pinned; the counterexample tables exist; no normative text asserts an
+  equivalence class; only ideas and hypotheses carry a stage field; the semantic consistency
+  report assesses every requirement once.
 
 What it does not prove: anything about discovery, physics, runtime behavior or the quality of the
 prose. Planned tests are never counted as executed tests.
@@ -46,7 +53,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[3]
 REGISTRY = "docs/spec/sai35/normative-statements.yaml"
 BASE_REVISION = "a38ad63a4f4ad83c895cbd1e32b2e760d878f356"
-VERSION = "3.5.0-master-candidate.1"
+VERSION = "3.5.0-master-candidate.2"
 MASTER = "docs/spec/SAI_3.5.md"
 ACTIVE_SPEC = "docs/spec/ACTIVE_SPEC.yaml"
 WORKFLOW = ".github/workflows/ci.yml"
@@ -70,6 +77,16 @@ ISSUES = "docs/spec/sai35/open-spec-issues.md"
 PROTOCOL = "docs/spec/sai35/matched-budget-protocol.md"
 ACCEPTANCE = "docs/spec/sai35/acceptance-gd.md"
 DEPLOYMENT = "docs/spec/sai35/deployment-autonomy.md"
+DISTINGUISH = "docs/spec/sai35/mechanism-distinguishability.md"
+CONSISTENCY = "docs/spec/sai35/semantic-consistency-report.md"
+SEMANTIC_REFERENCE = "docs/spec/sai35/semantic_reference.py"
+# Appendices that carry obligations: "equivalence class" may appear there only as a negation,
+# because pairwise indistinguishability is not an equivalence relation (Appendix S §1).
+NORMATIVE_TEXTS = (
+    MASTER, LIFECYCLE, ARCHITECTURE, RECORDS, PROVENANCE, GOVERNANCE, ACCEPTANCE, PROTOCOL,
+    DISTINGUISH,
+    "docs/spec/sai35/ux-reports-glossary.md", DEPLOYMENT, ROADMAP, TRACE, COMPAT,
+)  # fmt: skip
 CODE_DIRS = ("src", "tests", "scripts", "migrations")
 CODE_SUFFIXES = (".py", ".sql", ".md", ".yaml", ".yml", ".json", ".txt", ".toml")
 
@@ -161,6 +178,34 @@ METRICS = [
     "independent reproducibility",
 ]
 EPISTEMIC_STAGES = ["EXPLORATORY_IDEA", "TESTABLE_HYPOTHESIS", "EVIDENCE_SUPPORTED_CONCLUSION"]
+EPISTEMIC_STAGE_SCOPE = ["ExploratoryIdea", "Hypothesis", "ClaimStateProjection"]
+DISTINGUISHABILITY = {
+    "definition": DISTINGUISH,
+    "identity": "forward_model_content_hash",
+    "verdicts": ["DISTINGUISHABLE", "INDISTINGUISHABLE", "UNRESOLVED"],
+    "relation_is_transitive": False,
+    "transitive_merge_allowed": False,
+    "diversity": "max_pairwise_certified_distinguishable_set",
+    "unresolved_counts_in_headline": False,
+    "adequacy_required_before_endorsement": True,
+}
+MATCHED_COST = {
+    "primary_rule": "frozen_realized_cost_checkpoints",
+    "checkpoints_frozen_before_any_arm_runs": True,
+    "charge_attempts_at_start": True,
+    "straddling_attempt_supplies_checkpoint": False,
+    "score_depends_only_on_own_trace": True,
+    "min_final_cost_rule": "secondary_only",
+    "unmatched_label": "COST_UNMATCHED",
+}
+TERMINATION_DIMENSIONS = {
+    "operational_termination": ["VALID", "INVALID"],
+    "experimental_completion": ["NOT_PERFORMED", "PARTIAL", "COMPLETED"],
+    "scientific_acceptance": ["NONE", "PENDING_CAUSAL_WARRANT_GATE", "ACCEPTED_DISCOVERY"],
+    "stop_before_experiment": ["VALID", "NOT_PERFORMED", "NONE"],
+}
+S1_COUNTEREXAMPLES = [f"S1-CE-{n}" for n in range(1, 11)]
+S2_COUNTEREXAMPLES = [f"S2-CE-{n}" for n in range(1, 7)]
 GD_FRAMEWORK = {
     "separate_from_g0_g9": True,
     "g0_g9_completion_implies_discovery": False,
@@ -213,14 +258,57 @@ REQUIRED_PHRASES = {
         "(C) LIB with Discovery",
     ),
     "cmp.metrics": (*METRICS, "never raw hypothesis counts", "invalid"),
-    "cmp.matching": ("actual realized consumption", "COST_UNMATCHED", "information exposure"),
-    "loop.stop_insufficient": ("INSUFFICIENT_VALIDATION", "STOPPED", "success of governance"),
+    "cmp.matching": (
+        "actual realized consumption",
+        "COST_UNMATCHED",
+        "information exposure",
+        "frozen before any arm runs and independent of outcomes",
+        "charged its full realized cost when it starts",
+        "straddles a checkpoint supplies nothing to it",
+        "early stopping cannot move the comparison point",
+        "only a labelled secondary sensitivity analysis",
+    ),
+    "mech.distinguishable_classes": (
+        "never its name",
+        "DISTINGUISHABLE, INDISTINGUISHABLE or UNRESOLVED",
+        "Pairwise indistinguishability is not an equivalence relation",
+        "may merge pairs transitively",
+        "never a raw count of hypotheses",
+        "A = 0, B = 0.75 and C = 1.50 at threshold 1",
+        "diversity 2 (neither 1 nor 3)",
+    ),
+    "mech.search_space_expansion": (
+        "tested for adequacy",
+        "never by its rank among the held mechanisms",
+        "a larger budget never relaxes the criterion",
+    ),
+    "gov.product_category": (
+        "is a valid operational termination but not a completed experimental campaign",
+        "stopped safely before any experiment ran",
+        "never a discovery",
+    ),
+    "life.campaign_states": (
+        "operational termination",
+        "experimental completion",
+        "scientific acceptance",
+    ),
+    "sec.autonomy_levels": ("authorizes actions and spending only", "creates no evidence"),
+    "loop.stop_insufficient": (
+        "INSUFFICIENT_VALIDATION",
+        "STOPPED",
+        "success of governance",
+        "valid operational termination",
+        "never a discovery",
+    ),
     "cwg.exclusive_confirmation": ("exclusive confirmation authority", "only path to CONFIRMED"),
     "hyp.epistemic_stages": (
         "exploratory idea",
         "testable hypothesis",
         "evidence-supported conclusion",
         "Discovery may propose but never confirm",
+        "Hypotheses and scientific claims, and only they",
+        "carry no epistemic stage",
+        "that authorization admits nothing",
     ),
     "reg.envelope_registration": (
         "ResearchEnvelope",
@@ -229,6 +317,7 @@ REQUIRED_PHRASES = {
     ),
     "reg.envelope_limits": (
         "never weakens the independent authorization of consequential conclusions",
+        "never replaces an individual signed authorization that an inherited rule requires",
         "OD-14",
     ),
     "gov.precedence": ("inherited text wins on any conflict", "spec issue"),
@@ -307,7 +396,18 @@ def load() -> dict:
         "changed": changed_paths(),
         "code_mentions": code_mentions(),
         "evidence": evidence_status(registry),
+        "semantic": semantic_reference(),
     }
+
+
+def semantic_reference() -> str:
+    """Run the executable definitions and counterexamples, and their wrong-variant self-test."""
+    run = subprocess.run(
+        [sys.executable, "-I", str(ROOT / SEMANTIC_REFERENCE), "--self-test"],
+        capture_output=True,
+        text=True,
+    )
+    return "OK" if run.returncode == 0 else (run.stdout + run.stderr).strip()
 
 
 def flat(text: str) -> str:
@@ -533,6 +633,43 @@ def check(state: dict) -> None:  # one linear list of document rules
         for name in data[field]:
             assert f"| `{name}` |" in texts[path], f"{field}: {name} not tabled in {path}"
 
+    # 6b. Candidate.2 semantics: executable counterexamples, registry flags and their documents.
+    assert state["semantic"] == "OK", f"semantic reference failed: {state['semantic']}"
+    assert data["distinguishability"] == DISTINGUISHABILITY, "distinguishability flags changed"
+    assert data["matched_cost"] == MATCHED_COST, "matched-cost flags changed"
+    assert data["epistemic_stage_scope"] == EPISTEMIC_STAGE_SCOPE, "epistemic stage scope changed"
+    assert data["termination_dimensions"] == TERMINATION_DIMENSIONS, "termination dimensions"
+    for ce in S1_COUNTEREXAMPLES:
+        assert f"| {ce} |" in texts[DISTINGUISH], f"Appendix S lacks counterexample {ce}"
+    for ce in S2_COUNTEREXAMPLES:
+        assert f"| {ce} |" in texts[PROTOCOL], f"Appendix J lacks counterexample {ce}"
+    for value in DISTINGUISHABILITY["verdicts"]:
+        assert f"| `{value}` |" in texts[DISTINGUISH], f"verdict {value} not tabled in Appendix S"
+    for dimension, values in TERMINATION_DIMENSIONS.items():
+        if dimension != "stop_before_experiment":
+            row = next((x for x in texts[LIFECYCLE].splitlines()
+                        if x.startswith(f"| {dimension.replace('_', ' ')} |")), "")  # fmt: skip
+            assert row and all(f"`{v}`" in row for v in values), f"lifecycle lacks {dimension}"
+    assert "| MechanismClassPartition |" not in texts[RECORDS], "transitive partition record"
+    records = texts[RECORDS].split("## 2. Records", 1)[1].split("## 3.", 1)[0]
+    staged = {line.split("|")[1].strip() for line in records.splitlines()
+              if line.startswith("| ") and "stage =" in line}  # fmt: skip
+    assert staged == {"ExploratoryIdea", "Hypothesis"}, f"stage field outside its scope: {staged}"
+    assert "## 9. Authorization ladder" in texts[GOVERNANCE], "authorization ladder missing"
+    assert "### 3.6 Adversarial examples" in texts[PROTOCOL], "matched-cost adversarial examples"
+    assert "### 3.5 Secondary sensitivity analyses (never primary)" in texts[PROTOCOL]
+    for path in NORMATIVE_TEXTS:
+        for match in re.finditer(r"equivalence class", flat(texts[path])):
+            before = flat(texts[path])[max(0, match.start() - 8) : match.start()]
+            assert before.endswith(("not an ", "no ")), f"{path}: equivalence class asserted"
+    rows = [
+        x for x in texts[CONSISTENCY].splitlines() if REQ.match(x[2:] if x.startswith("| ") else "")
+    ]
+    assert sorted({REQ.match(x[2:]).group(0) for x in rows}) == sorted(by_id), (
+        "semantic consistency report must assess every requirement exactly once"
+    )
+    assert len(rows) == len(by_id), "semantic consistency report has duplicate rows"
+
     # 7. Appendices, components, phases, decisions and spec issues.
     for appendix in data["appendices"]:
         path, authority = appendix["path"], appendix["authority"]
@@ -641,6 +778,23 @@ def _first_line(path: str, prefix: str, new: str) -> Callable[[dict], None]:
         index = next(i for i, line in enumerate(lines) if line.startswith(prefix))
         lines[index] = new
         state["texts"][path] = "\n".join(lines)
+
+    return mutate
+
+
+def _both(old: str, new: str) -> Callable[[dict], None]:
+    """Change a phrase in the master AND in the registry, so only the required-phrase rule can
+    catch it (a one-sided edit is already caught as registry drift)."""
+
+    def mutate(state: dict) -> None:
+        _replace(MASTER, old, new)(state)
+        hits = 0
+        for row in state["registry"]["normative_statements"]:
+            for field in ("text", "acceptance"):
+                if old in row[field]:
+                    row[field] = row[field].replace(old, new)
+                    hits += 1
+        assert hits, f"self-test anchor missing in registry: {old!r}"
 
     return mutate
 
@@ -772,6 +926,51 @@ MUTATIONS: dict[str, Callable[[dict], None]] = {
         {CANDIDATE_PATHS: s["texts"][CANDIDATE_PATHS] + "src/lab_brain/x.py\n"}
     ),
     "broken_link": _replace(ROADMAP, "## 3. Dependency picture", "[x](missing.md)\n\n## 3."),
+    # candidate.2 semantics
+    "semantic_reference_failed": lambda s: s.update({"semantic": "AssertionError"}),
+    "transitive_merge_allowed": _set("distinguishability", "transitive_merge_allowed", value=True),
+    "relation_transitive": _set("distinguishability", "relation_is_transitive", value=True),
+    "unresolved_in_headline": _set(
+        "distinguishability", "unresolved_counts_in_headline", value=True
+    ),
+    "post_hoc_matching_primary": _set("matched_cost", "min_final_cost_rule", value="primary"),
+    "straddle_allowed": _set("matched_cost", "straddling_attempt_supplies_checkpoint", value=True),
+    "stage_scope_universal": _set("epistemic_stage_scope", value=["every_record"]),
+    "stop_counted_complete": _set(
+        "termination_dimensions", "stop_before_experiment", value=["VALID", "COMPLETED", "NONE"]
+    ),
+    "mech_text_transitive": _both(
+        "Pairwise indistinguishability is not an equivalence relation", "Classes are formed"
+    ),
+    "mech_counterexample_removed": _both("diversity 2 (neither 1 nor 3)", "diversity 1"),
+    "matching_post_hoc_text": _both(
+        "frozen before any arm runs and independent of outcomes", "chosen after the runs"
+    ),
+    "straddle_text_removed": _both(
+        "straddles a checkpoint supplies nothing to it", "straddles a checkpoint counts"
+    ),
+    "stage_scope_text_removed": _both(
+        "Hypotheses and scientific claims, and only they", "Every scientific object"
+    ),
+    "adequacy_text_removed": _both("a larger budget never relaxes the criterion", "ok"),
+    "stop_called_complete": _both("valid operational termination but not a", "a"),
+    "envelope_replaces_signature": _both(
+        "never replaces an individual signed authorization", "replaces any authorization"
+    ),
+    "equivalence_class_asserted": _replace(
+        ACCEPTANCE, "there is no equivalence class", "there is an equivalence class"
+    ),
+    "s1_counterexample_row_removed": _first_line(DISTINGUISH, "| S1-CE-1 |", "| removed |"),
+    "s2_counterexample_row_removed": _first_line(PROTOCOL, "| S2-CE-2 |", "| removed |"),
+    "partition_record_back": _replace(
+        RECORDS, "| DistinguishabilityGraph |", "| MechanismClassPartition |"
+    ),
+    "stage_on_problem": _replace(
+        RECORDS, "covering_envelope_id? |", "covering_envelope_id?; stage = 1 |"
+    ),
+    "ladder_removed": _replace(GOVERNANCE, "## 9. Authorization ladder", "## 9. Notes"),
+    "termination_row_removed": _first_line(LIFECYCLE, "| experimental completion |", "| x |"),
+    "consistency_row_removed": _first_line(CONSISTENCY, "| S35-CMP-002 |", "| removed |"),
 }
 
 
@@ -801,7 +1000,9 @@ if __name__ == "__main__":
         + f"); {len(RETIRED)} retired D-NNN all mapped and audited; NOT ACTIVE; every SAI 3.3/3.4 "
         f"file and ACTIVE_SPEC.yaml byte-identical to {BASE_REVISION[:7]} (no exception); "
         f"candidate-paths.txt equals the {len(current['changed'] - {WORKFLOW})} changed paths; "
-        "CI runs the SAI 3.4 checker only via the OD-10 proposal A' wrapper; evidence refs: "
+        "CI runs the SAI 3.4 checker only via the OD-10 proposal A' wrapper; "
+        "semantic reference OK; "
+        "evidence refs: "
         f"{sum(v is True for v in evidence)} verified, {sum(v is None for v in evidence)} not "
         "verifiable in this clone; no G-D level evaluated; nothing here is runtime acceptance."
     )

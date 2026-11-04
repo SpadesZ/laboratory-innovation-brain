@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix C: Scientific records, schemas, persistent state and state machines
 
-Version: `3.5.0-master-candidate.1`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Refines the record and state obligations of [SAI 3.5](../SAI_3.5.md) §3.
 These are logical schemas: no table, migration or runtime model exists for any record introduced
 here. Each needs its own ADR, migration and tests (SAI 3.3 AGT-004, AGT-005).
@@ -28,20 +28,21 @@ here. Each needs its own ADR, migration and tests (SAI 3.3 AGT-004, AGT-005).
 
 | Record | Owner | Key fields (beyond §1) | Requirements |
 |---|---|---|---|
-| ResearchCampaign | CampaignOrchestrator | problem_ids[], envelope_id?, autonomy_level, budgets (tokens, compute_s, money, experiments, seat_time per product, wall_time, reframings), stopping_policy_ref, state, episode_ids[] | S35-LIFE-001–003 |
+| ResearchCampaign | CampaignOrchestrator | problem_ids[], envelope_id?, autonomy_level, budgets (tokens, compute_s, money, experiments, seat_time per product, wall_time, reframings), stopping_policy_ref, state, episode_ids[], on closing: operational_termination, experimental_completion, scientific_acceptance ([lifecycle.md](lifecycle.md) §3.1) | S35-LIFE-001–003 |
 | CampaignStateEvent | CampaignOrchestrator | campaign_id, from_state, to_state, event, reason, actor_or_policy | S35-LIFE-002 |
 | StageCheckpoint | CampaignOrchestrator | campaign_id, stage (L01–L17), outputs[] by hash, skipped (bool), skip_reason?, side_effect_refs[] | S35-LIFE-001 |
 | ResearchProblem | ProblemDiscovery | origin (`ANOMALY`, `CONTRADICTION`, `KNOWLEDGE_GAP`, `FAILED_HYPOTHESIS`, `VALIDATION_RESIDUAL`, `LITERATURE_GAP`, `OWNER_QUESTION`), source_refs[] by id and hash, statement, scope, accepted_by? (human member), covering_envelope_id? | S35-PROB-001 |
 | ProblemValuation | ProblemDiscovery | problem_id, policy_version, criteria{decision_relevance, discriminability, expected_cost, unexplained_weight, novelty_potential (with coverage ref)}, rationale per criterion, model_opinion_ref?, rank | S35-PROB-002 |
 | Anomaly | ProblemDiscovery | observation_refs[], detection_rule_ref, conditions, state (§3.3) | S35-PROB-003 |
 | AnomalyStateEvent | ProblemDiscovery, ValidationLoop, CausalWarrantGate | anomaly_id, from, to, trigger, evidence_refs[], actor_or_policy, cwg_decision_ref? (required for EXPLAINED) | S35-PROB-003 |
-| ExploratoryIdea | HypothesisBrain | statement, candidate_mechanism, draft_predictions[], sources (catalog, literature, anomaly, residual, reframing), inference_provenance_id; stage = 1 | S35-HYP-001, S35-HYP-004 |
-| Hypothesis | admission gate (SAI 3.3 §8.1, unchanged) | as SAI 3.3 §8.1 and §17.5; SAI 3.5 adds a reference to its MechanismClassPartition membership through the partition record, not a new field on the certificate | S35-HYP-002 |
+| ExploratoryIdea | HypothesisBrain | statement, candidate_mechanism (forward-model declaration if stated), draft_predictions[], sources (catalog, literature, anomaly, residual, reframing), inference_provenance_id, generating_cost_ref (the reservation that paid for the call; never a test reservation); stage = 1 | S35-HYP-001, S35-HYP-004 |
+| Hypothesis | admission gate (SAI 3.3 §8.1, unchanged) | as SAI 3.3 §8.1 and §17.5; SAI 3.5 adds its mechanism identity and its pair verdicts through the DistinguishabilityGraph record, not a new field on the certificate; stage = 2 | S35-HYP-002 |
 | ExperimentSet | MechanismExplorer | version, experiments[] (capability, conditions, replicates, availability), cost_table_ref | S35-MECH-001 |
-| MechanismClassPartition | MechanismExplorer | experiment_set_version, threshold, replicates, classes[] (member hypothesis ids), merged_pairs[] with reason (`UNDECIDABLE`, `INDISTINGUISHABLE`, `ALIAS`), never_considered[] | S35-MECH-001, S35-MECH-002 |
-| SearchSpaceExpansion | MechanismExplorer | trigger, order step (measurement chain, regime variant, composition, extended class, new mechanism), added[], refused[] with reason, before and after class counts | S35-MECH-002 |
-| SelectionDecision | VerificationPlanner | live_classes[], candidates[] with separation and CostVector, policy_version, chosen experiment, gate_required | S35-SEL-001 |
-| RivalClosure | ValidationLoop | candidate_class, registered_rivals[], cannot_exclude[], indistinguishable[] | S35-SEL-002 |
+| DistinguishabilityGraph | MechanismExplorer | experiment_set_version, threshold, noise model and replicates, bound_method, mechanisms[] (hypothesis id, mechanism identity), pairs[] (two ids, D_lo, D_hi, verdict `DISTINGUISHABLE`, `INDISTINGUISHABLE` or `UNRESOLVED`), aliases[], diversity_lower, diversity_upper, never_considered_families[] ([Appendix S](mechanism-distinguishability.md) §7; replaces candidate.1's MechanismClassPartition) | S35-MECH-001, S35-MECH-002 |
+| AdequacyAssessment | MechanismExplorer | experiment_set_version, criterion_ref (pre-registered, OD-18), per held mechanism: statistic, level, verdict (`ADEQUATE`, `INADEQUATE`, `UNKNOWN`); catalog_incomplete (bool); anomaly_ref when no mechanism is adequate | S35-MECH-002 |
+| SearchSpaceExpansion | MechanismExplorer | trigger, order step (measurement chain, regime variant, composition, extended declared mechanism, new mechanism), added[], refused[] with reason, diversity bounds before and after | S35-MECH-002 |
+| SelectionDecision | VerificationPlanner | surviving mechanisms[], candidates[] with the pairs each converts to `DISTINGUISHABLE` and its CostVector, policy_version, chosen experiment, gate_required | S35-SEL-001 |
+| RivalClosure | ValidationLoop | candidate hypothesis, registered_rivals[], neighbourhood[] (every held mechanism not certified distinguishable from the candidate, with its verdict), cannot_exclude[] | S35-SEL-002 |
 | ResearchEnvelope | RegistrationRegistry | owner_decision_ref, authorizer enrolment and Ed25519 signature (scope `RESEARCH_ENVELOPE`), autonomy_level, bounds{problem scope, mechanism families, capabilities with declaration hashes, model routes, licensed products with seat-time ceilings, money and compute ceilings, max registrations, max reframings}, valid_from, valid_until | S35-REG-002, S35-SEC-001 |
 | EnvelopeRevocation | GovernancePlane | envelope_id, effective_at, actor, reason | S35-SEC-006 |
 | Registration | RegistrationRegistry | hypothesis_id, prediction_ids[], capability_ref with declaration hash, analysis_plan_hash, decision_rule, job_id (exactly one), authorization: either signed_authorization_ref (enrolled person, Ed25519) or envelope_id with the bound check result, reservation_ref | S35-REG-001, S35-REG-002 |
@@ -52,17 +53,26 @@ here. Each needs its own ADR, migration and tests (SAI 3.3 AGT-004, AGT-005).
 | Reframing | ResearchReframing | kind (§3.4), trigger_ref, failed_refs[] (hypotheses, anomalies, assumptions, observables, models, problems), what_changes, rationale, successor_refs[] | S35-REF-001–003 |
 | NoveltyAssessment | NoveltyAuditor | finding_ref, prior_art_search_ids[], coverage classes, novelty class ([Appendix D](provenance-novelty-independence.md) §3), model training cutoffs, memorization-probe result, stage at assessment | S35-NOV-001, S35-NOV-002 |
 | StopRecord | ValidationLoop, CampaignOrchestrator | outcome (`INSUFFICIENT_VALIDATION` or `STOPPED`), reason, what_was_tried[], realized cost, what_would_be_needed | S35-LOOP-003 |
-| ClaimStateProjection | ValidationLoop | claim_ref, stage, state (§3.2), derived_from[] (canonical event ids); rebuildable, never authoritative | S35-HYP-001, S35-HYP-003 |
+| ClaimStateProjection | ValidationLoop | claim_ref (a hypothesis or claim only), stage, state (§3.2), derived_from[] (canonical event ids); rebuildable, never authoritative | S35-HYP-001, S35-HYP-003 |
 | ReportBundle | ReportGenerator | report hashes (zh-TW, en), canonical record ids and hashes per statement, environment manifest, policy versions, registrations, budgets and realized consumption | S35-RPT-001, S35-RPT-002 |
 
 ## 3. State machines
 
 ### 3.1 Epistemic stages
 
+**Scope.** Epistemic stages classify hypotheses and scientific claims only: ExploratoryIdea (stage
+1), Hypothesis (stage 2 or 3) and the claims projected by ClaimStateProjection. Every other record of
+§2 (ResearchProblem, Anomaly, Observation, ExperimentSet, Registration, Run, PhysicalModelSpec,
+DistinguishabilityGraph, Reframing, StopRecord, …) carries no stage field and keeps its own schema
+and state machine (§3.3, §3.5, [lifecycle.md](lifecycle.md) §3, inherited SAI 3.3 and SAI 3.4
+states). A stage never sets or replaces those states, and those states never imply a stage: an
+Anomaly in `EXPLAINED` is explained because a Causal Warrant Gate decision exists for the claim that
+explains it, not because the anomaly has a stage (S35-HYP-001).
+
 | Stage | Name | Entry condition | Allowed uses |
 |---|---|---|---|
-| `EXPLORATORY_IDEA` | exploratory idea (stage 1) | any proposal of the Discovery side not yet admitted | zero-cost tier only; never shown as a hypothesis or a finding |
-| `TESTABLE_HYPOTHESIS` | testable hypothesis (stage 2) | admitted under SAI 3.3 §8 with typed predictions and assigned to a mechanism class | registration, testing, belief moves through TransitionPolicy; reported with its claim state |
+| `EXPLORATORY_IDEA` | exploratory idea (stage 1) | any proposed hypothesis or claim of the Discovery side not yet admitted | never the subject of a test reservation; the calls that produced it are charged to their generating activity (Appendix E §9); never shown as a hypothesis or a finding; never evidence |
+| `TESTABLE_HYPOTHESIS` | testable hypothesis (stage 2) | admitted under SAI 3.3 §8 with typed predictions, a mechanism identity and its pair verdicts recorded | registration, testing, belief moves through TransitionPolicy; reported with its claim state |
 | `EVIDENCE_SUPPORTED_CONCLUSION` | evidence-supported conclusion (stage 3) | CONFIRMED through the Causal Warrant Gate and still re-derivable | consequential use, subject to S35-CWG-002 and the Owner gates |
 
 A stage-3 claim whose decision no longer re-derives falls back to stage 2 with its state recomputed
@@ -133,10 +143,10 @@ registered result, which opens a new anomaly linked to the old one. No anomaly i
 | Kind | Trigger | What changes |
 |---|---|---|
 | `QUESTION_ASSUMPTION` | an assumption of the live hypotheses is shown false or untested and decisive | the assumption becomes a hypothesis to test; dependent hypotheses are re-registered |
-| `CHANGE_OBSERVABLE` | no available observable separates the surviving classes | a different observable or experiment that would split them is named (and gated if it needs a resource) |
+| `CHANGE_OBSERVABLE` | no available observable converts a surviving pair to `DISTINGUISHABLE` | a different observable or experiment that would split them is named (and gated if it needs a resource) |
 | `CORRECT_MODEL` | a model family fails qualification or validation, or leaves systematic residuals under known physics | a model-form correction (novelty class MODEL_CORRECTION if it holds) with a new lineage |
-| `QUESTION_MEASUREMENT_CHAIN` | anomalies or failures are consistent with an instrument or processing artifact | measurement-chain classes are registered and chain-check experiments preferred |
-| `WIDEN_MECHANISM_SPACE` | every live class fails or a tested anomaly persists | S35-MECH-002 expansion in its recorded order |
+| `QUESTION_MEASUREMENT_CHAIN` | anomalies or failures are consistent with an instrument or processing artifact | measurement-chain mechanisms are registered and chain-check experiments preferred |
+| `WIDEN_MECHANISM_SPACE` | every live hypothesis fails, a tested anomaly persists, or no held mechanism is adequate | S35-MECH-002 expansion in its recorded order |
 | `NARROW_SCOPE` | the problem holds only in part of its conditions | the scope is narrowed; informational, no claim beyond the narrowed scope |
 | `STOP_INSUFFICIENT` | the cap, budget or available experiments cannot continue | the campaign proceeds to a StopRecord |
 

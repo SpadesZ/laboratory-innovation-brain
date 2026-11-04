@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix E: Security, human authorization, autonomy levels, permissions and cost
 
-Version: `3.5.0-master-candidate.1`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Refines S35-SEC-001–006, S35-COST-001–002, S35-REG-002–003 and S35-CWG-002 of
 [SAI 3.5](../SAI_3.5.md). Inherited security rules (SAI 3.3 §14, SEC-001–004, COST-001; SAI 3.4
 ASM-014) apply unchanged; the SAI 3.4 security decisions A3, A9 and A12 stay OPEN.
@@ -28,7 +28,7 @@ independence of persons is an Owner responsibility recorded with each assignment
 | Level | Name | The system may, without a per-action human step | Still needs a human or the Owner |
 |---|---|---|---|
 | `AL0` | manual | record and display; nothing autonomous | every action |
-| `AL1` | propose-only (default without an envelope) | propose problems, ideas, classes, experiments and registrations; run zero-cost analysis | every registration and every execution beyond the zero-cost tier |
+| `AL1` | propose-only (default without an envelope) | propose problems, ideas, mechanisms, experiments and registrations; run zero-cost analysis | every registration and every execution beyond the zero-cost tier, each by a per-action human authorization |
 | `AL2` | envelope-autonomous, zero cost | register and run zero-cost capabilities inside the envelope's bounds | anything with money, license, physical experiment or publication |
 | `AL3` | envelope-autonomous, budgeted | as AL2, plus paid model calls and compute within the envelope's money and compute ceilings | licensed simulation, physical experiments, publication |
 | `AL4` | envelope-autonomous, licensed simulation | as AL3, plus licensed Lumerical runs on qualified workers within the envelope's seat-time ceilings | physical experiments, fabrication, publication |
@@ -70,7 +70,7 @@ nothing (S35-SEC-002).
 R = read, W = append, — = refused. "Own" means records the component produces. Database rules hold
 this matrix for every normal writer (S35-SEC-005); the application checks it too but never instead.
 
-| Identity | problems, anomalies, ideas, partitions, reframings | registrations, envelopes | Runs and raw artifacts | evidence, relations, belief events | Causal Warrant Gate tables | sealed evaluation material | cost ledger |
+| Identity | problems, anomalies, ideas, distinguishability graphs, reframings | registrations, envelopes | Runs and raw artifacts | evidence, relations, belief events | Causal Warrant Gate tables | sealed evaluation material | cost ledger |
 |---|---|---|---|---|---|---|---|
 | ProblemDiscovery, HypothesisBrain, MechanismExplorer, ResearchReframing | R, W own | R | R | R | R (decisions only) | — | W own usage |
 | NoveltyAuditor | R, W own assessments | R | — | R | — | — | W own usage |
@@ -114,3 +114,36 @@ the stop recorded (S35-SEC-006).
 | verification-authorization trust root (G0 line SPEC-ISSUE-018) | authority holder can enrol anyone; separation of duty for authorizations is an open decision on that line |
 | forged-authorization read path (G0 line) | fixed on the pushed, unmerged branch `g0-authorization-read-path-closure` (from `f41758c`; source code at `2a96ee8`, no source change after it), pending independent audit; as reported there: full PostgreSQL suite 3583 passed / 0 failed, complete mutation battery 928/929 at `2a96ee8`, the one survivor killed afterwards by an added test |
 | free-declaration trust root (G0 line SPEC-ISSUE-017) | a proxy that strips billing signs is indistinguishable from a free model server |
+
+## 9. Authorization ladder: exploration, spending, admission, support and confirmation
+
+Five separate things are easy to conflate. Each needs its own record and its own authority, and no
+rung implies the next (S35-HYP-001, S35-SEC-001, S35-REG-003, S35-CWG-002).
+
+| Rung | What it is | Created by | Authority | What it does **not** do |
+|---|---|---|---|---|
+| exploratory idea | a stage-1 proposal (ExploratoryIdea) | HypothesisBrain, ProblemDiscovery, MechanismExplorer, ResearchReframing | none needed to exist; zero-cost by itself | it is not a hypothesis, not evidence, not a finding; it cannot be the subject of a reservation for a test |
+| spending | a budget reservation and realized-cost record for a model call, compute, a licensed run or an experiment | CostGovernance on a reservation request | AL2 (zero cost), AL3 or AL4 within the envelope's ceilings, or an Owner gate (§4) | it authorizes consumption only; an authorized exploratory model call produces a stage-1 output and nothing more |
+| admission | stage 2 (testable hypothesis) | the SAI 3.3 §8 Hypothesis Admission Gate | the admission rule, unchanged | it creates no evidence and authorizes no test |
+| registration and support | a prospective Registration (S35-REG-001), then SUPPORTS from admissible prospective evidence through TransitionPolicy | RegistrationRegistry; ValidationLoop | a signed per-registration authorization or a covering envelope for the registration; the inherited prospective-evidence rules for support, including any per-hypothesis signed authorization they require | support is not confirmation; an envelope never replaces a per-hypothesis signed authorization an inherited rule requires (OD-14 default) |
+| independent causal confirmation | stage 3 (CONFIRMED) | the Causal Warrant Gate only | a qualifying signed review by an independent reviewer, plus the Owner gate for any consequential action (S35-CWG-002) | nothing below it, and no envelope, level, automation or timeout, substitutes for it |
+
+Consequences:
+
+1. **Exploration may cost money without producing evidence.** Under AL3 an envelope may pay for
+   idea generation and screening calls. Their outputs stay stage 1; they never reach SUPPORTS, and
+   their cost stays in the campaign's realized consumption and in every matched-cost comparison
+   (S35-COST-001, S35-CMP-002).
+2. **AL2 and AL3 differ only in what may be spent**, never in what counts as evidence: the same
+   admission, registration, prospective-evidence and confirmation rules apply at every level.
+3. **OD-14 default.** Until the Owner decides OD-14, a ResearchEnvelope does not satisfy a rule that
+   requires an individual signed authorization (rule (l) of `011s` with the `011w` signatures on the
+   G0 line); a SUPPORTS whose only authorization is an envelope registration is stored as CITES for
+   a post-screening hypothesis (S35-REG-003).
+4. **Forged or unverifiable authorizations count as absent.** A rung that needs a signed
+   authorization is reached only when the signature verifies against an enrolled key for the right
+   scope and record; otherwise the reader fails closed (the read-path rule of the G0 line, S35-ISSUE-06).
+
+The executable statement of the ladder is `reachable()` and `support_admissible()` in
+[semantic_reference.py](semantic_reference.py).
+

@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix K: Traceability matrix (requirement → component → test → gate → phase)
 
-Version: `3.5.0-master-candidate.1`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Every row is generated from, and checked against, the
 [registry](normative-statements.yaml) by the [candidate checker](check_candidate.py). Supersedes the
 `3.5.0-discovery-candidate.1` version of this file (kept in git history).

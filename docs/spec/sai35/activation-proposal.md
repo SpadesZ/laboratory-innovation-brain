@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix N: Activation proposal
 
-Version: `3.5.0-master-candidate.1`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.2`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: informative. This is a proposal; none of its steps has been taken. It refines the
 activation boundary of [SAI 3.5](../SAI_3.5.md) §5 and S35-GOV-005.
 
