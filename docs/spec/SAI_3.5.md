@@ -190,7 +190,7 @@ Causal Warrant Gate with automation; treat simulation agreement as physical trut
 count as diversity; promise a timeline, success rate or accuracy; require a named LLM vendor or a
 paid service; or add runtime code, migrations, tests or dependencies in this delivery.
 
-### 2.5 Where things stand (2026-11-02)
+### 2.5 Where things stand (2026-11-04)
 
 G0 is NOT PASSED. The SAI 3.4 integration line (`a38ad63`) holds the governed research workflow, the
 Causal Warrant Gate V1.1, accounts and a deterministic Lumerical mock. The unintegrated G0 line
@@ -205,8 +205,18 @@ tooling for an independent hidden-world evaluation are on `discovery-independent
 offline results are again same-author engineering evidence, and they show the discovery arm
 force-fitting when the true mechanism family is missing from its vocabulary (0.40 force-fit at
 budget 12) and spending about four times the realized cost of B1. No
-licensed simulation, model construction or physical validation exists. Details:
-[implementation status](sai35/implementation-status.md).
+licensed simulation, model construction or physical validation exists.
+
+Engineering branches of 2026-11-04 (pushed, unmerged, not independently reviewed):
+`claude/lib-implementation-agent-47evs0-g0` @ `47451e1` (from `367163b`) re-checks every SUPPORTS a
+stored belief decision counted, closing a second forged-authorization path through the belief
+projection, and records an open, higher-severity finding (the services' database role can register
+transition policies) that needs an Owner privilege decision; G0 stays NOT PASSED.
+`claude/lib-implementation-agent-47evs0-discovery` @ `0928602` (from `d7ec9f2`) adds an offline
+adequacy-before-endorsement safety gate over the frozen Discovery engine (S35-MECH-002 as revised):
+on the same-author held-out worlds the force-fit rate falls from 0.40 to 0.046 at budget 12 and from
+0.47 to 0.026 at budget 24, at the cost of in-catalog accuracy at budget 12 (0.908 to 0.637). Both
+are engineering evidence only. Details: [implementation status](sai35/implementation-status.md).
 
 ## 3. Normative requirements
 

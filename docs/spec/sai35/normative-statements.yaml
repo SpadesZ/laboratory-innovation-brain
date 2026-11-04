@@ -22,6 +22,10 @@ in_progress_branches:
   g0-authorization-read-path-closure: from f41758c; forged-authorization read-path bypass fixed on this unmerged branch, pending
     independent audit
   discovery-independent-evaluation: independent hidden-world evaluation design; in progress, not reviewed
+  claude/lib-implementation-agent-47evs0-g0: from 367163b; head 47451e1; belief projection re-checks counted SUPPORTS; finding
+    F2 (services role can register transition policies) open; G0 NOT PASSED
+  claude/lib-implementation-agent-47evs0-discovery: from d7ec9f2; head 0928602; offline out-of-catalog safety gate (engineering
+    evidence on same-author worlds only); not connected to research execution
 spec_document: docs/spec/SAI_3.5.md
 superseded_documents:
 - docs/spec/SAI_3.5_Discovery_Candidate.md

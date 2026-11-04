@@ -12,6 +12,7 @@ docs/adr/ADR-0016-sai35-discovery-candidate.md
 docs/adr/ADR-0017-sai35-master-specification-scope.md
 docs/spec/SAI_3.5.md
 docs/spec/SAI_3.5_Discovery_Candidate.md
+docs/spec/sai35/HANDOFF.zh-TW.md
 docs/spec/sai35/REPORT.zh-TW.md
 docs/spec/sai35/acceptance-gd.md
 docs/spec/sai35/activation-proposal.md

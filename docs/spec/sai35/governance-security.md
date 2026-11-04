@@ -113,6 +113,8 @@ the stop recorded (S35-SEC-006).
 | shared database role for services today | per-component identities (§5) do not exist yet |
 | verification-authorization trust root (G0 line SPEC-ISSUE-018) | authority holder can enrol anyone; separation of duty for authorizations is an open decision on that line |
 | forged-authorization read path (G0 line) | fixed on the pushed, unmerged branch `g0-authorization-read-path-closure` (from `f41758c`; source code at `2a96ee8`, no source change after it), pending independent audit; as reported there: full PostgreSQL suite 3583 passed / 0 failed, complete mutation battery 928/929 at `2a96ee8`, the one survivor killed afterwards by an added test |
+| services' role writes transition policies (finding F2, `claude/lib-implementation-agent-47evs0-g0`) | open, high: a registered requirement-free policy lets an ALLOW decision with an empty snapshot project to SUPPORTED; fix needs an Owner decision on database privileges |
+| forged SUPPORTS through the belief projection (`claude/lib-implementation-agent-47evs0-g0`) | fixed on that pushed, unmerged branch (`SUPPORT_UNVERIFIED`), pending independent audit |
 | free-declaration trust root (G0 line SPEC-ISSUE-017) | a proxy that strips billing signs is indistinguishable from a free model server |
 
 ## 9. Authorization ladder: exploration, spending, admission, support and confirmation
