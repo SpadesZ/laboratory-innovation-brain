@@ -1,0 +1,17 @@
+{
+  "reproduced_under": [
+    {
+      "dependencies": {
+        "PyYAML": "6.0.3",
+        "cryptography": "50.0.2",
+        "pydantic": "2.14.2",
+        "pydantic-core": "2.50.2"
+      },
+      "interpreter": "CPython 3.12.3",
+      "interpreter_key": "CPython 3.12",
+      "numerical_libraries": "none (no numpy, scipy or other compiled numerics are imported)",
+      "platform": "Linux-6.18.44-fc-v233-x86_64-with-glibc2.39",
+      "result": "every evidence file reproduced exactly"
+    }
+  ]
+}
