@@ -58,10 +58,14 @@ from lab_brain.core.repositories.evidence import SqlAttestationStore, SqlRelatio
 from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.domains.silicon_photonics.authority_policy import SiliconPhotonicsAuthorityPolicy
-from lab_brain.domains.silicon_photonics.product import diagnostic_declaration_set
+from lab_brain.domains.silicon_photonics.product import (
+    diagnostic_declaration_set,
+    product_vertical,
+)
 from lab_brain.evaluation.collect import support_provenance
 from lab_brain.research.confirmation import confirmation_verifier
 from lab_brain.research.episode_view import _not_counted
+from lab_brain.research.service import declared_policies
 from lab_brain.security.reviewer_identity import ReviewerTrust, SigningKey
 from lab_brain.storage.postgres.verification_evidence import SqlEvidenceSink
 from lab_brain.storage.postgres.warrants import sql_warrant_resolver
@@ -334,6 +338,11 @@ def _recheck_store(g: Guarded) -> SqlRelationStore:
         declaration_sets=(declarations,),
         active=declarations.ref,
         authority_policies={(authority.policy_id, authority.policy_version): authority},
+        declared_policies=declared_policies(
+            product_vertical(
+                outputs=None, jobs=None, broker=None, now=lambda: dt.datetime.now(dt.UTC)
+            )
+        ),
     )
     stores = [
         cell.cell_contents

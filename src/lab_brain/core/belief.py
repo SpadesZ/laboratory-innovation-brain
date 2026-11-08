@@ -279,6 +279,12 @@ class VerificationFailure(StrEnum):
     #: A SUPPORTS in the snapshot is not support now: its verification authorization does not
     #: verify, it is not the relation stored, or nothing was supplied to check it (011w).
     SUPPORT_UNVERIFIED = "SUPPORT_UNVERIFIED"
+    #: The event's policy is not one the installed code declares, or its registered row is not
+    #: the code's declaration (G0 R-3): a rule nobody reviewed as code decided it.
+    UNDECLARED_POLICY = "UNDECLARED_POLICY"
+    #: An evidential item the decision counted -- a relation, a condition match, an authority
+    #: class -- is not what the database holds for it (G0 R-1).
+    EVIDENCE_UNVERIFIED = "EVIDENCE_UNVERIFIED"
 
 
 class UnverifiedBeliefRevision(RuntimeError):
@@ -361,6 +367,39 @@ class WarrantVerifier(Protocol):
 #: its verification authorization verifies (011w), which SQL cannot check.
 SupportCheck = Callable[[RelationJudgment], str | None]
 
+#: Why a stored decision's snapshot is not a record of what the database held, or None when it is
+#: (G0 R-1). The product's is `SqlRelationStore.snapshot_problem`: every relation the snapshot
+#: counted must be the stored relation, every condition match the stored match, and the authority
+#: classes those the stored attestations give.
+SnapshotCheck = Callable[[BeliefTransitionDecision], str | None]
+
+#: The transition policies the installed code declares, by `(policy_id, version)` (G0 R-3).
+DeclaredPolicies = Mapping[tuple[str, str], TransitionPolicy]
+
+
+def _undeclared(
+    key: tuple[str, str],
+    stored: TransitionPolicy | None,
+    declared: DeclaredPolicies,
+    *,
+    admission: bool,
+) -> str | None:
+    """Why the policy `key` may not decide a belief here, or None (G0 R-3)."""
+    code = declared.get(key)
+    if code is None:
+        return (
+            f"{key[0]}@{key[1]} is not a policy the installed code declares; a registered row "
+            "nobody reviewed as code (one written before 011x, or past its guard) decides nothing"
+        )
+    if code.is_admission is not admission:
+        return f"{key[0]}@{key[1]} is declared as {'an' if code.is_admission else 'no'} admission"
+    if stored is not None and stored != code:
+        return (
+            f"the registered {key[0]}@{key[1]} is not the code's declaration of it; a rule "
+            "registered under a declared name decides nothing"
+        )
+    return None
+
 
 def _enforce_requested_scope(
     project_id: str,
@@ -405,6 +444,8 @@ def verify_stored_revision(
     authority_policies: Mapping[tuple[str, str], AuthorityPolicy] = MappingProxyType({}),
     warrant_verifier: WarrantVerifier | None = None,
     support_check: SupportCheck | None = None,
+    snapshot_check: SnapshotCheck | None = None,
+    declared_policies: DeclaredPolicies | None = None,
 ) -> VerifiedBeliefRevision:
     """Re-derive a stored event's authorization, or refuse to let it change a belief.
 
@@ -431,6 +472,14 @@ def verify_stored_revision(
                 f"{event.authorization_decision_id}, but a BELIEF_TRANSITION Decision authorises "
                 "a transition and admission is not one (§8)",
             )
+        if declared_policies is not None:
+            key = (event.policy_id, event.policy_version)
+            undeclared = _undeclared(key, policies.get(*key), declared_policies, admission=True)
+            if undeclared is not None:
+                raise UnverifiedBeliefRevision(
+                    VerificationFailure.UNDECLARED_POLICY,
+                    f"genesis event {event.event_id}: {undeclared}",
+                )
         return VerifiedBeliefRevision(event=event, origin="ADMISSION", _proof=_MINTED_HERE)
 
     if event.authorization_decision_id is None:
@@ -511,6 +560,23 @@ def verify_stored_revision(
             f"{authorization.policy_id}@{authorization.policy_version}, which is not registered. "
             "An authorization that cannot be re-run is the thing `v3.3-a12` forbids",
         )
+    # G0 R-3: the rule must be one the installed code declares -- its admission policy, the
+    # vertical's policies and their declared earlier versions -- exactly as declared. Before
+    # `011x` the services' role could register any rule; a decision under it is refused here,
+    # whoever wrote the row and however well it re-derives.
+    if declared_policies is not None:
+        undeclared = _undeclared(
+            (authorization.policy_id, authorization.policy_version),
+            policy,
+            declared_policies,
+            admission=False,
+        )
+        if undeclared is not None:
+            raise UnverifiedBeliefRevision(
+                VerificationFailure.UNDECLARED_POLICY,
+                f"authorization {authorization.decision_id} for event {event.event_id}: "
+                f"{undeclared}",
+            )
 
     snapshot = authorization.decision_input_snapshot
     comparator: AuthorityPolicy | None = None
@@ -581,6 +647,23 @@ def verify_stored_revision(
                     f"SUPPORTS, which is not support now: {problem}",
                 )
 
+    # G0 R-1: the same question for every evidential item the snapshot counted, whatever the
+    # hypothesis's origin. A snapshot is the writer's record of what it read; re-deriving proves the
+    # verdict follows from that record, not that the record is what the database held. A relation
+    # that is not stored, a condition match the database records otherwise, an authority class no
+    # stored attestation has: each is a belief nobody's evidence authorised.
+    if snapshot_check is not None:
+        try:
+            held = snapshot_check(authorization)
+        except Exception as exc:  # a check that cannot run is a refusal, never a pass
+            held = f"it could not be checked: {exc}"
+        if held is not None:
+            raise UnverifiedBeliefRevision(
+                VerificationFailure.EVIDENCE_UNVERIFIED,
+                f"authorization {authorization.decision_id} counted evidence the database does "
+                f"not hold: {held}",
+            )
+
     try:
         rederive_decision(
             authorization=authorization,
@@ -609,6 +692,8 @@ def verified_history(
     authority_policies: Mapping[tuple[str, str], AuthorityPolicy] = MappingProxyType({}),
     warrant_verifier: WarrantVerifier | None = None,
     support_check: SupportCheck | None = None,
+    snapshot_check: SnapshotCheck | None = None,
+    declared_policies: DeclaredPolicies | None = None,
 ) -> tuple[VerifiedBeliefRevision, ...]:
     """Verify a whole stored history, in order, refusing the first revision that cannot be.
 
@@ -627,6 +712,8 @@ def verified_history(
             authority_policies=authority_policies,
             warrant_verifier=warrant_verifier,
             support_check=support_check,
+            snapshot_check=snapshot_check,
+            declared_policies=declared_policies,
         )
         for event in sorted(events, key=lambda e: (e.occurred_at, e.event_id))
     )

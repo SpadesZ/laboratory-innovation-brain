@@ -34,6 +34,7 @@ from lab_brain.core.models.enums import RelationType
 from lab_brain.core.models.failure import FailureAnalysis
 from lab_brain.core.models.hypothesis_set import HypothesisCertificate, HypothesisSet
 from lab_brain.core.models.relation import RelationJudgment
+from lab_brain.core.models.transition import TransitionPolicy
 from lab_brain.core.models.warrant import DiagnosticDeclarationSet
 from lab_brain.core.repositories.belief_events import (
     SqlBeliefEventStore,
@@ -87,9 +88,15 @@ def confirmation_verifier(
     declaration_sets: Sequence[DiagnosticDeclarationSet],
     active: str | None,
     authority_policies: Mapping[tuple[str, str], AuthorityPolicy],
+    declared_policies: Sequence[TransitionPolicy],
     now: Callable[[], dt.datetime] = utc_now,
 ) -> ConfirmationVerifier:
-    """The deployment's reuse check, for `SqlFailureStore(verify=...)` and the episode page."""
+    """The deployment's reuse check, for `SqlFailureStore(verify=...)` and the episode page.
+
+    `declared_policies` are the transition policies the installed code declares
+    (`research.service.declared_policies`): the belief history a confirmation rests on is
+    re-derived only under them (G0 R-3). Required, so no caller can forget it.
+    """
     first = answers_and_declarations(connection, trust, declaration_sets=declaration_sets)
     # A post-screening support counts in the re-check only when its authorization verifies (011w).
     relations = SqlRelationStore(
@@ -109,6 +116,7 @@ def confirmation_verifier(
         warrants=sql_warrant_resolver(
             connection, declaration_sets=declaration_sets, active=active, trust=trust
         ),
+        declared_policies=declared_policies,
     )
     rule = ConfirmationRule(
         _Reads(

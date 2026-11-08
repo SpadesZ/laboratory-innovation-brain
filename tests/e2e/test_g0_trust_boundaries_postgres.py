@@ -28,7 +28,7 @@ import datetime as dt
 import json
 import uuid
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import psycopg
 import pytest
@@ -46,6 +46,12 @@ from lab_brain.core.repositories.warrants import SqlDeclarationSetStore, Warrant
 from lab_brain.domains.silicon_photonics import vertical as sp
 from lab_brain.domains.silicon_photonics.product import diagnostic_declaration_set
 from lab_brain.research.confirmation import confirmation_verifier
+from lab_brain.research.service import (
+    ADMISSION_POLICY,
+    ResearchEpisodeService,
+    declared_policies,
+)
+from lab_brain.verification.prospective import prospective_support_verifier
 from tests.debate_fixtures import PROJECT as CASE_PROJECT
 from tests.e2e.test_causal_warrant_counterexample_postgres import CASE, NOVEL_MECHANISM, _renamed
 from tests.e2e.test_g0_exploratory_screening_postgres import rows
@@ -69,9 +75,6 @@ roles = _roles.roles
 
 #: Reproductions committed before their fixes: strict, so a fix that lands without removing the
 #: marker fails the suite (XPASS(strict)).
-OPEN_R3 = pytest.mark.xfail(
-    strict=True, reason="R-3 open: the projection honours undeclared policies"
-)
 OPEN_R1 = pytest.mark.xfail(
     strict=True, reason="R-1 open: snapshot evidence is not compared with the database"
 )
@@ -478,9 +481,10 @@ def _read(reader: Any, hypothesis: str) -> str:
     return "NONE" if state is None else state.value
 
 
-def _product_reader(g: Guarded) -> Any:
-    """The belief projection the product's confirmation re-check decides from (R4), taken out of
-    the verifier the product builds -- the product's own wiring, not rebuilt here."""
+def _product_readers(g: Guarded) -> dict[str, Any]:
+    """The product's own belief projections, as the product builds them: the research service's
+    episode (R3/R8: what a run decides from and its report's final state) and the one the
+    confirmation re-check decides from (R4), taken out of the verifier the product builds."""
     reading = sp_product()
     verify = confirmation_verifier(
         g.db,
@@ -488,14 +492,33 @@ def _product_reader(g: Guarded) -> Any:
         declaration_sets=reading.declaration_sets,
         active=reading.active_declarations,
         authority_policies=reading.authority_policies,
+        declared_policies=declared_policies(reading),
     )
-    readers = [
+    rechecks = [
         cell.cell_contents
         for cell in verify.__closure__ or ()
         if isinstance(cell.cell_contents, BeliefEpisode)
     ]
-    assert len(readers) == 1, readers
-    return readers[0]
+    assert len(rechecks) == 1, rechecks
+    service = cast(
+        Any,
+        SimpleNamespace(
+            _trust=g.keys.trust,
+            _support_verifier=lambda c: prospective_support_verifier(c, g.keys.trust),
+        ),
+    )
+    return {
+        "R3/R8 research service": ResearchEpisodeService._belief_episode(service, g.db, reading),
+        "R4 confirmation re-check": rechecks[0],
+    }
+
+
+def _product_reader(g: Guarded) -> Any:
+    return _product_readers(g)["R3/R8 research service"]
+
+
+def _read_all(g: Guarded, hypothesis: str) -> dict[str, str]:
+    return {name: _read(reader, hypothesis) for name, reader in _product_readers(g).items()}
 
 
 def sp_product() -> Any:
@@ -521,7 +544,6 @@ def legacy_promote() -> TransitionPolicy:
     )
 
 
-@OPEN_R3
 def test_r3_the_projection_refuses_a_transition_under_an_undeclared_policy(guarded, roles):
     """The policy row predates `011x` (registered here by the owner, as the services' role could
     then); the services' role runs the product's episode under it; the product's projection must
@@ -538,9 +560,47 @@ def test_r3_the_projection_refuses_a_transition_under_an_undeclared_policy(guard
         )
     print(f"R-3: services-role transition under {policy.policy_id}: event={written.event}")
     assert written.event is not None
-    read = _read(_product_reader(g), hypothesis)
-    print(f"R-3: product projection of {hypothesis} -> {read}")
+    read = _read_all(g, hypothesis)
+    print(f"R-3: product projections of {hypothesis} -> {read}")
+    assert set(read.values()) == {"REFUSED:UNDECLARED_POLICY"}, read
+    # The same history read with no declared-policy list (the fixture wirings): SUPPORTED. The
+    # refusal is the declaration check, nothing incidental.
+    assert _read(_honest(g), hypothesis) == BeliefState.SUPPORTED.value
+    # The operator's audit lists the policy and what the projection refuses under it.
+    status, out = _admin(g.db, "register-policies")
+    assert status == 0, out
+    assert (
+        f"undeclared  {policy.policy_id}@{policy.version}  (refused by the projection: "
+        "1 decision(s), 1 event(s))"
+    ) in out, out
+    print(f"R-3: register-policies lists: {[x for x in out.splitlines() if policy.policy_id in x]}")
+
+
+def test_r3_the_product_projections_keep_a_history_under_declared_policies(guarded):
+    """Positive control: the guarded episode's hypotheses were admitted under the declared
+    admission policy; both product readers fold that history in."""
+    g = guarded
+    for hypothesis in (g.hypothesis, _unscreened(g)):
+        read = _read_all(g, hypothesis)
+        assert set(read.values()) == {BeliefState.ACTIVE.value}, read
+
+
+def test_r3_a_registered_row_that_is_not_the_codes_declaration_is_refused(guarded):
+    """Content, not only name: a row registered under a declared `policy@version` (as a services'
+    writer could have done before the operator, pre-`011x`) that is not the code's declaration
+    decides nothing. Here the code's declaration of the admission policy differs from the row."""
+    g = guarded
+    altered = ADMISSION_POLICY.model_copy(update={"domain": "g0.tb.not-the-registered-row"})
+    reading = sp_product()
+    reader = _episode(g.db, _product_relations(g), g.keys.trust)
+    reader._declared = {  # type: ignore[attr-defined]
+        (p.policy_id, p.version): (altered if p == ADMISSION_POLICY else p)
+        for p in declared_policies(reading)
+    }
+    read = _read(reader, g.hypothesis)
     assert read == "REFUSED:UNDECLARED_POLICY", read
+    with pytest.raises(UnverifiedBeliefRevision, match="not the code's declaration"):
+        reader.project(project_id=PROJECT, hypothesis_id=g.hypothesis)
 
 
 # =============================================================================================

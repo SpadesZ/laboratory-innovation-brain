@@ -51,7 +51,7 @@ accept it.
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
@@ -308,6 +308,7 @@ class BeliefEpisode:
         warrants: WarrantResolver | None = None,
         warrant_reviews: WarrantReviewSink | None = None,
         superseded: frozenset[tuple[str, str]] = frozenset(),
+        declared_policies: Iterable[TransitionPolicy] | None = None,
     ) -> None:
         self._policies = policies
         self._decisions = decisions
@@ -325,6 +326,14 @@ class BeliefEpisode:
         #: Policy versions a later version supersedes: kept registered so every decision recorded
         #: under them re-derives, refused for any new attempt.
         self._superseded = superseded
+        #: The policies the installed code declares (G0 R-3). Given, the projection accepts a
+        #: stored event only under one of them, exactly as declared; None reads every registered
+        #: policy (the in-process and fixture wirings, which declare nothing else).
+        self._declared = (
+            None
+            if declared_policies is None
+            else MappingProxyType({(p.policy_id, p.version): p for p in declared_policies})
+        )
 
     # -- reads -------------------------------------------------------------------------------
 
@@ -357,6 +366,10 @@ class BeliefEpisode:
             # (`SqlRelationStore.support_problem`). A relation source without the check (the
             # in-memory stores, which hold no screening records) adds nothing.
             support_check=getattr(self._relations, "support_problem", None),
+            # G0 R-1: every relation, condition match and authority class a decision counted is
+            # re-checked against the database (`SqlRelationStore.snapshot_problem`).
+            snapshot_check=getattr(self._relations, "snapshot_problem", None),
+            declared_policies=self._declared,
         )
         return replay(
             project_id,

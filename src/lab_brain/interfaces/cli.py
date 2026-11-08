@@ -1243,6 +1243,7 @@ def _declare_capabilities(args: argparse.Namespace, connection: Any) -> list[str
 def _register_policies(args: argparse.Namespace, connection: Any) -> list[str]:
     """`admin register-policies`: the operator registers the declared transition policies
     (`011x`, G0 F2). Idempotent: a policy already registered is left exactly as it is."""
+    from lab_brain.core.repositories import SqlTransitionPolicyStore
     from lab_brain.core.repositories.warrants import SqlDeclarationSetStore, WarrantStoreError
     from lab_brain.interfaces import deployment
     from lab_brain.research.service import (
@@ -1269,21 +1270,35 @@ def _register_policies(args: argparse.Namespace, connection: Any) -> list[str]:
     except (PolicyRegistrationRefused, WarrantStoreError) as refused:
         raise deployment.OperatorRefused(str(refused)) from refused
     lines = []
-    declared = set()
-    for policy in declared_policies(vertical):
+    declared = {(p.policy_id, p.version): p for p in declared_policies(vertical)}
+    for policy in declared.values():
         name = f"{policy.policy_id}@{policy.version}"
-        declared.add(name)
         lines.append(f"{'registered' if name in registered else 'present   '}  {name}")
     for declarations in vertical.declaration_sets:
         name = f"declaration set {declarations.ref}"
         lines.append(f"{'registered' if declarations.ref in sets else 'present   '}  {name}")
     # For the operator's audit: rows this product does not declare -- registered by hand, by a
-    # test, or (before `011x`) by whoever held the services' role. Listed, never touched.
-    for (name,) in connection.execute(
-        "SELECT policy_id || '@' || version FROM transition_policies ORDER BY 1"
+    # test, or (before `011x`) by whoever held the services' role -- and rows registered under a
+    # declared name that are not the code's declaration. Listed, never touched; the product's
+    # belief projection refuses every event under them (UNDECLARED_POLICY, G0 R-3), so each line
+    # says how many recorded decisions and events that is.
+    store = SqlTransitionPolicyStore(connection)
+    for policy_id, version, decisions, events in connection.execute(
+        "SELECT p.policy_id, p.version,"
+        " (SELECT count(*) FROM belief_transition_decisions d"
+        "   WHERE d.policy_id = p.policy_id AND d.policy_version = p.version),"
+        " (SELECT count(*) FROM belief_revision_events e"
+        "   WHERE e.policy_id = p.policy_id AND e.policy_version = p.version)"
+        " FROM transition_policies p ORDER BY 1, 2"
     ).fetchall():
-        if name not in declared:
-            lines.append(f"undeclared  {name}")
+        code = declared.get((str(policy_id), str(version)))
+        if code is not None and store.get(str(policy_id), str(version)) == code:
+            continue
+        kind = "undeclared" if code is None else "DIFFERS   "
+        lines.append(
+            f"{kind}  {policy_id}@{version}  (refused by the projection: {decisions} "
+            f"decision(s), {events} event(s))"
+        )
     return lines
 
 

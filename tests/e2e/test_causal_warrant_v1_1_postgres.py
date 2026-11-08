@@ -1128,6 +1128,7 @@ def _reuse_check(db: Any) -> Any:
     """The deployment's reuse check: answers and declarations, then the rule re-derived."""
     from lab_brain.domains.silicon_photonics.product import product_vertical
     from lab_brain.research.confirmation import confirmation_verifier as rederiving
+    from tests.vertical_fixtures import case_transition_policies
 
     reading = product_vertical(outputs=None, jobs=None, broker=None, now=lambda: T0)
     return rederiving(
@@ -1136,6 +1137,8 @@ def _reuse_check(db: Any) -> Any:
         declaration_sets=reading.declaration_sets,
         active=reading.active_declarations,
         authority_policies=reading.authority_policies,
+        # `run_case`'s histories: the fixture's admission policy beside the vertical's (G0 R-3).
+        declared_policies=case_transition_policies(),
         now=lambda: T0 + dt.timedelta(days=1),
     )
 

@@ -1602,18 +1602,25 @@ class ResearchEpisodeService:
             EgressGate(policy_for=self._reasoning.egress_policy, clearance_of=self._clearance),
         )
 
-    def _brain(
+    def _belief_episode(
         self,
+        c: Any,
         vertical: ProductVertical,
-        debate: StructuredDebate,
-        hypotheses: SqlHypothesisStore,
-        events: SqlBeliefEventStore,
-        debates: SqlDebateStore,
-        attestations: SqlAttestationStore,
-        gate: DebateGate,
-    ) -> tuple[HypothesisBrain, BeliefEpisode]:
-        c = self._connection
-        episode = BeliefEpisode(
+        *,
+        events: SqlBeliefEventStore | None = None,
+        attestations: SqlAttestationStore | None = None,
+    ) -> BeliefEpisode:
+        """The governed belief path a research run decides (R3) and reports (R8) from.
+
+        One builder, so the episode that records a transition and the reader that projects it for
+        the report cannot be wired differently. Its projection re-derives each stored event only
+        under a policy this code declares (G0 R-3), re-checks each SUPPORTS of a post-screening
+        hypothesis (011w), and re-checks every relation, condition match and authority class a
+        decision counted against the database (G0 R-1).
+        """
+        events = events if events is not None else SqlBeliefEventStore(c)
+        attestations = attestations if attestations is not None else SqlAttestationStore(c)
+        return BeliefEpisode(
             policies=SqlTransitionPolicyStore(c),
             decisions=SqlBeliefTransitionDecisionStore(c),
             events=events,
@@ -1631,7 +1638,22 @@ class ResearchEpisodeService:
             ),
             warrant_reviews=SqlDiagnosticWarrantStore(c),
             superseded=superseded_versions(vertical.transition_policies),
+            # G0 R-3: a stored transition counts only under a policy this code declares.
+            declared_policies=declared_policies(vertical),
         )
+
+    def _brain(
+        self,
+        vertical: ProductVertical,
+        debate: StructuredDebate,
+        hypotheses: SqlHypothesisStore,
+        events: SqlBeliefEventStore,
+        debates: SqlDebateStore,
+        attestations: SqlAttestationStore,
+        gate: DebateGate,
+    ) -> tuple[HypothesisBrain, BeliefEpisode]:
+        c = self._connection
+        episode = self._belief_episode(c, vertical, events=events, attestations=attestations)
         brain = HypothesisBrain(
             debate=debate,
             hypotheses=hypotheses,
@@ -1726,6 +1748,7 @@ class ResearchEpisodeService:
                 declaration_sets=vertical.declaration_sets,
                 active=vertical.active_declarations,
                 authority_policies=vertical.authority_policies,
+                declared_policies=declared_policies(vertical),
                 now=self._clock,
             ),
         )
@@ -1977,23 +2000,7 @@ class ResearchEpisodeService:
                     objections.setdefault(o.target_id, []).append(
                         f"{o.kind.value} ({o.severity.value}): {_dealias(o.text, shown, names)}"
                     )
-            belief_reader = BeliefEpisode(
-                policies=SqlTransitionPolicyStore(c),
-                decisions=SqlBeliefTransitionDecisionStore(c),
-                events=SqlBeliefEventStore(c),
-                relations=SqlRelationStore(c, support_verifier=self._support_verifier(c)),
-                authority_classes=SqlAttestationStore(c),
-                conflicts=SqlConflictStore(c),
-                reviews=SqlReviewItemStore(c),
-                ids=UuidEpisodeIds(),
-                authority_policies=vertical.authority_policies,
-                warrants=sql_warrant_resolver(
-                    c,
-                    declaration_sets=vertical.declaration_sets,
-                    active=vertical.active_declarations,
-                    trust=self._trust,
-                ),
-            )
+            belief_reader = self._belief_episode(c, vertical)
             for certificate in sorted(
                 outcome.certificates, key=lambda x: (x.hypothesis.mechanism, x.hypothesis_id)
             ):

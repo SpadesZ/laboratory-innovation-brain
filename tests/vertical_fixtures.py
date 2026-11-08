@@ -547,6 +547,9 @@ def run_case(
             declaration_sets=reading.declaration_sets,
             active=reading.active_declarations,
             authority_policies=reading.authority_policies,
+            # This harness is its own composition root: its debate admits under the fixture's
+            # admission policy, so it declares that one beside the vertical's (G0 R-3).
+            declared_policies=case_transition_policies(),
             now=world.now,
         ),
     )

@@ -161,6 +161,7 @@ from lab_brain.research.service import (
     ResearchEpisodeService,
     ResearchFeatures,
     ResearchRequest,
+    declared_policies,
 )
 from lab_brain.research.vertical import VerticalFactory
 from lab_brain.security.interaction_attestation import InteractionSigner, WebInteraction
@@ -1258,6 +1259,7 @@ class Workspace:
             declaration_sets=vertical.declaration_sets,
             active=vertical.active_declarations,
             authority_policies=vertical.authority_policies,
+            declared_policies=declared_policies(vertical),
         )
 
     def _support_verifier(self, c: Any) -> Any:
