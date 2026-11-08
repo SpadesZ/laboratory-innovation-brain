@@ -230,7 +230,18 @@ transition policies) that needs an Owner privilege decision; G0 stays NOT PASSED
 adequacy-before-endorsement safety gate over the frozen Discovery engine (S35-MECH-002 as revised):
 on the same-author held-out worlds the force-fit rate falls from 0.40 to 0.046 at budget 12 and from
 0.47 to 0.026 at budget 24, at the cost of in-catalog accuracy at budget 12 (0.908 to 0.637). Both
-are engineering evidence only. Details: [implementation status](sai35/implementation-status.md).
+are engineering evidence only.
+
+Second round (2026-11-04 to 2026-11-08, pushed, unmerged, not independently reviewed):
+`claude/lib-implementation-agent-47evs0-g0-f2` @ `24fae8b` (from `47451e1`) closes finding F2 with
+owner-only TransitionPolicy registration (approved by the Owner on 2026-11-04): the services' role
+loses write privileges on `transition_policies` and migration `011x` refuses any non-owner insert;
+G0 stays NOT PASSED. `claude/lib-implementation-agent-47evs0-discovery-v11` @ `aa05dfd` (from
+`0928602`, design frozen at `53bd2a9`) closes a refit coverage bypass found in v1.0 and adds
+pre-registered per-experiment checks; on newly generated held-out worlds force-fits are 4/195 at
+budget 12 (v1.0: 6) with correct in-catalog identifications 156/240 (v1.0: 160), both differences
+inside their intervals; equal caps, not matched realized cost. Details:
+[implementation status](sai35/implementation-status.md).
 
 ## 3. Normative requirements
 

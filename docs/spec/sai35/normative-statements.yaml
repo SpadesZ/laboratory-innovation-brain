@@ -24,6 +24,10 @@ in_progress_branches:
   discovery-independent-evaluation: independent hidden-world evaluation design; in progress, not reviewed
   claude/lib-implementation-agent-47evs0-g0: from 367163b; head 47451e1; belief projection re-checks counted SUPPORTS; finding
     F2 (services role can register transition policies) open; G0 NOT PASSED
+  claude/lib-implementation-agent-47evs0-g0-f2: from 47451e1; head 24fae8b; F2 closed by owner-only TransitionPolicy registration
+    (Owner-approved 2026-11-04); G0 NOT PASSED
+  claude/lib-implementation-agent-47evs0-discovery-v11: from 0928602; head aa05dfd; safety gate v1.1 (refit fixpoint, localized
+    checks), engineering evidence on same-author worlds only
   claude/lib-implementation-agent-47evs0-discovery: from d7ec9f2; head 0928602; offline out-of-catalog safety gate (engineering
     evidence on same-author worlds only); not connected to research execution
 spec_document: docs/spec/SAI_3.5.md
