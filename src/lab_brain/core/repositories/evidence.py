@@ -28,9 +28,11 @@ import json
 from collections.abc import Callable, Sequence
 
 from lab_brain.core.models.attestation import Attestation
+from lab_brain.core.models.decision import BeliefTransitionDecision
 from lab_brain.core.models.enums import RelationType
 from lab_brain.core.models.relation import EPISTEMIC_RELATION_TYPES, RelationJudgment
 from lab_brain.core.repositories.budget import SqlConnection, require_durable_connection
+from lab_brain.core.repositories.conditions import SqlConditionMatchStore
 from lab_brain.core.repositories.protocols import RepositoryError
 
 
@@ -341,6 +343,70 @@ class SqlRelationStore:
                 "proposed after screening is not support unverified (011w)"
             )
         return self._support_verifier(relation)
+
+    def snapshot_problem(self, decision: BeliefTransitionDecision) -> str | None:
+        """Why a stored decision's snapshot is not a record of what the database held -- or None.
+
+        For the belief projection (`core.belief.verify_stored_revision(snapshot_check=...)`, G0
+        R-1). A snapshot carries the writer's own copies of what it counted; re-deriving proves the
+        verdict follows from those copies, not that they are the rows the database admitted. So,
+        whatever the hypothesis's origin, every evidential item the policy read is compared with
+        the database, by the rules a current reader applies when it builds the same snapshot:
+
+        * the view is of the decision's own subject in the decision's own project;
+        * every relation is an epistemic one (`admitted_for_subject` admits nothing else), of that
+          subject in that project, and is the relation stored -- same content; its validity window
+          may have closed since, which a later invalidation does;
+        * every condition match is the stored match of that id, unchanged;
+        * the view's authority classes are exactly those the stored attestations behind those
+          relations give (`SqlAttestationStore.authority_classes_for`, which is how the episode
+          resolves them).
+
+        What it cannot check is what a snapshot leaves out (an open conflict, say) and the
+        writer-supplied independence summary; see the trust-boundaries report.
+        """
+        snapshot = decision.decision_input_snapshot
+        view = snapshot.hypothesis
+        subject = (decision.project_id, decision.subject_id)
+        if (view.project_id, view.hypothesis_id) != subject:
+            return (
+                f"its view is of {view.hypothesis_id} in {view.project_id}, not of "
+                f"{decision.subject_id} in {decision.project_id}"
+            )
+        for relation in snapshot.admitted_relations:
+            if relation.relation_type not in EPISTEMIC_RELATION_TYPES:
+                return (
+                    f"{relation.relation_id} is a {relation.relation_type.value} relation; only "
+                    "epistemic relations are admitted to a decision"
+                )
+            if (relation.project_id, relation.to_entity_id) != subject:
+                return (
+                    f"{relation.relation_id} is a relation to {relation.to_entity_id} in "
+                    f"{relation.project_id}, not to {decision.subject_id} in {decision.project_id}"
+                )
+            stored = self.get(relation.project_id, relation.relation_id)
+            if stored is None or _relation_content(stored) != _relation_content(relation):
+                return f"{relation.relation_id} is not the relation stored"
+        for match in snapshot.condition_matches:
+            held = SqlConditionMatchStore(self._connection).get(match.condition_match_id)
+            if held is None or held != match:
+                return (
+                    f"condition match {match.condition_match_id} is not the match stored "
+                    f"({'none' if held is None else held.state.value} there, "
+                    f"{match.state.value} in the decision)"
+                )
+        supporting = sorted(
+            {a for r in snapshot.admitted_relations for a in r.supporting_attestation_ids}
+        )
+        classes = SqlAttestationStore(self._connection).authority_classes_for(
+            decision.project_id, supporting
+        )
+        if tuple(view.admitted_authority_classes) != classes:
+            return (
+                f"it states authority classes {tuple(view.admitted_authority_classes)}; the "
+                f"stored attestations behind its relations give {classes}"
+            )
+        return None
 
     def invalidate(
         self, *, project_id: str, relation_id: str, reason: str, actor_id: str, at: dt.datetime

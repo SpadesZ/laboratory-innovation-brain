@@ -73,12 +73,6 @@ pytestmark = pytest.mark.postgres
 su = _roles.su
 roles = _roles.roles
 
-#: Reproductions committed before their fixes: strict, so a fix that lands without removing the
-#: marker fails the suite (XPASS(strict)).
-OPEN_R1 = pytest.mark.xfail(
-    strict=True, reason="R-1 open: snapshot evidence is not compared with the database"
-)
-
 #: The database's refusals that count: no privilege, or an owner-only guard.
 REFUSALS = (psycopg.errors.InsufficientPrivilege, psycopg.errors.RaiseException)
 
@@ -403,6 +397,17 @@ class _Relations:
         return self._relations
 
 
+class _Unchecked:
+    """The product's relation store as a writer's own copy of the code uses it: it reads the rows,
+    and re-checks nothing it later projects (the writer's code is the writer's to choose)."""
+
+    def __init__(self, inner: SqlRelationStore) -> None:
+        self._inner = inner
+
+    def admitted_for_subject(self, project_id: str, subject_id: str) -> Any:
+        return self._inner.admitted_for_subject(project_id, subject_id)
+
+
 class _Classes:
     def __init__(self, classes: tuple[str, ...]) -> None:
         self._classes = classes
@@ -553,7 +558,9 @@ def test_r3_the_projection_refuses_a_transition_under_an_undeclared_policy(guard
     policy = _owner_registers(g, legacy_promote())
     with roles.connect(roles.app) as app:
         written = _attempt_on(
-            _writer(app, g, relations=SqlRelationStore(app, support_verifier=_accepting)),
+            _writer(
+                app, g, relations=_Unchecked(SqlRelationStore(app, support_verifier=_accepting))
+            ),
             g,
             hypothesis,
             policy,
@@ -680,7 +687,6 @@ def _honest(g: Guarded) -> Any:
     return _episode(g.db, _product_relations(g), g.keys.trust)
 
 
-@OPEN_R1
 def test_r1_a_snapshot_support_that_is_not_stored_is_refused(guarded, roles):
     g = guarded
     hypothesis = _unscreened(g)
@@ -709,7 +715,6 @@ def test_r1_a_snapshot_support_that_is_not_stored_is_refused(guarded, roles):
     assert _read(_product_reader(g), hypothesis).startswith("REFUSED:")
 
 
-@OPEN_R1
 def test_r1_a_snapshot_authority_class_no_attestation_has_is_refused(guarded, roles):
     g = guarded
     hypothesis = _unscreened(g)
@@ -720,7 +725,7 @@ def test_r1_a_snapshot_authority_class_no_attestation_has_is_refused(guarded, ro
             _writer(
                 app,
                 g,
-                relations=SqlRelationStore(app, support_verifier=_accepting),
+                relations=_Unchecked(SqlRelationStore(app, support_verifier=_accepting)),
                 classes=(sp.MEAS_CALIBRATED,),
             ),
             g,
@@ -737,7 +742,6 @@ def test_r1_a_snapshot_authority_class_no_attestation_has_is_refused(guarded, ro
     assert read == "REFUSED:EVIDENCE_UNVERIFIED", read
 
 
-@OPEN_R1
 def test_r1_a_snapshot_condition_match_that_is_not_the_stored_one_is_refused(guarded, roles):
     g = guarded
     hypothesis = _unscreened(g)
@@ -756,7 +760,9 @@ def test_r1_a_snapshot_condition_match_that_is_not_the_stored_one_is_refused(gua
         _stored_support(app, g, hypothesis, condition_match=partial.condition_match_id)
         claimed = partial.model_copy(update={"state": ConditionMatchState.EXACT})
         written = _attempt_on(
-            _writer(app, g, relations=SqlRelationStore(app, support_verifier=_accepting)),
+            _writer(
+                app, g, relations=_Unchecked(SqlRelationStore(app, support_verifier=_accepting))
+            ),
             g,
             hypothesis,
             policy,
@@ -884,7 +890,9 @@ def test_r1_direct_event_rows_that_skip_the_episode_are_refused_by_the_database(
     with roles.connect(roles.app) as app:
         no_decision = _try(lambda: append(app, None))
         refused = _attempt_on(
-            _writer(app, g, relations=SqlRelationStore(app, support_verifier=_accepting)),
+            _writer(
+                app, g, relations=_Unchecked(SqlRelationStore(app, support_verifier=_accepting))
+            ),
             g,
             hypothesis,
             policy,
@@ -895,3 +903,40 @@ def test_r1_direct_event_rows_that_skip_the_episode_are_refused_by_the_database(
     print(f"R-1 direct event, {refused.authorization.result.value} decision: {not_allow!r}")
     assert no_decision is not None and not_allow is not None
     assert _read(_honest(g), hypothesis) == BeliefState.ACTIVE.value
+
+
+def test_r1_a_decision_on_stored_evidence_still_re_derives_after_its_relation_is_withdrawn(
+    guarded, roles
+):
+    """Positive control: the services' role, honest, counts a stored SUPPORTS whose condition
+    match is the stored EXACT one, with the authority classes the stored attestation gives; the
+    projection keeps it -- and still does after the relation is invalidated (a later withdrawal
+    closes the validity window, which is not the relation's content)."""
+    g = guarded
+    hypothesis = _unscreened(g)
+    policy = _owner_registers(g, CONDITION_GATED)
+    ((exact_id,),) = rows(g.db, "SELECT condition_match_id FROM condition_matches LIMIT 1")
+    exact = SqlConditionMatchStore(g.db).get(str(exact_id))
+    assert exact is not None and exact.state is ConditionMatchState.EXACT
+    with roles.connect(roles.app) as app:
+        support = _stored_support(app, g, hypothesis, condition_match=exact.condition_match_id)
+        written = _attempt_on(
+            _episode(app, SqlRelationStore(app, support_verifier=_accepting), g.keys.trust),
+            g,
+            hypothesis,
+            policy,
+            condition_matches=(exact,),
+        )
+    assert written.event is not None
+    assert support.relation_id in {
+        r.relation_id for r in written.authorization.decision_input_snapshot.admitted_relations
+    }
+    assert _read(_honest(g), hypothesis) == BeliefState.SUPPORTED.value
+    SqlRelationStore(g.db).invalidate(
+        project_id=PROJECT,
+        relation_id=support.relation_id,
+        reason="withdrawn after the decision",
+        actor_id=g.actor,
+        at=dt.datetime.now(dt.UTC),
+    )
+    assert _read(_honest(g), hypothesis) == BeliefState.SUPPORTED.value
