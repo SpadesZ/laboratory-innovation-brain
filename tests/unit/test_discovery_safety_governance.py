@@ -116,9 +116,13 @@ def test_there_is_no_confirmed_in_the_safety_package():
                 name = node.id if isinstance(node, ast.Name) else node.attr
                 if "CONFIRM" in name.upper():
                     offenders.append(f"{path.name}:{node.lineno} {name}")
-            elif isinstance(node, ast.Constant) and isinstance(node.value, str):
-                if "CONFIRMED" in node.value and "NOT PASSED" not in node.value:
-                    offenders.append(f"{path.name}:{node.lineno} {node.value[:60]!r}")
+            elif (
+                isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and "CONFIRMED" in node.value
+                and "NOT PASSED" not in node.value
+            ):
+                offenders.append(f"{path.name}:{node.lineno} {node.value[:60]!r}")
     assert not offenders, offenders
 
 
