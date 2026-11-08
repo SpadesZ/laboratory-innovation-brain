@@ -647,23 +647,6 @@ def verify_stored_revision(
                     f"SUPPORTS, which is not support now: {problem}",
                 )
 
-    # G0 R-1: the same question for every evidential item the snapshot counted, whatever the
-    # hypothesis's origin. A snapshot is the writer's record of what it read; re-deriving proves the
-    # verdict follows from that record, not that the record is what the database held. A relation
-    # that is not stored, a condition match the database records otherwise, an authority class no
-    # stored attestation has: each is a belief nobody's evidence authorised.
-    if snapshot_check is not None:
-        try:
-            held = snapshot_check(authorization)
-        except Exception as exc:  # a check that cannot run is a refusal, never a pass
-            held = f"it could not be checked: {exc}"
-        if held is not None:
-            raise UnverifiedBeliefRevision(
-                VerificationFailure.EVIDENCE_UNVERIFIED,
-                f"authorization {authorization.decision_id} counted evidence the database does "
-                f"not hold: {held}",
-            )
-
     try:
         rederive_decision(
             authorization=authorization,
@@ -678,6 +661,24 @@ def verify_stored_revision(
             f"event {event.event_id} cites {authorization.decision_id}, which does not "
             f"re-derive: {exc}",
         ) from exc
+
+    # G0 R-1: after re-derivation (so a snapshot that does not even support its verdict is
+    # reported as NOT_REDERIVABLE), the same question for every evidential item it counted,
+    # whatever the hypothesis's origin. A snapshot is the writer's record of what it read; re-deriving proves the
+    # verdict follows from that record, not that the record is what the database held. A relation
+    # that is not stored, a condition match the database records otherwise, an authority class no
+    # stored attestation has: each is a belief nobody's evidence authorised.
+    if snapshot_check is not None:
+        try:
+            held = snapshot_check(authorization)
+        except Exception as exc:  # a check that cannot run is a refusal, never a pass
+            held = f"it could not be checked: {exc}"
+        if held is not None:
+            raise UnverifiedBeliefRevision(
+                VerificationFailure.EVIDENCE_UNVERIFIED,
+                f"authorization {authorization.decision_id} counted evidence the database does "
+                f"not hold: {held}",
+            )
 
     return VerifiedBeliefRevision(event=event, origin="TRANSITION", _proof=_MINTED_HERE)
 

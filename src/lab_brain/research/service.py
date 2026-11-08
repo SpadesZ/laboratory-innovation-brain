@@ -1610,10 +1610,9 @@ class ResearchEpisodeService:
         events: SqlBeliefEventStore | None = None,
         attestations: SqlAttestationStore | None = None,
     ) -> BeliefEpisode:
-        """The governed belief path a research run decides (R3) and reports (R8) from.
+        """The governed belief path a research run decides from (R3; the loop's state).
 
-        One builder, so the episode that records a transition and the reader that projects it for
-        the report cannot be wired differently. Its projection re-derives each stored event only
+        Its projection re-derives each stored event only
         under a policy this code declares (G0 R-3), re-checks each SUPPORTS of a post-screening
         hypothesis (011w), and re-checks every relation, condition match and authority class a
         decision counted against the database (G0 R-1).
@@ -2000,7 +1999,25 @@ class ResearchEpisodeService:
                     objections.setdefault(o.target_id, []).append(
                         f"{o.kind.value} ({o.severity.value}): {_dealias(o.text, shown, names)}"
                     )
-            belief_reader = self._belief_episode(c, vertical)
+            belief_reader = BeliefEpisode(
+                policies=SqlTransitionPolicyStore(c),
+                decisions=SqlBeliefTransitionDecisionStore(c),
+                events=SqlBeliefEventStore(c),
+                relations=SqlRelationStore(c, support_verifier=self._support_verifier(c)),
+                authority_classes=SqlAttestationStore(c),
+                conflicts=SqlConflictStore(c),
+                reviews=SqlReviewItemStore(c),
+                ids=UuidEpisodeIds(),
+                authority_policies=vertical.authority_policies,
+                warrants=sql_warrant_resolver(
+                    c,
+                    declaration_sets=vertical.declaration_sets,
+                    active=vertical.active_declarations,
+                    trust=self._trust,
+                ),
+                # G0 R-3: the report's final state, under the declared policies only.
+                declared_policies=declared_policies(vertical),
+            )
             for certificate in sorted(
                 outcome.certificates, key=lambda x: (x.hypothesis.mechanism, x.hypothesis_id)
             ):

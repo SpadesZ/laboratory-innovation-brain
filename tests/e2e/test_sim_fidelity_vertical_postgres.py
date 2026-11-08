@@ -68,6 +68,7 @@ from lab_brain.core.repositories import (
     SqlTransitionPolicyStore,
 )
 from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
+from lab_brain.core.repositories.conditions import SqlConditionMatchStore
 from lab_brain.core.repositories.conflicts import SqlConflictStore
 from lab_brain.core.repositories.reviews import SqlReviewItemStore
 from lab_brain.domains.silicon_photonics.authority_policy import (
@@ -298,6 +299,10 @@ def _exact_conditions() -> ConditionMatch:
 
 
 def _attempt(world, policy_id: str, to_state: BeliefState):  # type: ignore[no-untyped-def]
+    # The match is stored first, as the loop's are (`VerificationLoop._matches` reads stored
+    # matches): the projection re-checks every condition match a decision counted against the
+    # database (G0 R-1), so a match that exists only in the caller's memory is not evidence.
+    conditions = SqlConditionMatchStore(world).add(_exact_conditions())
     return _episode(world).attempt_transition(
         project_id=PROJECT,
         hypothesis_id=HYP,
@@ -309,7 +314,7 @@ def _attempt(world, policy_id: str, to_state: BeliefState):  # type: ignore[no-u
         trace_id=TRACE,
         episode_id="epi:sim002",
         authority_policy_ref=AUTHORITY_REF,
-        condition_matches=(_exact_conditions(),),
+        condition_matches=(conditions,),
         independence_summary=IndependenceSummary(independent_count=1),
     )
 
