@@ -664,10 +664,11 @@ def verify_stored_revision(
 
     # G0 R-1: after re-derivation (so a snapshot that does not even support its verdict is
     # reported as NOT_REDERIVABLE), the same question for every evidential item it counted,
-    # whatever the hypothesis's origin. A snapshot is the writer's record of what it read; re-deriving proves the
-    # verdict follows from that record, not that the record is what the database held. A relation
-    # that is not stored, a condition match the database records otherwise, an authority class no
-    # stored attestation has: each is a belief nobody's evidence authorised.
+    # whatever the hypothesis's origin. A snapshot is the writer's record of what it read; re-
+    # deriving proves the verdict follows from that record, not that the record is what the
+    # database held. A relation that is not stored, a condition match the database records
+    # otherwise, an authority class no stored attestation has: each is a belief nobody's
+    # evidence authorised.
     if snapshot_check is not None:
         try:
             held = snapshot_check(authorization)
