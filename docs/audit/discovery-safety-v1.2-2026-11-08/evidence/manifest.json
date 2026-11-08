@@ -1,0 +1,204 @@
+{
+  "code_commit": "50549e26840e803b1175ee04c60341fbcb672048+dirty",
+  "design_freeze": {
+    "commit": "50549e26840e803b1175ee04c60341fbcb672048",
+    "grammar_digest": "sha256:767111e512f4d2424f2576a5949244879fad811c6854310a7501aa9111df8942",
+    "held_out_seeds_generated_after_freeze": true,
+    "plan_digest": "sha256:181acbe916e1dd74c3ab64959da5da7afd6901c3798cf43ad9259f0af1d9cf6e",
+    "protocol_digest": "sha256:a5e81fcec07110f0d12f76d03b2f41da140a7d7ec11aeaf1faeb4e262bd08b16",
+    "v12_sources_identical_to_freeze": true
+  },
+  "environment": {
+    "dependencies": {
+      "PyYAML": "6.0.3",
+      "cryptography": "50.0.2",
+      "pydantic": "2.14.2",
+      "pydantic-core": "2.50.2"
+    },
+    "interpreter": "CPython 3.13.18",
+    "interpreter_key": "CPython 3.13",
+    "numerical_libraries": "none (no numpy, scipy or other compiled numerics are imported)",
+    "platform": "Linux-6.18.44-fc-v310-x86_64-with-glibc2.39"
+  },
+  "evidence_class": "ENGINEERING EVIDENCE ONLY -- developer-authored synthetic worlds",
+  "evidence_files": [
+    "benchmark_3178418000_rows.json",
+    "control_3340487000_rows.json",
+    "held_out_3340487000_rows.json",
+    "results.json"
+  ],
+  "frozen_inputs": {
+    "engine_sources_match_frozen_manifest": true,
+    "evaluation_sources_match_frozen_manifest": true,
+    "frozen_engine_manifest_sha256": "sha256:d58ffb401a26a14a614d80b56bcda18505d40c44bea5195baebe6323ada3e9d9",
+    "frozen_evaluation_manifest_sha256": "sha256:c0172f3f275b1d74a4a1af8324d898ae837fbcd68b8675769b45660e2b20efad",
+    "frozen_v10_manifest_sha256": "sha256:7cec0221f0653425a35d69642e4dde505f64224d5b418cd8c0452647ab9081a8",
+    "frozen_v11_manifest_sha256": "sha256:9e30bb01984268c4ea9d41aaeb79f6207d1972703e473b9af7e95b8ce05969c4",
+    "v10_protocol_digest_matches": true,
+    "v10_sources_match_frozen_manifest": true,
+    "v11_protocol_digest_matches": true,
+    "v11_sources_match_frozen_manifest": true
+  },
+  "inputs": {
+    "catalog": {
+      "digest": "sha256:69c86963d6e1ae31832208530654539a9283bded6638cad8f0877848553d9119",
+      "ref": "sp.ring_drift_loss.discovery@0.1.0"
+    },
+    "engine_protocol_digest": "sha256:5473507ce99d2f41918361c35ebf33efa18770e91baf7a7d8f76008462560c97",
+    "grammar_digest": "sha256:767111e512f4d2424f2576a5949244879fad811c6854310a7501aa9111df8942",
+    "plan": {
+      "arms": [
+        [
+          "B2",
+          "frozen Discovery engine (2026-11-01), no safety layer"
+        ],
+        [
+          "B3",
+          "frozen engine + out-of-catalog safety gate v1.0"
+        ],
+        [
+          "B4",
+          "frozen engine + out-of-catalog safety gate v1.1"
+        ],
+        [
+          "B5",
+          "frozen engine on an anytime cap ladder + safety gate v1.2 (registered predictions, grammar discovery)"
+        ]
+      ],
+      "benchmark_worlds": {
+        "base_seed": 3178418000,
+        "label": "lab-brain/discovery-safety-v1.2/benchmark-worlds/2026-11-08",
+        "per_group": 25,
+        "role": "HELD_OUT_FOR_V1_2"
+      },
+      "budgets": [
+        8,
+        12,
+        24,
+        48
+      ],
+      "checkpoints": [
+        0.25,
+        0.5,
+        1.0
+      ],
+      "development": [
+        {
+          "base_seed": 5000000,
+          "label": "v1.0 development held-out worlds",
+          "per_group": 6,
+          "role": "DEVELOPMENT"
+        },
+        {
+          "base_seed": 1,
+          "label": "engine development worlds",
+          "per_group": 6,
+          "role": "DEVELOPMENT"
+        },
+        {
+          "base_seed": 7000000,
+          "label": "v1.1 development held-out worlds",
+          "per_group": 15,
+          "role": "DEVELOPMENT"
+        },
+        {
+          "base_seed": 8000000,
+          "label": "v1.2 development held-out worlds",
+          "per_group": 15,
+          "role": "DEVELOPMENT"
+        }
+      ],
+      "distinguish_replicates": 4,
+      "distinguish_tau": 5.0,
+      "held_out": [
+        {
+          "base_seed": 3340487000,
+          "label": "lab-brain/discovery-safety-v1.2/held-out-worlds/2026-11-08",
+          "per_group": 15,
+          "role": "HELD_OUT_FOR_V1_2"
+        }
+      ],
+      "plan_id": "lab-brain/discovery-safety-v1.2-evaluation",
+      "scoring": "sai35-candidate.4-classify_outcome+verified_evidence (ledger re-derived)",
+      "seeds_used_before": [
+        1,
+        5000000,
+        7000000,
+        2026110100,
+        2026110200,
+        2026610200,
+        2026810400,
+        3931910000,
+        3320367000
+      ]
+    },
+    "plan_digest": "sha256:181acbe916e1dd74c3ab64959da5da7afd6901c3798cf43ad9259f0af1d9cf6e",
+    "safety_protocol": {
+      "abstain_on_inadequacy": true,
+      "alpha_adequacy": 0.01,
+      "alpha_localized": 0.01,
+      "alpha_prospective": 0.01,
+      "anytime_allocation": true,
+      "candidate_band": 0.5,
+      "defer_localized_replication": true,
+      "discovery": true,
+      "discriminating_tau": 5.0,
+      "engine_fraction": 0.5,
+      "gate_led": true,
+      "ladder_start": 2,
+      "localized_check": true,
+      "localized_correction": "holm-step-down",
+      "max_alternatives": 2,
+      "max_discovery_tests": 3,
+      "max_noise_exclusions_per_experiment": 1,
+      "max_probe_replications": 2,
+      "max_request_candidates": 4,
+      "max_rival_tests": 4,
+      "probe_null_experiments": true,
+      "probe_order": "separation-per-cost",
+      "probes": true,
+      "protocol_id": "lab-brain/discovery-safety-offline",
+      "refit_fixpoint": true,
+      "registered_probes": true,
+      "require_coverage": true,
+      "require_registered_support": true,
+      "rival_exclusion": true,
+      "signal_coverage": 1.0,
+      "support_test": true,
+      "tau_risky": 3.0,
+      "version": "1.2.0",
+      "z_adequacy": 4.0,
+      "z_prospective": 4.0,
+      "z_signal": 3.0
+    },
+    "safety_protocol_digest": "sha256:a5e81fcec07110f0d12f76d03b2f41da140a7d7ec11aeaf1faeb4e262bd08b16",
+    "v10_safety_protocol_digest": "sha256:27fc5feb4916271c37b5b1800998ea08ba816e0f2311711d96d7e55689675b25",
+    "v11_safety_protocol_digest": "sha256:598c95aa4d3dbbc2348a472f5c3b90539cc1c02b54576c6ace9d432f859a280c"
+  },
+  "inputs_digest": "sha256:e0a3cdeb0fb034acfcc7c2de887236a3f39c3af8201d9d39200178c4ced53e2b",
+  "kind": "lab-brain/discovery-safety-v1.2-evaluation-manifest@1",
+  "manifest_sha256": "sha256:f883ef752f84a968300b6a25841a75c36ea3bddf841c19db12c790a84f995d45",
+  "not_claimed": [
+    "scientific validity of any mechanism, forward model, grammar term or new mechanism",
+    "an independent or blind evaluation: worlds, held-out families, the grammar, the engine and every safety gate share an author lineage",
+    "anything about a real device, real literature, a language model or the real PostgreSQL LIB workflow; Discovery is not connected to real research execution",
+    "scientific acceptance (NOT PASSED) or G-D (NOT PASSED)"
+  ],
+  "results_sha256": "8c521d2817f24c7dc7c34384702d4476790094547e0923f25c156ca773621a71",
+  "rows_sha256": {
+    "benchmark_3178418000_rows.json": "846089e1f9c18ec9436882730aea3b846a41c683953b4f7d2de0bf61d7479525",
+    "control_3340487000_rows.json": "89395b222149bad4d6966f47b1e5d78ccd03b6d36eb600ae6730b5a4de74274e",
+    "held_out_3340487000_rows.json": "031303dfe37eaa26b403e61fc3da4e16b0016af3a1bb6057e6874f8eb5d41cce"
+  },
+  "v12_sources_sha256": {
+    "scripts/discovery_safety_v12_eval.py": "7666559a95831a880b014c7d32fa49a8f53af428c8da3bbb071ccb1857ddc420",
+    "src/lab_brain/discovery_safety/v12/__init__.py": "a07f9a0e69c2a8c6ae2288805343f503e32acc0efa7afb9503f539089bb5ec42",
+    "src/lab_brain/discovery_safety/v12/evaluation.py": "9b6ef05b0ffa87dd63b7e40a0d6b9ddbca86af0e675bd22ad0bcfac7abc46921",
+    "src/lab_brain/discovery_safety/v12/gate.py": "a9621e42dbf5ed24f915a095b69ff7a14505f02096302ab78c7b0f1cfe9ea6b9",
+    "src/lab_brain/discovery_safety/v12/grammar.py": "9f7f8a463a0fe1898a6568a1adcf85da464e316fffe97dee92257f5bc0cc386f",
+    "src/lab_brain/discovery_safety/v12/ledger.py": "bc5e1f28105eca6c83da8885f984fabb7676c735198c63c62056445276473155",
+    "src/lab_brain/discovery_safety/v12/model.py": "3a9ac924a8b84dbb140ade495bfa1e6d71375b0daee8a3976d8ee3b146bf8ff4",
+    "src/lab_brain/discovery_safety/v12/replay.py": "842bf4df7460740b2470d8fdd0ab5b8c04b5e8dc2e62a9d5529a23c26eb03592",
+    "src/lab_brain/domains/silicon_photonics/discovery_grammar.py": "5169662b22d18481da2561acd0c98d5d6744506d48ba5f60c0ff5147e12fb045"
+  }
+}
