@@ -16,9 +16,9 @@ G-D 未通過。`READY_FOR_REAL_RESEARCH = false`。沒有合併 `main`，沒有
 |---|---|---|---|---|
 | SAI 3.5 candidate.3 | `claude/lib-implementation-agent-47evs0` | `885e4f4` | 本檔所在提交（前一個 `bfef6b0`，CI run `41833787602` 成功） | 快轉，無改寫歷史 |
 | G0 F2 關閉 | `claude/lib-implementation-agent-47evs0-g0-f2` | `47451e1` | `24fae8b` | 從 `47451e1` 往前；舊分支 `-g0` 未動 |
-| Discovery 安全 v1.1 | `claude/lib-implementation-agent-47evs0-discovery-v11` | `0928602` | `aa05dfd`（設計凍結 `53bd2a9`） | 從 `0928602` 往前；舊分支 `-discovery` 未動 |
+| Discovery 安全 v1.1 | `claude/lib-implementation-agent-47evs0-discovery-v11` | `0928602` | `ed442bb`（設計凍結 `53bd2a9`；`aa05dfd` 的 CI 因新版 ruff 0.17.4 的 SIM102 樣式規則失敗，`ed442bb` 只合併一個巢狀 `if`，行為不變） | 從 `0928602` 往前；舊分支 `-discovery` 未動 |
 
-CI 結果見本次交接訊息（推送後確認）。
+CI：SAI `96c53bd` run `42463384371` 成功；G0 F2 `24fae8b` run `42460241489` 成功；Discovery v1.1 `ed442bb` run `42465566487` 成功（`aa05dfd` run `42463295438` 失敗於 ruff 樣式檢查）。舊分支 `-discovery`（`0928602`）有同一個測試檔，新版 ruff 下可能同樣失敗；它是已交付的第一輪成果，未修改。
 
 ### 0.2 SAI 3.5 candidate.3
 

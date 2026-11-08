@@ -236,7 +236,7 @@ Second round (2026-11-04 to 2026-11-08, pushed, unmerged, not independently revi
 `claude/lib-implementation-agent-47evs0-g0-f2` @ `24fae8b` (from `47451e1`) closes finding F2 with
 owner-only TransitionPolicy registration (approved by the Owner on 2026-11-04): the services' role
 loses write privileges on `transition_policies` and migration `011x` refuses any non-owner insert;
-G0 stays NOT PASSED. `claude/lib-implementation-agent-47evs0-discovery-v11` @ `aa05dfd` (from
+G0 stays NOT PASSED. `claude/lib-implementation-agent-47evs0-discovery-v11` @ `ed442bb` (from
 `0928602`, design frozen at `53bd2a9`) closes a refit coverage bypass found in v1.0 and adds
 pre-registered per-experiment checks; on newly generated held-out worlds force-fits are 4/195 at
 budget 12 (v1.0: 6) with correct in-catalog identifications 156/240 (v1.0: 160), both differences
