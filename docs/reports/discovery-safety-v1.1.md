@@ -455,7 +455,7 @@ dependency versions sit in an `environment` block outside the hash.
    was not yet recorded as verified. This is the explicit refusal the check is designed to give.
 3. `--check --record-interpreter` under 3.12.3 matched again and recorded CPython 3.12 in
    `evidence/interpreter_verification.json`.
-4. `--check` under CPython 3.13 with `PYTHONHASHSEED=12345` reproduced every file: RESULT_HS.
+4. `--check` under CPython 3.13 with `PYTHONHASHSEED=12345` reproduced every file and returned `evidence is current` (exit 0) at `742eeec`.
 
 **Strictness is kept.**
 - Any byte difference in any evidence file, or in the manifest's hashed body, gives `STALE` (exit 1).
@@ -533,3 +533,24 @@ Scope: **only the logic v1.1 adds**. That is eight `safety_v11_*` entries in
   - Whether to update v1.0's `--check` so that it reports an interpreter mismatch explicitly.
 
 ## 10. Verification
+
+These results were first obtained on `70ddfd3`. They were then repeated in full on the branch head
+that records this section, which adds documentation only, and the numbers were identical. The commands use the venv at `.venv`
+(CPython 3.13.18).
+
+| Check | Result |
+|---|---|
+| `ruff check src tests scripts` | All checks passed |
+| `ruff format --check src tests scripts` | 630 files already formatted |
+| `mypy` (strict) | no issues in 310 source files |
+| `pytest tests/spec -q` | 245 passed |
+| Focused tests: `tests/unit/test_discovery_safety*.py` (v1.0 and v1.1), the v1.0 and v1.1 frozen-evidence e2e tests | 119 passed |
+| Full default suite (`pytest -q`, no backend) | **2617 passed, 1203 skipped**, 0 failed |
+| Full PostgreSQL suite on a FRESH `lib_disc` (dropped, recreated, `migrate.py` twice: 81 applied, then 0 pending) | **3816 passed, 4 skipped** (network and Windows only), 0 failed |
+| `update_status.py` | regenerated (inventory commit `70ddfd3`), then `--check` and `--check --requirements-only`: up to date |
+| `check_requirement_coverage.py` | passed (milestones DONE: M0a, M0b, M1, M2, M3) |
+| Evidence `discovery_safety_v11_eval.py --check` | evidence is current (CPython 3.13, PYTHONHASHSEED=12345). Under CPython 3.12.3 it gave INTERPRETER MISMATCH (exit 2) until 3.12 was recorded, then matched |
+| v1.0 frozen-evidence test | passes (v1.0 files untouched) |
+| Mutation battery, `safety_v11_*` | 8/8 killed |
+| `check_commit_messages.py` | passes |
+
