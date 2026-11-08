@@ -72,7 +72,7 @@ class AxisLaw:
             return dict(self.table)[value]
         x, ref = float(value), float(reference)
         if self.kind == POWER:
-            return (x / ref) ** self.param
+            return float((x / ref) ** self.param)
         if self.kind == EXP_DECAY:
             return math.exp(-(x - ref) / self.param)
         raise ValueError(f"unknown law kind {self.kind!r}")

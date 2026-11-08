@@ -1,0 +1,220 @@
+# v1.2 design development log -- DEVELOPMENT SEEDS ONLY (held-out generator bases 7000000, 8000000, 1;
+# benchmark generator base 1). No evaluation seed of any earlier report and no v1.2 held-out seed was run.
+
+## 1. Root cause of v1.1's lost in-catalog identifications (family LEFT IN, B2 correct but B4 not)
+# Buckets: UNVERIFIED:signal-set-costs-more-than-cap = the claim's signal experiments cost more than the cap
+# (no allocation can verify it); UNVERIFIED:engine-...-exhausted-budget = affordable in principle, but the
+# frozen engine's own spend (much of it replicates: decisive replications, repeated prospective tests)
+# left too little; CLAIM_INADEQUATE / CATALOG_* = an adequacy test rejected a correct claim (false alarm),
+# split into global and localized-only.
+== base 7000000 budget 8: B2 correct 159/240  B4 correct 65  lost 94
+   UNVERIFIED:engine-off-signal-spend-exhausted-budget: 46
+   UNVERIFIED:signal-set-costs-more-than-cap: 45
+   CATALOG_INCOMPLETE_UNREPLICATED:localized-only: 1
+   CATALOG_INCOMPLETE_UNREPLICATED:global: 1
+   CLAIM_INADEQUATE:global: 1
+== base 7000000 budget 12: B2 correct 213/240  B4 correct 151  lost 62
+   UNVERIFIED:engine-off-signal-spend-exhausted-budget: 57
+   UNVERIFIED:signal-set-costs-more-than-cap: 2
+   CATALOG_INCOMPLETE_UNREPLICATED:localized-only: 1
+   CLAIM_INADEQUATE:global: 1
+   CATALOG_INCOMPLETE_UNREPLICATED:global: 1
+== base 7000000 budget 24: B2 correct 239/240  B4 correct 237  lost 2
+   UNVERIFIED:engine-off-signal-spend-exhausted-budget: 1
+   CLAIM_INADEQUATE:global: 1
+== base 7000000 budget 48: B2 correct 239/240  B4 correct 238  lost 1
+   CLAIM_INADEQUATE:global: 1
+== base 8000000 budget 8: B2 correct 155/240  B4 correct 65  lost 90
+   UNVERIFIED:engine-off-signal-spend-exhausted-budget: 45
+   UNVERIFIED:signal-set-costs-more-than-cap: 44
+   CATALOG_INCOMPLETE_UNREPLICATED:localized-only: 1
+== base 8000000 budget 12: B2 correct 213/240  B4 correct 155  lost 58
+   UNVERIFIED:engine-off-signal-spend-exhausted-budget: 57
+   UNVERIFIED:signal-set-costs-more-than-cap: 1
+== base 8000000 budget 24: B2 correct 234/240  B4 correct 231  lost 3
+   UNVERIFIED:engine-off-signal-spend-exhausted-budget: 3
+== base 8000000 budget 48: B2 correct 235/240  B4 correct 235  lost 0
+
+## 2. Iterations (B5 variants; 5 or 4 worlds per class of base 7000000; counts of the arm's OWN answers)
+# iteration A: anytime ladder to the full cap + registered probes + support test (5/class, budget 8/12/24 control)
+control b8:  B4 correct 23/80 | B5 16 | B5 without ladder 11 | B5 ladder only (no registration) 23
+control b12: B4 47/80        | B5 40 | B5 without ladder 37 | B5 ladder only 47
+control b24: B4 79/80        | B5 73 | B5 without ladder 74 | B5 ladder only 78
+=> the ladder alone recovers NOTHING (the engine does not claim at a smaller cap: its claim needs the
+   replicates it spends); registration as first built cost 5-7 identifications (support tests ran after
+   the null probes had used the budget). Fixes: support test before null probes; gate-led claim.
+# iteration B: gate-led claim (engine ladder capped at engine_fraction x budget, then the simplest
+#   adequate catalog hypothesis is probed), rival exclusion of equal-or-lower complexity (4/class)
+held_out b 8 B4           n=52 {'FALSE_NULL_LEGACY': 4, 'NO_CLAIM': 48} newAns=0(match 0) prop=0(match 0) cost=6.40
+held_out b 8 B5           n=52 {'FALSE_NULL_LEGACY': 3, 'FORCE_FIT': 1, 'NO_CLAIM': 48} newAns=7(match 7) prop=21(match 17) cost=7.10
+held_out b 8 B5-f75       n=52 {'FALSE_NULL_LEGACY': 4, 'NO_CLAIM': 48} newAns=7(match 7) prop=20(match 12) cost=7.31
+held_out b 8 B5-f100      n=52 {'FALSE_NULL_LEGACY': 1, 'NO_CLAIM': 51} newAns=7(match 7) prop=15(match 8) cost=7.31
+held_out b 8 B5-norival   n=52 {'FALSE_NULL_LEGACY': 3, 'FORCE_FIT': 2, 'NO_CLAIM': 47} newAns=7(match 7) prop=21(match 17) cost=7.10
+held_out b12 B4           n=52 {'FALSE_NULL_LEGACY': 5, 'FORCE_FIT': 2, 'NO_CLAIM': 45} newAns=0(match 0) prop=0(match 0) cost=8.31
+held_out b12 B5           n=52 {'FALSE_NULL_LEGACY': 2, 'FORCE_FIT': 1, 'NO_CLAIM': 49} newAns=15(match 15) prop=16(match 14) cost=9.62
+held_out b12 B5-f75       n=52 {'FALSE_NULL_LEGACY': 1, 'FORCE_FIT': 1, 'NO_CLAIM': 50} newAns=14(match 14) prop=15(match 13) cost=9.63
+held_out b12 B5-f100      n=52 {'FALSE_NULL_LEGACY': 1, 'FORCE_FIT': 1, 'NO_CLAIM': 50} newAns=14(match 14) prop=12(match 10) cost=9.69
+held_out b12 B5-norival   n=52 {'FALSE_NULL_LEGACY': 2, 'FORCE_FIT': 1, 'NO_CLAIM': 49} newAns=15(match 15) prop=16(match 14) cost=9.62
+held_out b24 B4           n=52 {'FALSE_NULL_LEGACY': 3, 'NO_CLAIM': 49} newAns=0(match 0) prop=0(match 0) cost=10.65
+held_out b24 B5           n=52 {'NO_CLAIM': 52} newAns=17(match 17) prop=18(match 16) cost=11.88
+held_out b24 B5-f75       n=52 {'NO_CLAIM': 52} newAns=18(match 18) prop=17(match 15) cost=12.04
+held_out b24 B5-f100      n=52 {'NO_CLAIM': 52} newAns=18(match 18) prop=16(match 14) cost=12.04
+held_out b24 B5-norival   n=52 {'NO_CLAIM': 52} newAns=17(match 17) prop=18(match 16) cost=11.88
+control  b 8 B4           n=64 {'CORRECT_IDENTIFICATION': 19, 'NO_CLAIM': 45} newAns=0(match 0) prop=0(match 0) cost=7.91
+control  b 8 B5           n=64 {'CORRECT_IDENTIFICATION': 31, 'FORCE_FIT': 1, 'NO_CLAIM': 32} newAns=0(match 0) prop=0(match 0) cost=7.84
+control  b 8 B5-f75       n=64 {'CORRECT_IDENTIFICATION': 25, 'NO_CLAIM': 39} newAns=0(match 0) prop=0(match 0) cost=7.92
+control  b 8 B5-f100      n=64 {'CORRECT_IDENTIFICATION': 19, 'NO_CLAIM': 45} newAns=0(match 0) prop=0(match 0) cost=7.92
+control  b 8 B5-norival   n=64 {'CORRECT_IDENTIFICATION': 33, 'FORCE_FIT': 3, 'NO_CLAIM': 28} newAns=0(match 0) prop=0(match 0) cost=7.84
+control  b12 B4           n=64 {'CORRECT_IDENTIFICATION': 38, 'NO_CLAIM': 26} newAns=0(match 0) prop=0(match 0) cost=11.75
+control  b12 B5           n=64 {'CORRECT_IDENTIFICATION': 48, 'NO_CLAIM': 16} newAns=0(match 0) prop=0(match 0) cost=11.59
+control  b12 B5-f75       n=64 {'CORRECT_IDENTIFICATION': 44, 'NO_CLAIM': 20} newAns=0(match 0) prop=0(match 0) cost=11.67
+control  b12 B5-f100      n=64 {'CORRECT_IDENTIFICATION': 37, 'NO_CLAIM': 27} newAns=0(match 0) prop=0(match 0) cost=11.67
+control  b12 B5-norival   n=64 {'CORRECT_IDENTIFICATION': 48, 'NO_CLAIM': 16} newAns=0(match 0) prop=0(match 0) cost=11.59
+control  b24 B4           n=64 {'CORRECT_IDENTIFICATION': 63, 'NO_CLAIM': 1} newAns=0(match 0) prop=0(match 0) cost=21.23
+control  b24 B5           n=64 {'CORRECT_IDENTIFICATION': 61, 'NO_CLAIM': 3} newAns=0(match 0) prop=0(match 0) cost=20.09
+control  b24 B5-f75       n=64 {'CORRECT_IDENTIFICATION': 61, 'NO_CLAIM': 3} newAns=0(match 0) prop=0(match 0) cost=20.09
+control  b24 B5-f100      n=64 {'CORRECT_IDENTIFICATION': 61, 'NO_CLAIM': 3} newAns=0(match 0) prop=0(match 0) cost=20.09
+control  b24 B5-norival   n=64 {'CORRECT_IDENTIFICATION': 61, 'NO_CLAIM': 3} newAns=0(match 0) prop=0(match 0) cost=20.09
+# iteration C: rival exclusion over EVERY catalog hypothesis (any complexity) -- rejected:
+DEVELOPMENT control 7000000 b24 B5 n=48: exact 4 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 44 force-fit 0 wrong 0 | own: correct 4 force-fit 0 | answers 4 supported 4 | grammar 
+DEVELOPMENT control 7000000 b48 B5 n=48: exact 5 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 43 force-fit 0 wrong 0 | own: correct 5 force-fit 0 | answers 5 supported 5 | grammar 
+# iteration D (FROZEN DESIGN): rival exclusion at no greater complexity than the claim, a 'no effect'
+#   claim held against every single class; grammar acceptance needs every adequate grammar shape
+#   to be indistinguishable from the answer. SAI candidate.4 scoring (evaluator-rederived):
+DEVELOPMENT held_out 7000000 b8 B2 n=39: exact 0 indist 0 validated-new 0 proposal-only 19 abstain-ok 20 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 13 | answers 19 supported 0 | grammar proposals 0 (hits 0) | cost 5.5641
+DEVELOPMENT held_out 7000000 b8 B3 n=39: exact 0 indist 0 validated-new 0 proposal-only 6 abstain-ok 33 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 1 | answers 6 supported 0 | grammar proposals 0 (hits 0) | cost 6.4872
+DEVELOPMENT held_out 7000000 b8 B4 n=39: exact 0 indist 0 validated-new 0 proposal-only 4 abstain-ok 35 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 0 | answers 4 supported 0 | grammar proposals 0 (hits 0) | cost 6.4615
+DEVELOPMENT held_out 7000000 b8 B5 n=39: exact 0 indist 0 validated-new 6 proposal-only 0 abstain-ok 32 false-null 0 force-fit 1 wrong 0 | own: correct 0 force-fit 1 | answers 7 supported 7 | grammar proposals 15 (hits 13) | cost 7.0256
+DEVELOPMENT held_out 7000000 b12 B2 n=39: exact 0 indist 0 validated-new 0 proposal-only 23 abstain-ok 16 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 16 | answers 23 supported 0 | grammar proposals 0 (hits 0) | cost 6.2051
+DEVELOPMENT held_out 7000000 b12 B3 n=39: exact 0 indist 0 validated-new 0 proposal-only 7 abstain-ok 32 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 3 | answers 7 supported 0 | grammar proposals 0 (hits 0) | cost 8.4872
+DEVELOPMENT held_out 7000000 b12 B4 n=39: exact 0 indist 0 validated-new 0 proposal-only 6 abstain-ok 33 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 2 | answers 6 supported 0 | grammar proposals 0 (hits 0) | cost 8.4103
+DEVELOPMENT held_out 7000000 b12 B5 n=39: exact 0 indist 0 validated-new 13 proposal-only 0 abstain-ok 26 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 0 | answers 13 supported 13 | grammar proposals 11 (hits 10) | cost 9.5128
+DEVELOPMENT held_out 7000000 b24 B2 n=39: exact 0 indist 0 validated-new 0 proposal-only 24 abstain-ok 15 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 17 | answers 24 supported 0 | grammar proposals 0 (hits 0) | cost 6.3846
+DEVELOPMENT held_out 7000000 b24 B3 n=39: exact 0 indist 0 validated-new 0 proposal-only 2 abstain-ok 37 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 0 | answers 2 supported 0 | grammar proposals 0 (hits 0) | cost 10.4615
+DEVELOPMENT held_out 7000000 b24 B4 n=39: exact 0 indist 0 validated-new 0 proposal-only 2 abstain-ok 37 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 0 | answers 2 supported 0 | grammar proposals 0 (hits 0) | cost 10.359
+DEVELOPMENT held_out 7000000 b24 B5 n=39: exact 0 indist 0 validated-new 15 proposal-only 0 abstain-ok 24 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 0 | answers 15 supported 15 | grammar proposals 11 (hits 10) | cost 11.3077
+DEVELOPMENT held_out 7000000 b48 B2 n=39: exact 0 indist 0 validated-new 0 proposal-only 24 abstain-ok 15 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 17 | answers 24 supported 0 | grammar proposals 0 (hits 0) | cost 6.3846
+DEVELOPMENT held_out 7000000 b48 B3 n=39: exact 0 indist 0 validated-new 0 proposal-only 2 abstain-ok 37 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 0 | answers 2 supported 0 | grammar proposals 0 (hits 0) | cost 10.5385
+DEVELOPMENT held_out 7000000 b48 B4 n=39: exact 0 indist 0 validated-new 0 proposal-only 2 abstain-ok 37 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 0 | answers 2 supported 0 | grammar proposals 0 (hits 0) | cost 10.4359
+DEVELOPMENT held_out 7000000 b48 B5 n=39: exact 0 indist 0 validated-new 16 proposal-only 0 abstain-ok 23 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 0 | answers 16 supported 16 | grammar proposals 10 (hits 9) | cost 11.5128
+  B5 FORCE_FIT held_out held_out-geometry.gap_small-00 b8: CATALOG_CLAIM ['hyp:fcd.static+geometry.thickness'] (SURVIVING_PENDING_WARRANT_GATE)
+  B5 WRONG_CLAIM held_out held_out-geometry.width_wide-01 b12: CATALOG_CLAIM ['hyp:geometry.thickness'] (SURVIVING_PENDING_WARRANT_GATE)
+DEVELOPMENT control 7000000 b8 B2 n=48: exact 0 indist 0 validated-new 0 proposal-only 30 abstain-ok 0 false-null 18 force-fit 0 wrong 0 | own: correct 29 force-fit 1 | answers 30 supported 0 | grammar proposals 0 (hits 0) | cost 6.5417
+DEVELOPMENT control 7000000 b8 B3 n=48: exact 0 indist 0 validated-new 0 proposal-only 14 abstain-ok 0 false-null 34 force-fit 0 wrong 0 | own: correct 14 force-fit 0 | answers 14 supported 0 | grammar proposals 0 (hits 0) | cost 7.8958
+DEVELOPMENT control 7000000 b8 B4 n=48: exact 0 indist 0 validated-new 0 proposal-only 14 abstain-ok 0 false-null 34 force-fit 0 wrong 0 | own: correct 14 force-fit 0 | answers 14 supported 0 | grammar proposals 0 (hits 0) | cost 7.8958
+DEVELOPMENT control 7000000 b8 B5 n=48: exact 22 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 25 force-fit 0 wrong 1 | own: correct 22 force-fit 1 | answers 23 supported 23 | grammar proposals 0 (hits 0) | cost 7.7917
+DEVELOPMENT control 7000000 b12 B2 n=48: exact 0 indist 0 validated-new 0 proposal-only 42 abstain-ok 0 false-null 6 force-fit 0 wrong 0 | own: correct 41 force-fit 1 | answers 42 supported 0 | grammar proposals 0 (hits 0) | cost 7.9375
+DEVELOPMENT control 7000000 b12 B3 n=48: exact 0 indist 0 validated-new 0 proposal-only 26 abstain-ok 0 false-null 22 force-fit 0 wrong 0 | own: correct 26 force-fit 0 | answers 26 supported 0 | grammar proposals 0 (hits 0) | cost 11.7083
+DEVELOPMENT control 7000000 b12 B4 n=48: exact 0 indist 0 validated-new 0 proposal-only 26 abstain-ok 0 false-null 22 force-fit 0 wrong 0 | own: correct 26 force-fit 0 | answers 26 supported 0 | grammar proposals 0 (hits 0) | cost 11.7083
+DEVELOPMENT control 7000000 b12 B5 n=48: exact 35 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 13 force-fit 0 wrong 0 | own: correct 35 force-fit 0 | answers 35 supported 35 | grammar proposals 0 (hits 0) | cost 11.5
+DEVELOPMENT control 7000000 b24 B2 n=48: exact 0 indist 0 validated-new 0 proposal-only 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | own: correct 47 force-fit 1 | answers 48 supported 0 | grammar proposals 0 (hits 0) | cost 8.2708
+DEVELOPMENT control 7000000 b24 B3 n=48: exact 0 indist 0 validated-new 0 proposal-only 47 abstain-ok 0 false-null 1 force-fit 0 wrong 0 | own: correct 47 force-fit 0 | answers 47 supported 0 | grammar proposals 0 (hits 0) | cost 21.1875
+DEVELOPMENT control 7000000 b24 B4 n=48: exact 0 indist 0 validated-new 0 proposal-only 47 abstain-ok 0 false-null 1 force-fit 0 wrong 0 | own: correct 47 force-fit 0 | answers 47 supported 0 | grammar proposals 0 (hits 0) | cost 21.1875
+DEVELOPMENT control 7000000 b24 B5 n=48: exact 46 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 2 force-fit 0 wrong 0 | own: correct 46 force-fit 0 | answers 46 supported 46 | grammar proposals 0 (hits 0) | cost 20.0208
+DEVELOPMENT control 7000000 b48 B2 n=48: exact 0 indist 0 validated-new 0 proposal-only 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | own: correct 47 force-fit 1 | answers 48 supported 0 | grammar proposals 0 (hits 0) | cost 8.2708
+DEVELOPMENT control 7000000 b48 B3 n=48: exact 0 indist 0 validated-new 0 proposal-only 47 abstain-ok 0 false-null 1 force-fit 0 wrong 0 | own: correct 47 force-fit 0 | answers 47 supported 0 | grammar proposals 0 (hits 0) | cost 22.3125
+DEVELOPMENT control 7000000 b48 B4 n=48: exact 0 indist 0 validated-new 0 proposal-only 47 abstain-ok 0 false-null 1 force-fit 0 wrong 0 | own: correct 47 force-fit 0 | answers 47 supported 0 | grammar proposals 0 (hits 0) | cost 22.3125
+DEVELOPMENT control 7000000 b48 B5 n=48: exact 46 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 2 force-fit 0 wrong 0 | own: correct 46 force-fit 0 | answers 46 supported 46 | grammar proposals 0 (hits 0) | cost 21.0833
+  B5 WRONG_CLAIM control held_out-nonlinear.fca_dominated-00 b8: CATALOG_CLAIM ['hyp:geometry.gap_large+nonlinear.fca_dominated'] (SURVIVING_PENDING_WARRANT_GATE)
+DEVELOPMENT held_out 1 b8 B2 n=39: exact 0 indist 0 validated-new 0 proposal-only 14 abstain-ok 25 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 13 | answers 14 supported 0 | grammar proposals 0 (hits 0) | cost 5.4872
+DEVELOPMENT held_out 1 b8 B3 n=39: exact 0 indist 0 validated-new 0 proposal-only 0 abstain-ok 39 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 0 | answers 0 supported 0 | grammar proposals 0 (hits 0) | cost 6.4359
+DEVELOPMENT held_out 1 b8 B4 n=39: exact 0 indist 0 validated-new 0 proposal-only 0 abstain-ok 39 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 0 | answers 0 supported 0 | grammar proposals 0 (hits 0) | cost 6.4359
+DEVELOPMENT held_out 1 b8 B5 n=39: exact 0 indist 0 validated-new 7 proposal-only 0 abstain-ok 32 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 0 | answers 7 supported 7 | grammar proposals 20 (hits 14) | cost 7.0256
+DEVELOPMENT held_out 1 b12 B2 n=39: exact 0 indist 0 validated-new 0 proposal-only 22 abstain-ok 17 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 16 | answers 22 supported 0 | grammar proposals 0 (hits 0) | cost 6.5897
+DEVELOPMENT held_out 1 b12 B3 n=39: exact 0 indist 0 validated-new 0 proposal-only 4 abstain-ok 35 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 1 | answers 4 supported 0 | grammar proposals 0 (hits 0) | cost 8.4872
+DEVELOPMENT held_out 1 b12 B4 n=39: exact 0 indist 0 validated-new 0 proposal-only 4 abstain-ok 35 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 1 | answers 4 supported 0 | grammar proposals 0 (hits 0) | cost 8.4615
+DEVELOPMENT held_out 1 b12 B5 n=39: exact 0 indist 0 validated-new 12 proposal-only 0 abstain-ok 26 false-null 0 force-fit 1 wrong 0 | own: correct 0 force-fit 1 | answers 13 supported 13 | grammar proposals 17 (hits 13) | cost 9.6154
+DEVELOPMENT held_out 1 b24 B2 n=39: exact 0 indist 0 validated-new 0 proposal-only 25 abstain-ok 14 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 19 | answers 25 supported 0 | grammar proposals 0 (hits 0) | cost 7.2564
+DEVELOPMENT held_out 1 b24 B3 n=39: exact 0 indist 0 validated-new 0 proposal-only 2 abstain-ok 37 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 1 | answers 2 supported 0 | grammar proposals 0 (hits 0) | cost 10.5385
+DEVELOPMENT held_out 1 b24 B4 n=39: exact 0 indist 0 validated-new 0 proposal-only 2 abstain-ok 37 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 1 | answers 2 supported 0 | grammar proposals 0 (hits 0) | cost 10.5128
+DEVELOPMENT held_out 1 b24 B5 n=39: exact 0 indist 0 validated-new 14 proposal-only 0 abstain-ok 24 false-null 0 force-fit 1 wrong 0 | own: correct 0 force-fit 1 | answers 15 supported 15 | grammar proposals 17 (hits 13) | cost 11.3846
+DEVELOPMENT held_out 1 b48 B2 n=39: exact 0 indist 0 validated-new 0 proposal-only 26 abstain-ok 13 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 19 | answers 26 supported 0 | grammar proposals 0 (hits 0) | cost 7.5128
+DEVELOPMENT held_out 1 b48 B3 n=39: exact 0 indist 0 validated-new 0 proposal-only 2 abstain-ok 37 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 1 | answers 2 supported 0 | grammar proposals 0 (hits 0) | cost 10.9487
+DEVELOPMENT held_out 1 b48 B4 n=39: exact 0 indist 0 validated-new 0 proposal-only 2 abstain-ok 37 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 1 | answers 2 supported 0 | grammar proposals 0 (hits 0) | cost 10.9231
+DEVELOPMENT held_out 1 b48 B5 n=39: exact 0 indist 0 validated-new 14 proposal-only 0 abstain-ok 24 false-null 0 force-fit 1 wrong 0 | own: correct 0 force-fit 1 | answers 15 supported 15 | grammar proposals 17 (hits 13) | cost 12.5385
+  B5 WRONG_CLAIM held_out held_out-geometry.width_wide-00 b12: CATALOG_CLAIM ['hyp:geometry.thickness'] (SURVIVING_PENDING_WARRANT_GATE)
+  B5 WRONG_CLAIM held_out held_out-geometry.width_wide-01 b8: CATALOG_CLAIM ['hyp:geometry.thickness'] (SURVIVING_PENDING_WARRANT_GATE)
+  B5 FORCE_FIT held_out held_out-leakage.substrate-02 b12: CATALOG_CLAIM ['hyp:scatter.sidewall'] (SURVIVING_PENDING_WARRANT_GATE)
+  B5 FORCE_FIT held_out held_out-leakage.substrate-02 b24: CATALOG_CLAIM ['hyp:scatter.sidewall'] (SURVIVING_PENDING_WARRANT_GATE)
+  B5 FORCE_FIT held_out held_out-leakage.substrate-02 b48: CATALOG_CLAIM ['hyp:scatter.sidewall'] (SURVIVING_PENDING_WARRANT_GATE)
+DEVELOPMENT control 1 b8 B2 n=48: exact 0 indist 0 validated-new 0 proposal-only 27 abstain-ok 0 false-null 21 force-fit 0 wrong 0 | own: correct 27 force-fit 0 | answers 27 supported 0 | grammar proposals 0 (hits 0) | cost 6.6458
+DEVELOPMENT control 1 b8 B3 n=48: exact 0 indist 0 validated-new 0 proposal-only 12 abstain-ok 0 false-null 36 force-fit 0 wrong 0 | own: correct 12 force-fit 0 | answers 12 supported 0 | grammar proposals 0 (hits 0) | cost 7.9583
+DEVELOPMENT control 1 b8 B4 n=48: exact 0 indist 0 validated-new 0 proposal-only 12 abstain-ok 0 false-null 36 force-fit 0 wrong 0 | own: correct 12 force-fit 0 | answers 12 supported 0 | grammar proposals 0 (hits 0) | cost 7.9583
+DEVELOPMENT control 1 b8 B5 n=48: exact 23 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 25 force-fit 0 wrong 0 | own: correct 23 force-fit 0 | answers 23 supported 23 | grammar proposals 0 (hits 0) | cost 7.9583
+DEVELOPMENT control 1 b12 B2 n=48: exact 0 indist 0 validated-new 0 proposal-only 42 abstain-ok 0 false-null 6 force-fit 0 wrong 0 | own: correct 42 force-fit 0 | answers 42 supported 0 | grammar proposals 0 (hits 0) | cost 8.0417
+DEVELOPMENT control 1 b12 B3 n=48: exact 0 indist 0 validated-new 0 proposal-only 29 abstain-ok 0 false-null 19 force-fit 0 wrong 0 | own: correct 29 force-fit 0 | answers 29 supported 0 | grammar proposals 0 (hits 0) | cost 11.8958
+DEVELOPMENT control 1 b12 B4 n=48: exact 0 indist 0 validated-new 0 proposal-only 29 abstain-ok 0 false-null 19 force-fit 0 wrong 0 | own: correct 29 force-fit 0 | answers 29 supported 0 | grammar proposals 0 (hits 0) | cost 11.8958
+DEVELOPMENT control 1 b12 B5 n=48: exact 37 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 11 force-fit 0 wrong 0 | own: correct 37 force-fit 0 | answers 37 supported 37 | grammar proposals 0 (hits 0) | cost 11.8125
+DEVELOPMENT control 1 b24 B2 n=48: exact 0 indist 0 validated-new 0 proposal-only 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | own: correct 48 force-fit 0 | answers 48 supported 0 | grammar proposals 0 (hits 0) | cost 8.6875
+DEVELOPMENT control 1 b24 B3 n=48: exact 0 indist 0 validated-new 0 proposal-only 46 abstain-ok 0 false-null 2 force-fit 0 wrong 0 | own: correct 46 force-fit 0 | answers 46 supported 0 | grammar proposals 0 (hits 0) | cost 21.625
+DEVELOPMENT control 1 b24 B4 n=48: exact 0 indist 0 validated-new 0 proposal-only 46 abstain-ok 0 false-null 2 force-fit 0 wrong 0 | own: correct 46 force-fit 0 | answers 46 supported 0 | grammar proposals 0 (hits 0) | cost 21.625
+DEVELOPMENT control 1 b24 B5 n=48: exact 45 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 3 force-fit 0 wrong 0 | own: correct 45 force-fit 0 | answers 45 supported 45 | grammar proposals 0 (hits 0) | cost 20.5833
+DEVELOPMENT control 1 b48 B2 n=48: exact 0 indist 0 validated-new 0 proposal-only 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | own: correct 48 force-fit 0 | answers 48 supported 0 | grammar proposals 0 (hits 0) | cost 8.6875
+DEVELOPMENT control 1 b48 B3 n=48: exact 0 indist 0 validated-new 0 proposal-only 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | own: correct 48 force-fit 0 | answers 48 supported 0 | grammar proposals 0 (hits 0) | cost 23.0625
+DEVELOPMENT control 1 b48 B4 n=48: exact 0 indist 0 validated-new 0 proposal-only 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | own: correct 48 force-fit 0 | answers 48 supported 0 | grammar proposals 0 (hits 0) | cost 23.0625
+DEVELOPMENT control 1 b48 B5 n=48: exact 45 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 3 force-fit 0 wrong 0 | own: correct 45 force-fit 0 | answers 45 supported 45 | grammar proposals 0 (hits 0) | cost 21.875
+DEVELOPMENT benchmark 1 b8 B2 n=24: exact 0 indist 0 validated-new 0 proposal-only 14 abstain-ok 3 false-null 7 force-fit 0 wrong 0 | own: correct 13 force-fit 1 | answers 14 supported 0 | grammar proposals 0 (hits 0) | cost 6.3333
+DEVELOPMENT benchmark 1 b8 B3 n=24: exact 0 indist 0 validated-new 0 proposal-only 7 abstain-ok 3 false-null 14 force-fit 0 wrong 0 | own: correct 7 force-fit 0 | answers 7 supported 0 | grammar proposals 0 (hits 0) | cost 7.6667
+DEVELOPMENT benchmark 1 b8 B4 n=24: exact 0 indist 0 validated-new 0 proposal-only 7 abstain-ok 3 false-null 14 force-fit 0 wrong 0 | own: correct 7 force-fit 0 | answers 7 supported 0 | grammar proposals 0 (hits 0) | cost 7.6667
+DEVELOPMENT benchmark 1 b8 B5 n=24: exact 10 indist 0 validated-new 0 proposal-only 0 abstain-ok 3 false-null 11 force-fit 0 wrong 0 | own: correct 10 force-fit 0 | answers 10 supported 10 | grammar proposals 0 (hits 0) | cost 7.1667
+DEVELOPMENT benchmark 1 b12 B2 n=24: exact 0 indist 0 validated-new 0 proposal-only 21 abstain-ok 3 false-null 0 force-fit 0 wrong 0 | own: correct 20 force-fit 1 | answers 21 supported 0 | grammar proposals 0 (hits 0) | cost 7.375
+DEVELOPMENT benchmark 1 b12 B3 n=24: exact 0 indist 0 validated-new 0 proposal-only 14 abstain-ok 3 false-null 7 force-fit 0 wrong 0 | own: correct 14 force-fit 0 | answers 14 supported 0 | grammar proposals 0 (hits 0) | cost 11.2083
+DEVELOPMENT benchmark 1 b12 B4 n=24: exact 0 indist 0 validated-new 0 proposal-only 14 abstain-ok 3 false-null 7 force-fit 0 wrong 0 | own: correct 14 force-fit 0 | answers 14 supported 0 | grammar proposals 0 (hits 0) | cost 11.2083
+DEVELOPMENT benchmark 1 b12 B5 n=24: exact 12 indist 0 validated-new 0 proposal-only 0 abstain-ok 3 false-null 8 force-fit 0 wrong 1 | own: correct 12 force-fit 1 | answers 13 supported 13 | grammar proposals 0 (hits 0) | cost 10.5
+DEVELOPMENT benchmark 1 b24 B2 n=24: exact 0 indist 0 validated-new 0 proposal-only 21 abstain-ok 3 false-null 0 force-fit 0 wrong 0 | own: correct 20 force-fit 1 | answers 21 supported 0 | grammar proposals 0 (hits 0) | cost 7.375
+DEVELOPMENT benchmark 1 b24 B3 n=24: exact 0 indist 0 validated-new 0 proposal-only 20 abstain-ok 3 false-null 1 force-fit 0 wrong 0 | own: correct 20 force-fit 0 | answers 20 supported 0 | grammar proposals 0 (hits 0) | cost 18.6667
+DEVELOPMENT benchmark 1 b24 B4 n=24: exact 0 indist 0 validated-new 0 proposal-only 20 abstain-ok 3 false-null 1 force-fit 0 wrong 0 | own: correct 20 force-fit 0 | answers 20 supported 0 | grammar proposals 0 (hits 0) | cost 18.6667
+DEVELOPMENT benchmark 1 b24 B5 n=24: exact 17 indist 0 validated-new 0 proposal-only 0 abstain-ok 3 false-null 4 force-fit 0 wrong 0 | own: correct 17 force-fit 0 | answers 17 supported 17 | grammar proposals 0 (hits 0) | cost 18.2917
+DEVELOPMENT benchmark 1 b48 B2 n=24: exact 0 indist 0 validated-new 0 proposal-only 21 abstain-ok 3 false-null 0 force-fit 0 wrong 0 | own: correct 20 force-fit 1 | answers 21 supported 0 | grammar proposals 0 (hits 0) | cost 7.375
+DEVELOPMENT benchmark 1 b48 B3 n=24: exact 0 indist 0 validated-new 0 proposal-only 20 abstain-ok 3 false-null 1 force-fit 0 wrong 0 | own: correct 20 force-fit 0 | answers 20 supported 0 | grammar proposals 0 (hits 0) | cost 19.375
+DEVELOPMENT benchmark 1 b48 B4 n=24: exact 0 indist 0 validated-new 0 proposal-only 20 abstain-ok 3 false-null 1 force-fit 0 wrong 0 | own: correct 20 force-fit 0 | answers 20 supported 0 | grammar proposals 0 (hits 0) | cost 19.375
+DEVELOPMENT benchmark 1 b48 B5 n=24: exact 17 indist 0 validated-new 0 proposal-only 0 abstain-ok 3 false-null 4 force-fit 0 wrong 0 | own: correct 17 force-fit 0 | answers 17 supported 17 | grammar proposals 0 (hits 0) | cost 18.625
+  B5 WRONG_CLAIM benchmark composition-00 b12: CATALOG_CLAIM ['hyp:fcd.static'] (SURVIVING_PENDING_WARRANT_GATE)
+# confirmation on base 8000000 (3/class), frozen design:
+DEVELOPMENT held_out 8000000 b8 B2 n=39: exact 0 indist 0 validated-new 0 proposal-only 14 abstain-ok 25 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 12 | answers 14 supported 0 | grammar proposals 0 (hits 0) | cost 5.2821
+DEVELOPMENT held_out 8000000 b8 B3 n=39: exact 0 indist 0 validated-new 0 proposal-only 1 abstain-ok 38 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 0 | answers 1 supported 0 | grammar proposals 0 (hits 0) | cost 6.1282
+DEVELOPMENT held_out 8000000 b8 B4 n=39: exact 0 indist 0 validated-new 0 proposal-only 1 abstain-ok 38 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 0 | answers 1 supported 0 | grammar proposals 0 (hits 0) | cost 6.1282
+DEVELOPMENT held_out 8000000 b8 B5 n=39: exact 0 indist 0 validated-new 10 proposal-only 0 abstain-ok 28 false-null 0 force-fit 1 wrong 0 | own: correct 0 force-fit 0 | answers 11 supported 11 | grammar proposals 13 (hits 11) | cost 6.7949
+DEVELOPMENT held_out 8000000 b12 B2 n=39: exact 0 indist 0 validated-new 0 proposal-only 18 abstain-ok 21 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 14 | answers 18 supported 0 | grammar proposals 0 (hits 0) | cost 6.1026
+DEVELOPMENT held_out 8000000 b12 B3 n=39: exact 0 indist 0 validated-new 0 proposal-only 4 abstain-ok 35 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 1 | answers 4 supported 0 | grammar proposals 0 (hits 0) | cost 7.7436
+DEVELOPMENT held_out 8000000 b12 B4 n=39: exact 0 indist 0 validated-new 0 proposal-only 4 abstain-ok 35 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 1 | answers 4 supported 0 | grammar proposals 0 (hits 0) | cost 7.7436
+DEVELOPMENT held_out 8000000 b12 B5 n=39: exact 0 indist 0 validated-new 13 proposal-only 0 abstain-ok 25 false-null 0 force-fit 1 wrong 0 | own: correct 0 force-fit 1 | answers 14 supported 14 | grammar proposals 14 (hits 12) | cost 8.7949
+DEVELOPMENT held_out 8000000 b24 B2 n=39: exact 0 indist 0 validated-new 0 proposal-only 23 abstain-ok 16 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 16 | answers 23 supported 0 | grammar proposals 0 (hits 0) | cost 6.6923
+DEVELOPMENT held_out 8000000 b24 B3 n=39: exact 0 indist 0 validated-new 0 proposal-only 1 abstain-ok 38 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 1 | answers 1 supported 0 | grammar proposals 0 (hits 0) | cost 9.6923
+DEVELOPMENT held_out 8000000 b24 B4 n=39: exact 0 indist 0 validated-new 0 proposal-only 1 abstain-ok 38 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 1 | answers 1 supported 0 | grammar proposals 0 (hits 0) | cost 9.6923
+DEVELOPMENT held_out 8000000 b24 B5 n=39: exact 0 indist 0 validated-new 13 proposal-only 0 abstain-ok 25 false-null 0 force-fit 1 wrong 0 | own: correct 0 force-fit 1 | answers 14 supported 14 | grammar proposals 12 (hits 10) | cost 11.1795
+DEVELOPMENT held_out 8000000 b48 B2 n=39: exact 0 indist 0 validated-new 0 proposal-only 23 abstain-ok 16 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 16 | answers 23 supported 0 | grammar proposals 0 (hits 0) | cost 6.6923
+DEVELOPMENT held_out 8000000 b48 B3 n=39: exact 0 indist 0 validated-new 0 proposal-only 1 abstain-ok 38 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 1 | answers 1 supported 0 | grammar proposals 0 (hits 0) | cost 9.8462
+DEVELOPMENT held_out 8000000 b48 B4 n=39: exact 0 indist 0 validated-new 0 proposal-only 1 abstain-ok 38 false-null 0 force-fit 0 wrong 0 | own: correct 0 force-fit 1 | answers 1 supported 0 | grammar proposals 0 (hits 0) | cost 9.8462
+DEVELOPMENT held_out 8000000 b48 B5 n=39: exact 0 indist 0 validated-new 14 proposal-only 0 abstain-ok 24 false-null 0 force-fit 1 wrong 0 | own: correct 0 force-fit 1 | answers 15 supported 15 | grammar proposals 14 (hits 12) | cost 12.0769
+  B5 FORCE_FIT held_out held_out-geometry.gap_small-02 b8: CATALOG_CLAIM ['hyp:null'] (NO_EFFECT_BEYOND_NOISE)
+  B5 WRONG_CLAIM held_out held_out-geometry.width_wide-02 b8: CATALOG_CLAIM ['hyp:geometry.thickness'] (SURVIVING_PENDING_WARRANT_GATE)
+  B5 FORCE_FIT held_out held_out-leakage.substrate-00 b12: CATALOG_CLAIM ['hyp:scatter.sidewall'] (SURVIVING_PENDING_WARRANT_GATE)
+  B5 FORCE_FIT held_out held_out-leakage.substrate-00 b24: CATALOG_CLAIM ['hyp:scatter.sidewall'] (SURVIVING_PENDING_WARRANT_GATE)
+  B5 FORCE_FIT held_out held_out-leakage.substrate-00 b48: CATALOG_CLAIM ['hyp:scatter.sidewall'] (SURVIVING_PENDING_WARRANT_GATE)
+DEVELOPMENT control 8000000 b8 B2 n=48: exact 0 indist 0 validated-new 0 proposal-only 30 abstain-ok 0 false-null 18 force-fit 0 wrong 0 | own: correct 30 force-fit 0 | answers 30 supported 0 | grammar proposals 0 (hits 0) | cost 6.5833
+DEVELOPMENT control 8000000 b8 B3 n=48: exact 0 indist 0 validated-new 0 proposal-only 12 abstain-ok 0 false-null 36 force-fit 0 wrong 0 | own: correct 12 force-fit 0 | answers 12 supported 0 | grammar proposals 0 (hits 0) | cost 7.9375
+DEVELOPMENT control 8000000 b8 B4 n=48: exact 0 indist 0 validated-new 0 proposal-only 12 abstain-ok 0 false-null 36 force-fit 0 wrong 0 | own: correct 12 force-fit 0 | answers 12 supported 0 | grammar proposals 0 (hits 0) | cost 7.9375
+DEVELOPMENT control 8000000 b8 B5 n=48: exact 24 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 24 force-fit 0 wrong 0 | own: correct 24 force-fit 0 | answers 24 supported 24 | grammar proposals 0 (hits 0) | cost 7.8958
+DEVELOPMENT control 8000000 b12 B2 n=48: exact 0 indist 0 validated-new 0 proposal-only 45 abstain-ok 0 false-null 3 force-fit 0 wrong 0 | own: correct 45 force-fit 0 | answers 45 supported 0 | grammar proposals 0 (hits 0) | cost 7.7083
+DEVELOPMENT control 8000000 b12 B3 n=48: exact 0 indist 0 validated-new 0 proposal-only 33 abstain-ok 0 false-null 15 force-fit 0 wrong 0 | own: correct 33 force-fit 0 | answers 33 supported 0 | grammar proposals 0 (hits 0) | cost 11.8333
+DEVELOPMENT control 8000000 b12 B4 n=48: exact 0 indist 0 validated-new 0 proposal-only 33 abstain-ok 0 false-null 15 force-fit 0 wrong 0 | own: correct 33 force-fit 0 | answers 33 supported 0 | grammar proposals 0 (hits 0) | cost 11.8333
+DEVELOPMENT control 8000000 b12 B5 n=48: exact 38 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 10 force-fit 0 wrong 0 | own: correct 38 force-fit 0 | answers 38 supported 38 | grammar proposals 0 (hits 0) | cost 11.8125
+DEVELOPMENT control 8000000 b24 B2 n=48: exact 0 indist 0 validated-new 0 proposal-only 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | own: correct 48 force-fit 0 | answers 48 supported 0 | grammar proposals 0 (hits 0) | cost 7.8125
+DEVELOPMENT control 8000000 b24 B3 n=48: exact 0 indist 0 validated-new 0 proposal-only 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | own: correct 48 force-fit 0 | answers 48 supported 0 | grammar proposals 0 (hits 0) | cost 21.4583
+DEVELOPMENT control 8000000 b24 B4 n=48: exact 0 indist 0 validated-new 0 proposal-only 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | own: correct 48 force-fit 0 | answers 48 supported 0 | grammar proposals 0 (hits 0) | cost 21.4792
+DEVELOPMENT control 8000000 b24 B5 n=48: exact 47 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 1 force-fit 0 wrong 0 | own: correct 47 force-fit 0 | answers 47 supported 47 | grammar proposals 0 (hits 0) | cost 20.8125
+DEVELOPMENT control 8000000 b48 B2 n=48: exact 0 indist 0 validated-new 0 proposal-only 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | own: correct 48 force-fit 0 | answers 48 supported 0 | grammar proposals 0 (hits 0) | cost 7.8125
+DEVELOPMENT control 8000000 b48 B3 n=48: exact 0 indist 0 validated-new 0 proposal-only 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | own: correct 48 force-fit 0 | answers 48 supported 0 | grammar proposals 0 (hits 0) | cost 22.3333
+DEVELOPMENT control 8000000 b48 B4 n=48: exact 0 indist 0 validated-new 0 proposal-only 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | own: correct 48 force-fit 0 | answers 48 supported 0 | grammar proposals 0 (hits 0) | cost 22.3542
+DEVELOPMENT control 8000000 b48 B5 n=48: exact 47 indist 0 validated-new 0 proposal-only 0 abstain-ok 0 false-null 1 force-fit 0 wrong 0 | own: correct 47 force-fit 0 | answers 47 supported 47 | grammar proposals 0 (hits 0) | cost 21.7083
+
+## 3. Known negative results carried into the freeze
+# - noise-only benchmark worlds (dev base 1, budget 24): B5 does not endorse 'no effect' in 3/3 worlds
+#   that B4 endorsed (one CATALOG_INCOMPLETE after the first-measurement glitch, two ADEQUACY_UNVERIFIED:
+#   single classes at their smallest amplitude stay adequate and four rival tests do not exclude them).
+# - compositions: the gate-led claim is the simplest adequate hypothesis; composition-00 (budget 12) was
+#   answered with one of its two classes (SUPPORTED, WRONG_CLAIM).
+# - alpha spending: implemented as Holm over every registered prediction of a mechanism (ledger rule);
+#   no separate look-spending for v1.1's localized checks was added -- the root cause shows localized-only
+#   false alarms at 1/240 or fewer per budget on development seeds.
