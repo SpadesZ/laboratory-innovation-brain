@@ -337,6 +337,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # G0 F2: a transition policy is registered by the schema owner only (a BEFORE INSERT guard on
     # 005b's table, the 011s boundary); rows already registered are untouched. After 011w.
     "011x_transition_policies_are_the_owners.sql",
+    # G0 R-2: a diagnostic declaration set is registered by the schema owner only (the 011x guard
+    # on 012p's table, which the SQL confirmation rule reads); rows already there untouched.
+    "011y_diagnostic_declaration_sets_are_the_owners.sql",
 )
 
 _BOOTSTRAP = """

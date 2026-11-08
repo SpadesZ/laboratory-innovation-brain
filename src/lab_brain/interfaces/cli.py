@@ -617,8 +617,9 @@ def build_parser() -> argparse.ArgumentParser:
     policies = admin_sub.add_parser(
         "register-policies",
         help=(
-            "011x: register the transition policies the product declares (the admission policy "
-            "and the vertical's) that are not registered yet (schema owner only)"
+            "011x/011y: register the transition policies the product declares (the admission "
+            "policy and the vertical's) and the vertical's diagnostic declaration sets that are "
+            "not registered yet (schema owner only); list what the projection would refuse"
         ),
     )
     policies.add_argument(
@@ -1242,6 +1243,7 @@ def _declare_capabilities(args: argparse.Namespace, connection: Any) -> list[str
 def _register_policies(args: argparse.Namespace, connection: Any) -> list[str]:
     """`admin register-policies`: the operator registers the declared transition policies
     (`011x`, G0 F2). Idempotent: a policy already registered is left exactly as it is."""
+    from lab_brain.core.repositories.warrants import SqlDeclarationSetStore, WarrantStoreError
     from lab_brain.interfaces import deployment
     from lab_brain.research.service import (
         PolicyRegistrationRefused,
@@ -1257,7 +1259,14 @@ def _register_policies(args: argparse.Namespace, connection: Any) -> list[str]:
     try:
         with connection.transaction():
             registered = set(register_vertical_policies(connection, vertical))
-    except PolicyRegistrationRefused as refused:
+            # The declarations the database's confirmation rule reads (`011y`, G0 R-2). Closed:
+            # a registered set this code does not declare refuses here as it refuses every run.
+            sets = set(
+                SqlDeclarationSetStore(connection).ensure(
+                    vertical.declaration_sets, vertical.active_declarations
+                )
+            )
+    except (PolicyRegistrationRefused, WarrantStoreError) as refused:
         raise deployment.OperatorRefused(str(refused)) from refused
     lines = []
     declared = set()
@@ -1265,6 +1274,9 @@ def _register_policies(args: argparse.Namespace, connection: Any) -> list[str]:
         name = f"{policy.policy_id}@{policy.version}"
         declared.add(name)
         lines.append(f"{'registered' if name in registered else 'present   '}  {name}")
+    for declarations in vertical.declaration_sets:
+        name = f"declaration set {declarations.ref}"
+        lines.append(f"{'registered' if declarations.ref in sets else 'present   '}  {name}")
     # For the operator's audit: rows this product does not declare -- registered by hand, by a
     # test, or (before `011x`) by whoever held the services' role. Listed, never touched.
     for (name,) in connection.execute(

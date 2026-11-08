@@ -594,6 +594,10 @@ class InMemoryDiagnosticWarrantStore:
         )
 
 
+class DeclarationRegistrationRefused(WarrantStoreError):
+    """The connection's role may not register a declaration set (`011y`, G0 R-2)."""
+
+
 class SqlDeclarationSetStore:
     """The declaration set versions a composition root may cite, registered for SQL (`012p`).
 
@@ -609,17 +613,46 @@ class SqlDeclarationSetStore:
         require_durable_connection(connection)
         self._connection = connection
 
+    def may_register(self) -> bool:
+        """Whether this connection's role may register a set: the schema owner only (`011y`, G0
+        R-2). The services' role reads the sets; a set it could write would decide what the
+        database's confirmation rule counts as warranted."""
+        row = self._connection.execute(
+            "SELECT pg_has_role(current_user, relowner, 'MEMBER') FROM pg_class"
+            " WHERE oid = 'diagnostic_declaration_sets'::regclass"
+        ).fetchone()
+        return bool(row and row[0])
+
     def ensure(
         self, declaration_sets: Sequence[DiagnosticDeclarationSet], active: str | None
-    ) -> None:
-        """Register every version, in order, the active one last and superseding the one before.
+    ) -> tuple[str, ...]:
+        """Register every version, in order, the active one last and superseding the one before;
+        the `set@version` of each one registered by this call.
 
         Each later version of a set supersedes the version listed before it, so only `active`
         is read by new conclusions; earlier versions stay registered so what they decided still
-        re-checks.
+        re-checks. Registering is the schema owner's (`011y`): under any other role a missing
+        version refuses with `DeclarationRegistrationRefused` before anything is written, naming
+        the operator's command; when every version is present it only checks them.
         """
         known = {s.ref: s for s in declaration_sets}
         ordered = sorted(declaration_sets, key=lambda s: s.ref == active)
+        missing = [
+            s.ref
+            for s in ordered
+            if self._connection.execute(
+                "SELECT 1 FROM diagnostic_declaration_sets WHERE set_id = %s AND version = %s",
+                (s.set_id, s.version),
+            ).fetchone()
+            is None
+        ]
+        if missing and not self.may_register():
+            raise DeclarationRegistrationRefused(
+                f"diagnostic declaration set(s) {', '.join(missing)} are not registered, and only "
+                "the schema owner (the operator's migrator) registers them (011y): run `lab-brain "
+                "admin register-policies` as the migrator"
+            )
+        registered: list[str] = []
         previous: dict[str, str] = {}
         for declarations in ordered:
             row = self._connection.execute(
@@ -648,6 +681,7 @@ class SqlDeclarationSetStore:
                         previous.get(declarations.set_id),
                     ),
                 )
+                registered.append(declarations.ref)
             previous[declarations.set_id] = declarations.ref
         # Closed, not merely consistent: every version the table holds is one this code
         # declares, and the version SQL reasons under is the code's active one. The SQL rule reads
@@ -680,9 +714,11 @@ class SqlDeclarationSetStore:
                 f"but this code under {sorted(wanted) or 'none'}; the two statements of the "
                 "confirmation rule would read different declarations"
             )
+        return tuple(registered)
 
 
 __all__ = [
+    "DeclarationRegistrationRefused",
     "GrantSigner",
     "InMemoryDiagnosticWarrantStore",
     "SqlDeclarationSetStore",

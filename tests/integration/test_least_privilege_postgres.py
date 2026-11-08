@@ -88,8 +88,8 @@ def test_the_product_runs_a_whole_episode_as_the_services_role(db, roles):  # ty
     code, out = _main("admin", "db-roles", "--app-role", app, "--reader-role", reader)
     assert code == 0, out
     assert f"database role {app}: reads and writes rows" in out
-    # The operator registers the transition policies as the schema owner (`011x`, G0 F2): the
-    # services' role reads them and may not register one.
+    # The operator registers the transition policies and the declaration sets as the schema owner
+    # (`011x`, G0 F2; `011y`, G0 R-2): the services' role reads them and may not register one.
     register_case_policies(db)
     fx = load_fixture()
     with _connect_as(app, password) as as_app:
@@ -124,7 +124,7 @@ _ESCAPES = (
 def test_the_services_role_cannot_step_past_the_rules_that_bind_it(db, roles):  # type: ignore[no-untyped-def]
     app, reader, password = roles
     assert _main("admin", "db-roles", "--app-role", app, "--reader-role", reader)[0] == 0
-    register_case_policies(db)  # the operator's part, as the schema owner (`011x`)
+    register_case_policies(db)  # the operator's part, as the schema owner (`011x`, `011y`)
     fx = load_fixture()
     with _connect_as(app, password) as as_app:
         run_case(as_app, fx, case_by_id(fx, "contact-open-via"))
@@ -137,9 +137,16 @@ def test_the_services_role_cannot_step_past_the_rules_that_bind_it(db, roles):  
             "UPDATE belief_revision_events SET to_state = from_state",
             "DELETE FROM belief_revision_events",
             "DELETE FROM belief_transition_decisions",
-            "DELETE FROM diagnostic_declaration_sets",
         ):
             _refused(as_app, statement, psycopg.errors.RaiseException)
+        # The declaration sets the SQL confirmation rule reads are read-only to the services'
+        # role (`011y`, G0 R-2): refused by privilege now, before their append-only trigger --
+        # which still refuses the schema owner (`test_registered_declarations_must_be_the_codes`).
+        _refused(
+            as_app,
+            "DELETE FROM diagnostic_declaration_sets",
+            psycopg.errors.InsufficientPrivilege,
+        )
     trigger_states = db.execute(
         "SELECT DISTINCT tgenabled FROM pg_trigger WHERE tgrelid = 'failure_analyses'::regclass"
         " AND NOT tgisinternal"

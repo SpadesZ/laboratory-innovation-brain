@@ -69,9 +69,6 @@ roles = _roles.roles
 
 #: Reproductions committed before their fixes: strict, so a fix that lands without removing the
 #: marker fails the suite (XPASS(strict)).
-OPEN_R2 = pytest.mark.xfail(
-    strict=True, reason="R-2 open: the services' role registers declaration sets"
-)
 OPEN_R3 = pytest.mark.xfail(
     strict=True, reason="R-3 open: the projection honours undeclared policies"
 )
@@ -125,7 +122,6 @@ def _sets(db: Any) -> list[tuple[str, str]]:
     ]
 
 
-@OPEN_R2
 def test_r2_the_services_role_cannot_register_a_set_that_blocks_a_confirmation(db, roles):
     """The catalog case confirms its cause on a DOMAIN warrant (the rule holds: no breach). As the
     services' role, register a set declaring the cause's own observed outcome as the signature of
@@ -177,7 +173,6 @@ def test_r2_the_services_role_cannot_register_a_set_that_blocks_a_confirmation(d
     assert ensured is None
 
 
-@OPEN_R2
 def test_r2_the_services_role_cannot_register_a_set_that_warrants_a_link(db, roles):
     """An uncatalogued account (the normalization rival renamed) is supported on its own check,
     but nobody accountable warranted the link: the SQL rule sees no warrant. As the services' role,
@@ -220,6 +215,153 @@ def test_r2_the_services_role_cannot_register_a_set_that_warrants_a_link(db, rol
     print(f"R-2 warrant: SQL warrant of {novel}'s support before={before} after={after}")
     assert refused is not None and isinstance(refused, REFUSALS), refused
     assert after == before
+
+
+def _privileges(su: Any, role: str, table: str) -> dict[str, bool]:
+    return {
+        p: bool(
+            su.execute("SELECT has_table_privilege(%s, %s, %s)", (role, table, p)).fetchone()[0]
+        )
+        for p in ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER")
+    }
+
+
+def _declarations_closed(su: Any, role: str) -> None:
+    assert _privileges(su, role, "diagnostic_declaration_sets") == {
+        "SELECT": True,
+        "INSERT": False,
+        "UPDATE": False,
+        "DELETE": False,
+        "TRUNCATE": False,
+        "REFERENCES": False,
+        "TRIGGER": False,
+    }
+    ((enabled,),) = su.execute(
+        "SELECT tgenabled FROM pg_trigger WHERE tgrelid = 'diagnostic_declaration_sets'::regclass"
+        " AND tgname = 'diagnostic_declaration_sets_a_registered_by_the_owner'"
+    ).fetchall()
+    assert enabled == "O", "the owner-only guard must exist and be enabled"
+
+
+def _well_formed() -> list[dict[str, Any]]:
+    """A well-formed set body: the code's own declarations (registered here under another id)."""
+    return list(_code_set().model_dump(mode="json")["declarations"])
+
+
+def test_r2_the_guard_refuses_the_services_role_where_insert_was_granted_by_mistake(su, roles):
+    """Layer two: with INSERT granted by hand, `011y` still refuses (by name); the next
+    `db-roles` run revokes the grant again."""
+    from lab_brain.interfaces.deployment import grant_database_roles
+
+    _declarations_closed(su, roles.app)
+    su.execute(f'GRANT INSERT ON diagnostic_declaration_sets TO "{roles.app}"')
+    with roles.connect(roles.app) as app:
+        refused = _try(lambda: _insert_set(app, "g0.mistaken.grant", _well_formed()))
+    assert isinstance(refused, psycopg.errors.InsufficientPrivilege), refused
+    assert "011y" in str(refused), refused
+    assert ("g0.mistaken.grant", "1") not in _sets(su)
+    grant_database_roles(su, app_role=roles.app, reader_role=roles.reader)
+    _declarations_closed(su, roles.app)
+
+
+def test_r2_the_services_role_cannot_change_erase_or_switch_off_the_guard(su, roles):
+    with roles.connect(roles.app) as app:
+        for statement in (
+            "UPDATE diagnostic_declaration_sets SET digest = digest",
+            "DELETE FROM diagnostic_declaration_sets",
+            "TRUNCATE diagnostic_declaration_sets",
+            "ALTER TABLE diagnostic_declaration_sets DISABLE TRIGGER"
+            " diagnostic_declaration_sets_a_registered_by_the_owner",
+            "ALTER TABLE diagnostic_declaration_sets DISABLE TRIGGER ALL",
+            "DROP TRIGGER diagnostic_declaration_sets_a_registered_by_the_owner"
+            " ON diagnostic_declaration_sets",
+            "CREATE OR REPLACE FUNCTION diagnostic_declaration_sets_are_registered_by_the_owner()"
+            " RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END $$ LANGUAGE plpgsql",
+            "DROP FUNCTION diagnostic_declaration_sets_are_registered_by_the_owner() CASCADE",
+            "SET session_replication_role = replica",
+            f'GRANT INSERT ON diagnostic_declaration_sets TO "{roles.app}"',
+        ):
+            refused = _try(lambda statement=statement: app.execute(statement))
+            granted = _privileges(su, roles.app, "diagnostic_declaration_sets")["INSERT"]
+            assert refused is not None or not granted, statement
+    _declarations_closed(su, roles.app)
+
+
+def test_r2_repeated_grants_and_migrations_do_not_reopen_it(su, roles):
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    from lab_brain.interfaces.deployment import grant_database_roles
+
+    root = Path(__file__).resolve().parents[2]
+    grant_database_roles(su, app_role=roles.app, reader_role=roles.reader)
+    grant_database_roles(su, app_role=roles.app, reader_role=roles.reader)
+    subprocess.run([sys.executable, str(root / "scripts" / "migrate.py")], check=True)
+    grant_database_roles(su, app_role=roles.app, reader_role=roles.reader)
+    _declarations_closed(su, roles.app)
+    reader = _privileges(su, roles.reader, "diagnostic_declaration_sets")
+    assert reader["SELECT"] and not reader["INSERT"]
+
+
+def test_r2_the_product_registers_its_sets_as_the_owner_and_reads_them_as_the_services(db, roles):
+    """Positive control and history: on a database with no set, the services' role is refused
+    before anything is written, naming the operator's command; the operator's command registers
+    the code's set as the owner (idempotently); the services' and auditors' roles then read it and
+    the composition root's check passes under the services' role without writing."""
+    from lab_brain.core.repositories.warrants import DeclarationRegistrationRefused
+
+    code = _code_set()
+    db.execute("TRUNCATE diagnostic_declaration_sets")  # a fresh database, as the migrator
+    with roles.connect(roles.app) as app:
+        with pytest.raises(DeclarationRegistrationRefused, match="register-policies"):
+            SqlDeclarationSetStore(app).ensure((code,), code.ref)
+        assert _sets(db) == []
+        status, out = _admin(app, "register-policies")
+        assert status == 2 and "only the schema owner" in out, out
+        assert _sets(db) == []
+    status, out = _admin(db, "register-policies")
+    assert status == 0, out
+    assert f"registered  declaration set {code.ref}" in out, out
+    status, out = _admin(db, "register-policies")
+    assert status == 0 and f"present     declaration set {code.ref}" in out, out
+    with roles.connect(roles.app) as app:
+        assert SqlDeclarationSetStore(app).ensure((code,), code.ref) == ()
+        held = app.execute("SELECT DISTINCT set_ref FROM diagnostic_declarations WHERE active")
+        assert held.fetchall() == [(code.ref,)]
+    reader = _privileges(db, roles.reader, "diagnostic_declaration_sets")
+    assert reader["SELECT"] and not reader["INSERT"]
+
+
+class _Kept:
+    """A fixture's connection, which `main` must not close."""
+
+    def __init__(self, inner: Any) -> None:
+        self._inner = inner
+
+    def close(self) -> None:
+        pass
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
+
+
+def _admin(connection: Any, *argv: str) -> tuple[int, str]:
+    import io
+    import os
+
+    from lab_brain.interfaces.cli import main
+    from tests.postgres_fixtures import database_url
+
+    out = io.StringIO()
+    env = {k: v for k, v in os.environ.items() if k.startswith("LAB_BRAIN_")}
+    code = main(
+        ["admin", *argv],
+        out=out,
+        env={**env, "LAB_BRAIN_DATABASE_URL": database_url()},
+        connect=lambda _settings: _Kept(connection),
+    )
+    return code, out.getvalue()
 
 
 # =============================================================================================

@@ -372,12 +372,15 @@ def case_transition_policies() -> tuple[TransitionPolicy, ...]:
 
 
 def register_case_policies(owner: Any) -> None:
-    """The operator's part (`011x`, G0 F2): the schema owner registers the policies `run_case`
-    needs, so a run under the services' role -- which may not register one -- finds them."""
+    """The operator's part (`011x`, G0 F2; `011y`, G0 R-2): the schema owner registers the
+    policies and the diagnostic declaration set `run_case` needs, so a run under the services'
+    role -- which may register neither -- finds them."""
     store = SqlTransitionPolicyStore(owner)
     for policy in case_transition_policies():
         if store.get(policy.policy_id, policy.version) is None:
             store.register(policy)
+    declarations = diagnostic_declaration_set()
+    SqlDeclarationSetStore(owner).ensure((declarations,), declarations.ref)
 
 
 def run_case(
