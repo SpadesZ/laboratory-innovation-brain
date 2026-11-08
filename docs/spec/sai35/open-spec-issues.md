@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix P: Open spec issues
 
-Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: informative register. A conflict found between SAI 3.5 and an inherited text, or inside
 SAI 3.5, is recorded here and stops the affected slice (S35-GOV-001, SAI 3.3 AGT-015). These issues
 use the prefix `S35-ISSUE-` so they never collide with `docs/spec_issues/SPEC-ISSUE-NNN` on any line.
@@ -26,4 +26,5 @@ implementation slice until resolved.
 | S35-ISSUE-16 | Candidate.2 claimed that near-duplicates cannot raise the maximum-clique diversity; {0, 0.9, 1.8, 2.7} plus 1.1 at τ = 1 raises it from 2 to 3 | A: change the metric; B: keep the definition, remove the guarantee, make diversity descriptive only | B (Appendix S §4, S1-CE-11) | G-D0 scorer | CORRECTED IN CANDIDATE.3, pending review |
 | S35-ISSUE-17 | Candidate.2 charged each attempt its "full realized cost when it starts", which is unknowable for variable-cost model calls | A: charge reservations; B: reserve before, settle after, account retrospectively on settled costs | B (Appendix J §3.3, S2-CE-7…10) | G-D0 harness | CORRECTED IN CANDIDATE.3, pending review |
 | S35-ISSUE-18 | Candidate.2 credited exact and indistinguishable claims together and counted a correct stop inside true-cause discovery; validated new mechanisms were not separated from proposals | A: one merged score; B: separate outcome categories | B (Appendix S §6, S35-CMP-005) | G-D0 scorer | CORRECTED IN CANDIDATE.3, pending review; primary category under OD-03 |
+| S35-ISSUE-19 | Candidate.3 credited an in-catalog answer as an identification whatever its evidence, and a new mechanism's prospective validation was a flag the arm set; a correct untested guess scored like a tested claim | A: credit the answer; B: credit only evidence-supported claims, with the evidential level re-derived by the evaluator | B (Appendix S §6 two axes, S4-CE) | G-D0 scorer | CORRECTED IN CANDIDATE.4, pending review |
 | S35-ISSUE-15 | Force-fit when the true mechanism family is absent from the held set: no requirement forbade endorsing the best-fitting inadequate mechanism | A: best fit wins; B: adequacy before endorsement, abstention allowed | B (S35-MECH-002, Appendix S §8); criterion under OD-18; engineering design on branch `claude/lib-implementation-agent-47evs0-discovery` | P35-2 Discovery integration; G-D1 | OPEN (OD-18) |

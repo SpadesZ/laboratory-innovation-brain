@@ -1,6 +1,6 @@
 # SAI 3.5 — Autonomous AI Scientist for Silicon Photonics (master specification)
 
-Version: `3.5.0-master-candidate.3` · Date: 2026-11-04 ·
+Version: `3.5.0-master-candidate.4` · Date: 2026-11-08 ·
 Base: `integration-integrity-accounts` @ `a38ad63a4f4ad83c895cbd1e32b2e760d878f356`
 
 Status: **CANDIDATE — NOT ACTIVE.** Not integrated; it does not change SAI 3.4 (`3.4.0-phased.1`), SAI 3.3 or the G0–G9 acceptance gates.
@@ -103,6 +103,17 @@ overspend and cross-checkpoint evidence leakage stay impossible (S2-CE-7…10); 
 Appendix S §6 and Appendix I §5 separate exact identification, experimentally indistinguishable
 alternatives, correct abstention and independently validated new-mechanism discovery (S3-CE). See
 the [change register](sai35/change-register.md) §7.
+
+### 0.6.2 Revision candidate.4
+
+`3.5.0-master-candidate.4` corrects the remaining scientific-scoring defect of candidate.3: an
+in-catalog answer was credited as an identification whatever its evidence, so a correct guess
+that was never tested scored like a tested claim, and a new mechanism's "prospective validation"
+was a self-reported flag. Scoring now has two axes (S35-CMP-005, Appendix S §6): the evidential
+level, re-derived by the evaluator from the trace (PROPOSAL, SUPPORTED, CONFIRMED), and, for
+evidence-supported claims only, the outcome category. Every answer below SUPPORTED is
+`PROPOSAL_ONLY`, never credited and never a false discovery (S4-CE). The levels reuse the claim
+states of S35-HYP-003; no new vocabulary is introduced beyond the merged category.
 
 ### 0.7 Two kinds of validity
 
@@ -1154,27 +1165,35 @@ the case-list hash is unchanged at scoring.
 
 <!-- statement: cmp.metrics -->
 **S35-CMP-005 MUST** — Five metrics are reported for every arm, each with definition, unit, n and
-interval: (1) true-cause discovery, reported as separate outcome rates at the primary checkpoint and
-never merged: exact identification (the true mechanism's identity), experimentally indistinguishable
+interval: (1) true-cause discovery, reported on two axes that are never merged: the evidential level
+of the final answer, re-derived by the evaluator from the arm's trace and never taken from the arm's
+own label (a proposal; SUPPORTED, a claim that passed a test whose prediction was recorded before
+its data and that the evaluator re-scores under the pre-declared rule; CONFIRMED, stage 3 through
+the Causal Warrant Gate), and, for evidence-supported claims only, the outcome rates at the primary
+checkpoint: exact identification (the true mechanism's identity), experimentally indistinguishable
 alternative (another identity certified INDISTINGUISHABLE from it under the case's full experiment
 set), unresolved alternative (never credited), correct abstention (no claim where no held mechanism
 was acceptable), false null, force-fit, other wrong claims, and independently validated
 new-mechanism discovery (a mechanism outside the catalog at case start that matches the truth and
-passed a prospectively registered test the arm did not control), while an exploratory proposal that
-was not so validated is counted only as a proposal; (2) effective mechanism diversity, the certified
-lower and upper bounds of S35-MECH-001 under the case's experiment set, never raw hypothesis counts
-or transitive class counts; (3) discriminating-experiment efficiency, experiments and realized cost
-until no held mechanism certified distinguishable from the true one survives, censored at the
-budget; (4) false discoveries, the false-discovery rate at SUPPORTED or higher plus a weighted score
-in which confident wrong claims weigh more; (5) independent reproducibility, the share of a
-pre-registered subset that the evaluator reproduces in a fresh environment from the frozen manifest,
-where any manifest drift makes the re-run invalid. Exactly one primary metric is pre-registered, and
-no outcome category is folded into another to form it. *Acceptance (T-S35-CMP-005, deterministic):*
-the scorer computes all five metrics from the frozen outputs; the outcome counterexamples S3-CE of
-mechanism-distinguishability.md §9 are classified as stated, including an indistinguishable
-alternative never counted as an exact identification and an unvalidated proposal never counted as a
-discovery; recomputation from the bundle gives identical numbers; a report missing a metric, its n
-or its interval is rejected.
+passed a prospectively registered test the arm did not control), while every answer below SUPPORTED,
+in or out of the catalog and whether or not it happens to match the truth, is counted only as a
+proposal, never as an identification, a discovery or a false discovery, and how many proposals
+matched the truth is reported beside them but never credited; (2) effective mechanism diversity, the
+certified lower and upper bounds of S35-MECH-001 under the case's experiment set, never raw
+hypothesis counts or transitive class counts; (3) discriminating-experiment efficiency, experiments
+and realized cost until no held mechanism certified distinguishable from the true one survives,
+censored at the budget; (4) false discoveries, the false-discovery rate at SUPPORTED or higher plus
+a weighted score in which confident wrong claims weigh more; (5) independent reproducibility, the
+share of a pre-registered subset that the evaluator reproduces in a fresh environment from the
+frozen manifest, where any manifest drift makes the re-run invalid. Exactly one primary metric is
+pre-registered, and no outcome category is folded into another to form it. *Acceptance
+(T-S35-CMP-005, deterministic):* the scorer computes all five metrics from the frozen outputs; the
+outcome counterexamples S3-CE of mechanism-distinguishability.md §9 are classified as stated,
+including an indistinguishable alternative never counted as an exact identification, an unvalidated
+proposal never counted as a discovery, and an in-catalog answer that matches the truth but whose
+test was registered after its data, failed, or is absent counted only as a proposal (S4-CE);
+recomputation from the bundle gives identical numbers; a report missing a metric, its n or its
+interval is rejected.
 
 <!-- statement: cmp.statistics -->
 **S35-CMP-006 MUST** — Statistics are pre-registered before unsealing: the experimental unit (case),

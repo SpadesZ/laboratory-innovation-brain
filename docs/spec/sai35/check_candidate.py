@@ -53,7 +53,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[3]
 REGISTRY = "docs/spec/sai35/normative-statements.yaml"
 BASE_REVISION = "a38ad63a4f4ad83c895cbd1e32b2e760d878f356"
-VERSION = "3.5.0-master-candidate.3"
+VERSION = "3.5.0-master-candidate.4"
 MASTER = "docs/spec/SAI_3.5.md"
 ACTIVE_SPEC = "docs/spec/ACTIVE_SPEC.yaml"
 WORKFLOW = ".github/workflows/ci.yml"
@@ -221,8 +221,10 @@ EVALUATION_OUTCOMES = [
     "FORCE_FIT",
     "WRONG_CLAIM",
     "VALIDATED_NEW_MECHANISM",
-    "NEW_MECHANISM_PROPOSAL_ONLY",
+    "PROPOSAL_ONLY",
 ]
+EVIDENCE_LEVELS = ["PROPOSAL", "SUPPORTED", "CONFIRMED"]
+S4_COUNTEREXAMPLES = ["S4-CE"]
 GD_FRAMEWORK = {
     "separate_from_g0_g9": True,
     "g0_g9_completion_implies_discovery": False,
@@ -278,12 +280,17 @@ REQUIRED_PHRASES = {
         *METRICS,
         "never raw hypothesis counts",
         "invalid",
-        "never merged: exact identification",
+        "two axes that are never merged",
+        "outcome rates at the primary checkpoint: exact identification",
         "experimentally indistinguishable alternative",
         "correct abstention",
         "independently validated new-mechanism discovery",
         "counted only as a proposal",
         "no outcome category is folded into another",
+        "never taken from the arm's own label",
+        "every answer below SUPPORTED",
+        "is counted only as a proposal, never as an identification, a discovery or a false "
+        "discovery",
     ),
     "cmp.matching": (
         "actual realized consumption",
@@ -671,6 +678,13 @@ def check(state: dict) -> None:  # one linear list of document rules
     assert data["epistemic_stage_scope"] == EPISTEMIC_STAGE_SCOPE, "epistemic stage scope changed"
     assert data["termination_dimensions"] == TERMINATION_DIMENSIONS, "termination dimensions"
     assert data["evaluation_outcomes"] == EVALUATION_OUTCOMES, "evaluation outcomes changed"
+    assert data["evidence_levels"] == EVIDENCE_LEVELS, "evidence levels changed"
+    assert data["credit_requires_evidence_level"] == "SUPPORTED", "credit without evidence"
+    assert data["evidence_level_source"] == "evaluator_rederived_from_trace", "self-declared"
+    for level in EVIDENCE_LEVELS:
+        assert f"| `{level}` |" in texts[DISTINGUISH], f"evidence level {level} not tabled"
+    for ce in S4_COUNTEREXAMPLES:
+        assert f"| {ce} |" in texts[DISTINGUISH], f"Appendix S lacks counterexample {ce}"
     for outcome in EVALUATION_OUTCOMES:
         assert f"| `{outcome}` |" in texts[DISTINGUISH], f"outcome {outcome} not tabled"
     for claim in ("Near-duplicates cannot raise", "non-gameable", "near-duplicate invariant"):
@@ -1033,6 +1047,14 @@ MUTATIONS: dict[str, Callable[[dict], None]] = {
     ),
     "settlement_text_removed": _both(
         "checkpoints are evaluated retrospectively on settled costs", "checkpoints use caps"
+    ),
+    "credit_without_evidence": _set("credit_requires_evidence_level", value="PROPOSAL"),
+    "self_declared_evidence": _set("evidence_level_source", value="arm_label"),
+    "evidence_level_removed": lambda s: s["registry"]["evidence_levels"].remove("SUPPORTED"),
+    "s4_ce_removed": _first_line(DISTINGUISH, "| S4-CE |", "| removed |"),
+    "proposal_credit_text": _both("every answer below SUPPORTED", "every answer below PROPOSAL"),
+    "arm_label_trusted_text": _both(
+        "never taken from the arm's own label", "taken from the arm's own label"
     ),
     "outcomes_text_merged": _both(
         "no outcome category is folded into another", "categories may be summed"

@@ -1,6 +1,6 @@
-# SAI 3.5 — Appendix T: Semantic consistency report (candidate.3)
+# SAI 3.5 — Appendix T: Semantic consistency report (candidate.4)
 
-Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`. G0 is NOT PASSED.
+Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`. G0 is NOT PASSED.
 Authority: informative. The record of Task S5: a requirement-by-requirement review of all
 77 statements of [SAI 3.5](../SAI_3.5.md) §3 and the normative appendices, after the
 corrections S1–S4 and the candidate.3 corrections of the Independent Chief Auditor's findings. It is an implementation agent's review, not the Independent Chief Auditor's.
@@ -21,7 +21,7 @@ byte-identical to `a38ad63`.
 (b) are inputs, outputs and states defined, (c) is the trust and authorization boundary explicit,
 (d) is the acceptance test measurable, (e) does a concrete counterexample break it. Counterexamples
 that concern the corrected definitions are executable in [semantic_reference.py](semantic_reference.py)
-(S1-CE-1…11, S2-CE-1…10, S3-CE, ladder and termination cases) and every known-wrong variant of those
+(S1-CE-1…11, S2-CE-1…10, S3-CE, S4-CE, ladder and termination cases) and every known-wrong variant of those
 definitions is rejected by its self-test. The others are probes stated in the table; each is the
 fixture the planned test must contain.
 
@@ -41,6 +41,7 @@ unchanged). 22 of 77 requirements were corrected or clarified; no identifier cha
 | F6 member acceptance read as spending authority | member accepts, campaign spends money | PROB-001 | Owner gates still required |
 | F7 (candidate.3) near-duplicate inflation of the maximum-clique diversity | (0, 0.9, 1.8, 2.7) plus 1.1, τ = 1: 2 → 3 | MECH-001, CMP-005 | definition kept; guarantee removed; descriptive only; S35-ISSUE-16 |
 | F8 (candidate.3) realized cost unknowable at start | variable-cost model call; overrun; no headroom | CMP-002, CMP-008, COST-001 | reservation / settlement / retrospective checkpoints; S35-ISSUE-17 |
+| F10 (candidate.4) exploratory proposals scored as evidence-supported claims | correct untested in-catalog guess credited; validation flag set by the arm | CMP-005 | evidential level re-derived by the evaluator; credit only at SUPPORTED or above; S35-ISSUE-19 |
 | F9 (candidate.3) merged evaluation outcomes | indistinguishable alternative counted as exact; stop folded into discovery; proposal as discovery | CMP-005, LOOP-003 | nine separate outcome categories; S35-ISSUE-18 |
 
 ## 3. Requirement-by-requirement table
@@ -124,7 +125,7 @@ decisions inherited from other lines.
 | S35-CMP-002 | EvaluationPlane · G-D1, G-D2, G-D3, G-D4 · P35-3 · partial | arm traces, frozen ladder → answers at checkpoints or COST_UNMATCHED | evaluator owns ladder and tolerance; runtime enforces reservations | deterministic | early-stopping arm moves the comparison point; straddling experiment credited; hidden retries; candidate.3: variable-cost model call whose cost is unknown at start; overrun; start without reservation headroom | CORRECTED (S2, candidate.3): reservation before execution, settlement after, retrospective checkpoints; S2-CE-1…10 executable | OD-03 |
 | S35-CMP-003 | EvaluationPlane · G-D1, G-D2, G-D3, G-D4 · P35-3 · proposed | outputs → sealed labels, frozen scorer | custodian holds labels | deterministic | scorer hash drift | consistent | OD-02 |
 | S35-CMP-004 | EvaluationPlane · G-D0, G-D1, G-D2, G-D3, G-D4 · P35-3 · proposed | evaluator generator → sealed worlds | implementer cannot read truth | deterministic | implementer-written worlds used as G-D evidence (the P3 situation) | consistent; P3 results remain engineering evidence | OD-02 |
-| S35-CMP-005 | EvaluationPlane · G-D1, G-D2, G-D3, G-D4 · P35-3 · partial | frozen outputs → five metrics; nine outcome categories | scorer frozen | deterministic | 'equivalence class' credit under A–B–C; candidate.3: indistinguishable alternative counted as exact; correct stop folded into true-cause discovery; unvalidated proposal counted as discovery | CORRECTED (S1, S2, candidate.3): separate outcome categories (Appendix S §6, S3-CE); diversity descriptive only | OD-03, OD-17 |
+| S35-CMP-005 | EvaluationPlane · G-D1, G-D2, G-D3, G-D4 · P35-3 · partial | frozen outputs → five metrics; nine outcome categories | scorer frozen | deterministic | 'equivalence class' credit under A–B–C; candidate.3: indistinguishable alternative counted as exact; correct stop folded into true-cause discovery; unvalidated proposal counted as discovery; candidate.4: correct untested guess credited as identification; self-set validation flag | CORRECTED (S1, S2, candidate.3, candidate.4): separate outcome categories credited only for evidence-supported answers, evidential level re-derived by the evaluator (Appendix S §6, S3-CE, S4-CE); diversity descriptive only | OD-03, OD-17 |
 | S35-CMP-006 | EvaluationPlane · G-D0, G-D1, G-D2, G-D3, G-D4 · P35-3 · partial | protocol → pre-registered statistics | analysis reads frozen values only | deterministic | primary checkpoint chosen after unsealing | consistent; ladder is pre-registered (S2) | OD-03 |
 | S35-CMP-007 | EvaluationPlane · G-D0, G-D1, G-D2 · P35-3 · partial | cases → contamination report | exclusions by frozen rule | deterministic | silent exclusion | consistent | OD-06 |
 | S35-CMP-008 | EvaluationPlane · G-D1, G-D2, G-D3, G-D4 · P35-3 · partial | caps, incidents → case/study stops | incidents invalidate | deterministic | case cut at cap credited with a straddling experiment; an operation started whose reservation exceeds the remaining cap | CORRECTED (S2, candidate.3) | OD-03 |

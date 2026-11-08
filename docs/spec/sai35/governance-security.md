@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix E: Security, human authorization, autonomy levels, permissions and cost
 
-Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Refines S35-SEC-001–006, S35-COST-001–002, S35-REG-002–003 and S35-CWG-002 of
 [SAI 3.5](../SAI_3.5.md). Inherited security rules (SAI 3.3 §14, SEC-001–004, COST-001; SAI 3.4
 ASM-014) apply unchanged; the SAI 3.4 security decisions A3, A9 and A12 stay OPEN.

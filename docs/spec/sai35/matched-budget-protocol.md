@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix J: Matched-budget A/B/C comparison protocol
 
-Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** Nothing in this protocol
+Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** Nothing in this protocol
 has been run. Values marked *proposed* are recommendations for Owner decision OD-03, not frozen.
 Authority: normative. Refines S35-CMP-001–009 of [SAI 3.5](../SAI_3.5.md). Supersedes the
 `3.5.0-discovery-candidate.1` version of this file (kept in git history).
@@ -25,7 +25,7 @@ zero-cost stage that is the strongest local open-weight model the Owner approved
 (OD-04); a frontier model is used only in an Owner-authorized paid stage with a ceiling (OD-05). A
 multi-model LIB configuration is a separate, separately pre-registered comparison.
 
-Answer schema (all arms, every case): claimed mechanism or none; its epistemic stage and claim state;
+Answer schema (all arms, every case): claimed mechanism or none; its epistemic stage and claim state as the arm states them (the evaluator re-derives the evidential level from the trace and ignores the stated one); for each test the arm relies on, the hash of its prediction and the time it was recorded, before the data was requested;
 evidence references; uncertainty by source; experiments run with realized costs; an optional
 `INSUFFICIENT_VALIDATION` or `STOPPED` outcome with reason; and an **anytime answer** after every
 experiment or model-call batch, stamped with its cumulative realized charge (needed for §3.3).
@@ -172,7 +172,7 @@ every arm, with n, the estimate and an interval.
 
 | Metric | Definition | Notes |
 |---|---|---|
-| **true-cause discovery** (outcome categories; candidate.3) | at the primary checkpoint, each case gets one outcome of [Appendix S](mechanism-distinguishability.md) §6: exact identification, indistinguishable alternative, unresolved alternative, correct abstention, false null, force-fit, wrong claim, validated new mechanism, proposal only; every category's rate is reported separately with n and a Wilson interval, and none is folded into another | the primary scalar is one pre-registered category (*proposed*: exact-identification rate over the cases whose truth is in the arm's catalog, with force-fit and correct-abstention rates as pre-registered safety endpoints); proposals never count as discoveries |
+| **true-cause discovery** (evidential level × outcome category; candidate.4) | at the primary checkpoint, the evaluator re-derives the answer's evidential level (PROPOSAL, SUPPORTED, CONFIRMED) from the trace; only SUPPORTED or CONFIRMED answers get a claim outcome of [Appendix S](mechanism-distinguishability.md) §6: exact identification, indistinguishable alternative, unresolved alternative, correct abstention, false null, force-fit, wrong claim, validated new mechanism; every lower answer is PROPOSAL_ONLY; every category's rate is reported separately with n and a Wilson interval, and none is folded into another | the primary scalar is one pre-registered category (*proposed*: exact-identification rate over the cases whose truth is in the arm's catalog, with force-fit and correct-abstention rates as pre-registered safety endpoints); proposals never count as identifications, discoveries or false discoveries; correct proposals are counted, uncredited |
 | **effective mechanism diversity** | certified lower bound (with the upper bound) on the largest number of the arm's admitted hypotheses that are pairwise `DISTINGUISHABLE` under the case's full experiment set ([Appendix S](mechanism-distinguishability.md) §4), and whether the true mechanism was held | never raw hypothesis counts and never a transitive class count; `UNRESOLVED` pairs are listed; descriptive only: not invariant under near-duplicates (S1-CE-11), reported with the raw count and the span, never primary and never by itself evidence that an arm discovers better |
 | **discriminating-experiment efficiency** | experiments and realized cost units charged until every surviving held mechanism is in the true mechanism's neighbourhood (none certified distinguishable from it survives) and every other is refuted | censored at the cap; reported as a cost-to-discrimination curve and median with censoring |
 | **false discoveries** | false-discovery rate (wrong claims at SUPPORTED or higher ÷ claims at SUPPORTED or higher) and a weighted score: wrong CONFIRMED × w_c, wrong SUPPORTED × w_s, confident claim where a stop was correct × w_stop | *proposed* w_c = 10, w_s = 3, w_stop = 3 (OD-03) |

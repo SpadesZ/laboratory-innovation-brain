@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix M: Compatibility with SAI 3.3 and SAI 3.4
 
-Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Refines S35-GOV-001 of [SAI 3.5](../SAI_3.5.md). The requirement table of §4
 is checked against the [registry](normative-statements.yaml).
 

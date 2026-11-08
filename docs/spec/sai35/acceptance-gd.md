@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix I: G0–G9 and the independent G-D acceptance framework
 
-Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** No G-D level has been
+Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** No G-D level has been
 evaluated. `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Refines S35-GD-001, S35-GD-002 and S35-GD-003 of [SAI 3.5](../SAI_3.5.md).
 Supersedes the `3.5.0-discovery-candidate.1` version of this file (kept in git history).
@@ -73,7 +73,9 @@ Rules at every level:
 - **Outcomes.** Each case and arm is scored with exactly one outcome of
   [Appendix S](mechanism-distinguishability.md) §6 (exact identification, indistinguishable
   alternative, unresolved alternative, correct abstention, false null, force-fit, wrong claim,
-  validated new mechanism, proposal only), computed by the evaluator from sealed truth; there is no
+  validated new mechanism, proposal only), computed by the evaluator from sealed truth, after the
+  evaluator re-derives the answer's evidential level from the trace: only a SUPPORTED or CONFIRMED
+  answer gets a claim outcome, every other answer is a proposal (candidate.4); there is no
   equivalence class and no transitive merge. The rates are reported separately and never merged: a
   correct abstention is a safety result, not an identification; an indistinguishable alternative is
   correct within experimental resolution, not an exact identification; an exploratory proposal is

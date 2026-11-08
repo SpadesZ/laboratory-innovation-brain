@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix S: Mechanism identity, distinguishability and diversity
 
-Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Refines S35-MECH-001 of [SAI 3.5](../SAI_3.5.md) and the uses of
 distinguishability in S35-HYP-002, S35-MECH-002, S35-SEL-001, S35-SEL-002, S35-CMP-005 and
 S35-NOV-002. It replaces the class-partition definition of `3.5.0-master-candidate.1`, which
@@ -144,10 +144,22 @@ workspace for navigation, labelled as such, and never as diversity.
 
 ## 6. Scoring and novelty
 
-- **Scientific-evaluation outcomes** (S35-CMP-005 metric 1; candidate.3). Each case and arm gets
-  exactly one outcome at the primary checkpoint, computed by the evaluator from sealed truth under
-  the case's full experiment set; names never matter. The outcomes are reported as separate rates
-  and are never merged into one another:
+- **Scientific-evaluation outcomes** (S35-CMP-005 metric 1; candidate.3, two axes since
+  candidate.4). Each case and arm gets exactly one outcome at the primary checkpoint, computed by
+  the evaluator from sealed truth under the case's full experiment set; names never matter.
+
+  *Axis 1, evidential level* of the final answer, re-derived by the evaluator from the arm's trace;
+  the arm's own label is never trusted (S4-CE):
+
+  | Level | Re-derived when | Claim states (S35-HYP-003) |
+  |---|---|---|
+  | `PROPOSAL` | no test of the claim whose prediction was recorded (hashed) before its data was requested and which the claim passes when the evaluator re-scores it under the pre-declared rule | PROPOSED, ADMITTED, REGISTERED, UNDER_TEST, CHALLENGED, INCONCLUSIVE |
+  | `SUPPORTED` | such a test exists and passes on re-scoring | SUPPORTED |
+  | `CONFIRMED` | additionally a re-derivable Causal Warrant Gate decision with a qualifying signed review | CONFIRMED (stage 3) |
+
+  *Axis 2, outcome category.* Only an answer at `SUPPORTED` or `CONFIRMED` receives one of the
+  claim categories below; every other answer is `PROPOSAL_ONLY`. The outcomes are reported as
+  separate rates, per evidential level, and are never merged into one another:
 
   | Outcome | Condition | Credit |
   |---|---|---|
@@ -159,10 +171,15 @@ workspace for navigation, labelled as such, and never as diversity.
   | `FORCE_FIT` | a held mechanism distinguishable from the truth claimed while the truth is outside the held set | error |
   | `WRONG_CLAIM` | any other wrong claim, including any claim in a no-mechanism case | error |
   | `VALIDATED_NEW_MECHANISM` | a mechanism outside the arm's catalog at case start, matching the truth (identity or `INDISTINGUISHABLE`), that passed a prospectively registered test the arm did not control (at G-D4: the Causal Warrant Gate and S35-VAL-005) | the only outcome that counts as new-mechanism discovery |
-  | `NEW_MECHANISM_PROPOSAL_ONLY` | a mechanism outside the catalog without such validation | none: an exploratory proposal (stage 1), never a discovery, whatever it matches |
+  | `PROPOSAL_ONLY` | any answer whose evidential level is `PROPOSAL`, in or out of the catalog | none: never an identification, a discovery or a false discovery, whatever it says; the number of proposals that happen to match the truth is reported beside it and never credited |
 
-  The executable form is `classify_outcome()` in [semantic_reference.py](semantic_reference.py)
-  (S1-CE-9 and S3-CE). The primary scalar is pre-registered under OD-03 from one category, never a
+  Why both axes (candidate.4): in candidate.3 an in-catalog answer was credited whatever its
+  evidence, so an arm that named the right mechanism without ever testing it scored like an arm
+  that tested it, and the "prospective validation" of a new mechanism was a flag the arm set. A
+  research agent is scored on what its evidence supports, not on what it guessed.
+
+  The executable form is `classify_outcome()` with `verified_evidence()` in
+  [semantic_reference.py](semantic_reference.py) (S1-CE-9, S3-CE and S4-CE). The primary scalar is pre-registered under OD-03 from one category, never a
   sum of categories.
 - **Effective diversity** (S35-CMP-005 metric 2) is the §4 lower bound under the case's full
   experiment set, with the upper bound and whether the true mechanism is in the arm's held set.
@@ -221,4 +238,5 @@ fixture of T-S35-MECH-001 (and of the tests named) when the runtime is built.
 | S1-CE-9 | renamed truth; indistinguishable alternative; distinguishable claim | `EXACT_IDENTIFICATION`; `INDISTINGUISHABLE_ALTERNATIVE`; `WRONG_CLAIM` | name-based scoring; merging alternatives into identification |
 | S1-CE-10 | renamed prior-art mechanism; unresolved comparison | rediscovery; at most a listed-unresolved candidate | novelty by renaming |
 | S1-CE-11 | {0, 0.9, 1.8, 2.7}, τ = 1, then add 1.1 (`INDISTINGUISHABLE` from 0.9) | diversity 2, then 3; never above the span bound | any claim of near-duplicate invariance; greedy de-duplication heuristics |
-| S3-CE | unresolved alternative; truth outside the catalog with a held claim, with no claim; truth in the catalog with no claim; no-mechanism case with and without a claim; out-of-catalog proposal unvalidated, validated and matching, validated and wrong | `UNRESOLVED_ALTERNATIVE`; `FORCE_FIT`; `CORRECT_ABSTENTION`; `FALSE_NULL`; `CORRECT_ABSTENTION`, `WRONG_CLAIM`; `NEW_MECHANISM_PROPOSAL_ONLY`, `VALIDATED_NEW_MECHANISM`, `WRONG_CLAIM` | merging outcome categories; counting proposals as discoveries |
+| S3-CE | unresolved alternative; truth outside the catalog with a held claim, with no claim; truth in the catalog with no claim; no-mechanism case with and without a claim; out-of-catalog answer without evidence, supported and matching, supported and wrong | `UNRESOLVED_ALTERNATIVE`; `FORCE_FIT`; `CORRECT_ABSTENTION`; `FALSE_NULL`; `CORRECT_ABSTENTION`, `WRONG_CLAIM`; `PROPOSAL_ONLY`, `VALIDATED_NEW_MECHANISM`, `WRONG_CLAIM` | merging outcome categories; counting proposals as discoveries |
+| S4-CE | an in-catalog answer that names the true mechanism: with no test, with a test registered after its data, with a test it failed, with a passed prospective test, with a Causal Warrant Gate decision; a wrong and a force-fitted answer without a test | `PROPOSAL_ONLY` (hit counted, uncredited) three times; `EXACT_IDENTIFICATION` at `SUPPORTED`; at `CONFIRMED`; `PROPOSAL_ONLY` twice, never a false discovery | crediting untested answers; trusting the arm's own evidential label |

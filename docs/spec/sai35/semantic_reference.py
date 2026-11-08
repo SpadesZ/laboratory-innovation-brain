@@ -33,7 +33,7 @@ import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
-VERSION = "3.5.0-master-candidate.3"
+VERSION = "3.5.0-master-candidate.4"
 
 DISTINGUISHABLE = "DISTINGUISHABLE"
 INDISTINGUISHABLE = "INDISTINGUISHABLE"
@@ -159,17 +159,42 @@ def neighbourhood(
 
 
 OUTCOMES = (
-    "EXACT_IDENTIFICATION",  # the claimed mechanism has the true mechanism's identity
-    "INDISTINGUISHABLE_ALTERNATIVE",  # another identity, certified INDISTINGUISHABLE from truth
-    "UNRESOLVED_ALTERNATIVE",  # another identity, UNRESOLVED against truth: never credited
-    "VALIDATED_NEW_MECHANISM",  # outside the catalog at case start, matches truth, prospectively
-    #                             validated by an independent party: the only "new discovery"
-    "NEW_MECHANISM_PROPOSAL_ONLY",  # outside the catalog, not prospectively validated: no credit
-    "CORRECT_ABSTENTION",  # no claim, and no held mechanism was acceptable
-    "FALSE_NULL",  # no claim, although a held mechanism matched truth
-    "FORCE_FIT",  # a held mechanism DISTINGUISHABLE from truth, truth outside the held set
-    "WRONG_CLAIM",  # any other wrong claim
+    "EXACT_IDENTIFICATION",  # evidence-supported claim with the true mechanism's identity
+    "INDISTINGUISHABLE_ALTERNATIVE",  # evidence-supported, another identity INDISTINGUISHABLE
+    "UNRESOLVED_ALTERNATIVE",  # evidence-supported, another identity UNRESOLVED: never credited
+    "VALIDATED_NEW_MECHANISM",  # evidence-supported, outside the catalog, matches truth
+    "PROPOSAL_ONLY",  # a claim without verified evidential support: never credited, whatever it
+    #                   says and whether or not it happens to match the truth
+    "CORRECT_ABSTENTION",  # no evidence-supported claim, and no held mechanism was acceptable
+    "FALSE_NULL",  # no evidence-supported claim, although a held mechanism matched truth
+    "FORCE_FIT",  # evidence-supported claim of a held mechanism DISTINGUISHABLE from the truth,
+    #               the truth outside the held set
+    "WRONG_CLAIM",  # any other evidence-supported wrong claim
 )
+
+EVIDENCE_LEVELS = ("PROPOSAL", "SUPPORTED", "CONFIRMED")
+
+
+@dataclass(frozen=True)
+class EvidenceRecord:
+    """What the evaluator finds in the arm's trace for the claimed mechanism (candidate.4).
+
+    The arm's own statement of its claim state is never trusted; the evaluator re-derives the
+    level from these facts. `registered_before_data`: a prediction for the claim, hashed and
+    recorded before the data of the test it names was requested. `rescored_pass`: the evaluator
+    re-scores that test under the pre-declared rule and the claim passes. `cwg_decision`: a
+    re-derivable Causal Warrant Gate decision with a qualifying signed review (stage 3)."""
+
+    registered_before_data: bool = False
+    rescored_pass: bool = False
+    cwg_decision: bool = False
+
+
+def verified_evidence(record: EvidenceRecord | None) -> str:
+    """PROPOSAL, SUPPORTED or CONFIRMED, re-derived (S35-CMP-005, S35-HYP-003)."""
+    if record is None or not (record.registered_before_data and record.rescored_pass):
+        return "PROPOSAL"
+    return "CONFIRMED" if record.cwg_decision else "SUPPORTED"
 
 
 def classify_outcome(
@@ -179,39 +204,53 @@ def classify_outcome(
     e: ExperimentSet,
     threshold: float,
     *,
-    prospectively_validated: bool = False,
-) -> str:
-    """One case's scientific-evaluation outcome (Appendix S §6, S35-CMP-005 metric 1).
+    evidence: EvidenceRecord | None = None,
+) -> tuple[str, str]:
+    """One case's scientific-evaluation outcome and its verified evidential level (Appendix S §6).
 
-    The categories are reported separately and never merged: an exact identification, an
-    experimentally indistinguishable alternative, a correct abstention and a validated new
-    mechanism are four different achievements. `catalog` is the arm's held set at case start;
-    `truth` is None in a case where no mechanism can be validated with the available means.
+    Two axes, never merged: what the final answer says relative to the truth, and whether the
+    answer is an evidence-supported claim or only a proposal. Only an evidence-supported claim
+    (SUPPORTED or CONFIRMED, re-derived by the evaluator) can earn identification or discovery
+    credit; anything else is PROPOSAL_ONLY, however right it is. `catalog` is the arm's held set at
+    case start; `truth` is None in a case where no mechanism can be validated with the available
+    means.
     """
     held = {m.identity for m in catalog}
+    level = verified_evidence(evidence)
 
     def matches(m: Mechanism) -> bool:
         return truth is not None and pair_verdict(m, truth, e, threshold) == INDISTINGUISHABLE
 
     if claimed is None:
-        return "FALSE_NULL" if any(matches(m) for m in catalog) else "CORRECT_ABSTENTION"
+        outcome = "FALSE_NULL" if any(matches(m) for m in catalog) else "CORRECT_ABSTENTION"
+        return outcome, "NONE"
+    if level == "PROPOSAL":
+        return "PROPOSAL_ONLY", level
     if truth is None:
-        return "WRONG_CLAIM"
+        return "WRONG_CLAIM", level
     if claimed.identity not in held:
-        if not prospectively_validated:
-            return "NEW_MECHANISM_PROPOSAL_ONLY"
-        return "VALIDATED_NEW_MECHANISM" if matches(claimed) else "WRONG_CLAIM"
+        return ("VALIDATED_NEW_MECHANISM" if matches(claimed) else "WRONG_CLAIM"), level
     if claimed.identity == truth.identity:
-        return "EXACT_IDENTIFICATION"
+        return "EXACT_IDENTIFICATION", level
     verdict = pair_verdict(claimed, truth, e, threshold)
     if verdict == INDISTINGUISHABLE:
-        return "INDISTINGUISHABLE_ALTERNATIVE"
+        return "INDISTINGUISHABLE_ALTERNATIVE", level
     if verdict == UNRESOLVED:
-        return "UNRESOLVED_ALTERNATIVE"
+        return "UNRESOLVED_ALTERNATIVE", level
+    if truth.identity in held or any(matches(m) for m in catalog):
+        return "WRONG_CLAIM", level
+    return "FORCE_FIT", level
+
+
+def proposal_hit(
+    claimed: Mechanism | None, truth: Mechanism | None, e: ExperimentSet, threshold: float
+) -> bool:
+    """Descriptive only: whether a PROPOSAL_ONLY answer happens to match the truth. Reported as a
+    count beside the outcomes; never credited and never added to any outcome rate."""
     return (
-        "WRONG_CLAIM"
-        if truth.identity in held or any(matches(m) for m in catalog)
-        else ("FORCE_FIT")
+        claimed is not None
+        and truth is not None
+        and pair_verdict(claimed, truth, e, threshold) == INDISTINGUISHABLE
     )
 
 
@@ -538,11 +577,17 @@ def check(
     truth = _m("truth", 0.0)
     near_truth = _m("near", 0.5)  # another identity, INDISTINGUISHABLE from truth under E1
     catalog = [truth, near_truth, c]
-    assert classify(_m("renamed", 0.0, model="fm:truth"), truth, catalog, E1, TAU) == (
+    ok = EvidenceRecord(registered_before_data=True, rescored_pass=True)  # SUPPORTED
+
+    def outcome(*args: object, **kw: object) -> str:
+        kw.setdefault("evidence", ok)
+        return classify(*args, **kw)[0]
+
+    assert outcome(_m("renamed", 0.0, model="fm:truth"), truth, catalog, E1, TAU) == (
         "EXACT_IDENTIFICATION"
     )
-    assert classify(near_truth, truth, catalog, E1, TAU) == "INDISTINGUISHABLE_ALTERNATIVE"
-    assert classify(c, truth, catalog, E1, TAU) == "WRONG_CLAIM"
+    assert outcome(near_truth, truth, catalog, E1, TAU) == "INDISTINGUISHABLE_ALTERNATIVE"
+    assert outcome(c, truth, catalog, E1, TAU) == "WRONG_CLAIM"
 
     # S1-CE-11 (audit counterexample, candidate.3): the maximum-clique diversity CAN rise when a
     # near-duplicate is added. {0, 0.9, 1.8, 2.7} has diversity 2; adding 1.1, which is
@@ -567,21 +612,38 @@ def check(
 
     # S3-CE: separate evaluation outcomes (S35-CMP-005 metric 1, Appendix S §6).
     unres = _m("V", 1.1, grid=0.2)  # UNRESOLVED against truth
-    assert classify(unres, truth, [truth, unres], E1, TAU) == "UNRESOLVED_ALTERNATIVE"
+    assert outcome(unres, truth, [truth, unres], E1, TAU) == "UNRESOLVED_ALTERNATIVE"
     outside = _m("outside", 0.0, model="fm:hidden")  # true family absent from the catalog
-    assert classify(c, outside, [c], E1, TAU) == "FORCE_FIT"
-    assert classify(None, outside, [c], E1, TAU) == "CORRECT_ABSTENTION"
-    assert classify(None, truth, catalog, E1, TAU) == "FALSE_NULL"
-    assert classify(None, None, [c], E1, TAU) == "CORRECT_ABSTENTION"
-    assert classify(b, None, [b], E1, TAU) == "WRONG_CLAIM"
+    assert outcome(c, outside, [c], E1, TAU) == "FORCE_FIT"
+    assert outcome(None, outside, [c], E1, TAU) == "CORRECT_ABSTENTION"
+    assert outcome(None, truth, catalog, E1, TAU) == "FALSE_NULL"
+    assert outcome(None, None, [c], E1, TAU) == "CORRECT_ABSTENTION"
+    assert outcome(b, None, [b], E1, TAU) == "WRONG_CLAIM"
     proposal = _m("proposed", 0.1, model="fm:proposed")
-    assert classify(proposal, outside, [c], E1, TAU) == "NEW_MECHANISM_PROPOSAL_ONLY"
-    assert classify(proposal, outside, [c], E1, TAU, prospectively_validated=True) == (
-        "VALIDATED_NEW_MECHANISM"
-    )
-    assert classify(_m("p2", 5.0), outside, [c], E1, TAU, prospectively_validated=True) == (
-        "WRONG_CLAIM"
-    )
+    assert outcome(proposal, outside, [c], E1, TAU, evidence=None) == "PROPOSAL_ONLY"
+    assert outcome(proposal, outside, [c], E1, TAU) == "VALIDATED_NEW_MECHANISM"
+    assert outcome(_m("p2", 5.0), outside, [c], E1, TAU) == "WRONG_CLAIM"
+
+    # S4-CE (candidate.4): exploratory proposals versus evidence-supported claims. The evaluator
+    # re-derives the evidential level from the trace; the arm's own label is never trusted.
+    right_guess = _m("guess", 0.0, model="fm:truth")
+    assert classify(right_guess, truth, catalog, E1, TAU, evidence=None) == (
+        "PROPOSAL_ONLY", "PROPOSAL"
+    )  # fmt: skip
+    assert proposal_hit(right_guess, truth, E1, TAU), "reported, never credited"
+    late = EvidenceRecord(registered_before_data=False, rescored_pass=True)  # registered after
+    assert classify(right_guess, truth, catalog, E1, TAU, evidence=late)[0] == "PROPOSAL_ONLY"
+    failed = EvidenceRecord(registered_before_data=True, rescored_pass=False)
+    assert classify(right_guess, truth, catalog, E1, TAU, evidence=failed)[0] == "PROPOSAL_ONLY"
+    assert classify(right_guess, truth, catalog, E1, TAU, evidence=ok) == (
+        "EXACT_IDENTIFICATION", "SUPPORTED"
+    )  # fmt: skip
+    confirmed = EvidenceRecord(True, True, cwg_decision=True)
+    assert classify(right_guess, truth, catalog, E1, TAU, evidence=confirmed)[1] == "CONFIRMED"
+    # A wrong or force-fitted proposal is not a false discovery; it is still only a proposal.
+    assert classify(c, outside, [c], E1, TAU, evidence=None)[0] == "PROPOSAL_ONLY"
+    assert classify(b, None, [b], E1, TAU, evidence=None)[0] == "PROPOSAL_ONLY"
+    assert not proposal_hit(c, outside, E1, TAU)
 
     # S2 — matched realized cost.
     proto = FrozenProtocol(checkpoints=(25.0, 50.0, 100.0), primary=50.0, tolerance=0.0)
@@ -733,13 +795,33 @@ def _wrong_score_no_ledger(traces: Mapping[str, ArmTrace], protocol: FrozenProto
 
 def _wrong_classify_merged(claimed, truth, catalog, e, threshold, **kw):  # type: ignore[no-untyped-def]
     """WRONG: an indistinguishable alternative reported as an exact identification."""
-    out = classify_outcome(claimed, truth, catalog, e, threshold, **kw)
-    return "EXACT_IDENTIFICATION" if out == "INDISTINGUISHABLE_ALTERNATIVE" else out
+    out, level = classify_outcome(claimed, truth, catalog, e, threshold, **kw)
+    return ("EXACT_IDENTIFICATION" if out == "INDISTINGUISHABLE_ALTERNATIVE" else out), level
 
 
 def _wrong_classify_proposal(claimed, truth, catalog, e, threshold, **kw):  # type: ignore[no-untyped-def]
-    """WRONG: an unvalidated proposal that matches truth counted as a validated discovery."""
-    kw["prospectively_validated"] = True
+    """WRONG: an out-of-catalog proposal that matches truth counted as a validated discovery."""
+    if (
+        kw.get("evidence") is None
+        and claimed is not None
+        and claimed.identity not in {m.identity for m in catalog}
+    ):
+        kw["evidence"] = EvidenceRecord(True, True)
+    return classify_outcome(claimed, truth, catalog, e, threshold, **kw)
+
+
+def _wrong_classify_unsupported_credit(claimed, truth, catalog, e, threshold, **kw):  # type: ignore[no-untyped-def]
+    """WRONG (the candidate.3 defect): an in-catalog answer credited whatever its evidence."""
+    if claimed is not None and claimed.identity in {m.identity for m in catalog}:
+        kw["evidence"] = EvidenceRecord(True, True)
+    return classify_outcome(claimed, truth, catalog, e, threshold, **kw)
+
+
+def _wrong_classify_self_declared(claimed, truth, catalog, e, threshold, **kw):  # type: ignore[no-untyped-def]
+    """WRONG: the arm's own 'supported' label trusted although the registration came late."""
+    ev = kw.get("evidence")
+    if ev is not None and ev.rescored_pass:
+        kw["evidence"] = EvidenceRecord(True, True, ev.cwg_decision)
     return classify_outcome(claimed, truth, catalog, e, threshold, **kw)
 
 
@@ -798,6 +880,8 @@ WRONG_VARIANTS: dict[str, dict[str, Callable[..., object]]] = {
     "greedy near-duplicate removal": {"metric": _wrong_greedy_dedup},
     "indistinguishable alternative counted as exact": {"classify": _wrong_classify_merged},
     "unvalidated proposal counted as discovery": {"classify": _wrong_classify_proposal},
+    "unsupported in-catalog answer credited": {"classify": _wrong_classify_unsupported_credit},
+    "late registration trusted as support": {"classify": _wrong_classify_self_declared},
     "checkpoints charged at reservation": {"score": _wrong_score_reservation},
     "no reservation-headroom or overrun check": {"score": _wrong_score_no_runtime_check},
 }

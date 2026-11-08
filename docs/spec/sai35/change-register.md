@@ -1,6 +1,6 @@
 # SAI 3.5 — Change register (D-NNN → S35 identifiers)
 
-Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: informative record, enforced by the [candidate checker](check_candidate.py): every
 retired `D-NNN` appears here, every new identifier it names is registered, and the counts below are
 recomputed from this table and the [registry](normative-statements.yaml).
@@ -150,6 +150,7 @@ obligation.
 | `3.5.0-discovery-candidate.1` | `3.5.0-master-candidate.1` | version of the candidate |
 | `3.5.0-master-candidate.1` | `3.5.0-master-candidate.2` | semantic revision of the master candidate (§6) |
 | `3.5.0-master-candidate.2` | `3.5.0-master-candidate.3` | correction of three audit findings (§7) |
+| `3.5.0-master-candidate.3` | `3.5.0-master-candidate.4` | evidence-based scoring (§8) |
 | `MechanismClassPartition` (record) | `DistinguishabilityGraph`, `AdequacyAssessment` | [Appendix S](mechanism-distinguishability.md) §7, [Appendix C](records-and-states.md) §2 |
 
 ## 6. Candidate.2 revisions (`3.5.0-master-candidate.1` → `3.5.0-master-candidate.2`)
@@ -190,4 +191,12 @@ Independent Chief Auditor's review of candidate.2; the executable counterexample
 | 1 near-duplicate inflation | S35-MECH-001, Appendix S §4 and §9, Appendix J §5 | the maximum-clique definition is kept; the false claim that near-duplicates cannot raise it is removed; counterexample S1-CE-11 ({0, 0.9, 1.8, 2.7} plus 1.1 at τ = 1: 2 → 3); remaining guarantees stated exactly (alias invariance, monotone, +1 per addition, span bound); diversity is descriptive, never primary, reported with the raw count and span; greedy de-duplication rejected as a substitute | no: removes an unsupported guarantee and forbids relying on the metric as evidence |
 | 2 reservation versus settlement | S35-CMP-002, S35-CMP-008, S35-COST-001, Appendix J §3.3, §3.4, §3.6, Appendix E §6 | maximum-cost reservation before execution enforces the cap; realized settlement after execution; checkpoints evaluated retrospectively on settled costs with every started operation charged in full and unsettled operations charged their reservation; missing headroom and overruns are incidents and COST_UNMATCHED; S2-CE-7…10 | no: fewer comparisons qualify as matched; overspend becomes an explicit incident |
 | 3 separated outcomes | S35-CMP-005, S35-LOOP-003, Appendix S §6, Appendix I §5, Appendix J §5 | nine outcome categories (exact identification, indistinguishable alternative, unresolved alternative, correct abstention, false null, force-fit, wrong claim, validated new mechanism, proposal only), reported separately; a correct stop is no longer folded into true-cause discovery; only a prospectively validated out-of-catalog mechanism counts as new-mechanism discovery; S3-CE | no: credit can only become narrower |
+
+## 8. Candidate.4 revision (`3.5.0-master-candidate.3` → `3.5.0-master-candidate.4`)
+
+No identifier was added, removed or renumbered.
+
+| Finding | Statement or appendix | Change | Weakens? |
+|---|---|---|---|
+| exploratory proposals scored as evidence-supported claims | S35-CMP-005, Appendix S §6 and §9, Appendix J §2 and §5, Appendix I §5 | two scoring axes: evidential level re-derived by the evaluator from the trace (PROPOSAL, SUPPORTED, CONFIRMED, mapped onto the S35-HYP-003 claim states) and, for SUPPORTED or CONFIRMED answers only, the outcome category; every lower answer is `PROPOSAL_ONLY` (replaces `NEW_MECHANISM_PROPOSAL_ONLY` and now covers in-catalog answers too); matching proposals are counted beside, never credited, never false discoveries; the answer schema carries prediction hashes and record times; S4-CE; semantic reference rejects 13 wrong variants | no: credit can only narrow; a false discovery still needs SUPPORTED or higher, as S35-CMP-005 metric 4 already said |
 

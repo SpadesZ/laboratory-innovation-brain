@@ -1,13 +1,26 @@
 # SAI 3.5 主規格候選報告
 
 日期：2026-11-04（candidate.2）；2026-11-02（candidate.1）
-版本：`3.5.0-master-candidate.3`
+版本：`3.5.0-master-candidate.4`
 分支：`claude/lib-implementation-agent-47evs0`（從 `sai-3.5-master-specification` @ `15586fc` 開始）
 起點：`sai-3.5-discovery-candidate` @ `38a1afe`（以 `integration-integrity-accounts` @ `a38ad63` 為基準）
 狀態：**候選。未啟用。未整合。** 不改 SAI 3.3、SAI 3.4，也不改 G0–G9。
 
 `READY_FOR_REAL_RESEARCH = false`。G0 未通過。沒有任何 G-D 等級被評估。
 這份報告只是摘要，沒有規範效力。規範在英文主規格。
+
+## 0b. candidate.4 修正了什麼（2026-11-08）
+
+- **探索性提案不再被當成有證據的主張計分。** candidate.3 只看答案對不對：目錄內的機制
+  只要猜對就算「精確識別」，即使從來沒測過；新機制的「前瞻驗證」也只是受測組自己設的旗標。
+- 現在分兩個軸：
+  - **證據層級**：由評估者從紀錄重新推導，不採信受測組自己的標籤。
+    PROPOSAL（沒有「先記錄預測、後取得資料、且評估者重算後通過」的測試）、
+    SUPPORTED（有這樣的測試）、CONFIRMED（再加上因果授權閘的決定）。
+  - **結果類別**：只有 SUPPORTED 以上才給「識別、替代、新機制」等類別。
+- 低於 SUPPORTED 的答案一律是 PROPOSAL_ONLY：不給分，也不算錯誤發現。
+  猜對的提案數量另外列出，但永遠不計分。
+- 反例 S4-CE；參考語意 13 個錯誤定義全被拒絕；檢查器 121 個變異全被拒絕；S35-ISSUE-19。
 
 ## 0a. candidate.3 修正了什麼（2026-11-04，稽核第二輪）
 

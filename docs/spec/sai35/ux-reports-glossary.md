@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix F: Researcher experience, reports and bilingual glossary
 
-Version: `3.5.0-master-candidate.3`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative for report content (§2), workspace content (§1) and terms (§3). Refines
 S35-RPT-001–004 of [SAI 3.5](../SAI_3.5.md). Inherited: SAI 3.4 ASM-016 (bilingual scientific
 content, canonical records never overwritten), SAI 3.3 UX-001–007 (MessageCatalog, error classes,
@@ -98,6 +98,8 @@ component names in code font stay in English in both languages.
 | exact identification | 精確識別 | the claimed mechanism has the true mechanism's identity |
 | indistinguishable alternative | 不可區分替代 | another mechanism the experiments cannot tell from the truth |
 | correct abstention | 正確棄權 | no claim where no held mechanism was acceptable |
+| evidential level | 證據層級 | PROPOSAL, SUPPORTED or CONFIRMED, re-derived by the evaluator from the trace |
+| proposal only | 僅為提案 | an answer below SUPPORTED: never credited, never a false discovery |
 | validated new mechanism | 已驗證新機制 | an out-of-catalog mechanism that matches the truth and passed an independent prospective test |
 | operational termination | 作業性終止 | how a campaign ended (VALID or INVALID), not what it achieved |
 | experimental completion | 實驗完成度 | NOT_PERFORMED, PARTIAL or COMPLETED |

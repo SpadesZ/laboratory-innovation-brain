@@ -4,7 +4,7 @@
 # and ACTIVE_SPEC.yaml are unchanged. planned_tests are obligations, never executed-test evidence;
 # every statement has tests: []. Evidence is "<commit>:<path>" or a path on this branch.
 schema_version: 2
-spec_version: 3.5.0-master-candidate.3
+spec_version: 3.5.0-master-candidate.4
 status: CANDIDATE
 activation_status: NOT_ACTIVE
 integrated: false
@@ -572,6 +572,7 @@ open_spec_issues:
 - S35-ISSUE-16
 - S35-ISSUE-17
 - S35-ISSUE-18
+- S35-ISSUE-19
 distinguishability:
   definition: docs/spec/sai35/mechanism-distinguishability.md
   identity: forward_model_content_hash
@@ -607,7 +608,13 @@ evaluation_outcomes:
 - FORCE_FIT
 - WRONG_CLAIM
 - VALIDATED_NEW_MECHANISM
-- NEW_MECHANISM_PROPOSAL_ONLY
+- PROPOSAL_ONLY
+evidence_levels:
+- PROPOSAL
+- SUPPORTED
+- CONFIRMED
+credit_requires_evidence_level: SUPPORTED
+evidence_level_source: evaluator_rederived_from_trace
 epistemic_stage_scope:
 - ExploratoryIdea
 - Hypothesis
@@ -3139,24 +3146,29 @@ normative_statements:
   area: CMP
   section: '3.21'
   text: 'Five metrics are reported for every arm, each with definition, unit, n and interval: (1) true-cause discovery, reported
-    as separate outcome rates at the primary checkpoint and never merged: exact identification (the true mechanism''s identity),
-    experimentally indistinguishable alternative (another identity certified INDISTINGUISHABLE from it under the case''s full
-    experiment set), unresolved alternative (never credited), correct abstention (no claim where no held mechanism was acceptable),
-    false null, force-fit, other wrong claims, and independently validated new-mechanism discovery (a mechanism outside the
-    catalog at case start that matches the truth and passed a prospectively registered test the arm did not control), while
-    an exploratory proposal that was not so validated is counted only as a proposal; (2) effective mechanism diversity, the
-    certified lower and upper bounds of S35-MECH-001 under the case''s experiment set, never raw hypothesis counts or transitive
-    class counts; (3) discriminating-experiment efficiency, experiments and realized cost until no held mechanism certified
-    distinguishable from the true one survives, censored at the budget; (4) false discoveries, the false-discovery rate at SUPPORTED
-    or higher plus a weighted score in which confident wrong claims weigh more; (5) independent reproducibility, the share of
-    a pre-registered subset that the evaluator reproduces in a fresh environment from the frozen manifest, where any manifest
-    drift makes the re-run invalid. Exactly one primary metric is pre-registered, and no outcome category is folded into another
-    to form it.'
+    on two axes that are never merged: the evidential level of the final answer, re-derived by the evaluator from the arm''s
+    trace and never taken from the arm''s own label (a proposal; SUPPORTED, a claim that passed a test whose prediction was
+    recorded before its data and that the evaluator re-scores under the pre-declared rule; CONFIRMED, stage 3 through the Causal
+    Warrant Gate), and, for evidence-supported claims only, the outcome rates at the primary checkpoint: exact identification
+    (the true mechanism''s identity), experimentally indistinguishable alternative (another identity certified INDISTINGUISHABLE
+    from it under the case''s full experiment set), unresolved alternative (never credited), correct abstention (no claim where
+    no held mechanism was acceptable), false null, force-fit, other wrong claims, and independently validated new-mechanism
+    discovery (a mechanism outside the catalog at case start that matches the truth and passed a prospectively registered test
+    the arm did not control), while every answer below SUPPORTED, in or out of the catalog and whether or not it happens to
+    match the truth, is counted only as a proposal, never as an identification, a discovery or a false discovery, and how many
+    proposals matched the truth is reported beside them but never credited; (2) effective mechanism diversity, the certified
+    lower and upper bounds of S35-MECH-001 under the case''s experiment set, never raw hypothesis counts or transitive class
+    counts; (3) discriminating-experiment efficiency, experiments and realized cost until no held mechanism certified distinguishable
+    from the true one survives, censored at the budget; (4) false discoveries, the false-discovery rate at SUPPORTED or higher
+    plus a weighted score in which confident wrong claims weigh more; (5) independent reproducibility, the share of a pre-registered
+    subset that the evaluator reproduces in a fresh environment from the frozen manifest, where any manifest drift makes the
+    re-run invalid. Exactly one primary metric is pre-registered, and no outcome category is folded into another to form it.'
   acceptance_kind: deterministic
   acceptance: the scorer computes all five metrics from the frozen outputs; the outcome counterexamples S3-CE of mechanism-distinguishability.md
-    §9 are classified as stated, including an indistinguishable alternative never counted as an exact identification and an
-    unvalidated proposal never counted as a discovery; recomputation from the bundle gives identical numbers; a report missing
-    a metric, its n or its interval is rejected.
+    §9 are classified as stated, including an indistinguishable alternative never counted as an exact identification, an unvalidated
+    proposal never counted as a discovery, and an in-catalog answer that matches the truth but whose test was registered after
+    its data, failed, or is absent counted only as a proposal (S4-CE); recomputation from the bundle gives identical numbers;
+    a report missing a metric, its n or its interval is rejected.
   planned_tests:
   - T-S35-CMP-005
   tests: []
