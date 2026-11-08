@@ -1,0 +1,49 @@
+# Reproduction on baseline 24fae8b (no source change), real services' role (grant_database_roles), --runxfail
+# 2026-11-08T10:28:29Z  LAB_BRAIN_TEST_POSTGRES=1 pytest -q -s --runxfail tests/e2e/test_g0_trust_boundaries_postgres.py
+R-2 blocker: services role insert refused=None
+R-2 blocker: SQL confirmation breaches for hyp:normalization-taper-least_cost-hypothesis-0002 after: ["obs:normalization-taper-least_cost-observation-0001: the observed DISAGREES is the declared signature of 'g0 rogue blocking mechanism', another mechanism than hyp:normalization-taper-least_cost-hypothesis-0002's"]
+R-2 blocker: composition root's ensure() afterwards: WarrantStoreError('the database registers declaration set version(s) g0.rogue.blocker@1, which this code does not declare; the confirmation rule would read declarations nobody reviewed as code')
+R-2 warrant: services role insert refused=None
+R-2 warrant: SQL warrant of hyp:normalization-taper-least_cost-hypothesis-0002's support before=[('rel:normalization-taper-least_cost-relation-0001', None)] after=[('rel:normalization-taper-least_cost-relation-0001', 'DOMAIN')]
+R-3: services-role transition under policy:g0-tb-legacy-c75fbee7a1: event=event_id='bre:sa-b5d84c4062d14917b7a1672759421cf6' project_id='prj:ps-rs' target_type=<BeliefTargetType.HYPOTHESIS: 'HYPOTHESIS'> target_id='hyp:1a836af4-6efd-4942-88de-b7881b7ba817' from_state=<BeliefState.ACTIVE: 'ACTIVE'> to_state=<BeliefState.SUPPORTED: 'SUPPORTED'> triggering_attestation_ids=('att:407d53ae-4bdb-4a59-97e
+R-3: product projection of hyp:1a836af4-6efd-4942-88de-b7881b7ba817 -> SUPPORTED
+R-1 phantom SUPPORTS rel:tb-phantom-3fb452ff: projection -> SUPPORTED
+R-1 authority: stored classes ('DESIGN_INSPECTION',), snapshot ('MEAS_CALIBRATED',) -> SUPPORTED
+R-1 condition match: stored PARTIAL, snapshot EXACT -> SUPPORTED
+R-1 2.0.0 phantom with forged warrant record -> REFUSED:WARRANT_UNVERIFIED
+R-1 direct event, no decision: RaiseException('belief_revision_events: event bre:tb-513f093f83 records ACTIVE -> SUPPORTED with no authorization_decision_id. v3.3-a12 requires every non-genesis event to name a stored BELIEF_TRANSITION Decision with result=ALLOW; a legal policy, a legal transition and legal evidence are not an authorization, and before this the difference was unrepresentable\nCONTE
+R-1 direct event, NEED_MORE_EVIDENCE decision: RaiseException('belief_revision_events: event bre:tb-dd1e4326be is backed by authorization dec:sa-0139d56c8cd049b8af1eb7c579dbe6d7, whose result is NEED_MORE_EVIDENCE. Only ALLOW authorises; the other three outcomes record that the transition was refused, and writing the event anyway is the bypass EPI-005 forbids\nCONTEXT:  PL/pgSQL function belief_re
+E       AssertionError: None
+E       assert (None is not None)
+E       AssertionError: None
+E       assert (None is not None)
+E       AssertionError: SUPPORTED
+E       assert 'SUPPORTED' == 'REFUSED:UNDECLARED_POLICY'
+E         
+E         - REFUSED:UNDECLARED_POLICY
+E         + SUPPORTED
+E       AssertionError: SUPPORTED
+E       assert 'SUPPORTED' == 'REFUSED:EVIDENCE_UNVERIFIED'
+E         
+E         - REFUSED:EVIDENCE_UNVERIFIED
+E         + SUPPORTED
+E       AssertionError: SUPPORTED
+E       assert 'SUPPORTED' == 'REFUSED:EVIDENCE_UNVERIFIED'
+E         
+E         - REFUSED:EVIDENCE_UNVERIFIED
+E         + SUPPORTED
+E       AssertionError: SUPPORTED
+E       assert 'SUPPORTED' == 'REFUSED:EVIDENCE_UNVERIFIED'
+E         
+E         - REFUSED:EVIDENCE_UNVERIFIED
+E         + SUPPORTED
+FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r2_the_services_role_cannot_register_a_set_that_blocks_a_confirmation
+FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r2_the_services_role_cannot_register_a_set_that_warrants_a_link
+FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r3_the_projection_refuses_a_transition_under_an_undeclared_policy
+FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r1_a_snapshot_support_that_is_not_stored_is_refused
+FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r1_a_snapshot_authority_class_no_attestation_has_is_refused
+FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r1_a_snapshot_condition_match_that_is_not_the_stored_one_is_refused
+6 failed, 2 passed in 12.44s
+
+# as committed (strict xfail markers)
+2 passed, 6 xfailed in 12.03s
