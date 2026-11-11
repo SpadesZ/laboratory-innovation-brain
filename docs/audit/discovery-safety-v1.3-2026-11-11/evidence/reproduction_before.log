@@ -1,0 +1,17 @@
+Reproduction BEFORE the v1.3 fix, on the unchanged v1.2 code (src/lab_brain/discovery_safety/v12/, design freeze 50549e2). Development seeds only.
+R1 world held_out-chain.polarization_drift-00 (dev base 7000000, family removed): the frozen engine at cap 20 claims ['hyp:scatter.sidewall'] (truth chain.polarization_drift); spent 12
+R1 before any registration: category PROPOSAL_ONLY, level PROPOSAL
+R1 hyp:scatter.sidewall on polarization_controlled#0: HONEST sd -> passed False (p 2.83e-07, max|z| 4.78)
+R1 ledger re-score of the INFLATED registration: passed True, risky True, prospective True, p 1
+R1 evaluator's re-derived outcome after the inflated registration: FORCE_FIT / SUPPORTED
+R2 synthetic: claim hyp:thermo.self_heating, rival hyp:thermo.ambient, experiment gas_cell_reference; with the arm's alternative 'none' only -> passed True risky True, supported True; with the rival as the alternative -> risky False
+R3 a riskless prediction (identical to its only alternative) under the arm's rule alpha=0, z_max=1e9, tau_risky=0: passed True, risky True, supported True
+R4 hyp:thermo.ambient's predicted values filed under hyp:scatter.sidewall's fingerprint: passed True, risky True, hyp:scatter.sidewall supported True (what hyp:scatter.sidewall itself predicts on baseline: max |value| 2)
+R5 world held_out-thermo.ambient-00 b24: B5 answered grammar:ce53603e2175 -> VALIDATED_NEW_MECHANISM / SUPPORTED; the same run record with the answer's forward model swapped for loss[stage=intrinsic,power_mw=P^0,width_nm=w^1,radius_um=R^0... (fingerprint left) -> WRONG_CLAIM / SUPPORTED
+R2 v1.2's own registrations on development worlds (base 7000000, 3 per class, family removed and left in, budgets 12 and 24): {"passed_risky": 508, "registrations": 1652, "risky_only_vs_none_while_null_refuted": 198}
+  e.g. held_out-chain.fiber_coupling-00 in b12: hyp:chain.fiber_coupling on baseline (ADEQUACY_PROBE); separations hyp:chain.fiber_coupling+geometry.gap_small 1.24, hyp:chain.fiber_coupling+thermo.self_heating 0.71, none 12.85
+  e.g. held_out-chain.fiber_coupling-00 in b24: hyp:chain.fiber_coupling on baseline (ADEQUACY_PROBE); separations hyp:chain.fiber_coupling+geometry.gap_small 1.24, hyp:chain.fiber_coupling+thermo.self_heating 0.71, none 12.85
+  e.g. held_out-chain.fiber_coupling-02 in b12: hyp:chain.fiber_coupling on baseline (PROBE_REPLICATION); separations hyp:chain.fiber_coupling+geometry.gap_large 1.59, hyp:chain.fiber_coupling+nonlinear.fca_dominated 0.49, none 11.87
+  e.g. held_out-chain.fiber_coupling-02 in b24: hyp:chain.fiber_coupling on baseline (PROBE_REPLICATION); separations hyp:chain.fiber_coupling+geometry.gap_large 1.59, hyp:chain.fiber_coupling+nonlinear.fca_dominated 0.49, none 11.87
+  e.g. held_out-chain.laser_drift-00 in b12: hyp:chain.laser_drift on gas_cell_reference (ADEQUACY_PROBE); separations hyp:chain.laser_drift+cladding.index_drift 1.06, hyp:chain.laser_drift+thermo.self_heating 0.66, none 38.18
+SUMMARY {"R1": {"before": ["PROPOSAL_ONLY", "PROPOSAL"], "category": "FORCE_FIT", "level": "SUPPORTED"}, "R2": {"risky_with_none": true, "risky_with_rival": false}, "R2_real": {"passed_risky": 508, "registrations": 1652, "risky_only_vs_none_while_null_refuted": 198}, "R3": {"passed": true, "risky": true}, "R4": {"supported": true}, "R5": {"forged": ["WRONG_CLAIM", "SUPPORTED"], "honest": ["VALIDATED_NEW_MECHANISM", "SUPPORTED"]}}
