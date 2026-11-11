@@ -28,6 +28,10 @@ in_progress_branches:
     (Owner-approved 2026-11-04); G0 NOT PASSED
   claude/lib-implementation-agent-47evs0-discovery-v11: from 0928602; head ed442bb; safety gate v1.1 (refit fixpoint, localized
     checks), engineering evidence on same-author worlds only
+  claude/lib-implementation-agent-47evs0-g0-trust: from 24fae8b; head e2872de; owner-only diagnostic declaration sets (011y),
+    projection refuses undeclared policies and snapshots that differ from stored evidence; G0 NOT PASSED
+  claude/lib-implementation-agent-47evs0-discovery-v12: from ed442bb; head e778cc4; design frozen 50549e2; budget-aware
+    allocation, evaluator-owned prediction ledger, grammar discovery; engineering evidence on same-author worlds only
   claude/lib-implementation-agent-47evs0-discovery: from d7ec9f2; head 0928602; offline out-of-catalog safety gate (engineering
     evidence on same-author worlds only); not connected to research execution
 spec_document: docs/spec/SAI_3.5.md

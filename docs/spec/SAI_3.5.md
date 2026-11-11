@@ -251,8 +251,23 @@ G0 stays NOT PASSED. `claude/lib-implementation-agent-47evs0-discovery-v11` @ `e
 `0928602`, design frozen at `53bd2a9`) closes a refit coverage bypass found in v1.0 and adds
 pre-registered per-experiment checks; on newly generated held-out worlds force-fits are 4/195 at
 budget 12 (v1.0: 6) with correct in-catalog identifications 156/240 (v1.0: 160), both differences
-inside their intervals; equal caps, not matched realized cost. Details:
-[implementation status](sai35/implementation-status.md).
+inside their intervals; equal caps, not matched realized cost.
+
+Third round (2026-11-08 to 2026-11-11, pushed, unmerged, not independently reviewed):
+`claude/lib-implementation-agent-47evs0-g0-trust` @ `e2872de` (from `24fae8b`) makes diagnostic
+declaration sets owner-only (migration `011y`; pending Owner approval of the privilege change),
+makes the belief projection refuse transitions under policies the installed code does not declare
+(`UNDECLARED_POLICY`) and decisions whose snapshot differs from the stored relations, condition
+matches or attestations (`EVIDENCE_UNVERIFIED`); decisions and events stay writable by the services'
+role, and stored-but-fabricated measurements (A12) stay open; G0 stays NOT PASSED.
+`claude/lib-implementation-agent-47evs0-discovery-v12` @ `e778cc4` (from `ed442bb`, design frozen at
+`50549e2`) is the first arm scored under candidate.4 with an evaluator-owned prediction ledger: on new
+held-out worlds with the family left in it reaches 195/240 SUPPORTED exact identifications at budget
+12 (v1.1's own unregistered answers: 155), and with the family removed 57/195 validated new
+mechanisms (rediscovery inside a same-author grammar) against 3/195 SUPPORTED errors; it loses every
+noise-only benchmark world and has more force-fits than v1.1 at budget 8 (6 vs 0). Under
+candidate.4 the engine, v1.0 and v1.1 have no SUPPORTED answer at all. Equal caps, not matched
+realized cost. Details: [implementation status](sai35/implementation-status.md).
 
 ## 3. Normative requirements
 
