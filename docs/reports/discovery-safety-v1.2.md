@@ -446,4 +446,22 @@ Scope: only the logic v1.2 adds -- eight `safety_v12_*` entries in `scripts/muta
 
 ## 11. Verification
 
-VERIFICATION_PLACEHOLDER
+Run at `688671c` (CPython 3.13.18 in `.venv`; ruff 0.17.4). The commit that records this section
+changes documentation only.
+
+| check | result |
+|---|---|
+| `ruff check src tests scripts` | All checks passed |
+| `ruff format --check src tests scripts` | 641 files already formatted |
+| `mypy` (strict) | no issues in 318 source files |
+| `pytest tests/spec -q` | 245 passed |
+| focused: `tests/unit/test_discovery_safety*.py` + the v1.0/v1.1/v1.2 frozen-evidence e2e tests | 145 passed |
+| full default suite (`pytest -q`, no backend) | **2643 passed, 1203 skipped**, 0 failed |
+| full PostgreSQL suite on a FRESH `lib_disc` (dropped, recreated, `migrate.py` twice: 81 applied, then up to date) | **3842 passed, 4 skipped** (network and Windows only), 0 failed -- run twice: before and after regenerating the status inventory, each on a freshly recreated database |
+| `update_status.py` | regenerated (`688671c`); `--check` and `--check --requirements-only`: up to date |
+| `check_requirement_coverage.py` | passed (milestones DONE: M0a, M0b, M1, M2, M3) |
+| `discovery_safety_v12_eval.py --check` | evidence is current (CPython 3.13, `PYTHONHASHSEED=12345`); CPython 3.12.3: INTERPRETER MISMATCH until recorded, then reproduced and recorded |
+| v1.0 and v1.1 frozen-evidence tests | pass (their files untouched) |
+| mutation battery, `safety_v12_*` | 8/8 killed |
+| `check_commit_messages.py` | no AI authorship found |
+| `S35-` identifiers in `src/` or `tests/` | none |
