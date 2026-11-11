@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix J: Matched-budget A/B/C comparison protocol
 
-Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** Nothing in this protocol
+Version: `3.5.0-master-candidate.5`. Status: **CANDIDATE — NOT ACTIVE.** Nothing in this protocol
 has been run. Values marked *proposed* are recommendations for Owner decision OD-03, not frozen.
 Authority: normative. Refines S35-CMP-001–009 of [SAI 3.5](../SAI_3.5.md). Supersedes the
 `3.5.0-discovery-candidate.1` version of this file (kept in git history).

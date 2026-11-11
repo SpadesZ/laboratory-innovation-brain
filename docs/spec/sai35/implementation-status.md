@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix L: Implementation status
 
-Version: `3.5.0-master-candidate.4` · Inspected: 2026-11-04, candidate.3 (candidate.1: 2026-11-02).
+Version: `3.5.0-master-candidate.5` · Inspected: 2026-11-04, candidate.3 (candidate.1: 2026-11-02).
 Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`. G0 is NOT PASSED.
 Authority: informative. The status column is checked against the
 [registry](normative-statements.yaml); evidence paths are checked to exist at their commits when

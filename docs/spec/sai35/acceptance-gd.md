@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix I: G0–G9 and the independent G-D acceptance framework
 
-Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** No G-D level has been
+Version: `3.5.0-master-candidate.5`. Status: **CANDIDATE — NOT ACTIVE.** No G-D level has been
 evaluated. `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Refines S35-GD-001, S35-GD-002 and S35-GD-003 of [SAI 3.5](../SAI_3.5.md).
 Supersedes the `3.5.0-discovery-candidate.1` version of this file (kept in git history).

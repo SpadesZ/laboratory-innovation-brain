@@ -4,7 +4,7 @@
 # and ACTIVE_SPEC.yaml are unchanged. planned_tests are obligations, never executed-test evidence;
 # every statement has tests: []. Evidence is "<commit>:<path>" or a path on this branch.
 schema_version: 2
-spec_version: 3.5.0-master-candidate.4
+spec_version: 3.5.0-master-candidate.5
 status: CANDIDATE
 activation_status: NOT_ACTIVE
 integrated: false
@@ -613,12 +613,17 @@ evaluation_outcomes:
 - WRONG_CLAIM
 - VALIDATED_NEW_MECHANISM
 - PROPOSAL_ONLY
+- UNSUPPORTED_CLAIM
 evidence_levels:
 - PROPOSAL
 - SUPPORTED
 - CONFIRMED
 credit_requires_evidence_level: SUPPORTED
 evidence_level_source: evaluator_rederived_from_trace
+support_inputs_source: evaluator_computed_before_registration
+assertion_source: evaluator_rederived_from_trace
+unsupported_assertion_outcome: UNSUPPORTED_CLAIM
+unsupported_claims_are_errors: true
 epistemic_stage_scope:
 - ExploratoryIdea
 - Hypothesis
@@ -3152,27 +3157,36 @@ normative_statements:
   text: 'Five metrics are reported for every arm, each with definition, unit, n and interval: (1) true-cause discovery, reported
     on two axes that are never merged: the evidential level of the final answer, re-derived by the evaluator from the arm''s
     trace and never taken from the arm''s own label (a proposal; SUPPORTED, a claim that passed a test whose prediction was
-    recorded before its data and that the evaluator re-scores under the pre-declared rule; CONFIRMED, stage 3 through the Causal
-    Warrant Gate), and, for evidence-supported claims only, the outcome rates at the primary checkpoint: exact identification
+    recorded before its data and that the evaluator re-scores under the pre-declared rule, with every quantity that decides
+    the pass or the riskiness (the noise model, the predictive uncertainty, the alternatives and the thresholds) computed by
+    the evaluator from the data admitted before the registration, never supplied by the arm; CONFIRMED, stage 3 through the
+    Causal Warrant Gate), and, for evidence-supported claims only, the outcome rates at the primary checkpoint: exact identification
     (the true mechanism''s identity), experimentally indistinguishable alternative (another identity certified INDISTINGUISHABLE
     from it under the case''s full experiment set), unresolved alternative (never credited), correct abstention (no claim where
     no held mechanism was acceptable), false null, force-fit, other wrong claims, and independently validated new-mechanism
     discovery (a mechanism outside the catalog at case start that matches the truth and passed a prospectively registered test
     the arm did not control), while every answer below SUPPORTED, in or out of the catalog and whether or not it happens to
-    match the truth, is counted only as a proposal, never as an identification, a discovery or a false discovery, and how many
-    proposals matched the truth is reported beside them but never credited; (2) effective mechanism diversity, the certified
-    lower and upper bounds of S35-MECH-001 under the case''s experiment set, never raw hypothesis counts or transitive class
-    counts; (3) discriminating-experiment efficiency, experiments and realized cost until no held mechanism certified distinguishable
-    from the true one survives, censored at the budget; (4) false discoveries, the false-discovery rate at SUPPORTED or higher
-    plus a weighted score in which confident wrong claims weigh more; (5) independent reproducibility, the share of a pre-registered
-    subset that the evaluator reproduces in a fresh environment from the frozen manifest, where any manifest drift makes the
-    re-run invalid. Exactly one primary metric is pre-registered, and no outcome category is folded into another to form it.'
+    match the truth, is never an identification or a discovery: if the arm only proposed it (labelled it a proposal and no record
+    acted on it) it is counted only as a proposal, never as an identification, a discovery or a false discovery, and if the
+    arm asserted it, endorsed it or acted on it (a promoted belief, a reported cause, a premise of a later step; a missing stance
+    counts as asserted and a label never outweighs an action) it is an unsupported claim, counted as an error whether or not
+    it matches the truth; how many proposals and unsupported claims matched the truth is reported beside them but never credited,
+    and every report gives each arm''s asserted, supported, unsupported and proposed answers; (2) effective mechanism diversity,
+    the certified lower and upper bounds of S35-MECH-001 under the case''s experiment set, never raw hypothesis counts or transitive
+    class counts; (3) discriminating-experiment efficiency, experiments and realized cost until no held mechanism certified
+    distinguishable from the true one survives, censored at the budget; (4) false discoveries, the false-discovery rate at SUPPORTED
+    or higher and, beside it and never folded into it, the unsupported-claim rate, plus a weighted score in which confident
+    wrong claims weigh more; (5) independent reproducibility, the share of a pre-registered subset that the evaluator reproduces
+    in a fresh environment from the frozen manifest, where any manifest drift makes the re-run invalid. Exactly one primary
+    metric is pre-registered, and no outcome category is folded into another to form it.'
   acceptance_kind: deterministic
   acceptance: the scorer computes all five metrics from the frozen outputs; the outcome counterexamples S3-CE of mechanism-distinguishability.md
     §9 are classified as stated, including an indistinguishable alternative never counted as an exact identification, an unvalidated
     proposal never counted as a discovery, and an in-catalog answer that matches the truth but whose test was registered after
-    its data, failed, or is absent counted only as a proposal (S4-CE); recomputation from the bundle gives identical numbers;
-    a report missing a metric, its n or its interval is rejected.
+    its data, failed, or is absent counted only as a proposal when the arm only proposed it (S4-CE), while an asserted or acted-on
+    answer without verified support, or one whose test used uncertainty or alternatives the arm supplied, is an unsupported
+    claim and an error (S5-CE); recomputation from the bundle gives identical numbers; a report missing a metric, its n or its
+    interval is rejected.
   planned_tests:
   - T-S35-CMP-005
   tests: []

@@ -1,13 +1,25 @@
 # SAI 3.5 主規格候選報告
 
 日期：2026-11-04（candidate.2）；2026-11-02（candidate.1）
-版本：`3.5.0-master-candidate.4`
+版本：`3.5.0-master-candidate.5`
 分支：`claude/lib-implementation-agent-47evs0`（從 `sai-3.5-master-specification` @ `15586fc` 開始）
 起點：`sai-3.5-discovery-candidate` @ `38a1afe`（以 `integration-integrity-accounts` @ `a38ad63` 為基準）
 狀態：**候選。未啟用。未整合。** 不改 SAI 3.3、SAI 3.4，也不改 G0–G9。
 
 `READY_FOR_REAL_RESEARCH = false`。G0 未通過。沒有任何 G-D 等級被評估。
 這份報告只是摘要，沒有規範效力。規範在英文主規格。
+
+## 0c. candidate.5 修正了什麼（2026-11-11，稽核第三輪）
+
+- **沒有證據的主張不能再躲在「提案」裡。** candidate.4 把所有低於 SUPPORTED 的答案都當成 PROPOSAL_ONLY：不給分，也不算錯。
+  所以受測組可以直接宣稱或採用沒測過的結論，卻不會被算錯。
+- 現在評估者從紀錄重新判斷答案的「立場」：
+  - 只有受測組標成提案，而且沒有任何紀錄採用它（沒有提升信念、沒有報告成原因、沒有被後續步驟當前提），才是 PROPOSAL_ONLY。
+  - 宣稱、背書或採用了，但沒有證據：UNSUPPORTED_CLAIM，算錯誤，就算剛好猜對也一樣。
+  - 沒有記錄立場：當成宣稱。標籤永遠不能蓋過實際行動。
+- **SUPPORTED 的測試，判定用的數字都要由評估者算。** 雜訊模型、預測不確定度、替代假說、門檻都是。受測組自己給的不算數。
+- 每份報告都要列出每組的：宣稱數、有證據數、無證據主張數、提案數。
+- 反例 S5-CE；參考語意 16 個錯誤定義全被拒絕；S35-ISSUE-21。
 
 ## 0b. candidate.4 修正了什麼（2026-11-08）
 

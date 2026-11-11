@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix B: Architecture, components and responsibility boundaries
 
-Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.5`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative for component responsibilities, prohibitions and trust boundaries; refines
 [SAI 3.5](../SAI_3.5.md) §3 and builds on the unchanged SAI 3.4
 [architecture contract](../../architecture/sai34-autonomous-modeling.md). This is a target design;

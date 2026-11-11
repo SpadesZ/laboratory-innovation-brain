@@ -53,7 +53,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[3]
 REGISTRY = "docs/spec/sai35/normative-statements.yaml"
 BASE_REVISION = "a38ad63a4f4ad83c895cbd1e32b2e760d878f356"
-VERSION = "3.5.0-master-candidate.4"
+VERSION = "3.5.0-master-candidate.5"
 MASTER = "docs/spec/SAI_3.5.md"
 ACTIVE_SPEC = "docs/spec/ACTIVE_SPEC.yaml"
 WORKFLOW = ".github/workflows/ci.yml"
@@ -222,9 +222,10 @@ EVALUATION_OUTCOMES = [
     "WRONG_CLAIM",
     "VALIDATED_NEW_MECHANISM",
     "PROPOSAL_ONLY",
+    "UNSUPPORTED_CLAIM",
 ]
 EVIDENCE_LEVELS = ["PROPOSAL", "SUPPORTED", "CONFIRMED"]
-S4_COUNTEREXAMPLES = ["S4-CE"]
+S4_COUNTEREXAMPLES = ["S4-CE", "S5-CE"]
 GD_FRAMEWORK = {
     "separate_from_g0_g9": True,
     "g0_g9_completion_implies_discovery": False,
@@ -291,6 +292,11 @@ REQUIRED_PHRASES = {
         "every answer below SUPPORTED",
         "is counted only as a proposal, never as an identification, a discovery or a false "
         "discovery",
+        "it is an unsupported claim, counted as an error whether or not it matches the truth",
+        "a label never outweighs an action",
+        "computed by the evaluator from the data admitted before the registration, never supplied "
+        "by the arm",
+        "the unsupported-claim rate",
     ),
     "cmp.matching": (
         "actual realized consumption",
@@ -681,6 +687,12 @@ def check(state: dict) -> None:  # one linear list of document rules
     assert data["evidence_levels"] == EVIDENCE_LEVELS, "evidence levels changed"
     assert data["credit_requires_evidence_level"] == "SUPPORTED", "credit without evidence"
     assert data["evidence_level_source"] == "evaluator_rederived_from_trace", "self-declared"
+    assert data["support_inputs_source"] == "evaluator_computed_before_registration", (
+        "arm-supplied support inputs"
+    )
+    assert data["assertion_source"] == "evaluator_rederived_from_trace", "stance self-declared"
+    assert data["unsupported_assertion_outcome"] == "UNSUPPORTED_CLAIM", "assertions hidden"
+    assert data["unsupported_claims_are_errors"] is True, "unsupported claims not errors"
     for level in EVIDENCE_LEVELS:
         assert f"| `{level}` |" in texts[DISTINGUISH], f"evidence level {level} not tabled"
     for ce in S4_COUNTEREXAMPLES:
@@ -1052,6 +1064,26 @@ MUTATIONS: dict[str, Callable[[dict], None]] = {
     "self_declared_evidence": _set("evidence_level_source", value="arm_label"),
     "evidence_level_removed": lambda s: s["registry"]["evidence_levels"].remove("SUPPORTED"),
     "s4_ce_removed": _first_line(DISTINGUISH, "| S4-CE |", "| removed |"),
+    # candidate.5
+    "s5_ce_removed": _first_line(DISTINGUISH, "| S5-CE |", "| removed |"),
+    "unsupported_outcome_removed": lambda s: s["registry"]["evaluation_outcomes"].remove(
+        "UNSUPPORTED_CLAIM"
+    ),
+    "unsupported_row_removed": _replace(
+        DISTINGUISH, "| `UNSUPPORTED_CLAIM` |", "| UNSUPPORTED_CLAIM |"
+    ),
+    "arm_supplied_inputs": _set("support_inputs_source", value="arm_declared"),
+    "stance_self_declared": _set("assertion_source", value="arm_label"),
+    "assertions_hidden": _set("unsupported_assertion_outcome", value="PROPOSAL_ONLY"),
+    "unsupported_not_errors": _set("unsupported_claims_are_errors", value=False),
+    "unsupported_error_text": _both(
+        "it is an unsupported claim, counted as an error whether or not it matches the truth",
+        "it is an unsupported claim, counted only as a proposal",
+    ),
+    "label_over_action_text": _both(
+        "a label never outweighs an action", "a label outweighs an action"
+    ),
+    "arm_inputs_text": _both("never supplied by the arm", "or supplied by the arm"),
     "proposal_credit_text": _both("every answer below SUPPORTED", "every answer below PROPOSAL"),
     "arm_label_trusted_text": _both(
         "never taken from the arm's own label", "taken from the arm's own label"

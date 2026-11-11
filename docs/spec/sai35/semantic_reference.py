@@ -33,7 +33,7 @@ import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
-VERSION = "3.5.0-master-candidate.4"
+VERSION = "3.5.0-master-candidate.5"
 
 DISTINGUISHABLE = "DISTINGUISHABLE"
 INDISTINGUISHABLE = "INDISTINGUISHABLE"
@@ -163,8 +163,10 @@ OUTCOMES = (
     "INDISTINGUISHABLE_ALTERNATIVE",  # evidence-supported, another identity INDISTINGUISHABLE
     "UNRESOLVED_ALTERNATIVE",  # evidence-supported, another identity UNRESOLVED: never credited
     "VALIDATED_NEW_MECHANISM",  # evidence-supported, outside the catalog, matches truth
-    "PROPOSAL_ONLY",  # a claim without verified evidential support: never credited, whatever it
-    #                   says and whether or not it happens to match the truth
+    "PROPOSAL_ONLY",  # an answer the arm only proposed (labelled a proposal, nothing acted on it)
+    #                   and without verified support: never credited, never an error
+    "UNSUPPORTED_CLAIM",  # an answer the arm asserted, endorsed or acted on without verified
+    #                       support: an error, whether or not it happens to match the truth
     "CORRECT_ABSTENTION",  # no evidence-supported claim, and no held mechanism was acceptable
     "FALSE_NULL",  # no evidence-supported claim, although a held mechanism matched truth
     "FORCE_FIT",  # evidence-supported claim of a held mechanism DISTINGUISHABLE from the truth,
@@ -183,18 +185,62 @@ class EvidenceRecord:
     level from these facts. `registered_before_data`: a prediction for the claim, hashed and
     recorded before the data of the test it names was requested. `rescored_pass`: the evaluator
     re-scores that test under the pre-declared rule and the claim passes. `cwg_decision`: a
-    re-derivable Causal Warrant Gate decision with a qualifying signed review (stage 3)."""
+    re-derivable Causal Warrant Gate decision with a qualifying signed review (stage 3).
+
+    `arm_supplied_inputs` (candidate.5): some quantity that decides the pass or the riskiness of
+    that test -- the noise model, the predictive uncertainty, the alternatives a risky prediction
+    must be separated from, or the thresholds -- was supplied by the arm instead of computed by the
+    evaluator from the data admitted before the registration. Such a test supports nothing."""
 
     registered_before_data: bool = False
     rescored_pass: bool = False
     cwg_decision: bool = False
+    arm_supplied_inputs: bool = False
 
 
 def verified_evidence(record: EvidenceRecord | None) -> str:
     """PROPOSAL, SUPPORTED or CONFIRMED, re-derived (S35-CMP-005, S35-HYP-003)."""
     if record is None or not (record.registered_before_data and record.rescored_pass):
         return "PROPOSAL"
+    if record.arm_supplied_inputs:
+        return "PROPOSAL"
     return "CONFIRMED" if record.cwg_decision else "SUPPORTED"
+
+
+@dataclass(frozen=True)
+class AnswerStance:
+    """How the arm's trace treats its final answer (candidate.5), re-derived by the evaluator.
+
+    `labelled_proposal`: the arm presented the answer as a proposal, not as its conclusion.
+    `acted_on`: any record treats the answer as established -- a belief promoted on it, a report
+    or decision stating it as the identified cause, a later step taking it as a premise. A label
+    never outweighs an action, and a missing stance counts as asserted (fail closed)."""
+
+    labelled_proposal: bool = False
+    acted_on: bool = False
+
+
+def assertion_status(stance: AnswerStance | None) -> str:
+    """ASSERTED or PROPOSED (S35-CMP-005, candidate.5)."""
+    if stance is not None and stance.labelled_proposal and not stance.acted_on:
+        return "PROPOSED"
+    return "ASSERTED"
+
+
+ERROR_OUTCOMES = ("FORCE_FIT", "WRONG_CLAIM", "UNSUPPORTED_CLAIM")
+
+
+def outcome_report(outcomes: Iterable[str]) -> dict[str, int]:
+    """The counts every report carries (candidate.5): each outcome, zeros included, plus the
+    asserted answers, the supported answers and the errors -- the unsupported claims among them,
+    so a lower error count bought with proposals or abstentions stays visible."""
+    items = list(outcomes)
+    counts = {o: items.count(o) for o in OUTCOMES}
+    unanswered = ("PROPOSAL_ONLY", "CORRECT_ABSTENTION", "FALSE_NULL")
+    counts["asserted"] = sum(1 for o in items if o not in unanswered)
+    counts["supported"] = counts["asserted"] - counts["UNSUPPORTED_CLAIM"]
+    counts["errors"] = sum(counts[o] for o in ERROR_OUTCOMES)
+    return counts
 
 
 def classify_outcome(
@@ -205,15 +251,17 @@ def classify_outcome(
     threshold: float,
     *,
     evidence: EvidenceRecord | None = None,
+    stance: AnswerStance | None = None,
 ) -> tuple[str, str]:
     """One case's scientific-evaluation outcome and its verified evidential level (Appendix S §6).
 
     Two axes, never merged: what the final answer says relative to the truth, and whether the
     answer is an evidence-supported claim or only a proposal. Only an evidence-supported claim
     (SUPPORTED or CONFIRMED, re-derived by the evaluator) can earn identification or discovery
-    credit; anything else is PROPOSAL_ONLY, however right it is. `catalog` is the arm's held set at
-    case start; `truth` is None in a case where no mechanism can be validated with the available
-    means.
+    credit. Below SUPPORTED, an answer the arm only proposed is PROPOSAL_ONLY and an answer it
+    asserted or acted on is UNSUPPORTED_CLAIM, an error however right it is (candidate.5).
+    `catalog` is the arm's held set at case start; `truth` is None in a case where no mechanism can
+    be validated with the available means.
     """
     held = {m.identity for m in catalog}
     level = verified_evidence(evidence)
@@ -225,7 +273,9 @@ def classify_outcome(
         outcome = "FALSE_NULL" if any(matches(m) for m in catalog) else "CORRECT_ABSTENTION"
         return outcome, "NONE"
     if level == "PROPOSAL":
-        return "PROPOSAL_ONLY", level
+        if assertion_status(stance) == "PROPOSED":
+            return "PROPOSAL_ONLY", level
+        return "UNSUPPORTED_CLAIM", level
     if truth is None:
         return "WRONG_CLAIM", level
     if claimed.identity not in held:
@@ -620,30 +670,70 @@ def check(
     assert outcome(None, None, [c], E1, TAU) == "CORRECT_ABSTENTION"
     assert outcome(b, None, [b], E1, TAU) == "WRONG_CLAIM"
     proposal = _m("proposed", 0.1, model="fm:proposed")
-    assert outcome(proposal, outside, [c], E1, TAU, evidence=None) == "PROPOSAL_ONLY"
+    hedged = AnswerStance(labelled_proposal=True)
+    assert outcome(proposal, outside, [c], E1, TAU, evidence=None, stance=hedged) == (
+        "PROPOSAL_ONLY"
+    )
     assert outcome(proposal, outside, [c], E1, TAU) == "VALIDATED_NEW_MECHANISM"
     assert outcome(_m("p2", 5.0), outside, [c], E1, TAU) == "WRONG_CLAIM"
 
     # S4-CE (candidate.4): exploratory proposals versus evidence-supported claims. The evaluator
     # re-derives the evidential level from the trace; the arm's own label is never trusted.
     right_guess = _m("guess", 0.0, model="fm:truth")
-    assert classify(right_guess, truth, catalog, E1, TAU, evidence=None) == (
+    assert classify(right_guess, truth, catalog, E1, TAU, evidence=None, stance=hedged) == (
         "PROPOSAL_ONLY", "PROPOSAL"
     )  # fmt: skip
     assert proposal_hit(right_guess, truth, E1, TAU), "reported, never credited"
     late = EvidenceRecord(registered_before_data=False, rescored_pass=True)  # registered after
-    assert classify(right_guess, truth, catalog, E1, TAU, evidence=late)[0] == "PROPOSAL_ONLY"
+    assert (
+        classify(right_guess, truth, catalog, E1, TAU, evidence=late, stance=hedged)[0]
+        == "PROPOSAL_ONLY"
+    )
     failed = EvidenceRecord(registered_before_data=True, rescored_pass=False)
-    assert classify(right_guess, truth, catalog, E1, TAU, evidence=failed)[0] == "PROPOSAL_ONLY"
+    assert (
+        classify(right_guess, truth, catalog, E1, TAU, evidence=failed, stance=hedged)[0]
+        == "PROPOSAL_ONLY"
+    )
     assert classify(right_guess, truth, catalog, E1, TAU, evidence=ok) == (
         "EXACT_IDENTIFICATION", "SUPPORTED"
     )  # fmt: skip
     confirmed = EvidenceRecord(True, True, cwg_decision=True)
     assert classify(right_guess, truth, catalog, E1, TAU, evidence=confirmed)[1] == "CONFIRMED"
     # A wrong or force-fitted proposal is not a false discovery; it is still only a proposal.
-    assert classify(c, outside, [c], E1, TAU, evidence=None)[0] == "PROPOSAL_ONLY"
-    assert classify(b, None, [b], E1, TAU, evidence=None)[0] == "PROPOSAL_ONLY"
+    assert classify(c, outside, [c], E1, TAU, evidence=None, stance=hedged)[0] == "PROPOSAL_ONLY"
+    assert classify(b, None, [b], E1, TAU, evidence=None, stance=hedged)[0] == "PROPOSAL_ONLY"
     assert not proposal_hit(c, outside, E1, TAU)
+
+    # S5-CE (candidate.5): an unsupported answer cannot hide as a proposal, and a test whose
+    # deciding quantities the arm supplied supports nothing.
+    asserted = AnswerStance()
+    assert classify(right_guess, truth, catalog, E1, TAU, evidence=None, stance=asserted) == (
+        "UNSUPPORTED_CLAIM", "PROPOSAL"
+    )  # fmt: skip
+    assert classify(right_guess, truth, catalog, E1, TAU, evidence=None)[0] == (
+        "UNSUPPORTED_CLAIM"
+    ), "no stance recorded: asserted"
+    promoted = AnswerStance(labelled_proposal=True, acted_on=True)
+    assert classify(c, outside, [c], E1, TAU, evidence=None, stance=promoted)[0] == (
+        "UNSUPPORTED_CLAIM"
+    ), "a 'proposal' label never outweighs a promotion"
+    assert classify(c, outside, [c], E1, TAU, evidence=late)[0] == "UNSUPPORTED_CLAIM"
+    arm_sd = EvidenceRecord(True, True, arm_supplied_inputs=True)
+    assert classify(right_guess, truth, catalog, E1, TAU, evidence=arm_sd) == (
+        "UNSUPPORTED_CLAIM", "PROPOSAL"
+    ), "self-declared uncertainty or alternatives support nothing"  # fmt: skip
+    assert classify(right_guess, truth, catalog, E1, TAU, evidence=arm_sd, stance=hedged)[0] == (
+        "PROPOSAL_ONLY"
+    )
+    run = [
+        classify(c, outside, [c], E1, TAU, evidence=None)[0],  # asserted force-fit, untested
+        classify(right_guess, truth, catalog, E1, TAU, evidence=ok)[0],
+        classify(proposal, outside, [c], E1, TAU, evidence=None, stance=hedged)[0],
+        classify(None, outside, [c], E1, TAU)[0],
+    ]
+    report = outcome_report(run)
+    assert report["UNSUPPORTED_CLAIM"] == 1 and report["errors"] == 1, report
+    assert (report["asserted"], report["supported"], report["PROPOSAL_ONLY"]) == (2, 1, 1), report
 
     # S2 — matched realized cost.
     proto = FrozenProtocol(checkpoints=(25.0, 50.0, 100.0), primary=50.0, tolerance=0.0)
@@ -825,6 +915,31 @@ def _wrong_classify_self_declared(claimed, truth, catalog, e, threshold, **kw): 
     return classify_outcome(claimed, truth, catalog, e, threshold, **kw)
 
 
+def _wrong_classify_hidden_promotion(claimed, truth, catalog, e, threshold, **kw):  # type: ignore[no-untyped-def]
+    """WRONG (the candidate.4 defect): an asserted answer without support scored as a neutral
+    proposal, so untested conclusions never count as errors."""
+    out, level = classify_outcome(claimed, truth, catalog, e, threshold, **kw)
+    return ("PROPOSAL_ONLY" if out == "UNSUPPORTED_CLAIM" else out), level
+
+
+def _wrong_classify_label_trusted(claimed, truth, catalog, e, threshold, **kw):  # type: ignore[no-untyped-def]
+    """WRONG: the arm's 'proposal' label trusted although a record acted on the answer."""
+    st = kw.get("stance")
+    if st is not None and st.labelled_proposal:
+        kw["stance"] = AnswerStance(labelled_proposal=True)
+    return classify_outcome(claimed, truth, catalog, e, threshold, **kw)
+
+
+def _wrong_classify_arm_inputs(claimed, truth, catalog, e, threshold, **kw):  # type: ignore[no-untyped-def]
+    """WRONG: a test re-scored with the arm's own uncertainty or alternatives trusted."""
+    ev = kw.get("evidence")
+    if ev is not None and ev.arm_supplied_inputs:
+        kw["evidence"] = EvidenceRecord(
+            ev.registered_before_data, ev.rescored_pass, ev.cwg_decision
+        )
+    return classify_outcome(claimed, truth, catalog, e, threshold, **kw)
+
+
 def _wrong_greedy_dedup(held, e, threshold):  # type: ignore[no-untyped-def]
     """WRONG: an 'anti-inflation' heuristic that drops any mechanism indistinguishable from one
     kept earlier, then counts the rest. It is not the defined quantity (S1-CE-11 gives 2, not 3)."""
@@ -882,6 +997,11 @@ WRONG_VARIANTS: dict[str, dict[str, Callable[..., object]]] = {
     "unvalidated proposal counted as discovery": {"classify": _wrong_classify_proposal},
     "unsupported in-catalog answer credited": {"classify": _wrong_classify_unsupported_credit},
     "late registration trusted as support": {"classify": _wrong_classify_self_declared},
+    "asserted unsupported answer scored as a proposal": {
+        "classify": _wrong_classify_hidden_promotion
+    },
+    "proposal label trusted over a promotion": {"classify": _wrong_classify_label_trusted},
+    "arm-supplied uncertainty or alternatives trusted": {"classify": _wrong_classify_arm_inputs},
     "checkpoints charged at reservation": {"score": _wrong_score_reservation},
     "no reservation-headroom or overrun check": {"score": _wrong_score_no_runtime_check},
 }

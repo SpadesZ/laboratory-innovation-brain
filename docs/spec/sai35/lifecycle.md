@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix A: End-to-end research lifecycle
 
-Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.5`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative. Refines S35-LIFE-001, S35-LIFE-002 and S35-LIFE-003 of [SAI 3.5](../SAI_3.5.md)
 and places every other requirement in the stage where it applies. Nothing here exists in the
 product yet; see [implementation status](implementation-status.md).

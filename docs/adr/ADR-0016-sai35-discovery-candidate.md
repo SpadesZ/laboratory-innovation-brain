@@ -6,7 +6,7 @@ Affected Requirements: D-001–D-046 (SAI 3.5 candidate namespace); none of the 
 Human Approval Required: Yes — Owner decision OD-01 on the candidate; activation would need a separate decision
 Spec revision: SAI `3.5.0-discovery-candidate.1`; active profile unchanged (SAI 3.4 `3.4.0-phased.1` with the SAI 3.3 executable profile)
 
-Supersession note (2026-11-02; the master candidate is now `3.5.0-master-candidate.4`): the master specification candidate `3.5.0-master-candidate.1`
+Supersession note (2026-11-02; the master candidate is now `3.5.0-master-candidate.5`): the master specification candidate `3.5.0-master-candidate.1`
 ([SAI_3.5.md](../spec/SAI_3.5.md)) replaces the discovery candidate this ADR proposed and retires
 D-001–D-046 ([change register](../spec/sai35/change-register.md)). The OD-10 handling below is
 superseded by proposal A' as recorded in ADR-0017. The text below is kept as the record of

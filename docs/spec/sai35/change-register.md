@@ -1,6 +1,6 @@
 # SAI 3.5 — Change register (D-NNN → S35 identifiers)
 
-Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.5`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: informative record, enforced by the [candidate checker](check_candidate.py): every
 retired `D-NNN` appears here, every new identifier it names is registered, and the counts below are
 recomputed from this table and the [registry](normative-statements.yaml).
@@ -151,6 +151,7 @@ obligation.
 | `3.5.0-master-candidate.1` | `3.5.0-master-candidate.2` | semantic revision of the master candidate (§6) |
 | `3.5.0-master-candidate.2` | `3.5.0-master-candidate.3` | correction of three audit findings (§7) |
 | `3.5.0-master-candidate.3` | `3.5.0-master-candidate.4` | evidence-based scoring (§8) |
+| `3.5.0-master-candidate.4` | `3.5.0-master-candidate.5` | unsupported assertions are errors; evaluator-computed support inputs (§9) |
 | `MechanismClassPartition` (record) | `DistinguishabilityGraph`, `AdequacyAssessment` | [Appendix S](mechanism-distinguishability.md) §7, [Appendix C](records-and-states.md) §2 |
 
 ## 6. Candidate.2 revisions (`3.5.0-master-candidate.1` → `3.5.0-master-candidate.2`)
@@ -200,3 +201,11 @@ No identifier was added, removed or renumbered.
 |---|---|---|---|
 | exploratory proposals scored as evidence-supported claims | S35-CMP-005, Appendix S §6 and §9, Appendix J §2 and §5, Appendix I §5 | two scoring axes: evidential level re-derived by the evaluator from the trace (PROPOSAL, SUPPORTED, CONFIRMED, mapped onto the S35-HYP-003 claim states) and, for SUPPORTED or CONFIRMED answers only, the outcome category; every lower answer is `PROPOSAL_ONLY` (replaces `NEW_MECHANISM_PROPOSAL_ONLY` and now covers in-catalog answers too); matching proposals are counted beside, never credited, never false discoveries; the answer schema carries prediction hashes and record times; S4-CE; semantic reference rejects 13 wrong variants | no: credit can only narrow; a false discovery still needs SUPPORTED or higher, as S35-CMP-005 metric 4 already said |
 
+## 9. Candidate.5 revision (`3.5.0-master-candidate.4` → `3.5.0-master-candidate.5`)
+
+No identifier was added, removed or renumbered.
+
+| Finding | Statement or appendix | Change | Weakens? |
+|---|---|---|---|
+| unsupported scientific promotions hidden by proposal-only scoring | S35-CMP-005 (metrics 1 and 4), Appendix S §6 and §9 | the stance of the final answer is re-derived from the trace: only an answer the arm labelled a proposal and nothing acted on is `PROPOSAL_ONLY`; an asserted, endorsed or acted-on answer below SUPPORTED is `UNSUPPORTED_CLAIM`, an error whether or not it matches the truth; a missing stance counts as asserted; the unsupported-claim rate is reported beside the supported false-discovery rate; every report gives asserted, supported, unsupported and proposed answers per arm (`outcome_report()`); S5-CE | no: it only adds errors; no credit changes |
+| support accepted on self-declared uncertainty and alternatives (Discovery v1.2 ledger) | S35-CMP-005 metric 1, Appendix S §6 | SUPPORTED needs every quantity deciding the pass or riskiness (noise model, predictive uncertainty, alternatives, thresholds) computed by the evaluator from the data admitted before the registration; a test using arm-supplied inputs supports nothing; S5-CE; semantic reference rejects 16 wrong variants | no: SUPPORTED can only narrow |

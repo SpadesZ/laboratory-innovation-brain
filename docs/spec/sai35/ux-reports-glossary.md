@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix F: Researcher experience, reports and bilingual glossary
 
-Version: `3.5.0-master-candidate.4`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
+Version: `3.5.0-master-candidate.5`. Status: **CANDIDATE — NOT ACTIVE.** `READY_FOR_REAL_RESEARCH = false`.
 Authority: normative for report content (§2), workspace content (§1) and terms (§3). Refines
 S35-RPT-001–004 of [SAI 3.5](../SAI_3.5.md). Inherited: SAI 3.4 ASM-016 (bilingual scientific
 content, canonical records never overwritten), SAI 3.3 UX-001–007 (MessageCatalog, error classes,

@@ -1,6 +1,6 @@
 # SAI 3.5 — Appendix O: Owner decisions, risks and self-review
 
-Version: `3.5.0-master-candidate.4`.
+Version: `3.5.0-master-candidate.5`.
 Status: **CANDIDATE — NOT ACTIVE.** Every decision below is **OPEN**. Writing them down decides
 nothing. `READY_FOR_REAL_RESEARCH = false`.
 Authority: informative. Supersedes the `3.5.0-discovery-candidate.1` version of this file (kept in
