@@ -1,0 +1,21 @@
+# full PostgreSQL suite, fresh lib_g0 (dropdb/createdb, migrate.py twice: 85 applied, second run up to date), at 5965984
+# LAB_BRAIN_TEST_POSTGRES=1 pytest -q
+3632 passed, 4 skipped in 1061.06s (0:17:41)
+exit 0
+
+# default suite (pytest -q), at 5965984
+2348 passed, 1288 skipped in 62.36s (0:01:02)
+exit 0
+
+# repeat full PostgreSQL suite after the mutation battery (same database), at 5965984
+3632 passed, 4 skipped in 1052.09s (0:17:32)
+exit 0
+
+# first full PostgreSQL run at edea068's parent 7b076da+583578e (before 364e0cf): 6 failed
+FAILED tests/e2e/test_episode_cognition_path_postgres.py::test_a_forged_decision_written_by_raw_sql_never_reaches_the_projection
+FAILED tests/e2e/test_g0_forged_authorization_read_path_postgres.py::test_every_product_reader_that_decides_is_given_the_verifier
+FAILED tests/e2e/test_sim_fidelity_vertical_postgres.py::test_a_coarse_contradiction_moves_the_projection_to_challenged
+FAILED tests/e2e/test_sim_fidelity_vertical_postgres.py::test_a_coarse_result_challenges_and_still_cannot_reject_afterwards
+FAILED tests/e2e/test_sim_fidelity_vertical_postgres.py::test_a_standard_or_validation_contradiction_reaches_contradicted_durably[SIM_STANDARD]
+FAILED tests/e2e/test_sim_fidelity_vertical_postgres.py::test_a_standard_or_validation_contradiction_reaches_contradicted_durably[SIM_VALIDATION]
+6 failed, 3626 passed, 4 skipped in 2268.59s (0:37:48)

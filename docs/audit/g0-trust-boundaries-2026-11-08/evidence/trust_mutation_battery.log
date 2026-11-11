@@ -1,0 +1,68 @@
+16 mutations
+
+[KILLED ] trust_services_role_keeps_insert_on_declarations
+           G0 R-2 -- db-roles revokes INSERT/UPDATE/DELETE/TRUNCATE on diagnostic_declaration_sets
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r2_the_guard_refuses_the_services_role_w
+
+[KILLED ] trust_declaration_guard_admits_every_role
+           G0 R-2 -- 011y: only a member of the table's owner registers a declaration set
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r2_the_guard_refuses_the_services_role_w
+
+[KILLED ] trust_declaration_guard_only_warns
+           G0 R-2 -- 011y: a non-owner's set is refused, not merely reported
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r2_the_guard_refuses_the_services_role_w
+
+[KILLED ] trust_declaration_guard_fires_on_update
+           G0 R-2 -- 011y: the guard fires on INSERT
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r2_the_guard_refuses_the_services_role_w
+
+[KILLED ] trust_declarations_registered_as_any_role
+           G0 R-2 -- ensure() refuses a missing set under a non-owner role before writing
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r2_the_product_registers_its_sets_as_the
+
+[KILLED ] trust_every_role_may_register_declarations
+           G0 R-2 -- SqlDeclarationSetStore.may_register asks for the table's owner
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r2_the_product_registers_its_sets_as_the
+
+[KILLED ] trust_projection_takes_undeclared_policies
+           G0 R-3 -- a transition re-derives only under a declared policy
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r3_the_projection_refuses_a_transition_u
+
+[KILLED ] trust_genesis_takes_undeclared_policies
+           G0 R-3 -- a genesis event only under a declared admission policy
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r3_a_registered_row_that_is_not_the_code
+
+[KILLED ] trust_declared_name_suffices
+           G0 R-3 -- the registered row must equal the code's declaration
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r3_a_registered_row_that_is_not_the_code
+
+[KILLED ] trust_episode_drops_declared_policies
+           G0 R-3 -- BeliefEpisode.project passes its declared policies on
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r3_the_projection_refuses_a_transition_u
+
+[KILLED ] trust_service_reads_every_policy
+           G0 R-3 -- the research service's belief episode is given the declared policies
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r3_the_projection_refuses_a_transition_u
+
+[KILLED ] trust_recheck_reads_every_policy
+           G0 R-3 -- the confirmation re-check is given the declared policies
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r3_the_projection_refuses_a_transition_u
+
+[KILLED ] trust_projection_skips_the_snapshot_check
+           G0 R-1 -- BeliefEpisode.project re-checks the snapshot against the database
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r1_a_snapshot_support_that_is_not_stored
+
+[KILLED ] trust_snapshot_takes_a_phantom_relation
+           G0 R-1 -- every counted relation is the stored relation
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r1_a_snapshot_support_that_is_not_stored
+
+[KILLED ] trust_snapshot_takes_a_claimed_condition_match
+           G0 R-1 -- every counted condition match is the stored match
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r1_a_snapshot_condition_match_that_is_no
+
+[KILLED ] trust_snapshot_takes_claimed_authority_classes
+           G0 R-1 -- the authority classes are those the stored attestations give
+           killed by FAILED tests/e2e/test_g0_trust_boundaries_postgres.py::test_r1_a_snapshot_authority_class_no_attesta
+
+16/16 killed
+exit 0
