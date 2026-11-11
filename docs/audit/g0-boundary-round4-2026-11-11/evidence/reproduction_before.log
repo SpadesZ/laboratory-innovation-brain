@@ -1,0 +1,52 @@
+# Reproduction on baseline e2872de (tests only, no source change), real services' role (grant_database_roles), --runxfail
+# 2026-11-11T12:54:09Z  LAB_BRAIN_TEST_POSTGRES=1 pytest -q -s --runxfail tests/e2e/test_g0_boundary_round4_postgres.py tests/unit/test_g0_r15_history_display.py
+T-2a omitted cfl:r4-98cb471e2d: write refused=None
+T-2a projection of hyp:2fbadcb1-5aca-43df-83f9-12a83abe8c2c -> SUPPORTED
+FT-2b independent_count=50 claimed: write refused=None
+T-2b projection of hyp:1b08c2bb-774f-45ce-a05e-2d5da330570c -> SUPPORTED
+FT-2c promotion dated 2026-12-11T12:54:17.595503+00:00: write refused=None
+T-2c stored history [('bre:276e4f14-7b12-4482-8e49-4c2a098199a7', 'ACTIVE', '2026-11-11T12:54:17.139953+00:00'), ('bre:sa-392d94b62f724d23844c7b960dc860e5', 'CHALLENGED', '2026-11-11T12:54:17.658108+00:00'), ('bre:sa-7d32d85a7295442fb41c694d97195bfc', 'SUPPORTED', '2026-12-11T12:54:17.595503+00:00')]
+T-2c projection of hyp:06b0e91e-f002-4564-907b-70be721d1e28 -> SUPPORTED
+FT-2 raw rows: write refused=None; projection -> SUPPORTED
+FT-2d forged event bre:r4-forged-dffd9849 written by the services' role: product projection -> REFUSED:NOT_REDERIVABLE
+T-2d the owner deleting the event: RaiseException('belief_revision_events is append-only (EPI-003): cannot delete bre:r4-forged-dffd9849. A correction is a NEW event, never an edit to an old one -- otherwise nobody can tell later which beliefs were derived and which were asserted\nCONTEXT:  PL/pgSQL function belief_revision_events_are_append_only() line 3 at RAISE')
+FT-3 set: ensure() with g0.r4.legacy@1 present -> WarrantStoreError('the database registers declaration set version(s) g0.r4.legacy@1, which this code does not declare; the confirmation rule would read declarations nobody reviewed as code')
+T-3 set: the owner deleting it -> RaiseException('diagnostic_declaration_sets is append-only: a changed declaration is a new version\nCONTEXT:  PL/pgSQL function diagnostic_declaration_sets_are_append_only() line 3 at RAISE')
+FT-3 policy policy:g0-tb-legacy-fb44caa3d2: product projection -> REFUSED:UNDECLARED_POLICY
+FR-4: services' role declares a queue for prj:test as act:test: refused=None
+R-4: active queue before=[] after=[('rqp:g0-r4', '1', 1, 'act:test')]
+E       AssertionError: EpisodeResult(decision=TransitionDecision(outcome=<TransitionOutcome.ALLOW: 'ALLOW'>, reason_code=<TransitionReason.PO...a1cdb7e2'), conflict=None, review=None, escalation_was_existing=False, warrant_reviews=(), warrant_review_refusal=None)
+E       assert None is not None
+E       AssertionError: EpisodeResult(decision=TransitionDecision(outcome=<TransitionOutcome.ALLOW: 'ALLOW'>, reason_code=<TransitionReason.PO...f501bb9e'), conflict=None, review=None, escalation_was_existing=False, warrant_reviews=(), warrant_review_refusal=None)
+E       assert None is not None
+E       AssertionError: EpisodeResult(decision=TransitionDecision(outcome=<TransitionOutcome.ALLOW: 'ALLOW'>, reason_code=<TransitionReason.PO...ca8ae07d'), conflict=None, review=None, escalation_was_existing=False, warrant_reviews=(), warrant_review_refusal=None)
+E       assert None is not None
+E       AssertionError: (EpisodeResult(decision=TransitionDecision(outcome=<TransitionOutcome.ALLOW: 'ALLOW'>, reason_code=<TransitionReason.P...d'), conflict=None, review=None, escalation_was_existing=False, warrant_reviews=(), warrant_review_refusal=None), None)
+E       assert (None is not None)
+E               argparse.ArgumentError: argument admin_command: invalid choice: 'quarantine' (choose from 'actor', 'project', 'member', 'llm-admin', 'review-queue', 'flag-analysis', 'db-roles', 'bootstrap-admin', 'account-audit', 'declare-capabilities', 'register-policies', 'show')
+E       SystemExit: 2
+E               argparse.ArgumentError: argument admin_command: invalid choice: 'quarantine' (choose from 'actor', 'project', 'member', 'llm-admin', 'review-queue', 'flag-analysis', 'db-roles', 'bootstrap-admin', 'account-audit', 'declare-capabilities', 'register-policies', 'show')
+E       SystemExit: 2
+E               argparse.ArgumentError: argument admin_command: invalid choice: 'quarantine' (choose from 'actor', 'project', 'member', 'llm-admin', 'review-queue', 'flag-analysis', 'db-roles', 'bootstrap-admin', 'account-audit', 'declare-capabilities', 'register-policies', 'show')
+E       SystemExit: 2
+E       AssertionError: None
+E       assert (None is not None)
+E       ImportError: cannot import name 'belief_moves' from 'lab_brain.research.service' (/home/user/wt/g0/src/lab_brain/research/service.py)
+E       ImportError: cannot import name 'belief_moves' from 'lab_brain.research.service' (/home/user/wt/g0/src/lab_brain/research/service.py)
+E       TypeError: Transition.__init__() got an unexpected keyword argument 'not_counted'
+FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_a_snapshot_that_omits_an_open_conflict_is_refused_when_written
+FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_an_independence_count_no_stored_line_supports_is_refused_when_written
+FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_a_future_dated_transition_is_refused_when_written
+FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_raw_rows_written_by_the_services_role_are_refused
+FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_one_forged_row_stops_denying_the_history_after_the_owners_quarantine
+FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t3_a_declaration_set_from_before_011y_stops_blocking_after_the_owners_quarantine
+FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t3_a_policy_from_before_011x_stops_denying_a_history_after_the_owners_quarantine
+FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_r4_the_services_role_cannot_declare_a_review_queue_in_a_persons_name
+FAILED tests/unit/test_g0_r15_history_display.py::test_the_reports_moves_mark_an_event_the_projection_skipped
+FAILED tests/unit/test_g0_r15_history_display.py::test_the_reports_moves_mark_every_event_of_a_history_the_projection_refuses
+FAILED tests/unit/test_g0_r15_history_display.py::test_the_episode_view_marks_a_transition_the_projection_does_not_count
+11 failed in 16.07s
+
+# 2026-11-11T12:54:26Z  same, without --runxfail (strict xfail markers)
+XFAIL tests/unit/test_g0_r15_history_display.py::test_the_episode_view_marks_a_transition_the_projection_does_not_count - R15 reproduction: the episode view shows it as a move
+11 xfailed in 16.92s
