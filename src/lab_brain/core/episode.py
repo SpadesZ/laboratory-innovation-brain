@@ -354,6 +354,14 @@ class BeliefEpisode:
         check, because making it would mean a second copy of `evaluate` living in SQL.
         """
         history = self._events.history(project_id, hypothesis_id)
+        # G0 T-3/T-2(d): an event the schema owner quarantined -- itself, or the policy it was
+        # recorded under (`012t`) -- is kept as written and decides nothing: it is not verified
+        # (so one forged row no longer refuses the whole history) and is reported as skipped.
+        # An event store without quarantines (the in-memory one) withholds nothing.
+        withheld_of = getattr(self._events, "withheld", None)
+        withheld = frozenset() if withheld_of is None else withheld_of(project_id, hypothesis_id)
+        if withheld:
+            history = tuple(e for e in history if e.event_id not in withheld)
         verified = verified_history(
             project_id=project_id,
             target_id=hypothesis_id,
@@ -381,6 +389,7 @@ class BeliefEpisode:
                 for conflict in self._conflicts.unresolved_for_subject(project_id, hypothesis_id)
             ],
             projected_at=projected_at,
+            withheld=tuple(sorted(withheld)),
         )
 
     def hypothesis_view(

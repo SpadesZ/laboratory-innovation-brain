@@ -344,6 +344,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # the snapshot against the database (conflicts, relations, matches, classes, independence) and
     # bounds the writer's times; the read-time checks stay. After 011y.
     "011z_belief_transitions_are_written_through_a_gate.sql",
+    # G0 T-3 / T-2(d): the schema owner's append-only quarantine of a policy, a declaration set or
+    # a belief event that may no longer decide anything; the row it names is kept unchanged, and
+    # `diagnostic_declarations` leaves a quarantined set out. After 011z and 012p.
+    "012t_owner_quarantine.sql",
 )
 
 _BOOTSTRAP = """

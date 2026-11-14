@@ -627,6 +627,23 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"the product vertical (an entry point in {ENTRY_POINT_GROUP}); "
         "default: the only one installed",
     )
+    quarantine = admin_sub.add_parser(
+        "quarantine",
+        help=(
+            "012t: record that a transition policy or declaration set the product does not "
+            "declare (rows from before 011x/011y), or one belief event, no longer decides "
+            "anything; the row is kept as written (schema owner only; append-only)"
+        ),
+    )
+    quarantine.add_argument("kind", choices=("policy", "declaration-set", "event"))
+    quarantine.add_argument("ref", help="policy_id@version, set_id@version, or the event id")
+    quarantine.add_argument("--reason", required=True, help="why (kept with the record)")
+    quarantine.add_argument("--actor", required=True, help="the person who decided it")
+    quarantine.add_argument(
+        "--domain",
+        help=f"the product vertical (an entry point in {ENTRY_POINT_GROUP}); "
+        "default: the only one installed",
+    )
     admin_sub.add_parser("show", help="list actors, projects, memberships, LLM administrators")
     return parser
 
@@ -1180,6 +1197,8 @@ def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
             lines = _declare_capabilities(args, connection)
         elif args.admin_command == "register-policies":
             lines = _register_policies(args, connection)
+        elif args.admin_command == "quarantine":
+            lines = [_quarantine(args, connection)]
         else:
             lines = deployment.describe(connection)
     except deployment.OperatorRefused as refused:
@@ -1282,24 +1301,62 @@ def _register_policies(args: argparse.Namespace, connection: Any) -> list[str]:
     # declared name that are not the code's declaration. Listed, never touched; the product's
     # belief projection refuses every event under them (UNDECLARED_POLICY, G0 R-3), so each line
     # says how many recorded decisions and events that is.
+    # A row the owner quarantined (`012t`) is listed as such: the projection skips its events.
     store = SqlTransitionPolicyStore(connection)
-    for policy_id, version, decisions, events in connection.execute(
+    for policy_id, version, decisions, events, quarantined in connection.execute(
         "SELECT p.policy_id, p.version,"
         " (SELECT count(*) FROM belief_transition_decisions d"
         "   WHERE d.policy_id = p.policy_id AND d.policy_version = p.version),"
         " (SELECT count(*) FROM belief_revision_events e"
-        "   WHERE e.policy_id = p.policy_id AND e.policy_version = p.version)"
+        "   WHERE e.policy_id = p.policy_id AND e.policy_version = p.version),"
+        " (SELECT q.reason FROM owner_quarantines q WHERE q.subject_kind = 'TRANSITION_POLICY'"
+        "   AND q.subject_id = p.policy_id AND q.subject_version = p.version)"
         " FROM transition_policies p ORDER BY 1, 2"
     ).fetchall():
         code = declared.get((str(policy_id), str(version)))
         if code is not None and store.get(str(policy_id), str(version)) == code:
             continue
         kind = "undeclared" if code is None else "DIFFERS   "
+        if quarantined is not None:
+            lines.append(
+                f"{kind}  {policy_id}@{version}  (quarantined: {quarantined}; skipped by the "
+                f"projection: {decisions} decision(s), {events} event(s))"
+            )
+            continue
         lines.append(
             f"{kind}  {policy_id}@{version}  (refused by the projection: {decisions} "
             f"decision(s), {events} event(s))"
         )
     return lines
+
+
+def _quarantine(args: argparse.Namespace, connection: Any) -> str:
+    """`admin quarantine`: the schema owner's record that a row no longer decides anything
+    (`012t`, G0 T-3/T-2). A policy or declaration set the installed vertical declares is
+    refused: quarantine is for rows nobody reviewed as code."""
+    from lab_brain.interfaces import deployment
+    from lab_brain.research.service import declared_policies
+
+    declared: set[str] = set()
+    if args.kind != "event":
+        try:
+            factory = load_vertical_factory(args.domain or _only_vertical())
+        except (VerticalNotFound, ConfigurationError) as exc:
+            raise deployment.OperatorRefused(str(exc)) from exc
+        vertical = factory(
+            outputs=None, jobs=None, broker=None, now=lambda: dt.datetime.now(dt.UTC)
+        )
+        declared = {f"{p.policy_id}@{p.version}" for p in declared_policies(vertical)} | {
+            s.ref for s in vertical.declaration_sets
+        }
+    return deployment.quarantine(
+        connection,
+        args.kind,
+        args.ref,
+        reason=args.reason,
+        actor_id=args.actor,
+        declared=declared,
+    )
 
 
 def _only_vertical() -> str:

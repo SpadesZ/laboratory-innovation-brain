@@ -277,6 +277,20 @@ class SqlBeliefEventStore:
         ).fetchall()
         return tuple(self._hydrate(row) for row in rows)
 
+    def withheld(self, project_id: str, target_id: str) -> frozenset[str]:
+        """The target's events the schema owner quarantined (`012t`, G0 T-3/T-2): each one named,
+        and each one recorded under a quarantined policy. The projection skips them."""
+        rows = self._connection.execute(
+            "SELECT e.event_id FROM belief_revision_events e"
+            " WHERE e.project_id = %s AND e.target_id = %s AND EXISTS ("
+            "  SELECT 1 FROM owner_quarantines q WHERE"
+            "   (q.subject_kind = 'BELIEF_EVENT' AND q.subject_id = e.event_id) OR"
+            "   (q.subject_kind = 'TRANSITION_POLICY' AND q.subject_id = e.policy_id"
+            "    AND q.subject_version = e.policy_version))",
+            (project_id, target_id),
+        ).fetchall()
+        return frozenset(str(r[0]) for r in rows)
+
     def project_history(self, project_id: str) -> tuple[BeliefRevisionEvent, ...]:
         rows = self._connection.execute(
             f"SELECT {_COLUMNS} FROM belief_revision_events WHERE project_id = %s"

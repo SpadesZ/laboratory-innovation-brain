@@ -543,7 +543,6 @@ def _forger(g: Guarded, app: Any) -> tuple[Any, str]:
     return (app, "services' role") if holds else (g.db, "owner (a row from before the revocation)")
 
 
-@pytest.mark.xfail(strict=True, reason="T-2d reproduction: no recovery from one forged row")
 def test_t2_one_forged_row_stops_denying_the_history_after_the_owners_quarantine(guarded, roles):
     """One forged decision makes the projection refuse the subject's WHOLE history
     (NOT_REDERIVABLE), and both rows are append-only for every role. The owner's quarantine of
@@ -591,7 +590,6 @@ def test_t2_one_forged_row_stops_denying_the_history_after_the_owners_quarantine
 # =============================================================================================
 
 
-@pytest.mark.xfail(strict=True, reason="T-3 reproduction: no quarantine; the set blocks every run")
 def test_t3_a_declaration_set_from_before_011y_stops_blocking_after_the_owners_quarantine(db):
     """A set the services' role could register before `011y` (inserted here as the owner) makes
     the composition root's check refuse every research run; the table is append-only for every
@@ -640,7 +638,6 @@ def test_t3_a_declaration_set_from_before_011y_stops_blocking_after_the_owners_q
     assert kept == written
 
 
-@pytest.mark.xfail(strict=True, reason="T-3 reproduction: no quarantine; the history is refused")
 def test_t3_a_policy_from_before_011x_stops_denying_a_history_after_the_owners_quarantine(
     guarded, roles
 ):
@@ -683,6 +680,84 @@ def test_t3_a_policy_from_before_011x_stops_denying_a_history_after_the_owners_q
     assert SqlTransitionPolicyStore(g.db).get(policy.policy_id, policy.version) == policy
     status, out = _admin(g.db, "register-policies")
     assert status == 0 and "quarantined" in out, out
+
+
+# -- the quarantine (`012t`): owner only, append-only, never for the product's own rules -------
+
+
+def test_t3_the_quarantine_is_the_owners_and_append_only(guarded, roles):
+    g = guarded
+    hypothesis = _unscreened(g)
+    ((event,),) = g.db.execute(
+        "SELECT event_id FROM belief_revision_events WHERE target_id = %s", (hypothesis,)
+    ).fetchall()
+    with roles.connect(roles.app) as app:
+        inserted = _try(
+            lambda: app.execute(
+                "INSERT INTO owner_quarantines (subject_kind, subject_id, reason, actor_id,"
+                " quarantined_at, recorded_by) VALUES ('BELIEF_EVENT', %s, 'the services hide it',"
+                " %s, now(), 'x')",
+                (event, g.actor),
+            )
+        )
+        status, out = _admin(
+            app,
+            "quarantine",
+            "event",
+            event,
+            "--reason",
+            "the services hide it",
+            "--actor",
+            g.actor,
+        )
+    print(f"T-3 services' role quarantining {event}: {inserted!r}; command exit {status}: {out}")
+    assert isinstance(inserted, REFUSALS), inserted
+    assert status == 2 and "schema owner" in out, out
+    assert _read(_honest(g), hypothesis) == BeliefState.ACTIVE.value
+    status, out = _admin(
+        g.db,
+        "quarantine",
+        "event",
+        "bre:r4-no-such-event",
+        "--reason",
+        "a row that was never recorded",
+        "--actor",
+        g.actor,
+    )
+    assert status == 2 and "only a recorded row" in out, out
+    status, out = _admin(
+        g.db, "quarantine", "event", event, "--reason", "the owner's decision", "--actor", g.actor
+    )
+    assert status == 0, out
+    for statement in (
+        "UPDATE owner_quarantines SET reason = 'rewritten afterwards'",
+        "DELETE FROM owner_quarantines",
+    ):
+        refused = _try(lambda statement=statement: g.db.execute(statement))
+        assert refused is not None, statement
+    assert _read(_honest(g), hypothesis) is not None
+
+
+def test_t3_the_products_own_rules_are_not_quarantined(db):
+    from lab_brain.research.service import ADMISSION_POLICY
+
+    actor = str(db.execute("SELECT actor_id FROM actors ORDER BY 1 LIMIT 1").fetchone()[0])
+    code = _code_set()
+    SqlDeclarationSetStore(db).ensure((code,), code.ref)
+    if (
+        SqlTransitionPolicyStore(db).get(ADMISSION_POLICY.policy_id, ADMISSION_POLICY.version)
+        is None
+    ):
+        SqlTransitionPolicyStore(db).register(ADMISSION_POLICY)
+    for kind, ref in (
+        ("policy", f"{ADMISSION_POLICY.policy_id}@{ADMISSION_POLICY.version}"),
+        ("declaration-set", code.ref),
+    ):
+        status, out = _admin(
+            db, "quarantine", kind, ref, "--reason", "switching governance off", "--actor", actor
+        )
+        assert status == 2 and "installed code declares" in out, (kind, out)
+    assert db.execute("SELECT count(*) FROM owner_quarantines").fetchone()[0] == 0
 
 
 # =============================================================================================

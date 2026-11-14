@@ -34,7 +34,7 @@ from __future__ import annotations
 import datetime as dt
 import re
 import uuid
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from typing import Any
 
 from lab_brain.core.budget import BUDGET_OVERRUN_SCOPE
@@ -624,6 +624,69 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
     return lines
 
 
+#: `lab-brain admin quarantine KIND`: what each kind names in `owner_quarantines` (`012t`).
+QUARANTINE_KINDS = {
+    "policy": "TRANSITION_POLICY",
+    "declaration-set": "DECLARATION_SET",
+    "event": "BELIEF_EVENT",
+}
+
+
+def quarantine(
+    c: Any,
+    kind: str,
+    ref: str,
+    *,
+    reason: str,
+    actor_id: str,
+    declared: Collection[str] = (),
+) -> str:
+    """Record the schema owner's quarantine of a transition policy (`id@version`), a diagnostic
+    declaration set (`id@version`) or a belief event (its id) -- `012t`, G0 T-3/T-2.
+
+    The row stays exactly as it was written; readers stop letting it decide: the projection skips
+    the event (or every event under the policy) as OWNER_QUARANTINED, and the declarations the SQL
+    rule and the composition root read leave the set out. Append-only: there is no un-quarantine.
+    `declared` is what the installed code declares (`policy@version`, `set@version`): those are
+    the product's own rules and are refused here -- quarantining one would switch the product's
+    governance off, not remove a row nobody reviewed.
+    """
+    subject_kind = QUARANTINE_KINDS.get(kind)
+    if subject_kind is None:
+        raise OperatorRefused(f"quarantine what? one of {', '.join(QUARANTINE_KINDS)}, not {kind}")
+    if subject_kind == "BELIEF_EVENT":
+        subject_id, version = ref, ""
+    else:
+        subject_id, at, version = ref.rpartition("@")
+        if not at or not subject_id or not version:
+            raise OperatorRefused(f"a {kind} is named as id@version, not {ref!r}")
+        if ref in declared:
+            raise OperatorRefused(
+                f"{kind} {ref} is one the installed code declares; quarantine is for rows nobody "
+                "reviewed as code, not for the product's own rules"
+            )
+    if len(reason.strip()) < 10:
+        raise OperatorRefused("a quarantine records why, in at least ten characters")
+    _write(
+        c,
+        "INSERT INTO owner_quarantines (subject_kind, subject_id, subject_version, reason,"
+        " actor_id, quarantined_at, recorded_by) VALUES (%s, %s, %s, %s, %s, now(), '')",
+        (subject_kind, subject_id, version, reason.strip(), actor_id),
+    )
+    if subject_kind == "DECLARATION_SET":
+        return f"quarantined  declaration set {ref}: the SQL rule and every run no longer read it"
+    (events, subjects) = c.execute(
+        "SELECT count(*), count(DISTINCT (project_id, target_id)) FROM belief_revision_events"
+        " WHERE (%s = 'BELIEF_EVENT' AND event_id = %s)"
+        " OR (%s = 'TRANSITION_POLICY' AND policy_id = %s AND policy_version = %s)",
+        (subject_kind, subject_id, subject_kind, subject_id, version),
+    ).fetchone()
+    return (
+        f"quarantined  {kind} {ref}: {events} event(s) of {subjects} subject(s) now skipped by the "
+        "projection (kept as written)"
+    )
+
+
 def _write(c: Any, sql: str, params: Sequence[object]) -> None:
     try:
         with c.transaction():
@@ -641,6 +704,7 @@ __all__ = [
     "FLAG_KINDS",
     "KNOWN_SCOPES",
     "PRIVACY_MODES",
+    "QUARANTINE_KINDS",
     "REVIEW_QUEUE_DEFAULTS",
     "SPEND_ADMIN_ROLE",
     "OperatorRefused",
@@ -651,6 +715,7 @@ __all__ = [
     "flag_analysis",
     "grant_database_roles",
     "grant_llm_admin",
+    "quarantine",
     "revoke_llm_admin",
     "set_membership",
 ]

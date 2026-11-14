@@ -172,6 +172,9 @@ class SkipReason(StrEnum):
     QUARANTINED_TRIGGER = "QUARANTINED_TRIGGER"
     #: A predecessor was skipped, so this event's `from_state` no longer holds.
     PREDECESSOR_MISSING = "PREDECESSOR_MISSING"
+    #: The schema owner quarantined the event, or the policy it was recorded under (`012t`, G0
+    #: T-3/T-2): kept as written, deciding nothing. Not verified, so it cannot refuse the history.
+    OWNER_QUARANTINED = "OWNER_QUARANTINED"
 
 
 class BeliefScopeError(RuntimeError):
@@ -728,8 +731,13 @@ def replay(
     quarantined_attestation_ids: Iterable[str] = (),
     unresolved_conflicts: Iterable[str] = (),
     projected_at: dt.datetime | None = None,
+    withheld: Sequence[str] = (),
 ) -> EpistemicStateProjection:
     """Fold one project's *verified* revisions for one target into its current state (§6.18).
+
+    ``withheld`` names stored events of this target the schema owner quarantined (`012t`): they
+    were never verified and are not folded; each is reported as skipped (OWNER_QUARANTINED), first,
+    and the cascade below skips whatever depended on them.
 
     TAKES `VerifiedBeliefRevision`, NOT `BeliefRevisionEvent`, AND THAT IS THE POINT. P8 left this
     function accepting bare events, so a row written by raw SQL reached the projection without its
@@ -774,7 +782,9 @@ def replay(
     state: BeliefState | None = None
     last: str | None = None
     applied: list[str] = []
-    skipped: list[tuple[str, SkipReason]] = []
+    skipped: list[tuple[str, SkipReason]] = [
+        (event_id, SkipReason.OWNER_QUARANTINED) for event_id in withheld
+    ]
 
     for event in ordered:
         if quarantined and any(ref in quarantined for ref in event.triggering_attestation_ids):
