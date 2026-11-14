@@ -134,11 +134,17 @@ def test_the_services_role_cannot_step_past_the_rules_that_bind_it(db, roles):  
         for statement in (
             "UPDATE failure_analyses SET failure_class = 'something else'",
             "DELETE FROM failure_analyses",
+        ):
+            _refused(as_app, statement, psycopg.errors.RaiseException)
+        # The belief decisions and events are written through the gate only (`011z`, G0 T-2, the
+        # Owner's revocation): refused by privilege now, before their append-only triggers --
+        # which still refuse the schema owner (`test_belief_events_postgres`).
+        for statement in (
             "UPDATE belief_revision_events SET to_state = from_state",
             "DELETE FROM belief_revision_events",
             "DELETE FROM belief_transition_decisions",
         ):
-            _refused(as_app, statement, psycopg.errors.RaiseException)
+            _refused(as_app, statement, psycopg.errors.InsufficientPrivilege)
         # The declaration sets the SQL confirmation rule reads are read-only to the services'
         # role (`011y`, G0 R-2): refused by privilege now, before their append-only trigger --
         # which still refuses the schema owner (`test_registered_declarations_must_be_the_codes`).

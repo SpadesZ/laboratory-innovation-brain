@@ -460,10 +460,6 @@ class _RawEvents:
         return SqlBeliefEventStore(self._c).history(project_id, target_id)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-2: the services' role holds row writes on the tables (Owner-gated REVOKE)",
-)
 def test_t2_raw_rows_written_by_the_services_role_are_refused(guarded, roles):
     """The same omission written with the services' role's own code (plain INSERT and the 005d
     append, which check nothing a snapshot leaves out). Closed only by revoking the row writes --
@@ -486,6 +482,31 @@ def test_t2_raw_rows_written_by_the_services_role_are_refused(guarded, roles):
         refused,
     )
     assert read == BeliefState.ACTIVE.value
+
+
+def test_t2_the_services_role_writes_the_belief_tables_through_the_gate_only(su, roles):
+    """The Owner's revocation: SELECT only on the four belief tables, after repeated `db-roles`
+    and migrations; the auditor reads."""
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    from lab_brain.interfaces.deployment import grant_database_roles
+    from tests.e2e.test_g0_trust_boundaries_postgres import _privileges
+
+    root = Path(__file__).resolve().parents[2]
+    grant_database_roles(su, app_role=roles.app, reader_role=roles.reader)
+    subprocess.run([sys.executable, str(root / "scripts" / "migrate.py")], check=True)
+    grant_database_roles(su, app_role=roles.app, reader_role=roles.reader)
+    for table in (
+        "belief_transition_decisions",
+        "belief_revision_events",
+        "belief_revision_event_attestations",
+        "belief_revision_event_relations",
+    ):
+        held = {p for p, ok in _privileges(su, roles.app, table).items() if ok}
+        assert held == {"SELECT"}, (table, held)
+        assert _privileges(su, roles.reader, table)["SELECT"], table
 
 
 def _forge_not_rederivable(g: Guarded, hypothesis: str, writer: Any) -> str:

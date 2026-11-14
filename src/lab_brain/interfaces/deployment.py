@@ -400,6 +400,14 @@ _BELIEF_GATES = (
     " text, timestamptz, text)",
 )
 
+#: The belief tables the services write only through the gate (`011z`, G0 T-2).
+_BELIEF_TABLES = (
+    "belief_transition_decisions",
+    "belief_revision_events",
+    "belief_revision_event_attestations",
+    "belief_revision_event_relations",
+)
+
 #: The Owner's spend administration (`011t`): its members alone create budgets, declare prices and
 #: free endpoints, change ceilings and close circuits. Neither the services nor an auditor is one.
 SPEND_ADMIN_ROLE = "lab_brain_spend_admin"
@@ -549,6 +557,20 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
         is not None
     ):
         statements += (f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {_DECLARATIONS} FROM {app}",)
+    # Belief decisions and events (`005a`-`005d`, G0 T-2) -- REQUIRES THE OWNER'S APPROVAL: the
+    # services record them only through the migrator's gate (`011z`, granted above), which checks
+    # a snapshot against the database; a plain INSERT would skip it. Revoked on every run, since
+    # the grant on ALL TABLES above reaches these tables too. (The gate's own record and the
+    # owner's quarantines, `011z`/`012t`, are refused to the services by their owner-only triggers.)
+    belief = [
+        t
+        for t in _BELIEF_TABLES
+        if c.execute("SELECT to_regclass(%s)", (f"public.{t}",)).fetchone()[0] is not None
+    ]
+    if belief:
+        statements += (
+            f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {', '.join(belief)} FROM {app}",
+        )
     # The account change audit (`011u`) is written only by its migrator-owned triggers; the services
     # get no row privilege on it either, so a forged audit row is refused twice.
     if c.execute("SELECT to_regclass('public.account_change_audit')").fetchone()[0] is not None:
@@ -613,6 +635,15 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
     lines = [
         f"database role {app_role}: reads and writes rows of {tables} tables -- no TRUNCATE, no "
         f"ownership, {_LEDGER}, {_POLICIES} and {_DECLARATIONS} read-only; the triggers bind it",
+        *(
+            [
+                f"database role {app_role}: the belief decisions and events are read-only to it; "
+                "it records them through the migrator's gate (belief_transition_record, "
+                "belief_admission_record)"
+            ]
+            if belief
+            else []
+        ),
         f"database role {reader_role}: reads them",
     ]
     if spend:
