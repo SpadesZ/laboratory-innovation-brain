@@ -960,3 +960,15 @@ def test_r4_the_guard_holds_where_the_privilege_was_granted_and_the_operator_sti
     assert status == 2 and "010d" in out, out
     assert active() == declared
     grant_database_roles(db, app_role=roles.app, reader_role=roles.reader)
+
+
+def test_r4_the_services_role_reads_the_review_queue_policies_only(su, roles):
+    """The Owner's revocation (R-4): SELECT only, after repeated `db-roles`; the auditor reads."""
+    from lab_brain.interfaces.deployment import grant_database_roles
+    from tests.e2e.test_g0_trust_boundaries_postgres import _privileges
+
+    grant_database_roles(su, app_role=roles.app, reader_role=roles.reader)
+    grant_database_roles(su, app_role=roles.app, reader_role=roles.reader)
+    held = {p for p, ok in _privileges(su, roles.app, "review_queue_policies").items() if ok}
+    assert held == {"SELECT"}, held
+    assert _privileges(su, roles.reader, "review_queue_policies")["SELECT"]

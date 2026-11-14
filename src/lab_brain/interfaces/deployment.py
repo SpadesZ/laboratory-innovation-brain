@@ -400,6 +400,9 @@ _BELIEF_GATES = (
     " text, timestamptz, text)",
 )
 
+#: A project's review-queue policy (`011e`): declared by the schema owner (`010d`, G0 R-4).
+_QUEUES = "review_queue_policies"
+
 #: The belief tables the services write only through the gate (`011z`, G0 T-2).
 _BELIEF_TABLES = (
     "belief_transition_decisions",
@@ -571,6 +574,12 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
         statements += (
             f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {', '.join(belief)} FROM {app}",
         )
+    # Review-queue policies (`011e`, `010d`, G0 R-4) -- REQUIRES THE OWNER'S APPROVAL: declared by
+    # the operator as the schema owner (`lab-brain admin review-queue`); every automatic expiry is
+    # recorded as the declaring person's standing decision, so the services must not declare one.
+    # `010d`'s trigger refuses a non-owner's write even if the privilege is granted by mistake.
+    if c.execute("SELECT to_regclass('public.review_queue_policies')").fetchone()[0] is not None:
+        statements += (f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {_QUEUES} FROM {app}",)
     # The account change audit (`011u`) is written only by its migrator-owned triggers; the services
     # get no row privilege on it either, so a forged audit row is refused twice.
     if c.execute("SELECT to_regclass('public.account_change_audit')").fetchone()[0] is not None:
