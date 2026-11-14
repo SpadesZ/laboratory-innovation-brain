@@ -12,8 +12,6 @@ from __future__ import annotations
 import dataclasses
 from types import SimpleNamespace
 
-import pytest
-
 from lab_brain.core.belief import (
     EpistemicStateProjection,
     SkipReason,
@@ -41,7 +39,6 @@ HISTORY = (
 )
 
 
-@pytest.mark.xfail(strict=True, reason="R15 reproduction: the report lists moves unmarked")
 def test_the_reports_moves_mark_an_event_the_projection_skipped():
     from lab_brain.research.service import belief_moves
 
@@ -59,7 +56,6 @@ def test_the_reports_moves_mark_an_event_the_projection_skipped():
     assert "not counted" in moves[1] and "OWNER_QUARANTINED" in moves[1], moves[1]
 
 
-@pytest.mark.xfail(strict=True, reason="R15 reproduction: the report lists moves unmarked")
 def test_the_reports_moves_mark_every_event_of_a_history_the_projection_refuses():
     from lab_brain.research.service import belief_moves
 
@@ -70,7 +66,6 @@ def test_the_reports_moves_mark_every_event_of_a_history_the_projection_refuses(
     assert all("not counted" in m and "UNDECLARED_POLICY" in m for m in moves), moves
 
 
-@pytest.mark.xfail(strict=True, reason="R15 reproduction: the episode view shows it as a move")
 def test_the_episode_view_marks_a_transition_the_projection_does_not_count():
     transition = Transition(
         "bre:promote",

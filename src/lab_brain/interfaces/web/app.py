@@ -134,7 +134,7 @@ from lab_brain.llm_runtime.runtime import (
     load_active_runtime,
 )
 from lab_brain.llm_runtime.secrets import DirectoryCredentialStore, SecretStore
-from lab_brain.research.confirmation import confirmation_verifier
+from lab_brain.research.confirmation import belief_reader, confirmation_verifier
 from lab_brain.research.continuation import (
     ContinuationRefused,
     EpisodeNotContinuable,
@@ -1262,6 +1262,19 @@ class Workspace:
             declared_policies=declared_policies(vertical),
         )
 
+    def _belief_reader(self, c: Any) -> Any:
+        """The product's belief projection, for marking a recorded move it does not count (G0
+        R15): declared policies only, snapshots re-checked, the owner's quarantines honoured."""
+        vertical = self._factory(outputs=None, jobs=None, broker=None, now=utc_now)
+        return belief_reader(
+            c,
+            trust=ReviewerTrust.configured_at(self._settings.review_authorities),
+            declaration_sets=vertical.declaration_sets,
+            active=vertical.active_declarations,
+            authority_policies=vertical.authority_policies,
+            declared_policies=declared_policies(vertical),
+        )
+
     def _support_verifier(self, c: Any) -> Any:
         """The check every decision applies to a post-screening SUPPORTS (011w), for showing
         which recorded supports are not counted."""
@@ -1310,6 +1323,7 @@ class Workspace:
             episode_id=episode_id,
             verify=self._confirmation_verifier(c),
             support_verifier=self._support_verifier(c),
+            belief=self._belief_reader(c),
         )
         return Response(
             "200 OK",
@@ -1444,6 +1458,7 @@ class Workspace:
             episode_id=episode_id,
             verify=self._confirmation_verifier(c),
             support_verifier=self._support_verifier(c),
+            belief=self._belief_reader(c),
         )
         authorized = self._authorized(c, report)
         canonical = render_markdown(authorized) + render_recorded_since(view.conclusions)
@@ -3239,6 +3254,7 @@ class Workspace:
             episode_id=episode_id,
             verify=self._confirmation_verifier(c),
             support_verifier=self._support_verifier(c),
+            belief=self._belief_reader(c),
         )
         since = render_recorded_since(view.conclusions)
         return [
@@ -3275,6 +3291,7 @@ class Workspace:
                         episode_id=episode_id,
                         verify=self._confirmation_verifier(c),
                         support_verifier=self._support_verifier(c),
+                        belief=self._belief_reader(c),
                     )
                     text = pages.markdown_export(
                         recorded.report,

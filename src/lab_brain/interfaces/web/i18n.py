@@ -598,6 +598,12 @@ _M: dict[str, tuple[str, str]] = {
         "{mechanism}: {from_state} -> {to_state}, a governed belief change (decision: {decision}).",
         "「{mechanism}」：{from_state} → {to_state}，經治理程序的信念改變（決定：{decision}）。",
     ),
+    "v.moved.not_counted": (
+        "{mechanism}: {from_state} -> {to_state} is recorded, but not counted by the belief "
+        "projection ({why}); its state did not change by it.",
+        "「{mechanism}」：{from_state} → {to_state} 有紀錄，但信念投影不計入（{why}）；"
+        "狀態沒有因此改變。",
+    ),
     "v.decided": (
         "{mechanism}: its transition policy decided \u201c{result}\u201d; its state did not "
         "change.",

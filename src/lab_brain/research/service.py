@@ -67,6 +67,7 @@ from lab_brain.cognition.llm import Completion, ModelSlot, PromptTemplate, Scien
 from lab_brain.cognition.roles import core_prompts
 from lab_brain.cognition.routing import ModelRouter
 from lab_brain.composition import IngestionService
+from lab_brain.core.belief import EpistemicStateProjection, UnverifiedBeliefRevision
 from lab_brain.core.budget import BudgetPolicy
 from lab_brain.core.episode import BeliefEpisode, superseded_versions
 from lab_brain.core.hypothesis_admission import HypothesisAdmissionService
@@ -129,6 +130,7 @@ from lab_brain.research.continuation import (
     load_debate,
     prior_verification,
 )
+from lab_brain.research.episode_view import not_counted
 from lab_brain.research.evidence import (
     DOCUMENT_STATEMENT_SCHEMA,
     AdmittedStatement,
@@ -2023,11 +2025,12 @@ class ResearchEpisodeService:
             ):
                 h = certificate.hypothesis
                 mechanisms[h.hypothesis_id] = h.mechanism
-                state = belief_reader.project(
+                projection = belief_reader.project(
                     project_id=request.project_id,
                     hypothesis_id=h.hypothesis_id,
                     projected_at=self._clock(),
-                ).current_state
+                )
+                state = projection.current_state
                 state_name = state.value if state is not None else "UNKNOWN"
                 hypotheses.append(
                     HypothesisLine(
@@ -2049,10 +2052,10 @@ class ResearchEpisodeService:
                         ),
                     )
                 )
-                moves = tuple(
-                    f"{e.from_state.value if e.from_state else 'genesis'} -> {e.to_state.value} "
-                    f"({e.policy_id}@{e.policy_version}, `{e.event_id}`)"
-                    for e in SqlBeliefEventStore(c).history(request.project_id, h.hypothesis_id)
+                # G0 R15: every stored move, each one the projection does not count marked so.
+                moves = belief_moves(
+                    SqlBeliefEventStore(c).history(request.project_id, h.hypothesis_id),
+                    projection,
                 )
                 belief.append(BeliefLine(h.hypothesis_id, h.mechanism, state_name, moves))
             record = outcome.record
@@ -2837,6 +2840,24 @@ def _reliability(
             else str(recorded["structure_summary"])
         ),
     )
+
+
+def belief_moves(
+    events: Sequence[Any], projection: EpistemicStateProjection | UnverifiedBeliefRevision
+) -> tuple[str, ...]:
+    """The report's "governed moves": every stored event of one hypothesis, in replay order, each
+    one the product's projection does not count -- skipped, or part of a history it refuses --
+    marked with why (G0 R15). A raw history shown unmarked would say a belief moved where the
+    product's own reader says it did not."""
+    lines = []
+    for e in events:
+        line = (
+            f"{e.from_state.value if e.from_state else 'genesis'} -> {e.to_state.value} "
+            f"({e.policy_id}@{e.policy_version}, `{e.event_id}`)"
+        )
+        why = not_counted(projection, e.event_id)
+        lines.append(line if why is None else f"{line} -- not counted: {why}")
+    return tuple(lines)
 
 
 def _would_decide(discriminating: Sequence[tuple[str, str, str]], run: _Run) -> tuple[str, ...]:

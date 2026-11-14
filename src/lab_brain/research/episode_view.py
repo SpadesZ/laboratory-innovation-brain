@@ -28,6 +28,8 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from lab_brain.core.belief import EpistemicStateProjection, UnverifiedBeliefRevision
+from lab_brain.core.episode import BeliefEpisode
 from lab_brain.core.models.enums import EpistemicType
 from lab_brain.core.models.failure import ResolutionStatus
 from lab_brain.core.models.hypothesis_set import HypothesisCertificate
@@ -72,6 +74,10 @@ class Transition:
     policy: str
     decision_id: str | None
     decision: str | None
+    #: Why the product's belief projection does not count this event (G0 R15): it skipped it, or
+    #: refuses the hypothesis's whole history. None when it counts -- or when the view was built
+    #: without a belief reader, which checks nothing.
+    not_counted: str | None = None
 
 
 @dataclass(frozen=True)
@@ -274,8 +280,13 @@ def load_episode_view(
     episode_id: str,
     verify: ConfirmationVerifier | None = None,
     support_verifier: Callable[[RelationJudgment], str | None] | None = None,
+    belief: BeliefEpisode | None = None,
 ) -> EpisodeView:
     """The read model of one episode: every verification Run it has, and what each meant.
+
+    `belief` is the product's belief projection (`research.confirmation.belief_reader`): a
+    recorded transition it does not count -- skipped, or part of a history it refuses -- is marked
+    so (G0 R15) rather than shown as a belief change.
 
     `verify` is the deployment's confirmation verifier (reviewer signatures); without it, a
     confirmation resting on a reviewer's answer is shown as not relied on. `support_verifier`
@@ -293,6 +304,7 @@ def load_episode_view(
     typed: dict[str, Prediction] = {p.prediction_id: p for c in certificates for p in c.predictions}
     declared = {p.prediction_id: p for ps in predictions.values() for p in ps}
     mechanisms = {c.hypothesis_id: c.hypothesis.mechanism for c in certificates}
+    counted = _Counted(belief, project_id)
 
     action_types: dict[str, str] = {}
     for (rationale,) in connection.execute(
@@ -347,7 +359,15 @@ def load_episode_view(
             over = [p for p in declared.values() if p.observable == observable]
             matched, unmatched, incomparable = _split(over, typed, observed)
             relations = tuple(
-                _relation(connection, project_id, episode_id, row, mechanisms, support_verifier)
+                _relation(
+                    connection,
+                    project_id,
+                    episode_id,
+                    row,
+                    mechanisms,
+                    support_verifier,
+                    counted,
+                )
                 for row in connection.execute(
                     "SELECT relation_id, relation_type, to_entity_id,"
                     " attributes ->> 'prediction_id' FROM relation_judgments"
@@ -387,6 +407,7 @@ def _relation(
     row: Sequence[Any],
     mechanisms: Mapping[str, str],
     support_verifier: Callable[[RelationJudgment], str | None] | None = None,
+    counted: _Counted | None = None,
 ) -> Relation:
     relation_id, relation_type, hypothesis_id, prediction_id = (str(v) if v else None for v in row)
     assert relation_id and relation_type and hypothesis_id
@@ -403,6 +424,7 @@ def _relation(
             policy=f"{r[4]}@{r[5]}",
             decision_id=str(r[6]) if r[6] else None,
             decision=str(r[7]) if r[7] else None,
+            not_counted=None if counted is None else counted.why_not(str(r[1]), str(r[0])),
         )
         for r in connection.execute(
             "SELECT e.event_id, e.target_id, e.from_state, e.to_state, e.policy_id,"
@@ -445,6 +467,42 @@ def _relation(
     )
 
 
+class _Counted:
+    """Whether the product's belief projection counts one stored event (G0 R15): each
+    hypothesis projected once per view."""
+
+    def __init__(self, belief: BeliefEpisode | None, project_id: str) -> None:
+        self._belief = belief
+        self._project_id = project_id
+        self._seen: dict[str, EpistemicStateProjection | UnverifiedBeliefRevision] = {}
+
+    def why_not(self, hypothesis_id: str, event_id: str) -> str | None:
+        if self._belief is None:
+            return None
+        if hypothesis_id not in self._seen:
+            try:
+                self._seen[hypothesis_id] = self._belief.project(
+                    project_id=self._project_id, hypothesis_id=hypothesis_id
+                )
+            except UnverifiedBeliefRevision as refused:
+                self._seen[hypothesis_id] = refused
+        return not_counted(self._seen[hypothesis_id], event_id)
+
+
+def not_counted(
+    projection: EpistemicStateProjection | UnverifiedBeliefRevision, event_id: str
+) -> str | None:
+    """Why `projection` does not count the stored event `event_id`, or None when it does."""
+    if isinstance(projection, UnverifiedBeliefRevision):
+        return f"the projection refuses this history ({projection.reason.value})"
+    if event_id in projection.applied:
+        return None
+    skipped = dict(projection.skipped)
+    if event_id in skipped:
+        return f"skipped by the projection ({skipped[event_id].value})"
+    return "not in the projection"
+
+
 def _not_counted(
     connection: Any,
     project_id: str,
@@ -478,4 +536,5 @@ __all__ = [
     "Relation",
     "Transition",
     "load_episode_view",
+    "not_counted",
 ]

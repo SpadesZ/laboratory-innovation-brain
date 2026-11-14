@@ -991,6 +991,7 @@ def _stages(relation: Relation, m: Messages) -> Html:
         authorization = m("v.stage.auth.other", result=_words("td", latest, m))
     else:
         authorization = m("v.stage.auth.none")
+    counted = [x for x in relation.transitions if x.not_counted is None]
     belief = (
         cat(
             (
@@ -1000,11 +1001,12 @@ def _stages(relation: Relation, m: Messages) -> Html:
                     from_state=status("bs", x.from_state, m),
                     to_state=status("bs", x.to_state, m),
                 )
-                for x in relation.transitions
+                # G0 R15: only a move the belief projection counts is a belief change.
+                for x in counted
             ),
             " ",
         )
-        if relation.transitions
+        if counted
         else e(m("v.stage.belief.unchanged"))
     )
     return h(
@@ -1028,6 +1030,16 @@ def _moved(relation: Relation, t: Terms) -> Html:
                     from_state=status("bs", x.from_state, m),
                     to_state=status("bs", x.to_state, m),
                     decision=_words("td", x.decision or "-", m),
+                )
+                if x.not_counted is None
+                # G0 R15: recorded, but the belief projection does not count it -- said so.
+                else mh(
+                    m,
+                    "v.moved.not_counted",
+                    mechanism=t.text(x.mechanism),
+                    from_state=status("bs", x.from_state, m),
+                    to_state=status("bs", x.to_state, m),
+                    why=e(x.not_counted),
                 )
                 for x in relation.transitions
             ),

@@ -761,6 +761,73 @@ def test_t3_the_products_own_rules_are_not_quarantined(db):
 
 
 # =============================================================================================
+# R15: the raw history display, over a real stored history
+# =============================================================================================
+
+
+def test_r15_the_displays_mark_the_moves_the_product_projection_does_not_count(guarded, roles):
+    """The R-3 history (a move under a policy the code does not declare): the report's moves and
+    the episode view's transitions, read with the product's projection, mark the move -- refused
+    with the history, then, once the owner quarantined the policy, skipped; the genesis counts."""
+    from lab_brain.core.repositories import SqlBeliefEventStore
+    from lab_brain.research.episode_view import _Counted
+    from lab_brain.research.service import belief_moves
+    from tests.e2e.test_g0_trust_boundaries_postgres import _attempt_on, _Unchecked, _writer
+
+    g = guarded
+    hypothesis = _unscreened(g)
+    policy = _owner_registers(g, legacy_promote())
+    with roles.connect(roles.app) as app:
+        written = _attempt_on(
+            _writer(
+                app, g, relations=_Unchecked(SqlRelationStore(app, support_verifier=_accepting))
+            ),
+            g,
+            hypothesis,
+            policy,
+        )
+    assert written.event is not None
+    moved = written.event.event_id
+    history = SqlBeliefEventStore(g.db).history(PROJECT, hypothesis)
+    genesis = next(e.event_id for e in history if e.from_state is None)
+
+    def shown() -> tuple[tuple[str, ...], str | None, str | None]:
+        reader = _product_reader(g)
+        try:
+            projection: Any = reader.project(project_id=PROJECT, hypothesis_id=hypothesis)
+        except Exception as refused:  # the product's refusal, shown as such
+            projection = refused
+        counted = _Counted(reader, PROJECT)
+        return (
+            belief_moves(history, projection),
+            counted.why_not(hypothesis, moved),
+            counted.why_not(hypothesis, genesis),
+        )
+
+    moves, view, first = shown()
+    print(f"R15 refused history: moves={moves}; view={view!r}")
+    assert all("not counted" in m and "UNDECLARED_POLICY" in m for m in moves), moves
+    assert view is not None and "UNDECLARED_POLICY" in view
+    status, out = _admin(
+        g.db,
+        "quarantine",
+        "policy",
+        f"{policy.policy_id}@{policy.version}",
+        "--reason",
+        "registered before 011x; not a policy the code declares",
+        "--actor",
+        g.actor,
+    )
+    assert status == 0, out
+    moves, view, first = shown()
+    print(f"R15 after quarantine: moves={moves}; view={view!r}; genesis={first!r}")
+    marked = {m.split("`")[1]: ("not counted" in m) for m in moves}
+    assert marked == {genesis: False, moved: True}, moves
+    assert view is not None and "OWNER_QUARANTINED" in view
+    assert first is None
+
+
+# =============================================================================================
 # R-4: review_queue_policies
 # =============================================================================================
 

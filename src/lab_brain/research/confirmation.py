@@ -81,6 +81,41 @@ class _Query:
     certificates: tuple[HypothesisCertificate, ...]
 
 
+def belief_reader(
+    connection: Any,
+    *,
+    trust: ReviewerTrust,
+    declaration_sets: Sequence[DiagnosticDeclarationSet],
+    active: str | None,
+    authority_policies: Mapping[tuple[str, str], AuthorityPolicy],
+    declared_policies: Sequence[TransitionPolicy],
+    relations: SqlRelationStore | None = None,
+) -> BeliefEpisode:
+    """The product's belief projection for a reader that writes nothing: the confirmation
+    re-check's, and the episode page's (G0 R15) -- every stored event re-derived under the declared
+    policies only (R-3), its snapshot re-checked against the database (R-1), the owner's
+    quarantines honoured (`012t`)."""
+    if relations is None:
+        relations = SqlRelationStore(
+            connection, support_verifier=prospective_support_verifier(connection, trust)
+        )
+    return BeliefEpisode(
+        policies=SqlTransitionPolicyStore(connection),
+        decisions=SqlBeliefTransitionDecisionStore(connection),
+        events=SqlBeliefEventStore(connection),
+        relations=relations,
+        authority_classes=SqlAttestationStore(connection),
+        conflicts=SqlConflictStore(connection),
+        reviews=SqlReviewItemStore(connection),
+        ids=_NoIds(),
+        authority_policies=authority_policies,
+        warrants=sql_warrant_resolver(
+            connection, declaration_sets=declaration_sets, active=active, trust=trust
+        ),
+        declared_policies=declared_policies,
+    )
+
+
 def confirmation_verifier(
     connection: Any,
     *,
@@ -103,19 +138,13 @@ def confirmation_verifier(
         connection, support_verifier=prospective_support_verifier(connection, trust)
     )
     hypotheses = SqlHypothesisStore(connection)
-    belief = BeliefEpisode(
-        policies=SqlTransitionPolicyStore(connection),
-        decisions=SqlBeliefTransitionDecisionStore(connection),
-        events=SqlBeliefEventStore(connection),
+    belief = belief_reader(
+        connection,
         relations=relations,
-        authority_classes=SqlAttestationStore(connection),
-        conflicts=SqlConflictStore(connection),
-        reviews=SqlReviewItemStore(connection),
-        ids=_NoIds(),
+        trust=trust,
+        declaration_sets=declaration_sets,
+        active=active,
         authority_policies=authority_policies,
-        warrants=sql_warrant_resolver(
-            connection, declaration_sets=declaration_sets, active=active, trust=trust
-        ),
         declared_policies=declared_policies,
     )
     rule = ConfirmationRule(
@@ -178,4 +207,4 @@ def confirmation_verifier(
     return verify
 
 
-__all__ = ["confirmation_verifier"]
+__all__ = ["belief_reader", "confirmation_verifier"]
