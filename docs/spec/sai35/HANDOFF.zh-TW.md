@@ -1,12 +1,40 @@
-# 交接：第三輪（SAI 3.5 candidate.4、G0 信任邊界、Discovery 安全 v1.2），含第一、二輪紀錄
+# 交接：第四輪（進行中）與第三輪（SAI 3.5 candidate.5／.4、G0 信任邊界、Discovery 安全 v1.2），含第一、二輪紀錄
 
-日期：第三輪 2026-11-11；第二輪 2026-11-08；第一輪 2026-11-04。對象：獨立首席稽核（Independent Chief Auditor）與 Owner。
+日期：第四輪 2026-11-14（進行中）；第三輪 2026-11-11；第二輪 2026-11-08；第一輪 2026-11-04。對象：獨立首席稽核（Independent Chief Auditor）與 Owner。
 撰寫者：實作代理（Implementation Agent）。這不是稽核結論。
 
 **不變的狀態：** SAI 3.5 仍是 CANDIDATE — NOT ACTIVE。G0 未通過（NOT PASSED）。
 G-D 未通過。`READY_FOR_REAL_RESEARCH = false`。沒有合併 `main`，沒有部署，
 沒有改 `ACTIVE_SPEC.yaml`，沒有改 SAI 3.3／3.4 受保護檔案，沒有用付費模型、Lumerical 授權或實體實驗，
 沒有改帳密或正式權限，沒有覆寫凍結證據。提交沒有 AI 作者標註。
+
+## R4. 第四輪（2026-11-11 起，進行中）
+
+稽核（ICA）第三輪的發現，Owner 要求處理 4 件事。v1.1 仍是離線安全基準。
+
+| 工作 | 分支 | 起點 | 狀態 |
+|---|---|---|---|
+| SAI 3.5 candidate.5 | `claude/lib-implementation-agent-47evs0` | `88e8bf1` | 完成，`61af6ef` 已推送 |
+| G0 第四輪邊界 | `claude/lib-implementation-agent-47evs0-g0-boundary4` | `e2872de` | 進行中（重現測試 `fb89d36` 已提交） |
+| Discovery v1.3 | `claude/lib-implementation-agent-47evs0-discovery-v13` | `e778cc4` | 進行中（帳本漏洞重現 `8adc676` 已提交） |
+
+### R4.1 SAI candidate.5（完成）
+
+- **無證據的主張是錯誤。** 評估者從紀錄判斷答案的立場。只有「標成提案、而且沒有被採用」的答案是 PROPOSAL_ONLY。
+  宣稱、背書或採用但沒有證據：UNSUPPORTED_CLAIM，算錯誤。沒有記錄立場就當成宣稱。標籤不能蓋過行動。
+- **SUPPORTED 的判定數字都由評估者計算。** 雜訊模型、預測不確定度、替代假說、門檻。受測組自己給的不算數。
+- 報告必須列出每組的宣稱數、有證據數、無證據主張數、提案數，和「無證據主張率」。
+- 檢查：參考語意拒絕 16 個錯誤定義；候選檢查器拒絕 131 個變異；`tests/spec` 206 通過；SAI 3.4 邊界檢查通過。
+- 反例 S5-CE；S35-ISSUE-21。沒有改任何識別碼。SAI 3.5 仍是 CANDIDATE — NOT ACTIVE。
+- 結果：在 candidate.5 之下，v1.2 報告裡的 SUPPORTED 數字不是評估者控制的，不能當證據。
+
+### R4.2 進行中
+
+- G0：T-2（服務角色仍可寫入決策和事件）、T-3（舊資料列的隔離）、R15（拒絕的事件要標示）、R-4（審查佇列政策）。
+  收回權限（REVOKE）放在獨立提交，需要 Owner 核准。
+- Discovery：帳本改成評估者控制；查出「只有雜訊」全部失敗的原因；用相同實際成本、相同世界做配對比較。
+
+---
 
 ## R3. 第三輪（2026-11-08 至 2026-11-11）
 
