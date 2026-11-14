@@ -66,6 +66,10 @@ class RelationJudgment(CoreModel):
     valid_from: dt.datetime = Field(default_factory=utc_now)
     valid_to: dt.datetime | None = None
     invalidation_reason: str | None = None
+    #: Who invalidated it (`012r`). `actor_id` keeps naming who recorded it. None while the
+    #: relation is current, and on relations invalidated before `012r`, whose `actor_id` is
+    #: their invalidator.
+    invalidated_by_actor_id: str | None = None
     created_at: dt.datetime = Field(default_factory=utc_now)
 
     @model_validator(mode="after")
@@ -97,6 +101,8 @@ class RelationJudgment(CoreModel):
             )
         if self.valid_to is None and self.invalidation_reason is not None:
             raise ValueError("invalidation_reason is only meaningful once valid_to is set")
+        if self.valid_to is None and self.invalidated_by_actor_id is not None:
+            raise ValueError("invalidated_by_actor_id is only meaningful once valid_to is set")
         return self
 
     @model_validator(mode="after")
@@ -138,7 +144,9 @@ class RelationJudgment(CoreModel):
         """Return a closed copy of this judgment.
 
         A new object rather than a mutation: the relation row is superseded, and the reason plus
-        the actor who decided are part of the record (§17.12).
+        the actor who decided are part of the record (§17.12). The actor who decided is
+        `invalidated_by_actor_id`; `actor_id` keeps naming who recorded the relation (`012r`),
+        which is what the separation of duties reads.
 
         Reconstructed through ``model_validate`` rather than ``model_copy(update=...)``.
         ``model_copy`` does not re-run validators, so it could produce a judgment with
@@ -152,7 +160,7 @@ class RelationJudgment(CoreModel):
             | {
                 "valid_to": closed_at,
                 "invalidation_reason": reason,
-                "actor_id": actor_id,
+                "invalidated_by_actor_id": actor_id,
             }
         )
 

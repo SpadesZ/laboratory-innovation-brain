@@ -1,0 +1,63 @@
+Experiment, NOT product behaviour: withdraw the automatic DOMAIN authority of the three
+links review 04 disputed on category grounds, and run the fixed benchmark (both strategies).
+e4de0a3 code, fresh database lab_brain_sci_exp, 2026-10-15. Python-only patch; the harness's
+SQL/Python agreement check is disabled in the 'withdrawn' run only (the SQL mirror is not
+patched). $ python scripts/disputed_links_experiment.py baseline|withdrawn
+
+Withdrawn links: contact_discontinuity CONTRADICTS (drawn-layout reading), dopant_compensation
+CONTRADICTS (design-file solve), mesh_artifact SUPPORTS (solver mesh as the cause of a
+measured anomaly).
+
+Cases whose outcome changes (- baseline, + withdrawn):
+- baseline  least_cost     mesh-coarse-access     expected=CONFIRMED/mesh_artifact got=CONFIRMED/mesh_artifact pending=None checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity
++ withdrawn least_cost     mesh-coarse-access     expected=CONFIRMED/mesh_artifact got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fourpoint_probe checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity,charge_dc_sweep
+- baseline  least_cost     probe-lab-closed       expected=NO_SUFFICIENT_ACTION/None got=NO_SUFFICIENT_ACTION/None pending=None checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity,charge_dc_sweep
++ withdrawn least_cost     probe-lab-closed       expected=NO_SUFFICIENT_ACTION/None got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fabricate_split_lot checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity,charge_dc_sweep
+- baseline  simulate_first mesh-coarse-access     expected=CONFIRMED/mesh_artifact got=CONFIRMED/mesh_artifact pending=None checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
++ withdrawn simulate_first mesh-coarse-access     expected=CONFIRMED/mesh_artifact got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fourpoint_probe checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+- baseline  simulate_first probe-lab-closed       expected=NO_SUFFICIENT_ACTION/None got=NO_SUFFICIENT_ACTION/None pending=None checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
++ withdrawn simulate_first probe-lab-closed       expected=NO_SUFFICIENT_ACTION/None got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fabricate_split_lot checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+
+Every case, baseline:
+baseline  least_cost     contact-open-via       expected=CONFIRMED/contact_discontinuity got=CONFIRMED/contact_discontinuity pending=None checks=extraction_consistency,inspect_contact_connectivity
+baseline  least_cost     contact-thin-overlap   expected=CONFIRMED/contact_discontinuity got=CONFIRMED/contact_discontinuity pending=None checks=extraction_consistency,inspect_contact_connectivity
+baseline  least_cost     normalization-taper    expected=CONFIRMED/normalization_error got=CONFIRMED/normalization_error pending=None checks=extraction_consistency,inspect_contact_connectivity
+baseline  least_cost     mesh-coarse-access     expected=CONFIRMED/mesh_artifact got=CONFIRMED/mesh_artifact pending=None checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity
+baseline  least_cost     dopant-counterdoped    expected=CONFIRMED/dopant_compensation got=CONFIRMED/dopant_compensation pending=None checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity,charge_dc_sweep
+baseline  least_cost     outage-contact         expected=CONFIRMED/contact_discontinuity got=CONFIRMED/contact_discontinuity pending=None checks=extraction_consistency,inspect_contact_connectivity
+baseline  least_cost     outage-mesh            expected=AWAITING_RESOURCE/None got=AWAITING_RESOURCE/None pending=cap:sp.mesh_sensitivity checks=extraction_consistency,inspect_contact_connectivity
+baseline  least_cost     probe-artifact         expected=HUMAN_ACTION_REQUIRED/None got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fourpoint_probe checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity,charge_dc_sweep
+baseline  least_cost     probe-lab-closed       expected=NO_SUFFICIENT_ACTION/None got=NO_SUFFICIENT_ACTION/None pending=None checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity,charge_dc_sweep
+baseline  least_cost     dopant-nonconverged    expected=HUMAN_ACTION_REQUIRED/None got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fourpoint_probe checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity,charge_dc_sweep
+baseline  simulate_first contact-open-via       expected=CONFIRMED/contact_discontinuity got=CONFIRMED/contact_discontinuity pending=None checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+baseline  simulate_first contact-thin-overlap   expected=CONFIRMED/contact_discontinuity got=CONFIRMED/contact_discontinuity pending=None checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+baseline  simulate_first normalization-taper    expected=CONFIRMED/normalization_error got=CONFIRMED/normalization_error pending=None checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+baseline  simulate_first mesh-coarse-access     expected=CONFIRMED/mesh_artifact got=CONFIRMED/mesh_artifact pending=None checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+baseline  simulate_first dopant-counterdoped    expected=CONFIRMED/dopant_compensation got=CONFIRMED/dopant_compensation pending=None checks=charge_dc_sweep
+baseline  simulate_first outage-contact         expected=CONFIRMED/contact_discontinuity got=AWAITING_RESOURCE/None pending=cap:sp.charge_dc_sweep checks=
+baseline  simulate_first outage-mesh            expected=AWAITING_RESOURCE/None got=AWAITING_RESOURCE/None pending=cap:sp.charge_dc_sweep checks=
+baseline  simulate_first probe-artifact         expected=HUMAN_ACTION_REQUIRED/None got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fourpoint_probe checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+baseline  simulate_first probe-lab-closed       expected=NO_SUFFICIENT_ACTION/None got=NO_SUFFICIENT_ACTION/None pending=None checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+baseline  simulate_first dopant-nonconverged    expected=HUMAN_ACTION_REQUIRED/None got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fourpoint_probe checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+
+Every case, withdrawn:
+withdrawn least_cost     contact-open-via       expected=CONFIRMED/contact_discontinuity got=CONFIRMED/contact_discontinuity pending=None checks=extraction_consistency,inspect_contact_connectivity
+withdrawn least_cost     contact-thin-overlap   expected=CONFIRMED/contact_discontinuity got=CONFIRMED/contact_discontinuity pending=None checks=extraction_consistency,inspect_contact_connectivity
+withdrawn least_cost     normalization-taper    expected=CONFIRMED/normalization_error got=CONFIRMED/normalization_error pending=None checks=extraction_consistency,inspect_contact_connectivity
+withdrawn least_cost     mesh-coarse-access     expected=CONFIRMED/mesh_artifact got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fourpoint_probe checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity,charge_dc_sweep
+withdrawn least_cost     dopant-counterdoped    expected=CONFIRMED/dopant_compensation got=CONFIRMED/dopant_compensation pending=None checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity,charge_dc_sweep
+withdrawn least_cost     outage-contact         expected=CONFIRMED/contact_discontinuity got=CONFIRMED/contact_discontinuity pending=None checks=extraction_consistency,inspect_contact_connectivity
+withdrawn least_cost     outage-mesh            expected=AWAITING_RESOURCE/None got=AWAITING_RESOURCE/None pending=cap:sp.mesh_sensitivity checks=extraction_consistency,inspect_contact_connectivity
+withdrawn least_cost     probe-artifact         expected=HUMAN_ACTION_REQUIRED/None got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fourpoint_probe checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity,charge_dc_sweep
+withdrawn least_cost     probe-lab-closed       expected=NO_SUFFICIENT_ACTION/None got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fabricate_split_lot checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity,charge_dc_sweep
+withdrawn least_cost     dopant-nonconverged    expected=HUMAN_ACTION_REQUIRED/None got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fourpoint_probe checks=extraction_consistency,inspect_contact_connectivity,mesh_sensitivity,charge_dc_sweep
+withdrawn simulate_first contact-open-via       expected=CONFIRMED/contact_discontinuity got=CONFIRMED/contact_discontinuity pending=None checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+withdrawn simulate_first contact-thin-overlap   expected=CONFIRMED/contact_discontinuity got=CONFIRMED/contact_discontinuity pending=None checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+withdrawn simulate_first normalization-taper    expected=CONFIRMED/normalization_error got=CONFIRMED/normalization_error pending=None checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+withdrawn simulate_first mesh-coarse-access     expected=CONFIRMED/mesh_artifact got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fourpoint_probe checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+withdrawn simulate_first dopant-counterdoped    expected=CONFIRMED/dopant_compensation got=CONFIRMED/dopant_compensation pending=None checks=charge_dc_sweep
+withdrawn simulate_first outage-contact         expected=CONFIRMED/contact_discontinuity got=AWAITING_RESOURCE/None pending=cap:sp.charge_dc_sweep checks=
+withdrawn simulate_first outage-mesh            expected=AWAITING_RESOURCE/None got=AWAITING_RESOURCE/None pending=cap:sp.charge_dc_sweep checks=
+withdrawn simulate_first probe-artifact         expected=HUMAN_ACTION_REQUIRED/None got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fourpoint_probe checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+withdrawn simulate_first probe-lab-closed       expected=NO_SUFFICIENT_ACTION/None got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fabricate_split_lot checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity
+withdrawn simulate_first dopant-nonconverged    expected=HUMAN_ACTION_REQUIRED/None got=HUMAN_ACTION_REQUIRED/None pending=cap:sp.fourpoint_probe checks=charge_dc_sweep,mesh_sensitivity,extraction_consistency,inspect_contact_connectivity

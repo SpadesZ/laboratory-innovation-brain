@@ -1,7 +1,7 @@
 # M0a Spec Coverage Audit — §23.5 (2)
 
-Date: 2026-09-13 (rev 6)
-Spec: SAI 3.3, amendments `v3.3-a1` … `v3.3-a7`
+Date: 2026-09-13 (rev 6); §3/§4 figures refreshed 2026-09-20 (rev 7)
+Spec: SAI 3.3, amendments `v3.3-a1` … `v3.3-a17`
 Milestone: **M0a — Scientific Identity Core**
 Scope: **§6–§16**, as §23.5 defines a coverage audit
 
@@ -12,6 +12,15 @@ Scope: **§6–§16**, as §23.5 defines a coverage audit
 > `docs/spec_coverage_audit/M0a_obligation_inventory.yaml` by the same code the tests run, so there
 > is exactly one set of figures and it is the live one.
 
+> **rev 7 (2026-09-20) — what changed and what did not.** `v3.3-a17` added **§6.22** inside the
+> audited range, so §3's reconciliation and §4's counts moved. Both are regenerated below from the
+> same code the tests run, because §3 claims to be computed from live data and a stale table would
+> make that claim false. **§5–§7 are deliberately left as written.** They are the M0a exit-gate
+> record as it stood at sign-off on 2026-09-13, and a completed human review gate is a record
+> rather than a view; their figures are the figures M0a was signed off against. M0a's own gate is
+> unaffected — §6.22's ten obligations all belong to `EVI-010`, which is allocated to **M1**, and
+> M0a's five requirements are untouched.
+
 ## 1. What this audit is, and what it is not
 
 §23.5 asks two different questions and only one of them is machine-checkable.
@@ -19,7 +28,7 @@ Scope: **§6–§16**, as §23.5 defines a coverage audit
 | | Question | Answered by |
 |---|---|---|
 | **(1)** | Does every Requirement ID have a test, and does every normative statement have an owner? | `T-SPEC-001` / `T-SPEC-002`, on every CI run |
-| **(2)** | Has a human read §6–§16 and confirmed nothing normative is unaccounted for? | **this document**, plus the 148 rows of data it is generated from |
+| **(2)** | Has a human read §6–§16 and confirmed nothing normative is unaccounted for? | **this document**, plus the 161 rows of data it is generated from |
 
 Part (2) is a human gate. What the harness can do is make the gate's *arithmetic* impossible to get
 wrong silently, which is what five rounds of review pushed it to do. What it cannot do is decide
@@ -168,7 +177,7 @@ statement, and loading a malformed row must each **fail**. A guard not shown to 
 
 ## 3. Per-section reconciliation
 
-Generated from the same data the tests check. 76 sections — every numbered heading in
+Generated from the same data the tests check. 77 sections — every numbered heading in
 §6–§16.
 
 | Section | hard MUST | registry-covered (live) | named deferred | SHOULD (excluded) | delta |
@@ -195,6 +204,7 @@ Generated from the same data the tests check. 76 sections — every numbered hea
 | 6.19 | 1 | 1 | — | — | 0 |
 | 6.20 | 2 | 2 | — | — | 0 |
 | 6.21 | 2 | 2 | — | 1 | 0 |
+| 6.22 | 10 | 10 | — | — | 0 |
 | 7 | 0 | 0 | — | — | 0 |
 | 7.1 | 0 | 0 | — | — | 0 |
 | 7.2 | 3 | 3 | — | — | 0 |
@@ -249,11 +259,14 @@ Generated from the same data the tests check. 76 sections — every numbered hea
 | 15.4 | 2 | 2 | — | — | 0 |
 | 16 | 0 | 0 | — | — | 0 |
 | 16.1 | 0 | 0 | — | — | 0 |
-| **Total** | **70** | **68** | **2** | 1 | **0** |
+| **Total** | **80** | **78** | **2** | 1 | **0** |
 
-**Every delta is 0.** 70 hard MUSTs = 68 registered live + 2 named deferred, of
-which 52 have an explicit-keyword occurrence and 18 are declared keyword-free. The
+**Every delta is 0.** 80 hard MUSTs = 78 registered live + 2 named deferred, of
+which 62 have an explicit-keyword occurrence and 18 are declared keyword-free. The
 1 SHOULD-level entry is excluded from coverage and shown for transparency.
+
+Occurrence inventory: **84** classified = 62 REGISTERED + 19 RESTATEMENT_OF +
+3 NON_NORMATIVE_WITH_RATIONALE.
 
 ### Section notes
 
@@ -304,18 +317,27 @@ planner` (§14.4.1) is the second. `acl.actor.required_for_approval_egress` is k
 borrowed from §7.2: that entry obliges the metrics to be *recorded*, this one obliges the claim to be
 *refutable*. The one-prose-home rule now makes borrowing impossible.
 
+**§6.22 — ten obligations over twelve occurrences (`v3.3-a17`).** Added by SPEC-ISSUE-013 to give
+§6.7's `不應` a hard counterpart. §6.7 itself is unchanged and still counts 0: the new section
+states the obligation *beside* it rather than promoting it in place, so the audit trail shows a new
+statement rather than a silently strengthened old one. The two non-registered occurrences are
+restatements — `6.22#2` is `6.22#1`'s negative half, `6.22#12` is `6.22#11` stated for changing the
+embedding model rather than rebuilding the index. No keyword-free entries: the section exists to be
+explicit, and a soft restatement would defeat its purpose.
+
 **§6.6 — flagged judgement.** Counted 0. The graph-DB migration trigger is phrased as a design note
 and recorded in ADR-0001 under P20, not as an implementation obligation. A stricter reading is
 defensible; the basis says so, so a reviewer can overrule it rather than discover it.
 
 ## 4. Requirements and statements this audit produced
 
-Requirement ↔ Test invariant: **59 ↔ 59**. 103 normative statements
+Requirement ↔ Test invariant: **60 ↔ 60**. 113 normative statements
 registered across the whole document.
 
 New Requirement IDs minted during the audit, each because no existing requirement could discharge
-the obligation without distortion:
-
+the obligation without distortion. `EVI-010` was **not** minted by this audit — it was raised later,
+by the M1-P1 implementation slice as SPEC-ISSUE-013, and is listed here because it lands inside
+this audit's range:
 | ID | Obligation | Milestone |
 |---|---|---|
 | `HEU-001` | Candidate heuristics await human approval; miners use approved sources only | M7 |
@@ -324,6 +346,7 @@ the obligation without distortion:
 | `VER-008` | Disagreement metrics are deterministic and versioned | M3 |
 | `OPS-004` | Cross-store writes share one unit of work | M1 |
 | `EVI-009` | MEASURED/SIMULATED evidence must reference its Run/Artifact at admission | M1 |
+| `EVI-010` | Segmentation preserves the minimum evidence boundary; a vector chunk is not evidence identity | M1 |
 
 Statements added against **existing** requirements, where an owner did exist:
 `debate.rounds.not_fixed` (LLM-002), `critique.independent_path.reject_or_irreversible` (SRC-002),
@@ -340,7 +363,9 @@ registration of a fabrication Capability. `T-SPEC-002` enforces that a DEFERRED 
 independence only — GROUP / SAMPLE / INSTRUMENT / METHOD correlation is the other half of
 corroboration inflation and is not modelled.
 
-All eight spec issues (`SPEC-ISSUE-001` … `-008`) are **RESOLVED**; none is outstanding.
+All thirteen spec issues (`SPEC-ISSUE-001` … `-013`) are **RESOLVED**; none is outstanding. Five were
+raised by this audit; the rest came from implementation slices that could not be written honestly
+without a ruling.
 
 ## 5. M0a exit gate status
 

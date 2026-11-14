@@ -1,0 +1,27 @@
+{
+ "cutoff_exclusive": "2026-03-23",
+ "repositories": [
+  {
+   "full_name": "gcharalampous/lumerical-py-scripts",
+   "url": "https://github.com/gcharalampous/lumerical-py-scripts",
+   "description": "A collection of Python scripts designed to interface with the Lumerical Design Suite. ",
+   "created_at": "2022-08-15T22:37:28Z",
+   "pushed_at": "2026-08-04T22:52:45Z",
+   "licence": "MIT",
+   "stars": 77,
+   "trust": "TECHNICAL_ARTIFACT -- not peer-reviewed",
+   "found_by": "G02"
+  },
+  {
+   "full_name": "DavidLange7/LumericalwPython",
+   "url": "https://github.com/DavidLange7/LumericalwPython",
+   "description": "Python automation class for using Lumerical ",
+   "created_at": "2025-05-06T09:07:35Z",
+   "pushed_at": "2025-05-06T09:13:19Z",
+   "licence": null,
+   "stars": 0,
+   "trust": "TECHNICAL_ARTIFACT -- not peer-reviewed",
+   "found_by": "G02"
+  }
+ ]
+}

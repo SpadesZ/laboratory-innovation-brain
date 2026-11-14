@@ -1,0 +1,9 @@
+BEGIN
+== source artifacts behind every bundle member of the later episode, and behind the wrong episode
+                episode_id                |                             source_artifact_id                              | members 
+------------------------------------------+-----------------------------------------------------------------------------+---------
+ epi:12265cfd-ab34-4ba0-a329-cadc3d8894e6 | art:sha256:8b30ebc93163b8965b8ad8d67b298b20edeb832e16c69aacd66291fd621a981b |      34
+ epi:7b56877f-9287-4075-a3c6-9980abab8eef | art:sha256:8b30ebc93163b8965b8ad8d67b298b20edeb832e16c69aacd66291fd621a981b |      44
+(2 rows)
+
+ROLLBACK

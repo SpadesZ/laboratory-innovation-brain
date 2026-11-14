@@ -1,0 +1,59 @@
+The auditor's own run, at bfde08b (each probe passes while its defect is present)
+cap reached after 28 filler registrations
+known: 200 | unknown: 409
+unknown says: True
+.cap reached after 28 filler registrations
+unknown refused with: busy
+.active administrators after both commits: 0
+.active administrators: 0
+.mail to the owner: ['Lab Brain: a registration with your address']
+approve -> not_verified
+reactivate -> state
+.after decline: SUSPENDED True
+.bob now: ('ADMIN', 'ACTIVE') events: ['REGISTERED', 'EMAIL_VERIFIED', 'PASSWORD_SET', 'APPROVED', 'SUSPENDED']
+.session a year later: bob@gmail.example
+.stored looks: 51 | shown to members: 50 | material look shown: False
+.signed in after the change with the older link's password: ada@uni.example.edu
+.known (throttled): answered | unknown: mail_failed
+.known   quartiles ms [393.8, 403.0, 415.8]  min 364.0
+unknown quartiles ms [378.7, 387.8, 402.8]  min 361.8
+P(known slower than unknown) over all pairs: 0.71
+...question label: INTERNAL | cy's clearance: ['PUBLIC']
+cy sees: Lab Owner read the reports of “Why is Rs extremely high and weakly bias dependent while Cj trends normally?” — <time datetime="2026-10-20T09:27:23+00:00" title="2026-10-20 09:27:23 UTC">2026-10-20 17:27</time>
+.episode page: 200 | export: 200 18393 chars
+excerpts withheld: 19 | other report lines still shown: 126
+e.g.: ['| hypotheses | DONE | 5 competing hypotheses admitted after 1 debate round(s) and an indep', '## Competing hypotheses', '| Hypothesis | Mechanism | State | Governed moves |']
+continue: 409
+.remove own membership: 303 /projects/prj:b992c974-92ce-4e2b-9e5b-e17abf4f10ad?done=removed active: False
+change own access (for contrast): 409
+.bob's self-made membership: ('OWNER', ['CONFIDENTIAL_LAB', 'INTERNAL', 'PUBLIC', 'RESTRICTED_NDA'], ['LLM_EGRESS'], 'act:ac609762-7128-46fe-b86a-ee09a519cb85')
+admin's self-made membership: ('OWNER', 'act:6dd2a78a-29bc-4e99-9ee9-5a5e1d393c2e')
+.data: 303 | egress: 303 | policy: (['llc:1b648c59-dc55-4721-b70c-1ae47d693496'], ['INTERNAL', 'PUBLIC'], 'act:04991dce-edb4-4dad-8791-edfd1f94b65f')
+items added by the alias: (1,)
+approved/granted by: [('APPROVED', 'act:fa6176a0-5964-4f8b-aa55-79e66989f6ae'), ('MEMBERSHIP_GRANTED', 'act:fa6176a0-5964-4f8b-aa55-79e66989f6ae')]
+.dashboard names the private project: True | rows: 0
+6 full report reads -> rows: 1
+.
+=================================== PASSES ====================================
+=========================== short test summary info ===========================
+PASSED .adversarial/test_adv_accounts.py::test_registration_cap_reveals_whether_an_address_has_an_account
+PASSED .adversarial/test_adv_accounts.py::test_registration_cap_oracle_at_the_service
+PASSED .adversarial/test_adv_accounts.py::test_concurrent_demotions_through_the_service_leave_no_active_admin
+PASSED .adversarial/test_adv_accounts.py::test_concurrent_suspensions_in_sql_leave_no_active_admin
+PASSED .adversarial/test_adv_accounts.py::test_a_declined_unconfirmed_address_can_never_register_again
+PASSED .adversarial/test_adv_accounts.py::test_a_declined_registration_still_confirms_and_gets_a_password
+PASSED .adversarial/test_adv_accounts.py::test_any_writer_makes_any_account_an_administrator_with_no_administrator
+PASSED .adversarial/test_adv_accounts.py::test_session_lifetime_and_idle_limits_live_only_in_the_application
+PASSED .adversarial/test_adv_accounts_more.py::test_an_admin_look_drops_out_of_the_members_view_after_fifty_newer_ones
+PASSED .adversarial/test_adv_accounts_more.py::test_a_reset_link_still_works_after_the_holder_changes_their_password
+PASSED .adversarial/test_adv_accounts_more.py::test_with_mail_failing_a_throttled_known_address_answers_differently
+PASSED .adversarial/test_adv_accounts_more.py::test_measure_sign_in_timing_known_vs_unknown
+PASSED .adversarial/test_adv_held.py::test_held_demoted_admin_cross_project_ids_markup_and_no_third_role
+PASSED .adversarial/test_adv_held.py::test_held_token_and_session_edges
+PASSED .adversarial/test_adv_research.py::test_an_admin_look_shows_an_internal_question_to_a_public_only_member
+PASSED .adversarial/test_adv_research.py::test_the_opener_reads_an_internal_question_and_report_after_losing_internal
+PASSED .adversarial/test_adv_research.py::test_an_administrator_removes_their_own_membership
+PASSED .adversarial/test_adv_research.py::test_a_member_grants_themself_membership_any_clearance_and_egress_by_creating_a_project
+PASSED .adversarial/test_adv_research.py::test_an_admin_writes_research_and_declares_egress_in_any_project_via_a_self_approved_account
+PASSED .adversarial/test_adv_research.py::test_not_every_admin_read_is_recorded
+20 passed in 118.82s (0:01:58)

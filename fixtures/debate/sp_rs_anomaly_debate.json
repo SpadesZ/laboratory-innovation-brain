@@ -1,0 +1,531 @@
+{
+  "benchmark_set_id": "bench:sp.rs_anomaly_debate",
+  "cases": [
+    {
+      "case_id": "easy-1",
+      "difficulty": "EASY",
+      "evidence": [
+        {
+          "attestation_id": "att:easy-1:i1",
+          "source_work_id": "swk:easy-1:i1",
+          "text": "rs extremely high and weakly bias dependent; contact via suspected in the access region",
+          "trust_class": "INTERNAL_MEASUREMENT"
+        },
+        {
+          "attestation_id": "att:easy-1:i2",
+          "source_work_id": "swk:easy-1:i2",
+          "text": "high series resistance with flat bias usually a contact via defect",
+          "trust_class": "EXPERT_HEURISTIC"
+        },
+        {
+          "attestation_id": "att:easy-1:i3",
+          "source_work_id": "swk:easy-1:i3",
+          "text": "earlier simulation of this rs anomaly showed a coarse mesh convergence warning",
+          "trust_class": "INTERNAL_RUN"
+        },
+        {
+          "attestation_id": "att:easy-1:l1",
+          "source_work_id": "swk:easy-1:l1",
+          "text": "review of rs bias dependence in carrier depletion phase shifters",
+          "trust_class": "PEER_REVIEWED"
+        },
+        {
+          "attestation_id": "att:easy-1:l2",
+          "source_work_id": "swk:easy-1:l2",
+          "text": "extracted rs of rib modulators across wafers",
+          "trust_class": "PREPRINT"
+        }
+      ],
+      "question": "Why is Rs extremely high and weakly bias dependent while Cj trends normally",
+      "truth": "contact_discontinuity"
+    },
+    {
+      "case_id": "easy-2",
+      "difficulty": "EASY",
+      "evidence": [
+        {
+          "attestation_id": "att:easy-2:i1",
+          "source_work_id": "swk:easy-2:i1",
+          "text": "rs extremely high and weakly bias dependent; contact via suspected in the access region",
+          "trust_class": "INTERNAL_MEASUREMENT"
+        },
+        {
+          "attestation_id": "att:easy-2:i2",
+          "source_work_id": "swk:easy-2:i2",
+          "text": "high series resistance with flat bias usually a contact via defect",
+          "trust_class": "EXPERT_HEURISTIC"
+        },
+        {
+          "attestation_id": "att:easy-2:i3",
+          "source_work_id": "swk:easy-2:i3",
+          "text": "earlier simulation of this rs anomaly showed a coarse mesh convergence warning",
+          "trust_class": "INTERNAL_RUN"
+        },
+        {
+          "attestation_id": "att:easy-2:l1",
+          "source_work_id": "swk:easy-2:l1",
+          "text": "review of rs bias dependence in carrier depletion phase shifters",
+          "trust_class": "PEER_REVIEWED"
+        },
+        {
+          "attestation_id": "att:easy-2:l2",
+          "source_work_id": "swk:easy-2:l2",
+          "text": "extracted rs of rib modulators across wafers",
+          "trust_class": "PREPRINT"
+        }
+      ],
+      "question": "Why is Rs extremely high and weakly bias dependent while Cj trends normally",
+      "truth": "contact_discontinuity"
+    },
+    {
+      "case_id": "easy-3",
+      "difficulty": "EASY",
+      "evidence": [
+        {
+          "attestation_id": "att:easy-3:i1",
+          "source_work_id": "swk:easy-3:i1",
+          "text": "rs extremely high and weakly bias dependent; contact via suspected in the access region",
+          "trust_class": "INTERNAL_MEASUREMENT"
+        },
+        {
+          "attestation_id": "att:easy-3:i2",
+          "source_work_id": "swk:easy-3:i2",
+          "text": "high series resistance with flat bias usually a contact via defect",
+          "trust_class": "EXPERT_HEURISTIC"
+        },
+        {
+          "attestation_id": "att:easy-3:i3",
+          "source_work_id": "swk:easy-3:i3",
+          "text": "earlier simulation of this rs anomaly showed a coarse mesh convergence warning",
+          "trust_class": "INTERNAL_RUN"
+        },
+        {
+          "attestation_id": "att:easy-3:i4",
+          "source_work_id": "swk:easy-3:i4",
+          "text": "rs reverse bias sweep repeated; coarse mesh again with convergence warning",
+          "trust_class": "INTERNAL_RUN"
+        },
+        {
+          "attestation_id": "att:easy-3:l1",
+          "source_work_id": "swk:easy-3:l1",
+          "text": "review of rs bias dependence in carrier depletion phase shifters",
+          "trust_class": "PEER_REVIEWED"
+        },
+        {
+          "attestation_id": "att:easy-3:l2",
+          "source_work_id": "swk:easy-3:l2",
+          "text": "extracted rs of rib modulators across wafers",
+          "trust_class": "PREPRINT"
+        }
+      ],
+      "question": "Why is Rs extremely high and weakly bias dependent while Cj trends normally",
+      "truth": "mesh_artifact"
+    },
+    {
+      "case_id": "easy-4",
+      "difficulty": "EASY",
+      "evidence": [
+        {
+          "attestation_id": "att:easy-4:i1",
+          "source_work_id": "swk:easy-4:i1",
+          "text": "rs extremely high and weakly bias dependent; contact via suspected in the access region",
+          "trust_class": "INTERNAL_MEASUREMENT"
+        },
+        {
+          "attestation_id": "att:easy-4:i2",
+          "source_work_id": "swk:easy-4:i2",
+          "text": "high series resistance with flat bias usually a contact via defect",
+          "trust_class": "EXPERT_HEURISTIC"
+        },
+        {
+          "attestation_id": "att:easy-4:i3",
+          "source_work_id": "swk:easy-4:i3",
+          "text": "earlier simulation of this rs anomaly showed a coarse mesh convergence warning",
+          "trust_class": "INTERNAL_RUN"
+        },
+        {
+          "attestation_id": "att:easy-4:l1",
+          "source_work_id": "swk:easy-4:l1",
+          "text": "review of rs bias dependence in carrier depletion phase shifters",
+          "trust_class": "PEER_REVIEWED"
+        },
+        {
+          "attestation_id": "att:easy-4:l2",
+          "source_work_id": "swk:easy-4:l2",
+          "text": "extracted rs of rib modulators across wafers",
+          "trust_class": "PREPRINT"
+        }
+      ],
+      "question": "Why is Rs extremely high and weakly bias dependent while Cj trends normally",
+      "truth": "contact_discontinuity"
+    },
+    {
+      "case_id": "easy-5",
+      "difficulty": "EASY",
+      "evidence": [
+        {
+          "attestation_id": "att:easy-5:i1",
+          "source_work_id": "swk:easy-5:i1",
+          "text": "rs extremely high and weakly bias dependent; contact via suspected in the access region",
+          "trust_class": "INTERNAL_MEASUREMENT"
+        },
+        {
+          "attestation_id": "att:easy-5:i2",
+          "source_work_id": "swk:easy-5:i2",
+          "text": "high series resistance with flat bias usually a contact via defect",
+          "trust_class": "EXPERT_HEURISTIC"
+        },
+        {
+          "attestation_id": "att:easy-5:i3",
+          "source_work_id": "swk:easy-5:i3",
+          "text": "earlier simulation of this rs anomaly showed a coarse mesh convergence warning",
+          "trust_class": "INTERNAL_RUN"
+        },
+        {
+          "attestation_id": "att:easy-5:i4",
+          "source_work_id": "swk:easy-5:i4",
+          "text": "rs reverse bias sweep repeated; coarse mesh again with convergence warning",
+          "trust_class": "INTERNAL_RUN"
+        },
+        {
+          "attestation_id": "att:easy-5:l1",
+          "source_work_id": "swk:easy-5:l1",
+          "text": "review of rs bias dependence in carrier depletion phase shifters",
+          "trust_class": "PEER_REVIEWED"
+        },
+        {
+          "attestation_id": "att:easy-5:l2",
+          "source_work_id": "swk:easy-5:l2",
+          "text": "extracted rs of rib modulators across wafers",
+          "trust_class": "PREPRINT"
+        }
+      ],
+      "question": "Why is Rs extremely high and weakly bias dependent while Cj trends normally",
+      "truth": "mesh_artifact"
+    },
+    {
+      "case_id": "hard-1",
+      "difficulty": "HARD",
+      "evidence": [
+        {
+          "attestation_id": "att:hard-1:i1",
+          "source_work_id": "swk:hard-1:i1",
+          "text": "rs extremely high and weakly bias dependent; contact via suspected in the access region",
+          "trust_class": "INTERNAL_MEASUREMENT"
+        },
+        {
+          "attestation_id": "att:hard-1:i2",
+          "source_work_id": "swk:hard-1:i2",
+          "text": "high series resistance with flat bias usually a contact via defect",
+          "trust_class": "EXPERT_HEURISTIC"
+        },
+        {
+          "attestation_id": "att:hard-1:i3",
+          "source_work_id": "swk:hard-1:i3",
+          "text": "earlier simulation of this rs anomaly showed a coarse mesh convergence warning",
+          "trust_class": "INTERNAL_RUN"
+        },
+        {
+          "attestation_id": "att:hard-1:l1",
+          "source_work_id": "swk:hard-1:l1",
+          "text": "fourpoint probing verifies contact continuity; contact continuity verified yet rs stays high",
+          "trust_class": "PEER_REVIEWED"
+        },
+        {
+          "attestation_id": "att:hard-1:l2",
+          "source_work_id": "swk:hard-1:l2",
+          "text": "mesh refinement left rs unchanged; refinement left rs unchanged within tolerance",
+          "trust_class": "PREPRINT"
+        },
+        {
+          "attestation_id": "att:hard-1:l3",
+          "source_work_id": "swk:hard-1:l3",
+          "text": "rs flat with bias traced to dopant compensation from counterdoping in the rib",
+          "trust_class": "PEER_REVIEWED"
+        }
+      ],
+      "question": "Why is Rs extremely high and weakly bias dependent while Cj trends normally",
+      "truth": "dopant_compensation"
+    },
+    {
+      "case_id": "hard-2",
+      "difficulty": "HARD",
+      "evidence": [
+        {
+          "attestation_id": "att:hard-2:i1",
+          "source_work_id": "swk:hard-2:i1",
+          "text": "rs extremely high and weakly bias dependent; contact via suspected in the access region",
+          "trust_class": "INTERNAL_MEASUREMENT"
+        },
+        {
+          "attestation_id": "att:hard-2:i2",
+          "source_work_id": "swk:hard-2:i2",
+          "text": "high series resistance with flat bias usually a contact via defect",
+          "trust_class": "EXPERT_HEURISTIC"
+        },
+        {
+          "attestation_id": "att:hard-2:i3",
+          "source_work_id": "swk:hard-2:i3",
+          "text": "earlier simulation of this rs anomaly showed a coarse mesh convergence warning",
+          "trust_class": "INTERNAL_RUN"
+        },
+        {
+          "attestation_id": "att:hard-2:l1",
+          "source_work_id": "swk:hard-2:l1",
+          "text": "fourpoint probing verifies contact continuity; contact continuity verified yet rs stays high",
+          "trust_class": "PEER_REVIEWED"
+        },
+        {
+          "attestation_id": "att:hard-2:l2",
+          "source_work_id": "swk:hard-2:l2",
+          "text": "mesh refinement left rs unchanged; refinement left rs unchanged within tolerance",
+          "trust_class": "PREPRINT"
+        },
+        {
+          "attestation_id": "att:hard-2:l3",
+          "source_work_id": "swk:hard-2:l3",
+          "text": "rs flat with bias traced to dopant compensation from counterdoping in the rib",
+          "trust_class": "PEER_REVIEWED"
+        }
+      ],
+      "question": "Why is Rs extremely high and weakly bias dependent while Cj trends normally",
+      "truth": "dopant_compensation"
+    },
+    {
+      "case_id": "hard-3",
+      "difficulty": "HARD",
+      "evidence": [
+        {
+          "attestation_id": "att:hard-3:i1",
+          "source_work_id": "swk:hard-3:i1",
+          "text": "rs extremely high and weakly bias dependent; contact via suspected in the access region",
+          "trust_class": "INTERNAL_MEASUREMENT"
+        },
+        {
+          "attestation_id": "att:hard-3:i2",
+          "source_work_id": "swk:hard-3:i2",
+          "text": "high series resistance with flat bias usually a contact via defect",
+          "trust_class": "EXPERT_HEURISTIC"
+        },
+        {
+          "attestation_id": "att:hard-3:i3",
+          "source_work_id": "swk:hard-3:i3",
+          "text": "earlier simulation of this rs anomaly showed a coarse mesh convergence warning",
+          "trust_class": "INTERNAL_RUN"
+        },
+        {
+          "attestation_id": "att:hard-3:l1",
+          "source_work_id": "swk:hard-3:l1",
+          "text": "fourpoint probing verifies contact continuity; contact continuity verified yet rs stays high",
+          "trust_class": "PEER_REVIEWED"
+        },
+        {
+          "attestation_id": "att:hard-3:l2",
+          "source_work_id": "swk:hard-3:l2",
+          "text": "mesh refinement left rs unchanged; refinement left rs unchanged within tolerance",
+          "trust_class": "PREPRINT"
+        },
+        {
+          "attestation_id": "att:hard-3:l3",
+          "source_work_id": "swk:hard-3:l3",
+          "text": "rs flat with bias traced to dopant compensation from counterdoping in the rib",
+          "trust_class": "PEER_REVIEWED"
+        }
+      ],
+      "question": "Why is Rs extremely high and weakly bias dependent while Cj trends normally",
+      "truth": "dopant_compensation"
+    },
+    {
+      "case_id": "hard3-1",
+      "difficulty": "HARD",
+      "evidence": [
+        {
+          "attestation_id": "att:hard3-1:i1",
+          "source_work_id": "swk:hard3-1:i1",
+          "text": "rs extremely high and weakly bias dependent; contact via suspected in the access region",
+          "trust_class": "INTERNAL_MEASUREMENT"
+        },
+        {
+          "attestation_id": "att:hard3-1:i2",
+          "source_work_id": "swk:hard3-1:i2",
+          "text": "high series resistance with flat bias usually a contact via defect",
+          "trust_class": "EXPERT_HEURISTIC"
+        },
+        {
+          "attestation_id": "att:hard3-1:i3",
+          "source_work_id": "swk:hard3-1:i3",
+          "text": "earlier simulation of this rs anomaly showed a coarse mesh convergence warning",
+          "trust_class": "INTERNAL_RUN"
+        },
+        {
+          "attestation_id": "att:hard3-1:l1",
+          "source_work_id": "swk:hard3-1:l1",
+          "text": "mesh refinement left rs unchanged across three refinements",
+          "trust_class": "PREPRINT"
+        },
+        {
+          "attestation_id": "att:hard3-1:l2",
+          "source_work_id": "swk:hard3-1:l2",
+          "text": "rs normalization error: division by drawn length inflates rs per length",
+          "trust_class": "PEER_REVIEWED"
+        },
+        {
+          "attestation_id": "att:hard3-1:l3",
+          "source_work_id": "swk:hard3-1:l3",
+          "text": "profiles crosschecked against drawn length reveal dopant compensation by counterdoping",
+          "trust_class": "PEER_REVIEWED"
+        }
+      ],
+      "question": "Why is Rs extremely high and weakly bias dependent while Cj trends normally",
+      "truth": "normalization_error"
+    },
+    {
+      "case_id": "hard3-2",
+      "difficulty": "HARD",
+      "evidence": [
+        {
+          "attestation_id": "att:hard3-2:i1",
+          "source_work_id": "swk:hard3-2:i1",
+          "text": "rs extremely high and weakly bias dependent; contact via suspected in the access region",
+          "trust_class": "INTERNAL_MEASUREMENT"
+        },
+        {
+          "attestation_id": "att:hard3-2:i2",
+          "source_work_id": "swk:hard3-2:i2",
+          "text": "high series resistance with flat bias usually a contact via defect",
+          "trust_class": "EXPERT_HEURISTIC"
+        },
+        {
+          "attestation_id": "att:hard3-2:i3",
+          "source_work_id": "swk:hard3-2:i3",
+          "text": "earlier simulation of this rs anomaly showed a coarse mesh convergence warning",
+          "trust_class": "INTERNAL_RUN"
+        },
+        {
+          "attestation_id": "att:hard3-2:l1",
+          "source_work_id": "swk:hard3-2:l1",
+          "text": "mesh refinement left rs unchanged across three refinements",
+          "trust_class": "PREPRINT"
+        },
+        {
+          "attestation_id": "att:hard3-2:l2",
+          "source_work_id": "swk:hard3-2:l2",
+          "text": "rs normalization error: division by drawn length inflates rs per length",
+          "trust_class": "PEER_REVIEWED"
+        },
+        {
+          "attestation_id": "att:hard3-2:l3",
+          "source_work_id": "swk:hard3-2:l3",
+          "text": "profiles crosschecked against drawn length reveal dopant compensation by counterdoping",
+          "trust_class": "PEER_REVIEWED"
+        }
+      ],
+      "question": "Why is Rs extremely high and weakly bias dependent while Cj trends normally",
+      "truth": "normalization_error"
+    }
+  ],
+  "description": "Fixed SiPho debate benchmark for LLM-002 (T-LLM-002): the VS-SP-001 Rs anomaly, with EASY cases whose answer is in the lab's own records and HARD cases whose lab history is biased toward the wrong mechanisms. Not cherry-picked after running: the cases were written from the mechanism catalog before any debate was run.",
+  "difficulty_order": [
+    "EASY",
+    "HARD"
+  ],
+  "domain": "silicon_photonics",
+  "intent": "DIAGNOSIS",
+  "mechanisms": {
+    "contact_discontinuity": {
+      "assumptions": [
+        "the contact via geometry is taken unmodified from the device project"
+      ],
+      "confounders": [
+        "probe contact resistance during measurement"
+      ],
+      "counter_cues": [
+        "contact continuity verified"
+      ],
+      "cues": [
+        "contact via",
+        "access region"
+      ],
+      "expected_outcome": "RS_BIAS_INSENSITIVE",
+      "falsifier": "fourpoint probing verifies contact continuity",
+      "mechanism": "access contact discontinuity",
+      "minimal_test_ref": "cap:sp.inspect_contact_connectivity",
+      "statement": "An access or contact discontinuity dominates the series resistance."
+    },
+    "dopant_compensation": {
+      "assumptions": [
+        "the implant recipe matches the process design kit"
+      ],
+      "confounders": [
+        "anneal temperature variation"
+      ],
+      "counter_cues": [
+        "implant dose measured nominal"
+      ],
+      "cues": [
+        "dopant compensation",
+        "counterdoping"
+      ],
+      "expected_outcome": "RS_RISES_WITH_REVERSE_BIAS",
+      "falsifier": "implant dose measured nominal",
+      "mechanism": "dopant compensation in the rib",
+      "minimal_test_ref": "cap:sp.charge_ac_sweep",
+      "statement": "Dopant compensation in the rib raises the resistance of the undepleted region."
+    },
+    "mesh_artifact": {
+      "assumptions": [
+        "the solver mesh near the junction is the project default"
+      ],
+      "confounders": [
+        "solver tolerance settings"
+      ],
+      "counter_cues": [
+        "refinement left rs unchanged"
+      ],
+      "cues": [
+        "coarse mesh",
+        "convergence warning"
+      ],
+      "expected_outcome": "RS_FALLS_WITH_REVERSE_BIAS",
+      "falsifier": "mesh refinement leaves extracted rs unchanged",
+      "mechanism": "mesh convergence artifact",
+      "minimal_test_ref": "cap:sp.mesh_sensitivity",
+      "statement": "A mesh convergence artifact inflates the extracted series resistance."
+    },
+    "normalization_error": {
+      "assumptions": [
+        "the extraction divides by a single device length"
+      ],
+      "confounders": [
+        "taper sections excluded from the drawn length"
+      ],
+      "counter_cues": [
+        "normalization crosschecked"
+      ],
+      "cues": [
+        "normalization error",
+        "drawn length inflates"
+      ],
+      "expected_outcome": "RS_BIAS_INSENSITIVE",
+      "falsifier": "normalization crosschecked against drawn length",
+      "mechanism": "length normalization error",
+      "minimal_test_ref": "cap:sp.extraction_consistency",
+      "statement": "A length normalization error in extraction inflates the per-length resistance."
+    }
+  },
+  "outcome_space": {
+    "observable_ref": "sp.small_signal_impedance",
+    "outcome_space_id": "os:sp.rs_bias_response",
+    "outcome_space_version": "1.0.0"
+  },
+  "primary_terms": [
+    "series",
+    "resistance",
+    "reverse",
+    "bias",
+    "rs"
+  ],
+  "question_label": "INTERNAL",
+  "stakes": "HIGH",
+  "version": "1.0.0"
+}

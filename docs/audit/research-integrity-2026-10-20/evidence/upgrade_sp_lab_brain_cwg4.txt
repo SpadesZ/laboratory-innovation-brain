@@ -1,0 +1,25 @@
+lab_brain_cwg4 -> copy lab_brain_upg_sp_cwg4: 79 tables, 281 rows
+$ migrate.py  -> exit 0
+    applied  012r_relation_invalidation.sql
+    applied  012s_project_scoped_provenance.sql
+    applied  012t_review_only_declarations.sql
+  applied 5 migration(s)
+$ migrate.py  -> exit 0
+  declared : 67
+  applied  : 67
+  pending  : 0
+  migrations up to date
+$ migrate.py --status -> exit 0
+    applied  012q_question_classification.sql
+    applied  012r_relation_invalidation.sql
+    applied  012s_project_scoped_provenance.sql
+    applied  012t_review_only_declarations.sql
+rows in pre-existing tables changed by the upgrade: ['schema_migrations']
+SELECT grant_id, enrolment_id IS NULL, signature IS NULL FROM diagnost... -> [('dwg:1', True, True)]
+SELECT failure_analysis_id, resolution_status, warrant_refs FROM failu... -> [('fan:normalization-taper-least_cost-failure_analysis-0002', 'CONFIRMED', ['dwg:1'])]
+SELECT count(*) FROM failure_analysis_flags... -> [(0,)]
+SELECT count(*) FROM schema_migrations... -> [(67,)]
+SELECT record_kind, reference_kind, count(*) FROM provenance_scope_vio... -> [('attestation', 'artifact', 6)]
+SELECT count(*) FILTER (WHERE question_label IS NULL), count(*) FROM r... -> [(0, 0)]
+SELECT count(*) FILTER (WHERE valid_to IS NOT NULL), count(*) FILTER (... -> [(0, 0)]
+SELECT to_regclass('public.accounts') IS NOT NULL, to_regclass('public... -> [(False, False)]

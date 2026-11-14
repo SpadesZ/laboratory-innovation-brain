@@ -251,6 +251,53 @@ class AuthorityComparison(StrEnum):
     INCOMPARABLE = "INCOMPARABLE"
 
 
+class EvidenceUnitType(StrEnum):
+    """§6.22 / §17.25. What kind of document structure a canonical evidence unit came from.
+
+    Structural, never domain-specific: a unit is a TABLE because the document had a table there,
+    not because it holds capacitance. §24.1 keeps the core free of Cj, Rs and wavelengths, and this
+    vocabulary is one of the places that rule is easy to break by accident.
+
+    ``PROSE`` rather than ``PARAGRAPH``: §6.22's boundary rule routinely binds two adjacent
+    sentences that a parser would emit as separate paragraphs, so the unit is the semantic block,
+    not the layout element.
+    """
+
+    SECTION = "SECTION"
+    PROSE = "PROSE"
+    TABLE = "TABLE"
+    FIGURE = "FIGURE"
+    CODE = "CODE"
+    LOG = "LOG"
+
+
+class SubdivisionReason(StrEnum):
+    """§6.22 rule 3. Why a unit was cut by token count rather than by structure.
+
+    The vocabulary is closed and has two members, which is the point: fixed-token splitting is
+    permitted for exactly two reasons and a record has to name which. An open reason string would
+    let "chunked for retrieval" be written into the same field and read as compliant.
+    """
+
+    #: 3(a): one valid evidence unit exceeded the declared safety/token limit.
+    OVERSIZED_UNIT = "OVERSIZED_UNIT"
+    #: 3(b): produced deliberately as the T-EVI-010 comparison baseline. Never admitted.
+    BENCHMARK_BASELINE = "BENCHMARK_BASELINE"
+
+
+class RetrievalIndexKind(StrEnum):
+    """§17.25. How a retrieval index finds candidates.
+
+    ``DENSE`` and ``HYBRID`` are declared now and unused: EVI-007's vector index is a later slice.
+    They are here so the seam's shape is fixed before something is plugged into it, rather than
+    the enum growing to fit whatever arrives.
+    """
+
+    LEXICAL = "LEXICAL"
+    DENSE = "DENSE"
+    HYBRID = "HYBRID"
+
+
 class ConditionMatchState(StrEnum):
     """§17.19. ``UNKNOWN`` is distinct from ``INCOMPATIBLE`` on purpose.
 
@@ -274,17 +321,20 @@ __all__ = [
     "ClaimIdentityStatus",
     "ConditionMatchState",
     "EpistemicType",
+    "EvidenceUnitType",
     "ExtractionStatus",
     "FieldStatus",
     "IndependenceBasis",
     "IndependenceRelation",
     "LicenseClass",
     "RelationType",
+    "RetrievalIndexKind",
     "SecretScanStatus",
     "SensitivityLabel",
     "SourceOrigin",
     "SourceWorkStatus",
     "SourceWorkType",
+    "SubdivisionReason",
     "TrustClass",
     "VerificationStatus",
 ]

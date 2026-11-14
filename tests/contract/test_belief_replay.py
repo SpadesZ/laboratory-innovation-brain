@@ -180,9 +180,11 @@ def test_both_scope_problems_are_reported_together():
 def test_two_projects_may_use_the_same_target_id_without_their_histories_merging():
     """The collision the audit asked for, and the reason `v3.3-a11` added `project_id`.
 
-    Nothing makes a hypothesis id globally unique -- `target_id` has no foreign key at all (R-12).
-    So two projects reaching the same id is not a pathological case, and a replay keyed on the
-    target alone would fold both histories together and return a state neither project is in.
+    A hypothesis id is unique only within its project: since `011j` (M3, closing R-12) an event's
+    `(project_id, target_id)` references a hypothesis admitted in that project, and two projects may
+    admit the same id. So two projects reaching the same id is not a pathological case, and a replay
+    keyed on the target alone would fold both histories together and return a state neither project
+    is in.
     """
     mine = event(event_id="bre:mine", from_state=None, to_state=BeliefState.ACTIVE)
     theirs = event(

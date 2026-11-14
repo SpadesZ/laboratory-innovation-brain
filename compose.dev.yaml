@@ -1,0 +1,35 @@
+# Development and test database ONLY -- not the product (the product is `compose.yaml`).
+#
+#     docker compose -f compose.dev.yaml up -d
+#
+# §6.6: PostgreSQL + JSONB + pgvector is the single source of truth for v1. No graph database and
+# no second store is added until a measured traversal workload demands it (P20).
+#
+# The password below is the test suite's fixed, public credential (`tests/postgres_fixtures.py`).
+# That is why this database is published on the host's LOOPBACK only: nothing beyond this machine
+# may reach a database whose password is in the repository. The project name stays `lab-brain`, so
+# an existing development container and its volume are the same ones as before.
+
+name: lab-brain
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: lab_brain
+      POSTGRES_PASSWORD: lab_brain
+      POSTGRES_DB: lab_brain
+    ports:
+      # 5433 on the host so a lab machine's existing 5432 Postgres is left alone; loopback only.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab_brain -d lab_brain"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

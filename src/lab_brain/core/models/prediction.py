@@ -19,6 +19,8 @@ finished.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Any, Self
 
 from pydantic import Field, model_validator
@@ -34,6 +36,39 @@ from lab_brain.core.models.relation import EPISTEMIC_RELATION_TYPES, RelationJud
 #: satisfied by, so the action would be reported sufficient on the strength of a relation that
 #: cannot move belief.
 PREDICTION_EFFECT_TYPES = frozenset(EPISTEMIC_RELATION_TYPES)
+
+#: What each prediction effect means for the hypothesis that declares it -- the words a model that
+#: writes predictions is given (the Hypothesis Engine's prompt renders this mapping).
+#:
+#: Only SUPPORTS is support and only CONTRADICTS is refutation (§17.8: the relation is the single
+#: source of truth for support/contradict semantics). PREDICTS and TESTS are recorded, compared and
+#: shown, and are neither. A model that is not told this declares a discriminating forecast as
+#: PREDICTS and no policy can ever count the observation for it; the words below are what it is
+#: told. `tests/unit/test_prediction_effect_semantics.py` keeps them true: every transition policy
+#: the product registers requires only SUPPORTS or CONTRADICTS, and every effect type has a meaning.
+PREDICTION_EFFECT_MEANINGS: Mapping[RelationType, str] = MappingProxyType(
+    {
+        RelationType.SUPPORTS: (
+            "observing the outcome is evidence FOR this hypothesis, because its mechanism "
+            "produces the outcome and its rivals' mechanisms would not, so the outcome "
+            "discriminates it. The only effect a transition policy counts as support"
+        ),
+        RelationType.PREDICTS: (
+            "the hypothesis forecasts the outcome, but observing it would not be evidence for "
+            "it -- for example because rival mechanisms forecast it too. Recorded and compared "
+            "with the rivals' forecasts; never counted as support"
+        ),
+        RelationType.CONTRADICTS: (
+            "observing the outcome is evidence AGAINST this hypothesis. The only effect a "
+            "transition policy counts as refutation; a falsifier is a designated CONTRADICTS "
+            "prediction"
+        ),
+        RelationType.TESTS: (
+            "the outcome bears on the hypothesis without a declared direction. Recorded; never "
+            "counted as support or refutation"
+        ),
+    }
+)
 
 
 class OutcomeSpace(CoreModel):
@@ -251,6 +286,7 @@ def bind(prediction: Prediction, space: OutcomeSpace) -> Prediction:
 
 
 __all__ = [
+    "PREDICTION_EFFECT_MEANINGS",
     "PREDICTION_EFFECT_TYPES",
     "OutcomeSpace",
     "Prediction",

@@ -1,0 +1,47 @@
+Upgrade paths at 4669af1 (012p unchanged since 16a1560), 2026-10-15. Copies of V1 development databases holding data; each source is copied with CREATE DATABASE ... TEMPLATE and never written.
+Every table's rows are fingerprinted over the columns that existed before the upgrade, before and after it. $ python evidence/scripts/upgrade_check.py <source> <copy>
+
+lab_brain_cwg4 -> copy lab_brain_upg_cwg4: 79 tables, 281 rows
+$ migrate.py  -> exit 0
+  applied  : 62
+  pending  : 1
+    applied  012p_causal_warrant_gate_v1_1.sql
+  applied 1 migration(s)
+$ migrate.py  -> exit 0
+  declared : 63
+  applied  : 63
+  pending  : 0
+  migrations up to date
+$ migrate.py --status -> exit 0
+    applied  012m_llm_probe_semantics.sql
+    applied  012n_typed_falsifier.sql
+    applied  012o_causal_warrant_gate.sql
+    applied  012p_causal_warrant_gate_v1_1.sql
+rows in pre-existing tables changed by the upgrade: ['schema_migrations']
+SELECT grant_id, enrolment_id IS NULL, signature IS NULL FROM diagnost... -> [('dwg:1', True, True)]
+SELECT failure_analysis_id, resolution_status, warrant_refs FROM failu... -> [('fan:normalization-taper-least_cost-failure_analysis-0002', 'CONFIRMED', ['dwg:1'])]
+SELECT count(*) FROM failure_analysis_flags... -> [(0,)]
+SELECT count(*) FROM schema_migrations... -> [(63,)]
+
+lab_brain_cwg_verify -> copy lab_brain_upg_verify: 78 tables, 83 rows
+$ migrate.py  -> exit 0
+  pending  : 2
+    applied  012o_causal_warrant_gate.sql
+    applied  012p_causal_warrant_gate_v1_1.sql
+  applied 2 migration(s)
+$ migrate.py  -> exit 0
+  declared : 63
+  applied  : 63
+  pending  : 0
+  migrations up to date
+$ migrate.py --status -> exit 0
+    applied  012m_llm_probe_semantics.sql
+    applied  012n_typed_falsifier.sql
+    applied  012o_causal_warrant_gate.sql
+    applied  012p_causal_warrant_gate_v1_1.sql
+rows in pre-existing tables changed by the upgrade: ['schema_migrations']
+SELECT grant_id, enrolment_id IS NULL, signature IS NULL FROM diagnost... -> []
+SELECT failure_analysis_id, resolution_status, warrant_refs FROM failu... -> []
+SELECT count(*) FROM failure_analysis_flags... -> [(0,)]
+SELECT count(*) FROM schema_migrations... -> [(63,)]
+

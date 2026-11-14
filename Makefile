@@ -51,11 +51,11 @@ typecheck:  ## mypy strict
 
 check: spec lint typecheck test  ## Everything CI runs
 
-db-up:  ## Start PostgreSQL + pgvector
-	docker compose up -d
+db-up:  ## Start the development/test PostgreSQL + pgvector (not the product)
+	docker compose -f compose.dev.yaml up -d
 
-db-down:  ## Stop PostgreSQL
-	docker compose down
+db-down:  ## Stop the development/test PostgreSQL
+	docker compose -f compose.dev.yaml down
 
 migrate:  ## Apply versioned migrations
 	$(PY) scripts/migrate.py

@@ -3,10 +3,10 @@
 # Gate order and exit gates are transcribed from SAI 3.3 §26.1. The per-milestone
 # `requirements` allocation is an implementation decision, not spec text: each
 # requirement is assigned to the milestone at which its §26 pass condition can be
-# fully satisfied. The union of all allocations MUST equal the 59 requirements the
+# fully satisfied. The union of all allocations MUST equal the 60 requirements the
 # spec declares -- enforced by T-SPEC-001 against the parsed §25.3 table, so this
 # number is documentation and the check does not depend on it being retyped
-# correctly. It has moved with the amendments (v3.3-a1 .. a8); §0's amendment
+# correctly. It has moved with the amendments (v3.3-a1 .. a18); §0's amendment
 # ledger is the record.
 #
 # `status` drives the CI ratchet. Once a milestone is DONE, every requirement allocated to it
@@ -81,7 +81,33 @@ milestones:
 
   - id: M1
     name: Research Memory
-    status: NOT_STARTED
+    # IN_PROGRESS from M1-P1 (2026-09-20) to 2026-09-23.
+    #
+    # DONE 2026-09-23 on independent review sign-off / HARD-LOCK APPROVED at
+    # bdb72129a1075d69a30f5043a3491570ca7d4521 -- the commit that closed the last M2 seam
+    # (`DiagnosticsService` authorizing on membership presence when no Actor resolver was supplied)
+    # and corrected the stale closeout records. Readiness evidence and the per-requirement matrix
+    # are in docs/implementation/M1-readiness.md; the clause-by-clause exit gate is its §1 and the
+    # closing security repair is its §12.
+    #
+    # FROM THIS POINT THE EXECUTED-COVERAGE RATCHET ENFORCES M1 ON EVERY CI RUN, the same way it
+    # has enforced M0a since 2026-09-13 and M0b since 2026-09-20: each of the 21 requirements below
+    # needs a traceability test that ACTUALLY EXECUTED AND PASSED under gate_profile [postgres].
+    # Collection is not execution -- @skip, @xfail(run=False), a module-level skip and the
+    # backend-gate skips in tests/conftest.py are all collected while running no assertion.
+    #
+    # Earlier revisions of this comment said twelve requirements were "untouched and have no tests"
+    # and that OPS-001 / LLM-001 / UX-001~007 did not exist. Both were accurate at the M1-P1 lock
+    # and became false across the M1 production slices; they were corrected at bdb7212 rather than
+    # softened, because this file is machine-read for allocation and human-read for scope.
+    #
+    # M1-P1 HARD-LOCKED 2026-09-21 at f8e5e9c02ee98ed2a7faa6f604347b84b88c773b on independent M2
+    # review (PASS), after Repair-1 (23b47dd) and Repair-2 (f8e5e9c). That lock is on the SLICE,
+    # predates this one, and is STILL IN FORCE independently of it: it fixes an implementation
+    # baseline later slices may not refactor for cleanliness. Reopen either only on a reproducible
+    # violation of a locked invariant. The fourteen M1-P1 locked items are tabulated in
+    # docs/implementation/M1-P1-readiness.md §12; the next-slice handoff is M1-P1-handoff.md.
+    status: DONE
     exit_gate: >-
       local document/run ingest; source-work dedup; delayed mock job resumes episode;
       all scientific LLM calls persist bundle+provenance; UX-001~007 tests pass.
@@ -95,6 +121,14 @@ milestones:
       # v3.3-a6. Admission-time obligation, so it sits with EVI-003's
       # admission gate rather than waiting for M4's root-cause vertical.
       - EVI-009
+      # v3.3-a17 (SPEC-ISSUE-013). Allocated here rather than to M2 because
+      # where evidence boundaries fall is not domain-specific -- §24.1 puts
+      # Artifact/Claim/Observation/Attestation in the core column, and a
+      # DomainPack re-deciding it per domain is the extension-boundary failure
+      # EXT-001 exists to detect. It also has to land WITH the ingestion path
+      # it governs: a segmenter added after evidence already exists would need
+      # a re-segmentation migration whose provenance nobody can honestly state.
+      - EVI-010
       - LLM-001
       - OPS-001
       - OPS-004
@@ -112,7 +146,24 @@ milestones:
 
   - id: M2
     name: Silicon Photonics Tool Layer
-    status: NOT_STARTED
+    # IN_PROGRESS from 2026-09-23 to 2026-09-25.
+    #
+    # DONE 2026-09-25 on independent review sign-off / HARD-LOCK APPROVED at
+    # 66ef099f965a0f6a8e7aa1ecd836eec4555a26f3 -- the commit that bound the Episode COST-001 budgets
+    # to the Episode whose Job executes (readiness §11, repair F), after repairs A-D (§9) and the
+    # execution-scope binding E (§10). Readiness evidence and the per-requirement matrix are in
+    # docs/implementation/M2-readiness.md; the clause-by-clause exit gate is its §1.
+    #
+    # FROM THIS POINT THE EXECUTED-COVERAGE RATCHET ENFORCES M2 ON EVERY CI RUN, the same way it
+    # enforces M0a since 2026-09-13, M0b since 2026-09-20 and M1 since 2026-09-23: each of the eight
+    # requirements below needs a traceability test that ACTUALLY EXECUTED AND PASSED under
+    # gate_profile [postgres].
+    #
+    # What is NOT claimed, and the sign-off did not change it: TST-001's licensed half. There is no
+    # Lumerical seat in this environment (risk R-1), so the contract is proven against a
+    # deterministic mock and the replay on a real project in a licensed environment is open.
+    # TST-001 is allocated to M4 and stays there.
+    status: DONE
     exit_gate: >-
       simulated + measured fixtures use the same extractor contract;
       license/resource queue mock pass.
@@ -129,7 +180,18 @@ milestones:
 
   - id: M3
     name: Hypothesis Brain
-    status: NOT_STARTED
+    # IN_PROGRESS from 2026-09-25 to 2026-09-27.
+    #
+    # DONE 2026-09-27 on independent review sign-off / HARD-LOCK APPROVED at
+    # 6416adb1f72ada341f82fb04731e1fababd140d9 -- the commit that proved §7.6 adjudication from the
+    # durable record and closed R-12 (readiness §11, repairs G and H). Readiness evidence and the
+    # per-requirement matrix are in docs/implementation/M3-readiness.md; the exit gate is its §1.
+    #
+    # FROM THIS POINT THE EXECUTED-COVERAGE RATCHET ENFORCES M3 ON EVERY CI RUN, the same way it
+    # enforces M0a since 2026-09-13, M0b since 2026-09-20, M1 since 2026-09-23 and M2 since
+    # 2026-09-25: each of the five requirements below needs a traceability test that ACTUALLY
+    # EXECUTED AND PASSED under gate_profile [postgres].
+    status: DONE
     exit_gate: >-
       role I/O + Position/Critique contracts pass; Critic bundle divergence measurable;
       benchmark thresholds calibrated and stored in BenchmarkPolicy before gate
@@ -144,7 +206,18 @@ milestones:
 
   - id: M4
     name: First Vertical (VS-SP-001)
-    status: NOT_STARTED
+    # IN_PROGRESS from 2026-09-27, when M3 was signed off and M4 implementation began.
+    # Implementation complete and READY FOR INDEPENDENT SIGN-OFF 2026-09-27: all seven requirements
+    # carry marked tests, and the fixed VS-SP-001 benchmark passes the exit gate below -- see
+    # docs/implementation/M4-readiness.md and benchmarks/root_cause_benchmark_report.md. TST-001's
+    # licensed replay is NOT performed (no Lumerical seat, risk R-1); only its mock half runs.
+    # EXTERNALLY BLOCKED on TST-001 from 2026-09-27: the licensed replay was attempted and cannot
+    # run here -- no Lumerical/Ansys installation, no lumapi, no licence server or seat, no licensed
+    # provider module, no Lumerical project for the case. M4-readiness.md §11 records the probe.
+    #
+    # IN_PROGRESS IS NOT A SIGN-OFF AND CARRIES NO GATE. The ratchet enforces a milestone only once
+    # it is DONE; moving this to DONE is the maintainer's act on independent review.
+    status: IN_PROGRESS
     exit_gate: >-
       a fixed, non-cherry-picked benchmark set demonstrates root-cause correctness and
       avoids unnecessary high-cost action in predefined cases.
@@ -160,12 +233,30 @@ milestones:
 
   - id: M5
     name: External Evidence Expansion
-    status: DEFERRED
+    # IN_PROGRESS from 2026-09-27, taken up while M4 awaits independent sign-off: M4's
+    # implementation is treated as a provisional baseline and neither redesigned nor repaired here.
+    # Implementation and verification record: docs/implementation/M5-readiness.md. Every external
+    # provider this milestone exercises is a deterministic fixture -- no live GitHub or literature
+    # request is part of the recorded verification.
+    # The review's P0 -- project B consuming project A's access policy, allowlist or credential --
+    # is repaired (access scopes, `002d`), and snapshots that predate it fail closed on upgrade
+    # (`002e`); READY FOR INDEPENDENT REVIEW, M5-readiness.md §4.6-§4.7.
+    #
+    # GATE PROFILE: [postgres], not [postgres, network]. The normative tests are fixture-based --
+    # T-GH-001 is "public fixture repo 可 search/fetch" (§26), and T-GH-002/003 are security and
+    # epistemic tests over the same fixtures -- and they need PostgreSQL, not the internet. The
+    # profile was [postgres, network] from the catalog's first version, which is stricter than SAI
+    # and unsatisfiable by the offline CI AGT-007 requires: the ratchet could never have signed M5
+    # off. The live GitHub test stays, optional and unmarked (`integration/test_github_network.py`,
+    # `LAB_BRAIN_TEST_NETWORK=1`); it is not evidence for any requirement.
+    #
+    # IN_PROGRESS IS NOT A SIGN-OFF AND CARRIES NO GATE; DONE is the maintainer's act on review.
+    status: IN_PROGRESS
     exit_gate: >-
       external evidence enters with source/condition/rights/provenance metadata;
       GitHub source traces to repo + resolved commit/ref; removing the GitHub provider
       does not affect core cognition.
-    gate_profile: [postgres, network]
+    gate_profile: [postgres]
     requirements:
       - GH-001
       - GH-002

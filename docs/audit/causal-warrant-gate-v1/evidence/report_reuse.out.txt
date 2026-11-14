@@ -1,0 +1,18 @@
+BEGIN
+== artifacts ingested into prj:bench-gemini at or after the wrong confirmation
+                                 artifact_id                                 |                    media_type                    | source_origin |          ingested_at          
+-----------------------------------------------------------------------------+--------------------------------------------------+---------------+-------------------------------
+ art:sha256:87f17ee23f840d3bb8e9c3cf2e57e72eec1456ef642ed9636e83b5ada96787a1 | application/vnd.lab-brain.sp-device-project+json | UPLOAD        | 2026-10-13 12:20:39.313275+00
+ art:sha256:42605e822e1a61c67db6420fa65fee960e38338130018e3bf10daf7416101275 | application/json                                 | RUN_OUTPUT    | 2026-10-13 12:29:08.476946+00
+(2 rows)
+
+== bundles of the later episode epi:12265cfd: members and how many came from executed runs
+                bundle_id                 | members | from_runs 
+------------------------------------------+---------+-----------
+ bdl:4123cc4c-c601-4db5-a4e3-2ee626598701 |       8 |         0
+ bdl:99e49ac1-0773-4411-bedf-80475c48e938 |       8 |         0
+ bdl:fa6bbc88-41b9-4648-8ec8-2f1d128e1531 |      10 |         0
+ bdl:fd557c47-e456-4b50-a2e0-5ef483e9ec48 |       8 |         0
+(4 rows)
+
+ROLLBACK

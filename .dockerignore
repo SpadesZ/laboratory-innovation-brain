@@ -1,0 +1,12 @@
+# An allowlist: the image is built from exactly what the product runs, so nothing else -- a local
+# `.env`, an API-key file, a virtualenv, research data, the git history -- can reach the build.
+*
+!pyproject.toml
+!README.md
+!src/
+!migrations/
+!scripts/migrate.py
+!deployment/docker/
+deployment/docker/llm-keys.env
+**/__pycache__
+**/*.pyc

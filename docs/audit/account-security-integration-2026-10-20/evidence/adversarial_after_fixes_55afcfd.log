@@ -1,0 +1,462 @@
+The same probes after the fixes (55afcfd), project creation adapted to the new signature, the two single-thread concurrency probes excluded (they now wait on 012w's lock by design; see test_a5 in tests/security/test_adversarial_findings_postgres.py)
+FFFF.FFFF.F.FFFF..                                                       [100%]
+================================== FAILURES ===================================
+_______ test_registration_cap_reveals_whether_an_address_has_an_account _______
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) at 0x22756...pproves the account. If you did not register, ignore this message: without the link, nobody can use the account.\n')]))
+tmp_path = WindowsPath('C:\Users\<user>/AppData/Local/Temp/pytest-of-<user>/pytest-7910/test_registration_cap_reveals_0')
+
+    def test_registration_cap_reveals_whether_an_address_has_an_account(lab, tmp_path):
+        admin = lab.admin()
+        lab.member("ada@uni.example.edu", "Ada", admin=admin)
+        browser = _browser(tmp_path, lab.mail)
+        page = browser.get("/register")
+        token = _csrf(page)
+        # An anonymous requester fills the hourly cap (30 new accounts an hour) with throwaway
+        # addresses, until a new address is refused.
+        for i in range(40):
+            r = browser.post("/register", {"csrf": token, "email": f"filler{i}@spam.example"})
+            if r.status == 409:
+                break
+        print("cap reached after", i, "filler registrations")
+        known = browser.post("/register", {"csrf": token, "email": "ada@uni.example.edu"})
+        unknown = browser.post("/register", {"csrf": token, "email": "nobody@new.example"})
+        print("known:", known.status, "| unknown:", unknown.status)
+        print("unknown says:", "Too many registrations" in unknown.text)
+        # DEFECT: the known address gets the normal answer, the unknown one a 409 'busy'.
+>       assert known.status == 200 and "Too many registrations" not in known.text
+E       assert (409 == 200)
+E        +  where 409 = Reply(status=409, headers={'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '9767', 'Content-Security-Pol...count</button></p></form><p>Already registered? <a href="/login">Sign in</a></p></main></body></html>', set_cookies=()).status
+
+.adv_rerun\test_adv_accounts.py:45: AssertionError
+---------------------------- Captured stdout call -----------------------------
+cap reached after 30 filler registrations
+known: 409 | unknown: 409
+unknown says: True
+_________________ test_registration_cap_oracle_at_the_service _________________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) at 0x22756...pproves the account. If you did not register, ignore this message: without the link, nobody can use the account.\n')]))
+
+    def test_registration_cap_oracle_at_the_service(lab):
+        admin = lab.admin()
+        lab.member("ada@uni.example.edu", "Ada", admin=admin)
+        accounts = lab.service()
+        for i in range(40):
+            try:
+                accounts.register(email=f"filler{i}@spam.example")
+            except AccountRefused:
+                break
+        print("cap reached after", i, "filler registrations")
+>       accounts.register(email="ada@uni.example.edu")  # known: answered as usual
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.adv_rerun\test_adv_accounts.py:59: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <lab_brain.accounts.service.AccountService object at 0x0000022756300B60>
+email = 'ada@uni.example.edu'
+
+    def register(self, *, email: str) -> None:
+        """A PENDING account with no name and no password, and a verification link by mail.
+    
+        VERIFY FIRST. Whoever opens the link chooses the name and the password (`verify_email`), so
+        nothing is ever set by someone who has not shown they read the address's mail: a
+        registration of someone else's address holds nothing against its owner. For an address
+        registered but never confirmed: a fresh link, and the earlier ones stop working. For a
+        confirmed one: a notice to that address. The caller is told the same in every case."""
+        mailer = self._require_mail()
+        address = normalized_email(email)
+        if address is None:
+            raise AccountRefused("invalid_email")
+        now = self._now()
+        # The cap on registrations an hour is checked for EVERY address, known or not: one
+        # that answered differently once the cap was reached would tell which addresses have
+        # accounts (adversarial audit A4).
+        recent = self._c.execute(
+            "SELECT count(*) FROM accounts WHERE created_at > %s", (now - THROTTLE_WINDOW,)
+        ).fetchone()
+        if recent is not None and int(recent[0]) >= MAX_REGISTRATIONS_PER_HOUR:
+>           raise AccountRefused("busy")
+E           lab_brain.accounts.service.AccountRefused: busy
+
+src\lab_brain\accounts\service.py:207: AccountRefused
+---------------------------- Captured stdout call -----------------------------
+cap reached after 28 filler registrations
+________ test_a_declined_unconfirmed_address_can_never_register_again _________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) at 0x22756...pproves the account. If you did not register, ignore this message: without the link, nobody can use the account.\n')]))
+
+    def test_a_declined_unconfirmed_address_can_never_register_again(lab):
+        admin = lab.admin()
+        accounts = lab.service()
+        # A stranger (or a typo) registers victim@uni.example.edu; the administrator declines it,
+        # as the dashboard advises for a registration they do not recognise.
+        accounts.register(email="victim@uni.example.edu")
+        stranded = next(a for a in accounts.all() if a.email == "victim@uni.example.edu")
+>       accounts.reject(stranded.account_id, by=admin)
+
+.adv_rerun\test_adv_accounts.py:134: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <lab_brain.accounts.service.AccountService object at 0x0000022756300F20>
+account_id = 'acc:b1fff30e-a870-4123-af0b-bcef95e24375'
+by = Account(account_id='acc:c626f526-e86e-41d3-84fa-3bc7433eb256', actor_id='act:40366760-70c3-4937-a528-7437221c52e7', em...fo.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))
+
+    def reject(self, account_id: str, *, by: Account) -> Account:
+        """Decline a confirmed registration. An unconfirmed one is not declined: it holds
+        nothing (no name, no password), its link expires, and its address can be registered
+        again -- a declined one could never be (adversarial audit A8)."""
+        admin = self._admin(by)
+        with self._c.transaction():
+            account = self._locked(account_id)
+            if account.status != "PENDING":
+                raise AccountRefused("state", f"{account.email} is not awaiting approval")
+            if account.email_verified_at is None:
+>               raise AccountRefused("not_verified", f"{account.email} has not confirmed it")
+E               lab_brain.accounts.service.AccountRefused: victim@uni.example.edu has not confirmed it
+
+src\lab_brain\accounts\service.py:337: AccountRefused
+_______ test_a_declined_registration_still_confirms_and_gets_a_password _______
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) at 0x22756...pproves the account. If you did not register, ignore this message: without the link, nobody can use the account.\n')]))
+
+    def test_a_declined_registration_still_confirms_and_gets_a_password(lab):
+        """Observation (not a policy break): a decline does not end the verification link."""
+        admin = lab.admin()
+        accounts = lab.service()
+        accounts.register(email="later@uni.example.edu")
+        pending = next(a for a in accounts.all() if a.email == "later@uni.example.edu")
+>       accounts.reject(pending.account_id, by=admin)
+
+.adv_rerun\test_adv_accounts.py:158: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <lab_brain.accounts.service.AccountService object at 0x0000022756302000>
+account_id = 'acc:db086629-41eb-4098-ae55-0cd4fe6d160d'
+by = Account(account_id='acc:37711e21-1640-4294-9c28-e170159fef1b', actor_id='act:9088d4e4-5219-41ab-8d0b-ffde961003cc', em...fo.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))
+
+    def reject(self, account_id: str, *, by: Account) -> Account:
+        """Decline a confirmed registration. An unconfirmed one is not declined: it holds
+        nothing (no name, no password), its link expires, and its address can be registered
+        again -- a declined one could never be (adversarial audit A8)."""
+        admin = self._admin(by)
+        with self._c.transaction():
+            account = self._locked(account_id)
+            if account.status != "PENDING":
+                raise AccountRefused("state", f"{account.email} is not awaiting approval")
+            if account.email_verified_at is None:
+>               raise AccountRefused("not_verified", f"{account.email} has not confirmed it")
+E               lab_brain.accounts.service.AccountRefused: later@uni.example.edu has not confirmed it
+
+src\lab_brain\accounts\service.py:337: AccountRefused
+_____ test_session_lifetime_and_idle_limits_live_only_in_the_application ______
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) at 0x22756...unt is approved', body='An administrator approved your Lab Brain account. Sign in at http://127.0.0.1:8765/login\n')]))
+
+    def test_session_lifetime_and_idle_limits_live_only_in_the_application(lab):
+        import datetime as dt
+    
+        from lab_brain.accounts.passwords import new_token, token_hash
+    
+        admin = lab.admin()
+        bob = lab.member("bob@gmail.example", "Bob", admin=admin)
+        token = new_token()
+        now = lab.clock()
+        # A 10-year session, last seen in the future: the database accepts it...
+>       lab.connection.execute(
+            "INSERT INTO account_sessions (session_hash, account_id, created_at, last_seen_at,"
+            " expires_at) VALUES (%s, %s, %s, %s, %s)",
+            (token_hash(token), bob.account_id, now, now + dt.timedelta(days=3650),
+             now + dt.timedelta(days=3650)),
+        )
+
+.adv_rerun\test_adv_accounts.py:210: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) at 0x227562de7e0>
+query = 'INSERT INTO account_sessions (session_hash, account_id, created_at, last_seen_at, expires_at) VALUES (%s, %s, %s, %s, %s)'
+params = ('8ec02ca0e927be9efd4b1886b3d85c411e338f0c97e5f26d0e584a4f5d7de78d', 'acc:0fb06422-f936-474a-86fc-0a2c6ecaa06a', datet...2036, 10, 17, 9, 0, tzinfo=datetime.timezone.utc), datetime.datetime(2036, 10, 17, 9, 0, tzinfo=datetime.timezone.utc))
+prepare = None, binary = False
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool = False,
+    ) -> Cursor[Row]:
+        """Execute a query and return a cursor to read its results."""
+        try:
+            cur = self.cursor()
+            if binary:
+                cur.format = BINARY
+    
+            if isinstance(query, Template):
+                if params is not None:
+                    raise TypeError(
+                        "'execute()' with string template query doesn't support parameters"
+                    )
+                return cur.execute(query, prepare=prepare)
+            else:
+                return cur.execute(query, params, prepare=prepare)
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           psycopg.errors.CheckViolation: new row for relation "account_sessions" violates check constraint "account_sessions_last_at_most_twelve_hours"
+E           DETAIL:  Failing row contains (8ec02ca0e927be9efd4b1886b3d85c411e338f0c97e5f26d0e584a4f5d7de78d, acc:0fb06422-f936-474a-86fc-0a2c6ecaa06a, 2026-10-20 09:00:00+00, 2036-10-17 09:00:00+00, 2036-10-17 09:00:00+00, null).
+
+.venv\Lib\site-packages\psycopg\connection.py:300: CheckViolation
+___ test_an_admin_look_drops_out_of_the_members_view_after_fifty_newer_ones ___
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) at 0x22756...unt is approved', body='An administrator approved your Lab Brain account. Sign in at http://127.0.0.1:8765/login\n')]))
+
+    def test_an_admin_look_drops_out_of_the_members_view_after_fifty_newer_ones(lab):
+        from lab_brain.accounts.projects import LabProjects
+    
+        admin = lab.admin()
+        ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
+>       project = LabProjects(lab.connection, now=lab.clock).create(
+            ada, name="P", clearance=["PUBLIC"]
+        )
+E       TypeError: LabProjects.create() missing 1 required keyword-only argument: 'owner_account_id'
+
+.adv_rerun\test_adv_accounts_more.py:35: TypeError
+____ test_a_reset_link_still_works_after_the_holder_changes_their_password ____
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) at 0x22756..._gc\n\nThe link works once, for 30 minutes. If you did not ask, ignore this message; your password is unchanged.\n')]))
+
+    def test_a_reset_link_still_works_after_the_holder_changes_their_password(lab):
+        admin = lab.admin()
+        ada = lab.member("ada@uni.example.edu", "Ada", admin=admin)
+        accounts = lab.service()
+        accounts.request_password_reset(email="ada@uni.example.edu")  # e.g. a leaked/forwarded mail
+        stale = lab.link("/password/reset")
+        lab.clock.advance(minutes=5)
+        accounts.change_password(ada, current=PASSWORD, new="ada's fresh passphrase 1")
+        lab.clock.advance(minutes=5)
+>       accounts.reset_password(token=stale, password="attacker passphrase 99")
+
+.adv_rerun\test_adv_accounts_more.py:65: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\lab_brain\accounts\service.py:643: in reset_password
+    account_id, purpose = self._use_with_purpose(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <lab_brain.accounts.service.AccountService object at 0x0000022756305730>
+token = 'ezeW6W9jVtbQtzpHyHTZRXJCJshL14m2TZlMUy_a_gc'
+purposes = ('RESET_PASSWORD', 'SET_PASSWORD')
+now = datetime.datetime(2026, 10, 20, 9, 10, tzinfo=datetime.timezone.utc)
+
+    def _use_with_purpose(
+        self, token: str, purposes: Sequence[str], now: dt.datetime
+    ) -> tuple[str, str]:
+        row = self._c.execute(
+            "UPDATE account_tokens SET used_at = %s WHERE token_hash = %s AND used_at IS NULL"
+            " AND expires_at > %s AND purpose = ANY(%s) RETURNING account_id, purpose",
+            (now, token_hash(token or ""), now, list(purposes)),
+        ).fetchone()
+        if row is None:
+>           raise AccountRefused("token_invalid")
+E           lab_brain.accounts.service.AccountRefused: token_invalid
+
+src\lab_brain\accounts\service.py:847: AccountRefused
+____ test_with_mail_failing_a_throttled_known_address_answers_differently _____
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) at 0x22756...ne. Nothing was changed. If it was you, sign in, or reset your password at http://127.0.0.1:8765/password/forgot\n')]))
+
+    def test_with_mail_failing_a_throttled_known_address_answers_differently(lab):
+        admin = lab.admin()
+        lab.member("ada@uni.example.edu", "Ada", admin=admin)
+        accounts = lab.service()
+        accounts.register(email="ada@uni.example.edu")  # notices to Ada (REGISTERED counts too)
+        accounts.register(email="ada@uni.example.edu")
+        failing = AccountService(
+            lab.connection, mailer=_Failing(), base_url=BASE_URL, now=lab.clock, cost=CHEAP
+        )
+        failing.register(email="ada@uni.example.edu")  # throttled: no mail tried, answered as done
+>       with pytest.raises(AccountRefused) as refused:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AccountRefused
+
+.adv_rerun\test_adv_accounts_more.py:89: Failed
+_____ test_held_demoted_admin_cross_project_ids_markup_and_no_third_role ______
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) at 0x22756...pproves the account. If you did not register, ignore this message: without the link, nobody can use the account.\n')]))
+tmp_path = WindowsPath('C:\Users\<user>/AppData/Local/Temp/pytest-of-<user>/pytest-7910/test_held_demoted_admin_cross_0')
+
+    def test_held_demoted_admin_cross_project_ids_markup_and_no_third_role(lab, tmp_path):
+        first = lab.admin()
+        second = lab.service().set_role(
+            lab.member("second@lab.example", "Second", admin=first).account_id, "ADMIN", by=first
+        )
+        ada = lab.member("ada@uni.example.edu", "<script>alert(1)</script>", admin=first)
+        bob = lab.member("bob@gmail.example", "Bob", admin=first)
+        lab.member("pending@lab.example", "Pending", admin=first, approve=False)
+        projects = LabProjects(lab.connection, now=lab.clock)
+>       p = projects.create(admin, owner_account_id=ada.account_id, name='<img src=x onerror="alert(2)">', clearance=["PUBLIC"])
+                            ^^^^^
+E       NameError: name 'admin' is not defined
+
+.adv_rerun\test_adv_held.py:43: NameError
+____ test_an_admin_look_shows_an_internal_question_to_a_public_only_member ____
+
+world = World(lab=Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) ...0227563042C0>}, project='prj:f4ad095e-a12a-48c7-baf2-25a164c3b23c', episode='epi:73f95f10-ac43-4a2a-9b03-db4ed59fadef')
+
+    def test_an_admin_look_shows_an_internal_question_to_a_public_only_member(world):
+        db, cy, goal = world.lab.connection, world.b["cy"], _goal()
+        label = db.execute(
+            "SELECT question_label FROM research_runs WHERE episode_id = %s AND ordinal = 1",
+            (world.episode,),
+        ).fetchone()[0]
+        clearance = db.execute(
+            "SELECT sensitivity_clearance FROM project_memberships WHERE project_id = %s"
+            " AND actor_id = %s",
+            (world.project, world.people["cy"].actor_id),
+        ).fetchone()[0]
+        print("question label:", label, "| cy's clearance:", clearance)
+        assert label == "INTERNAL" and clearance == ["PUBLIC"]
+        # Cy has no way to the question: the episode is not theirs, and not at their level.
+        assert cy.get(f"/episodes/{world.episode}").status == 404
+        assert goal not in cy.get(f"/projects/{world.project}").text
+        assert goal not in cy.get("/").text and goal not in cy.get("/inbox").text
+        # An administrator opens the episode for oversight ...
+        assert world.b["admin"].get(f"/admin/episodes/{world.episode}").status == 200
+        # ... and the project page now tells Cy the INTERNAL question, word for word.
+        page = cy.get(f"/projects/{world.project}").text
+        line = next(x for x in page.split("<li>") if "read the reports of" in x)
+        print("cy sees:", html.unescape(line.split("</li>")[0]))
+>       assert goal in html.unescape(page)
+E       assert 'Why is Rs extremely high and weakly bias dependent while Cj trends normally?' in '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial...Technical details</summary><p><code>prj:f4ad095e-a12a-48c7-baf2-25a164c3b23c</code></p></details></main></body></html>'
+E        +  where '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial...Technical details</summary><p><code>prj:f4ad095e-a12a-48c7-baf2-25a164c3b23c</code></p></details></main></body></html>' = <function unescape at 0x00000227511F20C0>('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial...Technical details</summary><p><code>prj:f4ad095e-a12a-48c7-baf2-25a164c3b23c</code></p></details></main></body></html>')
+E        +    where <function unescape at 0x00000227511F20C0> = html.unescape
+
+.adv_rerun\test_adv_research.py:106: AssertionError
+---------------------------- Captured stdout call -----------------------------
+question label: INTERNAL | cy's clearance: ['PUBLIC']
+cy sees: Lab Owner read the reports of a research question classified above what you may read — <time datetime="2026-10-20T11:29:15+00:00" title="2026-10-20 11:29:15 UTC">2026-10-20 19:29</time>
+_ test_the_opener_reads_an_internal_question_and_report_after_losing_internal _
+
+world = World(lab=Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) ...02275630A570>}, project='prj:c86b884a-acbb-4ea2-a544-ffc497915a10', episode='epi:9e7c6a84-7e80-4554-8b29-2367fa09ce19')
+
+    def test_the_opener_reads_an_internal_question_and_report_after_losing_internal(world):
+        from lab_brain.interfaces.web.app import WITHHELD
+    
+        lab, ada, goal = world.lab, world.b["ada"], _goal()
+        LabProjects(lab.connection, now=lab.clock).change_member(
+            world.project,
+            by=world.people["admin"],
+            actor_id=world.people["ada"].actor_id,
+            clearance=["PUBLIC"],
+            owner=True,
+        )
+        page = ada.get(f"/episodes/{world.episode}")
+        export = ada.get(f"/episodes/{world.episode}/runs/1/report.md")
+        print("episode page:", page.status, "| export:", export.status, len(export.text), "chars")
+        withheld = export.text.count(WITHHELD)
+        shown = [x for x in export.text.splitlines() if x.strip() and WITHHELD not in x]
+        print("excerpts withheld:", withheld, "| other report lines still shown:", len(shown))
+        print("e.g.:", [x[:90] for x in shown if "ypothes" in x][:3])
+>       assert page.status == 200 and goal in html.unescape(page.text)
+E       assert (404 == 200)
+E        +  where 404 = Reply(status=404, headers={'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '10152', 'Content-Security-Po...e19 for act:9e481708-0c42-443b-b56b-9c7ecae9f7f5.</p><p><a href="/">Back</a></p></main></body></html>', set_cookies=()).status
+
+.adv_rerun\test_adv_research.py:130: AssertionError
+---------------------------- Captured stdout call -----------------------------
+episode page: 404 | export: 404 10161 chars
+excerpts withheld: 0 | other report lines still shown: 118
+e.g.: ['.card.hypothesis h3{margin-top:0}.card.hypothesis li.machine{color:#1f3d7a}', '.card.hypothesis li.prose{color:#5b6475}li.no-match{color:#3a4254}li.moved{font-weight:600']
+_____________ test_an_administrator_removes_their_own_membership ______________
+
+world = World(lab=Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) ...02275642E1B0>}, project='prj:2e38ff25-0b76-4d81-b0cf-cb27a31fb4c9', episode='epi:de1b9683-5a45-4a0e-8dbd-cb2e0636243a')
+
+    def test_an_administrator_removes_their_own_membership(world):
+        lab = world.lab
+        admin = world.people["admin"]
+        second = lab.service().set_role(world.people["bob"].account_id, "ADMIN", by=admin)
+        LabProjects(lab.connection, now=lab.clock).add_member(
+            world.project, by=second, member_account_id=admin.account_id, clearance=["PUBLIC"]
+        )
+        browser = world.b["admin"]
+        overview = browser.get(f"/projects/{world.project}")
+        assert overview.status == 200
+        removed = browser.post(
+            f"/projects/{world.project}/members/remove",
+            {"csrf": _csrf(overview), "actor": admin.actor_id},
+        )
+        row = lab.connection.execute(
+            "SELECT active FROM project_memberships WHERE project_id = %s AND actor_id = %s",
+            (world.project, admin.actor_id),
+        ).fetchone()
+        print("remove own membership:", removed.status, unquote(removed.location), "active:", row[0])
+>       assert removed.status == 303 and row == (False,)
+E       AssertionError: assert (409 == 303)
+E        +  where 409 = Reply(status=409, headers={'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '14724', 'Content-Security-Po...</summary><p><code>prj:2e38ff25-0b76-4d81-b0cf-cb27a31fb4c9</code></p></details></main></body></html>', set_cookies=()).status
+
+.adv_rerun\test_adv_research.py:160: AssertionError
+---------------------------- Captured stdout call -----------------------------
+remove own membership: 409  active: True
+_ test_a_member_grants_themself_membership_any_clearance_and_egress_by_creating_a_project _
+
+world = World(lab=Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_acc3) ...0227564338C0>}, project='prj:09ccb4b7-be09-4c57-94be-8e5f7b1dc2f4', episode='epi:5b1b8080-7514-46e9-a43c-e95dbc41df16')
+
+    def test_a_member_grants_themself_membership_any_clearance_and_egress_by_creating_a_project(
+        world,
+    ):
+        from lab_brain.accounts.projects import LABELS
+    
+        db, bob = world.lab.connection, world.b["bob"]
+        created = bob.post(
+            "/projects",
+            {"csrf": _csrf(bob.get("/projects")), "name": "Bob side project", "clearance": LABELS},
+        )
+>       project = unquote(created.location.split("/projects/", 1)[1].split("?", 1)[0])
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       IndexError: list index out of range
+
+.adv_rerun\test_adv_research.py:182: IndexError
+=================================== PASSES ====================================
+__ test_any_writer_makes_any_account_an_administrator_with_no_administrator ___
+---------------------------- Captured stdout call -----------------------------
+bob now: ('ADMIN', 'ACTIVE') events: ['REGISTERED', 'EMAIL_VERIFIED', 'PASSWORD_SET', 'APPROVED', 'SUSPENDED']
+________________ test_measure_sign_in_timing_known_vs_unknown _________________
+---------------------------- Captured stdout call -----------------------------
+known   quartiles ms [159.8, 168.5, 191.1]  min 152.6
+unknown quartiles ms [155.7, 164.9, 187.5]  min 147.2
+P(known slower than unknown) over all pairs: 0.57
+_ test_an_admin_writes_research_and_declares_egress_in_any_project_via_a_self_approved_account _
+---------------------------- Captured stdout call -----------------------------
+data: 303 | egress: 303 | policy: (['llc:1d103124-3746-4c59-a441-874c462e1418'], ['INTERNAL', 'PUBLIC'], 'act:054aa2a3-534a-420a-bc2a-58204113d38c')
+items added by the alias: (1,)
+approved/granted by: [('APPROVED', 'act:19134cee-c89b-4e14-ba66-aa428c01d07b'), ('MEMBERSHIP_GRANTED', 'act:19134cee-c89b-4e14-ba66-aa428c01d07b')]
+____________________ test_not_every_admin_read_is_recorded ____________________
+---------------------------- Captured stdout call -----------------------------
+dashboard names the private project: True | rows: 0
+6 full report reads -> rows: 1
+=========================== short test summary info ===========================
+PASSED .adv_rerun/test_adv_accounts.py::test_any_writer_makes_any_account_an_administrator_with_no_administrator
+PASSED .adv_rerun/test_adv_accounts_more.py::test_measure_sign_in_timing_known_vs_unknown
+PASSED .adv_rerun/test_adv_held.py::test_held_token_and_session_edges
+PASSED .adv_rerun/test_adv_research.py::test_an_admin_writes_research_and_declares_egress_in_any_project_via_a_self_approved_account
+PASSED .adv_rerun/test_adv_research.py::test_not_every_admin_read_is_recorded
+FAILED .adv_rerun/test_adv_accounts.py::test_registration_cap_reveals_whether_an_address_has_an_account
+FAILED .adv_rerun/test_adv_accounts.py::test_registration_cap_oracle_at_the_service
+FAILED .adv_rerun/test_adv_accounts.py::test_a_declined_unconfirmed_address_can_never_register_again
+FAILED .adv_rerun/test_adv_accounts.py::test_a_declined_registration_still_confirms_and_gets_a_password
+FAILED .adv_rerun/test_adv_accounts.py::test_session_lifetime_and_idle_limits_live_only_in_the_application
+FAILED .adv_rerun/test_adv_accounts_more.py::test_an_admin_look_drops_out_of_the_members_view_after_fifty_newer_ones
+FAILED .adv_rerun/test_adv_accounts_more.py::test_a_reset_link_still_works_after_the_holder_changes_their_password
+FAILED .adv_rerun/test_adv_accounts_more.py::test_with_mail_failing_a_throttled_known_address_answers_differently
+FAILED .adv_rerun/test_adv_held.py::test_held_demoted_admin_cross_project_ids_markup_and_no_third_role
+FAILED .adv_rerun/test_adv_research.py::test_an_admin_look_shows_an_internal_question_to_a_public_only_member
+FAILED .adv_rerun/test_adv_research.py::test_the_opener_reads_an_internal_question_and_report_after_losing_internal
+FAILED .adv_rerun/test_adv_research.py::test_an_administrator_removes_their_own_membership
+FAILED .adv_rerun/test_adv_research.py::test_a_member_grants_themself_membership_any_clearance_and_egress_by_creating_a_project
+13 failed, 5 passed, 2 deselected in 55.17s
+
+=== test_adv_held.py, rerun after correcting the adaptation (its administrator is named first)
+..                                                                       [100%]
+=================================== PASSES ====================================
+=========================== short test summary info ===========================
+PASSED .adv_rerun/test_adv_held.py::test_held_demoted_admin_cross_project_ids_markup_and_no_third_role
+PASSED .adv_rerun/test_adv_held.py::test_held_token_and_session_edges
+2 passed in 4.03s

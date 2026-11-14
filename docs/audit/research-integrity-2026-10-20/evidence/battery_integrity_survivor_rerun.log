@@ -1,0 +1,7 @@
+1 mutations
+
+[KILLED ] a_continuation_above_clearance_is_asked
+           Research integrity F-01 (012q) -- a question is continued only by someone cleared for its classification
+           killed by FAILED tests/e2e/test_question_classification_postgres.py::test_a_question_is_continued_only_by_some
+
+1/1 killed

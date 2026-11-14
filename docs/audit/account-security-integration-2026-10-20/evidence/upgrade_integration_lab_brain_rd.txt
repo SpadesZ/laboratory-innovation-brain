@@ -1,0 +1,26 @@
+integration-integrity-accounts at ff81f14 (69 migrations)
+lab_brain_rd -> copy lab_brain_upg_final_rd: 76 tables, 418 rows
+$ migrate.py  -> exit 0
+    applied  012u_accounts.sql
+    applied  012v_password_after_verification.sql
+    applied  012w_account_races_and_sessions.sql
+  applied 14 migration(s)
+$ migrate.py  -> exit 0
+  declared : 69
+  applied  : 69
+  pending  : 0
+  migrations up to date
+$ migrate.py --status -> exit 0
+    applied  012s_project_scoped_provenance.sql
+    applied  012u_accounts.sql
+    applied  012v_password_after_verification.sql
+    applied  012w_account_races_and_sessions.sql
+rows in pre-existing tables changed by the upgrade: ['schema_migrations']
+SELECT grant_id, enrolment_id IS NULL, signature IS NULL FROM diagnost... -> []
+SELECT failure_analysis_id, resolution_status, warrant_refs FROM failu... -> []
+SELECT count(*) FROM failure_analysis_flags... -> [(0,)]
+SELECT count(*) FROM schema_migrations... -> [(69,)]
+SELECT record_kind, reference_kind, count(*) FROM provenance_scope_vio... -> []
+SELECT count(*) FILTER (WHERE question_label IS NULL), count(*) FROM r... -> [(1, 1)]
+SELECT count(*) FILTER (WHERE valid_to IS NOT NULL), count(*) FILTER (... -> [(0, 0)]
+SELECT to_regclass('public.accounts') IS NOT NULL, to_regclass('public... -> [(True, True)]

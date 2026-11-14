@@ -104,6 +104,65 @@ BINDINGS: tuple[SchemaBinding, ...] = (
         migration="007a_cost_ledger.sql",
         decomposed=(("cost", "lab_brain.core.models.cost:CostVector"),),
     ),
+    # M1-P1 / EVI-010. Bound field-for-field rather than exempted, because `v3.3-a17` wrote
+    # §17.25's blocks to be exact for exactly this reason -- the same move `v3.3-a8` made for
+    # §17.1. ADR-0011's guarantee is that no embedding field ever appears on the evidence side,
+    # and a guard that could not read the canonical block would not be able to hold it.
+    SchemaBinding(
+        section="17.25",
+        schema_name="EvidenceUnit",
+        model_path="lab_brain.core.models.evidence_unit:EvidenceUnit",
+        table="evidence_units",
+        migration="003a_evidence_units.sql",
+        decomposed=(
+            (
+                "provenance",
+                "lab_brain.core.models.evidence_unit:SegmenterProvenance",
+            ),
+        ),
+    ),
+    SchemaBinding(
+        section="17.25.1",
+        schema_name="EvidenceUnitOccurrence",
+        model_path="lab_brain.core.models.evidence_unit:EvidenceUnitOccurrence",
+        table="evidence_unit_occurrences",
+        migration="003b_evidence_unit_occurrences.sql",
+    ),
+    SchemaBinding(
+        section="17.25",
+        schema_name="RetrievalRepresentation",
+        model_path="lab_brain.core.models.evidence_unit:RetrievalRepresentation",
+        table="retrieval_representations",
+        migration="009a_retrieval_representations.sql",
+    ),
+    # M2 / VER-002. Bound field-for-field rather than exempted, because §17.18's block is already
+    # exact -- fifteen fields, no audit timestamp -- and the table was written to match it. That is
+    # why `capabilities` has no `created_at`: see the migration header for why registration history
+    # is `version` rather than a column.
+    SchemaBinding(
+        section="17.18",
+        schema_name="Capability",
+        model_path="lab_brain.core.models.capability:Capability",
+        table="capabilities",
+        migration="007c_capabilities.sql",
+    ),
+    # M3 / LLM-002, VER-004. Both §17.19.2 blocks are exact, and `010c` was written to match them
+    # field for field -- which is what lets this guard hold the calibration fields of a hard gate
+    # and the membership of a declared OutcomeSpace to the spec rather than to a reviewer.
+    SchemaBinding(
+        section="17.19.2",
+        schema_name="OutcomeSpace",
+        model_path="lab_brain.core.models.prediction:OutcomeSpace",
+        table="outcome_spaces",
+        migration="010c_outcome_spaces_benchmark_policies.sql",
+    ),
+    SchemaBinding(
+        section="17.19.2",
+        schema_name="BenchmarkPolicy",
+        model_path="lab_brain.core.models.benchmark:BenchmarkPolicy",
+        table="benchmark_policies",
+        migration="010c_outcome_spaces_benchmark_policies.sql",
+    ),
 )
 
 
@@ -133,19 +192,63 @@ UNBOUND: dict[str, str] = {
     "so there is no DDL side to compare against.",
     "Hypothesis": "§17.5 declares `status_projection` and `belief_level_projection`, and the same "
     "block four lines later says status is rebuilt from BeliefRevisionEvent + TransitionPolicy. "
-    "The model deliberately omits both: a stored, writable status is the bypass T-SYS-001 requires "
-    "be rejected, so the projection lives in EpistemicStateProjection where it is derived. The "
-    "model also carries project_id, which §17.5 omits, and there is no DDL side -- the Hypothesis "
-    "table lands with EPI-001's admission gate in M3. Bindable once §17.5 states the two "
-    "projections as derived references and the table exists.",
-    "Prediction": "§17.5.1's Prediction is not persisted in M0b -- VER-006's §26 row is "
-    "contract/unit, and the table is the other half of Appendix A's 011 slot, landing with the "
-    "Verification Planner. The model also carries project_id, which §17.5.1 omits for the same "
-    "reason §17.8 omits it on RelationJudgment. Bindable when that migration lands.",
-    "OutcomeSpace": "§17.19.2 declares it and M0b uses it as an in-memory admission check for "
-    "VER-006, storing none, so there is no DDL side. Bindable with the BenchmarkPolicy tables.",
+    "Neither the model nor `005e`'s `hypotheses` table stores them: a stored, writable status is "
+    "the bypass T-SYS-001 requires be rejected, so the projection lives in "
+    "EpistemicStateProjection where it is derived. Both also carry project_id, which §17.5 omits; "
+    "the table stores `prediction_ids` as the `predictions` rows that reference it (so a reference "
+    "always resolves) and adds `hypothesis_set_id`, `authored_by_actor_id` and `created_at`, which "
+    "EPI-001's competing set and P12's human authorship need. Bindable once §17.5 states the two "
+    "projections as derived references.",
+    "Prediction": "§17.5.1's block omits project_id, which the model and `011i`'s table carry for "
+    "the reason §17.8 omits it on RelationJudgment and every other scoped table adds it (SEC-002), "
+    "and the table adds `created_at` as an audit field. Otherwise exact. Bindable once §17.5.1 "
+    "states the scope key.",
+    "Position": "§17.14.1's block reaches the project through `episode_id` and declares no audit "
+    "time; the model and `005e`'s `positions` table add `project_id` (SEC-002 scopes every read "
+    "by project) and `created_at`. Otherwise exact. Bindable once §17.14.1 states the scope key.",
+    "CritiqueReport": "§17.14.1's block omits the scope keys (`project_id`, `episode_id`) and "
+    "the two fields that make §7.6's independence checkable: `original_inference_id` (which "
+    "inference was critiqued) and `differs_in` (the axes, derived from the two provenance rows and "
+    "re-derived by `005e`). Without them a critique cannot exhibit independence, only claim it. "
+    "Bindable once §17.14.1 states them.",
+    "PriorArtSearchRecord": "§17.20's block reaches the project through `episode_id`; the model "
+    "and `002b`'s table add `project_id` for SEC-002's project-scoped reads, and are otherwise "
+    "exact. Bindable once §17.20 states the scope key.",
+    "DisagreementMetric": "§17.19.2 writes `deterministic:true` as one token, which this parser "
+    "cannot read as a field name, and the model adds `outcome_space_version` because a metric "
+    "defined over one OutcomeSpace version is undefined on outcomes a later version adds. There "
+    "is no DDL side: VER-008's §26 row is unit, and the registry tabulates the metric in memory.",
+    "ResearchContract": "§17.14.1's block and the model agree field for field, and there is no DDL "
+    "side: M3 carries the Supervisor's contract in memory for one debate. M4 persists the "
+    "VerificationPlan (`011k`) but not the contract, which the debate request still carries.",
+    "ValidationReport": "§17.19.2 writes `status:PASS|WARN|FAIL|UNKNOWN` as one token, which this "
+    "parser cannot read as a field name -- so the canonical set comes back as nine fields against "
+    "an implementation of ten and `status` is reported as undeclared. The same shape as §17.16's "
+    "`state:QUEUED|...` on Job. There is also no DDL side: M2 stores no report, because §26's "
+    "VER-002 and DOM-SP-001 rows are `unit` and `domain` -- what they require is that a validator "
+    "RETURNS this shape. Bindable once §17.19.2 states `status` as its own field and VER-004's "
+    "planner-side plausibility check brings the table.",
+    "FailureAnalysis": "§17.6's block reaches the project through `episode_id` and states no "
+    "audit time; the model and `011l`'s table add `project_id` (SEC-002 scopes every read, and the "
+    "composite key into `hypotheses` needs it) and `created_at` (case memory reads the most recent "
+    "first). Otherwise exact. Bindable once §17.6 states the scope key.",
+    "CandidateHeuristic": "§17.11's block omits the scope key and the confirmed failures a "
+    "candidate generalises; the model and `011l`'s table add `project_id`, "
+    "`derived_from_failures` (§17.7's own field on the approved Heuristic, needed so `011l` can "
+    "refuse a candidate resting on an unconfirmed analysis) and `created_at`. `status` is written "
+    "`status=PENDING_REVIEW` in the block, which this parser reads as the field `status`. "
+    "Bindable once §17.11 states the scope key and lineage.",
+    "VerificationPlan": "§17.14.1's block omits the scope key and the rationale body its "
+    "`rationale_ref` names; the model and `011k`'s table add `project_id` and store `rationale` "
+    "(decision, escalation, precedents, trade-offs) beside `rationale_ref`, which is required to "
+    "be `<plan_id>#rationale` -- a reference that always resolves to the record it sits in. "
+    "Otherwise exact. Bindable once §17.14.1 states where the rationale lives.",
     "RelationJudgmentTemplate": "§17.5.1's block describes a value object embedded in Prediction, "
     "not a table -- the same shape as EvidenceField.",
+    "RetrievalCandidate": "§17.25's block describes a retrieval result, not stored state -- the "
+    "same shape as ConditionMatch. It is deliberately the smallest object in the codebase: "
+    "giving it a body field would let admission read evidence out of the retriever's output, "
+    "which is what EVI-010 forbids, so there is nothing to persist and nothing to compare.",
     "ConditionSchemaRegistration": "§17.19 describes the registration payload; the table stores it "
     "decomposed across condition_schemas.",
     "ConditionMatch": "§17.19's block is a return value, not stored state.",
@@ -158,6 +261,19 @@ UNBOUND: dict[str, str] = {
     "three subjects as undeclared. The model and the DDL implement the literal reading (at most "
     "one of the three, matching `span_type`) and enforce it in both places. Bindable once §17.19.1 "
     "states them as separate optional fields.",
+    "Job": "§17.16's block reaches the project transitively through `episode_id`, and §17.3's "
+    "ResearchEpisode is not built -- nothing in M1's ingestion path creates one. A Job that could "
+    "only be scoped through an episode could therefore not be scoped at all, while SEC-002 scopes "
+    "every read by project membership and a Job surfaces through UX-001's IngestionItem and "
+    "UX-003's error lookup, both project-scoped by requirement. So the model and the table carry "
+    "`project_id` and the canonical block does not. `resume_stage` is the second addition, for "
+    "UX-004's resume-at-the-failed-stage: §17.16 declares the retry policies but no field "
+    "recording where a resumable job is parked. Bindable once §17.16 states both, or once "
+    "Episodes exist and the transitive scope is real.",
+    "Run": "§17.4 omits `project_id` for the same reason §17.16 does, and the same argument "
+    "applies one table over: a Run that is not project-scoped cannot be read under SEC-002, and "
+    "`runs_job_must_exist` refuses a Run scoped away from its Job. The block also omits "
+    "`created_at`, which every other table here carries as an audit field.",
 }
 
 

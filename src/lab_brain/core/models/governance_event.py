@@ -73,6 +73,10 @@ class ResolutionEventKind(StrEnum):
 
     BELIEF_REVISION = "BELIEF_REVISION"
     GOVERNANCE = "GOVERNANCE"
+    #: `012o`: a DIAGNOSTIC_WARRANT review closes against the grant that answers it. Not a belief
+    #: revision -- the transition the grant enables comes after it -- and not governance, because
+    #: a person decided. APPROVED or REJECTED only.
+    WARRANT_GRANT = "WARRANT_GRANT"
 
 
 class GovernanceEvent(CoreModel):

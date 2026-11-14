@@ -1,0 +1,13 @@
+# Architectural discovery entrypoint; not a replacement for the legacy runtime parser.
+schema_version: 1
+architecture_version: 3.4.0-phased.1
+architecture_spec: docs/spec/SAI_3.4.md
+activation_registry: docs/spec/sai34/activation.yaml
+activation_state: PHASED_ARCHITECTURAL_BASIS
+effectiveness: Same-SHA full CI success and documentation-only publication to integration-integrity-accounts.
+executable_conformance_version: '3.3'
+executable_spec: docs/spec/SAI_3.3.md
+executable_registry: docs/normative_statements.yaml
+executable_milestones: docs/milestones.yaml
+full_runtime_activation: DEFERRED
+ready_for_real_research: false
