@@ -348,6 +348,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # a belief event that may no longer decide anything; the row it names is kept unchanged, and
     # `diagnostic_declarations` leaves a quarantined set out. After 011z and 012p.
     "012t_owner_quarantine.sql",
+    # G0 R-4: a review-queue policy (whose declaring person every automatic expiry is attributed
+    # to) is written by the schema owner only; rows already there untouched. After 011f.
+    "010d_review_queue_policies_are_the_owners.sql",
 )
 
 _BOOTSTRAP = """

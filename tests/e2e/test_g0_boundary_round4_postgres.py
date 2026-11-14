@@ -832,7 +832,6 @@ def test_r15_the_displays_mark_the_moves_the_product_projection_does_not_count(g
 # =============================================================================================
 
 
-@pytest.mark.xfail(strict=True, reason="R-4 reproduction: the services' role declares queues")
 def test_r4_the_services_role_cannot_declare_a_review_queue_in_a_persons_name(db, roles):
     """The active queue policy prices every review's expiry, and `review_expire` records that
     expiry as the declaring person's standing decision (`v3.3-a15`). As the services' role:
@@ -878,3 +877,65 @@ def test_r4_the_services_role_cannot_declare_a_review_queue_in_a_persons_name(db
 
 
 __all__ = ["CHALLENGE", "CONFLICT_GATED", "INDEPENDENCE_GATED"]
+
+
+def test_r4_the_guard_holds_where_the_privilege_was_granted_and_the_operator_still_declares(
+    db, roles
+):
+    """Layer two (the trigger, `010d`) with the row privileges granted -- as before the Owner's
+    revocation, or by mistake after it: INSERT, UPDATE and DELETE are refused; the operator's
+    command, as the owner, declares and replaces the queue; under the services' role the same
+    command is refused and changes nothing. The next `db-roles` restores the grants."""
+    from lab_brain.interfaces import deployment
+    from lab_brain.interfaces.deployment import grant_database_roles
+
+    db.execute(f'GRANT INSERT, UPDATE, DELETE ON review_queue_policies TO "{roles.app}"')
+
+    project, person = "prj:r4-queue", "act:r4-queue-person"
+    deployment.ensure_project(db, project, "R-4 queue")
+    deployment.ensure_actor(db, person, "R-4 queue person")
+    deployment.set_membership(db, project, person, role="OWNER", clearance=(), scopes=())
+
+    def active() -> list[tuple[Any, ...]]:
+        return [
+            tuple(r)
+            for r in db.execute(
+                "SELECT policy_id, version, default_expiry_minutes, declared_by_actor_id"
+                " FROM review_queue_policies WHERE project_id = %s ORDER BY version",
+                (project,),
+            ).fetchall()
+        ]
+
+    status, out = _admin(db, "review-queue", project, "--declared-by", person)
+    assert status == 0, out
+    status, out = _admin(
+        db, "review-queue", project, "--declared-by", person, "--expiry-minutes", "20160"
+    )
+    assert status == 0, out
+    declared = active()
+    print(f"R-4 operator's declarations: {declared}")
+    assert len(declared) >= 1
+    with roles.connect(roles.app) as app:
+        for statement in (
+            "UPDATE review_queue_policies SET default_expiry_minutes = 1",
+            "DELETE FROM review_queue_policies",
+            "ALTER TABLE review_queue_policies DISABLE TRIGGER review_queue_policies_are_the_owners",
+            "DROP FUNCTION review_queue_policies_are_the_owners() CASCADE",
+        ):
+            refused = _try(lambda statement=statement: app.execute(statement))
+            assert refused is not None, statement
+        status, out = _admin(
+            app,
+            "review-queue",
+            project,
+            "--declared-by",
+            person,
+            "--expiry-minutes",
+            "1",
+            "--sla-minutes",
+            "1",
+        )
+    print(f"R-4 services' role running the operator's command: exit {status}: {out.strip()}")
+    assert status == 2 and "010d" in out, out
+    assert active() == declared
+    grant_database_roles(db, app_role=roles.app, reader_role=roles.reader)
