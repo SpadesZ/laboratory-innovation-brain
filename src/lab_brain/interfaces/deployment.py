@@ -391,6 +391,15 @@ _POLICIES = "transition_policies"
 #: schema owner, read by everyone (`011y`).
 _DECLARATIONS = "diagnostic_declaration_sets"
 
+#: The migrator's gates a belief decision and its event are written through (`011z`, G0 T-2).
+_BELIEF_GATES = (
+    "belief_transition_record(text, text, text, text, text, text, text, text, text, text, text,"
+    " text, text, text, text, text, timestamptz, text, text, text[], text[], text, text, text,"
+    " timestamptz, text)",
+    "belief_admission_record(text, text, text, text, text, text[], text[], text, text, text, text,"
+    " text, timestamptz, text)",
+)
+
 #: The Owner's spend administration (`011t`): its members alone create budgets, declare prices and
 #: free endpoints, change ceilings and close circuits. Neither the services nor an auditor is one.
 SPEND_ADMIN_ROLE = "lab_brain_spend_admin"
@@ -568,6 +577,13 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
                 if seq is not None
             ),
         )
+    # Belief decisions and events (`011z`, G0 T-2): the services record them through the
+    # migrator's gate, which checks a snapshot against the database; EXECUTE is never PUBLIC.
+    statements += tuple(
+        f"GRANT EXECUTE ON FUNCTION {f} TO {app}"
+        for f in _BELIEF_GATES
+        if c.execute("SELECT to_regprocedure(%s)", (f,)).fetchone()[0] is not None
+    )
     administered = (
         c.execute(
             "SELECT to_regprocedure('llm_spend_declare_budget(text, text, numeric, text,"

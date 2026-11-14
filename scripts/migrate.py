@@ -340,6 +340,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # G0 R-2: a diagnostic declaration set is registered by the schema owner only (the 011x guard
     # on 012p's table, which the SQL confirmation rule reads); rows already there untouched.
     "011y_diagnostic_declaration_sets_are_the_owners.sql",
+    # G0 T-2: a belief decision and its event are written through the migrator's gate, which checks
+    # the snapshot against the database (conflicts, relations, matches, classes, independence) and
+    # bounds the writer's times; the read-time checks stay. After 011y.
+    "011z_belief_transitions_are_written_through_a_gate.sql",
 )
 
 _BOOTSTRAP = """

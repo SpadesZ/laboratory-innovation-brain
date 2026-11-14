@@ -313,3 +313,40 @@ def reset_database(connection: Any) -> Any:
 def db(postgres_connection):  # type: ignore[no-untyped-def]
     """A clean database for one test."""
     return reset_database(postgres_connection)
+
+
+def record_decision_before_the_gate(connection, decision):  # type: ignore[no-untyped-def]
+    """Store a decision row with a plain INSERT, as `SqlBeliefTransitionDecisionStore` did before
+    `011z` (G0 T-2) -- for suites that test the read side or the event table's own constraints
+    over decisions whose snapshot evidence is a contract fixture, not stored rows. The gate would
+    refuse such a snapshot; here the schema owner writes it, as a row from before the gate."""
+    from lab_brain.core.canonical_json import canonicalize
+
+    snapshot = decision.decision_input_snapshot
+    connection.execute(
+        "INSERT INTO belief_transition_decisions (decision_id, project_id, subject_id,"
+        " decision_type, result, policy_id, policy_version, from_state, to_state,"
+        " authority_policy_id, authority_policy_version, decision_input_snapshot, input_hash,"
+        " evaluated_decision, episode_id, actor_id, created_at)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+        (
+            decision.decision_id,
+            decision.project_id,
+            decision.subject_id,
+            decision.decision_type.value,
+            decision.result.value,
+            decision.policy_id,
+            decision.policy_version,
+            decision.from_state.value,
+            decision.to_state.value,
+            snapshot.authority_policy_id,
+            snapshot.authority_policy_version,
+            snapshot.canonical_bytes_text(),
+            decision.input_hash,
+            canonicalize(decision.evaluated.model_dump(mode="json")),
+            decision.episode_id,
+            decision.actor_id,
+            decision.created_at,
+        ),
+    )
+    return decision

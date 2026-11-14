@@ -524,8 +524,13 @@ class BeliefEpisode:
             episode_id=episode_id,
             actor_id=actor_id,
         )
-        self._decisions.record(authorization)
         decision = authorization.evaluated
+        # G0 T-2: an event store that records an ALLOW together with its event (the SQL store's
+        # gate, `011z`) is handed both at once, after the event is minted; otherwise the decision
+        # is recorded first, as before.
+        together = getattr(self._events, "append_transition", None)
+        if together is None or decision.outcome is not TransitionOutcome.ALLOW:
+            self._decisions.record(authorization)
 
         if decision.outcome is TransitionOutcome.ALLOW:
             triggering_relations, triggering_attestations = counted_triggers(
@@ -655,6 +660,10 @@ class BeliefEpisode:
             inference_provenance_id=inference_provenance_id,
             rationale_artifact_or_record_ref=rationale_artifact_or_record_ref,
         )
+        together = getattr(self._events, "append_transition", None)
+        if together is not None:
+            recorded: BeliefRevisionEvent = together(authorization, authorized)
+            return recorded
         return self._events.append(authorized)
 
     def _escalate(

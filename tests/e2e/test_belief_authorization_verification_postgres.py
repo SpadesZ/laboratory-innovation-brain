@@ -51,7 +51,11 @@ from lab_brain.core.models.decision import DecisionInputSnapshot
 from lab_brain.core.repositories import SqlBeliefEventStore, SqlTransitionPolicyStore
 from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
 from tests.conftest_fixtures import make_artifact
-from tests.postgres_fixtures import admit_hypothesis_identity, place_artifact
+from tests.postgres_fixtures import (
+    admit_hypothesis_identity,
+    place_artifact,
+    record_decision_before_the_gate,
+)
 
 pytestmark = [
     pytest.mark.postgres,
@@ -346,7 +350,7 @@ def test_an_honest_authorization_survives_the_whole_round_trip(world):
         created_at=T0,
     )
     assert honest.result is TransitionOutcome.ALLOW, honest.evaluated.reason_code
-    SqlBeliefTransitionDecisionStore(world).record(honest)
+    record_decision_before_the_gate(world, honest)  # snapshot relations are fixtures (011z)
     _append_event(world, "dec:honest", event_id="bre:1")
 
     history = SqlBeliefEventStore(world).history(PROJECT, HYP)
@@ -395,7 +399,7 @@ def test_a_missing_policy_version_fails_closed(world):
         candidate_to_state=BeliefState.SUPPORTED,
         created_at=T0,
     )
-    SqlBeliefTransitionDecisionStore(world).record(honest)
+    record_decision_before_the_gate(world, honest)  # snapshot relations are fixtures (011z)
     _append_event(world, "dec:honest", event_id="bre:1")
     stored = SqlBeliefEventStore(world).get("bre:1")
     assert stored is not None
@@ -444,7 +448,7 @@ def test_an_unresolvable_authority_comparator_fails_closed(world):
         candidate_to_state=BeliefState.SUPPORTED,
         created_at=T0,
     )
-    SqlBeliefTransitionDecisionStore(world).record(honest)
+    record_decision_before_the_gate(world, honest)  # snapshot relations are fixtures (011z)
     _append_event(world, "dec:withauth", event_id="bre:1")
     stored = SqlBeliefEventStore(world).get("bre:1")
     assert stored is not None
@@ -497,7 +501,7 @@ def test_a_comparator_identity_mismatch_fails_closed(world):
         candidate_to_state=BeliefState.SUPPORTED,
         created_at=T0,
     )
-    SqlBeliefTransitionDecisionStore(world).record(honest)
+    record_decision_before_the_gate(world, honest)  # snapshot relations are fixtures (011z)
     _append_event(world, "dec:withauth", event_id="bre:1")
     stored = SqlBeliefEventStore(world).get("bre:1")
     assert stored is not None

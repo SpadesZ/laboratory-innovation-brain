@@ -431,6 +431,61 @@ class _EventsCitingNoRelation:
         return self._inner.history(project_id, target_id)
 
 
+class _RawDecisions:
+    """The services' role writing a decision row itself: a plain INSERT, as the product's store did
+    before `011z` (a writer's code is the writer's to choose; the write gate binds only the product's
+    own store)."""
+
+    def __init__(self, c: Any) -> None:
+        self._c = c
+
+    def record(self, decision: Any) -> Any:
+        from lab_brain.core.canonical_json import canonicalize
+
+        snapshot = decision.decision_input_snapshot
+        self._c.execute(
+            "INSERT INTO belief_transition_decisions (decision_id, project_id, subject_id,"
+            " decision_type, result, policy_id, policy_version, from_state, to_state,"
+            " authority_policy_id, authority_policy_version, decision_input_snapshot, input_hash,"
+            " evaluated_decision, episode_id, actor_id, created_at)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (
+                decision.decision_id,
+                decision.project_id,
+                decision.subject_id,
+                decision.decision_type.value,
+                decision.result.value,
+                decision.policy_id,
+                decision.policy_version,
+                decision.from_state.value,
+                decision.to_state.value,
+                snapshot.authority_policy_id,
+                snapshot.authority_policy_version,
+                snapshot.canonical_bytes_text(),
+                decision.input_hash,
+                canonicalize(decision.evaluated.model_dump(mode="json")),
+                decision.episode_id,
+                decision.actor_id,
+                decision.created_at,
+            ),
+        )
+        return decision
+
+    def get(self, decision_id: str) -> Any:
+        from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
+
+        return SqlBeliefTransitionDecisionStore(self._c).get(decision_id)
+
+
+def _row_writer(g: Guarded, app: Any) -> Any:
+    """The services' role while it holds INSERT on the belief tables; the owner otherwise."""
+    (holds,) = g.db.execute(
+        "SELECT has_table_privilege(%s, 'belief_transition_decisions', 'INSERT')",
+        (app.info.user,),
+    ).fetchone()
+    return app if holds else g.db
+
+
 def _writer(
     app: Any,
     g: Guarded,
@@ -442,7 +497,13 @@ def _writer(
     """`ResearchEpisodeService`'s episode wiring, over the services' role, with the writer's own
     sources: the product's code, run by whoever holds the services' credentials."""
     episode = _episode(app, relations, g.keys.trust)
-    episode._events = _EventsCitingNoRelation(SqlBeliefEventStore(app))  # type: ignore[attr-defined]
+    # Its own decision and event rows, past the `011z` gate (round 4): what these tests ask is
+    # what the projection makes of rows the gate never saw. Written by the services' role while it
+    # holds row writes on the belief tables; once the Owner's revocation removed them, by the owner
+    # -- the rows such a writer left before it.
+    raw = _row_writer(g, app)
+    episode._events = _EventsCitingNoRelation(SqlBeliefEventStore(raw))  # type: ignore[attr-defined]
+    episode._decisions = _RawDecisions(raw)  # type: ignore[attr-defined]
     if classes is not None:
         episode._authority_classes = _Classes(classes)  # type: ignore[attr-defined]
     if warrants is not None:

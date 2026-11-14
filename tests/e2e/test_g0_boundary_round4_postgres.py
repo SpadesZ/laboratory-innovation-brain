@@ -51,6 +51,7 @@ from tests.e2e.test_g0_trust_boundaries_postgres import (
     _insert_set,
     _owner_registers,
     _product_reader,
+    _RawDecisions,
     _read,
     _sets,
     _stored_support,
@@ -174,7 +175,6 @@ def _events(g: Guarded, hypothesis: str) -> list[tuple[str, str, dt.datetime]]:
 # =============================================================================================
 
 
-@pytest.mark.xfail(strict=True, reason="T-2 reproduction: the write path checks nothing omitted")
 def test_t2_a_snapshot_that_omits_an_open_conflict_is_refused_when_written(guarded, roles):
     """An open SIM_TO_REAL conflict blocks the promotion under CONFLICT_GATED. The services' role
     runs the product's episode with a conflict source that reports none: the snapshot records no
@@ -195,7 +195,6 @@ def test_t2_a_snapshot_that_omits_an_open_conflict_is_refused_when_written(guard
     assert read == BeliefState.ACTIVE.value
 
 
-@pytest.mark.xfail(strict=True, reason="T-2 reproduction: the independence count is not gated")
 def test_t2_an_independence_count_no_stored_line_supports_is_refused_when_written(guarded, roles):
     g = guarded
     hypothesis = _unscreened(g)
@@ -213,7 +212,6 @@ def test_t2_an_independence_count_no_stored_line_supports_is_refused_when_writte
     assert read == BeliefState.ACTIVE.value
 
 
-@pytest.mark.xfail(strict=True, reason="T-2 reproduction: the writer chooses the record's time")
 def test_t2_a_future_dated_transition_is_refused_when_written(guarded, roles):
     """Dated a month ahead, a promotion sorts after every honest later move: a challenge recorded
     now no longer applies (its predecessor, SUPPORTED, is reached only after it in the order)."""
@@ -240,48 +238,188 @@ def test_t2_a_future_dated_transition_is_refused_when_written(guarded, roles):
     assert read == BeliefState.ACTIVE.value
 
 
-class _RawDecisions:
-    """The services' role writing a decision row itself (its own code: a plain INSERT)."""
+# -- the gate (`011z`): its other checks, its privileges and a positive control ---------------
 
-    def __init__(self, c: Any) -> None:
-        self._c = c
 
-    def record(self, decision: Any) -> Any:
-        from lab_brain.core.canonical_json import canonicalize
+def test_t2_the_gate_refuses_a_snapshot_whose_evidence_is_not_stored(guarded, roles):
+    """Through the product's own store, the R-1 forgeries are refused when written, not only when
+    read: a SUPPORTS that is not stored, an authority class no attestation has, a condition match
+    the database records otherwise."""
+    from lab_brain.core.models.condition import ConditionMatchState
+    from lab_brain.core.models.relation import RelationJudgment
+    from lab_brain.core.repositories.conditions import SqlConditionMatchStore
+    from lab_brain.domains.silicon_photonics import vertical as sp
+    from tests.e2e.test_g0_trust_boundaries_postgres import (
+        AUTHORITY_GATED,
+        CONDITION_GATED,
+        _Classes,
+        _inspection,
+        _Relations,
+    )
 
-        snapshot = decision.decision_input_snapshot
-        self._c.execute(
-            "INSERT INTO belief_transition_decisions (decision_id, project_id, subject_id,"
-            " decision_type, result, policy_id, policy_version, from_state, to_state,"
-            " authority_policy_id, authority_policy_version, decision_input_snapshot, input_hash,"
-            " evaluated_decision, episode_id, actor_id, created_at)"
-            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-            (
-                decision.decision_id,
-                decision.project_id,
-                decision.subject_id,
-                decision.decision_type.value,
-                decision.result.value,
-                decision.policy_id,
-                decision.policy_version,
-                decision.from_state.value,
-                decision.to_state.value,
-                snapshot.authority_policy_id,
-                snapshot.authority_policy_version,
-                snapshot.canonical_bytes_text(),
-                decision.input_hash,
-                canonicalize(decision.evaluated.model_dump(mode="json")),
-                decision.episode_id,
-                decision.actor_id,
-                decision.created_at,
-            ),
+    g = guarded
+    refusals: dict[str, str] = {}
+    with roles.connect(roles.app) as app:
+        hypothesis = _unscreened(g)
+        observation, attestation = _inspection(g)
+        phantom = RelationJudgment(
+            relation_id=f"rel:r4-phantom-{uuid.uuid4().hex[:8]}",
+            from_entity_id=observation,
+            to_entity_id=hypothesis,
+            relation_type=RelationType.SUPPORTS,
+            supporting_attestation_ids=(attestation,),
+            project_id=PROJECT,
         )
-        return decision
+        episode = _services_episode(app, g)
+        episode._relations = _Relations((phantom,))  # type: ignore[attr-defined]
+        _, refused = _write(
+            lambda: _attempt(episode, g, hypothesis, _owner_registers(g, SUPPORT_ONLY))
+        )
+        refusals["phantom relation"] = repr(refused)
 
-    def get(self, decision_id: str) -> Any:
-        from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
+        _stored_support(app, g, hypothesis)
+        episode = _services_episode(app, g)
+        episode._authority_classes = _Classes((sp.MEAS_CALIBRATED,))  # type: ignore[attr-defined]
+        _, refused = _write(
+            lambda: _attempt(episode, g, hypothesis, _owner_registers(g, AUTHORITY_GATED))
+        )
+        refusals["authority class"] = repr(refused)
 
-        return SqlBeliefTransitionDecisionStore(self._c).get(decision_id)
+        other = _unscreened_other(g, hypothesis)
+        exact_id = str(
+            g.db.execute("SELECT condition_match_id FROM condition_matches").fetchone()[0]
+        )
+        exact = SqlConditionMatchStore(g.db).get(exact_id)
+        assert exact is not None
+        partial = exact.model_copy(
+            update={
+                "condition_match_id": f"cmt:r4-{uuid.uuid4().hex[:10]}",
+                "state": ConditionMatchState.PARTIAL,
+            }
+        )
+        SqlConditionMatchStore(app).add(partial)
+        _stored_support(app, g, other, condition_match=partial.condition_match_id)
+        claimed = partial.model_copy(update={"state": ConditionMatchState.EXACT})
+        conditioned = _owner_registers(g, CONDITION_GATED)
+        _, refused = _write(
+            lambda: _services_episode(app, g).attempt_transition(
+                project_id=PROJECT,
+                hypothesis_id=other,
+                policy_id=conditioned.policy_id,
+                policy_version=conditioned.version,
+                candidate_to_state=BeliefState.SUPPORTED,
+                stakes="HIGH",
+                occurred_at=dt.datetime.now(dt.UTC),
+                trace_id="trc:r4-cm",
+                episode_id=g.episode,
+                actor_id=g.actor,
+                condition_matches=(claimed,),
+                triggering_attestations=(SqlAttestationStore(g.db).get(PROJECT, g.attestation),),
+            )
+        )
+        refusals["condition match"] = repr(refused)
+    print(f"T-2 gate refusals: {refusals}")
+    assert "is not the current relation stored" in refusals["phantom relation"]
+    assert "authority classes" in refusals["authority class"]
+    assert "is not the match stored" in refusals["condition match"]
+    for h in (hypothesis, other):
+        assert _read(_honest(g), h) == BeliefState.ACTIVE.value
+
+
+def _unscreened_other(g: Guarded, hypothesis: str) -> str:
+    ((other,),) = g.db.execute(
+        "SELECT h.hypothesis_id FROM hypotheses h WHERE h.created_in_episode = %s"
+        " AND h.hypothesis_id <> %s AND NOT EXISTS (SELECT 1 FROM screening_conditioned_hypotheses"
+        "  s WHERE s.hypothesis_id = h.hypothesis_id) ORDER BY h.hypothesis_id LIMIT 1",
+        (g.episode, hypothesis),
+    ).fetchall()
+    return str(other)
+
+
+def test_t2_the_gate_refuses_an_event_dated_before_the_subjects_latest(guarded, roles):
+    g = guarded
+    hypothesis = _unscreened(g)
+    policy = _owner_registers(g, SUPPORT_ONLY)
+    ((latest,),) = g.db.execute(
+        "SELECT max(occurred_at) FROM belief_revision_events WHERE target_id = %s", (hypothesis,)
+    ).fetchall()
+    with roles.connect(roles.app) as app:
+        _stored_support(app, g, hypothesis)
+        _, refused = _write(
+            lambda: _attempt(
+                _services_episode(app, g), g, hypothesis, policy, at=latest - dt.timedelta(days=1)
+            )
+        )
+    print(f"T-2 backdated before {latest}: {refused!r}")
+    assert refused is not None and "does not reorder the history" in str(refused), refused
+    assert _read(_honest(g), hypothesis) == BeliefState.ACTIVE.value
+
+
+def test_t2_an_honest_transition_goes_through_the_gate_and_is_recorded_with_the_clock(
+    guarded, roles
+):
+    """Positive control: stored support, the true conflicts (none), the true classes; the
+    services' role records decision and event in one call; the gate's record names the services'
+    login role and the database clock; the projection reads SUPPORTED."""
+    g = guarded
+    hypothesis = _unscreened(g)
+    policy = _owner_registers(g, SUPPORT_ONLY)
+    with roles.connect(roles.app) as app:
+        _stored_support(app, g, hypothesis)
+        (before,) = g.db.execute("SELECT clock_timestamp()").fetchone()
+        written = _attempt(_services_episode(app, g), g, hypothesis, policy)
+    assert written.event is not None
+    ((by, at, decision),) = g.db.execute(
+        "SELECT recorded_by, recorded_at, decision_id FROM belief_write_records"
+        " WHERE event_id = %s",
+        (written.event.event_id,),
+    ).fetchall()
+    assert by == roles.app and at >= before
+    assert decision == written.authorization.decision_id
+    assert _read(_honest(g), hypothesis) == BeliefState.SUPPORTED.value
+
+
+def _gates(su: Any) -> list[str]:
+    return [
+        str(r[0])
+        for r in su.execute(
+            "SELECT oid::regprocedure::text FROM pg_proc"
+            " WHERE proname IN ('belief_transition_record', 'belief_admission_record')"
+            " ORDER BY 1"
+        ).fetchall()
+    ]
+
+
+def test_t2_the_gate_is_the_migrators_and_executable_by_the_services_only(su, roles):
+    gates = _gates(su)
+    assert len(gates) == 2, gates
+    for gate in gates:
+        definer, config, public = su.execute(
+            "SELECT p.prosecdef, p.proconfig, has_function_privilege('public', p.oid, 'EXECUTE')"
+            " FROM pg_proc p WHERE p.oid = %s::regprocedure",
+            (gate,),
+        ).fetchone()
+        assert definer and any(c.startswith("search_path=") for c in config), (gate, config)
+        assert not public, gate
+        for role, may in ((roles.app, True), (roles.reader, False)):
+            (allowed,) = su.execute(
+                "SELECT has_function_privilege(%s, %s::regprocedure, 'EXECUTE')", (role, gate)
+            ).fetchone()
+            assert allowed is may, (gate, role)
+    with roles.connect(roles.app) as app:
+        for statement in (
+            "INSERT INTO belief_write_records (decision_id, recorded_at, recorded_by)"
+            " SELECT decision_id, now(), 'x' FROM belief_transition_decisions LIMIT 1",
+            "UPDATE belief_write_records SET recorded_by = 'x'",
+            "DELETE FROM belief_write_records",
+            "TRUNCATE belief_write_records",
+            "ALTER TABLE belief_write_records DISABLE TRIGGER ALL",
+            "CREATE OR REPLACE FUNCTION belief_snapshot_problem(TEXT, TEXT, JSONB) RETURNS TEXT"
+            " AS $$ SELECT NULL::TEXT $$ LANGUAGE sql",
+            "DROP FUNCTION belief_transition_record CASCADE",
+        ):
+            refused = _try(lambda statement=statement: app.execute(statement))
+            assert refused is not None, statement
 
 
 class _RawEvents:
@@ -322,7 +460,10 @@ class _RawEvents:
         return SqlBeliefEventStore(self._c).history(project_id, target_id)
 
 
-@pytest.mark.xfail(strict=True, reason="T-2: the services' role holds row writes on the tables")
+@pytest.mark.xfail(
+    strict=True,
+    reason="T-2: the services' role holds row writes on the tables (Owner-gated REVOKE)",
+)
 def test_t2_raw_rows_written_by_the_services_role_are_refused(guarded, roles):
     """The same omission written with the services' role's own code (plain INSERT and the 005d
     append, which check nothing a snapshot leaves out). Closed only by revoking the row writes --

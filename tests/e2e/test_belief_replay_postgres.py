@@ -54,7 +54,11 @@ from lab_brain.core.models.decision import BeliefTransitionDecision
 from lab_brain.core.repositories import SqlBeliefEventStore, SqlTransitionPolicyStore
 from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
 from tests.conftest_fixtures import make_artifact
-from tests.postgres_fixtures import admit_hypothesis_identity, place_artifact
+from tests.postgres_fixtures import (
+    admit_hypothesis_identity,
+    place_artifact,
+    record_decision_before_the_gate,
+)
 
 pytestmark = [
     pytest.mark.postgres,
@@ -129,7 +133,8 @@ def _authorize(
         created_at=T0,
     )
     assert decision.result is TransitionOutcome.ALLOW, decision.evaluated.reason_code
-    return SqlBeliefTransitionDecisionStore(connection).record(decision)
+    # Recorded as before the `011z` gate: the snapshot's relations are contract fixtures.
+    return record_decision_before_the_gate(connection, decision)
 
 
 @pytest.fixture

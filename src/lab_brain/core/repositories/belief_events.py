@@ -173,8 +173,34 @@ class SqlBeliefEventStore:
         self._connection = connection
 
     def append(self, authorized: AuthorizedRevision) -> BeliefRevisionEvent:
+        """Record one event. A genesis (admission) event goes through the migrator's gate
+        `belief_admission_record` (`011z`, G0 T-2); a transition event on its own through the 005d
+        append, which only a role holding row writes on the event tables may call -- the product
+        records a transition with its decision, through :meth:`append_transition`."""
         require_durable_connection(self._connection)
         event = authorized.event
+        if event.from_state is None:
+            self._connection.execute(
+                "SELECT belief_admission_record("
+                " %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (
+                    event.event_id,
+                    event.project_id,
+                    event.target_type.value,
+                    event.target_id,
+                    event.to_state.value,
+                    list(event.triggering_attestation_ids),
+                    list(event.triggering_relation_ids),
+                    event.policy_id,
+                    event.policy_version,
+                    event.actor_id,
+                    event.inference_provenance_id,
+                    event.rationale_artifact_or_record_ref,
+                    event.occurred_at,
+                    event.trace_id,
+                ),
+            )
+            return event
         # One statement for the event and both reference sets. See the module docstring.
         self._connection.execute(
             "SELECT belief_revision_event_append("
@@ -196,6 +222,39 @@ class SqlBeliefEventStore:
                 event.occurred_at,
                 event.trace_id,
                 event.authorization_decision_id,
+            ),
+        )
+        return event
+
+    def append_transition(
+        self, decision: BeliefTransitionDecision, authorized: AuthorizedRevision
+    ) -> BeliefRevisionEvent:
+        """Record an ALLOW and the event it authorises in one statement, through the migrator's
+        gate `belief_transition_record` (`011z`, G0 T-2): it refuses a snapshot that is not what
+        the database holds now -- a conflict left out, a relation or condition match not stored,
+        authority classes the attestations do not give, an independence count no stored evidence
+        line supports -- a superseded policy, and a time in the future or before the subject's
+        latest event. Works whether or not the services' role holds row writes on the tables."""
+        require_durable_connection(self._connection)
+        event = authorized.event
+        if event.authorization_decision_id != decision.decision_id:
+            raise BeliefEventError(
+                f"event {event.event_id} cites {event.authorization_decision_id}, not the decision "
+                f"{decision.decision_id} it is recorded with"
+            )
+        self._connection.execute(
+            f"SELECT belief_transition_record({_GATE_PLACEHOLDERS})",
+            (
+                *_decision_arguments(decision),
+                event.event_id,
+                event.target_type.value,
+                list(event.triggering_attestation_ids),
+                list(event.triggering_relation_ids),
+                event.actor_id,
+                event.inference_provenance_id,
+                event.rationale_artifact_or_record_ref,
+                event.occurred_at,
+                event.trace_id,
             ),
         )
         return event
@@ -401,6 +460,33 @@ _DECISION_COLUMNS = (
     "decision_input_snapshot, input_hash, evaluated_decision, episode_id, actor_id, created_at"
 )
 
+#: `belief_transition_record`'s 17 decision and 9 event arguments (`011z`).
+_GATE_PLACEHOLDERS = ", ".join(["%s"] * 26)
+
+
+def _decision_arguments(decision: BeliefTransitionDecision) -> tuple[object, ...]:
+    """The decision's columns, in `_DECISION_COLUMNS` order, as the gate takes them."""
+    snapshot = decision.decision_input_snapshot
+    return (
+        decision.decision_id,
+        decision.project_id,
+        decision.subject_id,
+        decision.decision_type.value,
+        decision.result.value,
+        decision.policy_id,
+        decision.policy_version,
+        decision.from_state.value,
+        decision.to_state.value,
+        snapshot.authority_policy_id,
+        snapshot.authority_policy_version,
+        snapshot.canonical_bytes_text(),
+        decision.input_hash,
+        canonicalize(decision.evaluated.model_dump(mode="json")),
+        decision.episode_id,
+        decision.actor_id,
+        decision.created_at,
+    )
+
 
 class SqlBeliefTransitionDecisionStore:
     """The same contract against PostgreSQL (`v3.3-a12`).
@@ -416,30 +502,13 @@ class SqlBeliefTransitionDecisionStore:
         self._connection = connection
 
     def record(self, decision: BeliefTransitionDecision) -> BeliefTransitionDecision:
+        """Record a decision on its own, through the migrator's gate `belief_transition_record`
+        (`011z`, G0 T-2), which checks an ALLOW's snapshot against the database now. An ALLOW
+        and its event are recorded together by `SqlBeliefEventStore.append_transition`."""
         require_durable_connection(self._connection)
-        snapshot = decision.decision_input_snapshot
         self._connection.execute(
-            f"INSERT INTO belief_transition_decisions ({_DECISION_COLUMNS})"
-            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-            (
-                decision.decision_id,
-                decision.project_id,
-                decision.subject_id,
-                decision.decision_type.value,
-                decision.result.value,
-                decision.policy_id,
-                decision.policy_version,
-                decision.from_state.value,
-                decision.to_state.value,
-                snapshot.authority_policy_id,
-                snapshot.authority_policy_version,
-                snapshot.canonical_bytes_text(),
-                decision.input_hash,
-                canonicalize(decision.evaluated.model_dump(mode="json")),
-                decision.episode_id,
-                decision.actor_id,
-                decision.created_at,
-            ),
+            f"SELECT belief_transition_record({_GATE_PLACEHOLDERS})",
+            (*_decision_arguments(decision), *(None,) * 9),
         )
         return decision
 

@@ -34,7 +34,11 @@ from lab_brain.core.repositories import (
 )
 from lab_brain.core.repositories.belief_events import SqlBeliefTransitionDecisionStore
 from tests.conftest_fixtures import forged_authorization, make_artifact
-from tests.postgres_fixtures import admit_hypothesis_identity, place_artifact
+from tests.postgres_fixtures import (
+    admit_hypothesis_identity,
+    place_artifact,
+    record_decision_before_the_gate,
+)
 
 pytestmark = [
     pytest.mark.postgres,
@@ -132,7 +136,8 @@ def _real_authorization(
     }
     defaults.update(overrides)
     decision = authorize_transition(**defaults)  # type: ignore[arg-type]
-    return SqlBeliefTransitionDecisionStore(db).record(decision)
+    # Recorded as before the `011z` gate: the snapshot's relation is a contract fixture.
+    return record_decision_before_the_gate(db, decision)
 
 
 def event(**overrides: object) -> BeliefRevisionEvent:
