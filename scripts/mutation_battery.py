@@ -7620,6 +7620,63 @@ MUTATIONS: tuple[Mutation, ...] = (
         new="        ok = True",
         tests=("tests/unit/test_discovery_safety_v12.py",),
     ),
+    # -- safety v1.3 (src/lab_brain/discovery_safety/v13): only the evaluator boundary v1.3 adds --
+    Mutation(
+        name="safety_v13_riskless_test_supports",
+        guards="discovery safety v1.3 -- a registered test supports an identity only if the evaluator finds it risky",
+        path="src/lab_brain/discovery_safety/v13/rule.py",
+        old="        risky_pass=any(t.passed and t.risky for t in mine),",
+        new="        risky_pass=any(t.passed for t in mine),",
+        tests=("tests/unit/test_discovery_safety_v13.py",),
+    ),
+    Mutation(
+        name="safety_v13_open_rival_ignored",
+        guards="discovery safety v1.3 -- an identity with an open evaluator rival is not SUPPORTED",
+        path="src/lab_brain/discovery_safety/v13/rule.py",
+        old="        return self.known and self.risky_pass and self.holm_ok and not self.open_rivals",
+        new="        return self.known and self.risky_pass and self.holm_ok",
+        tests=("tests/unit/test_discovery_safety_v13.py",),
+    ),
+    Mutation(
+        name="safety_v13_incomplete_test_scored",
+        guards="discovery safety v1.3 -- a multi-run test is scored only once all its runs were measured",
+        path="src/lab_brain/discovery_safety/v13/rule.py",
+        old="        if len(targets) < event.runs:",
+        new="        if not targets:",
+        tests=("tests/unit/test_discovery_safety_v13.py",),
+    ),
+    Mutation(
+        name="safety_v13_null_always_an_alternative",
+        guards="discovery safety v1.3 -- 'no effect' is an evaluator alternative only while the earlier data allow it",
+        path="src/lab_brain/discovery_safety/v13/rule.py",
+        old="        if kind != NULL and v.null:",
+        new="        if kind != NULL:",
+        tests=("tests/unit/test_discovery_safety_v13.py",),
+    ),
+    Mutation(
+        name="safety_v13_runs_do_not_average_noise",
+        guards="discovery safety v1.3 -- the mean of n runs has sigma/sqrt(n) in the evaluator's separation",
+        path="src/lab_brain/discovery_safety/v13/rule.py",
+        old="        scale2 = e.sigma**2 / runs + a[1].get(e.entry_id, 0.0) ** 2 + b[1].get(e.entry_id, 0.0) ** 2",
+        new="        scale2 = e.sigma**2 + a[1].get(e.entry_id, 0.0) ** 2 + b[1].get(e.entry_id, 0.0) ** 2",
+        tests=("tests/unit/test_discovery_safety_v13.py",),
+    ),
+    Mutation(
+        name="safety_v13_chain_unchecked",
+        guards="discovery safety v1.3 -- an altered ledger event is refused",
+        path="src/lab_brain/discovery_safety/v13/ledger.py",
+        old="        if _sha(_canonical(event.body())) != event.chain:",
+        new="        if False:",
+        tests=("tests/unit/test_discovery_safety_v13.py",),
+    ),
+    Mutation(
+        name="safety_v13_unsupported_claim_neutral",
+        guards="discovery safety v1.3 -- candidate.5: an asserted answer below SUPPORTED is UNSUPPORTED_CLAIM, never neutral",
+        path="src/lab_brain/discovery_safety/v13/evaluation.py",
+        old="            category=UNSUPPORTED_CLAIM if asserted else PROPOSAL_ONLY,",
+        new="            category=PROPOSAL_ONLY,",
+        tests=("tests/unit/test_discovery_safety_v13.py",),
+    ),
 )
 
 
