@@ -435,3 +435,66 @@ def test_the_measurements_in_a_ledger_are_the_laboratorys_own():
     kinds = [e.kind for e in ledger.events()]
     assert kinds == ["MOTIVATING", MEASURE]
     assert ledger.events()[1].replicate == 5 and ledger.events()[1].count == 0
+
+
+# -- the verdict's parts, each necessary (mutation-checked) ------------------------------------
+
+
+def _quiet_and_loud() -> tuple[Rescorer, Any, EvaluatorLedger, EvaluatorLedger]:
+    cat = script().ring_catalog()
+    oracle = script().SeparationOracle(
+        cat, tuple(e.experiment_id for e in cat.experiments), DISCOVERY
+    )
+    rescorer = _rescorer(cat, oracle)
+    experiments = ev.all_experiments(cat)
+    ledgers = []
+    for scale in (0.0, 50.0):
+        ledger = EvaluatorLedger()
+        for e in ("baseline", "power_sweep", "cutback"):
+            ledger.record_measurement(
+                e, 0, tuple((n.entry_id, scale * n.sigma) for n in experiments[e].entries)
+            )
+        ledgers.append(ledger)
+    return rescorer, experiments, ledgers[0], ledgers[1]
+
+
+def _test(identity: str, *, passed: bool, risky: bool, separated: tuple[str, ...] = ()) -> Any:
+    from lab_brain.discovery_safety.v13.rule import RescoredTest
+
+    return RescoredTest(
+        0, identity, "grammar", "baseline", 1, (1,), True, passed, risky, 0.5, 1.0,
+        3.5 if risky else 1.0, "", "", None, separated,
+    )  # fmt: skip
+
+
+def test_no_effect_is_a_rival_of_an_answer_only_while_the_data_allow_it():
+    rescorer, _, quiet, loud = _quiet_and_loud()
+    claim = next(h for h in rescorer.catalog.values() if h.class_ids == ("thermo.self_heating",))
+    data_q = observations_before(quiet.events(), len(quiet.events()))
+    data_l = observations_before(loud.events(), len(loud.events()))
+    assert NULL_HYPOTHESIS in rescorer.rivals(claim.fingerprint, data_q)
+    assert NULL_HYPOTHESIS not in rescorer.rivals(claim.fingerprint, data_l)
+
+
+def test_support_needs_a_risky_pass_and_no_open_rival():
+    rescorer, _, quiet, loud = _quiet_and_loud()
+    shape = next(iter(rescorer.shapes))
+    events = loud.events()  # "no effect" is not viable: a grammar answer has no rival
+    assert verdict(rescorer, events, [_test(shape, passed=True, risky=True)], shape).supported
+    assert not verdict(rescorer, events, [_test(shape, passed=True, risky=False)], shape).supported
+    # on quiet data "no effect" is viable and nothing separated it from the answer: open rival
+    quiet_events = quiet.events()
+    v = verdict(rescorer, quiet_events, [_test(shape, passed=True, risky=True)], shape)
+    assert v.open_rivals == (NULL_HYPOTHESIS.hypothesis_id,) and not v.supported
+    closed = _test(shape, passed=True, risky=True, separated=(NULL_HYPOTHESIS.fingerprint,))
+    assert verdict(rescorer, quiet_events, [closed], shape).supported
+
+
+def test_the_chain_value_alone_catches_an_altered_last_measurement():
+    ledger = EvaluatorLedger()
+    ledger.record_measurement("cutback", 0, (("loss_straight", 1.0),))
+    ledger.record_measurement("cutback", 1, (("loss_straight", 1.5),))
+    events = list(ledger.events())
+    events[1] = replace(events[1], values=(("loss_straight", 9.0),))
+    with pytest.raises(ValueError):
+        verify_chain(events)
