@@ -19,16 +19,16 @@ world specification, the truth, the meter, the ledger or the evaluator's verdict
 is exactly what a laboratory returns. The evaluator applies its meter and its blind wrapper to
 every request, as it does in process.
 
-This module is domain-free: the composition root supplies the arm process's command line and,
-inside it, the function that builds and runs an arm (`worker_loop`).
+This module is domain-free and starts no process (the package's governance forbids it): the
+composition root starts the arm process, hands its pipes to `serve_run`, and, inside the arm
+process, gives `worker_loop` the function that builds and runs an arm.
 """
 
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from typing import IO, Any
 
 from lab_brain.discovery_eval.blind import ExposureRefused, RealizedCostExceeded
@@ -66,62 +66,51 @@ def _values(raw: Any) -> Values:
     return tuple((str(k), float(v)) for k, v in raw)
 
 
-class ArmProcess:
-    """One arm process, reused for many runs (one at a time)."""
-
-    def __init__(self, argv: Sequence[str]) -> None:
-        self._process = subprocess.Popen(
-            list(argv),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-        )
-
-    def run(self, request: Mapping[str, Any], lab: EvaluatorLaboratory) -> ArmAnswer:
-        """Send one run request and serve the arm's laboratory requests until it answers."""
-        assert self._process.stdin is not None and self._process.stdout is not None
-        _send(self._process.stdin, {"op": "run", **request})
-        while True:
-            message = _receive(self._process.stdout)
-            op = message.get("op")
-            reply: dict[str, Any]
-            try:
-                if op == "motivating":
-                    experiment_id, values = lab.motivating()
-                    reply = {"experiment_id": experiment_id, "values": [list(v) for v in values]}
-                elif op == "measure":
-                    values = lab.measure(
+def serve_run(
+    request: Mapping[str, Any],
+    lab: EvaluatorLaboratory,
+    to_arm: IO[str],
+    from_arm: IO[str],
+) -> ArmAnswer:
+    """The evaluator's side of one run: send the request, serve the arm's laboratory requests on
+    the evaluator's laboratory until the arm answers. The composition root owns the arm process
+    and hands in its pipes (this package starts no process)."""
+    _send(to_arm, {"op": "run", **request})
+    while True:
+        message = _receive(from_arm)
+        op = message.get("op")
+        reply: dict[str, Any]
+        try:
+            if op == "motivating":
+                experiment_id, values = lab.motivating()
+                reply = {"experiment_id": experiment_id, "values": [list(v) for v in values]}
+            elif op == "measure":
+                values = lab.measure(
+                    str(message["experiment_id"]),
+                    replicate=int(message["replicate"]),
+                    session=int(message["session"]),
+                )
+                reply = {"values": [list(v) for v in values]}
+            elif op == "register":
+                reply = {
+                    "receipt": lab.register_identity(
+                        str(message["identity"]),
                         str(message["experiment_id"]),
-                        replicate=int(message["replicate"]),
-                        session=int(message["session"]),
+                        int(message["runs"]),
+                        str(message.get("data_digest") or ""),
                     )
-                    reply = {"values": [list(v) for v in values]}
-                elif op == "register":
-                    reply = {
-                        "receipt": lab.register_identity(
-                            str(message["identity"]),
-                            str(message["experiment_id"]),
-                            int(message["runs"]),
-                            str(message.get("data_digest") or ""),
-                        )
-                    }
-                elif op == "register_v12":
-                    reply = {"index": lab.register(str(message["text"]))}
-                elif op == "done":
-                    return ArmAnswer.from_json(message["answer"])
-                elif op == "failed":
-                    raise BoundaryError(f"the arm failed: {message.get('error')}")
-                else:
-                    raise BoundaryError(f"unknown request {op!r}")
-            except (ExposureRefused, RealizedCostExceeded, ValueError) as exc:
-                reply = {"error": type(exc).__name__, "message": str(exc)}
-            _send(self._process.stdin, reply)
-
-    def close(self) -> None:
-        if self._process.stdin is not None:
-            self._process.stdin.close()
-        self._process.wait(timeout=30)
+                }
+            elif op == "register_v12":
+                reply = {"index": lab.register(str(message["text"]))}
+            elif op == "done":
+                return ArmAnswer.from_json(message["answer"])
+            elif op == "failed":
+                raise BoundaryError(f"the arm failed: {message.get('error')}")
+            else:
+                raise BoundaryError(f"unknown request {op!r}")
+        except (ExposureRefused, RealizedCostExceeded, ValueError) as exc:
+            reply = {"error": type(exc).__name__, "message": str(exc)}
+        _send(to_arm, reply)
 
 
 class ProxyLaboratory:
@@ -199,4 +188,4 @@ def worker_loop(
         _send(outbound, {"op": "done", "answer": answer.as_json()})
 
 
-__all__ = ["ArmProcess", "BoundaryError", "ProxyLaboratory", "worker_loop"]
+__all__ = ["BoundaryError", "ProxyLaboratory", "serve_run", "worker_loop"]

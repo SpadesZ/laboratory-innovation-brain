@@ -37,8 +37,8 @@ within +-`cost_tolerance` units, else COST_UNMATCHED. Every answer is committed 
 
 from __future__ import annotations
 
+import hashlib
 import math
-import random
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -577,6 +577,20 @@ METRICS: dict[str, Callable[[RunRecord], float]] = {
 }
 
 
+def _indices(seed: str, resample: int, n: int) -> list[int]:
+    """n indices in [0, n) for one bootstrap resample: SHA-256 in counter mode over a fixed seed
+    string (deterministic; this package uses no random-number module)."""
+    out: list[int] = []
+    block = 0
+    while len(out) < n:
+        digest = hashlib.sha256(f"{seed}/{resample}/{block}".encode()).digest()
+        for i in range(0, len(digest), 4):
+            if len(out) < n:
+                out.append(int.from_bytes(digest[i : i + 4], "big") % n)
+        block += 1
+    return out
+
+
 def _bootstrap(
     diffs: Mapping[str, Sequence[float]], resamples: int, seed: str
 ) -> dict[str, tuple[float, float, float]]:
@@ -585,10 +599,9 @@ def _bootstrap(
     n = len(diffs[names[0]]) if names else 0
     if n == 0:
         return dict.fromkeys(names, (0.0, 0.0, 0.0))
-    rng = random.Random(seed)
     draws: dict[str, list[float]] = {k: [] for k in names}
-    for _ in range(resamples):
-        idx = [rng.randrange(n) for _ in range(n)]
+    for b in range(resamples):
+        idx = _indices(seed, b, n)
         for k in names:
             v = diffs[k]
             draws[k].append(math.fsum(v[i] for i in idx) / n)

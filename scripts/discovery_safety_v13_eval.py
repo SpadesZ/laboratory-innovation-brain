@@ -81,7 +81,7 @@ from lab_brain.discovery_safety.v12.grammar import grammar_from_declaration  # n
 from lab_brain.discovery_safety.v12.ledger import PredictionLedger  # noqa: E402
 from lab_brain.discovery_safety.v12.model import SAFETY_V12  # noqa: E402
 from lab_brain.discovery_safety.v13 import evaluation as ev  # noqa: E402
-from lab_brain.discovery_safety.v13.boundary import ArmProcess, worker_loop  # noqa: E402
+from lab_brain.discovery_safety.v13.boundary import serve_run, worker_loop  # noqa: E402
 from lab_brain.discovery_safety.v13.ledger import EvaluatorLaboratory  # noqa: E402
 from lab_brain.discovery_safety.v13.model import (  # noqa: E402
     EVALUATOR_RULE,
@@ -278,6 +278,23 @@ def _handle(request: Mapping[str, Any], lab: Any) -> ArmAnswer:
     )
 
 
+class ArmProcess:
+    """One arm process (a fresh interpreter running `--arm-worker`), reused for many runs."""
+
+    def __init__(self) -> None:
+        self.process = subprocess.Popen(
+            [sys.executable, str(Path(__file__).resolve()), "--arm-worker"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+        )
+
+    def run(self, request: Mapping[str, Any], lab: EvaluatorLaboratory) -> ArmAnswer:
+        assert self.process.stdin is not None and self.process.stdout is not None
+        return serve_run(request, lab, self.process.stdin, self.process.stdout)
+
+
 _PROCESS: list[ArmProcess] = []
 
 
@@ -287,7 +304,7 @@ def _execute_in_process(request: Mapping[str, Any], lab: EvaluatorLaboratory) ->
 
 def _execute_boundary(request: Mapping[str, Any], lab: EvaluatorLaboratory) -> ArmAnswer:
     if not _PROCESS:
-        _PROCESS.append(ArmProcess([sys.executable, str(Path(__file__).resolve()), "--arm-worker"]))
+        _PROCESS.append(ArmProcess())
     return _PROCESS[0].run(request, lab)
 
 
