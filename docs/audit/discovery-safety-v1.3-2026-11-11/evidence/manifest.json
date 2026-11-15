@@ -1,0 +1,250 @@
+{
+  "code_commit": "91c813faf44980e1f87850d22efa490aa7f4ba9a+dirty",
+  "design_freeze": {
+    "commit": "91c813faf44980e1f87850d22efa490aa7f4ba9a",
+    "evaluator_rule_digest": "sha256:cc109ef710c645dbf985dc27c7171053fe00ffb299f6c0097489b75c278d4490",
+    "grammar_digest": "sha256:767111e512f4d2424f2576a5949244879fad811c6854310a7501aa9111df8942",
+    "held_out_seeds_generated_after_freeze": true,
+    "plan_digest": "sha256:16b7e2079be161aa0d1dd440110a288362379c74eaa9323a4f0f81d9bb8b45dd",
+    "protocol_digest": "sha256:8b2b410210412ea996107179ab86ab5424b87e8b9ccdd919da6eb8a2e6b6b42d",
+    "v13_sources_identical_to_freeze": true
+  },
+  "environment": {
+    "dependencies": {
+      "PyYAML": "6.0.3",
+      "cryptography": "50.0.2",
+      "pydantic": "2.14.2",
+      "pydantic-core": "2.50.2"
+    },
+    "interpreter": "CPython 3.13.18",
+    "interpreter_key": "CPython 3.13",
+    "numerical_libraries": "none (no numpy, scipy or other compiled numerics are imported)",
+    "platform": "Linux-6.18.44-fc-v470-x86_64-with-glibc2.39"
+  },
+  "evidence_class": "ENGINEERING EVIDENCE ONLY -- developer-authored synthetic worlds",
+  "evidence_files": [
+    "benchmark_3729592000_rows.json",
+    "control_3218044000_rows.json",
+    "held_out_3218044000_rows.json",
+    "results.json"
+  ],
+  "frozen_inputs": {
+    "engine_sources_match_frozen_manifest": true,
+    "evaluation_sources_match_frozen_manifest": true,
+    "frozen_engine_manifest_sha256": "sha256:d58ffb401a26a14a614d80b56bcda18505d40c44bea5195baebe6323ada3e9d9",
+    "frozen_evaluation_manifest_sha256": "sha256:c0172f3f275b1d74a4a1af8324d898ae837fbcd68b8675769b45660e2b20efad",
+    "frozen_v10_manifest_sha256": "sha256:7cec0221f0653425a35d69642e4dde505f64224d5b418cd8c0452647ab9081a8",
+    "frozen_v11_manifest_sha256": "sha256:9e30bb01984268c4ea9d41aaeb79f6207d1972703e473b9af7e95b8ce05969c4",
+    "frozen_v12_manifest_sha256": "sha256:f883ef752f84a968300b6a25841a75c36ea3bddf841c19db12c790a84f995d45",
+    "v10_protocol_digest_matches": true,
+    "v10_sources_match_frozen_manifest": true,
+    "v11_protocol_digest_matches": true,
+    "v11_sources_match_frozen_manifest": true,
+    "v12_grammar_digest_matches": true,
+    "v12_protocol_digest_matches": true,
+    "v12_sources_match_frozen_manifest": true
+  },
+  "inputs": {
+    "boundary": "every arm in a separate process (scripts/discovery_safety_v13_eval.py --arm-worker); JSON messages only",
+    "catalog": {
+      "digest": "sha256:69c86963d6e1ae31832208530654539a9283bded6638cad8f0877848553d9119",
+      "ref": "sp.ring_drift_loss.discovery@0.1.0"
+    },
+    "engine_protocol_digest": "sha256:5473507ce99d2f41918361c35ebf33efa18770e91baf7a7d8f76008462560c97",
+    "evaluator_rule": {
+      "alpha": 0.01,
+      "alpha_adequacy": 0.01,
+      "candidate_band": 0.5,
+      "max_runs": 4,
+      "rule_id": "lab-brain/discovery-evaluator-rule",
+      "tau_risky": 3.0,
+      "version": "1.3.0",
+      "z_adequacy": 4.0,
+      "z_max": 4.0
+    },
+    "evaluator_rule_digest": "sha256:cc109ef710c645dbf985dc27c7171053fe00ffb299f6c0097489b75c278d4490",
+    "grammar_digest": "sha256:767111e512f4d2424f2576a5949244879fad811c6854310a7501aa9111df8942",
+    "plan": {
+      "arms": [
+        [
+          "B2",
+          "frozen Discovery engine (2026-11-01), no safety layer"
+        ],
+        [
+          "B4",
+          "frozen engine + safety gate v1.1 (the current offline safety BASELINE)"
+        ],
+        [
+          "B5",
+          "safety gate v1.2, unchanged (its registrations re-scored by the v1.3 evaluator)"
+        ],
+        [
+          "B6",
+          "safety gate v1.3 (identity registrations, multi-run tests, null equivalence)"
+        ]
+      ],
+      "benchmark_worlds": {
+        "base_seed": 3729592000,
+        "label": "lab-brain/discovery-safety-v1.3/benchmark-worlds/2026-11-11",
+        "per_group": 15,
+        "role": "HELD_OUT_FOR_V1_3"
+      },
+      "bootstrap_resamples": 2000,
+      "budgets": [
+        6,
+        8,
+        12,
+        24,
+        48
+      ],
+      "comparisons": [
+        [
+          "B6",
+          "B4"
+        ],
+        [
+          "B6",
+          "B5"
+        ],
+        [
+          "B5",
+          "B4"
+        ],
+        [
+          "B2",
+          "B4"
+        ],
+        [
+          "B6",
+          "B2"
+        ]
+      ],
+      "cost_tolerance": 1.0,
+      "development": [
+        {
+          "base_seed": 5000000,
+          "label": "v1.0 development held-out worlds",
+          "per_group": 6,
+          "role": "DEVELOPMENT"
+        },
+        {
+          "base_seed": 1,
+          "label": "engine development worlds",
+          "per_group": 6,
+          "role": "DEVELOPMENT"
+        },
+        {
+          "base_seed": 7000000,
+          "label": "v1.1 development held-out worlds",
+          "per_group": 15,
+          "role": "DEVELOPMENT"
+        },
+        {
+          "base_seed": 8000000,
+          "label": "v1.2 development held-out worlds",
+          "per_group": 15,
+          "role": "DEVELOPMENT"
+        }
+      ],
+      "distinguish_replicates": 4,
+      "distinguish_tau": 5.0,
+      "held_out": [
+        {
+          "base_seed": 3218044000,
+          "label": "lab-brain/discovery-safety-v1.3/held-out-worlds/2026-11-11",
+          "per_group": 10,
+          "role": "HELD_OUT_FOR_V1_3"
+        }
+      ],
+      "plan_id": "lab-brain/discovery-safety-v1.3-evaluation",
+      "scoring": "sai35-candidate.5 classify_outcome+verified_evidence+assertion_status (61af6ef); evaluator-computed EvaluatorRule",
+      "seeds_used_before": [
+        1,
+        5000000,
+        7000000,
+        2026110100,
+        2026110200,
+        2026610200,
+        2026810400,
+        3931910000,
+        3320367000,
+        3340487000,
+        3178418000
+      ]
+    },
+    "plan_digest": "sha256:16b7e2079be161aa0d1dd440110a288362379c74eaa9323a4f0f81d9bb8b45dd",
+    "safety_protocol": {
+      "abstain_on_inadequacy": true,
+      "alpha_adequacy": 0.01,
+      "alpha_localized": 0.01,
+      "alpha_prospective": 0.01,
+      "anytime_allocation": true,
+      "candidate_band": 0.5,
+      "defer_localized_replication": true,
+      "discovery": true,
+      "discriminating_tau": 5.0,
+      "engine_fraction": 0.5,
+      "evaluator_rule_support": true,
+      "gate_led": true,
+      "ladder_start": 2,
+      "localized_check": true,
+      "localized_correction": "holm-step-down",
+      "max_alternatives": 2,
+      "max_discovery_tests": 3,
+      "max_noise_exclusions_per_experiment": 1,
+      "max_probe_replications": 2,
+      "max_request_candidates": 4,
+      "max_rival_tests": 4,
+      "max_runs": 4,
+      "multi_run_tests": true,
+      "null_fallback": true,
+      "probe_null_experiments": true,
+      "probe_order": "separation-per-cost",
+      "probes": true,
+      "protocol_id": "lab-brain/discovery-safety-offline",
+      "refit_fixpoint": true,
+      "registered_probes": true,
+      "require_coverage": true,
+      "require_registered_support": true,
+      "rival_exclusion": true,
+      "rival_refuted_by_failed_registration": true,
+      "signal_coverage": 1.0,
+      "support_test": true,
+      "tau_risky": 3.0,
+      "version": "1.3.0",
+      "z_adequacy": 4.0,
+      "z_prospective": 4.0,
+      "z_signal": 3.0
+    },
+    "safety_protocol_digest": "sha256:8b2b410210412ea996107179ab86ab5424b87e8b9ccdd919da6eb8a2e6b6b42d",
+    "v10_safety_protocol_digest": "sha256:27fc5feb4916271c37b5b1800998ea08ba816e0f2311711d96d7e55689675b25",
+    "v11_safety_protocol_digest": "sha256:598c95aa4d3dbbc2348a472f5c3b90539cc1c02b54576c6ace9d432f859a280c",
+    "v12_safety_protocol_digest": "sha256:a5e81fcec07110f0d12f76d03b2f41da140a7d7ec11aeaf1faeb4e262bd08b16"
+  },
+  "inputs_digest": "sha256:f6b89e79162c9e37fb464c24bf97a4f908554bbfd143aa0daeba91a114c4a109",
+  "kind": "lab-brain/discovery-safety-v1.3-evaluation-manifest@1",
+  "manifest_sha256": "sha256:4dd92b1d71821e71e426460c4252ccf81aaaecdd58992a1c46a257b7fbb53e87",
+  "not_claimed": [
+    "scientific validity of any mechanism, forward model, grammar term or new mechanism",
+    "an independent or blind evaluation: worlds, held-out families, the grammar, the engine, every safety gate and the evaluator's rule share an author lineage",
+    "that v1.2 or v1.3 replaces v1.1: v1.1 remains the offline safety baseline",
+    "anything about a real device, real literature, a language model or the real PostgreSQL LIB workflow; Discovery is not connected to real research execution",
+    "scientific acceptance (NOT PASSED) or G-D (NOT PASSED)"
+  ],
+  "results_sha256": "304d8cdddc04aa213a0e72e22d05d6c50cc0a9b2500ff0dc7c9a178f1be516cc",
+  "rows_sha256": {
+    "benchmark_3729592000_rows.json": "056b63cf5e659e95eaf1640774bd2350fdb5ed57559c287683bf9426d3923b10",
+    "control_3218044000_rows.json": "bd3d9b1107c55d0dfc61bb50f8a3fad3668ac64bfa6041a2ebbc3bd455411562",
+    "held_out_3218044000_rows.json": "8a62f3eee286f5437b5e6922fb76e38be2771b8b5bcddd11c92e9d7dd0b8d28c"
+  },
+  "v13_sources_sha256": {
+    "scripts/discovery_safety_v13_eval.py": "dc158865cabf6af77fd1a31d0b756a1dca4abf5d58073a0f267abd504eeb29d4",
+    "src/lab_brain/discovery_safety/v13/__init__.py": "3b66d7bf2ca0a0b7d452d5dd0a0f820ed76c08cd7e694a2441ea8dbae01f5dd4",
+    "src/lab_brain/discovery_safety/v13/boundary.py": "a026340c3501b8ced589192c6c8a5f07c0547a90838e322ba5071b08f1dbeb25",
+    "src/lab_brain/discovery_safety/v13/evaluation.py": "5372e0c4a36f09591c4dd956b67f03222e99f29f86680dbdb529e2d63887f2fb",
+    "src/lab_brain/discovery_safety/v13/gate.py": "07a6bd0e69293966ba9a87bc70b07bc7c6346fc8a3ed6c1d48e03b2cc1106e87",
+    "src/lab_brain/discovery_safety/v13/ledger.py": "16c78e269b45a08e1489ee3a23e47b087b178adc87fabad50020e35ff54d0a80",
+    "src/lab_brain/discovery_safety/v13/model.py": "660bf42763e99796079b622f4657f548454d1acbab3aa7e51cea24cbe45e74b9",
+    "src/lab_brain/discovery_safety/v13/rule.py": "cbe87504d251aeb07f2c72844baa2d56d37f96de215c09166684cbf0adf10322"
+  }
+}
