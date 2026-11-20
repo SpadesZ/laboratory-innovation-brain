@@ -284,7 +284,25 @@ noise-only benchmark world and has more force-fits than v1.1 at budget 8 (6 vs 0
 candidate.4 the engine, v1.0 and v1.1 have no SUPPORTED answer at all. Equal caps, not matched
 realized cost. The ledger accepted the arm's own uncertainty and alternatives (corrected in
 candidate.5), so these SUPPORTED figures are not evaluator-controlled; v1.1 stays the offline safety
-baseline (Owner instruction of 2026-11-11) until a replacement is independently justified. Details: [implementation status](sai35/implementation-status.md).
+baseline (Owner instruction of 2026-11-11) until a replacement is independently justified.
+
+Fourth round (2026-11-11 to 2026-11-20, pushed, unmerged, not independently reviewed):
+`claude/lib-implementation-agent-47evs0-g0-boundary4` @ `5dc4d59` (from `e2872de`) routes belief
+decisions and events through a SECURITY DEFINER write gate (migration `011z`) that refuses omitted
+conflicts, ungated independence counts and writer-supplied times; adds an irreversible owner
+quarantine for legacy rows (`012t`), marks events the projection does not count (R15), and makes
+review-queue policies owner-only (`010d`). Until the Owner approves the two REVOKE commits
+`6b52521` and `b90e975`, the services' role can still write those tables directly; fabricated
+measurements (T-1) stay open; G0 stays NOT PASSED.
+`claude/lib-implementation-agent-47evs0-discovery-v13` @ `c022f3a` (from `e778cc4`, design frozen at
+`b46c397`) reproduces the candidate.4 ledger flaw on v1.2 and replaces the ledger with one the
+evaluator owns and computes, with every arm in a separate process; v1.2 re-scored this way loses
+SUPPORTED answers (control at cap 24: 149 to 125). v1.2's noise-only losses came from rival tests
+that could never qualify and a null that was never reconsidered; v1.3 reaches 9/15 and 14/15
+noise-only worlds at caps 24 and 48. On v1.1's own face-value terms v1.3 does not beat v1.1 overall
+(cost-matched benchmark at about 11 units: -0.10 [-0.18, -0.02]). The design was re-frozen twice
+after held-out numbers were seen, so its held-out result is not clean. v1.1 stays the offline safety
+baseline. Details: [implementation status](sai35/implementation-status.md).
 
 ## 3. Normative requirements
 

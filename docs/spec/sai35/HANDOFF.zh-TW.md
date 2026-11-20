@@ -1,6 +1,6 @@
-# 交接：第四輪（進行中）與第三輪（SAI 3.5 candidate.5／.4、G0 信任邊界、Discovery 安全 v1.2），含第一、二輪紀錄
+# 交接：第四輪（等待 ICA 稽核）與第三輪（SAI 3.5 candidate.5／.4、G0 邊界、Discovery 安全 v1.2／v1.3），含第一、二輪紀錄
 
-日期：第四輪 2026-11-14（進行中）；第三輪 2026-11-11；第二輪 2026-11-08；第一輪 2026-11-04。對象：獨立首席稽核（Independent Chief Auditor）與 Owner。
+日期：第四輪 2026-11-20（已推送，等待稽核）；第三輪 2026-11-11；第二輪 2026-11-08；第一輪 2026-11-04。對象：獨立首席稽核（Independent Chief Auditor）與 Owner。
 撰寫者：實作代理（Implementation Agent）。這不是稽核結論。
 
 **不變的狀態：** SAI 3.5 仍是 CANDIDATE — NOT ACTIVE。G0 未通過（NOT PASSED）。
@@ -8,15 +8,19 @@ G-D 未通過。`READY_FOR_REAL_RESEARCH = false`。沒有合併 `main`，沒有
 沒有改 `ACTIVE_SPEC.yaml`，沒有改 SAI 3.3／3.4 受保護檔案，沒有用付費模型、Lumerical 授權或實體實驗，
 沒有改帳密或正式權限，沒有覆寫凍結證據。提交沒有 AI 作者標註。
 
-## R4. 第四輪（2026-11-11 起，進行中）
+## R4. 第四輪（2026-11-11 至 2026-11-20，已推送，等待 ICA 稽核）
 
-稽核（ICA）第三輪的發現，Owner 要求處理 4 件事。v1.1 仍是離線安全基準。
+稽核（ICA）第三輪的發現，Owner 要求處理 4 件事。v1.1 仍是離線安全基準。沒有合併、沒有部署、沒有啟用。
 
-| 工作 | 分支 | 起點 | 狀態 |
-|---|---|---|---|
-| SAI 3.5 candidate.5 | `claude/lib-implementation-agent-47evs0` | `88e8bf1` | 完成，`61af6ef` 已推送 |
-| G0 第四輪邊界 | `claude/lib-implementation-agent-47evs0-g0-boundary4` | `e2872de` | 進行中（重現測試 `fb89d36` 已提交） |
-| Discovery v1.3 | `claude/lib-implementation-agent-47evs0-discovery-v13` | `e778cc4` | 進行中（帳本漏洞重現 `8adc676` 已提交） |
+### R4.0 分支與提交（都已推送，都未合併）
+
+| 工作 | 分支 | 起點 | 最新 | CI |
+|---|---|---|---|---|
+| SAI 3.5 candidate.5 與狀態 | `claude/lib-implementation-agent-47evs0` | `88e8bf1` | 本提交（candidate.5 本體 `61af6ef`） | 見本提交的 CI |
+| G0 第四輪邊界 | `claude/lib-implementation-agent-47evs0-g0-boundary4` | `e2872de` | `5dc4d59` | run `44730464428` 成功 |
+| Discovery v1.3 | `claude/lib-implementation-agent-47evs0-discovery-v13` | `e778cc4` | `c022f3a`（設計凍結 `b46c397`） | run `44740224748`（推送時仍在跑） |
+
+PR #1 不是本輪開的，沒有動。
 
 ### R4.1 SAI candidate.5（完成）
 
@@ -24,15 +28,44 @@ G-D 未通過。`READY_FOR_REAL_RESEARCH = false`。沒有合併 `main`，沒有
   宣稱、背書或採用但沒有證據：UNSUPPORTED_CLAIM，算錯誤。沒有記錄立場就當成宣稱。標籤不能蓋過行動。
 - **SUPPORTED 的判定數字都由評估者計算。** 雜訊模型、預測不確定度、替代假說、門檻。受測組自己給的不算數。
 - 報告必須列出每組的宣稱數、有證據數、無證據主張數、提案數，和「無證據主張率」。
-- 檢查：參考語意拒絕 16 個錯誤定義；候選檢查器拒絕 131 個變異；`tests/spec` 206 通過；SAI 3.4 邊界檢查通過。
+- 檢查：參考語意拒絕 16 個錯誤定義；候選檢查器拒絕 131 個變異；`tests/spec` 通過；SAI 3.4 邊界檢查通過。
 - 反例 S5-CE；S35-ISSUE-21。沒有改任何識別碼。SAI 3.5 仍是 CANDIDATE — NOT ACTIVE。
-- 結果：在 candidate.5 之下，v1.2 報告裡的 SUPPORTED 數字不是評估者控制的，不能當證據。
 
-### R4.2 進行中
+### R4.2 G0 第四輪（完成，主導者已獨立重跑）
 
-- G0：T-2（服務角色仍可寫入決策和事件）、T-3（舊資料列的隔離）、R15（拒絕的事件要標示）、R-4（審查佇列政策）。
-  收回權限（REVOKE）放在獨立提交，需要 Owner 核准。
-- Discovery：帳本改成評估者控制；查出「只有雜訊」全部失敗的原因；用相同實際成本、相同世界做配對比較。
+- T-2：信念決策和事件改走 SECURITY DEFINER 寫入閘門（`011z`）。拒絕：漏掉衝突、未經閘門的獨立計數、寫入者自己給的時間。
+- T-3：Owner 可以隔離舊資料列（`012t`，`lab-brain admin quarantine`）。資料保留，不能復原。
+- R15：投影不計入的事件會被標示。R-4：`review_queue_policies` 只有 Owner 能寫（`010d`）。
+- 證據：修正前 `fb89d36` 11 個攻擊都成功；`fd3ddec` 在新資料庫 41 通過（主導者重跑）；完整 PostgreSQL 3653 通過 / 4 略過；23/23 變異被抓到。
+- 報告：`docs/audit/g0-boundary-round4-2026-11-11/REPORT.md`。
+- 還開著：T-1（假量測，需要儀器簽章，High）。沒有 REVOKE 之前，服務角色仍可直接寫入。G0 仍 NOT PASSED。
+
+### R4.3 Discovery v1.3（完成，主導者已檢查）
+
+- **ICA 漏洞已重現（`8adc676`）並關閉。** v1.2 接受受測組自己給的 SD、替代假說、門檻、標籤。v1.3 由評估者擁有帳本、自己計算全部判定數字。受測組在另一個行程，只用 JSON 溝通（同一個 OS 使用者，不是 OS 沙箱）。
+- **v1.2 用評估者規則重算，SUPPORTED 變少**：控制組 cap 24 從 149 降到 125。
+- **只有雜訊的世界**：原因是對手測試永遠不夠格、「沒有效應」從不被重新考慮。v1.3：cap 24 9/15、cap 48 14/15（v1.2：0/15）。
+- **配對、相同成本比較（B6 − B4，v1.1 自己的標準）**：小預算時 v1.3 較好；benchmark 約 11 單位時較差 −0.10 [−0.18, −0.02]；cap 24/48 成本不相同。整體沒有贏過 v1.1。
+- **失敗**：新世界上仍有 SUPPORTED 錯誤（1 個 force-fit、3 個錯誤主張）；比 v1.1 更常放棄。
+- **不乾淨**：設計在看過 held-out 數字之後重新凍結了兩次（`04c4193`、`b46c397`）。決策邏輯沒改，類別和成本都相同，但 held-out 結果不算乾淨。
+- 主導者檢查：工作樹乾淨、作者 SpadesZ、沒有 AI 署名；凍結引擎和 v1.0–v1.2 檔案沒改；src/tests 沒有 `S35-`；28 個 v1.3 測試通過；ruff 乾淨；證據 `--check` 重跑結果見最終回報。
+- 報告：`docs/reports/discovery-safety-v1.3.md`。
+
+### R4.4 科學上仍未證明
+
+- 世界、文法、閘門、評估者規則都同一個作者。沒有獨立評估。
+- 「沒有效應」用目錄的最小效應。比這更小的真實效應看不到。
+- 開放對手只檢查目錄假說。新機制只是文法內的「重新發現」。
+- G-D、G0 都 NOT PASSED。`READY_FOR_REAL_RESEARCH` 仍是 false。
+
+### R4.5 需要 Owner 決定
+
+1. 核准 REVOKE `6b52521`（四個信念表）。建議：是。
+2. 核准 REVOKE `b90e975`（`review_queue_policies`）。建議：是。
+3. 是否接受看過 held-out 後的重新凍結，或抽一組新的 held-out 種子。建議：抽新的。
+4. 評估者規則的慣例（最小效應、容忍 1 個離群值、對手只限目錄、每次測試最多 4 次）。
+5. 是否委託獨立的評估者規則、世界和文法。
+6. v1.1 繼續當基準（建議：是）。G0 報告 §13 另有決定。
 
 ---
 

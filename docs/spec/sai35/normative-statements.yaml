@@ -32,6 +32,12 @@ in_progress_branches:
     projection refuses undeclared policies and snapshots that differ from stored evidence; G0 NOT PASSED
   claude/lib-implementation-agent-47evs0-discovery-v12: from ed442bb; head e778cc4; design frozen 50549e2; budget-aware
     allocation, evaluator-owned prediction ledger, grammar discovery; engineering evidence on same-author worlds only
+  claude/lib-implementation-agent-47evs0-g0-boundary4: from e2872de; head 5dc4d59; SECURITY DEFINER belief write gate (011z),
+    owner quarantine (012t), R15 marks, owner-only review-queue policies (010d); REVOKEs 6b52521 and b90e975 pending Owner
+    approval; G0 NOT PASSED
+  claude/lib-implementation-agent-47evs0-discovery-v13: from e778cc4; head c022f3a; design frozen b46c397 (re-frozen twice
+    after held-out numbers were seen); evaluator-controlled ledger in a separate arm process, scored under candidate.5;
+    v1.1 stays the offline safety baseline; engineering evidence on same-author worlds only
   claude/lib-implementation-agent-47evs0-discovery: from d7ec9f2; head 0928602; offline out-of-catalog safety gate (engineering
     evidence on same-author worlds only); not connected to research execution
 spec_document: docs/spec/SAI_3.5.md
