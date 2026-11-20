@@ -16,9 +16,9 @@ G-D 未通過。`READY_FOR_REAL_RESEARCH = false`。沒有合併 `main`，沒有
 
 | 工作 | 分支 | 起點 | 最新 | CI |
 |---|---|---|---|---|
-| SAI 3.5 candidate.5 與狀態 | `claude/lib-implementation-agent-47evs0` | `88e8bf1` | 本提交（candidate.5 本體 `61af6ef`） | 見本提交的 CI |
+| SAI 3.5 candidate.5 與狀態 | `claude/lib-implementation-agent-47evs0` | `88e8bf1` | 本提交（狀態 `4abd8ee`，candidate.5 本體 `61af6ef`） | `4abd8ee` run `44740787729` 成功 |
 | G0 第四輪邊界 | `claude/lib-implementation-agent-47evs0-g0-boundary4` | `e2872de` | `5dc4d59` | run `44730464428` 成功 |
-| Discovery v1.3 | `claude/lib-implementation-agent-47evs0-discovery-v13` | `e778cc4` | `c022f3a`（設計凍結 `b46c397`） | run `44740224748`（推送時仍在跑） |
+| Discovery v1.3 | `claude/lib-implementation-agent-47evs0-discovery-v13` | `e778cc4` | `c022f3a`（設計凍結 `b46c397`） | run `44740224748` 成功 |
 
 PR #1 不是本輪開的，沒有動。
 
@@ -48,7 +48,7 @@ PR #1 不是本輪開的，沒有動。
 - **配對、相同成本比較（B6 − B4，v1.1 自己的標準）**：小預算時 v1.3 較好；benchmark 約 11 單位時較差 −0.10 [−0.18, −0.02]；cap 24/48 成本不相同。整體沒有贏過 v1.1。
 - **失敗**：新世界上仍有 SUPPORTED 錯誤（1 個 force-fit、3 個錯誤主張）；比 v1.1 更常放棄。
 - **不乾淨**：設計在看過 held-out 數字之後重新凍結了兩次（`04c4193`、`b46c397`）。決策邏輯沒改，類別和成本都相同，但 held-out 結果不算乾淨。
-- 主導者檢查：工作樹乾淨、作者 SpadesZ、沒有 AI 署名；凍結引擎和 v1.0–v1.2 檔案沒改；src/tests 沒有 `S35-`；28 個 v1.3 測試通過；ruff 乾淨；證據 `--check` 重跑結果見最終回報。
+- 主導者檢查：工作樹乾淨、作者 SpadesZ、沒有 AI 署名；凍結引擎和 v1.0–v1.2 檔案沒改；src/tests 沒有 `S35-`；28 個 v1.3 測試通過；ruff 乾淨；證據 `--check` 主導者重跑（PYTHONHASHSEED=12345，約 48 分鐘）：evidence is current。
 - 報告：`docs/reports/discovery-safety-v1.3.md`。
 
 ### R4.4 科學上仍未證明
