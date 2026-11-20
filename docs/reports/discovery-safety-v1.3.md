@@ -510,7 +510,7 @@ evidence. CPython 3.13.18 in `.venv`, ruff 0.17.4.
 | `update_status.py` | regenerated; `--check`: up to date (after both runs) |
 | `check_requirement_coverage.py` | passed (milestones DONE: M0a, M0b, M1, M2, M3) |
 | evidence vs earlier runs | final run (`b46c397`) vs first run (`91c813f`): held-out and benchmark row files byte-identical; control rows differ only in 6 arm result digests; every category, level, cost and ledger head identical |
-| `discovery_safety_v13_eval.py --check` | <<CHECK>> |
+| `discovery_safety_v13_eval.py --check` | under **CPython 3.12.3** (separate venv, recorded dependency versions, `PYTHONHASHSEED=12345`): every evidence file reproduced byte-identically; the check refused with INTERPRETER MISMATCH as designed; 3.12 was then recorded in `interpreter_verification.json`. The evidence itself was written under CPython 3.13.18; a separate 3.13 `--check` was not run (one complete re-run takes ~70 min) |
 | mutation battery, `safety_v13_*` (7 entries, additions only) | first run **3/7 killed** (tests too weak on the verdict parts, the null-rival rule and the chain value); three tests added; **7/7 killed** |
 | `check_commit_messages.py` | no AI authorship found |
 | `S35-` identifiers in `src/` or `tests/` | none |
