@@ -1,0 +1,98 @@
+# round-4 mutation battery at 7927618 (23 additions; each runs only the round-4 test files with -x; SQL mutants on cloned template databases)
+# 2026-11-20T06:09:24Z LAB_BRAIN_TEST_POSTGRES=1 python scripts/mutation_battery.py --only <23 round4_* entries>
+23 mutations
+
+[KILLED ] round4_gate_ignores_omitted_conflicts
+           G0 T-2 -- 011z: the snapshot's conflicts are the subject's currently unresolved ones
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_a_snapshot_that_omits_an_open_conflict
+
+[KILLED ] round4_gate_ignores_independence_counts
+           G0 T-2 -- 011z: a WORK independence count is bounded by the stored evidence lines
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_an_independence_count_no_stored_line_s
+
+[KILLED ] round4_gate_accepts_future_times
+           G0 T-2 -- 011z: a record is not dated after the database clock (plus skew)
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_a_future_dated_transition_is_refused_w
+
+[KILLED ] round4_gate_accepts_reordering_times
+           G0 T-2 -- 011z: an event is not dated before the subject's latest event
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_gate_refuses_an_event_dated_before
+
+[KILLED ] round4_gate_takes_unstored_relations
+           G0 T-2 -- 011z: every snapshot relation is the current stored relation
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_gate_refuses_a_snapshot_whose_evid
+
+[KILLED ] round4_gate_takes_claimed_condition_matches
+           G0 T-2 -- 011z: every snapshot condition match is the stored match
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_gate_refuses_a_snapshot_whose_evid
+
+[KILLED ] round4_gate_takes_claimed_authority_classes
+           G0 T-2 -- 011z: authority classes are recomputed from the stored attestations
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_gate_refuses_a_snapshot_whose_evid
+
+[KILLED ] round4_gate_runs_as_its_caller
+           G0 T-2 -- 011z: the gate is the migrator's SECURITY DEFINER function
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_an_honest_transition_goes_through_the_
+
+[KILLED ] round4_write_records_admit_every_role
+           G0 T-2 -- 011z: belief_write_records is written by the gate (the owner) only
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_services_role_writes_the_belief_ta
+
+[KILLED ] round4_services_not_granted_the_gate
+           G0 T-2 -- db-roles grants EXECUTE on the gate to the services' role
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_gate_refuses_a_snapshot_whose_evid
+
+[KILLED ] round4_quarantine_admits_every_role
+           G0 T-3 -- 012t: only a member of the table's owner records a quarantine
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_services_role_writes_the_belief_ta
+
+[KILLED ] round4_quarantine_is_editable
+           G0 T-3 -- 012t: a quarantine is append-only
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_services_role_writes_the_belief_ta
+
+[KILLED ] round4_declarations_read_quarantined_sets
+           G0 T-3 -- 012t: diagnostic_declarations leaves a quarantined set out
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_services_role_writes_the_belief_ta
+
+[KILLED ] round4_projection_ignores_quarantine
+           G0 T-3/T-2 -- the projection skips the owner's quarantined events
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_one_forged_row_stops_denying_the_histo
+
+[KILLED ] round4_store_withholds_nothing_by_policy
+           G0 T-3 -- an event under a quarantined policy is withheld
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t3_a_policy_from_before_011x_stops_denyin
+
+[KILLED ] round4_operator_quarantines_declared_rules
+           G0 T-3 -- the product's own policies and sets are not quarantined
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t3_the_products_own_rules_are_not_quarant
+
+[KILLED ] round4_report_moves_unmarked
+           G0 R15 -- the report marks a move the projection does not count
+           killed by FAILED tests/unit/test_g0_r15_history_display.py::test_the_reports_moves_mark_an_event_the_projectio
+
+[KILLED ] round4_view_counts_everything
+           G0 R15 -- the episode view asks the projection about each move
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_r15_the_displays_mark_the_moves_the_produ
+
+[KILLED ] round4_page_shows_uncounted_as_moved
+           G0 R15 -- the page says an uncounted move was not counted
+           killed by FAILED tests/unit/test_g0_r15_history_display.py::test_the_episode_view_marks_a_transition_the_proje
+
+[KILLED ] round4_queue_guard_admits_every_role
+           G0 R-4 -- 010d: only a member of the table's owner declares a review queue
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_services_role_writes_the_belief_ta
+
+[KILLED ] round4_queue_guard_fires_on_insert_only
+           G0 R-4 -- 010d: UPDATE and DELETE are the owner's too
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_services_role_writes_the_belief_ta
+
+[KILLED ] round4_services_keep_row_writes_on_belief_tables
+           G0 T-2 (Owner approval) -- db-roles revokes row writes on the four belief tables
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_raw_rows_written_by_the_services_role_
+
+[KILLED ] round4_services_keep_row_writes_on_queues
+           G0 R-4 (Owner approval) -- db-roles revokes row writes on review_queue_policies
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_r4_the_services_role_reads_the_review_que
+
+23/23 killed
+exit 0

@@ -1,0 +1,40 @@
+# verification at 7927618
+# 2026-11-14T06:37:01Z ruff check src tests scripts (ruff ruff 0.17.4)
+All checks passed!
+# ruff format --check src tests scripts
+591 files already formatted
+# python -m mypy
+Success: no issues found in 282 source files
+# pytest tests/spec -q
+245 passed in 13.46s
+# fresh lib_g0: migrate.py twice
+applied 88 migration(s)
+migrations up to date
+(update_status --check is repeated below after the whole-suite runs; run after the spec-only run above it refused: 'the report covers only spec')
+
+# fresh lib_g0 again for the full run (dropdb/createdb), migrate.py twice
+applied 88 migration(s)
+migrations up to date
+
+# full PostgreSQL suite, fresh lib_g0 (above), at 7927618 -- one complete run
+# LAB_BRAIN_TEST_POSTGRES=1 pytest -q -rfE
+3653 passed, 4 skipped in 3348.76s (0:55:48)
+exit 0
+
+# coverage and status after the full PostgreSQL run (its requirement report)
+
+milestones DONE: ['M0a', 'M0b', 'M1', 'M2', 'M3']  IN_PROGRESS: ['M4', 'M5']
+(the exit status above is tail's, not the check's: not a valid result; the coverage check is repeated below after a repeat full PostgreSQL run)
+IMPLEMENTATION_STATUS.md is up to date
+
+# default suite, at 7927618 -- one complete run
+# 2026-11-20T06:07:50Z pytest -q
+2351 passed, 1306 skipped in 70.90s (0:01:10)
+exit 0
+
+# repeat full PostgreSQL suite after the mutation battery, fresh lib_g0, at 7927618
+3653 passed, 4 skipped in 2258.27s (0:37:38)
+exit 0
+# check_requirement_coverage.py right after it (its report)
+milestones DONE: ['M0a', 'M0b', 'M1', 'M2', 'M3']  IN_PROGRESS: ['M4', 'M5']
+exit 0

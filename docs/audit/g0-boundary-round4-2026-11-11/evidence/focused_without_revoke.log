@@ -1,0 +1,4 @@
+# focused suites at c52f4a7 (gate, quarantine, R15, R-4 guard; WITHOUT the Owner-gated REVOKEs), fresh lib_g0
+# 2026-11-14T06:32:25Z LAB_BRAIN_TEST_POSTGRES=1 pytest -q -rx <files>
+XFAIL tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_raw_rows_written_by_the_services_role_are_refused - T-2: the services' role holds row writes on the tables (Owner-gated REVOKE)
+123 passed, 1 xfailed in 150.21s (0:02:30)
