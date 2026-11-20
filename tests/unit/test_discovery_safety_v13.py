@@ -498,3 +498,24 @@ def test_the_chain_value_alone_catches_an_altered_last_measurement():
     events[1] = replace(events[1], values=(("loss_straight", 9.0),))
     with pytest.raises(ValueError):
         verify_chain(events)
+
+
+def test_an_arms_answer_does_not_depend_on_the_cases_its_process_ran_before():
+    """The arm process keeps one oracle per case: a run's result digest is the same whether or not
+    other cases ran first in that process (development benchmark worlds)."""
+    s = script()
+    sc = scenario(15)
+    worlds = {w.world_id: w for w in sc.worlds}
+
+    def digest(*ids: str) -> str:
+        out = ""
+        for wid in ids:
+            case = s.benchmark_case(sc, worlds[wid], benchmark.Oracles(sc.catalog, DISCOVERY))
+            rows = ev.Evaluator(s._execute_in_process, s.GRAMMAR, EVALUATOR_RULE, ("B2", "B4")).run(
+                case, (6,)
+            )
+            out = rows[-1].digest
+        return out
+
+    alone = digest("outside_initial_prior-08")
+    assert digest("in_catalog_single-03", "noise_glitch-02", "outside_initial_prior-08") == alone

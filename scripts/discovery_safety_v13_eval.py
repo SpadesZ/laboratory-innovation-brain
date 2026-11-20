@@ -248,16 +248,25 @@ _CATALOG: list[Any] = []
 _ORACLES: dict[tuple[Any, ...], tuple[Any, SeparationOracle]] = {}
 
 
+def _case_token(setting: str, world_id: str) -> str:
+    """An opaque per-case token (it names no world, kind or truth): the arm process keeps one
+    oracle per case, so its cached separations never depend on which earlier cases this process
+    happened to run (the frozen engine's oracle stores the float of whichever argument order it was
+    asked first; a cache shared across cases made a result digest depend on the pool's schedule)."""
+    return hashlib.sha256(f"lab-brain/v1.3/case/{setting}/{world_id}".encode()).hexdigest()[:16]
+
+
 def _arm_catalog(request: Mapping[str, Any]) -> tuple[Any, SeparationOracle]:
-    """The catalog and oracle the arm holds at case start (no world, no truth)."""
+    """The catalog and oracle the arm holds at case start (no world, no truth), one per case."""
     if not _CATALOG:
         _CATALOG.append(ring_catalog())
     catalog = _CATALOG[0]
     family = str(request.get("family") or "")
     available = tuple(request["available"])
     removed = tuple((str(a), str(b)) for a, b in request.get("removed", ()))
-    key = (family, available, removed)
+    key = (str(request.get("case", "")), family, available, removed)
     if key not in _ORACLES:
+        _ORACLES.clear()
         engine_catalog = held_out.without_family(catalog, family) if family else catalog
         _ORACLES[key] = (
             engine_catalog,
@@ -350,7 +359,11 @@ def held_out_case(world: held_out.HeldOutWorld, removed: bool) -> ev.WorldCase:
         full_catalog=catalog,
         full_oracle=full,
         truth=truth,
-        request={"family": world.family if removed else "", "available": list(all_ids)},
+        request={
+            "case": _case_token("held_out" if removed else "control", world.spec.world_id),
+            "family": world.family if removed else "",
+            "available": list(all_ids),
+        },
         own=own,
     )
 
@@ -378,6 +391,7 @@ def benchmark_case(scenario: benchmark.Scenario, world: Any, oracles: Any) -> ev
         full_oracle=oracle,
         truth=world.truth_hypothesis(scenario.catalog),
         request={
+            "case": _case_token("benchmark", world.world_id),
             "family": "",
             "available": [e.experiment_id for e in oracle.available],
             "removed": [list(r) for r in world.removed],
