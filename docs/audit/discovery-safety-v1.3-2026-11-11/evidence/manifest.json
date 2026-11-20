@@ -1,7 +1,7 @@
 {
-  "code_commit": "91c813faf44980e1f87850d22efa490aa7f4ba9a+dirty",
+  "code_commit": "b46c397e1e0a48d306ee3ce5af8173a598d67d8b",
   "design_freeze": {
-    "commit": "91c813faf44980e1f87850d22efa490aa7f4ba9a",
+    "commit": "b46c397e1e0a48d306ee3ce5af8173a598d67d8b",
     "evaluator_rule_digest": "sha256:cc109ef710c645dbf985dc27c7171053fe00ffb299f6c0097489b75c278d4490",
     "grammar_digest": "sha256:767111e512f4d2424f2576a5949244879fad811c6854310a7501aa9111df8942",
     "held_out_seeds_generated_after_freeze": true,
@@ -19,7 +19,7 @@
     "interpreter": "CPython 3.13.18",
     "interpreter_key": "CPython 3.13",
     "numerical_libraries": "none (no numpy, scipy or other compiled numerics are imported)",
-    "platform": "Linux-6.18.44-fc-v470-x86_64-with-glibc2.39"
+    "platform": "Linux-6.18.44-fc-v726-x86_64-with-glibc2.39"
   },
   "evidence_class": "ENGINEERING EVIDENCE ONLY -- developer-authored synthetic worlds",
   "evidence_files": [
@@ -223,7 +223,7 @@
   },
   "inputs_digest": "sha256:f6b89e79162c9e37fb464c24bf97a4f908554bbfd143aa0daeba91a114c4a109",
   "kind": "lab-brain/discovery-safety-v1.3-evaluation-manifest@1",
-  "manifest_sha256": "sha256:4dd92b1d71821e71e426460c4252ccf81aaaecdd58992a1c46a257b7fbb53e87",
+  "manifest_sha256": "sha256:365518c3acff698235001c8e4a2afdfd5d0d4d100864eb01ff0b1c555992c90a",
   "not_claimed": [
     "scientific validity of any mechanism, forward model, grammar term or new mechanism",
     "an independent or blind evaluation: worlds, held-out families, the grammar, the engine, every safety gate and the evaluator's rule share an author lineage",
@@ -231,17 +231,17 @@
     "anything about a real device, real literature, a language model or the real PostgreSQL LIB workflow; Discovery is not connected to real research execution",
     "scientific acceptance (NOT PASSED) or G-D (NOT PASSED)"
   ],
-  "results_sha256": "304d8cdddc04aa213a0e72e22d05d6c50cc0a9b2500ff0dc7c9a178f1be516cc",
+  "results_sha256": "c3f61e74b127a3202d7e45f59edb398643f493d2f0e4f558858048654f277246",
   "rows_sha256": {
     "benchmark_3729592000_rows.json": "056b63cf5e659e95eaf1640774bd2350fdb5ed57559c287683bf9426d3923b10",
-    "control_3218044000_rows.json": "bd3d9b1107c55d0dfc61bb50f8a3fad3668ac64bfa6041a2ebbc3bd455411562",
+    "control_3218044000_rows.json": "b963e6c53a520c229c7e8c50d3a9606e655a9495a5a1a4f0e71683702f3140d6",
     "held_out_3218044000_rows.json": "8a62f3eee286f5437b5e6922fb76e38be2771b8b5bcddd11c92e9d7dd0b8d28c"
   },
   "v13_sources_sha256": {
-    "scripts/discovery_safety_v13_eval.py": "dc158865cabf6af77fd1a31d0b756a1dca4abf5d58073a0f267abd504eeb29d4",
+    "scripts/discovery_safety_v13_eval.py": "bc96c2b7b876e5125a4f34fc733593cb72ca64926381341540cc60d15c0b93f7",
     "src/lab_brain/discovery_safety/v13/__init__.py": "3b66d7bf2ca0a0b7d452d5dd0a0f820ed76c08cd7e694a2441ea8dbae01f5dd4",
-    "src/lab_brain/discovery_safety/v13/boundary.py": "a026340c3501b8ced589192c6c8a5f07c0547a90838e322ba5071b08f1dbeb25",
-    "src/lab_brain/discovery_safety/v13/evaluation.py": "5372e0c4a36f09591c4dd956b67f03222e99f29f86680dbdb529e2d63887f2fb",
+    "src/lab_brain/discovery_safety/v13/boundary.py": "2a9cf9b1f1b4ad1988ada46117e778f57b7088e21e14621989789b8037405e57",
+    "src/lab_brain/discovery_safety/v13/evaluation.py": "a0848507518d63f3129799d06a6cffd8a141f9b3c4a46e0b36d55f063ab0c64b",
     "src/lab_brain/discovery_safety/v13/gate.py": "07a6bd0e69293966ba9a87bc70b07bc7c6346fc8a3ed6c1d48e03b2cc1106e87",
     "src/lab_brain/discovery_safety/v13/ledger.py": "16c78e269b45a08e1489ee3a23e47b087b178adc87fabad50020e35ff54d0a80",
     "src/lab_brain/discovery_safety/v13/model.py": "660bf42763e99796079b622f4657f548454d1acbab3aa7e51cea24cbe45e74b9",
