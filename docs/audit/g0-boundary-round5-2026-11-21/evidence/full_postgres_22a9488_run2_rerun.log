@@ -1,0 +1,10 @@
+# RERUN (requested by the coordinator after a worker restart): full PostgreSQL suite, ONE complete run, code at 22a9488, database lib_r5_final dropped and recreated, migrate.py twice (91 applied, then up to date). Started 2026-11-21T14:12:41Z.
+# command: LAB_BRAIN_TEST_POSTGRES=1 LAB_BRAIN_DATABASE_URL=.../lib_r5_final python -m pytest -q
+=========================== short test summary info ============================
+SKIPPED [1] tests/e2e/test_research_live_model_postgres.py:276: set LAB_BRAIN_LIVE_PRIMARY to a local model to run
+SKIPPED [1] tests/e2e/test_vs_sp_001_licensed_replay.py:24: requires lumerical; set LAB_BRAIN_TEST_LUMERICAL=1 to enable
+SKIPPED [1] tests/integration/test_github_network.py:31: requires network; set LAB_BRAIN_TEST_NETWORK=1 to enable
+SKIPPED [1] tests/unit/test_llm_runtime.py:205: Windows Credential Manager
+3695 passed, 4 skipped in 3666.72s (1:01:06)
+exit 0
+# finished 2026-11-21T15:13:52Z
