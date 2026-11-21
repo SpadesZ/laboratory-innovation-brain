@@ -403,6 +403,11 @@ _BELIEF_GATES = (
 #: A project's review-queue policy (`011e`): declared by the schema owner (`010d`, G0 R-4).
 _QUEUES = "review_queue_policies"
 
+#: Measurement signing keys and their revocations (`003f`, G0 T-1): the schema owner's.
+_MEASUREMENT_KEYS = "measurement_signing_keys, measurement_signing_key_revocations"
+#: Database-issued nonces and relayed runner signatures (`003f`): the services insert, never edit.
+_MEASUREMENT_RECORDS = "measurement_nonces, measurement_signatures"
+
 #: The belief tables the services write only through the gate (`011z`, G0 T-2).
 _BELIEF_TABLES = (
     "belief_transition_decisions",
@@ -580,6 +585,14 @@ def grant_database_roles(c: Any, *, app_role: str, reader_role: str) -> list[str
     # `010d`'s trigger refuses a non-owner's write even if the privilege is granted by mistake.
     if c.execute("SELECT to_regclass('public.review_queue_policies')").fetchone()[0] is not None:
         statements += (f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {_QUEUES} FROM {app}",)
+    # Measurement provenance (`003f`, G0 T-1) -- REQUIRES THE OWNER'S APPROVAL: a signing key is
+    # enrolled or revoked by the schema owner only, and a nonce or a relayed signature is never
+    # edited. `003f`'s triggers refuse the same writes even if the privileges are ever granted.
+    if c.execute("SELECT to_regclass('public.measurement_signing_keys')").fetchone()[0] is not None:
+        statements += (
+            f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {_MEASUREMENT_KEYS} FROM {app}",
+            f"REVOKE UPDATE, DELETE, TRUNCATE ON {_MEASUREMENT_RECORDS} FROM {app}",
+        )
     # The account change audit (`011u`) is written only by its migrator-owned triggers; the services
     # get no row privilege on it either, so a forged audit row is refused twice.
     if c.execute("SELECT to_regclass('public.account_change_audit')").fetchone()[0] is not None:

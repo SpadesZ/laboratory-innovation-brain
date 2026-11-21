@@ -395,3 +395,28 @@ def test_t1_the_database_issues_the_nonce_value_and_time(guarded, roles):
         ).fetchall()
     assert nonce != "chosen-by-the-services"
     assert at.year == dt.datetime.now(dt.UTC).year
+
+
+def test_t1_db_roles_leave_the_services_select_on_keys_and_insert_on_records(su, roles):
+    """The Owner's revocation (separate commit): after repeated `db-roles` and migrations the
+    services' role reads the key tables only, and inserts (never edits) nonces and signatures."""
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    from lab_brain.interfaces.deployment import grant_database_roles
+    from tests.e2e.test_g0_trust_boundaries_postgres import _privileges
+
+    root = Path(__file__).resolve().parents[2]
+    grant_database_roles(su, app_role=roles.app, reader_role=roles.reader)
+    subprocess.run([sys.executable, str(root / "scripts" / "migrate.py")], check=True)
+    grant_database_roles(su, app_role=roles.app, reader_role=roles.reader)
+    for table, expected in (
+        ("measurement_signing_keys", {"SELECT"}),
+        ("measurement_signing_key_revocations", {"SELECT"}),
+        ("measurement_nonces", {"SELECT", "INSERT"}),
+        ("measurement_signatures", {"SELECT", "INSERT"}),
+    ):
+        held = {p for p, ok in _privileges(su, roles.app, table).items() if ok}
+        assert held == expected, (table, held)
+        assert _privileges(su, roles.reader, table)["SELECT"], table
