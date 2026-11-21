@@ -8,6 +8,20 @@ G-D 未通過。`READY_FOR_REAL_RESEARCH = false`。沒有合併 `main`，沒有
 沒有改 `ACTIVE_SPEC.yaml`，沒有改 SAI 3.3／3.4 受保護檔案，沒有用付費模型、Lumerical 授權或實體實驗，
 沒有改帳密或正式權限，沒有覆寫凍結證據。提交沒有 AI 作者標註。
 
+## R5. 第五輪（2026-11-21 起，進行中）
+
+在 ICA 監督下繼續。重點是科學可靠，不是分數。v1.1 仍是離線安全基準。沒有合併、部署或啟用。
+
+| 工作 | 分支 | 起點 | 狀態 |
+|---|---|---|---|
+| G0：隔離資料在 SQL 和 Python 的處理要一致；量測來源可信度（T-1） | `claude/lib-implementation-agent-47evs0-g0-boundary5` | `5dc4d59` | 進行中 |
+| Discovery v1.4：每個世界的成本配對、乾淨的凍結 held-out、殘留的錯誤背書、對手區分 | `claude/lib-implementation-agent-47evs0-discovery-v14` | `c022f3a` | 進行中 |
+| 隱藏物理機制案例（另一位作者，資訊隔離，加密封存） | `claude/lib-implementation-agent-47evs0-hidden-cases` | `c022f3a` | 進行中 |
+
+REVOKE `6b52521`、`b90e975`：建議 Owner 核准，但還沒有核准。
+
+---
+
 ## R4. 第四輪（2026-11-11 至 2026-11-20，已推送，等待 ICA 稽核）
 
 稽核（ICA）第三輪的發現，Owner 要求處理 4 件事。v1.1 仍是離線安全基準。沒有合併、沒有部署、沒有啟用。
