@@ -1,0 +1,13 @@
+# T-1 and Q8 reproductions at d3fedb2 (no fix for either) plus the two test files; fresh database lib_r5b, migrate.py twice (89 applied, then up to date)
+# command: LAB_BRAIN_TEST_POSTGRES=1 python -m pytest tests/e2e/test_g0_measurement_provenance_postgres.py tests/integration/test_g0_review_expiry_clock_postgres.py -v -rxX
+tests/integration/test_g0_review_expiry_clock_postgres.py::test_q8_a_review_is_not_expired_before_its_deadline_by_a_future_clock XFAIL [100%]
+
+=========================== short test summary info ============================
+XFAIL tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_fabricated_measurement_is_not_admitted_as_support - T-1: a fabricated measurement the services' role stored is admitted as support
+XFAIL tests/integration/test_g0_review_expiry_clock_postgres.py::test_q8_a_review_is_not_expired_before_its_deadline_by_a_future_clock - Q8: review_expire trusts the caller's p_now; a review is expired days early
+============================== 2 xfailed in 3.04s ==============================
+
+# same with --runxfail -s: what each attack did
+T-1 fabricated obs:ind-fabricated (att:obs:ind-fabricated): product admits ['rel:obs:ind-fabricated']
+Q8 sweep dated a week ahead: expired=(GovernanceEvent(event_id='gev:expiry:rev:q8', project_id='prj:test', event_type=<GovernanceEventType.REVIEW_EXPIRY: 'REVIEW_EXPIRY'>, subject_type=<GovernanceSubjectType.REVIEW_ITEM: 'REVIEW_ITEM'>, subject_id='rev:q8', related_conflict_id='cfl:q8', policy_id='rqp:lab', policy_version='1.0.0', declared_by_actor_id='act:test', actor_id='act:sweeper', reason_cod
+2 failed in 3.32s
