@@ -38,6 +38,15 @@ in_progress_branches:
   claude/lib-implementation-agent-47evs0-discovery-v13: from e778cc4; head c022f3a; design frozen b46c397 (re-frozen twice
     after held-out numbers were seen); evaluator-controlled ledger in a separate arm process, scored under candidate.5;
     v1.1 stays the offline safety baseline; engineering evidence on same-author worlds only
+  claude/lib-implementation-agent-47evs0-g0-boundary5: from 5dc4d59; head b7f046e; one definition of a counted belief event
+    (005f) read by SQL and Python, review expiry at the database clock (010e), measurement provenance prototype (003f);
+    REVOKE 11a396b pending Owner approval; G0 NOT PASSED
+  claude/lib-implementation-agent-47evs0-discovery-v14: from c022f3a; head 0eac9b3; design frozen bff315f, held-out seeds
+    derived from the freeze and run once; per-world cost matching, rival closure by failed prediction, grammar rivals;
+    v1.1 stays the offline safety baseline; engineering evidence on same-author worlds only
+  claude/lib-implementation-agent-47evs0-hidden-cases: from c022f3a; head 3d54297; 58 sealed hidden worlds by a separately
+    briefed AI author (procedural barrier, not institutional independence), encrypted, key held outside the repository;
+    not run
   claude/lib-implementation-agent-47evs0-discovery: from d7ec9f2; head 0928602; offline out-of-catalog safety gate (engineering
     evidence on same-author worlds only); not connected to research execution
 spec_document: docs/spec/SAI_3.5.md

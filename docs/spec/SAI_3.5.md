@@ -302,7 +302,30 @@ that could never qualify and a null that was never reconsidered; v1.3 reaches 9/
 noise-only worlds at caps 24 and 48. On v1.1's own face-value terms v1.3 does not beat v1.1 overall
 (cost-matched benchmark at about 11 units: -0.10 [-0.18, -0.02]). The design was re-frozen twice
 after held-out numbers were seen, so its held-out result is not clean. v1.1 stays the offline safety
-baseline. Details: [implementation status](sai35/implementation-status.md).
+baseline.
+
+Fifth round (2026-11-21, pushed, unmerged, not independently reviewed):
+`claude/lib-implementation-agent-47evs0-g0-boundary5` @ `b7f046e` (from `5dc4d59`) found that the
+owner quarantine was honoured by the Python projection but not by the SQL confirmation rule, the
+root-cause and warrant checks, the competing-set count or the write gate, and that the stored
+external-snapshot quarantine reached no reader; migration `005f` gives one SQL definition of a
+counted belief event that SQL and Python both read, checked over all 512 quarantine combinations
+against an independent oracle. Review expiry now uses the database clock (`010e`). A measurement
+provenance prototype (`003f`: owner-enrolled Ed25519 runner keys, database-issued nonces, signed
+raw-data digests, fail-closed verification in the relation reader) closes the fabricated-measurement
+attack only for enrolled instruments; no real runner exists, SQL readers cannot verify signatures,
+and REVOKE `11a396b` needs Owner approval; G0 stays NOT PASSED.
+`claude/lib-implementation-agent-47evs0-discovery-v14` @ `0eac9b3` (design frozen at `bff315f`, held-out
+seeds derived from that commit after it was pushed, run once) shows that v1.3's mean-cost labels hid
+per-world cost differences of up to 24 units (Appendix J §3.3 already requires per-case checkpoint
+accounting) and replaces them with per-world matching. Every residual v1.3 SUPPORTED error came from
+closing a rival by separation although the rival's own prediction passed the same runs; v1.4 closes a
+rival only by a failed prediction and also treats adequate grammar shapes as rivals. On fresh
+held-out worlds v1.4 makes no SUPPORTED error (0 of 2,464 runs; v1.3 by its own rule: 11), but at
+matched cost it is correct less often than v1.1 in the control and benchmark settings (e.g. control
+anchor 16: -0.43 [-0.52, -0.34]). v1.1 stays the offline safety baseline. A separately briefed AI
+author sealed 58 hidden physical-mechanism worlds (`claude/lib-implementation-agent-47evs0-hidden-cases`
+@ `3d54297`); they have not been run. Details: [implementation status](sai35/implementation-status.md).
 
 ## 3. Normative requirements
 
