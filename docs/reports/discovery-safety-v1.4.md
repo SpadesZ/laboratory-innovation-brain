@@ -452,7 +452,7 @@ in `.venv`, `PYTHONHASHSEED=12345` for every evaluation run.
 | `mypy` (strict, as the repository runs it) | no issues in 331 source files |
 | focused: `test_discovery_safety_v14.py`, `..._v14_reproduction.py`, `e2e/test_discovery_safety_v14_frozen.py`, safety governance | pass (part of the runs below) |
 | full default suite (`pytest -q`, no backend), at `3bb43cf` before the e2e test | 2701 passed, 1203 skipped, 0 failed |
-| **full PostgreSQL suite at `7635925`** | **run by the lead at 7635925 on a fresh DB (`lib_d5full`), recorded in the lead's commit.** (My own complete run at `7635925` on a fresh `lib_disc5`, `migrate.py` twice: 81 applied, then up to date, finished with 3905 passed, 4 skipped, 0 failed in 59 min 58 s; it ran concurrently with the `--check` run, and the lead's run is the one of record.) |
+| **full PostgreSQL suite at `7635925`** | **run by the lead at 7635925 on a fresh DB (`lib_d5full`, `migrate.py` twice: 81 applied, then up to date): 3905 passed, 4 skipped, 0 failed in 21 min 59 s (one complete run, exit 0).** (My own complete run at `7635925` on a fresh `lib_disc5`, `migrate.py` twice: 81 applied, then up to date, finished with 3905 passed, 4 skipped, 0 failed in 59 min 58 s; it ran concurrently with the `--check` run, and the lead's run is the one of record.) |
 | `pytest tests/spec` | included in the full runs above (no failures) |
 | `update_status.py` | regenerated after the full run; `--check`: up to date |
 | `check_requirement_coverage.py` | passed (milestones DONE: M0a, M0b, M1, M2, M3) |
