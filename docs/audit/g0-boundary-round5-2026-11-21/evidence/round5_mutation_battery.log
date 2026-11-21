@@ -1,0 +1,229 @@
+# Round-5 mutation battery: 23 round4_* (8 retargeted to the live 005f definitions) + 33 new round5_*/t1_* entries; each disables one layer, runs only its test files with -x; SQL mutants on cloned template databases. Code at 11a396b plus the battery file (committed next).
+56 mutations
+
+[KILLED ] round4_gate_ignores_omitted_conflicts
+           G0 T-2 -- 011z: the snapshot's conflicts are the subject's currently unresolved ones
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_a_snapshot_that_omits_an_open_conflict
+
+[KILLED ] round4_gate_ignores_independence_counts
+           G0 T-2 -- 011z: a WORK independence count is bounded by the stored evidence lines
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_an_independence_count_no_stored_line_s
+
+[KILLED ] round4_gate_accepts_future_times
+           G0 T-2 -- 011z: a record is not dated after the database clock (plus skew)
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_a_future_dated_transition_is_refused_w
+
+[KILLED ] round4_gate_accepts_reordering_times
+           G0 T-2 -- 011z: an event is not dated before the subject's latest event
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_gate_refuses_an_event_dated_before
+
+[KILLED ] round4_gate_takes_unstored_relations
+           G0 T-2 -- 011z: every snapshot relation is the current stored relation
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_gate_refuses_a_snapshot_whose_evid
+
+[KILLED ] round4_gate_takes_claimed_condition_matches
+           G0 T-2 -- 011z: every snapshot condition match is the stored match
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_gate_refuses_a_snapshot_whose_evid
+
+[KILLED ] round4_gate_takes_claimed_authority_classes
+           G0 T-2 -- 011z: authority classes are recomputed from the stored attestations
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_gate_refuses_a_snapshot_whose_evid
+
+[KILLED ] round4_gate_runs_as_its_caller
+           G0 T-2 -- 011z: the gate is the migrator's SECURITY DEFINER function
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_an_honest_transition_goes_through_the_
+
+[KILLED ] round4_write_records_admit_every_role
+           G0 T-2 -- 011z: belief_write_records is written by the gate (the owner) only
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_services_role_writes_the_belief_ta
+
+[KILLED ] round4_services_not_granted_the_gate
+           G0 T-2 -- db-roles grants EXECUTE on the gate to the services' role
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_gate_refuses_a_snapshot_whose_evid
+
+[KILLED ] round4_quarantine_admits_every_role
+           G0 T-3 -- 012t: only a member of the table's owner records a quarantine
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_services_role_writes_the_belief_ta
+
+[KILLED ] round4_quarantine_is_editable
+           G0 T-3 -- 012t: a quarantine is append-only
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_services_role_writes_the_belief_ta
+
+[KILLED ] round4_declarations_read_quarantined_sets
+           G0 T-3 -- 012t: diagnostic_declarations leaves a quarantined set out
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_services_role_writes_the_belief_ta
+
+[KILLED ] round4_projection_ignores_quarantine
+           G0 T-3/T-2 -- the projection skips the owner's quarantined events
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_one_forged_row_stops_denying_the_histo
+
+[KILLED ] round4_store_withholds_nothing_by_policy
+           G0 T-3 -- an event under a quarantined policy is withheld
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_services_role_writes_the_belief_ta
+
+[KILLED ] round4_operator_quarantines_declared_rules
+           G0 T-3 -- the product's own policies and sets are not quarantined
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t3_the_products_own_rules_are_not_quarant
+
+[KILLED ] round4_report_moves_unmarked
+           G0 R15 -- the report marks a move the projection does not count
+           killed by FAILED tests/unit/test_g0_r15_history_display.py::test_the_reports_moves_mark_an_event_the_projectio
+
+[KILLED ] round4_view_counts_everything
+           G0 R15 -- the episode view asks the projection about each move
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_r15_the_displays_mark_the_moves_the_produ
+
+[KILLED ] round4_page_shows_uncounted_as_moved
+           G0 R15 -- the page says an uncounted move was not counted
+           killed by FAILED tests/unit/test_g0_r15_history_display.py::test_the_episode_view_marks_a_transition_the_proje
+
+[KILLED ] round4_queue_guard_admits_every_role
+           G0 R-4 -- 010d: only a member of the table's owner declares a review queue
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_services_role_writes_the_belief_ta
+
+[KILLED ] round4_queue_guard_fires_on_insert_only
+           G0 R-4 -- 010d: UPDATE and DELETE are the owner's too
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_services_role_writes_the_belief_ta
+
+[KILLED ] round4_services_keep_row_writes_on_belief_tables
+           G0 T-2 (Owner approval) -- db-roles revokes row writes on the four belief tables
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_raw_rows_written_by_the_services_role_
+
+[KILLED ] round4_services_keep_row_writes_on_queues
+           G0 R-4 (Owner approval) -- db-roles revokes row writes on review_queue_policies
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_r4_the_services_role_reads_the_review_que
+
+[KILLED ] round5_review_expiry_takes_the_callers_clock
+           G0 round 5 Q8 -- 010e: a review expiry is not dated after the database clock
+           killed by FAILED tests/integration/test_g0_review_expiry_clock_postgres.py::test_q8_a_review_is_not_expired_be
+
+[KILLED ] round5_exclusions_ignore_event_quarantine
+           G0 round 5 -- 005f: an event the owner quarantined is excluded
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q1_the_sql_confirmation_rule_reads_the_st
+
+[KILLED ] round5_exclusions_ignore_policy_quarantine
+           G0 round 5 -- 005f: an event under a quarantined policy is excluded
+           killed by FAILED tests/e2e/test_g0_counted_history_differential_postgres.py::test_sql_belief_replay_equals_the
+
+[KILLED ] round5_exclusions_ignore_snapshot_quarantine
+           G0 round 5 -- 005f: an event a quarantined external snapshot triggered is excluded
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q6_an_event_triggered_by_quarantined_exte
+
+[KILLED ] round5_exclusions_mislabel_owner_quarantine
+           G0 round 5 -- 005f: the reason an event is excluded (OWNER_QUARANTINED first)
+           killed by FAILED tests/e2e/test_g0_counted_history_differential_postgres.py::test_sql_belief_replay_equals_the
+
+[KILLED ] round5_replay_does_not_cascade
+           G0 round 5 -- 005f: belief_replay skips an event whose from_state no longer holds
+           killed by FAILED tests/e2e/test_g0_counted_history_differential_postgres.py::test_sql_belief_replay_equals_the
+
+[KILLED ] round5_replay_counts_excluded_events
+           G0 round 5 -- 005f: belief_replay skips an excluded event
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q1_the_sql_confirmation_rule_reads_the_st
+
+[KILLED ] round5_cwg_state_reads_raw_events
+           G0 round 5 Q1 -- 005f: the SQL confirmation rule reads the counted state
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q1_the_sql_confirmation_rule_reads_the_st
+
+[KILLED ] round5_root_cause_check_reads_raw_latest
+           G0 round 5 Q2 -- 005f: 011l's root-cause check reads the counted state
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q2_a_root_cause_is_not_confirmed_on_a_qua
+
+[KILLED ] round5_warrant_check_reads_quarantined_promotions
+           G0 round 5 Q2 -- 005f: 012o's warrant references come from a promotion that counts
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q2_a_warrant_recorded_only_by_a_quarantin
+
+[KILLED ] round5_competing_set_counts_quarantined_admissions
+           G0 round 5 Q5 -- 005f: EPI-001 counts only admissions that count
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q5_a_quarantined_admission_is_not_a_compe
+
+[KILLED ] round5_gate_time_bound_counts_excluded_events
+           G0 round 5 Q3 -- 005f: an excluded event does not bound a new event's time
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q3_a_quarantined_future_event_does_not_bl
+
+[KILLED ] round5_gate_takes_quarantined_policies
+           G0 round 5 Q4 -- 005f: nothing new is recorded under a quarantined policy
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q4_the_gate_refuses_a_transition_under_a_
+
+[KILLED ] round5_evidence_lines_count_runless_attestations
+           G0 round 5 Q7 -- 005f: an attestation with no stored run is no evidence line
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q7_the_gate_counts_independence_as_the_pr
+
+[KILLED ] round5_projection_ignores_snapshot_quarantine
+           G0 round 5 Q6 -- the projection skips events the stored §6.18 selection excludes
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q6_an_event_triggered_by_quarantined_exte
+
+[KILLED ] round5_replay_ignores_trigger_quarantined
+           G0 round 5 Q6 -- replay skips the events it is told a quarantined trigger excludes
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q6_an_event_triggered_by_quarantined_exte
+
+[KILLED ] round5_revision_gate_reads_raw_history
+           G0 round 5 Q5 -- the research service's EPI-001 reader reads the counted history
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q5_the_products_competing_set_reader_leav
+
+[KILLED ] round5_counted_history_returns_skipped_events
+           G0 round 5 -- counted_history returns only the events belief_replay counts
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q5_the_products_competing_set_reader_leav
+
+[KILLED ] round5_withheld_reads_any_exclusion
+           G0 round 5 -- withheld is the OWNER_QUARANTINED half of the exclusions
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q1_the_sql_confirmation_rule_reads_the_st
+
+[KILLED ] t1_unsigned_measurements_count
+           G0 T-1 -- an unsigned measurement of an enforced pair is UNSIGNED
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_fabricated_measurement_is_not
+
+[KILLED ] t1_enrolment_does_not_enforce
+           G0 T-1 -- enrolling a key enforces its (instrument, capability)
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_enrolment_enforces_its_pair_in_
+
+[KILLED ] t1_signature_not_verified
+           G0 T-1 -- the Ed25519 signature is verified
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_measurement_without_a_verifyi
+
+[KILLED ] t1_unknown_key_accepted
+           G0 T-1 -- only an enrolled key signs
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_measurement_without_a_verifyi
+
+[KILLED ] t1_revocation_ignored
+           G0 T-1 -- a revoked key no longer verifies
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_revoked_key_no_longer_verifie
+
+[KILLED ] t1_scope_ignored
+           G0 T-1 -- a key signs only for its instrument and capabilities
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_key_enrolled_for_another_inst
+
+[KILLED ] t1_digest_not_checked
+           G0 T-1 -- the run's recorded outputs are the bytes the runner signed
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_measurement_without_a_verifyi
+
+[KILLED ] t1_time_not_checked
+           G0 T-1 -- a measurement is dated after its nonce was issued
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_measurement_without_a_verifyi
+
+[KILLED ] t1_relation_store_skips_provenance
+           G0 T-1 -- every SqlRelationStore admits only SUPPORTS whose measurements count
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_fabricated_measurement_is_not
+
+[KILLED ] t1_keys_enrolled_by_any_role
+           G0 T-1 -- 003f: a signing key is enrolled by the schema owner only
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_db_roles_leave_the_services_sel
+
+[KILLED ] t1_nonce_chosen_by_the_writer
+           G0 T-1 -- 003f: the database chooses the nonce
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_measurement_without_a_verifyi
+
+[KILLED ] t1_nonce_for_a_finished_job
+           G0 T-1 -- 003f: a nonce is issued only while the job runs
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_db_roles_leave_the_services_sel
+
+[KILLED ] t1_signatures_editable
+           G0 T-1 -- 003f: a relayed signature is append-only
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_db_roles_leave_the_services_sel
+
+[KILLED ] t1_services_keep_row_writes_on_keys
+           G0 T-1 (Owner approval) -- db-roles revokes the services' writes on the key tables
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_db_roles_leave_the_services_sel
+
+56/56 killed
+exit 0

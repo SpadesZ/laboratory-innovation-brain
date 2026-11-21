@@ -8168,7 +8168,8 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="round4_gate_ignores_omitted_conflicts",
         guards="G0 T-2 -- 011z: the snapshot's conflicts are the subject's currently unresolved ones",
-        path="migrations/011z_belief_transitions_are_written_through_a_gate.sql",
+        # Retargeted in round 5: 005f replaces this function; the live definition.
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
         old="    IF v_bad IS NOT NULL THEN",
         new="    IF FALSE THEN",
         tests=("tests/e2e/test_g0_boundary_round4_postgres.py",),
@@ -8176,7 +8177,8 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="round4_gate_ignores_independence_counts",
         guards="G0 T-2 -- 011z: a WORK independence count is bounded by the stored evidence lines",
-        path="migrations/011z_belief_transitions_are_written_through_a_gate.sql",
+        # Retargeted in round 5: 005f replaces this function; the live definition.
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
         old="        IF v_count > v_lines THEN",
         new="        IF FALSE THEN",
         tests=("tests/e2e/test_g0_boundary_round4_postgres.py",),
@@ -8184,7 +8186,8 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="round4_gate_accepts_future_times",
         guards="G0 T-2 -- 011z: a record is not dated after the database clock (plus skew)",
-        path="migrations/011z_belief_transitions_are_written_through_a_gate.sql",
+        # Retargeted in round 5: 005f replaces this function; the live definition.
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
         old="    IF p_at IS NULL OR p_at > clock_timestamp() + belief_write_skew() THEN",
         new="    IF FALSE THEN",
         tests=("tests/e2e/test_g0_boundary_round4_postgres.py",),
@@ -8192,7 +8195,8 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="round4_gate_accepts_reordering_times",
         guards="G0 T-2 -- 011z: an event is not dated before the subject's latest event",
-        path="migrations/011z_belief_transitions_are_written_through_a_gate.sql",
+        # Retargeted in round 5: 005f replaces this function; the live definition.
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
         old="        IF v_latest IS NOT NULL AND p_at < v_latest THEN",
         new="        IF FALSE THEN",
         tests=("tests/e2e/test_g0_boundary_round4_postgres.py",),
@@ -8200,7 +8204,8 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="round4_gate_takes_unstored_relations",
         guards="G0 T-2 -- 011z: every snapshot relation is the current stored relation",
-        path="migrations/011z_belief_transitions_are_written_through_a_gate.sql",
+        # Retargeted in round 5: 005f replaces this function; the live definition.
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
         old="        IF NOT EXISTS (\n            SELECT 1 FROM relation_judgments s",
         new="        IF FALSE AND NOT EXISTS (\n            SELECT 1 FROM relation_judgments s",
         tests=("tests/e2e/test_g0_boundary_round4_postgres.py",),
@@ -8208,7 +8213,8 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="round4_gate_takes_claimed_condition_matches",
         guards="G0 T-2 -- 011z: every snapshot condition match is the stored match",
-        path="migrations/011z_belief_transitions_are_written_through_a_gate.sql",
+        # Retargeted in round 5: 005f replaces this function; the live definition.
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
         old="        IF NOT EXISTS (\n            SELECT 1 FROM condition_matches c",
         new="        IF FALSE AND NOT EXISTS (\n            SELECT 1 FROM condition_matches c",
         tests=("tests/e2e/test_g0_boundary_round4_postgres.py",),
@@ -8216,7 +8222,8 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="round4_gate_takes_claimed_authority_classes",
         guards="G0 T-2 -- 011z: authority classes are recomputed from the stored attestations",
-        path="migrations/011z_belief_transitions_are_written_through_a_gate.sql",
+        # Retargeted in round 5: 005f replaces this function; the live definition.
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
         old="    IF v_claimed IS DISTINCT FROM v_held THEN",
         new="    IF FALSE THEN",
         tests=("tests/e2e/test_g0_boundary_round4_postgres.py",),
@@ -8280,9 +8287,10 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         name="round4_store_withholds_nothing_by_policy",
         guards="G0 T-3 -- an event under a quarantined policy is withheld",
-        path="src/lab_brain/core/repositories/belief_events.py",
-        old="            \"   (q.subject_kind = 'TRANSITION_POLICY' AND q.subject_id = e.policy_id\"",
-        new='            "   (FALSE AND q.subject_id = e.policy_id"',
+        # Retargeted in round 5: the store reads 005f's belief_event_exclusions.
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old="                 WHERE q.subject_kind = 'TRANSITION_POLICY' AND q.subject_id = e.policy_id",
+        new="                 WHERE FALSE AND q.subject_id = e.policy_id",
         tests=("tests/e2e/test_g0_boundary_round4_postgres.py",),
     ),
     Mutation(
@@ -8357,6 +8365,327 @@ MUTATIONS: tuple[Mutation, ...] = (
         old='f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {_QUEUES} FROM {app}"',
         new='f"REVOKE TRUNCATE ON {_QUEUES} FROM {app}"',
         tests=("tests/e2e/test_g0_boundary_round4_postgres.py",),
+    ),
+    # G0 round 5 (005f: one definition of a counted belief event; 010e: review expiry at the
+    # database clock; 003f and security.measurement_provenance: the T-1 prototype). Each layer
+    # mutated alone.
+    Mutation(
+        name="round5_review_expiry_takes_the_callers_clock",
+        guards="G0 round 5 Q8 -- 010e: a review expiry is not dated after the database clock",
+        path="migrations/010e_review_expiry_is_judged_at_the_database_clock.sql",
+        old="       AND NEW.occurred_at > clock_timestamp() + belief_write_skew() THEN",
+        new="       AND FALSE THEN",
+        tests=("tests/integration/test_g0_review_expiry_clock_postgres.py",),
+    ),
+    Mutation(
+        name="round5_exclusions_ignore_event_quarantine",
+        guards="G0 round 5 -- 005f: an event the owner quarantined is excluded",
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old="                 WHERE q.subject_kind = 'BELIEF_EVENT' AND q.subject_id = e.event_id",
+        new="                 WHERE FALSE AND q.subject_id = e.event_id",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_exclusions_ignore_policy_quarantine",
+        guards="G0 round 5 -- 005f: an event under a quarantined policy is excluded",
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old="                 WHERE q.subject_kind = 'TRANSITION_POLICY' AND q.subject_id = e.policy_id",
+        new="                 WHERE FALSE AND q.subject_id = e.policy_id",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_exclusions_ignore_snapshot_quarantine",
+        guards="G0 round 5 -- 005f: an event a quarantined external snapshot triggered is excluded",
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old=" WHERE x.owner OR x.trigger_quarantined;",
+        new=" WHERE x.owner;",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_exclusions_mislabel_owner_quarantine",
+        guards="G0 round 5 -- 005f: the reason an event is excluded (OWNER_QUARANTINED first)",
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old="CASE WHEN x.owner THEN 'OWNER_QUARANTINED' ELSE 'QUARANTINED_TRIGGER' END AS reason",
+        new="CASE WHEN x.trigger_quarantined THEN 'QUARANTINED_TRIGGER' ELSE 'OWNER_QUARANTINED' END AS reason",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_replay_does_not_cascade",
+        guards="G0 round 5 -- 005f: belief_replay skips an event whose from_state no longer holds",
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old="        ELSIF v_row.f IS DISTINCT FROM v_state THEN",
+        new="        ELSIF FALSE THEN",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_replay_counts_excluded_events",
+        guards="G0 round 5 -- 005f: belief_replay skips an excluded event",
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old="        IF v_row.excluded IS NOT NULL THEN",
+        new="        IF FALSE THEN",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_cwg_state_reads_raw_events",
+        guards="G0 round 5 Q1 -- 005f: the SQL confirmation rule reads the counted state",
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old="    SELECT belief_counted_state(p_project, p_hypothesis)\n",
+        new="    SELECT e.to_state FROM belief_revision_events e WHERE e.project_id = p_project AND e.target_id = p_hypothesis ORDER BY e.occurred_at DESC, e.event_id DESC LIMIT 1\n",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_root_cause_check_reads_raw_latest",
+        guards="G0 round 5 Q2 -- 005f: 011l's root-cause check reads the counted state",
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old="      JOIN belief_replay(NEW.project_id, NEW.confirmed_root_cause) r ON r.event_id = e.event_id\n     WHERE r.counted\n",
+        new="     WHERE e.project_id = NEW.project_id AND e.target_id = NEW.confirmed_root_cause\n",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_warrant_check_reads_quarantined_promotions",
+        guards="G0 round 5 Q2 -- 005f: 012o's warrant references come from a promotion that counts",
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old="                            WHERE c.counted AND c.event_id = e.event_id)",
+        new="                            WHERE TRUE)",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_competing_set_counts_quarantined_admissions",
+        guards="G0 round 5 Q5 -- 005f: EPI-001 counts only admissions that count",
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old="                        WHERE r.counted AND r.from_state IS NULL);",
+        new="                        WHERE r.from_state IS NULL);",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_gate_time_bound_counts_excluded_events",
+        guards="G0 round 5 Q3 -- 005f: an excluded event does not bound a new event's time",
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old="           AND NOT EXISTS (SELECT 1 FROM belief_event_exclusions x WHERE x.event_id = e.event_id);",
+        new="           AND TRUE;",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_gate_takes_quarantined_policies",
+        guards="G0 round 5 Q4 -- 005f: nothing new is recorded under a quarantined policy",
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old="    IF EXISTS (SELECT 1 FROM owner_quarantines q\n                WHERE q.subject_kind = 'TRANSITION_POLICY'",
+        new="    IF FALSE AND EXISTS (SELECT 1 FROM owner_quarantines q\n                WHERE q.subject_kind = 'TRANSITION_POLICY'",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_evidence_lines_count_runless_attestations",
+        guards="G0 round 5 Q7 -- 005f: an attestation with no stored run is no evidence line",
+        path="migrations/005f_one_definition_of_a_counted_belief_event.sql",
+        old="      JOIN runs u ON u.run_id = coalesce(a.run_id, o.run_id)\n$$",
+        new="      LEFT JOIN runs u ON u.run_id = coalesce(a.run_id, o.run_id)\n$$",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_projection_ignores_snapshot_quarantine",
+        guards="G0 round 5 Q6 -- the projection skips events the stored §6.18 selection excludes",
+        path="src/lab_brain/core/episode.py",
+        old='        trigger_of = getattr(self._events, "trigger_quarantined", None)',
+        new="        trigger_of = None",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_replay_ignores_trigger_quarantined",
+        guards="G0 round 5 Q6 -- replay skips the events it is told a quarantined trigger excludes",
+        path="src/lab_brain/core/belief.py",
+        old="        if event.event_id in excluded or (",
+        new="        if False or (",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_revision_gate_reads_raw_history",
+        guards="G0 round 5 Q5 -- the research service's EPI-001 reader reads the counted history",
+        path="src/lab_brain/research/service.py",
+        old="                history=events.counted_history,\n                divergence_gate=",
+        new="                history=events.history,\n                divergence_gate=",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_counted_history_returns_skipped_events",
+        guards="G0 round 5 -- counted_history returns only the events belief_replay counts",
+        path="src/lab_brain/core/repositories/belief_events.py",
+        old="            ' WHERE r.counted ORDER BY",
+        new="            ' WHERE TRUE ORDER BY",
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="round5_withheld_reads_any_exclusion",
+        guards="G0 round 5 -- withheld is the OWNER_QUARANTINED half of the exclusions",
+        path="src/lab_brain/core/repositories/belief_events.py",
+        old='        return self._excluded(project_id, target_id, "OWNER_QUARANTINED")',
+        new='        return self._excluded(project_id, target_id, "QUARANTINED_TRIGGER")',
+        tests=(
+            "tests/e2e/test_g0_boundary_round5_postgres.py",
+            "tests/e2e/test_g0_counted_history_differential_postgres.py",
+        ),
+    ),
+    Mutation(
+        name="t1_unsigned_measurements_count",
+        guards="G0 T-1 -- an unsigned measurement of an enforced pair is UNSIGNED",
+        path="src/lab_brain/security/measurement_provenance.py",
+        old="            if self.strict or self.enforced(instrument_id, capability_id):",
+        new="            if False:",
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+    ),
+    Mutation(
+        name="t1_enrolment_does_not_enforce",
+        guards="G0 T-1 -- enrolling a key enforces its (instrument, capability)",
+        path="src/lab_brain/security/measurement_provenance.py",
+        old="            if self.strict or self.enforced(instrument_id, capability_id):",
+        new="            if self.strict:",
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+    ),
+    Mutation(
+        name="t1_signature_not_verified",
+        guards="G0 T-1 -- the Ed25519 signature is verified",
+        path="src/lab_brain/security/measurement_provenance.py",
+        old="        if not _verify(public_key, signature, statement):",
+        new="        if False:",
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+    ),
+    Mutation(
+        name="t1_unknown_key_accepted",
+        guards="G0 T-1 -- only an enrolled key signs",
+        path="src/lab_brain/security/measurement_provenance.py",
+        old="        if enrolled is None:\n            return Provenance(ProvenanceStatus.UNKNOWN_KEY",
+        new="        if enrolled is None:\n            return Provenance(ProvenanceStatus.VERIFIED",
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+    ),
+    Mutation(
+        name="t1_revocation_ignored",
+        guards="G0 T-1 -- a revoked key no longer verifies",
+        path="src/lab_brain/security/measurement_provenance.py",
+        old="        if revoked_at is not None and revoked_at <= recorded_at:",
+        new="        if False:",
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+    ),
+    Mutation(
+        name="t1_scope_ignored",
+        guards="G0 T-1 -- a key signs only for its instrument and capabilities",
+        path="src/lab_brain/security/measurement_provenance.py",
+        old="        if key_instrument != instrument_id or capability_id not in key_capabilities:",
+        new="        if False:",
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+    ),
+    Mutation(
+        name="t1_digest_not_checked",
+        guards="G0 T-1 -- the run's recorded outputs are the bytes the runner signed",
+        path="src/lab_brain/security/measurement_provenance.py",
+        old="        if len(hashes) != len(set(outputs)) or raw_digest(hashes) != digest:",
+        new="        if False:",
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+    ),
+    Mutation(
+        name="t1_time_not_checked",
+        guards="G0 T-1 -- a measurement is dated after its nonce was issued",
+        path="src/lab_brain/security/measurement_provenance.py",
+        old="        if not (issued_at <= measured_at <= recorded_at + self._skew):",
+        new="        if False:",
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+    ),
+    Mutation(
+        name="t1_relation_store_skips_provenance",
+        guards="G0 T-1 -- every SqlRelationStore admits only SUPPORTS whose measurements count",
+        path="src/lab_brain/core/repositories/evidence.py",
+        old="            if r.relation_type is not RelationType.SUPPORTS or self.measurement_problem(r) is None\n",
+        new="            if True\n",
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+    ),
+    Mutation(
+        name="t1_keys_enrolled_by_any_role",
+        guards="G0 T-1 -- 003f: a signing key is enrolled by the schema owner only",
+        path="migrations/003f_measurement_provenance.sql",
+        old="    IF NOT pg_has_role(current_user, v_owner, 'MEMBER') THEN",
+        new="    IF FALSE THEN",
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+    ),
+    Mutation(
+        name="t1_nonce_chosen_by_the_writer",
+        guards="G0 T-1 -- 003f: the database chooses the nonce",
+        path="migrations/003f_measurement_provenance.sql",
+        old="    NEW.nonce := gen_random_uuid()::TEXT;\n",
+        new="",
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+    ),
+    Mutation(
+        name="t1_nonce_for_a_finished_job",
+        guards="G0 T-1 -- 003f: a nonce is issued only while the job runs",
+        path="migrations/003f_measurement_provenance.sql",
+        old="    IF v_state IS NULL OR v_state NOT IN ('QUEUED', 'RUNNING') THEN",
+        new="    IF v_state IS NULL THEN",
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+    ),
+    Mutation(
+        name="t1_signatures_editable",
+        guards="G0 T-1 -- 003f: a relayed signature is append-only",
+        path="migrations/003f_measurement_provenance.sql",
+        old="    BEFORE INSERT OR UPDATE OR DELETE ON measurement_signatures",
+        new="    BEFORE INSERT ON measurement_signatures",
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+    ),
+    Mutation(
+        name="t1_services_keep_row_writes_on_keys",
+        guards="G0 T-1 (Owner approval) -- db-roles revokes the services' writes on the key tables",
+        path="src/lab_brain/interfaces/deployment.py",
+        old='f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON {_MEASUREMENT_KEYS} FROM {app}",',
+        new='f"REVOKE TRUNCATE ON {_MEASUREMENT_KEYS} FROM {app}",',
+        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
     ),
 )
 
