@@ -1,0 +1,43 @@
+10 mutations
+
+[KILLED ] safety_v14_separation_closes_rival
+           discovery safety v1.4 -- a rival is closed only when its own evaluator prediction FAILED on a test the answer passed
+           killed by FAILED tests/unit/test_discovery_safety_v14.py::test_v14_rule_withholds_support_from_v13s_wrong_answ
+
+[SURVIVED] safety_v14_failed_claim_test_closes_rival
+           discovery safety v1.4 -- only a PASSED registration of the answer can close a rival
+           SURVIVED — tests still pass with the guard disabled
+
+[KILLED ] safety_v14_grammar_rivals_ignored
+           discovery safety v1.4 -- adequate grammar shapes distinguishable from the answer are rivals
+           killed by FAILED tests/unit/test_discovery_safety_v14.py::test_v14_rule_withholds_support_from_v13s_wrong_answ
+
+[KILLED ] safety_v14_null_not_held_against_grammar
+           discovery safety v1.4 -- 'no effect' is held against grammar shapes whose fitted effect is clear
+           killed by FAILED tests/unit/test_discovery_safety_v14.py::test_no_effect_is_held_against_a_grammar_shape_whose
+
+[KILLED ] safety_v14_grammar_shape_counted_as_two_causes
+           discovery safety v1.4 -- a grammar shape is one cause under the parsimony rule
+           killed by FAILED tests/unit/test_discovery_safety_v14.py::test_a_grammar_shape_is_one_cause_and_quiet_data_rai
+
+[KILLED ] safety_v14_open_rival_ignored
+           discovery safety v1.4 -- an answer with an open v1.4 rival is not SUPPORTED
+           killed by FAILED tests/unit/test_discovery_safety_v14.py::test_v14_rule_withholds_support_from_v13s_wrong_answ
+
+[KILLED ] safety_v14_level_without_rivals
+           discovery safety v1.4 -- the evaluator's level is the full v1.4 verdict
+           killed by FAILED tests/unit/test_discovery_safety_v14.py::test_v14_rule_withholds_support_from_v13s_wrong_answ
+
+[KILLED ] safety_v14_cost_tolerance_ignored
+           discovery safety v1.4 -- per-world matching pairs answers only within the stated cost tolerance
+           killed by FAILED tests/unit/test_discovery_safety_v14.py::test_a_mean_cost_match_hides_opposite_per_world_cost
+
+[KILLED ] safety_v14_anytime_beyond_anchor_cap
+           discovery safety v1.4 -- an anytime answer at anchor cap K comes from a cap <= K
+           killed by FAILED tests/unit/test_discovery_safety_v14.py::test_per_world_matching_uses_the_dearer_arms_cheaper
+
+[KILLED ] safety_v14_holdout_seed_overlap
+           discovery safety v1.4 -- derived held-out seeds stay away from every range seen before
+           killed by FAILED tests/unit/test_discovery_safety_v14.py::test_held_out_seeds_are_derived_from_the_full_freeze
+
+9/10 killed

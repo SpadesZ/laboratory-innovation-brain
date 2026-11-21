@@ -1,0 +1,5567 @@
+{
+  "benchmark": {
+    "B5-B4": {
+      "mean_cost_contrast": [
+        {
+          "cap": 6,
+          "cost": {
+            "B4": {
+              "at_cap": 0.975,
+              "max": 6,
+              "mean": 5.975,
+              "median": 6.0,
+              "min": 5,
+              "n": 120,
+              "p10": 6.0,
+              "p25": 6.0,
+              "p75": 6.0,
+              "p90": 6.0
+            },
+            "B5": {
+              "at_cap": 0.7333,
+              "max": 6,
+              "mean": 5.6,
+              "median": 6.0,
+              "min": 3,
+              "n": 120,
+              "p10": 4.0,
+              "p25": 5.0,
+              "p75": 6.0,
+              "p90": 6.0
+            }
+          },
+          "mean_cost": {
+            "B4": 5.975,
+            "B5": 5.6
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -0.516667,
+              -0.241667
+            ],
+            "mean": -0.375
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 12
+            },
+            "B5 spent more": {
+              "credited_difference": null,
+              "own_correct_difference": null,
+              "worlds": 0
+            },
+            "within tolerance": {
+              "credited_difference": 0.1667,
+              "own_correct_difference": 0.1574,
+              "worlds": 108
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 1,
+            "mean": -0.375,
+            "median": 0.0,
+            "min": -3,
+            "n": 120,
+            "p10": -2.0,
+            "p25": -1.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 120,
+          "worlds_beyond_tolerance": 12,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "cap": 8,
+          "cost": {
+            "B4": {
+              "at_cap": 0.8583,
+              "max": 8,
+              "mean": 7.7333,
+              "median": 8.0,
+              "min": 6,
+              "n": 120,
+              "p10": 6.0,
+              "p25": 8.0,
+              "p75": 8.0,
+              "p90": 8.0
+            },
+            "B5": {
+              "at_cap": 0.7167,
+              "max": 8,
+              "mean": 7.3417,
+              "median": 8.0,
+              "min": 4,
+              "n": 120,
+              "p10": 5.0,
+              "p25": 7.0,
+              "p75": 8.0,
+              "p90": 8.0
+            }
+          },
+          "mean_cost": {
+            "B4": 7.7333,
+            "B5": 7.3417
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -0.55,
+              -0.25
+            ],
+            "mean": -0.391667
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": -0.1,
+              "worlds": 10
+            },
+            "B5 spent more": {
+              "credited_difference": null,
+              "own_correct_difference": null,
+              "worlds": 0
+            },
+            "within tolerance": {
+              "credited_difference": 0.2818,
+              "own_correct_difference": 0.1091,
+              "worlds": 110
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 1,
+            "mean": -0.3917,
+            "median": 0.0,
+            "min": -4,
+            "n": 120,
+            "p10": -1.0,
+            "p25": -1.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 120,
+          "worlds_beyond_tolerance": 10,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "cap": 12,
+          "cost": {
+            "B4": {
+              "at_cap": 0.8167,
+              "max": 12,
+              "mean": 11.1583,
+              "median": 12.0,
+              "min": 6,
+              "n": 120,
+              "p10": 6.0,
+              "p25": 12.0,
+              "p75": 12.0,
+              "p90": 12.0
+            },
+            "B5": {
+              "at_cap": 0.575,
+              "max": 12,
+              "mean": 10.825,
+              "median": 12.0,
+              "min": 5,
+              "n": 120,
+              "p10": 7.0,
+              "p25": 11.0,
+              "p75": 12.0,
+              "p90": 12.0
+            }
+          },
+          "mean_cost": {
+            "B4": 11.1583,
+            "B5": 10.825
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -0.6,
+              -0.083333
+            ],
+            "mean": -0.333333
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": -0.4,
+              "worlds": 10
+            },
+            "B5 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 6
+            },
+            "within tolerance": {
+              "credited_difference": 0.4712,
+              "own_correct_difference": -0.0481,
+              "worlds": 104
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 4,
+            "mean": -0.3333,
+            "median": 0.0,
+            "min": -7,
+            "n": 120,
+            "p10": -1.0,
+            "p25": -1.0,
+            "p75": 0.0,
+            "p90": 1.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 120,
+          "worlds_beyond_tolerance": 16,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "cap": 24,
+          "cost": {
+            "B4": {
+              "at_cap": 0.125,
+              "max": 24,
+              "mean": 19.1083,
+              "median": 21.0,
+              "min": 6,
+              "n": 120,
+              "p10": 6.0,
+              "p25": 17.0,
+              "p75": 23.0,
+              "p90": 24.0
+            },
+            "B5": {
+              "at_cap": 0.0667,
+              "max": 24,
+              "mean": 18.025,
+              "median": 20.0,
+              "min": 5,
+              "n": 120,
+              "p10": 7.0,
+              "p25": 16.0,
+              "p75": 22.0,
+              "p90": 23.0
+            }
+          },
+          "mean_cost": {
+            "B4": 19.1083,
+            "B5": 18.025
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -1.766667,
+              -0.483333
+            ],
+            "mean": -1.083333
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.5385,
+              "own_correct_difference": -0.2308,
+              "worlds": 26
+            },
+            "B5 spent more": {
+              "credited_difference": 0.2222,
+              "own_correct_difference": 0.1111,
+              "worlds": 9
+            },
+            "within tolerance": {
+              "credited_difference": 0.6235,
+              "own_correct_difference": -0.1412,
+              "worlds": 85
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 8,
+            "mean": -1.0833,
+            "median": -1.0,
+            "min": -19,
+            "n": 120,
+            "p10": -2.0,
+            "p25": -1.0,
+            "p75": 0.0,
+            "p90": 1.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 120,
+          "worlds_beyond_tolerance": 35,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "cap": 48,
+          "cost": {
+            "B4": {
+              "at_cap": 0.0,
+              "max": 38,
+              "mean": 20.2917,
+              "median": 21.0,
+              "min": 6,
+              "n": 120,
+              "p10": 6.0,
+              "p25": 17.0,
+              "p75": 24.0,
+              "p90": 28.0
+            },
+            "B5": {
+              "at_cap": 0.0,
+              "max": 38,
+              "mean": 18.8417,
+              "median": 20.0,
+              "min": 5,
+              "n": 120,
+              "p10": 7.0,
+              "p25": 16.0,
+              "p75": 23.0,
+              "p90": 25.0
+            }
+          },
+          "mean_cost": {
+            "B4": 20.2917,
+            "B5": 18.8417
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -2.391667,
+              -0.683333
+            ],
+            "mean": -1.45
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.5517,
+              "own_correct_difference": -0.2069,
+              "worlds": 29
+            },
+            "B5 spent more": {
+              "credited_difference": 0.1,
+              "own_correct_difference": -0.1,
+              "worlds": 10
+            },
+            "within tolerance": {
+              "credited_difference": 0.6296,
+              "own_correct_difference": -0.1358,
+              "worlds": 81
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 4,
+            "mean": -1.45,
+            "median": -1.0,
+            "min": -31,
+            "n": 120,
+            "p10": -2.0,
+            "p25": -1.0,
+            "p75": 0.0,
+            "p90": 1.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 120,
+          "worlds_beyond_tolerance": 39,
+          "x": "B4",
+          "y": "B5"
+        }
+      ],
+      "per_world": [
+        {
+          "anchor_cap": 6,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.240741,
+                -0.083333
+              ],
+              "mean": -0.157407
+            },
+            "credited": {
+              "ci95": [
+                0.101852,
+                0.240741
+              ],
+              "mean": 0.166667
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.055556,
+                0.037037
+              ],
+              "mean": -0.009259
+            },
+            "own_correct": {
+              "ci95": [
+                0.092593,
+                0.231481
+              ],
+              "mean": 0.157407
+            },
+            "own_error": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 108,
+          "matched_caps_used": {
+            "B4": {
+              "6": 108
+            },
+            "B5": {
+              "6": 108
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.7963,
+            "max": 6,
+            "mean": 5.7963,
+            "median": 6.0,
+            "min": 5,
+            "n": 108,
+            "p10": 5.0,
+            "p25": 6.0,
+            "p75": 6.0,
+            "p90": 6.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.037,
+              "own_correct": 0.1019,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.1667,
+              "errors_c5": 0.0278,
+              "own_correct": 0.2593,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 12,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.6667,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.6667,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 12,
+          "unmatched_y_dearer": 0,
+          "worlds": 120,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "anchor_cap": 8,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.144068,
+                0.033898
+              ],
+              "mean": -0.059322
+            },
+            "credited": {
+              "ci95": [
+                0.194915,
+                0.355932
+              ],
+              "mean": 0.271186
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.237288,
+                -0.09322
+              ],
+              "mean": -0.161017
+            },
+            "own_correct": {
+              "ci95": [
+                0.042373,
+                0.186441
+              ],
+              "mean": 0.110169
+            },
+            "own_error": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 118,
+          "matched_caps_used": {
+            "B4": {
+              "6": 17,
+              "8": 101
+            },
+            "B5": {
+              "6": 1,
+              "8": 117
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.7119,
+            "max": 8,
+            "mean": 7.3729,
+            "median": 8.0,
+            "min": 5,
+            "n": 118,
+            "p10": 5.0,
+            "p25": 7.0,
+            "p75": 8.0,
+            "p90": 8.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.178,
+              "own_correct": 0.3051,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.2712,
+              "errors_c5": 0.0169,
+              "own_correct": 0.4153,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 2,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 2,
+          "unmatched_y_dearer": 0,
+          "worlds": 120,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "anchor_cap": 12,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.37069,
+                -0.189655
+              ],
+              "mean": -0.275862
+            },
+            "credited": {
+              "ci95": [
+                0.344828,
+                0.517241
+              ],
+              "mean": 0.431034
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.586207,
+                -0.405172
+              ],
+              "mean": -0.491379
+            },
+            "own_correct": {
+              "ci95": [
+                -0.112069,
+                0.043103
+              ],
+              "mean": -0.034483
+            },
+            "own_error": {
+              "ci95": [
+                -0.060345,
+                0.0
+              ],
+              "mean": -0.025862
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.025862
+              ],
+              "mean": 0.008621
+            }
+          },
+          "matched": 116,
+          "matched_caps_used": {
+            "B4": {
+              "12": 110,
+              "6": 4,
+              "8": 2
+            },
+            "B5": {
+              "12": 101,
+              "6": 8,
+              "8": 7
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.569,
+            "max": 12,
+            "mean": 10.6293,
+            "median": 12.0,
+            "min": 5,
+            "n": 116,
+            "p10": 6.0,
+            "p25": 11.0,
+            "p75": 12.0,
+            "p90": 12.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.569,
+              "own_correct": 0.6638,
+              "own_error": 0.0345,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.431,
+              "errors_c5": 0.0776,
+              "own_correct": 0.6293,
+              "own_error": 0.0086,
+              "supported_errors": 0.0086
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 4,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.25,
+              "own_correct": 0.25,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 4,
+          "unmatched_y_dearer": 0,
+          "worlds": 120,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "anchor_cap": 24,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.53125,
+                -0.260417
+              ],
+              "mean": -0.395833
+            },
+            "credited": {
+              "ci95": [
+                0.458333,
+                0.666667
+              ],
+              "mean": 0.5625
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.78125,
+                -0.59375
+              ],
+              "mean": -0.6875
+            },
+            "own_correct": {
+              "ci95": [
+                -0.1875,
+                -0.041667
+              ],
+              "mean": -0.114583
+            },
+            "own_error": {
+              "ci95": [
+                -0.03125,
+                0.0
+              ],
+              "mean": -0.010417
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.03125
+              ],
+              "mean": 0.010417
+            }
+          },
+          "matched": 96,
+          "matched_caps_used": {
+            "B4": {
+              "12": 2,
+              "24": 90,
+              "6": 4
+            },
+            "B5": {
+              "24": 81,
+              "6": 8,
+              "8": 7
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.0417,
+            "max": 24,
+            "mean": 17.3542,
+            "median": 20.0,
+            "min": 5,
+            "n": 96,
+            "p10": 6.0,
+            "p25": 16.0,
+            "p75": 22.0,
+            "p90": 23.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.7604,
+              "own_correct": 0.8958,
+              "own_error": 0.0208,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.5625,
+              "errors_c5": 0.0729,
+              "own_correct": 0.7812,
+              "own_error": 0.0104,
+              "supported_errors": 0.0104
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 24,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.9167,
+              "own_correct": 0.9167,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.6667,
+              "errors_c5": 0.2083,
+              "own_correct": 0.875,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 21,
+          "unmatched_y_dearer": 3,
+          "worlds": 120,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "anchor_cap": 48,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.53125,
+                -0.260417
+              ],
+              "mean": -0.395833
+            },
+            "credited": {
+              "ci95": [
+                0.458333,
+                0.65625
+              ],
+              "mean": 0.552083
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.78125,
+                -0.59375
+              ],
+              "mean": -0.6875
+            },
+            "own_correct": {
+              "ci95": [
+                -0.197917,
+                -0.052083
+              ],
+              "mean": -0.125
+            },
+            "own_error": {
+              "ci95": [
+                -0.03125,
+                0.0
+              ],
+              "mean": -0.010417
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.03125
+              ],
+              "mean": 0.010417
+            }
+          },
+          "matched": 96,
+          "matched_caps_used": {
+            "B4": {
+              "12": 2,
+              "24": 3,
+              "48": 87,
+              "6": 4
+            },
+            "B5": {
+              "24": 1,
+              "48": 80,
+              "6": 8,
+              "8": 7
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.0,
+            "max": 38,
+            "mean": 18.1562,
+            "median": 20.0,
+            "min": 5,
+            "n": 96,
+            "p10": 6.0,
+            "p25": 16.0,
+            "p75": 23.0,
+            "p90": 25.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.7604,
+              "own_correct": 0.8958,
+              "own_error": 0.0208,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.5521,
+              "errors_c5": 0.0729,
+              "own_correct": 0.7708,
+              "own_error": 0.0104,
+              "supported_errors": 0.0104
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 24,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.9583,
+              "own_correct": 0.9167,
+              "own_error": 0.0417,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.6667,
+              "errors_c5": 0.2083,
+              "own_correct": 0.875,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 21,
+          "unmatched_y_dearer": 3,
+          "worlds": 120,
+          "x": "B4",
+          "y": "B5"
+        }
+      ]
+    },
+    "B6-B4": {
+      "mean_cost_contrast": [
+        {
+          "cap": 6,
+          "cost": {
+            "B4": {
+              "at_cap": 0.975,
+              "max": 6,
+              "mean": 5.975,
+              "median": 6.0,
+              "min": 5,
+              "n": 120,
+              "p10": 6.0,
+              "p25": 6.0,
+              "p75": 6.0,
+              "p90": 6.0
+            },
+            "B6": {
+              "at_cap": 0.8167,
+              "max": 6,
+              "mean": 5.6833,
+              "median": 6.0,
+              "min": 3,
+              "n": 120,
+              "p10": 4.0,
+              "p25": 6.0,
+              "p75": 6.0,
+              "p90": 6.0
+            }
+          },
+          "mean_cost": {
+            "B4": 5.975,
+            "B6": 5.6833
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -0.425,
+              -0.158333
+            ],
+            "mean": -0.291667
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 12
+            },
+            "B6 spent more": {
+              "credited_difference": null,
+              "own_correct_difference": null,
+              "worlds": 0
+            },
+            "within tolerance": {
+              "credited_difference": 0.1481,
+              "own_correct_difference": 0.1111,
+              "worlds": 108
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 1,
+            "mean": -0.2917,
+            "median": 0.0,
+            "min": -3,
+            "n": 120,
+            "p10": -2.0,
+            "p25": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 120,
+          "worlds_beyond_tolerance": 12,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "cap": 8,
+          "cost": {
+            "B4": {
+              "at_cap": 0.8583,
+              "max": 8,
+              "mean": 7.7333,
+              "median": 8.0,
+              "min": 6,
+              "n": 120,
+              "p10": 6.0,
+              "p25": 8.0,
+              "p75": 8.0,
+              "p90": 8.0
+            },
+            "B6": {
+              "at_cap": 0.7917,
+              "max": 8,
+              "mean": 7.4917,
+              "median": 8.0,
+              "min": 4,
+              "n": 120,
+              "p10": 5.0,
+              "p25": 8.0,
+              "p75": 8.0,
+              "p90": 8.0
+            }
+          },
+          "mean_cost": {
+            "B4": 7.7333,
+            "B6": 7.4917
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -0.375,
+              -0.125
+            ],
+            "mean": -0.241667
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 4
+            },
+            "B6 spent more": {
+              "credited_difference": null,
+              "own_correct_difference": null,
+              "worlds": 0
+            },
+            "within tolerance": {
+              "credited_difference": 0.2586,
+              "own_correct_difference": 0.069,
+              "worlds": 116
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 1,
+            "mean": -0.2417,
+            "median": 0.0,
+            "min": -4,
+            "n": 120,
+            "p10": -1.0,
+            "p25": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 120,
+          "worlds_beyond_tolerance": 4,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "cap": 12,
+          "cost": {
+            "B4": {
+              "at_cap": 0.8167,
+              "max": 12,
+              "mean": 11.1583,
+              "median": 12.0,
+              "min": 6,
+              "n": 120,
+              "p10": 6.0,
+              "p25": 12.0,
+              "p75": 12.0,
+              "p90": 12.0
+            },
+            "B6": {
+              "at_cap": 0.65,
+              "max": 12,
+              "mean": 11.0667,
+              "median": 12.0,
+              "min": 5,
+              "n": 120,
+              "p10": 8.0,
+              "p25": 11.0,
+              "p75": 12.0,
+              "p90": 12.0
+            }
+          },
+          "mean_cost": {
+            "B4": 11.1583,
+            "B6": 11.0667
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -0.283333,
+              0.1
+            ],
+            "mean": -0.091667
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": -0.2857,
+              "worlds": 7
+            },
+            "B6 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 6
+            },
+            "within tolerance": {
+              "credited_difference": 0.5047,
+              "own_correct_difference": -0.0935,
+              "worlds": 107
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 5,
+            "mean": -0.0917,
+            "median": 0.0,
+            "min": -4,
+            "n": 120,
+            "p10": -1.0,
+            "p25": 0.0,
+            "p75": 0.0,
+            "p90": 1.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 120,
+          "worlds_beyond_tolerance": 13,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "cap": 24,
+          "cost": {
+            "B4": {
+              "at_cap": 0.125,
+              "max": 24,
+              "mean": 19.1083,
+              "median": 21.0,
+              "min": 6,
+              "n": 120,
+              "p10": 6.0,
+              "p25": 17.0,
+              "p75": 23.0,
+              "p90": 24.0
+            },
+            "B6": {
+              "at_cap": 0.1583,
+              "max": 24,
+              "mean": 18.5583,
+              "median": 20.0,
+              "min": 5,
+              "n": 120,
+              "p10": 8.0,
+              "p25": 16.0,
+              "p75": 23.0,
+              "p90": 24.0
+            }
+          },
+          "mean_cost": {
+            "B4": 19.1083,
+            "B6": 18.5583
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -1.033333,
+              -0.058333
+            ],
+            "mean": -0.55
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.6957,
+              "own_correct_difference": -0.087,
+              "worlds": 23
+            },
+            "B6 spent more": {
+              "credited_difference": 0.4167,
+              "own_correct_difference": 0.0,
+              "worlds": 12
+            },
+            "within tolerance": {
+              "credited_difference": 0.8,
+              "own_correct_difference": -0.0706,
+              "worlds": 85
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 9,
+            "mean": -0.55,
+            "median": 0.0,
+            "min": -15,
+            "n": 120,
+            "p10": -2.0,
+            "p25": -1.0,
+            "p75": 1.0,
+            "p90": 1.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 120,
+          "worlds_beyond_tolerance": 35,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "cap": 48,
+          "cost": {
+            "B4": {
+              "at_cap": 0.0,
+              "max": 38,
+              "mean": 20.2917,
+              "median": 21.0,
+              "min": 6,
+              "n": 120,
+              "p10": 6.0,
+              "p25": 17.0,
+              "p75": 24.0,
+              "p90": 28.0
+            },
+            "B6": {
+              "at_cap": 0.0,
+              "max": 45,
+              "mean": 19.9667,
+              "median": 20.0,
+              "min": 5,
+              "n": 120,
+              "p10": 8.0,
+              "p25": 16.0,
+              "p75": 23.0,
+              "p90": 30.0
+            }
+          },
+          "mean_cost": {
+            "B4": 20.2917,
+            "B6": 19.9667
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -1.058333,
+              0.375
+            ],
+            "mean": -0.325
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.7308,
+              "own_correct_difference": -0.0769,
+              "worlds": 26
+            },
+            "B6 spent more": {
+              "credited_difference": 0.6818,
+              "own_correct_difference": -0.0455,
+              "worlds": 22
+            },
+            "within tolerance": {
+              "credited_difference": 0.8194,
+              "own_correct_difference": -0.0139,
+              "worlds": 72
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 10,
+            "mean": -0.325,
+            "median": 0.0,
+            "min": -24,
+            "n": 120,
+            "p10": -2.0,
+            "p25": -1.0,
+            "p75": 1.0,
+            "p90": 3.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 120,
+          "worlds_beyond_tolerance": 48,
+          "x": "B4",
+          "y": "B6"
+        }
+      ],
+      "per_world": [
+        {
+          "anchor_cap": 6,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.12963,
+                0.0
+              ],
+              "mean": -0.064815
+            },
+            "credited": {
+              "ci95": [
+                0.083333,
+                0.212963
+              ],
+              "mean": 0.148148
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.074074,
+                -0.009259
+              ],
+              "mean": -0.037037
+            },
+            "own_correct": {
+              "ci95": [
+                0.037037,
+                0.194444
+              ],
+              "mean": 0.111111
+            },
+            "own_error": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 108,
+          "matched_caps_used": {
+            "B4": {
+              "6": 108
+            },
+            "B6": {
+              "6": 108
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.8796,
+            "max": 6,
+            "mean": 5.8796,
+            "median": 6.0,
+            "min": 5,
+            "n": 108,
+            "p10": 5.0,
+            "p25": 6.0,
+            "p75": 6.0,
+            "p90": 6.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.037,
+              "own_correct": 0.1019,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.1481,
+              "errors_c5": 0.0,
+              "own_correct": 0.213,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 12,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.6667,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.6667,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 12,
+          "unmatched_y_dearer": 0,
+          "worlds": 120,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "anchor_cap": 8,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.152542,
+                0.0
+              ],
+              "mean": -0.076271
+            },
+            "credited": {
+              "ci95": [
+                0.186441,
+                0.338983
+              ],
+              "mean": 0.262712
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.245763,
+                -0.101695
+              ],
+              "mean": -0.169492
+            },
+            "own_correct": {
+              "ci95": [
+                0.0,
+                0.152542
+              ],
+              "mean": 0.076271
+            },
+            "own_error": {
+              "ci95": [
+                0.0,
+                0.042373
+              ],
+              "mean": 0.016949
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.042373
+              ],
+              "mean": 0.016949
+            }
+          },
+          "matched": 118,
+          "matched_caps_used": {
+            "B4": {
+              "6": 8,
+              "8": 110
+            },
+            "B6": {
+              "6": 2,
+              "8": 116
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.7881,
+            "max": 8,
+            "mean": 7.5254,
+            "median": 8.0,
+            "min": 5,
+            "n": 118,
+            "p10": 5.0,
+            "p25": 8.0,
+            "p75": 8.0,
+            "p90": 8.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.1864,
+              "own_correct": 0.3136,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.2627,
+              "errors_c5": 0.0169,
+              "own_correct": 0.3898,
+              "own_error": 0.0169,
+              "supported_errors": 0.0169
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 2,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 2,
+          "unmatched_y_dearer": 0,
+          "worlds": 120,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "anchor_cap": 12,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.282051,
+                -0.094017
+              ],
+              "mean": -0.188034
+            },
+            "credited": {
+              "ci95": [
+                0.376068,
+                0.564103
+              ],
+              "mean": 0.470085
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.675214,
+                -0.487179
+              ],
+              "mean": -0.581197
+            },
+            "own_correct": {
+              "ci95": [
+                -0.17094,
+                0.008547
+              ],
+              "mean": -0.076923
+            },
+            "own_error": {
+              "ci95": [
+                -0.068376,
+                -0.008547
+              ],
+              "mean": -0.034188
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 117,
+          "matched_caps_used": {
+            "B4": {
+              "12": 113,
+              "8": 4
+            },
+            "B6": {
+              "12": 102,
+              "6": 8,
+              "8": 7
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.6239,
+            "max": 12,
+            "mean": 10.8547,
+            "median": 12.0,
+            "min": 5,
+            "n": 117,
+            "p10": 6.0,
+            "p25": 11.0,
+            "p75": 12.0,
+            "p90": 12.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.5812,
+              "own_correct": 0.6752,
+              "own_error": 0.0342,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.4701,
+              "errors_c5": 0.0,
+              "own_correct": 0.5983,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 3,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 3,
+          "unmatched_y_dearer": 0,
+          "worlds": 120,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "anchor_cap": 24,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.347368,
+                -0.063158
+              ],
+              "mean": -0.210526
+            },
+            "credited": {
+              "ci95": [
+                0.631579,
+                0.810526
+              ],
+              "mean": 0.726316
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.873684,
+                -0.705263
+              ],
+              "mean": -0.789474
+            },
+            "own_correct": {
+              "ci95": [
+                -0.105263,
+                0.0
+              ],
+              "mean": -0.052632
+            },
+            "own_error": {
+              "ci95": [
+                -0.031579,
+                0.0
+              ],
+              "mean": -0.010526
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 95,
+          "matched_caps_used": {
+            "B4": {
+              "12": 3,
+              "24": 90,
+              "8": 2
+            },
+            "B6": {
+              "24": 80,
+              "6": 8,
+              "8": 7
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.0947,
+            "max": 24,
+            "mean": 17.7368,
+            "median": 20.0,
+            "min": 5,
+            "n": 95,
+            "p10": 6.0,
+            "p25": 16.0,
+            "p75": 23.0,
+            "p90": 23.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.7895,
+              "own_correct": 0.9368,
+              "own_error": 0.0105,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.7263,
+              "errors_c5": 0.0,
+              "own_correct": 0.8842,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 25,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.88,
+              "own_correct": 0.84,
+              "own_error": 0.04,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.84,
+              "errors_c5": 0.0,
+              "own_correct": 0.84,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 19,
+          "unmatched_y_dearer": 6,
+          "worlds": 120,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "anchor_cap": 48,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.426966,
+                -0.134831
+              ],
+              "mean": -0.292135
+            },
+            "credited": {
+              "ci95": [
+                0.662921,
+                0.842697
+              ],
+              "mean": 0.752809
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.853933,
+                -0.674157
+              ],
+              "mean": -0.764045
+            },
+            "own_correct": {
+              "ci95": [
+                -0.033708,
+                0.033708
+              ],
+              "mean": 0.0
+            },
+            "own_error": {
+              "ci95": [
+                -0.033708,
+                0.0
+              ],
+              "mean": -0.011236
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 89,
+          "matched_caps_used": {
+            "B4": {
+              "12": 3,
+              "24": 1,
+              "48": 83,
+              "8": 2
+            },
+            "B6": {
+              "24": 7,
+              "48": 67,
+              "6": 8,
+              "8": 7
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.0,
+            "max": 38,
+            "mean": 17.764,
+            "median": 20.0,
+            "min": 5,
+            "n": 89,
+            "p10": 6.0,
+            "p25": 16.0,
+            "p75": 22.0,
+            "p90": 25.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.764,
+              "own_correct": 0.9213,
+              "own_error": 0.0112,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.7528,
+              "errors_c5": 0.0,
+              "own_correct": 0.9213,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 31,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.9677,
+              "own_correct": 0.9032,
+              "own_error": 0.0645,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.871,
+              "errors_c5": 0.0,
+              "own_correct": 0.871,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 21,
+          "unmatched_y_dearer": 10,
+          "worlds": 120,
+          "x": "B4",
+          "y": "B6"
+        }
+      ]
+    }
+  },
+  "control": {
+    "B5-B4": {
+      "mean_cost_contrast": [
+        {
+          "cap": 6,
+          "cost": {
+            "B4": {
+              "at_cap": 0.9875,
+              "max": 6,
+              "mean": 5.9875,
+              "median": 6.0,
+              "min": 5,
+              "n": 160,
+              "p10": 6.0,
+              "p25": 6.0,
+              "p75": 6.0,
+              "p90": 6.0
+            },
+            "B5": {
+              "at_cap": 0.925,
+              "max": 6,
+              "mean": 5.9062,
+              "median": 6.0,
+              "min": 3,
+              "n": 160,
+              "p10": 6.0,
+              "p25": 6.0,
+              "p75": 6.0,
+              "p90": 6.0
+            }
+          },
+          "mean_cost": {
+            "B4": 5.9875,
+            "B5": 5.9062
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -0.14375,
+              -0.025
+            ],
+            "mean": -0.08125
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 2
+            },
+            "B5 spent more": {
+              "credited_difference": null,
+              "own_correct_difference": null,
+              "worlds": 0
+            },
+            "within tolerance": {
+              "credited_difference": 0.3924,
+              "own_correct_difference": 0.2975,
+              "worlds": 158
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 1,
+            "mean": -0.0813,
+            "median": 0.0,
+            "min": -3,
+            "n": 160,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 160,
+          "worlds_beyond_tolerance": 2,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "cap": 8,
+          "cost": {
+            "B4": {
+              "at_cap": 0.9187,
+              "max": 8,
+              "mean": 7.9125,
+              "median": 8.0,
+              "min": 6,
+              "n": 160,
+              "p10": 8.0,
+              "p25": 8.0,
+              "p75": 8.0,
+              "p90": 8.0
+            },
+            "B5": {
+              "at_cap": 0.9313,
+              "max": 8,
+              "mean": 7.8563,
+              "median": 8.0,
+              "min": 3,
+              "n": 160,
+              "p10": 8.0,
+              "p25": 8.0,
+              "p75": 8.0,
+              "p90": 8.0
+            }
+          },
+          "mean_cost": {
+            "B4": 7.9125,
+            "B5": 7.8563
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -0.16875,
+              0.05
+            ],
+            "mean": -0.05625
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 7
+            },
+            "B5 spent more": {
+              "credited_difference": 1.0,
+              "own_correct_difference": 1.0,
+              "worlds": 1
+            },
+            "within tolerance": {
+              "credited_difference": 0.4868,
+              "own_correct_difference": 0.2763,
+              "worlds": 152
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 2,
+            "mean": -0.0563,
+            "median": 0.0,
+            "min": -5,
+            "n": 160,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 160,
+          "worlds_beyond_tolerance": 8,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "cap": 12,
+          "cost": {
+            "B4": {
+              "at_cap": 0.8187,
+              "max": 12,
+              "mean": 11.75,
+              "median": 12.0,
+              "min": 6,
+              "n": 160,
+              "p10": 11.0,
+              "p25": 12.0,
+              "p75": 12.0,
+              "p90": 12.0
+            },
+            "B5": {
+              "at_cap": 0.7125,
+              "max": 12,
+              "mean": 11.5125,
+              "median": 12.0,
+              "min": 3,
+              "n": 160,
+              "p10": 11.0,
+              "p25": 11.0,
+              "p75": 12.0,
+              "p90": 12.0
+            }
+          },
+          "mean_cost": {
+            "B4": 11.75,
+            "B5": 11.5125
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -0.425,
+              -0.0875
+            ],
+            "mean": -0.2375
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": -0.4,
+              "worlds": 5
+            },
+            "B5 spent more": {
+              "credited_difference": null,
+              "own_correct_difference": null,
+              "worlds": 0
+            },
+            "within tolerance": {
+              "credited_difference": 0.5806,
+              "own_correct_difference": 0.2129,
+              "worlds": 155
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 1,
+            "mean": -0.2375,
+            "median": 0.0,
+            "min": -9,
+            "n": 160,
+            "p10": -1.0,
+            "p25": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 160,
+          "worlds_beyond_tolerance": 5,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "cap": 24,
+          "cost": {
+            "B4": {
+              "at_cap": 0.1812,
+              "max": 24,
+              "mean": 21.15,
+              "median": 21.0,
+              "min": 6,
+              "n": 160,
+              "p10": 19.0,
+              "p25": 20.0,
+              "p75": 23.0,
+              "p90": 24.0
+            },
+            "B5": {
+              "at_cap": 0.1313,
+              "max": 24,
+              "mean": 20.0063,
+              "median": 20.0,
+              "min": 3,
+              "n": 160,
+              "p10": 18.0,
+              "p25": 18.0,
+              "p75": 22.0,
+              "p90": 24.0
+            }
+          },
+          "mean_cost": {
+            "B4": 21.15,
+            "B5": 20.0063
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -1.54375,
+              -0.83125
+            ],
+            "mean": -1.14375
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.62,
+              "own_correct_difference": -0.06,
+              "worlds": 50
+            },
+            "B5 spent more": {
+              "credited_difference": null,
+              "own_correct_difference": null,
+              "worlds": 0
+            },
+            "within tolerance": {
+              "credited_difference": 0.8545,
+              "own_correct_difference": 0.0,
+              "worlds": 110
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 1,
+            "mean": -1.1438,
+            "median": -1.0,
+            "min": -19,
+            "n": 160,
+            "p10": -3.0,
+            "p25": -2.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 160,
+          "worlds_beyond_tolerance": 50,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "cap": 48,
+          "cost": {
+            "B4": {
+              "at_cap": 0.0,
+              "max": 45,
+              "mean": 22.375,
+              "median": 21.0,
+              "min": 6,
+              "n": 160,
+              "p10": 19.0,
+              "p25": 20.0,
+              "p75": 24.0,
+              "p90": 28.0
+            },
+            "B5": {
+              "at_cap": 0.0,
+              "max": 41,
+              "mean": 21.15,
+              "median": 20.0,
+              "min": 3,
+              "n": 160,
+              "p10": 18.0,
+              "p25": 18.0,
+              "p75": 22.0,
+              "p90": 29.0
+            }
+          },
+          "mean_cost": {
+            "B4": 22.375,
+            "B5": 21.15
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -1.625,
+              -0.8875
+            ],
+            "mean": -1.225
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.6429,
+              "own_correct_difference": -0.0536,
+              "worlds": 56
+            },
+            "B5 spent more": {
+              "credited_difference": 1.0,
+              "own_correct_difference": 0.0,
+              "worlds": 1
+            },
+            "within tolerance": {
+              "credited_difference": 0.8155,
+              "own_correct_difference": -0.0194,
+              "worlds": 103
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 4,
+            "mean": -1.225,
+            "median": -1.0,
+            "min": -19,
+            "n": 160,
+            "p10": -3.0,
+            "p25": -2.0,
+            "p75": 0.0,
+            "p90": 1.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 160,
+          "worlds_beyond_tolerance": 57,
+          "x": "B4",
+          "y": "B5"
+        }
+      ],
+      "per_world": [
+        {
+          "anchor_cap": 6,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.094937,
+                -0.012658
+              ],
+              "mean": -0.050633
+            },
+            "credited": {
+              "ci95": [
+                0.322785,
+                0.474684
+              ],
+              "mean": 0.392405
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.177215,
+                -0.025316
+              ],
+              "mean": -0.101266
+            },
+            "own_correct": {
+              "ci95": [
+                0.21519,
+                0.373418
+              ],
+              "mean": 0.297468
+            },
+            "own_error": {
+              "ci95": [
+                -0.018987,
+                0.0
+              ],
+              "mean": -0.006329
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 158,
+          "matched_caps_used": {
+            "B4": {
+              "6": 158
+            },
+            "B5": {
+              "6": 158
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.9241,
+            "max": 6,
+            "mean": 5.9241,
+            "median": 6.0,
+            "min": 5,
+            "n": 158,
+            "p10": 6.0,
+            "p25": 6.0,
+            "p75": 6.0,
+            "p90": 6.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.1835,
+              "own_correct": 0.1772,
+              "own_error": 0.0063,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.3924,
+              "errors_c5": 0.0823,
+              "own_correct": 0.4747,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 2,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 2,
+          "unmatched_y_dearer": 0,
+          "worlds": 160,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "anchor_cap": 8,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.094937,
+                -0.006329
+              ],
+              "mean": -0.050633
+            },
+            "credited": {
+              "ci95": [
+                0.392405,
+                0.544304
+              ],
+              "mean": 0.468354
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.303797,
+                -0.139241
+              ],
+              "mean": -0.221519
+            },
+            "own_correct": {
+              "ci95": [
+                0.189873,
+                0.341772
+              ],
+              "mean": 0.265823
+            },
+            "own_error": {
+              "ci95": [
+                -0.044304,
+                0.0
+              ],
+              "mean": -0.018987
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 158,
+          "matched_caps_used": {
+            "B4": {
+              "6": 7,
+              "8": 151
+            },
+            "B5": {
+              "6": 11,
+              "8": 147
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.8734,
+            "max": 8,
+            "mean": 7.8354,
+            "median": 8.0,
+            "min": 6,
+            "n": 158,
+            "p10": 7.0,
+            "p25": 8.0,
+            "p75": 8.0,
+            "p90": 8.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.2911,
+              "own_correct": 0.2722,
+              "own_error": 0.019,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.4684,
+              "errors_c5": 0.0696,
+              "own_correct": 0.538,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 2,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 2,
+          "unmatched_y_dearer": 0,
+          "worlds": 160,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "anchor_cap": 12,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.159236,
+                0.006369
+              ],
+              "mean": -0.076433
+            },
+            "credited": {
+              "ci95": [
+                0.496815,
+                0.649682
+              ],
+              "mean": 0.573248
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.477707,
+                -0.286624
+              ],
+              "mean": -0.382166
+            },
+            "own_correct": {
+              "ci95": [
+                0.133758,
+                0.286624
+              ],
+              "mean": 0.210191
+            },
+            "own_error": {
+              "ci95": [
+                -0.044586,
+                0.0
+              ],
+              "mean": -0.019108
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 157,
+          "matched_caps_used": {
+            "B4": {
+              "12": 155,
+              "6": 1,
+              "8": 1
+            },
+            "B5": {
+              "12": 157
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.6242,
+            "max": 12,
+            "mean": 11.5223,
+            "median": 12.0,
+            "min": 6,
+            "n": 157,
+            "p10": 11.0,
+            "p25": 11.0,
+            "p75": 12.0,
+            "p90": 12.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.6115,
+              "own_correct": 0.5924,
+              "own_error": 0.0191,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.5732,
+              "errors_c5": 0.2293,
+              "own_correct": 0.8025,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 3,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.3333,
+              "own_correct": 0.3333,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 3,
+          "unmatched_y_dearer": 0,
+          "worlds": 160,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "anchor_cap": 24,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.36036,
+                -0.126126
+              ],
+              "mean": -0.243243
+            },
+            "credited": {
+              "ci95": [
+                0.774775,
+                0.90991
+              ],
+              "mean": 0.846847
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.90991,
+                -0.774775
+              ],
+              "mean": -0.846847
+            },
+            "own_correct": {
+              "ci95": [
+                -0.036036,
+                0.036036
+              ],
+              "mean": 0.0
+            },
+            "own_error": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 111,
+          "matched_caps_used": {
+            "B4": {
+              "24": 110,
+              "6": 1
+            },
+            "B5": {
+              "24": 111
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.1081,
+            "max": 24,
+            "mean": 20.5045,
+            "median": 21.0,
+            "min": 6,
+            "n": 111,
+            "p10": 18.0,
+            "p25": 19.0,
+            "p75": 23.0,
+            "p90": 24.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.955,
+              "own_correct": 0.955,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.8468,
+              "errors_c5": 0.1081,
+              "own_correct": 0.955,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 49,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.9388,
+              "own_correct": 0.9388,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.6327,
+              "errors_c5": 0.2449,
+              "own_correct": 0.8776,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 49,
+          "unmatched_y_dearer": 0,
+          "worlds": 160,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "anchor_cap": 48,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.305556,
+                -0.037037
+              ],
+              "mean": -0.166667
+            },
+            "credited": {
+              "ci95": [
+                0.731481,
+                0.87037
+              ],
+              "mean": 0.805556
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.888889,
+                -0.75
+              ],
+              "mean": -0.824074
+            },
+            "own_correct": {
+              "ci95": [
+                -0.046296,
+                0.0
+              ],
+              "mean": -0.018519
+            },
+            "own_error": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 108,
+          "matched_caps_used": {
+            "B4": {
+              "24": 4,
+              "48": 103,
+              "6": 1
+            },
+            "B5": {
+              "48": 108
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.0,
+            "max": 40,
+            "mean": 21.7222,
+            "median": 21.0,
+            "min": 6,
+            "n": 108,
+            "p10": 18.0,
+            "p25": 19.0,
+            "p75": 23.0,
+            "p90": 29.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.9722,
+              "own_correct": 0.9722,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.8056,
+              "errors_c5": 0.1481,
+              "own_correct": 0.9537,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 52,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.9423,
+              "own_correct": 0.9423,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.6538,
+              "errors_c5": 0.2308,
+              "own_correct": 0.8846,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 51,
+          "unmatched_y_dearer": 1,
+          "worlds": 160,
+          "x": "B4",
+          "y": "B5"
+        }
+      ]
+    },
+    "B6-B4": {
+      "mean_cost_contrast": [
+        {
+          "cap": 6,
+          "cost": {
+            "B4": {
+              "at_cap": 0.9875,
+              "max": 6,
+              "mean": 5.9875,
+              "median": 6.0,
+              "min": 5,
+              "n": 160,
+              "p10": 6.0,
+              "p25": 6.0,
+              "p75": 6.0,
+              "p90": 6.0
+            },
+            "B6": {
+              "at_cap": 0.9313,
+              "max": 6,
+              "mean": 5.9125,
+              "median": 6.0,
+              "min": 3,
+              "n": 160,
+              "p10": 6.0,
+              "p25": 6.0,
+              "p75": 6.0,
+              "p90": 6.0
+            }
+          },
+          "mean_cost": {
+            "B4": 5.9875,
+            "B6": 5.9125
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -0.1375,
+              -0.01875
+            ],
+            "mean": -0.075
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 2
+            },
+            "B6 spent more": {
+              "credited_difference": null,
+              "own_correct_difference": null,
+              "worlds": 0
+            },
+            "within tolerance": {
+              "credited_difference": 0.4114,
+              "own_correct_difference": 0.2342,
+              "worlds": 158
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 1,
+            "mean": -0.075,
+            "median": 0.0,
+            "min": -3,
+            "n": 160,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 160,
+          "worlds_beyond_tolerance": 2,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "cap": 8,
+          "cost": {
+            "B4": {
+              "at_cap": 0.9187,
+              "max": 8,
+              "mean": 7.9125,
+              "median": 8.0,
+              "min": 6,
+              "n": 160,
+              "p10": 8.0,
+              "p25": 8.0,
+              "p75": 8.0,
+              "p90": 8.0
+            },
+            "B6": {
+              "at_cap": 0.9375,
+              "max": 8,
+              "mean": 7.8625,
+              "median": 8.0,
+              "min": 3,
+              "n": 160,
+              "p10": 8.0,
+              "p25": 8.0,
+              "p75": 8.0,
+              "p90": 8.0
+            }
+          },
+          "mean_cost": {
+            "B4": 7.9125,
+            "B6": 7.8625
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -0.16875,
+              0.05
+            ],
+            "mean": -0.05
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 7
+            },
+            "B6 spent more": {
+              "credited_difference": 1.0,
+              "own_correct_difference": 1.0,
+              "worlds": 1
+            },
+            "within tolerance": {
+              "credited_difference": 0.5066,
+              "own_correct_difference": 0.2237,
+              "worlds": 152
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 2,
+            "mean": -0.05,
+            "median": 0.0,
+            "min": -5,
+            "n": 160,
+            "p10": 0.0,
+            "p25": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 160,
+          "worlds_beyond_tolerance": 8,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "cap": 12,
+          "cost": {
+            "B4": {
+              "at_cap": 0.8187,
+              "max": 12,
+              "mean": 11.75,
+              "median": 12.0,
+              "min": 6,
+              "n": 160,
+              "p10": 11.0,
+              "p25": 12.0,
+              "p75": 12.0,
+              "p90": 12.0
+            },
+            "B6": {
+              "at_cap": 0.7125,
+              "max": 12,
+              "mean": 11.5125,
+              "median": 12.0,
+              "min": 3,
+              "n": 160,
+              "p10": 11.0,
+              "p25": 11.0,
+              "p75": 12.0,
+              "p90": 12.0
+            }
+          },
+          "mean_cost": {
+            "B4": 11.75,
+            "B6": 11.5125
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -0.4125,
+              -0.08125
+            ],
+            "mean": -0.2375
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": -0.4,
+              "worlds": 5
+            },
+            "B6 spent more": {
+              "credited_difference": null,
+              "own_correct_difference": null,
+              "worlds": 0
+            },
+            "within tolerance": {
+              "credited_difference": 0.7355,
+              "own_correct_difference": 0.1355,
+              "worlds": 155
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 1,
+            "mean": -0.2375,
+            "median": 0.0,
+            "min": -9,
+            "n": 160,
+            "p10": -1.0,
+            "p25": 0.0,
+            "p75": 0.0,
+            "p90": 0.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 160,
+          "worlds_beyond_tolerance": 5,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "cap": 24,
+          "cost": {
+            "B4": {
+              "at_cap": 0.1812,
+              "max": 24,
+              "mean": 21.15,
+              "median": 21.0,
+              "min": 6,
+              "n": 160,
+              "p10": 19.0,
+              "p25": 20.0,
+              "p75": 23.0,
+              "p90": 24.0
+            },
+            "B6": {
+              "at_cap": 0.1125,
+              "max": 24,
+              "mean": 20.275,
+              "median": 21.0,
+              "min": 3,
+              "n": 160,
+              "p10": 18.0,
+              "p25": 18.0,
+              "p75": 23.0,
+              "p90": 24.0
+            }
+          },
+          "mean_cost": {
+            "B4": 21.15,
+            "B6": 20.275
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -1.24375,
+              -0.5625
+            ],
+            "mean": -0.875
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.8421,
+              "own_correct_difference": -0.0526,
+              "worlds": 38
+            },
+            "B6 spent more": {
+              "credited_difference": 1.0,
+              "own_correct_difference": 0.0,
+              "worlds": 4
+            },
+            "within tolerance": {
+              "credited_difference": 0.9831,
+              "own_correct_difference": 0.0169,
+              "worlds": 118
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 3,
+            "mean": -0.875,
+            "median": -1.0,
+            "min": -19,
+            "n": 160,
+            "p10": -2.0,
+            "p25": -1.0,
+            "p75": 0.0,
+            "p90": 1.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 160,
+          "worlds_beyond_tolerance": 42,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "cap": 48,
+          "cost": {
+            "B4": {
+              "at_cap": 0.0,
+              "max": 45,
+              "mean": 22.375,
+              "median": 21.0,
+              "min": 6,
+              "n": 160,
+              "p10": 19.0,
+              "p25": 20.0,
+              "p75": 24.0,
+              "p90": 28.0
+            },
+            "B6": {
+              "at_cap": 0.0,
+              "max": 42,
+              "mean": 21.5875,
+              "median": 21.0,
+              "min": 3,
+              "n": 160,
+              "p10": 18.0,
+              "p25": 18.0,
+              "p75": 23.0,
+              "p90": 29.0
+            }
+          },
+          "mean_cost": {
+            "B4": 22.375,
+            "B6": 21.5875
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -1.2125,
+              -0.43125
+            ],
+            "mean": -0.7875
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.8605,
+              "own_correct_difference": -0.0465,
+              "worlds": 43
+            },
+            "B6 spent more": {
+              "credited_difference": 1.0,
+              "own_correct_difference": 0.0,
+              "worlds": 18
+            },
+            "within tolerance": {
+              "credited_difference": 0.9798,
+              "own_correct_difference": 0.0,
+              "worlds": 99
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 4,
+            "mean": -0.7875,
+            "median": 0.0,
+            "min": -19,
+            "n": 160,
+            "p10": -3.0,
+            "p25": -2.0,
+            "p75": 0.0,
+            "p90": 2.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 160,
+          "worlds_beyond_tolerance": 61,
+          "x": "B4",
+          "y": "B6"
+        }
+      ],
+      "per_world": [
+        {
+          "anchor_cap": 6,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.082278,
+                -0.006329
+              ],
+              "mean": -0.044304
+            },
+            "credited": {
+              "ci95": [
+                0.335443,
+                0.487342
+              ],
+              "mean": 0.411392
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.246835,
+                -0.126582
+              ],
+              "mean": -0.183544
+            },
+            "own_correct": {
+              "ci95": [
+                0.151899,
+                0.316456
+              ],
+              "mean": 0.234177
+            },
+            "own_error": {
+              "ci95": [
+                -0.018987,
+                0.0
+              ],
+              "mean": -0.006329
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 158,
+          "matched_caps_used": {
+            "B4": {
+              "6": 158
+            },
+            "B6": {
+              "6": 158
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.9304,
+            "max": 6,
+            "mean": 5.9304,
+            "median": 6.0,
+            "min": 5,
+            "n": 158,
+            "p10": 6.0,
+            "p25": 6.0,
+            "p75": 6.0,
+            "p90": 6.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.1835,
+              "own_correct": 0.1772,
+              "own_error": 0.0063,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.4114,
+              "errors_c5": 0.0,
+              "own_correct": 0.4114,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 2,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 2,
+          "unmatched_y_dearer": 0,
+          "worlds": 160,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "anchor_cap": 8,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.101266,
+                -0.012658
+              ],
+              "mean": -0.056962
+            },
+            "credited": {
+              "ci95": [
+                0.405063,
+                0.563291
+              ],
+              "mean": 0.487342
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.360759,
+                -0.221519
+              ],
+              "mean": -0.291139
+            },
+            "own_correct": {
+              "ci95": [
+                0.126582,
+                0.303797
+              ],
+              "mean": 0.21519
+            },
+            "own_error": {
+              "ci95": [
+                -0.044304,
+                0.0
+              ],
+              "mean": -0.018987
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 158,
+          "matched_caps_used": {
+            "B4": {
+              "6": 7,
+              "8": 151
+            },
+            "B6": {
+              "6": 12,
+              "8": 146
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.8734,
+            "max": 8,
+            "mean": 7.8354,
+            "median": 8.0,
+            "min": 6,
+            "n": 158,
+            "p10": 7.0,
+            "p25": 8.0,
+            "p75": 8.0,
+            "p90": 8.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.2911,
+              "own_correct": 0.2722,
+              "own_error": 0.019,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.4873,
+              "errors_c5": 0.0,
+              "own_correct": 0.4873,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 2,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 2,
+          "unmatched_y_dearer": 0,
+          "worlds": 160,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "anchor_cap": 12,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.159236,
+                0.006369
+              ],
+              "mean": -0.076433
+            },
+            "credited": {
+              "ci95": [
+                0.656051,
+                0.796178
+              ],
+              "mean": 0.726115
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.687898,
+                -0.535032
+              ],
+              "mean": -0.611465
+            },
+            "own_correct": {
+              "ci95": [
+                0.057325,
+                0.22293
+              ],
+              "mean": 0.133758
+            },
+            "own_error": {
+              "ci95": [
+                -0.044586,
+                0.0
+              ],
+              "mean": -0.019108
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 157,
+          "matched_caps_used": {
+            "B4": {
+              "12": 155,
+              "6": 1,
+              "8": 1
+            },
+            "B6": {
+              "12": 157
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.6306,
+            "max": 12,
+            "mean": 11.5287,
+            "median": 12.0,
+            "min": 6,
+            "n": 157,
+            "p10": 11.0,
+            "p25": 11.0,
+            "p75": 12.0,
+            "p90": 12.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.6115,
+              "own_correct": 0.5924,
+              "own_error": 0.0191,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.7261,
+              "errors_c5": 0.0,
+              "own_correct": 0.7261,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 3,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.3333,
+              "own_correct": 0.3333,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 0.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 3,
+          "unmatched_y_dearer": 0,
+          "worlds": 160,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "anchor_cap": 24,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.327731,
+                -0.07563
+              ],
+              "mean": -0.201681
+            },
+            "credited": {
+              "ci95": [
+                0.941176,
+                1.0
+              ],
+              "mean": 0.97479
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.991597,
+                -0.915966
+              ],
+              "mean": -0.957983
+            },
+            "own_correct": {
+              "ci95": [
+                0.0,
+                0.042017
+              ],
+              "mean": 0.016807
+            },
+            "own_error": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 119,
+          "matched_caps_used": {
+            "B4": {
+              "24": 118,
+              "6": 1
+            },
+            "B6": {
+              "24": 119
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.0924,
+            "max": 24,
+            "mean": 20.5882,
+            "median": 21.0,
+            "min": 6,
+            "n": 119,
+            "p10": 18.0,
+            "p25": 19.0,
+            "p75": 23.0,
+            "p90": 23.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.958,
+              "own_correct": 0.958,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.9748,
+              "errors_c5": 0.0,
+              "own_correct": 0.9748,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 41,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.9268,
+              "own_correct": 0.9268,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.878,
+              "errors_c5": 0.0,
+              "own_correct": 0.878,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 37,
+          "unmatched_y_dearer": 4,
+          "worlds": 160,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "anchor_cap": 48,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.342857,
+                -0.085714
+              ],
+              "mean": -0.219048
+            },
+            "credited": {
+              "ci95": [
+                0.933333,
+                1.0
+              ],
+              "mean": 0.971429
+            },
+            "errors_c5": {
+              "ci95": [
+                -1.0,
+                -0.933333
+              ],
+              "mean": -0.971429
+            },
+            "own_correct": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            },
+            "own_error": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 105,
+          "matched_caps_used": {
+            "B4": {
+              "24": 3,
+              "48": 101,
+              "6": 1
+            },
+            "B6": {
+              "24": 2,
+              "48": 103
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.0,
+            "max": 30,
+            "mean": 20.7143,
+            "median": 21.0,
+            "min": 6,
+            "n": 105,
+            "p10": 18.0,
+            "p25": 18.0,
+            "p75": 22.0,
+            "p90": 25.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.9714,
+              "own_correct": 0.9714,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.9714,
+              "errors_c5": 0.0,
+              "own_correct": 0.9714,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 55,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.9455,
+              "own_correct": 0.9455,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.9091,
+              "errors_c5": 0.0,
+              "own_correct": 0.9091,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 39,
+          "unmatched_y_dearer": 16,
+          "worlds": 160,
+          "x": "B4",
+          "y": "B6"
+        }
+      ]
+    }
+  },
+  "held_out_primary": {
+    "B5-B4": {
+      "mean_cost_contrast": [
+        {
+          "cap": 6,
+          "cost": {
+            "B4": {
+              "at_cap": 0.6923,
+              "max": 6,
+              "mean": 4.9462,
+              "median": 6.0,
+              "min": 2,
+              "n": 130,
+              "p10": 2.0,
+              "p25": 4.0,
+              "p75": 6.0,
+              "p90": 6.0
+            },
+            "B5": {
+              "at_cap": 0.4769,
+              "max": 6,
+              "mean": 5.2615,
+              "median": 5.0,
+              "min": 3,
+              "n": 130,
+              "p10": 4.0,
+              "p25": 5.0,
+              "p75": 6.0,
+              "p90": 6.0
+            }
+          },
+          "mean_cost": {
+            "B4": 4.9462,
+            "B5": 5.2615
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              0.061538,
+              0.576923
+            ],
+            "mean": 0.315385
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 1
+            },
+            "B5 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 21
+            },
+            "within tolerance": {
+              "credited_difference": 0.1296,
+              "own_correct_difference": 0.0093,
+              "worlds": 108
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 4,
+            "mean": 0.3154,
+            "median": 0.0,
+            "min": -2,
+            "n": 130,
+            "p10": -1.0,
+            "p25": -1.0,
+            "p75": 1.0,
+            "p90": 3.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 130,
+          "worlds_beyond_tolerance": 22,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "cap": 8,
+          "cost": {
+            "B4": {
+              "at_cap": 0.4692,
+              "max": 8,
+              "mean": 6.0462,
+              "median": 7.0,
+              "min": 2,
+              "n": 130,
+              "p10": 2.0,
+              "p25": 4.0,
+              "p75": 8.0,
+              "p90": 8.0
+            },
+            "B5": {
+              "at_cap": 0.4846,
+              "max": 8,
+              "mean": 6.8923,
+              "median": 7.0,
+              "min": 3,
+              "n": 130,
+              "p10": 4.0,
+              "p25": 6.0,
+              "p75": 8.0,
+              "p90": 8.0
+            }
+          },
+          "mean_cost": {
+            "B4": 6.0462,
+            "B5": 6.8923
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              0.530769,
+              1.184615
+            ],
+            "mean": 0.846154
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 8
+            },
+            "B5 spent more": {
+              "credited_difference": 0.1579,
+              "own_correct_difference": 0.0,
+              "worlds": 38
+            },
+            "within tolerance": {
+              "credited_difference": 0.131,
+              "own_correct_difference": -0.0119,
+              "worlds": 84
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 5,
+            "mean": 0.8462,
+            "median": 0.0,
+            "min": -4,
+            "n": 130,
+            "p10": -1.0,
+            "p25": 0.0,
+            "p75": 2.0,
+            "p90": 5.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 130,
+          "worlds_beyond_tolerance": 46,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "cap": 12,
+          "cost": {
+            "B4": {
+              "at_cap": 0.3385,
+              "max": 12,
+              "mean": 7.7846,
+              "median": 8.0,
+              "min": 2,
+              "n": 130,
+              "p10": 2.0,
+              "p25": 4.0,
+              "p75": 12.0,
+              "p90": 12.0
+            },
+            "B5": {
+              "at_cap": 0.2923,
+              "max": 12,
+              "mean": 9.0538,
+              "median": 10.0,
+              "min": 3,
+              "n": 130,
+              "p10": 4.0,
+              "p25": 7.0,
+              "p75": 12.0,
+              "p90": 12.0
+            }
+          },
+          "mean_cost": {
+            "B4": 7.7846,
+            "B5": 9.0538
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              0.784615,
+              1.753846
+            ],
+            "mean": 1.269231
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0909,
+              "worlds": 11
+            },
+            "B5 spent more": {
+              "credited_difference": 0.4,
+              "own_correct_difference": 0.0,
+              "worlds": 45
+            },
+            "within tolerance": {
+              "credited_difference": 0.1486,
+              "own_correct_difference": 0.0541,
+              "worlds": 74
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 9,
+            "mean": 1.2692,
+            "median": 1.0,
+            "min": -6,
+            "n": 130,
+            "p10": -1.0,
+            "p25": 0.0,
+            "p75": 2.0,
+            "p90": 5.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 130,
+          "worlds_beyond_tolerance": 56,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "cap": 24,
+          "cost": {
+            "B4": {
+              "at_cap": 0.0231,
+              "max": 24,
+              "mean": 9.9,
+              "median": 8.0,
+              "min": 2,
+              "n": 130,
+              "p10": 2.0,
+              "p25": 4.0,
+              "p75": 15.0,
+              "p90": 21.0
+            },
+            "B5": {
+              "at_cap": 0.0615,
+              "max": 24,
+              "mean": 11.1615,
+              "median": 11.0,
+              "min": 3,
+              "n": 130,
+              "p10": 4.0,
+              "p25": 7.0,
+              "p75": 14.0,
+              "p90": 17.0
+            }
+          },
+          "mean_cost": {
+            "B4": 9.9,
+            "B5": 11.1615
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              0.576923,
+              1.923077
+            ],
+            "mean": 1.261538
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 24
+            },
+            "B5 spent more": {
+              "credited_difference": 0.4286,
+              "own_correct_difference": 0.0,
+              "worlds": 56
+            },
+            "within tolerance": {
+              "credited_difference": 0.24,
+              "own_correct_difference": 0.02,
+              "worlds": 50
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 11,
+            "mean": 1.2615,
+            "median": 1.0,
+            "min": -10,
+            "n": 130,
+            "p10": -3.0,
+            "p25": -1.0,
+            "p75": 4.0,
+            "p90": 6.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 130,
+          "worlds_beyond_tolerance": 80,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "cap": 48,
+          "cost": {
+            "B4": {
+              "at_cap": 0.0,
+              "max": 39,
+              "mean": 10.2385,
+              "median": 8.0,
+              "min": 2,
+              "n": 130,
+              "p10": 2.0,
+              "p25": 4.0,
+              "p75": 15.0,
+              "p90": 21.0
+            },
+            "B5": {
+              "at_cap": 0.0,
+              "max": 39,
+              "mean": 12.0077,
+              "median": 11.0,
+              "min": 3,
+              "n": 130,
+              "p10": 4.0,
+              "p25": 7.0,
+              "p75": 15.0,
+              "p90": 22.0
+            }
+          },
+          "mean_cost": {
+            "B4": 10.2385,
+            "B5": 12.0077
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              1.184615,
+              2.415385
+            ],
+            "mean": 1.769231
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 15
+            },
+            "B5 spent more": {
+              "credited_difference": 0.4211,
+              "own_correct_difference": 0.0,
+              "worlds": 57
+            },
+            "within tolerance": {
+              "credited_difference": 0.2069,
+              "own_correct_difference": 0.0345,
+              "worlds": 58
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 16,
+            "mean": 1.7692,
+            "median": 1.0,
+            "min": -8,
+            "n": 130,
+            "p10": -2.0,
+            "p25": 0.0,
+            "p75": 4.0,
+            "p90": 6.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 130,
+          "worlds_beyond_tolerance": 72,
+          "x": "B4",
+          "y": "B5"
+        }
+      ],
+      "per_world": [
+        {
+          "anchor_cap": 6,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.388889,
+                -0.111111
+              ],
+              "mean": -0.25
+            },
+            "credited": {
+              "ci95": [
+                0.064815,
+                0.194444
+              ],
+              "mean": 0.12963
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.046296,
+                0.018519
+              ],
+              "mean": -0.009259
+            },
+            "own_correct": {
+              "ci95": [
+                -0.018519,
+                0.046296
+              ],
+              "mean": 0.009259
+            },
+            "own_error": {
+              "ci95": [
+                -0.046296,
+                0.018519
+              ],
+              "mean": -0.009259
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.027778
+              ],
+              "mean": 0.009259
+            }
+          },
+          "matched": 108,
+          "matched_caps_used": {
+            "B4": {
+              "6": 108
+            },
+            "B5": {
+              "6": 108
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.4167,
+            "max": 6,
+            "mean": 5.0741,
+            "median": 5.0,
+            "min": 2,
+            "n": 108,
+            "p10": 3.0,
+            "p25": 5.0,
+            "p75": 6.0,
+            "p90": 6.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0185,
+              "own_correct": 0.9815,
+              "own_error": 0.0185,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.1296,
+              "errors_c5": 0.0093,
+              "own_correct": 0.9907,
+              "own_error": 0.0093,
+              "supported_errors": 0.0093
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 22,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 1,
+          "unmatched_y_dearer": 21,
+          "worlds": 130,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "anchor_cap": 8,
+          "differences": {
+            "cost": {
+              "ci95": [
+                0.0,
+                0.231481
+              ],
+              "mean": 0.12037
+            },
+            "credited": {
+              "ci95": [
+                0.074074,
+                0.203704
+              ],
+              "mean": 0.138889
+            },
+            "errors_c5": {
+              "ci95": [
+                0.0,
+                0.092593
+              ],
+              "mean": 0.046296
+            },
+            "own_correct": {
+              "ci95": [
+                0.0,
+                0.027778
+              ],
+              "mean": 0.009259
+            },
+            "own_error": {
+              "ci95": [
+                -0.027778,
+                0.0
+              ],
+              "mean": -0.009259
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 108,
+          "matched_caps_used": {
+            "B4": {
+              "6": 22,
+              "8": 86
+            },
+            "B5": {
+              "6": 25,
+              "8": 83
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.3889,
+            "max": 8,
+            "mean": 6.5278,
+            "median": 7.0,
+            "min": 2,
+            "n": 108,
+            "p10": 4.0,
+            "p25": 6.0,
+            "p75": 8.0,
+            "p90": 8.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0093,
+              "own_correct": 0.9907,
+              "own_error": 0.0093,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.1389,
+              "errors_c5": 0.0556,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 22,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 1,
+          "unmatched_y_dearer": 21,
+          "worlds": 130,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "anchor_cap": 12,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.057143,
+                0.228571
+              ],
+              "mean": 0.095238
+            },
+            "credited": {
+              "ci95": [
+                0.07619,
+                0.219048
+              ],
+              "mean": 0.142857
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.038095,
+                0.07619
+              ],
+              "mean": 0.019048
+            },
+            "own_correct": {
+              "ci95": [
+                0.009524,
+                0.07619
+              ],
+              "mean": 0.038095
+            },
+            "own_error": {
+              "ci95": [
+                -0.07619,
+                -0.009524
+              ],
+              "mean": -0.038095
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 105,
+          "matched_caps_used": {
+            "B4": {
+              "12": 87,
+              "6": 6,
+              "8": 12
+            },
+            "B5": {
+              "12": 79,
+              "6": 19,
+              "8": 7
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.2381,
+            "max": 12,
+            "mean": 8.2857,
+            "median": 8.0,
+            "min": 2,
+            "n": 105,
+            "p10": 4.0,
+            "p25": 6.0,
+            "p75": 11.0,
+            "p90": 12.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0381,
+              "own_correct": 0.9619,
+              "own_error": 0.0381,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.1429,
+              "errors_c5": 0.0571,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 25,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.2,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 2,
+          "unmatched_y_dearer": 23,
+          "worlds": 130,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "anchor_cap": 24,
+          "differences": {
+            "cost": {
+              "ci95": [
+                0.022989,
+                0.344828
+              ],
+              "mean": 0.183908
+            },
+            "credited": {
+              "ci95": [
+                0.103448,
+                0.275862
+              ],
+              "mean": 0.183908
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.011494,
+                0.126437
+              ],
+              "mean": 0.057471
+            },
+            "own_correct": {
+              "ci95": [
+                0.0,
+                0.057471
+              ],
+              "mean": 0.022989
+            },
+            "own_error": {
+              "ci95": [
+                -0.057471,
+                0.0
+              ],
+              "mean": -0.022989
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.034483
+              ],
+              "mean": 0.011494
+            }
+          },
+          "matched": 87,
+          "matched_caps_used": {
+            "B4": {
+              "12": 9,
+              "24": 67,
+              "6": 4,
+              "8": 7
+            },
+            "B5": {
+              "12": 5,
+              "24": 56,
+              "6": 19,
+              "8": 7
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.023,
+            "max": 24,
+            "mean": 9.046,
+            "median": 7.0,
+            "min": 2,
+            "n": 87,
+            "p10": 2.0,
+            "p25": 6.0,
+            "p75": 12.0,
+            "p90": 16.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0345,
+              "own_correct": 0.9655,
+              "own_error": 0.0345,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.1839,
+              "errors_c5": 0.092,
+              "own_correct": 0.9885,
+              "own_error": 0.0115,
+              "supported_errors": 0.0115
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 43,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.1628,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 14,
+          "unmatched_y_dearer": 29,
+          "worlds": 130,
+          "x": "B4",
+          "y": "B5"
+        },
+        {
+          "anchor_cap": 48,
+          "differences": {
+            "cost": {
+              "ci95": [
+                0.040816,
+                0.346939
+              ],
+              "mean": 0.204082
+            },
+            "credited": {
+              "ci95": [
+                0.091837,
+                0.234694
+              ],
+              "mean": 0.163265
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.020408,
+                0.112245
+              ],
+              "mean": 0.040816
+            },
+            "own_correct": {
+              "ci95": [
+                0.0,
+                0.071429
+              ],
+              "mean": 0.030612
+            },
+            "own_error": {
+              "ci95": [
+                -0.071429,
+                0.0
+              ],
+              "mean": -0.030612
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.030612
+              ],
+              "mean": 0.010204
+            }
+          },
+          "matched": 98,
+          "matched_caps_used": {
+            "B4": {
+              "12": 8,
+              "24": 4,
+              "48": 75,
+              "6": 4,
+              "8": 7
+            },
+            "B5": {
+              "12": 5,
+              "24": 1,
+              "48": 66,
+              "6": 19,
+              "8": 7
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.0,
+            "max": 39,
+            "mean": 10.7755,
+            "median": 9.0,
+            "min": 2,
+            "n": 98,
+            "p10": 2.0,
+            "p25": 6.0,
+            "p75": 14.0,
+            "p90": 22.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0408,
+              "own_correct": 0.9592,
+              "own_error": 0.0408,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.1633,
+              "errors_c5": 0.0816,
+              "own_correct": 0.9898,
+              "own_error": 0.0102,
+              "supported_errors": 0.0102
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 32,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B5": {
+              "credited": 0.2188,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 3,
+          "unmatched_y_dearer": 29,
+          "worlds": 130,
+          "x": "B4",
+          "y": "B5"
+        }
+      ]
+    },
+    "B6-B4": {
+      "mean_cost_contrast": [
+        {
+          "cap": 6,
+          "cost": {
+            "B4": {
+              "at_cap": 0.6923,
+              "max": 6,
+              "mean": 4.9462,
+              "median": 6.0,
+              "min": 2,
+              "n": 130,
+              "p10": 2.0,
+              "p25": 4.0,
+              "p75": 6.0,
+              "p90": 6.0
+            },
+            "B6": {
+              "at_cap": 0.3846,
+              "max": 6,
+              "mean": 5.1692,
+              "median": 5.0,
+              "min": 3,
+              "n": 130,
+              "p10": 4.0,
+              "p25": 5.0,
+              "p75": 6.0,
+              "p90": 6.0
+            }
+          },
+          "mean_cost": {
+            "B4": 4.9462,
+            "B6": 5.1692
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              -0.030769,
+              0.5
+            ],
+            "mean": 0.223077
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 1
+            },
+            "B6 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 21
+            },
+            "within tolerance": {
+              "credited_difference": 0.1296,
+              "own_correct_difference": 0.0185,
+              "worlds": 108
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 4,
+            "mean": 0.2231,
+            "median": 0.0,
+            "min": -2,
+            "n": 130,
+            "p10": -1.0,
+            "p25": -1.0,
+            "p75": 1.0,
+            "p90": 3.0
+          },
+          "v13_basis_would_say": "COST_MATCHED",
+          "worlds": 130,
+          "worlds_beyond_tolerance": 22,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "cap": 8,
+          "cost": {
+            "B4": {
+              "at_cap": 0.4692,
+              "max": 8,
+              "mean": 6.0462,
+              "median": 7.0,
+              "min": 2,
+              "n": 130,
+              "p10": 2.0,
+              "p25": 4.0,
+              "p75": 8.0,
+              "p90": 8.0
+            },
+            "B6": {
+              "at_cap": 0.4385,
+              "max": 8,
+              "mean": 6.7769,
+              "median": 7.0,
+              "min": 3,
+              "n": 130,
+              "p10": 4.0,
+              "p25": 6.0,
+              "p75": 8.0,
+              "p90": 8.0
+            }
+          },
+          "mean_cost": {
+            "B4": 6.0462,
+            "B6": 6.7769
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              0.392308,
+              1.092308
+            ],
+            "mean": 0.730769
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 18
+            },
+            "B6 spent more": {
+              "credited_difference": 0.1579,
+              "own_correct_difference": 0.0,
+              "worlds": 38
+            },
+            "within tolerance": {
+              "credited_difference": 0.1486,
+              "own_correct_difference": 0.0135,
+              "worlds": 74
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 5,
+            "mean": 0.7308,
+            "median": 0.0,
+            "min": -4,
+            "n": 130,
+            "p10": -2.0,
+            "p25": 0.0,
+            "p75": 2.0,
+            "p90": 5.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 130,
+          "worlds_beyond_tolerance": 56,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "cap": 12,
+          "cost": {
+            "B4": {
+              "at_cap": 0.3385,
+              "max": 12,
+              "mean": 7.7846,
+              "median": 8.0,
+              "min": 2,
+              "n": 130,
+              "p10": 2.0,
+              "p25": 4.0,
+              "p75": 12.0,
+              "p90": 12.0
+            },
+            "B6": {
+              "at_cap": 0.1615,
+              "max": 12,
+              "mean": 8.7154,
+              "median": 9.0,
+              "min": 3,
+              "n": 130,
+              "p10": 4.0,
+              "p25": 7.0,
+              "p75": 11.0,
+              "p90": 12.0
+            }
+          },
+          "mean_cost": {
+            "B4": 7.7846,
+            "B6": 8.7154
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              0.361538,
+              1.5
+            ],
+            "mean": 0.930769
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0909,
+              "worlds": 22
+            },
+            "B6 spent more": {
+              "credited_difference": 0.383,
+              "own_correct_difference": 0.0,
+              "worlds": 47
+            },
+            "within tolerance": {
+              "credited_difference": 0.1803,
+              "own_correct_difference": 0.0492,
+              "worlds": 61
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 9,
+            "mean": 0.9308,
+            "median": 0.0,
+            "min": -6,
+            "n": 130,
+            "p10": -4.0,
+            "p25": -1.0,
+            "p75": 4.0,
+            "p90": 5.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 130,
+          "worlds_beyond_tolerance": 69,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "cap": 24,
+          "cost": {
+            "B4": {
+              "at_cap": 0.0231,
+              "max": 24,
+              "mean": 9.9,
+              "median": 8.0,
+              "min": 2,
+              "n": 130,
+              "p10": 2.0,
+              "p25": 4.0,
+              "p75": 15.0,
+              "p90": 21.0
+            },
+            "B6": {
+              "at_cap": 0.0077,
+              "max": 24,
+              "mean": 10.9308,
+              "median": 11.0,
+              "min": 3,
+              "n": 130,
+              "p10": 4.0,
+              "p25": 7.0,
+              "p75": 14.0,
+              "p90": 16.0
+            }
+          },
+          "mean_cost": {
+            "B4": 9.9,
+            "B6": 10.9308
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              0.323077,
+              1.715385
+            ],
+            "mean": 1.030769
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.0,
+              "worlds": 23
+            },
+            "B6 spent more": {
+              "credited_difference": 0.5273,
+              "own_correct_difference": 0.0,
+              "worlds": 55
+            },
+            "within tolerance": {
+              "credited_difference": 0.2308,
+              "own_correct_difference": 0.0192,
+              "worlds": 52
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 9,
+            "mean": 1.0308,
+            "median": 1.0,
+            "min": -10,
+            "n": 130,
+            "p10": -5.0,
+            "p25": -1.0,
+            "p75": 4.0,
+            "p90": 6.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 130,
+          "worlds_beyond_tolerance": 78,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "cap": 48,
+          "cost": {
+            "B4": {
+              "at_cap": 0.0,
+              "max": 39,
+              "mean": 10.2385,
+              "median": 8.0,
+              "min": 2,
+              "n": 130,
+              "p10": 2.0,
+              "p25": 4.0,
+              "p75": 15.0,
+              "p90": 21.0
+            },
+            "B6": {
+              "at_cap": 0.0,
+              "max": 37,
+              "mean": 11.8846,
+              "median": 11.0,
+              "min": 3,
+              "n": 130,
+              "p10": 4.0,
+              "p25": 7.0,
+              "p75": 16.0,
+              "p90": 19.0
+            }
+          },
+          "mean_cost": {
+            "B4": 10.2385,
+            "B6": 11.8846
+          },
+          "mean_cost_difference": {
+            "ci95": [
+              1.023077,
+              2.276923
+            ],
+            "mean": 1.646154
+          },
+          "outcome_by_cost_stratum": {
+            "B4 spent more": {
+              "credited_difference": 0.0,
+              "own_correct_difference": 0.1818,
+              "worlds": 11
+            },
+            "B6 spent more": {
+              "credited_difference": 0.5179,
+              "own_correct_difference": 0.0,
+              "worlds": 56
+            },
+            "within tolerance": {
+              "credited_difference": 0.1905,
+              "own_correct_difference": 0.0,
+              "worlds": 63
+            }
+          },
+          "per_world_cost_difference": {
+            "at_cap": null,
+            "max": 9,
+            "mean": 1.6462,
+            "median": 1.0,
+            "min": -14,
+            "n": 130,
+            "p10": -1.0,
+            "p25": 0.0,
+            "p75": 4.0,
+            "p90": 6.0
+          },
+          "v13_basis_would_say": "COST_UNMATCHED",
+          "worlds": 130,
+          "worlds_beyond_tolerance": 67,
+          "x": "B4",
+          "y": "B6"
+        }
+      ],
+      "per_world": [
+        {
+          "anchor_cap": 6,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.490741,
+                -0.231481
+              ],
+              "mean": -0.361111
+            },
+            "credited": {
+              "ci95": [
+                0.064815,
+                0.194444
+              ],
+              "mean": 0.12963
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.046296,
+                0.0
+              ],
+              "mean": -0.018519
+            },
+            "own_correct": {
+              "ci95": [
+                0.0,
+                0.046296
+              ],
+              "mean": 0.018519
+            },
+            "own_error": {
+              "ci95": [
+                -0.046296,
+                0.0
+              ],
+              "mean": -0.018519
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 108,
+          "matched_caps_used": {
+            "B4": {
+              "6": 108
+            },
+            "B6": {
+              "6": 108
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.3148,
+            "max": 6,
+            "mean": 4.9722,
+            "median": 5.0,
+            "min": 2,
+            "n": 108,
+            "p10": 3.0,
+            "p25": 5.0,
+            "p75": 6.0,
+            "p90": 6.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0185,
+              "own_correct": 0.9815,
+              "own_error": 0.0185,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.1296,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 22,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 1,
+          "unmatched_y_dearer": 21,
+          "worlds": 130,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "anchor_cap": 8,
+          "differences": {
+            "cost": {
+              "ci95": [
+                0.018519,
+                0.240741
+              ],
+              "mean": 0.12963
+            },
+            "credited": {
+              "ci95": [
+                0.074074,
+                0.203704
+              ],
+              "mean": 0.138889
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.046296,
+                0.0
+              ],
+              "mean": -0.018519
+            },
+            "own_correct": {
+              "ci95": [
+                0.0,
+                0.046296
+              ],
+              "mean": 0.018519
+            },
+            "own_error": {
+              "ci95": [
+                -0.046296,
+                0.0
+              ],
+              "mean": -0.018519
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 108,
+          "matched_caps_used": {
+            "B4": {
+              "6": 29,
+              "8": 79
+            },
+            "B6": {
+              "6": 25,
+              "8": 83
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.3148,
+            "max": 8,
+            "mean": 6.3704,
+            "median": 7.0,
+            "min": 2,
+            "n": 108,
+            "p10": 4.0,
+            "p25": 6.0,
+            "p75": 8.0,
+            "p90": 8.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0185,
+              "own_correct": 0.9815,
+              "own_error": 0.0185,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.1389,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 22,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 1,
+          "unmatched_y_dearer": 21,
+          "worlds": 130,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "anchor_cap": 12,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.125,
+                0.163462
+              ],
+              "mean": 0.019231
+            },
+            "credited": {
+              "ci95": [
+                0.076923,
+                0.211538
+              ],
+              "mean": 0.144231
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.067308,
+                0.0
+              ],
+              "mean": -0.028846
+            },
+            "own_correct": {
+              "ci95": [
+                0.0,
+                0.067308
+              ],
+              "mean": 0.028846
+            },
+            "own_error": {
+              "ci95": [
+                -0.067308,
+                0.0
+              ],
+              "mean": -0.028846
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            }
+          },
+          "matched": 104,
+          "matched_caps_used": {
+            "B4": {
+              "12": 77,
+              "6": 4,
+              "8": 23
+            },
+            "B6": {
+              "12": 77,
+              "6": 21,
+              "8": 6
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.0962,
+            "max": 12,
+            "mean": 7.8173,
+            "median": 8.0,
+            "min": 2,
+            "n": 104,
+            "p10": 4.0,
+            "p25": 6.0,
+            "p75": 11.0,
+            "p90": 11.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0288,
+              "own_correct": 0.9712,
+              "own_error": 0.0288,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.1442,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 26,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.1923,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 2,
+          "unmatched_y_dearer": 24,
+          "worlds": 130,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "anchor_cap": 24,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.072289,
+                0.277108
+              ],
+              "mean": 0.108434
+            },
+            "credited": {
+              "ci95": [
+                0.108434,
+                0.277108
+              ],
+              "mean": 0.192771
+            },
+            "errors_c5": {
+              "ci95": [
+                -0.036145,
+                0.0
+              ],
+              "mean": -0.012048
+            },
+            "own_correct": {
+              "ci95": [
+                0.0,
+                0.036145
+              ],
+              "mean": 0.012048
+            },
+            "own_error": {
+              "ci95": [
+                -0.036145,
+                0.0
+              ],
+              "mean": -0.012048
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.036145
+              ],
+              "mean": 0.012048
+            }
+          },
+          "matched": 83,
+          "matched_caps_used": {
+            "B4": {
+              "12": 2,
+              "24": 72,
+              "6": 2,
+              "8": 7
+            },
+            "B6": {
+              "12": 4,
+              "24": 52,
+              "6": 21,
+              "8": 6
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.012,
+            "max": 24,
+            "mean": 8.8072,
+            "median": 7.0,
+            "min": 2,
+            "n": 83,
+            "p10": 2.0,
+            "p25": 6.0,
+            "p75": 13.0,
+            "p90": 15.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0241,
+              "own_correct": 0.9759,
+              "own_error": 0.0241,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.1928,
+              "errors_c5": 0.012,
+              "own_correct": 0.988,
+              "own_error": 0.012,
+              "supported_errors": 0.012
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 47,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.1915,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 19,
+          "unmatched_y_dearer": 28,
+          "worlds": 130,
+          "x": "B4",
+          "y": "B6"
+        },
+        {
+          "anchor_cap": 48,
+          "differences": {
+            "cost": {
+              "ci95": [
+                -0.010526,
+                0.305263
+              ],
+              "mean": 0.147368
+            },
+            "credited": {
+              "ci95": [
+                0.094737,
+                0.252632
+              ],
+              "mean": 0.168421
+            },
+            "errors_c5": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            },
+            "own_correct": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            },
+            "own_error": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean": 0.0
+            },
+            "supported_errors": {
+              "ci95": [
+                0.0,
+                0.031579
+              ],
+              "mean": 0.010526
+            }
+          },
+          "matched": 95,
+          "matched_caps_used": {
+            "B4": {
+              "12": 1,
+              "24": 3,
+              "48": 82,
+              "6": 2,
+              "8": 7
+            },
+            "B6": {
+              "12": 4,
+              "48": 64,
+              "6": 21,
+              "8": 6
+            }
+          },
+          "matched_cost_point": {
+            "at_cap": 0.0,
+            "max": 25,
+            "mean": 10.3368,
+            "median": 9.0,
+            "min": 2,
+            "n": 95,
+            "p10": 2.0,
+            "p25": 6.0,
+            "p75": 14.0,
+            "p90": 19.0
+          },
+          "matched_means": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0105,
+              "own_correct": 0.9895,
+              "own_error": 0.0105,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.1684,
+              "errors_c5": 0.0105,
+              "own_correct": 0.9895,
+              "own_error": 0.0105,
+              "supported_errors": 0.0105
+            }
+          },
+          "tolerance": 1,
+          "unmatched": 35,
+          "unmatched_means_at_anchor": {
+            "B4": {
+              "credited": 0.0,
+              "errors_c5": 0.0571,
+              "own_correct": 0.9429,
+              "own_error": 0.0571,
+              "supported_errors": 0.0
+            },
+            "B6": {
+              "credited": 0.2571,
+              "errors_c5": 0.0,
+              "own_correct": 1.0,
+              "own_error": 0.0,
+              "supported_errors": 0.0
+            }
+          },
+          "unmatched_x_dearer": 6,
+          "unmatched_y_dearer": 29,
+          "worlds": 130,
+          "x": "B4",
+          "y": "B6"
+        }
+      ]
+    }
+  },
+  "resamples": 2000,
+  "rows_sha256": {
+    "benchmark_3729592000_rows.json": "056b63cf5e659e95eaf1640774bd2350fdb5ed57559c287683bf9426d3923b10",
+    "control_3218044000_rows.json": "b963e6c53a520c229c7e8c50d3a9606e655a9495a5a1a4f0e71683702f3140d6",
+    "held_out_3218044000_rows.json": "8a62f3eee286f5437b5e6922fb76e38be2771b8b5bcddd11c92e9d7dd0b8d28c"
+  },
+  "source": "docs/audit/discovery-safety-v1.3-2026-11-11/evidence",
+  "tolerance": 1
+}

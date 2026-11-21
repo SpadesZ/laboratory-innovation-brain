@@ -1,0 +1,72 @@
+# Discovery safety v1.4 development log (DEVELOPMENT SEEDS ONLY; nothing here is held-out)
+
+## A. Residual false endorsements of v1.3 (seeds of round 4, development data now)
+Reproduced on unchanged v1.3 in tests/unit/test_discovery_safety_v14_reproduction.py (commits 6c0f698, 06bc7d6).
+Root cause 1 (all four): a rival counted as closed because a passed registration of the answer SEPARATED the predictions, while the rival's own evaluator prediction passed the same runs:
+  leakage.substrate-06 b24: cutback test, scatter.sidewall p=0.022 passes; rival chain.polarization_drift p=0.186 and 'no effect' p=0.186 pass too (separation 3.41).
+  noise_glitch-06 b8: baseline test, claim laser_drift+gap_small p=0.013; simpler rival laser_drift p=0.48 passes.
+  noise_only_null-04 b8: gap_array test, claim gap_large p=0.012; 'no effect' p=0.55 passes.
+Root cause 2: grammar shapes ignored by the open-rival check:
+  width_wide-03 b8 (aliased): thickness claimed; catalog rivals were legitimately refuted, but all 270 adequate grammar shapes (single causes, many two-channel compositions) predict a power-sweep/width-array response >=3 SD away; power_sweep and width_array never run.
+  leakage.substrate-06: 648 adequate grammar shapes separated (e.g. on cutback).
+Root cause 2b (found during development, base 8000000): geometry.gap_small-01 b12, 'no effect' SUPPORTED with kappa 1.3, 1.1, 2.7 (sigma 1): 'no effect' was held only against catalog classes at smallest declared effects; 543 adequate grammar shapes fitted >=3 SD from zero.
+
+## B. Development runs of B4/B6/B7 under the v1.4 evaluator (in-process, PYTHONHASHSEED=12345)
+### B1. before the 'no effect' grammar rule (8000000 per 3, caps 12,24)
+DEVELOPMENT held_out 8000000 primary b12 B4 n=39: exact 0 indist 0 new 0 proposal 0 unsupported 4 abstain-ok 35 false-null 0 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 4 | own correct 35 own error 4 | cost mean 7.7436 median 7.0 p90 12.0 at-cap 0.2821
+DEVELOPMENT held_out 8000000 aliased b12 B4 n=9: exact 0 indist 0 new 0 proposal 0 unsupported 5 abstain-ok 0 false-null 4 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 5 | own correct 5 own error 0 | cost mean 11.3333 median 12.0 p90 12.0 at-cap 0.6667
+DEVELOPMENT held_out 8000000 primary b12 B6 n=39: exact 0 indist 0 new 3 proposal 0 unsupported 9 abstain-ok 26 false-null 0 force-fit 1 wrong 0 | supported 4 (v1.3 rule 13) errors 10 | own correct 37 own error 2 | cost mean 8.4872 median 8.0 p90 12.0 at-cap 0.2051
+DEVELOPMENT held_out 8000000 aliased b12 B6 n=9: exact 0 indist 0 new 0 proposal 0 unsupported 1 abstain-ok 0 false-null 8 force-fit 0 wrong 0 | supported 0 (v1.3 rule 1) errors 1 | own correct 1 own error 0 | cost mean 11.1111 median 12.0 p90 12.0 at-cap 0.5556
+DEVELOPMENT held_out 8000000 primary b12 B7 n=39: exact 0 indist 0 new 3 proposal 0 unsupported 0 abstain-ok 35 false-null 0 force-fit 1 wrong 0 | supported 4 (v1.3 rule 4) errors 1 | own correct 38 own error 1 | cost mean 8.3846 median 8.0 p90 12.0 at-cap 0.1538
+DEVELOPMENT held_out 8000000 aliased b12 B7 n=9: exact 0 indist 0 new 0 proposal 0 unsupported 0 abstain-ok 0 false-null 9 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 0 | own correct 0 own error 0 | cost mean 11.1111 median 12.0 p90 12.0 at-cap 0.5556
+DEVELOPMENT held_out 8000000 primary b24 B4 n=39: exact 0 indist 0 new 0 proposal 0 unsupported 1 abstain-ok 38 false-null 0 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 1 | own correct 38 own error 1 | cost mean 9.6923 median 7.0 p90 21.0 at-cap 0.0256
+DEVELOPMENT held_out 8000000 aliased b24 B4 n=9: exact 0 indist 0 new 0 proposal 0 unsupported 6 abstain-ok 0 false-null 3 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 6 | own correct 6 own error 0 | cost mean 17.5556 median 20.0 p90 24.0 at-cap 0.1111
+DEVELOPMENT held_out 8000000 primary b24 B6 n=39: exact 0 indist 0 new 3 proposal 0 unsupported 9 abstain-ok 27 false-null 0 force-fit 0 wrong 0 | supported 3 (v1.3 rule 12) errors 9 | own correct 38 own error 1 | cost mean 10.3077 median 10.0 p90 16.0 at-cap 0.0
+DEVELOPMENT held_out 8000000 aliased b24 B6 n=9: exact 0 indist 2 new 0 proposal 0 unsupported 4 abstain-ok 0 false-null 3 force-fit 0 wrong 0 | supported 2 (v1.3 rule 6) errors 4 | own correct 6 own error 0 | cost mean 18.5556 median 22.0 p90 24.0 at-cap 0.2222
+DEVELOPMENT held_out 8000000 primary b24 B7 n=39: exact 0 indist 0 new 3 proposal 0 unsupported 0 abstain-ok 36 false-null 0 force-fit 0 wrong 0 | supported 3 (v1.3 rule 3) errors 0 | own correct 39 own error 0 | cost mean 10.2308 median 10.0 p90 16.0 at-cap 0.0
+DEVELOPMENT held_out 8000000 aliased b24 B7 n=9: exact 0 indist 3 new 0 proposal 0 unsupported 0 abstain-ok 0 false-null 6 force-fit 0 wrong 0 | supported 3 (v1.3 rule 3) errors 0 | own correct 3 own error 0 | cost mean 19.1111 median 23.0 p90 24.0 at-cap 0.4444
+  B6 FORCE_FIT held_out held_out-geometry.gap_small-01 b12: CATALOG_CLAIM ['hyp:null'] (NO_EFFECT_BEYOND_NOISE)
+  B7 FORCE_FIT held_out held_out-geometry.gap_small-01 b12: CATALOG_CLAIM ['hyp:null'] (NO_EFFECT_BEYOND_NOISE)
+DEVELOPMENT control 8000000 all b12 B4 n=48: exact 0 indist 0 new 0 proposal 0 unsupported 33 abstain-ok 0 false-null 15 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 33 | own correct 33 own error 0 | cost mean 11.8333 median 12.0 p90 12.0 at-cap 0.8333
+DEVELOPMENT control 8000000 all b12 B6 n=48: exact 11 indist 0 new 0 proposal 0 unsupported 22 abstain-ok 0 false-null 15 force-fit 0 wrong 0 | supported 11 (v1.3 rule 33) errors 22 | own correct 33 own error 0 | cost mean 11.8125 median 12.0 p90 12.0 at-cap 0.8125
+DEVELOPMENT control 8000000 all b12 B7 n=48: exact 12 indist 0 new 0 proposal 0 unsupported 0 abstain-ok 0 false-null 36 force-fit 0 wrong 0 | supported 12 (v1.3 rule 12) errors 0 | own correct 12 own error 0 | cost mean 11.9583 median 12.0 p90 12.0 at-cap 0.9583
+DEVELOPMENT control 8000000 all b24 B4 n=48: exact 0 indist 0 new 0 proposal 0 unsupported 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 48 | own correct 48 own error 0 | cost mean 21.4792 median 21.0 p90 24.0 at-cap 0.1458
+DEVELOPMENT control 8000000 all b24 B6 n=48: exact 21 indist 0 new 0 proposal 0 unsupported 26 abstain-ok 0 false-null 1 force-fit 0 wrong 0 | supported 21 (v1.3 rule 47) errors 26 | own correct 47 own error 0 | cost mean 20.9583 median 22.0 p90 24.0 at-cap 0.1042
+DEVELOPMENT control 8000000 all b24 B7 n=48: exact 35 indist 0 new 0 proposal 0 unsupported 0 abstain-ok 0 false-null 13 force-fit 0 wrong 0 | supported 35 (v1.3 rule 35) errors 0 | own correct 35 own error 0 | cost mean 22.7292 median 23.0 p90 24.0 at-cap 0.4792
+
+### B2. final rule: benchmark 3729592000 per 4 (caps 8,12,24)
+DEVELOPMENT benchmark 3729592000 all b8 B4 n=32: exact 0 indist 0 new 0 proposal 0 unsupported 7 abstain-ok 4 false-null 21 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 7 | own correct 11 own error 0 | cost mean 7.7188 median 8.0 p90 8.0 at-cap 0.8438
+DEVELOPMENT benchmark 3729592000 all b8 B6 n=32: exact 3 indist 0 new 0 proposal 0 unsupported 4 abstain-ok 4 false-null 21 force-fit 0 wrong 0 | supported 3 (v1.3 rule 7) errors 4 | own correct 11 own error 0 | cost mean 7.4688 median 8.0 p90 8.0 at-cap 0.75
+DEVELOPMENT benchmark 3729592000 all b8 B7 n=32: exact 3 indist 0 new 0 proposal 0 unsupported 0 abstain-ok 4 false-null 25 force-fit 0 wrong 0 | supported 3 (v1.3 rule 3) errors 0 | own correct 7 own error 0 | cost mean 7.4688 median 8.0 p90 8.0 at-cap 0.75
+DEVELOPMENT benchmark 3729592000 all b12 B4 n=32: exact 0 indist 0 new 0 proposal 0 unsupported 20 abstain-ok 4 false-null 8 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 20 | own correct 23 own error 1 | cost mean 11.25 median 12.0 p90 12.0 at-cap 0.875
+DEVELOPMENT benchmark 3729592000 all b12 B6 n=32: exact 6 indist 0 new 0 proposal 0 unsupported 7 abstain-ok 4 false-null 15 force-fit 0 wrong 0 | supported 6 (v1.3 rule 13) errors 7 | own correct 17 own error 0 | cost mean 11.125 median 12.0 p90 12.0 at-cap 0.625
+DEVELOPMENT benchmark 3729592000 all b12 B7 n=32: exact 6 indist 0 new 0 proposal 0 unsupported 0 abstain-ok 4 false-null 22 force-fit 0 wrong 0 | supported 6 (v1.3 rule 6) errors 0 | own correct 10 own error 0 | cost mean 11.25 median 12.0 p90 12.0 at-cap 0.75
+DEVELOPMENT benchmark 3729592000 all b24 B4 n=32: exact 0 indist 0 new 0 proposal 0 unsupported 27 abstain-ok 4 false-null 1 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 27 | own correct 31 own error 0 | cost mean 19.1562 median 21.0 p90 23.0 at-cap 0.0625
+DEVELOPMENT benchmark 3729592000 all b24 B6 n=32: exact 13 indist 0 new 0 proposal 0 unsupported 11 abstain-ok 4 false-null 4 force-fit 0 wrong 0 | supported 13 (v1.3 rule 24) errors 11 | own correct 28 own error 0 | cost mean 18.8438 median 20.0 p90 24.0 at-cap 0.125
+DEVELOPMENT benchmark 3729592000 all b24 B7 n=32: exact 19 indist 0 new 0 proposal 0 unsupported 0 abstain-ok 4 false-null 9 force-fit 0 wrong 0 | supported 19 (v1.3 rule 19) errors 0 | own correct 23 own error 0 | cost mean 20.4375 median 22.0 p90 24.0 at-cap 0.25
+
+### B3. final rule: 8000000 per 3 (caps 12,24)
+DEVELOPMENT held_out 8000000 primary b12 B4 n=39: exact 0 indist 0 new 0 proposal 0 unsupported 4 abstain-ok 35 false-null 0 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 4 | own correct 35 own error 4 | cost mean 7.7436 median 7.0 p90 12.0 at-cap 0.2821
+DEVELOPMENT held_out 8000000 aliased b12 B4 n=9: exact 0 indist 0 new 0 proposal 0 unsupported 5 abstain-ok 0 false-null 4 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 5 | own correct 5 own error 0 | cost mean 11.3333 median 12.0 p90 12.0 at-cap 0.6667
+DEVELOPMENT held_out 8000000 primary b12 B6 n=39: exact 0 indist 0 new 3 proposal 0 unsupported 10 abstain-ok 26 false-null 0 force-fit 0 wrong 0 | supported 3 (v1.3 rule 13) errors 10 | own correct 37 own error 2 | cost mean 8.4872 median 8.0 p90 12.0 at-cap 0.2051
+DEVELOPMENT held_out 8000000 aliased b12 B6 n=9: exact 0 indist 0 new 0 proposal 0 unsupported 1 abstain-ok 0 false-null 8 force-fit 0 wrong 0 | supported 0 (v1.3 rule 1) errors 1 | own correct 1 own error 0 | cost mean 11.1111 median 12.0 p90 12.0 at-cap 0.5556
+DEVELOPMENT held_out 8000000 primary b12 B7 n=39: exact 0 indist 0 new 3 proposal 0 unsupported 0 abstain-ok 36 false-null 0 force-fit 0 wrong 0 | supported 3 (v1.3 rule 3) errors 0 | own correct 39 own error 0 | cost mean 8.3846 median 8.0 p90 12.0 at-cap 0.1538
+DEVELOPMENT held_out 8000000 aliased b12 B7 n=9: exact 0 indist 0 new 0 proposal 0 unsupported 0 abstain-ok 0 false-null 9 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 0 | own correct 0 own error 0 | cost mean 11.1111 median 12.0 p90 12.0 at-cap 0.5556
+DEVELOPMENT held_out 8000000 primary b24 B4 n=39: exact 0 indist 0 new 0 proposal 0 unsupported 1 abstain-ok 38 false-null 0 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 1 | own correct 38 own error 1 | cost mean 9.6923 median 7.0 p90 21.0 at-cap 0.0256
+DEVELOPMENT held_out 8000000 aliased b24 B4 n=9: exact 0 indist 0 new 0 proposal 0 unsupported 6 abstain-ok 0 false-null 3 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 6 | own correct 6 own error 0 | cost mean 17.5556 median 20.0 p90 24.0 at-cap 0.1111
+DEVELOPMENT held_out 8000000 primary b24 B6 n=39: exact 0 indist 0 new 3 proposal 0 unsupported 9 abstain-ok 27 false-null 0 force-fit 0 wrong 0 | supported 3 (v1.3 rule 12) errors 9 | own correct 38 own error 1 | cost mean 10.3077 median 10.0 p90 16.0 at-cap 0.0
+DEVELOPMENT held_out 8000000 aliased b24 B6 n=9: exact 0 indist 2 new 0 proposal 0 unsupported 4 abstain-ok 0 false-null 3 force-fit 0 wrong 0 | supported 2 (v1.3 rule 6) errors 4 | own correct 6 own error 0 | cost mean 18.5556 median 22.0 p90 24.0 at-cap 0.2222
+DEVELOPMENT held_out 8000000 primary b24 B7 n=39: exact 0 indist 0 new 3 proposal 0 unsupported 0 abstain-ok 36 false-null 0 force-fit 0 wrong 0 | supported 3 (v1.3 rule 3) errors 0 | own correct 39 own error 0 | cost mean 10.2308 median 10.0 p90 16.0 at-cap 0.0
+DEVELOPMENT held_out 8000000 aliased b24 B7 n=9: exact 0 indist 3 new 0 proposal 0 unsupported 0 abstain-ok 0 false-null 6 force-fit 0 wrong 0 | supported 3 (v1.3 rule 3) errors 0 | own correct 3 own error 0 | cost mean 19.1111 median 23.0 p90 24.0 at-cap 0.4444
+DEVELOPMENT control 8000000 all b12 B4 n=48: exact 0 indist 0 new 0 proposal 0 unsupported 33 abstain-ok 0 false-null 15 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 33 | own correct 33 own error 0 | cost mean 11.8333 median 12.0 p90 12.0 at-cap 0.8333
+DEVELOPMENT control 8000000 all b12 B6 n=48: exact 11 indist 0 new 0 proposal 0 unsupported 22 abstain-ok 0 false-null 15 force-fit 0 wrong 0 | supported 11 (v1.3 rule 33) errors 22 | own correct 33 own error 0 | cost mean 11.8125 median 12.0 p90 12.0 at-cap 0.8125
+DEVELOPMENT control 8000000 all b12 B7 n=48: exact 12 indist 0 new 0 proposal 0 unsupported 0 abstain-ok 0 false-null 36 force-fit 0 wrong 0 | supported 12 (v1.3 rule 12) errors 0 | own correct 12 own error 0 | cost mean 11.9583 median 12.0 p90 12.0 at-cap 0.9583
+DEVELOPMENT control 8000000 all b24 B4 n=48: exact 0 indist 0 new 0 proposal 0 unsupported 48 abstain-ok 0 false-null 0 force-fit 0 wrong 0 | supported 0 (v1.3 rule 0) errors 48 | own correct 48 own error 0 | cost mean 21.4792 median 21.0 p90 24.0 at-cap 0.1458
+DEVELOPMENT control 8000000 all b24 B6 n=48: exact 21 indist 0 new 0 proposal 0 unsupported 26 abstain-ok 0 false-null 1 force-fit 0 wrong 0 | supported 21 (v1.3 rule 47) errors 26 | own correct 47 own error 0 | cost mean 20.9583 median 22.0 p90 24.0 at-cap 0.1042
+DEVELOPMENT control 8000000 all b24 B7 n=48: exact 35 indist 0 new 0 proposal 0 unsupported 0 abstain-ok 0 false-null 13 force-fit 0 wrong 0 | supported 35 (v1.3 rule 35) errors 0 | own correct 35 own error 0 | cost mean 22.7292 median 23.0 p90 24.0 at-cap 0.4792
+
+## C. Hidden-world scaffold on the EXAMPLE file only (development run, out of the repository)
+Ran --hidden-example to a scratch directory: 8 example worlds, every arm and cap, boundary mode; reveal verified.
+
+## D. Mutation battery (v1.4 entries)
+First run 9/10 killed: safety_v14_failed_claim_test_closes_rival SURVIVED (no test had an answer failing the closing test). Added test_a_test_the_answer_itself_failed_closes_no_rival; re-run 1/1 killed (10/10).
