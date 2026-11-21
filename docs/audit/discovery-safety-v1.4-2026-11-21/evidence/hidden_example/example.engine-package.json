@@ -1,0 +1,76 @@
+{
+  "cases": [
+    {
+      "case_id": "case-0046d59a25b9",
+      "public": {
+        "removed": []
+      }
+    },
+    {
+      "case_id": "case-0e2f5281992d",
+      "public": {
+        "removed": []
+      }
+    },
+    {
+      "case_id": "case-5d6d62099780",
+      "public": {
+        "removed": []
+      }
+    },
+    {
+      "case_id": "case-7bdd784ce67e",
+      "public": {
+        "removed": [
+          [
+            "width_array",
+            "this die carries a single ring width"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "case-a82ea0e81435",
+      "public": {
+        "removed": []
+      }
+    },
+    {
+      "case_id": "case-ae3c12c8df5b",
+      "public": {
+        "removed": []
+      }
+    },
+    {
+      "case_id": "case-e477bea486a9",
+      "public": {
+        "removed": []
+      }
+    },
+    {
+      "case_id": "case-fe5a7784e6ad",
+      "public": {
+        "removed": []
+      }
+    }
+  ],
+  "commitments": {
+    "case-0046d59a25b9": "ea1a98acdf8d3e5af7cd6b2ac187b73e27ea1a79886a9b5763e2b04041224dc8",
+    "case-0e2f5281992d": "757d5c83a6bfe722860c2cd03f6031418938072999e351ef093d1592e6ca0a51",
+    "case-5d6d62099780": "5099dc2e3d72c4f12d6405159dafb0bb35459438ed015c2807e961c3e0348c2e",
+    "case-7bdd784ce67e": "af595c84df5bb560ff0ba6cde4d7ef77cea76dc9fd46885d95dd122dab7b8ab9",
+    "case-a82ea0e81435": "84f68b9eb700aa7523c126b6a8d2d2431e918a2f573ba6ce7477e822d0264201",
+    "case-ae3c12c8df5b": "a57c648f7aeeada468bbd312f51e343f5326aa369680d0cdc17448d2447cdae9",
+    "case-e477bea486a9": "ac62c83eec05b7780daab9811ed93c037007eb480b9101a44a3801859c0229ab",
+    "case-fe5a7784e6ad": "afb78077643ef1f51de46437ab19fc5bc20bdfb61a2ec15ecb04efae85fda73d"
+  },
+  "example_only": true,
+  "interface": {
+    "catalog_digest": "sha256:69c86963d6e1ae31832208530654539a9283bded6638cad8f0877848553d9119",
+    "catalog_ref": "sp.ring_drift_loss.discovery@0.1.0",
+    "motivating_experiment": "baseline"
+  },
+  "kind": "lab-brain/discovery-engine-cases@1",
+  "root": "sha256:571fef5bdbe2376621d2912588148b01ac98b3b1b047c861717e38ec5501dd00",
+  "suite": "format-example"
+}
