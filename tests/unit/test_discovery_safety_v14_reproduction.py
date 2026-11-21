@@ -198,3 +198,23 @@ def test_root_cause_2_an_adequate_grammar_alternative_is_ignored(world_id, cap, 
     assert separated
     v = verdict(rescorer, events, rescore(rescorer, events), h.fingerprint)
     assert v.supported and not any(r.startswith("grammar") for r in v.open_rivals)
+
+
+def test_root_cause_2b_no_effect_is_supported_beside_a_clear_grammar_expressible_effect():
+    """Found on development seeds while building v1.4 (base 8_000_000, family removed): on
+    `geometry.gap_small-01` at cap 12 B6 endorses "no effect" at SUPPORTED although kappa reads
+    1.3, 1.1, 2.7 (sigma 1) and adequate grammar shapes fit that shift >= 3 combined SD from zero;
+    v1.3 holds "no effect" only against catalog classes at their smallest declared effects, and
+    the arm's catalog lacks the coupling family."""
+    s = script()
+    worlds = held_out.held_out_worlds(
+        s.ring_catalog(), seeds_per_class=3, base_seed=8_000_000, protocol=DISCOVERY
+    )
+    case = s.held_out_case(
+        next(w for w in worlds if w.spec.world_id == "held_out-geometry.gap_small-01"), True
+    )
+    record = ev.Evaluator(s._execute_in_process, s.GRAMMAR, EVALUATOR_RULE, ("B6",)).run(
+        case, (12,)
+    )[0]
+    assert record.claim == ("hyp:null",)
+    assert (record.level, record.category) == (ev.SUPPORTED, ev.FORCE_FIT)
