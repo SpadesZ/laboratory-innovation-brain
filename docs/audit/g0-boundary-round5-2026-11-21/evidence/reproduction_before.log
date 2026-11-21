@@ -1,0 +1,39 @@
+# Round-5 reproductions: code at 5dc4d59 (no fix) plus the reproduction test file; fresh database lib_r5b, migrate.py twice (88 applied, then up to date)
+# command: LAB_BRAIN_TEST_POSTGRES=1 python -m pytest tests/e2e/test_g0_boundary_round5_postgres.py -v -rxX
+platform linux -- Python 3.13.18, pytest-9.2.0, pluggy-1.7.0 -- /home/user/wt/g0/.venv/bin/python
+rootdir: /home/user/wt/g0
+configfile: pyproject.toml
+plugins: cov-7.1.0
+collecting ... collected 8 items
+
+tests/e2e/test_g0_boundary_round5_postgres.py::test_q1_the_sql_confirmation_rule_reads_the_state_the_projection_reads XFAIL [ 12%]
+tests/e2e/test_g0_boundary_round5_postgres.py::test_q2_a_root_cause_is_not_confirmed_on_a_quarantined_promotion XFAIL [ 25%]
+tests/e2e/test_g0_boundary_round5_postgres.py::test_q3_a_quarantined_future_event_does_not_block_honest_transitions XFAIL [ 37%]
+tests/e2e/test_g0_boundary_round5_postgres.py::test_q4_the_gate_refuses_a_transition_under_a_quarantined_policy XFAIL [ 50%]
+tests/e2e/test_g0_boundary_round5_postgres.py::test_q5_a_quarantined_admission_is_not_a_competing_hypothesis XFAIL [ 62%]
+tests/e2e/test_g0_boundary_round5_postgres.py::test_q6_an_event_triggered_by_quarantined_external_evidence_is_skipped XFAIL [ 75%]
+tests/e2e/test_g0_boundary_round5_postgres.py::test_q5_the_products_competing_set_reader_leaves_out_quarantined_admissions XFAIL [ 87%]
+tests/e2e/test_g0_boundary_round5_postgres.py::test_q7_the_gate_counts_independence_as_the_product_counts_it XFAIL [100%]
+
+=========================== short test summary info ============================
+XFAIL tests/e2e/test_g0_boundary_round5_postgres.py::test_q1_the_sql_confirmation_rule_reads_the_state_the_projection_reads - Q1: cwg_state reads the latest raw event; a quarantined promotion still reads SUPPORTED
+XFAIL tests/e2e/test_g0_boundary_round5_postgres.py::test_q2_a_root_cause_is_not_confirmed_on_a_quarantined_promotion - Q2: 011l's root-cause check reads a quarantined promotion as the current SUPPORTED state
+XFAIL tests/e2e/test_g0_boundary_round5_postgres.py::test_q3_a_quarantined_future_event_does_not_block_honest_transitions - Q3: the 011z time bound counts a quarantined future-dated event; honest writes refused
+XFAIL tests/e2e/test_g0_boundary_round5_postgres.py::test_q4_the_gate_refuses_a_transition_under_a_quarantined_policy - Q4: the 011z gate records a transition under a quarantined policy the projection skips
+XFAIL tests/e2e/test_g0_boundary_round5_postgres.py::test_q5_a_quarantined_admission_is_not_a_competing_hypothesis - Q5: EPI-001's SQL count reads quarantined admissions as competing hypotheses
+XFAIL tests/e2e/test_g0_boundary_round5_postgres.py::test_q6_an_event_triggered_by_quarantined_external_evidence_is_skipped - Q6: no belief reader reads external_quarantined_attestations (the stored §6.18 set)
+XFAIL tests/e2e/test_g0_boundary_round5_postgres.py::test_q5_the_products_competing_set_reader_leaves_out_quarantined_admissions - Q5: the research service's EPI-001 reader counts quarantined admissions as rivals
+XFAIL tests/e2e/test_g0_boundary_round5_postgres.py::test_q7_the_gate_counts_independence_as_the_product_counts_it - Q7: the 011z gate counts an attestation with no run as an evidence line; the product (VerificationLoop._independence) counts it as unknown
+============================= 8 xfailed in 14.52s ==============================
+
+
+# same file with --runxfail -s: what each attack did (the printed reading per test)
+Q1 quarantined bre:r5-forged-8d6c2b07: projection -> ACTIVE; cwg_state -> SUPPORTED
+Q2 CONFIRMED on a quarantined promotion: RaiseException('failure analysis fa:r5-8afc5d73 cites att:b1286dde-16b6-4cff-89cd-178879ed5c80, which supports no current SUPPORTS relation to hyp:05da93c7-18de-4fcf-a628-8456d9bc5e16 among the relations event bre:r5-forged-e2958eaa was triggered by (§17.8: support is a relation)\nCONTEXT:  PL/pgSQL function failure_analyses_trace_to_execution() line 63 at RAISE')
+Q3 honest promotion after quarantining bre:r5-forged-021b6526 (+30 days): refused=CheckViolation("belief_transition_record: decision dec:sa-84b682267a6a4a5ba73e674b04bb5de6 for hyp:3a17ca78-bdef-4a48-983e-d5fa8370620a refused: it is dated 2026-11-21 04:23:42.622536+00, before hyp:3a17ca78-bdef-4a48-983e-d5fa8370620a's latest recorded event (2026-12-21 04:23:42.597698+00): a new event does not reorder the history it f
+Q4 under a quarantined policy: refused=None; recorded=[('bre:sa-135c25ce14544e32a7021d93b1ab30c8', 'SUPPORTED', datetime.datetime(2026, 11, 21, 4, 23, 44, 404143, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))]
+Q5 promotion with every rival's admission quarantined: refused=None
+Q6 after quarantining the snapshot behind att:m5-0001: projection -> SUPPORTED; skipped (); cwg_state -> SUPPORTED
+Q5 Python: revision gate counts 5 rivals; projection admits 2
+Q7 two lines claimed over one run and one run-less attestation: refused=None
+8 failed in 14.45s
