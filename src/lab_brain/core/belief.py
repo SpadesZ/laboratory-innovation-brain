@@ -75,7 +75,7 @@ EPI-003's whole claim is that replaying the same history twice gives the same an
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
@@ -732,12 +732,19 @@ def replay(
     unresolved_conflicts: Iterable[str] = (),
     projected_at: dt.datetime | None = None,
     withheld: Sequence[str] = (),
+    trigger_quarantined: Collection[str] = (),
 ) -> EpistemicStateProjection:
     """Fold one project's *verified* revisions for one target into its current state (§6.18).
 
     ``withheld`` names stored events of this target the schema owner quarantined (`012t`): they
     were never verified and are not folded; each is reported as skipped (OWNER_QUARANTINED), first,
     and the cascade below skips whatever depended on them.
+
+    ``trigger_quarantined`` names stored events the database's own §6.18 selection excludes (a
+    triggering attestation of a quarantined external snapshot, `002e`; `belief_event_exclusions`,
+    `012ta`): skipped as QUARANTINED_TRIGGER, exactly as a caller-supplied
+    ``quarantined_attestation_ids`` would skip them. The database's `belief_replay` is this
+    function's structural half, and the PostgreSQL suite holds the two equal.
 
     TAKES `VerifiedBeliefRevision`, NOT `BeliefRevisionEvent`, AND THAT IS THE POINT. P8 left this
     function accepting bare events, so a row written by raw SQL reached the projection without its
@@ -786,8 +793,11 @@ def replay(
         (event_id, SkipReason.OWNER_QUARANTINED) for event_id in withheld
     ]
 
+    excluded = frozenset(trigger_quarantined)
     for event in ordered:
-        if quarantined and any(ref in quarantined for ref in event.triggering_attestation_ids):
+        if event.event_id in excluded or (
+            quarantined and any(ref in quarantined for ref in event.triggering_attestation_ids)
+        ):
             skipped.append((event.event_id, SkipReason.QUARANTINED_TRIGGER))
             continue
         if event.from_state is not state:

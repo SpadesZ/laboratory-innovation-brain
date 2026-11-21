@@ -360,6 +360,12 @@ class BeliefEpisode:
         # An event store without quarantines (the in-memory one) withholds nothing.
         withheld_of = getattr(self._events, "withheld", None)
         withheld = frozenset() if withheld_of is None else withheld_of(project_id, hypothesis_id)
+        # G0 round 5: the database's stored §6.18 selection (`002e`, `belief_event_exclusions`):
+        # an event a quarantined external snapshot's attestation triggered is skipped.
+        trigger_of = getattr(self._events, "trigger_quarantined", None)
+        trigger_quarantined = (
+            frozenset() if trigger_of is None else trigger_of(project_id, hypothesis_id)
+        )
         if withheld:
             history = tuple(e for e in history if e.event_id not in withheld)
         verified = verified_history(
@@ -390,6 +396,7 @@ class BeliefEpisode:
             ],
             projected_at=projected_at,
             withheld=tuple(sorted(withheld)),
+            trigger_quarantined=trigger_quarantined,
         )
 
     def hypothesis_view(

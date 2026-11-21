@@ -138,10 +138,6 @@ def _forged_and_quarantined(g: Guarded, roles: Any, *, at: str = "now()") -> tup
 # =============================================================================================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q1: cwg_state reads the latest raw event; a quarantined promotion still reads SUPPORTED",
-)
 def test_q1_the_sql_confirmation_rule_reads_the_state_the_projection_reads(guarded, roles):
     g = guarded
     hypothesis, event = _forged_and_quarantined(g, roles)
@@ -152,10 +148,6 @@ def test_q1_the_sql_confirmation_rule_reads_the_state_the_projection_reads(guard
     assert sql == python
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q2: 011l's root-cause check reads a quarantined promotion as the current SUPPORTED state",
-)
 def test_q2_a_root_cause_is_not_confirmed_on_a_quarantined_promotion(guarded, roles):
     """The services' role records a CONFIRMED failure analysis naming the hypothesis whose only
     promotion the owner quarantined. The database must refuse it because the cause is not
@@ -192,10 +184,6 @@ def test_q2_a_root_cause_is_not_confirmed_on_a_quarantined_promotion(guarded, ro
 # =============================================================================================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q3: the 011z time bound counts a quarantined future-dated event; honest writes refused",
-)
 def test_q3_a_quarantined_future_event_does_not_block_honest_transitions(guarded, roles):
     """A forged promotion dated 30 days ahead (a row from before the gate), quarantined by the
     owner. The projection ignores it; an honest promotion recorded now must go through."""
@@ -222,10 +210,6 @@ QUARANTINED_RULE = TransitionPolicy(
 )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q4: the 011z gate records a transition under a quarantined policy the projection skips",
-)
 def test_q4_the_gate_refuses_a_transition_under_a_quarantined_policy(guarded, roles):
     g = guarded
     hypothesis = _unscreened(g)
@@ -265,10 +249,6 @@ def _rivals(g: Guarded, hypothesis: str) -> list[tuple[str, str]]:
     ]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q5: EPI-001's SQL count reads quarantined admissions as competing hypotheses",
-)
 def test_q5_a_quarantined_admission_is_not_a_competing_hypothesis(guarded, roles):
     """Every rival's admission is withdrawn by the owner (forged straw men admitted to satisfy
     EPI-001). The projection reads each rival as never admitted; promoting the one remaining
@@ -296,10 +276,6 @@ def test_q5_a_quarantined_admission_is_not_a_competing_hypothesis(guarded, roles
 # =============================================================================================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q6: no belief reader reads external_quarantined_attestations (the stored §6.18 set)",
-)
 def test_q6_an_event_triggered_by_quarantined_external_evidence_is_skipped(guarded, roles):
     """An event triggered by an attestation whose external snapshot was quarantined afterwards
     (`002e`): the stored selection names it, and the product projection must skip the event
@@ -366,10 +342,6 @@ def g_attempt_with_trigger(
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q5: the research service's EPI-001 reader counts quarantined admissions as rivals",
-)
 def test_q5_the_products_competing_set_reader_leaves_out_quarantined_admissions(guarded, tmp_path):
     """The Python half of Q5: the `HypothesisRevisionGate` the research service wires into its
     reviser (`ResearchEpisodeService._brain`) counts as admitted exactly the rivals the
@@ -447,11 +419,6 @@ def _support_with_a_runless_attestation(app: Any, g: Guarded, hypothesis: str) -
     return relation
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q7: the 011z gate counts an attestation with no run as an evidence line; the product "
-    "(VerificationLoop._independence) counts it as unknown",
-)
 def test_q7_the_gate_counts_independence_as_the_product_counts_it(guarded, roles):
     """The product's own count over this support is ONE line (the inspection run) and one
     unknown. The services' role claims two; the gate must refuse it."""
@@ -472,3 +439,56 @@ def test_q7_the_gate_counts_independence_as_the_product_counts_it(guarded, roles
     print(f"Q7 two lines claimed over one run and one run-less attestation: refused={refused!r}")
     assert refused is not None and "evidence line" in str(refused), (written, refused)
     assert _read(_honest(g), hypothesis) == BeliefState.ACTIVE.value
+
+
+# =============================================================================================
+# After the fix: the root-cause trace reads the history that counts (`counted_history`)
+# =============================================================================================
+
+
+def test_the_root_cause_trace_follows_the_promotion_that_counts(guarded, roles):
+    """A forged promotion citing no relation, dated a minute ahead and quarantined by the owner,
+    then an honest promotion.
+    The trace the verification loop runs (`trace_root_cause` over the research service's
+    `events.counted_history`) follows the honest event; over the raw rows it stopped at the forged
+    one (NO_SUPPORTING_RELATION) although every reader of the state reads the honest one."""
+    from lab_brain.core.repositories import SqlBeliefEventStore
+    from lab_brain.core.repositories.jobs import SqlJobStore
+    from lab_brain.core.root_cause import RootCauseRefused, trace_root_cause
+    from lab_brain.storage.postgres.verification_evidence import SqlEvidenceSink
+
+    g = guarded
+    hypothesis = _unscreened(g)
+    policy = _owner_registers(g, SUPPORT_ONLY)
+    with roles.connect(roles.app) as app:
+        writer, _who = _forger(g, app)
+        forged = _forge(g, hypothesis, writer, at="now() + interval '1 minute'")
+        _quarantine(g, "event", forged, "forged later promotion (G0 round 5)")
+        _stored_support(app, g, hypothesis)
+        honest = _attempt(_services_episode(app, g), g, hypothesis, policy)
+    assert honest.event is not None
+    assert _read(_honest(g), hypothesis) == BeliefState.SUPPORTED.value
+    events = SqlBeliefEventStore(g.db)
+    evidence = SqlEvidenceSink(connection=g.db, outputs=None)  # type: ignore[arg-type]
+
+    def trace(history: Any) -> Any:
+        try:
+            return trace_root_cause(
+                project_id=PROJECT,
+                hypothesis_id=hypothesis,
+                history=history,
+                relation=evidence.relation,
+                attestation=evidence.attestation,
+                observation=evidence.observation,
+                run=SqlJobStore(g.db).get_run,
+                artifact_exists=evidence.artifact_exists,
+            )
+        except RootCauseRefused as refused:
+            return refused
+
+    raw, counted = trace(events.history), trace(events.counted_history)
+    print(f"trace over raw rows -> {raw!r}; over counted history -> {counted!r}")
+    assert isinstance(raw, RootCauseRefused) and forged in str(raw)
+    assert not isinstance(counted, RootCauseRefused), counted
+    assert counted.event_id == honest.event.event_id
+    assert counted.links

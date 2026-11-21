@@ -1661,7 +1661,9 @@ class ResearchEpisodeService:
             revision_gate=HypothesisRevisionGate(
                 hypotheses=hypotheses,
                 critiques=debates,
-                history=events.history,
+                # G0 round 5: the admissions the database counts (`belief_replay`), not the raw
+                # rows -- a quarantined admission is no competing hypothesis (EPI-001).
+                history=events.counted_history,
                 divergence_gate=set_divergence_gate(debates, gate),
             ),
             episode=episode,
@@ -1807,7 +1809,8 @@ class ResearchEpisodeService:
                 authority_policy=vertical.authority_policy,
                 belief=belief,
                 reviser=brain,
-                history=events.history,
+                # G0 round 5: the root-cause trace follows the last event that counts.
+                history=events.counted_history,
                 evidence=prospective,
                 admission=EvidenceAdmissionGate(
                     load_artifact=evidence.load_artifact,

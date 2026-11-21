@@ -142,6 +142,11 @@ class InMemoryBeliefEventStore:
             )
         )
 
+    def counted_history(self, project_id: str, target_id: str) -> tuple[BeliefRevisionEvent, ...]:
+        """The events the replay counts, in order (`counted_events`). An in-memory log holds no
+        quarantine, so only the cascade applies."""
+        return counted_events(self.history(project_id, target_id))
+
     def project_history(self, project_id: str) -> tuple[BeliefRevisionEvent, ...]:
         """Every event of one project, in replay order. `v3.3-a11` made this expressible."""
         return tuple(
@@ -158,6 +163,22 @@ _COLUMNS = (
     "rationale_artifact_or_record_ref, occurred_at, trace_id, "
     "authorization_decision_id"
 )
+
+
+#: The same columns qualified by the event table's alias `e`.
+_COLUMNS_E = ", ".join(f"e.{c.strip()}" for c in _COLUMNS.split(","))
+
+
+def counted_events(events: Sequence[BeliefRevisionEvent]) -> tuple[BeliefRevisionEvent, ...]:
+    """The structural cascade of `core.belief.replay` over events with nothing excluded: in
+    (occurred_at, event_id) order, an event counts when its from_state is the running state."""
+    state = None
+    counted: list[BeliefRevisionEvent] = []
+    for event in sorted(events, key=lambda e: (e.occurred_at, e.event_id)):
+        if event.from_state is state:
+            counted.append(event)
+            state = event.to_state
+    return tuple(counted)
 
 
 class SqlBeliefEventStore:
@@ -279,17 +300,36 @@ class SqlBeliefEventStore:
 
     def withheld(self, project_id: str, target_id: str) -> frozenset[str]:
         """The target's events the schema owner quarantined (`012t`, G0 T-3/T-2): each one named,
-        and each one recorded under a quarantined policy. The projection skips them."""
+        and each one recorded under a quarantined policy. The projection skips them. Read from the
+        database's one definition, `belief_event_exclusions` (`012ta`)."""
+        return self._excluded(project_id, target_id, "OWNER_QUARANTINED")
+
+    def trigger_quarantined(self, project_id: str, target_id: str) -> frozenset[str]:
+        """The target's events a triggering attestation of a quarantined external snapshot
+        excludes (the stored §6.18 selection, `002e`; `belief_event_exclusions`, `012ta`)."""
+        return self._excluded(project_id, target_id, "QUARANTINED_TRIGGER")
+
+    def _excluded(self, project_id: str, target_id: str, reason: str) -> frozenset[str]:
         rows = self._connection.execute(
-            "SELECT e.event_id FROM belief_revision_events e"
-            " WHERE e.project_id = %s AND e.target_id = %s AND EXISTS ("
-            "  SELECT 1 FROM owner_quarantines q WHERE"
-            "   (q.subject_kind = 'BELIEF_EVENT' AND q.subject_id = e.event_id) OR"
-            "   (q.subject_kind = 'TRANSITION_POLICY' AND q.subject_id = e.policy_id"
-            "    AND q.subject_version = e.policy_version))",
-            (project_id, target_id),
+            "SELECT event_id FROM belief_event_exclusions"
+            " WHERE project_id = %s AND target_id = %s AND reason = %s",
+            (project_id, target_id, reason),
         ).fetchall()
         return frozenset(str(r[0]) for r in rows)
+
+    def counted_history(self, project_id: str, target_id: str) -> tuple[BeliefRevisionEvent, ...]:
+        """The target's events the database's `belief_replay` counts (`012ta`), in replay order:
+        not excluded (`belief_event_exclusions`) and reached by the cascade. What every reader of
+        "the current state" or "an admitted hypothesis" reads -- EPI-001's revision gate and the
+        root-cause trace -- so that a row the owner withdrew decides nothing there either. The
+        projection additionally re-derives each event (SQL cannot), so it can only refuse more."""
+        rows = self._connection.execute(
+            f"SELECT {_COLUMNS_E} FROM belief_revision_events e"
+            " JOIN belief_replay(%s, %s) r ON r.event_id = e.event_id"
+            ' WHERE r.counted ORDER BY e.occurred_at, e.event_id COLLATE "C"',
+            (project_id, target_id),
+        ).fetchall()
+        return tuple(self._hydrate(row) for row in rows)
 
     def project_history(self, project_id: str) -> tuple[BeliefRevisionEvent, ...]:
         rows = self._connection.execute(
@@ -437,6 +477,7 @@ __all__ = [
     "InMemoryBeliefEventStore",
     "SqlBeliefEventStore",
     "SqlTransitionPolicyStore",
+    "counted_events",
 ]
 
 

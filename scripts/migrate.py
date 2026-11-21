@@ -351,6 +351,11 @@ APPLY_ORDER: tuple[str, ...] = (
     # G0 R-4: a review-queue policy (whose declaring person every automatic expiry is attributed
     # to) is written by the schema owner only; rows already there untouched. After 011f.
     "010d_review_queue_policies_are_the_owners.sql",
+    # G0 round 5: one definition of a belief event that counts -- the owner's quarantine (012t)
+    # and the stored external-snapshot selection (002e) -- read by every SQL reader of a belief
+    # history (cwg_state, 011l, 012o, 012n's competing set, the 011z gate) and by the Python
+    # projection; the gate bounds independence by the product's own count. After 012t and 010d.
+    "012ta_one_definition_of_a_counted_belief_event.sql",
 )
 
 _BOOTSTRAP = """
