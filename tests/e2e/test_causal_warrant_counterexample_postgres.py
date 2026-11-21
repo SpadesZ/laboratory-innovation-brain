@@ -784,6 +784,18 @@ def test_the_runner_of_a_relation_cannot_be_rewritten_to_dodge_the_self_grant_ru
         )
 
 
+def _overdue_by_the_database_clock(db, review):  # type: ignore[no-untyped-def]
+    """G0 round 5 (`010e`): an expiry is judged by the database's clock, and this module's case
+    runs on a synthetic clock decades ahead. The review is made overdue now -- its deadline a
+    minute ago by the database clock -- as the owner, so the expiry below is a real one."""
+    db.execute(
+        "UPDATE review_items SET expires_at = clock_timestamp() - interval '1 minute'"
+        " WHERE review_id = %s",
+        (review.review_id,),
+    )
+    return SqlReviewItemStore(db).get(review.project_id, review.review_id)
+
+
 def test_an_expired_question_is_asked_again_not_left_to_block_forever(db):
     """Nobody answering is not an answer: once the review expires, the relation is asked about
     again, rather than its hypothesis waiting on a question nobody can answer any more."""
@@ -793,6 +805,7 @@ def test_an_expired_question_is_asked_again_not_left_to_block_forever(db):
     store = SqlDiagnosticWarrantStore(db)
     (review,) = store.outstanding(PROJECT)
     assert review.expires_at is not None
+    review = _overdue_by_the_database_clock(db, review)
     SqlReviewItemStore(db).expire(
         review=review,
         governance_event_id="gev:expired",
@@ -820,6 +833,7 @@ def test_an_overdue_question_is_closed_from_the_command_line_and_asked_again(db)
     store = SqlDiagnosticWarrantStore(db)
     (review,) = store.outstanding(PROJECT)
     assert review.expires_at is not None
+    review = _overdue_by_the_database_clock(db, review)
     later = review.expires_at + dt.timedelta(minutes=1)
 
     def review_cli(command: str, now: dt.datetime) -> tuple[int, str]:

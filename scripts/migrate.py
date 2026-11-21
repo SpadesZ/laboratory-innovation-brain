@@ -356,6 +356,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # history (cwg_state, 011l, 012o, 012n's competing set, the 011z gate) and by the Python
     # projection; the gate bounds independence by the product's own count. After 012t and 010d.
     "005f_one_definition_of_a_counted_belief_event.sql",
+    # G0 round 5, Q8 (time sources): an automatic review expiry is not dated after the database
+    # clock (plus the 011z skew); a trigger on the governance event it writes. After 005f.
+    "010e_review_expiry_is_judged_at_the_database_clock.sql",
 )
 
 _BOOTSTRAP = """

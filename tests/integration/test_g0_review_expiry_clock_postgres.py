@@ -8,6 +8,9 @@ ACCEPTED_AS_OPEN_QUESTION, so expiring early is a way to clear an inconvenient r
 function's own words). The same shape as the belief gate's writer times (`011z`, round 4): the
 database's clock bounds a time a writer supplies.
 
+Fixed by `010e` (a REVIEW_EXPIRY event is not dated after the database clock plus the `011z` skew);
+the sweep's refusal is reported per review, and the review stays outstanding.
+
 Engineering evidence only. G0 is NOT PASSED.
 """
 
@@ -24,10 +27,6 @@ from tests.integration.test_review_expiry_postgres import world as world
 pytestmark = pytest.mark.postgres
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q8: review_expire trusts the caller's p_now; a review is expired days early",
-)
 def test_q8_a_review_is_not_expired_before_its_deadline_by_a_future_clock(world):
     review = _escalate(world, "rev:q8", "cfl:q8")
     # Created at T0 (in the past) with a 48 h HIGH expiry: re-escalated now so the deadline is
