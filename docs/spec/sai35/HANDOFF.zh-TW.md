@@ -21,7 +21,7 @@ G-D 未通過。`READY_FOR_REAL_RESEARCH = false`。沒有合併 `main`，沒有
 | Discovery v1.4 | `claude/lib-implementation-agent-47evs0-discovery-v14` | `c022f3a` | `0eac9b3`（凍結 `bff315f`，程式 `7635925`） |
 | 隱藏物理機制案例 | `claude/lib-implementation-agent-47evs0-hidden-cases` | `c022f3a` | `3d54297` |
 
-CI：SAI `b4c9a48` 成功（44942065385）。Discovery `0eac9b3` 成功（44941702117）。G0 `b7f046e` 只有狀態清單過期（測試全過，44941847838）；`6415000` 重新產生清單後重跑。
+CI：SAI `b4c9a48` 成功（44942065385）。Discovery `0eac9b3` 成功（44941702117）。G0 `b7f046e` 只有狀態清單過期（測試全過，44941847838）；`6415000` 重新產生清單後成功（44950006380）。
 
 ### R5.1 G0
 
