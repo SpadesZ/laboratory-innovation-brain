@@ -359,6 +359,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # G0 round 5, Q8 (time sources): an automatic review expiry is not dated after the database
     # clock (plus the 011z skew); a trigger on the governance event it writes. After 005f.
     "010e_review_expiry_is_judged_at_the_database_clock.sql",
+    # G0 T-1 prototype: owner-enrolled measurement signing keys, database-issued nonces per job,
+    # relayed runner signatures (verified by the readers in Python). After 010e.
+    "003f_measurement_provenance.sql",
 )
 
 _BOOTSTRAP = """

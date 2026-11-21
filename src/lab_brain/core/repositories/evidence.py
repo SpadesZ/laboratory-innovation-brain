@@ -206,6 +206,21 @@ class SqlRelationStore:
         require_durable_connection(connection)
         self._connection = connection
         self._support_verifier = support_verifier
+        # G0 T-1 (`003f`): every SUPPORTS this store admits or re-checks rests only on
+        # measurements whose provenance counts under the deployment's mode
+        # (`security.measurement_provenance`). A database without the tables enforces nothing.
+        self._measurements: SupportVerifier | None = None
+        present = connection.execute(
+            "SELECT to_regclass('public.measurement_signing_keys')"
+        ).fetchone()
+        if present is not None and present[0] is not None:
+            from lab_brain.security.measurement_provenance import MeasurementProvenance
+
+            self._measurements = MeasurementProvenance(connection).support_problem
+
+    def measurement_problem(self, relation: RelationJudgment) -> str | None:
+        """Why a SUPPORTS rests on a measurement whose provenance does not count, or None."""
+        return None if self._measurements is None else self._measurements(relation)
 
     def add(self, relation: RelationJudgment) -> RelationJudgment:
         require_durable_connection(self._connection)
@@ -290,7 +305,11 @@ class SqlRelationStore:
                 sorted(kind.value for kind in EPISTEMIC_RELATION_TYPES),
             ),
         ).fetchall()
-        relations = tuple(self._hydrate(row) for row in rows)
+        relations = tuple(
+            r
+            for r in (self._hydrate(row) for row in rows)
+            if r.relation_type is not RelationType.SUPPORTS or self.measurement_problem(r) is None
+        )
         if not any(r.relation_type is RelationType.SUPPORTS for r in relations):
             return relations
         conditioned = self._connection.execute(
@@ -324,6 +343,9 @@ class SqlRelationStore:
         """
         if relation.relation_type is not RelationType.SUPPORTS:
             return None
+        measured = self.measurement_problem(relation)
+        if measured is not None:
+            return measured
         conditioned = self._connection.execute(
             "SELECT 1 FROM screening_conditioned_hypotheses"
             " WHERE project_id = %s AND hypothesis_id = %s",
