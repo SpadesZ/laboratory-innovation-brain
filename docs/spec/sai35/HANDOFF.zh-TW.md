@@ -17,9 +17,11 @@ G-D 未通過。`READY_FOR_REAL_RESEARCH = false`。沒有合併 `main`，沒有
 | 工作 | 分支 | 起點 | 最新 |
 |---|---|---|---|
 | SAI 狀態 | `claude/lib-implementation-agent-47evs0` | `605de88` | 本提交 |
-| G0 第五輪 | `claude/lib-implementation-agent-47evs0-g0-boundary5` | `5dc4d59` | `b7f046e`（程式 `22a9488`） |
+| G0 第五輪 | `claude/lib-implementation-agent-47evs0-g0-boundary5` | `5dc4d59` | `6415000`（程式 `22a9488`） |
 | Discovery v1.4 | `claude/lib-implementation-agent-47evs0-discovery-v14` | `c022f3a` | `0eac9b3`（凍結 `bff315f`，程式 `7635925`） |
 | 隱藏物理機制案例 | `claude/lib-implementation-agent-47evs0-hidden-cases` | `c022f3a` | `3d54297` |
+
+CI：SAI `b4c9a48` 成功（44942065385）。Discovery `0eac9b3` 成功（44941702117）。G0 `b7f046e` 只有狀態清單過期（測試全過，44941847838）；`6415000` 重新產生清單後重跑。
 
 ### R5.1 G0
 
@@ -37,7 +39,7 @@ G-D 未通過。`READY_FOR_REAL_RESEARCH = false`。沒有合併 `main`，沒有
 - **乾淨的 held-out**：先凍結 `bff315f` 並推送，再從凍結提交算出種子（3905077000、3168619000），只跑一次，沒有重新凍結。
 - **錯誤背書的原因**：v1.3 只要測試能「分開」兩個預測，就關掉對手；但對手自己的預測也通過同樣的資料。v1.4 只在對手的預測失敗時才關掉，並加入文法裡的對手。
 - **結果**：v1.4 在新世界 2464 次中，「有證據」的錯誤是 0（v1.3 有 11）。但相同成本下答對比 v1.1 少很多（控制組 −0.43、benchmark −0.31）。**v1.1 仍是基準。**
-- **主導者重跑**：完整 PostgreSQL 3905 通過 / 4 略過（`7635925`，新資料庫）；證據 `--check` 結果見最終回報。
+- **主導者重跑**：完整 PostgreSQL 3905 通過 / 4 略過（`7635925`，新資料庫）；證據 `--check` 主導者獨立重跑：「evidence is current」，EXIT 0（5490 秒）。
 - 已測的世界都同一個作者；規則慣例是在開發種子上調的。
 
 ### R5.3 隱藏物理機制案例
