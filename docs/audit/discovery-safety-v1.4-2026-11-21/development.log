@@ -70,3 +70,9 @@ Ran --hidden-example to a scratch directory: 8 example worlds, every arm and cap
 
 ## D. Mutation battery (v1.4 entries)
 First run 9/10 killed: safety_v14_failed_claim_test_closes_rival SURVIVED (no test had an answer failing the closing test). Added test_a_test_the_answer_itself_failed_closes_no_rival; re-run 1/1 killed (10/10).
+
+## E. Design freeze
+The commit that adds this section is the v1.4 design freeze F: the v1.4 package
+(src/lab_brain/discovery_safety/v14/) and scripts/discovery_safety_v14_eval.py are frozen as of F.
+Held-out seeds are derived from F's full commit id only after F is pushed (rule in F's commit
+message and in v14.model.holdout_base_seed). The held-out evaluation runs exactly once from F.
