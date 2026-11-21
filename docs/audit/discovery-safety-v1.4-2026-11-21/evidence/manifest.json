@@ -1,0 +1,262 @@
+{
+  "code_commit": "bff315f03b61a9f720593a0a691b5d9afa39445c",
+  "design_freeze": {
+    "commit": "bff315f03b61a9f720593a0a691b5d9afa39445c",
+    "evaluator_rule_digest": "sha256:f12d3af864d491af6825fbf2a0972f188f515cdbe12c1ac882cff4f96ad972d2",
+    "grammar_digest": "sha256:767111e512f4d2424f2576a5949244879fad811c6854310a7501aa9111df8942",
+    "held_out_seed_rule": {
+      "domain": "lab-brain/discovery-safety-v1.4/held-out-seeds@1",
+      "rule": "base = 3_000_000_000 + 1000 * (int(SHA-256(domain || 0x00 || role || 0x00 || full commit id || 0x00 || attempt)) mod 1_000_000); the first attempt (0, 1, ...) at least 20_000 from every earlier range and from the other role's range",
+      "seeds": {
+        "benchmark-worlds": {
+          "attempt": 0,
+          "base_seed": 3168619000
+        },
+        "held-out-worlds": {
+          "attempt": 0,
+          "base_seed": 3905077000
+        }
+      }
+    },
+    "plan_digest": "sha256:ad2f19ba14ddc8aedeb755a9d5c17c6790f7e2cd96c06b592714e9c45f181f64",
+    "protocol_digest": "sha256:daa7a204869e45e217805ffdd7350d9d506b4b266d82ef9e8f16b0a0664db9cf",
+    "v14_sources_identical_to_freeze": true
+  },
+  "environment": {
+    "dependencies": {
+      "PyYAML": "6.0.3",
+      "cryptography": "50.0.2",
+      "pydantic": "2.14.2",
+      "pydantic-core": "2.50.2"
+    },
+    "interpreter": "CPython 3.13.18",
+    "interpreter_key": "CPython 3.13",
+    "numerical_libraries": "none (no numpy, scipy or other compiled numerics are imported)",
+    "platform": "Linux-6.18.44-fc-v726-x86_64-with-glibc2.39"
+  },
+  "evidence_class": "ENGINEERING EVIDENCE ONLY -- developer-authored synthetic worlds",
+  "evidence_files": [
+    "benchmark_3168619000_rows.json",
+    "control_3905077000_rows.json",
+    "held_out_3905077000_rows.json",
+    "results.json"
+  ],
+  "frozen_inputs": {
+    "engine_sources_match_frozen_manifest": true,
+    "evaluation_sources_match_frozen_manifest": true,
+    "frozen_engine_manifest_sha256": "sha256:d58ffb401a26a14a614d80b56bcda18505d40c44bea5195baebe6323ada3e9d9",
+    "frozen_evaluation_manifest_sha256": "sha256:c0172f3f275b1d74a4a1af8324d898ae837fbcd68b8675769b45660e2b20efad",
+    "frozen_v10_manifest_sha256": "sha256:7cec0221f0653425a35d69642e4dde505f64224d5b418cd8c0452647ab9081a8",
+    "frozen_v11_manifest_sha256": "sha256:9e30bb01984268c4ea9d41aaeb79f6207d1972703e473b9af7e95b8ce05969c4",
+    "frozen_v12_manifest_sha256": "sha256:f883ef752f84a968300b6a25841a75c36ea3bddf841c19db12c790a84f995d45",
+    "frozen_v13_manifest_sha256": "sha256:365518c3acff698235001c8e4a2afdfd5d0d4d100864eb01ff0b1c555992c90a",
+    "v10_protocol_digest_matches": true,
+    "v10_sources_match_frozen_manifest": true,
+    "v11_protocol_digest_matches": true,
+    "v11_sources_match_frozen_manifest": true,
+    "v12_grammar_digest_matches": true,
+    "v12_protocol_digest_matches": true,
+    "v12_sources_match_frozen_manifest": true,
+    "v13_evaluator_rule_digest_matches": true,
+    "v13_protocol_digest_matches": true,
+    "v13_sources_match_frozen_manifest": true
+  },
+  "inputs": {
+    "boundary": "every arm in a separate process (scripts/discovery_safety_v14_eval.py --arm-worker); JSON messages only",
+    "catalog": {
+      "digest": "sha256:69c86963d6e1ae31832208530654539a9283bded6638cad8f0877848553d9119",
+      "ref": "sp.ring_drift_loss.discovery@0.1.0"
+    },
+    "engine_protocol_digest": "sha256:5473507ce99d2f41918361c35ebf33efa18770e91baf7a7d8f76008462560c97",
+    "evaluator_rule": {
+      "alpha": 0.01,
+      "alpha_adequacy": 0.01,
+      "candidate_band": 0.5,
+      "closure_by_failed_prediction": true,
+      "grammar_rivals": true,
+      "max_runs": 4,
+      "rule_id": "lab-brain/discovery-evaluator-rule",
+      "tau_risky": 3.0,
+      "version": "1.4.0",
+      "z_adequacy": 4.0,
+      "z_max": 4.0
+    },
+    "evaluator_rule_digest": "sha256:f12d3af864d491af6825fbf2a0972f188f515cdbe12c1ac882cff4f96ad972d2",
+    "grammar_digest": "sha256:767111e512f4d2424f2576a5949244879fad811c6854310a7501aa9111df8942",
+    "plan": {
+      "arms": [
+        [
+          "B4",
+          "frozen engine + safety gate v1.1 (the current offline safety BASELINE)"
+        ],
+        [
+          "B6",
+          "safety gate v1.3, unchanged"
+        ],
+        [
+          "B7",
+          "safety gate v1.4 (closure by failed prediction, grammar rivals)"
+        ]
+      ],
+      "benchmark_per_kind": 12,
+      "bootstrap_resamples": 2000,
+      "budgets": [
+        6,
+        8,
+        10,
+        12,
+        16,
+        24,
+        48
+      ],
+      "comparisons": [
+        [
+          "B7",
+          "B4"
+        ],
+        [
+          "B6",
+          "B4"
+        ],
+        [
+          "B7",
+          "B6"
+        ]
+      ],
+      "development": [
+        {
+          "base_seed": 5000000,
+          "label": "v1.0 development held-out worlds",
+          "per_group": 6,
+          "role": "DEVELOPMENT"
+        },
+        {
+          "base_seed": 1,
+          "label": "engine development worlds",
+          "per_group": 6,
+          "role": "DEVELOPMENT"
+        },
+        {
+          "base_seed": 7000000,
+          "label": "v1.1 development held-out worlds",
+          "per_group": 15,
+          "role": "DEVELOPMENT"
+        },
+        {
+          "base_seed": 8000000,
+          "label": "v1.2 development held-out worlds",
+          "per_group": 15,
+          "role": "DEVELOPMENT"
+        },
+        {
+          "base_seed": 3218044000,
+          "label": "v1.3 held-out worlds (seen in round 4)",
+          "per_group": 10,
+          "role": "DEVELOPMENT"
+        },
+        {
+          "base_seed": 3729592000,
+          "label": "v1.3 benchmark worlds (seen in round 4)",
+          "per_group": 15,
+          "role": "DEVELOPMENT"
+        }
+      ],
+      "distinguish_replicates": 4,
+      "distinguish_tau": 5.0,
+      "held_out_per_class": 8,
+      "per_world_tolerance": 1,
+      "plan_id": "lab-brain/discovery-safety-v1.4-evaluation",
+      "scoring": "sai35-candidate.5 classify_outcome+verified_evidence+assertion_status (61af6ef); evaluator-computed EvaluatorRuleV14",
+      "seeds_used_before": [
+        1,
+        5000000,
+        7000000,
+        2026110100,
+        2026110200,
+        2026610200,
+        2026810400,
+        3931910000,
+        3320367000,
+        3340487000,
+        3178418000,
+        3218044000,
+        3729592000
+      ]
+    },
+    "plan_digest": "sha256:ad2f19ba14ddc8aedeb755a9d5c17c6790f7e2cd96c06b592714e9c45f181f64",
+    "safety_protocol": {
+      "abstain_on_inadequacy": true,
+      "alpha_adequacy": 0.01,
+      "alpha_localized": 0.01,
+      "alpha_prospective": 0.01,
+      "anytime_allocation": true,
+      "batch_rivals": true,
+      "candidate_band": 0.5,
+      "defer_localized_replication": true,
+      "discovery": true,
+      "discriminating_tau": 5.0,
+      "engine_fraction": 0.5,
+      "evaluator_rule_support": true,
+      "gate_led": true,
+      "ladder_start": 2,
+      "localized_check": true,
+      "localized_correction": "holm-step-down",
+      "max_alternatives": 2,
+      "max_discovery_tests": 3,
+      "max_noise_exclusions_per_experiment": 1,
+      "max_probe_replications": 2,
+      "max_request_candidates": 4,
+      "max_rival_tests": 6,
+      "max_runs": 4,
+      "multi_run_tests": true,
+      "null_fallback": true,
+      "probe_null_experiments": true,
+      "probe_order": "separation-per-cost",
+      "probes": true,
+      "protocol_id": "lab-brain/discovery-safety-offline",
+      "refit_fixpoint": true,
+      "registered_probes": true,
+      "require_coverage": true,
+      "require_registered_support": true,
+      "rival_exclusion": true,
+      "rival_refuted_by_failed_registration": true,
+      "signal_coverage": 1.0,
+      "support_test": true,
+      "tau_close": 4.5,
+      "tau_risky": 3.0,
+      "version": "1.4.0",
+      "z_adequacy": 4.0,
+      "z_prospective": 4.0,
+      "z_signal": 3.0
+    },
+    "safety_protocol_digest": "sha256:daa7a204869e45e217805ffdd7350d9d506b4b266d82ef9e8f16b0a0664db9cf",
+    "v11_safety_protocol_digest": "sha256:598c95aa4d3dbbc2348a472f5c3b90539cc1c02b54576c6ace9d432f859a280c",
+    "v13_evaluator_rule_digest": "sha256:cc109ef710c645dbf985dc27c7171053fe00ffb299f6c0097489b75c278d4490",
+    "v13_safety_protocol_digest": "sha256:8b2b410210412ea996107179ab86ab5424b87e8b9ccdd919da6eb8a2e6b6b42d"
+  },
+  "inputs_digest": "sha256:4bb6363183d77750a109147198117b7d58b5cedaeb8d9596d797a77244e19857",
+  "kind": "lab-brain/discovery-safety-v1.4-evaluation-manifest@1",
+  "manifest_sha256": "sha256:82c5122ff85d77d496cca10ebca30248f2e3c34773db4e46a277708090c98e58",
+  "not_claimed": [
+    "scientific validity of any mechanism, forward model, grammar term or new mechanism",
+    "an independent or blind evaluation: worlds, held-out families, the grammar, the engine, every safety gate and the evaluator's rule share an author lineage",
+    "that v1.3 or v1.4 replaces v1.1: v1.1 remains the offline safety baseline",
+    "anything about a real device, real literature, a language model or the real PostgreSQL LIB workflow; Discovery is not connected to real research execution",
+    "scientific acceptance (NOT PASSED) or G-D (NOT PASSED)"
+  ],
+  "results_sha256": "9a24a2bd76c5d16497acf4eb50f2944f393a0b09eeeffecec656dc2d32e712e9",
+  "rows_sha256": {
+    "benchmark_3168619000_rows.json": "2ab9d14b973bd9b418b89d220a1d1ecb6490b55c50f71129f300353729c12ce3",
+    "control_3905077000_rows.json": "bc3d6c248119808ecd59f0620543c519c4e4216b081bb2d1a8b3244fd07991d7",
+    "held_out_3905077000_rows.json": "8f618fae80bde27d6353ba25473fa6c78fb7943a51462820c2b27b24deb3e676"
+  },
+  "v14_sources_sha256": {
+    "scripts/discovery_safety_v14_eval.py": "00b2e9973e7e9ca78da8b26591bcd530d0ed0842fd2068f17240006357f808f7",
+    "src/lab_brain/discovery_safety/v14/__init__.py": "d0669d653052abc77551661b10a3339f79840cb5597a7e2024ad2ce9fb56fbe6",
+    "src/lab_brain/discovery_safety/v14/costmatch.py": "9b44bd0fd542abf082c92b0f043c01c0bc1058de177f5f484143a738b0d26ce4",
+    "src/lab_brain/discovery_safety/v14/evaluation.py": "14b7384296b6c093e52bffe2283d2c9fe936375c76ab675cb28b525389b222bf",
+    "src/lab_brain/discovery_safety/v14/gate.py": "519763baaceeb7d0a11539599d8f3261e9c5f162411ee12023903cd3797e177b",
+    "src/lab_brain/discovery_safety/v14/model.py": "8ee5e7adf9d82a366c5eaf790615a96360882b7cdaca87964681ba8daa4dad20",
+    "src/lab_brain/discovery_safety/v14/rule.py": "fedb2c495b96fd3c2038f537104bdb4644b71d97f057bcf2aba2eee3116d3c9e"
+  }
+}
