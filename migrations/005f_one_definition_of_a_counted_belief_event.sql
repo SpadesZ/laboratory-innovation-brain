@@ -1,4 +1,4 @@
--- 012ta_one_definition_of_a_counted_belief_event.sql
+-- 005f_one_definition_of_a_counted_belief_event.sql
 --
 -- G0 trust boundaries, round 5 (docs/audit/g0-boundary-round5-2026-11-21/REPORT.md).
 --
@@ -50,7 +50,7 @@
 --
 -- WHAT IS UNCHANGED. No row is changed or removed. Function signatures are unchanged; bodies are
 -- replaced (CREATE OR REPLACE), each differing from its previous version only where marked
--- "012ta".
+-- "005f".
 
 -- ---------------------------------------------------------------------------------------------
 -- 1. The one definition
@@ -60,27 +60,28 @@ CREATE VIEW belief_event_exclusions AS
 SELECT e.event_id,
        e.project_id,
        e.target_id,
-       CASE WHEN EXISTS (
-                SELECT 1 FROM owner_quarantines q
-                 WHERE (q.subject_kind = 'BELIEF_EVENT' AND q.subject_id = e.event_id)
-                    OR (q.subject_kind = 'TRANSITION_POLICY' AND q.subject_id = e.policy_id
-                        AND q.subject_version = e.policy_version))
-            THEN 'OWNER_QUARANTINED'
-            ELSE 'QUARANTINED_TRIGGER' END AS reason
+       CASE WHEN x.owner THEN 'OWNER_QUARANTINED' ELSE 'QUARANTINED_TRIGGER' END AS reason
   FROM belief_revision_events e
- WHERE EXISTS (
-           SELECT 1 FROM owner_quarantines q
-            WHERE (q.subject_kind = 'BELIEF_EVENT' AND q.subject_id = e.event_id)
-               OR (q.subject_kind = 'TRANSITION_POLICY' AND q.subject_id = e.policy_id
-                   AND q.subject_version = e.policy_version))
-    OR EXISTS (
-           SELECT 1 FROM belief_revision_event_attestations ea
-             JOIN external_quarantined_attestations x
-               ON x.attestation_id = ea.attestation_id AND x.project_id = e.project_id
-            WHERE ea.event_id = e.event_id);
+ CROSS JOIN LATERAL (
+     SELECT EXISTS (
+                SELECT 1 FROM owner_quarantines q
+                 WHERE q.subject_kind = 'BELIEF_EVENT' AND q.subject_id = e.event_id
+            ) OR EXISTS (
+                SELECT 1 FROM owner_quarantines q
+                 WHERE q.subject_kind = 'TRANSITION_POLICY' AND q.subject_id = e.policy_id
+                   AND q.subject_version = e.policy_version
+            ) AS owner,
+            EXISTS (
+                SELECT 1 FROM belief_revision_event_attestations ea
+                  JOIN external_quarantined_attestations a
+                    ON a.attestation_id = ea.attestation_id AND a.project_id = e.project_id
+                 WHERE ea.event_id = e.event_id
+            ) AS trigger_quarantined
+ ) x
+ WHERE x.owner OR x.trigger_quarantined;
 
 COMMENT ON VIEW belief_event_exclusions IS
-    'G0 round 5 (012ta): every stored belief event that may not count, and why -- '
+    'G0 round 5 (005f): every stored belief event that may not count, and why -- '
     'OWNER_QUARANTINED (012t: the event or its policy) or QUARANTINED_TRIGGER (002e: a triggering '
     'attestation of a quarantined external snapshot). The one definition both the SQL readers and '
     'the Python projection read.';
@@ -128,7 +129,7 @@ END;
 $$ LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public;
 
 COMMENT ON FUNCTION belief_replay(TEXT, TEXT) IS
-    'G0 round 5 (012ta): the structural half of core.belief.replay over the stored history -- each '
+    'G0 round 5 (005f): the structural half of core.belief.replay over the stored history -- each '
     'event in (occurred_at, event_id COLLATE "C") order, counted or skipped (OWNER_QUARANTINED, '
     'QUARANTINED_TRIGGER, PREDECESSOR_MISSING). Held equal to Python replay by the PostgreSQL suite.';
 
@@ -163,7 +164,7 @@ $$ LANGUAGE sql STABLE SET search_path = pg_catalog, public;
 
 CREATE OR REPLACE FUNCTION cwg_state(p_project TEXT, p_hypothesis TEXT)
 RETURNS TEXT AS $$
-    -- 012ta: the counted state, not the latest raw event.
+    -- 005f: the counted state, not the latest raw event.
     SELECT belief_counted_state(p_project, p_hypothesis)
 $$ LANGUAGE sql STABLE;
 
@@ -182,7 +183,7 @@ BEGIN
                       'not written in its own future', p_at, clock_timestamp(), belief_write_skew());
     END IF;
     IF p_event THEN
-        -- 012ta: an excluded event counts nowhere, wherever it sorts; it bounds nothing.
+        -- 005f: an excluded event counts nowhere, wherever it sorts; it bounds nothing.
         SELECT max(e.occurred_at) INTO v_latest FROM belief_revision_events e
          WHERE e.project_id = p_project_id AND e.target_id = p_target_id
            AND NOT EXISTS (SELECT 1 FROM belief_event_exclusions x WHERE x.event_id = e.event_id);
@@ -215,7 +216,7 @@ BEGIN
         RETURN format('%s@%s is superseded; a new record is written under its successor',
                       p_policy_id, p_version);
     END IF;
-    -- 012ta: every event under a quarantined policy is skipped; nothing new is recorded under it.
+    -- 005f: every event under a quarantined policy is skipped; nothing new is recorded under it.
     IF EXISTS (SELECT 1 FROM owner_quarantines q
                 WHERE q.subject_kind = 'TRANSITION_POLICY' AND q.subject_id = p_policy_id
                   AND q.subject_version = p_version) THEN
@@ -334,7 +335,7 @@ BEGIN
                       p_subject_id, v_bad);
     END IF;
 
-    -- (g) a WORK independence count is bounded by the product's own count (012ta): the distinct
+    -- (g) a WORK independence count is bounded by the product's own count (005f): the distinct
     -- executions behind the attestations of the decision's admitted relations -- which (c) has
     -- just held to the stored, current relations -- an attestation no stored run stands behind
     -- counting nothing (`belief_evidence_lines`, `VerificationLoop._independence`).
@@ -392,7 +393,7 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    -- 012ta: the cause's counted state -- the last event `belief_replay` counts -- not the latest
+    -- 005f: the cause's counted state -- the last event `belief_replay` counts -- not the latest
     -- raw event, which may be one the owner quarantined.
     SELECT e.* INTO v_event FROM belief_revision_events e
       JOIN belief_replay(NEW.project_id, NEW.confirmed_root_cause) r ON r.event_id = e.event_id
@@ -504,7 +505,7 @@ BEGIN
                AND e.to_state = 'SUPPORTED'
                AND r ->> 'relation_type' = 'SUPPORTS'
                AND r ->> 'warrant_ref' = v_ref
-               -- 012ta: a promotion that counts, not one the owner quarantined.
+               -- 005f: a promotion that counts, not one the owner quarantined.
                AND EXISTS (SELECT 1 FROM belief_replay(NEW.project_id, NEW.confirmed_root_cause) c
                             WHERE c.counted AND c.event_id = e.event_id)
         ) THEN
@@ -577,7 +578,7 @@ BEGIN
     END IF;
 
     IF NEW.to_state = 'SUPPORTED' AND v_set.root_cause THEN
-        -- 012ta: an admission counts only if `belief_replay` counts it (a quarantined one does not).
+        -- 005f: an admission counts only if `belief_replay` counts it (a quarantined one does not).
         SELECT count(DISTINCT h.hypothesis_id) INTO v_admitted
           FROM hypotheses h
          WHERE h.hypothesis_set_id = v_set.set_id AND h.project_id = v_set.project_id

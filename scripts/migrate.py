@@ -355,7 +355,7 @@ APPLY_ORDER: tuple[str, ...] = (
     # and the stored external-snapshot selection (002e) -- read by every SQL reader of a belief
     # history (cwg_state, 011l, 012o, 012n's competing set, the 011z gate) and by the Python
     # projection; the gate bounds independence by the product's own count. After 012t and 010d.
-    "012ta_one_definition_of_a_counted_belief_event.sql",
+    "005f_one_definition_of_a_counted_belief_event.sql",
 )
 
 _BOOTSTRAP = """

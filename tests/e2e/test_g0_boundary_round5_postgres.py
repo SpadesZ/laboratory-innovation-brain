@@ -492,3 +492,95 @@ def test_the_root_cause_trace_follows_the_promotion_that_counts(guarded, roles):
     assert not isinstance(counted, RootCauseRefused), counted
     assert counted.event_id == honest.event.event_id
     assert counted.links
+
+
+def test_q2_a_warrant_recorded_only_by_a_quarantined_promotion_is_not_cited(guarded, roles):
+    """012o's check of a CONFIRMED analysis's warrant references read every promotion's decision,
+    quarantined or not (found while fixing Q2; no reproduction was committed before the fix). A
+    forged promotion records a warrant reference; the owner quarantines it; an honest promotion
+    follows. A confirmation citing the forged warrant must be refused by 012o."""
+    import json
+
+    from lab_brain.core.canonical_json import canonicalize
+
+    g = guarded
+    hypothesis = _unscreened(g)
+    policy = _owner_registers(g, SUPPORT_ONLY)
+    with roles.connect(roles.app) as app:
+        writer, _who = _forger(g, app)
+        forged = _forge(g, hypothesis, writer)
+        ((decision, snapshot),) = g.db.execute(
+            "SELECT d.decision_id, d.decision_input_snapshot FROM belief_revision_events e"
+            " JOIN belief_transition_decisions d ON d.decision_id = e.authorization_decision_id"
+            " WHERE e.event_id = %s",
+            (forged,),
+        ).fetchall()
+        warrant = "dds:forged-set@1.0.0#forged-class"
+        content = json.loads(snapshot)
+        content["hypothesis"]["relation_evidence"] = [
+            {"relation_type": "SUPPORTS", "warrant_ref": warrant}
+        ]
+        # The forger's own decision row, carrying a warrant reference nobody gave.
+        writer.execute(
+            "INSERT INTO belief_transition_decisions (decision_id, project_id, subject_id,"
+            " decision_type, result, policy_id, policy_version, from_state, to_state,"
+            " authority_policy_id, authority_policy_version, decision_input_snapshot, input_hash,"
+            " evaluated_decision, episode_id, actor_id, created_at)"
+            " SELECT decision_id || '-w', project_id, subject_id, decision_type, result,"
+            " policy_id, policy_version, from_state, to_state, authority_policy_id,"
+            " authority_policy_version, %s,"
+            " 'sha256:' || encode(sha256(convert_to(%s, 'UTF8')), 'hex'), evaluated_decision,"
+            " episode_id, actor_id, created_at FROM belief_transition_decisions"
+            " WHERE decision_id = %s",
+            (canonicalize(content), canonicalize(content), decision),
+        )
+        warranted = f"bre:r5-warranted-{uuid.uuid4().hex[:8]}"
+        writer.execute(
+            "SELECT belief_revision_event_append(%s, %s, 'HYPOTHESIS', %s, 'ACTIVE', 'SUPPORTED',"
+            " %s, %s, %s, %s, %s, NULL, NULL, now(), 'trc:r5-forged', %s)",
+            (
+                warranted,
+                PROJECT,
+                hypothesis,
+                [g.attestation],
+                [],
+                policy.policy_id,
+                policy.version,
+                g.actor,
+                f"{decision}-w",
+            ),
+        )
+        _quarantine(g, "event", forged, "forged authorization (G0 round 5)")
+        _quarantine(g, "event", warranted, "forged warrant reference (G0 round 5)")
+        _stored_support(app, g, hypothesis)
+        honest = _attempt(_services_episode(app, g), g, hypothesis, policy)
+        assert honest.event is not None
+        assert _read(_honest(g), hypothesis) == BeliefState.SUPPORTED.value
+        ((evidence,),) = g.db.execute(
+            "SELECT unnest(r.supporting_attestation_ids) FROM belief_revision_event_relations er"
+            " JOIN relation_judgments r ON r.relation_id = er.relation_id WHERE er.event_id = %s"
+            " LIMIT 1",
+            (honest.event.event_id,),
+        ).fetchall()
+        _, refused = _write(
+            lambda: app.execute(
+                "INSERT INTO failure_analyses (failure_analysis_id, project_id, episode_id,"
+                " symptom, expected_behavior, observed_behavior, candidate_causes,"
+                " confirmed_root_cause, root_cause_evidence_ids, failure_class,"
+                " resolution_status, created_at, warrant_refs)"
+                " VALUES (%s, %s, %s, 'loss high', 'low loss', 'high loss', %s, %s, %s,"
+                " 'contact', 'CONFIRMED', now(), %s)",
+                (
+                    f"fa:r5-{uuid.uuid4().hex[:8]}",
+                    PROJECT,
+                    g.episode,
+                    [hypothesis],
+                    hypothesis,
+                    [evidence],
+                    [warrant],
+                ),
+            )
+        )
+    print(f"Q2 (012o) warrant from a quarantined promotion: {refused!r}")
+    assert refused is not None
+    assert "which no decision promoting" in str(refused), refused

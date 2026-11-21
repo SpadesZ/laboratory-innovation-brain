@@ -742,7 +742,7 @@ def replay(
 
     ``trigger_quarantined`` names stored events the database's own §6.18 selection excludes (a
     triggering attestation of a quarantined external snapshot, `002e`; `belief_event_exclusions`,
-    `012ta`): skipped as QUARANTINED_TRIGGER, exactly as a caller-supplied
+    `005f`): skipped as QUARANTINED_TRIGGER, exactly as a caller-supplied
     ``quarantined_attestation_ids`` would skip them. The database's `belief_replay` is this
     function's structural half, and the PostgreSQL suite holds the two equal.
 

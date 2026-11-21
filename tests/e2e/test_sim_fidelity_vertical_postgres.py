@@ -214,12 +214,35 @@ def _contradiction(world, fidelity: str, suffix: str = "1"):  # type: ignore[no-
     `HypothesisView`. So "this contradiction is coarse" is a fact about the evidence row, not a
     parameter of the call, and that is what makes the gate ungameable from the caller's side.
     """
+    # G0 round 5: the simulation's stored Run. The decisions below claim one independent evidence
+    # line, and the write gate now counts lines as the product does -- the stored runs behind the
+    # attestations (`belief_evidence_lines`); an attestation no run stands behind counts none.
+    from lab_brain.core.models.job import JobState
+    from lab_brain.core.repositories.jobs import SqlJobStore
+    from tests.job_fixtures import at, make_job, make_run
+
+    jobs = SqlJobStore(world)
+    job = jobs.submit(
+        make_job(f"job:sim-{suffix}", project_id=PROJECT, idempotency_key=f"sim:{suffix}")
+    )
+    jobs.transition(job.job_id, JobState.RUNNING, at(0))
+    run = jobs.complete(
+        job.job_id,
+        job.idempotency_key,
+        make_run(
+            f"run:sim-{suffix}",
+            job_id=job.job_id,
+            project_id=PROJECT,
+            outputs=(world.artifact_id,),
+            conditions_schema_version=SCHEMA_REF,
+        ),
+    )
     attestation = SqlAttestationStore(world).add(
         Attestation(
             attestation_id=f"att:{suffix}",
+            run_id=run.run_id,
             claim_id="clm:rs",
             epistemic_type=EpistemicType.SIMULATED,
-            source_artifact_id=world.artifact_id,
             locator=f"run output {suffix}",
             conditions_schema_version=SCHEMA_REF,
             conditions={"bias_v": "-1.0", "frequency_hz": "1000000", "device_length_um": "500"},

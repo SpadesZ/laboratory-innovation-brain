@@ -1,4 +1,4 @@
-"""One definition of a belief event that counts: the database's `belief_replay` (`012ta`) and the
+"""One definition of a belief event that counts: the database's `belief_replay` (`005f`) and the
 product's projection (`BeliefEpisode.project` -> `core.belief.replay`) are held equal by enumeration.
 
 A stored history with a cascade in it (a later move that counts only once an earlier one is gone)
@@ -132,6 +132,38 @@ def _quarantine(db: Any, kind: str, subject: str, version: str = "") -> None:
 EVENTS = ("bre:0", "bre:1", "bre:2", "bre:3", "bre:4")
 POLICIES = tuple((p.policy_id, p.version) for p in (GENESIS, ADMIT, PROMOTE))
 
+#: The history as built above, for the oracle: (event, policy, from, to); bre:2's trigger is the
+#: external attestation.
+SHAPE = (
+    ("bre:0", GENESIS, None, "ACTIVE"),
+    ("bre:1", ADMIT, "ACTIVE", "CHALLENGED"),
+    ("bre:2", PROMOTE, "CHALLENGED", "SUPPORTED"),
+    ("bre:3", ADMIT, "ACTIVE", "CHALLENGED"),
+    ("bre:4", PROMOTE, "CHALLENGED", "SUPPORTED"),
+)
+
+
+def _oracle(bits: tuple[bool, ...]) -> tuple[tuple[str, ...], dict[str, str]]:
+    """What the rule says, computed here from the toggles alone -- not from either reader -- so
+    the enumeration checks the definition itself, not only that the two sides agree."""
+    events_on = dict(zip(EVENTS, bits[: len(EVENTS)], strict=True))
+    policies_on = dict(zip(POLICIES, bits[len(EVENTS) : -1], strict=True))
+    snapshot_on = bits[-1]
+    state: str | None = None
+    applied: list[str] = []
+    skipped: dict[str, str] = {}
+    for event_id, policy, before, after in SHAPE:
+        if events_on[event_id] or policies_on[(policy.policy_id, policy.version)]:
+            skipped[event_id] = "OWNER_QUARANTINED"
+        elif event_id == "bre:2" and snapshot_on:
+            skipped[event_id] = "QUARANTINED_TRIGGER"
+        elif before != state:
+            skipped[event_id] = "PREDECESSOR_MISSING"
+        else:
+            applied.append(event_id)
+            state = after
+    return tuple(applied), skipped
+
 
 def test_sql_belief_replay_equals_the_product_projection_for_every_exclusion(history):
     db, external = history
@@ -163,6 +195,7 @@ def test_sql_belief_replay_equals_the_product_projection_for_every_exclusion(his
             counted = tuple(str(e) for e, ok, _ in sql if ok)
             skipped = {str(e): str(r) for e, ok, r in sql if not ok}
             python_skipped = {e: r.value for e, r in projection.skipped}
+            assert (counted, skipped) == _oracle(bits), (bits, sql)
             assert counted == projection.applied, (bits, sql, projection)
             assert skipped == python_skipped, (bits, sql, projection)
             state = None if projection.current_state is None else projection.current_state.value

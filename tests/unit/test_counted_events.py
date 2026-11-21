@@ -1,6 +1,6 @@
 """`counted_events` (the in-memory store's `counted_history`) is the structural cascade of
 `core.belief.replay`: for every history of up to five moves over four states, with ties in time,
-it counts exactly the events the replay applies, in the same order (G0 round 5, `012ta`).
+it counts exactly the events the replay applies, in the same order (G0 round 5, `005f`).
 
 The SQL half (`belief_replay`) is held to the product projection by
 tests/e2e/test_g0_counted_history_differential_postgres.py.

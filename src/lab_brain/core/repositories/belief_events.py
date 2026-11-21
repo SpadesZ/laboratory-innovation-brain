@@ -301,12 +301,12 @@ class SqlBeliefEventStore:
     def withheld(self, project_id: str, target_id: str) -> frozenset[str]:
         """The target's events the schema owner quarantined (`012t`, G0 T-3/T-2): each one named,
         and each one recorded under a quarantined policy. The projection skips them. Read from the
-        database's one definition, `belief_event_exclusions` (`012ta`)."""
+        database's one definition, `belief_event_exclusions` (`005f`)."""
         return self._excluded(project_id, target_id, "OWNER_QUARANTINED")
 
     def trigger_quarantined(self, project_id: str, target_id: str) -> frozenset[str]:
         """The target's events a triggering attestation of a quarantined external snapshot
-        excludes (the stored §6.18 selection, `002e`; `belief_event_exclusions`, `012ta`)."""
+        excludes (the stored §6.18 selection, `002e`; `belief_event_exclusions`, `005f`)."""
         return self._excluded(project_id, target_id, "QUARANTINED_TRIGGER")
 
     def _excluded(self, project_id: str, target_id: str, reason: str) -> frozenset[str]:
@@ -318,7 +318,7 @@ class SqlBeliefEventStore:
         return frozenset(str(r[0]) for r in rows)
 
     def counted_history(self, project_id: str, target_id: str) -> tuple[BeliefRevisionEvent, ...]:
-        """The target's events the database's `belief_replay` counts (`012ta`), in replay order:
+        """The target's events the database's `belief_replay` counts (`005f`), in replay order:
         not excluded (`belief_event_exclusions`) and reached by the cascade. What every reader of
         "the current state" or "an admitted hypothesis" reads -- EPI-001's revision gate and the
         root-cause trace -- so that a row the owner withdrew decides nothing there either. The
