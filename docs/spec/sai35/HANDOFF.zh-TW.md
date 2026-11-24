@@ -347,3 +347,10 @@ CI：SAI `96c53bd` run `42463384371` 成功；G0 F2 `24fae8b` run `42460241489` 
 9. OD-09：三條線的整合順序。OD-10：候選檔放在整合線的方式（仍為提案 A'）。
 
 下一步：獨立首席稽核審查。實作代理到此停止。
+
+### R5.6 封存金鑰保管（2026-11-24）
+
+- 加密封存檔與完整性清單已在 GitHub：`claude/lib-implementation-agent-47evs0-hidden-cases` @ `3d54297`。封存檔 sha256 `b23db527…2fe83`，58 個承諾，根 `sha256:839ac011…dcf8b`。本機與遠端相同。
+- 金鑰**還沒有**移出雲端容器。這個工作階段沒有連上 Owner 電腦的資料夾，所以沒有 Owner 控制的持久位置。
+- 已準備移交副本：`/home/user/key_transfer/`（權限 700，內含金鑰副本與 `SHA256SUMS`，與原檔逐位元組相同）。金鑰沒有印出、沒有提交、沒有解密。
+- 下一步：Owner 用 Claude Desktop 的 Remote Control 分享一個資料夾，再把兩個檔案複製過去並用 `sha256sum -c` 驗證。
