@@ -33,14 +33,14 @@ in_progress_branches:
   claude/lib-implementation-agent-47evs0-discovery-v12: from ed442bb; head e778cc4; design frozen 50549e2; budget-aware
     allocation, evaluator-owned prediction ledger, grammar discovery; engineering evidence on same-author worlds only
   claude/lib-implementation-agent-47evs0-g0-boundary4: from e2872de; head 5dc4d59; SECURITY DEFINER belief write gate (011z),
-    owner quarantine (012t), R15 marks, owner-only review-queue policies (010d); REVOKEs 6b52521 and b90e975 pending Owner
-    approval; G0 NOT PASSED
+    owner quarantine (012t), R15 marks, owner-only review-queue policies (010d); REVOKEs 6b52521 and b90e975 approved by the
+    Owner 2026-11-24, not deployed; G0 NOT PASSED
   claude/lib-implementation-agent-47evs0-discovery-v13: from e778cc4; head c022f3a; design frozen b46c397 (re-frozen twice
     after held-out numbers were seen); evaluator-controlled ledger in a separate arm process, scored under candidate.5;
     v1.1 stays the offline safety baseline; engineering evidence on same-author worlds only
   claude/lib-implementation-agent-47evs0-g0-boundary5: from 5dc4d59; head 6415000; one definition of a counted belief event
     (005f) read by SQL and Python, review expiry at the database clock (010e), measurement provenance prototype (003f);
-    REVOKE 11a396b pending Owner approval; G0 NOT PASSED
+    REVOKE 11a396b approved and 005f adopted by the Owner 2026-11-24, not deployed; G0 NOT PASSED
   claude/lib-implementation-agent-47evs0-discovery-v14: from c022f3a; head 0eac9b3; design frozen bff315f, held-out seeds
     derived from the freeze and run once; per-world cost matching, rival closure by failed prediction, grammar rivals;
     v1.1 stays the offline safety baseline; engineering evidence on same-author worlds only
