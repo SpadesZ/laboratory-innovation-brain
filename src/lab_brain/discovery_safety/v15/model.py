@@ -38,12 +38,16 @@ class SafetyProtocolV15(SafetyProtocolV14):
     rival_first              run rival-targeted tests BEFORE the fixed-order signal probes while
                              one is expected to refute enough rivals
     min_expected_refutations below this expected count for every option, fall back to B7's choice
+    max_targeted_tests       targeted tests in the front phase (the later rival tests keep their
+                             own count, `max_rival_tests`)
+    (a claim of "no effect" runs exactly as B7: see `_GateV15._targeting`)
     """
 
     version: str = "1.5.0"
     targeted_selection: bool = True
     rival_first: bool = True
     min_expected_refutations: float = 0.5
+    max_targeted_tests: int = 6
 
 
 SAFETY_V15 = SafetyProtocolV15()

@@ -112,6 +112,14 @@ class _GateV15(_GateV14):
 
     # -- the rival-targeted choice --------------------------------------------------------------
 
+    def _targeting(self) -> bool:
+        """Rival-targeted choice applies to a claim of a mechanism; a claim of "no effect" (and
+        the parsimony fallback to it) runs exactly as B7. Development showed rival-first testing of
+        "no effect" reaching SUPPORTED from a narrow set of experiments on a world whose true,
+        out-of-catalog effect was below the evaluator's grammar threshold on what was measured
+        (base 8_000_000, `geometry.gap_small-01`, family removed, caps 6-10)."""
+        return self.v15.targeted_selection and not any(m.is_null for m in self.members)
+
     def targeted_option(self) -> tuple[ExperimentSpec, int, list[Rival], float] | None:
         """(experiment, runs, rivals most-likely-to-fail first, expected refutations) of the
         affordable option with the most expected refutations per unit cost, or None when no
@@ -160,7 +168,7 @@ class _GateV15(_GateV14):
         return e, n, [rivals[i] for i in order], expected
 
     def rival_test(self) -> str:
-        if not self.v15.targeted_selection:
+        if not self._targeting():
             return super().rival_test()
         option = self.targeted_option()
         if option is None:
@@ -171,12 +179,12 @@ class _GateV15(_GateV14):
     def probe_fixpoint(self) -> bool | None:
         """v1.2's probe fixpoint (`_GateV12.probe_fixpoint`) with one phase added in FRONT of the
         signal probes (`rival_first`): while a rival-targeted option is expected to refute at
-        least `min_expected_refutations` open rivals and fewer than `max_rival_tests` rival tests
-        have run, run it. Development showed B7 spending its whole budget at small caps on the
+        least `min_expected_refutations` open rivals and fewer than `max_targeted_tests` targeted
+        tests have run, run it. Development showed B7 spending its whole budget at small caps on the
         fixed-order signal probes, leaving refutable rivals untested. The signal probes, the
-        support test, the rival tests and the null probes follow as in v1.2 (sharing one rival
-        test count)."""
-        if not self.v15.rival_first:
+        support test, the rival tests (their own count, `max_rival_tests`) and the null probes
+        follow as in v1.2."""
+        if not (self.v15.rival_first and self._targeting()):
             return super().probe_fixpoint()
         self.initial_signals = self.recompute_signals()
         self.deferring = (
@@ -192,6 +200,7 @@ class _GateV15(_GateV14):
         if not self.safety.probes:
             return None
         support_runs = 0
+        targeted_runs = 0
         rival_runs = 0
         while True:
             observed = {o.experiment_id for o in self.admitted()}
@@ -203,12 +212,12 @@ class _GateV15(_GateV14):
                 self.targeted_option()
                 if self.v12.rival_exclusion
                 and self.v12.registered_probes
-                and rival_runs < self.v12.max_rival_tests
+                and targeted_runs < self.v15.max_targeted_tests
                 and self.failing() is None
                 else None
             )
             if option is not None:
-                rival_runs += 1
+                targeted_runs += 1
                 excluded = self._close(option[0], option[1], option[2])
                 if excluded != "clean":
                     return excluded == "reproduced"

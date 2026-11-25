@@ -108,7 +108,7 @@ def test_b8_decides_support_and_rivals_exactly_as_b7_and_only_chooses_tests_diff
     for name in ("self_supported", "open_rivals", "_rival_prediction", "_close", "register"):
         assert getattr(g15, name) is getattr(g14, name), name
     own = {n for n in vars(g15) if not n.startswith("__")}
-    assert own == {"targeted_option", "rival_test", "probe_fixpoint"}
+    assert own == {"_targeting", "targeted_option", "rival_test", "probe_fixpoint"}
     # the evaluation scores B8 with the v1.4 rule, unchanged
     assert ev.Evaluator(lambda r, lab: None, None).rule is EVALUATOR_RULE_V14  # type: ignore[arg-type,return-value]
 
@@ -292,6 +292,56 @@ def test_omitting_grammar_rivals_would_support_what_the_full_rule_withholds():
             found = True
     assert found
     assert answer.answer_kind == "NONE"
+
+
+def _null_rival_first_handle(request: Any, lab: Any) -> ArmAnswer:
+    """B8 before its development fix: rival-first targeting also for a claim of "no effect"."""
+
+    class NullFirst(gate15._GateV15):
+        def _targeting(self) -> bool:
+            return True
+
+    original = gate15._GateV15
+    gate15._GateV15 = NullFirst  # type: ignore[misc]
+    try:
+        return script()._handle(request, lab)
+    finally:
+        gate15._GateV15 = original  # type: ignore[misc]
+
+
+@cache
+def _gap_small_01() -> Any:
+    s = script()
+    worlds = held_out.held_out_worlds(
+        s.ring_catalog(), seeds_per_class=2, base_seed=DEV, protocol=DISCOVERY
+    )
+    return s.held_out_case(
+        next(w for w in worlds if w.spec.world_id == "held_out-geometry.gap_small-01"), True
+    )
+
+
+def test_known_residual_rival_first_testing_of_no_effect_reaches_a_false_supported():
+    """RESIDUAL WEAKNESS OF THE v1.4 RULE (found in development, reported, not fixed in the rule):
+    an arm that tests "no effect" only where its catalog rivals (at their smallest declared
+    effects) are cheap to refute reaches SUPPORTED "no effect" on a world whose true effect is
+    outside the arm's catalog and below the rule's grammar threshold on what was measured. B8 as
+    first drafted did this; any adversarial arm can."""
+    s = script()
+    out = ev.Evaluator(_null_rival_first_handle, s.GRAMMAR, arms=("B8",)).run(_gap_small_01(), (6,))
+    assert out[0].claim == ("hyp:null",) and out[0].level == ev.SUPPORTED
+    assert out[0].category == ev13.FORCE_FIT
+
+
+def test_b8_runs_a_claim_of_no_effect_as_b7_and_does_not_endorse_it_there():
+    s = script()
+    rows = ev.Evaluator(s._execute_in_process, s.GRAMMAR, arms=("B7", "B8")).run(
+        _gap_small_01(), (6, 8, 10)
+    )
+    for r in rows:
+        assert r.category not in (ev13.FORCE_FIT, ev13.WRONG_CLAIM, ev13.UNSUPPORTED_CLAIM)
+    by = {(r.arm, r.budget): r for r in rows}
+    for cap in (6, 8, 10):
+        assert by[("B8", cap)].chain_head == by[("B7", cap)].chain_head
 
 
 # -- C. the expected-refutation computation ----------------------------------------------------
