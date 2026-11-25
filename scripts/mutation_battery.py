@@ -8605,7 +8605,10 @@ MUTATIONS: tuple[Mutation, ...] = (
         path="src/lab_brain/security/measurement_provenance.py",
         old="        if enrolled is None:\n            return Provenance(ProvenanceStatus.UNKNOWN_KEY",
         new="        if enrolled is None:\n            return Provenance(ProvenanceStatus.VERIFIED",
-        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+        tests=(
+            "tests/e2e/test_g0_measurement_provenance_postgres.py",
+            "tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_the_owners_verifier_records_the_failure_it_finds",
+        ),
     ),
     Mutation(
         name="t1_revocation_ignored",
@@ -8613,7 +8616,10 @@ MUTATIONS: tuple[Mutation, ...] = (
         path="src/lab_brain/security/measurement_provenance.py",
         old="        if revoked_at is not None and revoked_at <= recorded_at:",
         new="        if False:",
-        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+        tests=(
+            "tests/e2e/test_g0_measurement_provenance_postgres.py",
+            "tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_the_owners_verifier_records_the_failure_it_finds",
+        ),
     ),
     Mutation(
         name="t1_scope_ignored",
@@ -8621,7 +8627,10 @@ MUTATIONS: tuple[Mutation, ...] = (
         path="src/lab_brain/security/measurement_provenance.py",
         old="        if key_instrument != instrument_id or capability_id not in key_capabilities:",
         new="        if False:",
-        tests=("tests/e2e/test_g0_measurement_provenance_postgres.py",),
+        tests=(
+            "tests/e2e/test_g0_measurement_provenance_postgres.py",
+            "tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_the_owners_verifier_records_the_failure_it_finds",
+        ),
     ),
     Mutation(
         name="t1_digest_not_checked",

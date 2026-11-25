@@ -1,0 +1,129 @@
+# Round-6 targeted mutation battery, Python half, first pass (31 entries: round4_*, round5_*, t1_*, round6_* whose path is a source file); code at 9d0da03; database g6_batpy. Three T-1 Python checks SURVIVED: since 003g the SQL status re-checks key, revocation and scope, so the Python check no longer changes what counts; it still decides the verdict the owner's verifier records, which no test asserted. Fixed in the next commit (test of the recorded verdicts) and re-run separately.
+31 mutations
+
+[KILLED ] round4_services_not_granted_the_gate
+           G0 T-2 -- db-roles grants EXECUTE on the gate to the services' role
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_the_gate_refuses_a_snapshot_whose_evid
+
+[KILLED ] round4_projection_ignores_quarantine
+           G0 T-3/T-2 -- the projection skips the owner's quarantined events
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_one_forged_row_stops_denying_the_histo
+
+[KILLED ] round4_operator_quarantines_declared_rules
+           G0 T-3 -- the product's own policies and sets are not quarantined
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t3_the_products_own_rules_are_not_quarant
+
+[KILLED ] round4_report_moves_unmarked
+           G0 R15 -- the report marks a move the projection does not count
+           killed by FAILED tests/unit/test_g0_r15_history_display.py::test_the_reports_moves_mark_an_event_the_projectio
+
+[KILLED ] round4_view_counts_everything
+           G0 R15 -- the episode view asks the projection about each move
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_r15_the_displays_mark_the_moves_the_produ
+
+[KILLED ] round4_page_shows_uncounted_as_moved
+           G0 R15 -- the page says an uncounted move was not counted
+           killed by FAILED tests/unit/test_g0_r15_history_display.py::test_the_episode_view_marks_a_transition_the_proje
+
+[KILLED ] round4_services_keep_row_writes_on_belief_tables
+           G0 T-2 (Owner approval) -- db-roles revokes row writes on the four belief tables
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_t2_raw_rows_written_by_the_services_role_
+
+[KILLED ] round4_services_keep_row_writes_on_queues
+           G0 R-4 (Owner approval) -- db-roles revokes row writes on review_queue_policies
+           killed by FAILED tests/e2e/test_g0_boundary_round4_postgres.py::test_r4_the_services_role_reads_the_review_que
+
+[KILLED ] round5_projection_ignores_snapshot_quarantine
+           G0 round 5 Q6 -- the projection skips events the stored §6.18 selection excludes
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q6_an_event_triggered_by_quarantined_exte
+
+[KILLED ] round5_replay_ignores_trigger_quarantined
+           G0 round 5 Q6 -- replay skips the events it is told a quarantined trigger excludes
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q6_an_event_triggered_by_quarantined_exte
+
+[KILLED ] round5_revision_gate_reads_raw_history
+           G0 round 5 Q5 -- the research service's EPI-001 reader reads the counted history
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q5_the_products_competing_set_reader_leav
+
+[KILLED ] round5_counted_history_returns_skipped_events
+           G0 round 5 -- counted_history returns only the events belief_replay counts
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q5_the_products_competing_set_reader_leav
+
+[KILLED ] round5_withheld_reads_any_exclusion
+           G0 round 5 -- withheld is the OWNER_QUARANTINED half of the exclusions
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q1_the_sql_confirmation_rule_reads_the_st
+
+[KILLED ] t1_unsigned_measurements_count
+           G0 T-1 -- an unsigned measurement of an enforced pair is UNSIGNED
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_fabricated_measurement_is_not
+
+[KILLED ] t1_enrolment_does_not_enforce
+           G0 T-1 -- enrolling a key enforces its (instrument, capability)
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_enrolment_enforces_its_pair_in_
+
+[KILLED ] t1_signature_not_verified
+           G0 T-1 -- the Ed25519 signature is verified
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_measurement_without_a_verifyi
+
+[SURVIVED] t1_unknown_key_accepted
+           G0 T-1 -- only an enrolled key signs
+           SURVIVED — tests still pass with the guard disabled
+
+[SURVIVED] t1_revocation_ignored
+           G0 T-1 -- a revoked key no longer verifies
+           SURVIVED — tests still pass with the guard disabled
+
+[SURVIVED] t1_scope_ignored
+           G0 T-1 -- a key signs only for its instrument and capabilities
+           SURVIVED — tests still pass with the guard disabled
+
+[KILLED ] t1_digest_not_checked
+           G0 T-1 -- the run's recorded outputs are the bytes the runner signed
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_measurement_without_a_verifyi
+
+[KILLED ] t1_time_not_checked
+           G0 T-1 -- a measurement is dated after its nonce was issued
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_measurement_without_a_verifyi
+
+[KILLED ] t1_relation_store_skips_provenance
+           G0 T-1 -- every SqlRelationStore admits only SUPPORTS whose measurements count
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_a_fabricated_measurement_is_not
+
+[KILLED ] t1_services_keep_row_writes_on_keys
+           G0 T-1 (Owner approval) -- db-roles revokes the services' writes on the key tables
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_postgres.py::test_t1_db_roles_leave_the_services_sel
+
+[KILLED ] round6_python_ignores_the_sql_verdict
+           G0 round 6 T-1r -- Python counts a signature only on the owner's VERIFIED verdict too
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_differential_postgres.py::test_t1r_sql_python_and_an
+
+[KILLED ] round6_python_reads_the_setting_not_the_database
+           G0 round 6 T-1r -- Python applies the database's mode
+           killed by FAILED tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_the_database_mode_decides_and_the_set
+
+[KILLED ] round6_python_tolerates_a_disagreeing_setting
+           G0 round 6 T-1r -- a setting that disagrees with the database is a configuration error
+           killed by FAILED tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_the_database_mode_decides_and_the_set
+
+[KILLED ] round6_relation_store_admits_quarantined_evidence
+           G0 round 6 Q-x -- SqlRelationStore leaves out a relation on quarantined evidence
+           killed by FAILED tests/e2e/test_g0_boundary_round6_postgres.py::test_qx_a_relation_on_a_quarantined_snapshot_i
+
+[KILLED ] round6_page_ignores_measurement_provenance
+           G0 round 6 E-1 -- the episode page marks a refused measurement not counted
+           killed by FAILED tests/e2e/test_g0_boundary_round6_postgres.py::test_e1_the_episode_page_does_not_show_a_refus
+
+[KILLED ] round6_page_ignores_quarantine
+           G0 round 6 E-1 -- the episode page marks quarantined evidence not counted
+           killed by FAILED tests/e2e/test_g0_boundary_round6_postgres.py::test_e1_the_episode_page_does_not_show_quarant
+
+[KILLED ] round6_r5gap_trace_history_fix_reverted
+           G0 round-5 gap (trace) -- reverting counted_history fails the trace's own test
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_the_root_cause_trace_follows_the_promotio
+
+[KILLED ] round6_r5gap_trace_wired_to_raw_history
+           G0 round-5 gap (trace) -- the research service hands the trace the counted history
+           killed by FAILED tests/e2e/test_g0_boundary_round6_postgres.py::test_r5_gap_the_products_root_cause_trace_read
+
+28/31 killed
+exit=1

@@ -574,3 +574,37 @@ def test_r5_gap_the_products_root_cause_trace_reads_the_counted_history():
     ).read_text("utf-8")
     assert "history=events.history" not in text
     assert text.count("history=events.counted_history") >= 2
+
+
+@pytest.mark.parametrize("case", ["unknown_key", "revoked", "out_of_scope"])
+def test_t1r_the_owners_verifier_records_the_failure_it_finds(guarded, roles, case):
+    """The verdict the owner's verifier records is its own judgement of the signature, so a
+    failure it finds is recorded as that failure -- not left to the SQL re-checks to catch."""
+    from lab_brain.security.measurement_provenance import revoke, verify_run
+    from tests.e2e.test_g0_measurement_provenance_postgres import (
+        _enrol,
+        _honest_signer,
+        _measure,
+        _runner,
+    )
+
+    g = guarded
+    runner = _runner()
+    if case == "revoked":
+        _enrol(g, runner)
+        revoke(
+            g.db, key_id=runner.key_id, reason="key left its host (G0 round 6)", actor_id=g.actor
+        )
+    elif case == "out_of_scope":
+        _enrol(g, runner, instrument="lab.another_station")
+    else:
+        _enrol(g, _runner())
+    with roles.connect(roles.app) as app:
+        _job, run, _relation = _measure(g, app, case, sign=_honest_signer(runner, case))
+    recorded = verify_run(g.db, run, actor_id=g.actor)
+    expected = {
+        "unknown_key": "UNKNOWN_KEY",
+        "revoked": "KEY_REVOKED",
+        "out_of_scope": "OUT_OF_SCOPE",
+    }[case]
+    assert recorded == expected
