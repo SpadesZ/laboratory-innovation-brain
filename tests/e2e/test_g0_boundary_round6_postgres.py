@@ -539,3 +539,38 @@ def test_c1_the_confirmation_path_breaks_ties_bytewise(db, function, tie_break):
         "SELECT pg_get_functiondef(p.oid) FROM pg_proc p WHERE p.proname = %s", (function,)
     ).fetchall()
     assert tie_break in definition, f"{function}: {tie_break!r} not in its live definition"
+
+
+def test_t1r_the_database_mode_decides_and_the_setting_may_only_agree(guarded, monkeypatch):
+    from lab_brain.security.measurement_provenance import (
+        MeasurementProvenance,
+        ProvenanceModeMismatch,
+        set_mode,
+    )
+
+    g = guarded
+    monkeypatch.delenv(MODE_ENV, raising=False)
+    assert MeasurementProvenance(g.db).strict is False
+    monkeypatch.setenv(MODE_ENV, "strict")
+    with pytest.raises(ProvenanceModeMismatch):
+        MeasurementProvenance(g.db)
+    set_mode(g.db, "strict", reason="every runner signs (G0 round 6)", actor_id=g.actor)
+    assert MeasurementProvenance(g.db).strict is True
+    monkeypatch.delenv(MODE_ENV, raising=False)
+    assert MeasurementProvenance(g.db).strict is True, "the database's mode, setting or not"
+    monkeypatch.setenv(MODE_ENV, "enrolled")
+    with pytest.raises(ProvenanceModeMismatch):
+        MeasurementProvenance(g.db)
+
+
+def test_r5_gap_the_products_root_cause_trace_reads_the_counted_history():
+    """Round-5 gap (the trace fix had no reproduction and nothing held its wiring): every history
+    the research service hands a reader that decides (the verification loop's root-cause trace,
+    EPI-001's revision gate) is the counted one."""
+    from pathlib import Path
+
+    text = (
+        Path(__file__).resolve().parents[2] / "src" / "lab_brain" / "research" / "service.py"
+    ).read_text("utf-8")
+    assert "history=events.history" not in text
+    assert text.count("history=events.counted_history") >= 2
