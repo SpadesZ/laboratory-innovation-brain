@@ -511,7 +511,19 @@ def _not_counted(
     hypothesis_id: str,
     support_verifier: Callable[[RelationJudgment], str | None] | None,
 ) -> str | None:
-    """Why this SUPPORTS is not counted (the reason every decision applies, 011w), or None."""
+    """Why this relation is not counted -- the reasons every decision applies, read through the
+    same relation store: quarantined external evidence (`005g`), a SUPPORTS's measurement
+    provenance (`003f`/`003g`) and, after screening, its authorization (011w) -- or None."""
+    if relation_type not in {"SUPPORTS", "CONTRADICTS", "TESTS", "PREDICTS"}:
+        return None
+    store = SqlRelationStore(connection)
+    recorded = store.get(project_id, relation_id)
+    if recorded is not None:
+        problem = store.quarantine_problem(recorded)
+        if problem is None and relation_type == "SUPPORTS":
+            problem = store.measurement_problem(recorded)
+        if problem is not None:
+            return problem
     if relation_type != "SUPPORTS":
         return None
     conditioned = connection.execute(

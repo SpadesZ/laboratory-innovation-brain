@@ -457,7 +457,6 @@ def _shown_as(g: Guarded, relation: str, hypothesis: str) -> str | None:
     return _not_counted(g.db, PROJECT, relation, "SUPPORTS", hypothesis, verifier)
 
 
-@pytest.mark.xfail(strict=True, reason="E-1: the page ignores measurement provenance")
 def test_e1_the_episode_page_does_not_show_a_refused_measurement_as_counted(guarded, roles):
     g = guarded
     hypothesis = _unscreened(g)
@@ -471,7 +470,6 @@ def test_e1_the_episode_page_does_not_show_a_refused_measurement_as_counted(guar
     assert shown is not None and "measurement provenance" in shown, shown
 
 
-@pytest.mark.xfail(strict=True, reason="E-1: the page ignores quarantined external evidence")
 def test_e1_the_episode_page_does_not_show_quarantined_evidence_as_counted(guarded, roles):
     g = guarded
     hypothesis = _unscreened(g)
