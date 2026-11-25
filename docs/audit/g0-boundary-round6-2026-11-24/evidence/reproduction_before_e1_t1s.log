@@ -1,0 +1,16 @@
+# E-1 and T-1s reproductions at 25e6a78 + the uncommitted tests; database g6_a (94 migrations); Wed Nov 25 06:16:07 UTC 2026
+## normal run (strict xfail)
+xxx                                                                      [100%]
+=========================== short test summary info ============================
+XFAIL tests/e2e/test_g0_boundary_round6_postgres.py::test_e1_the_episode_page_does_not_show_a_refused_measurement_as_counted - E-1: the page ignores measurement provenance
+XFAIL tests/e2e/test_g0_boundary_round6_postgres.py::test_e1_the_episode_page_does_not_show_quarantined_evidence_as_counted - E-1: the page ignores quarantined external evidence
+XFAIL tests/e2e/test_g0_boundary_round6_postgres.py::test_t1s_the_sql_confirmation_rule_does_not_count_support_on_a_forged_authorization - T-1s open: SQL cannot verify a verification authorization's signature (011w); closing it needs an owner-run verifier for authorizations, an Owner decision (see the round-6 report)
+11 deselected, 3 xfailed in 19.75s
+## --runxfail -s
+E-1 measurement: every decision refuses it; the page says None
+E       AssertionError: None
+E       assert (None is not None)
+E       AssertionError: None
+E       assert (None is not None)
+E       AssertionError: assert 'rel:obs:ind-r6-forged' not in {'rel:obs:ind-r6-forged'}
+3 failed, 11 deselected in 22.18s

@@ -441,3 +441,74 @@ def test_qx_a_promotion_that_counted_it_no_longer_counts(guarded, roles):
     assert python == BeliefState.ACTIVE.value
     assert sql == BeliefState.ACTIVE.value
     assert problem is not None and "quarantined" in problem, problem
+
+
+# =============================================================================================
+# E-1: the episode page's "not counted" mark (a report that claims support)
+# =============================================================================================
+
+
+def _shown_as(g: Guarded, relation: str, hypothesis: str) -> str | None:
+    """What the episode page says about a recorded SUPPORTS: None (counted) or why not."""
+    from lab_brain.research.episode_view import _not_counted
+    from lab_brain.verification import prospective
+
+    verifier = prospective.prospective_support_verifier(g.db, g.keys.trust)
+    return _not_counted(g.db, PROJECT, relation, "SUPPORTS", hypothesis, verifier)
+
+
+@pytest.mark.xfail(strict=True, reason="E-1: the page ignores measurement provenance")
+def test_e1_the_episode_page_does_not_show_a_refused_measurement_as_counted(guarded, roles):
+    g = guarded
+    hypothesis = _unscreened(g)
+    with roles.connect(roles.app) as app:
+        relation = _stored_support(app, g, hypothesis)
+    assert _shown_as(g, relation.relation_id, hypothesis) is None
+    _owner_enrols_for(g, relation.supporting_attestation_ids[0])
+    assert relation.relation_id not in _python_support(g, hypothesis)
+    shown = _shown_as(g, relation.relation_id, hypothesis)
+    print(f"E-1 measurement: every decision refuses it; the page says {shown!r}")
+    assert shown is not None and "measurement provenance" in shown, shown
+
+
+@pytest.mark.xfail(strict=True, reason="E-1: the page ignores quarantined external evidence")
+def test_e1_the_episode_page_does_not_show_quarantined_evidence_as_counted(guarded, roles):
+    g = guarded
+    hypothesis = _unscreened(g)
+    attestation = _external_attestation(g)
+    with roles.connect(roles.app) as app:
+        relation = _external_support(app, g, hypothesis, attestation)
+    _owner_quarantines_snapshot_of(g, attestation)
+    assert relation.relation_id not in _python_support(g, hypothesis)
+    shown = _shown_as(g, relation.relation_id, hypothesis)
+    print(f"E-1 quarantine: every decision refuses it; the page says {shown!r}")
+    assert shown is not None and "quarantined" in shown, shown
+
+
+# =============================================================================================
+# T-1s (open): a signature only Python can verify -- a verification authorization (011w)
+# =============================================================================================
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "T-1s open: SQL cannot verify a verification authorization's signature (011w); closing "
+        "it needs an owner-run verifier for authorizations, an Owner decision (see the round-6 "
+        "report)"
+    ),
+)
+def test_t1s_the_sql_confirmation_rule_does_not_count_support_on_a_forged_authorization(
+    guarded, roles
+):
+    from tests.e2e.test_g0_forged_authorization_read_path_postgres import _forge, _support_as
+
+    g = guarded
+    with roles.connect(roles.app) as app:
+        authorization = _forge(app, g, "r6-forged", SigningKey.generate().sign(b"never signed"))
+        observation, evidence = g.measured("r6-forged", authorization=authorization)
+        relation = _support_as(app, g, observation, evidence)
+    python, sql = _python_support(g, g.hypothesis), _sql_support(g, g.hypothesis)
+    print(f"T-1s forged authorization: Python admits {sorted(python)}; cwg_evidence {sorted(sql)}")
+    assert relation not in python
+    assert relation not in sql
