@@ -204,19 +204,26 @@ def study_validity(
 
 
 def decide(
-    primary: Mapping[str, Any], safety: Mapping[str, Any], margin: float, valid: bool
+    primary: Mapping[str, Any],
+    safety: Mapping[str, Any],
+    margin: float,
+    valid: bool,
+    alpha: float = 0.05,
 ) -> str:
+    """The plan's decision. An interval bound alone never decides a direction: the exact McNemar
+    test on the same pairs must also reject at `alpha` (a percentile bootstrap degenerates to a
+    point when every discordant pair goes one way, e.g. [1, 1] from five cases)."""
     if not valid:
         return "INVALID"
     p, s = primary["difference"], safety["difference"]
     if p["lo"] is None or s["lo"] is None:
         return "INCONCLUSIVE"
-    if p["hi"] < 0 or s["lo"] > 0:
+    primary_rejects = primary["mcnemar_p"] < alpha
+    safety_rejects = safety["mcnemar_p"] < alpha
+    if (p["hi"] < 0 and primary_rejects) or (s["lo"] > 0 and safety_rejects):
         return "WORSE"
-    if p["lo"] > 0 and s["hi"] <= margin:
-        return "BETTER"
-    if p["lo"] > 0:
-        return "SAFETY_FAIL"
+    if p["lo"] > 0 and primary_rejects:
+        return "BETTER" if s["hi"] <= margin else "SAFETY_FAIL"
     return "INCONCLUSIVE"
 
 
@@ -290,7 +297,9 @@ def analyse(
         plan.primary_checkpoint,
         safety_cases,
     )
-    decision = decide(primary, safety, plan.non_inferiority_margin, validity["valid"])
+    decision = decide(
+        primary, safety, plan.non_inferiority_margin, validity["valid"], plan.decision_alpha
+    )
     secondary: dict[str, Any] = {}
     for metric in plan.secondary_metrics:
         cases = primary_cases if metric == "exact" else safety_cases
@@ -357,9 +366,10 @@ def analyse(
         "primary": primary,
         "safety": safety,
         "decision": decision,
-        "decision_rule": "BETTER iff primary lo > 0 and safety hi <= margin; WORSE iff primary hi "
-        "< 0 or safety lo > 0; SAFETY_FAIL iff primary lo > 0 and safety hi > margin; else "
-        "INCONCLUSIVE; INVALID when the study-level deficiency limits are exceeded",
+        "decision_rule": "BETTER iff primary lo > 0, primary exact McNemar p < 0.05 and safety hi "
+        "<= margin; WORSE iff (primary hi < 0 and its McNemar p < 0.05) or (safety lo > 0 and its "
+        "McNemar p < 0.05); SAFETY_FAIL iff primary lo > 0 with p < 0.05 but safety hi > margin; "
+        "else INCONCLUSIVE; INVALID when the study-level deficiency limits are exceeded",
         "secondary": secondary,
         "anytime_curves": curves,
         "anytime_auc_credited_secondary": auc,

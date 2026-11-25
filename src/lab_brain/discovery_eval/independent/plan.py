@@ -24,9 +24,11 @@ COST_UNMATCHED / INVALID and supports no claim that one arm is better.
 
 DECISION RULES (applied mechanically by `analysis.decide`):
 
-    BETTER        primary lower bound > 0 AND safety upper bound <= margin
-    WORSE         primary upper bound < 0, OR safety lower bound > 0
-    SAFETY_FAIL   primary lower bound > 0 but safety upper bound > margin
+    BETTER        primary lower bound > 0 AND the primary exact McNemar p < 0.05 AND safety upper
+                  bound <= margin
+    WORSE         primary upper bound < 0 with McNemar p < 0.05, OR safety lower bound > 0 with
+                  McNemar p < 0.05
+    SAFETY_FAIL   primary lower bound > 0 with McNemar p < 0.05, but safety upper bound > margin
     INCONCLUSIVE  anything else
     INVALID       the study-level deficiency limits above are exceeded
 
@@ -71,6 +73,8 @@ class AnalysisPlan:
     safety_metric: str = "error"
     safety_excluded_categories: tuple[str, ...] = SAFETY_EXCLUDED
     non_inferiority_margin: float = 0.02
+    #: A direction is decided only when the exact McNemar test on the same pairs also rejects.
+    decision_alpha: float = 0.05
     baseline: str = "B4"
     #: The primary candidate: the first of these whose slot is filled at freeze time.
     primary_candidates: tuple[str, ...] = ("B8", "B7")
@@ -113,6 +117,7 @@ class AnalysisPlan:
         out = asdict(self)
         out["non_inferiority_margin"] = format(self.non_inferiority_margin, ".4f")
         out["confidence"] = format(self.confidence, ".4f")
+        out["decision_alpha"] = format(self.decision_alpha, ".4f")
         out["max_incident_share"] = format(self.max_incident_share, ".4f")
         out["max_deficient_case_share"] = format(self.max_deficient_case_share, ".4f")
         out["comparisons"] = [list(c) for c in self.comparisons]

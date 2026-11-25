@@ -511,15 +511,17 @@ def test_a_checkpoint_outside_the_frozen_ladder_is_refused():
 
 
 def test_the_decision_rules():
-    def c(lo: float, hi: float) -> dict[str, Any]:
-        return {"difference": {"lo": lo, "hi": hi}}
+    def c(lo: float, hi: float, p: float = 0.001) -> dict[str, Any]:
+        return {"difference": {"lo": lo, "hi": hi}, "mcnemar_p": p}
 
-    assert analysis.decide(c(0.1, 0.4), c(-0.1, 0.0), 0.02, True) == "BETTER"
-    assert analysis.decide(c(0.1, 0.4), c(-0.1, 0.05), 0.02, True) == "SAFETY_FAIL"
-    assert analysis.decide(c(-0.4, -0.1), c(0.0, 0.0), 0.02, True) == "WORSE"
-    assert analysis.decide(c(-0.1, 0.3), c(0.01, 0.1), 0.02, True) == "WORSE"
-    assert analysis.decide(c(-0.1, 0.3), c(0.0, 0.0), 0.02, True) == "INCONCLUSIVE"
-    assert analysis.decide(c(0.1, 0.4), c(0.0, 0.0), 0.02, False) == "INVALID"
+    assert analysis.decide(c(0.1, 0.4), c(-0.1, 0.0, 1.0), 0.02, True) == "BETTER"
+    assert analysis.decide(c(0.1, 0.4), c(-0.1, 0.05, 1.0), 0.02, True) == "SAFETY_FAIL"
+    assert analysis.decide(c(-0.4, -0.1), c(0.0, 0.0, 1.0), 0.02, True) == "WORSE"
+    assert analysis.decide(c(-0.1, 0.3, 1.0), c(0.01, 0.1), 0.02, True) == "WORSE"
+    assert analysis.decide(c(-0.1, 0.3, 1.0), c(0.0, 0.0, 1.0), 0.02, True) == "INCONCLUSIVE"
+    assert analysis.decide(c(0.1, 0.4), c(0.0, 0.0, 1.0), 0.02, False) == "INVALID"
+    # a degenerate bootstrap interval from five one-sided pairs decides nothing on its own
+    assert analysis.decide(c(1.0, 1.0, 0.0625), c(0.0, 0.0, 1.0), 0.02, True) == "INCONCLUSIVE"
 
 
 def test_the_bootstrap_is_deterministic_and_the_exact_tests_are_right():

@@ -439,7 +439,7 @@ arms, not a sandbox**: the boundary that matters is the operating system's (§13
 | safety co-primary | candidate.5 ERROR indicator (FORCE_FIT, WRONG_CLAIM, UNSUPPORTED_CLAIM, or deficient) over all non-aliased cases at c*; non-inferiority margin 0.02 on the upper bound |
 | interval | paired percentile bootstrap over cases, 10,000 resamples, SHA-256 counter-mode indices, seed 20261124, 95 % |
 | deficient records | scored against their own arm; study INVALID if > 2 % of runs are incidents (INVALID/TAMPERED/TRUNCATED) or > 5 % of cases have a deficient run in a compared arm |
-| decision | BETTER iff primary lower bound > 0 and safety upper bound <= 0.02; WORSE iff primary upper bound < 0 or safety lower bound > 0; SAFETY_FAIL iff primary lower bound > 0 and safety upper bound > 0.02; else INCONCLUSIVE |
+| decision | a direction needs BOTH the bootstrap bound and an exact McNemar p < 0.05 on the same pairs (a percentile bootstrap degenerates to a point when all discordant pairs go one way). BETTER iff primary lower bound > 0, McNemar p < 0.05 and safety upper bound <= 0.02; WORSE iff primary upper bound < 0 (p < 0.05) or safety lower bound > 0 (p < 0.05); SAFETY_FAIL iff the primary says better but safety upper bound > 0.02; else INCONCLUSIVE |
 | secondary (labelled, never primary) | every filled comparison of (B8-B4, B7-B4, B6-B4, B8-B7, B7-B6) at every checkpoint for exact, credited, error and face-value correct; exact McNemar with Holm across comparisons per (metric, checkpoint); anytime curves; area under the credited curve; per-category counts; realized-cost distributions |
 
 ### 12.5 Statistical power with 58 cases (`kit/power-analysis.json`)
