@@ -45,7 +45,7 @@ a set after a freeze that changes only the sealed-set pins.
 | `842f3ad` | dry run on the public example (31 files) |
 | **`607bd66`** | **FREEZE** (`kit-manifest.json`), pushed |
 | `e444067` | first full PostgreSQL run log |
-| later | second full run log, status inventory, this report (no kit file changes; `verify` stays OK) |
+| later | this report, second full run log, status inventory (no kit file changes; `verify --quick` on the head: OK) |
 
 ## 3. Design, and why
 
@@ -224,7 +224,7 @@ sealed set.
 | governance tests (discovery_eval, discovery_safety, extension boundary) | pass (unchanged tests; the kit packages fall under them) |
 | `check_commit_messages.py` | no AI authorship found |
 | full PostgreSQL suite, run 1 at `607bd66` (fresh `ie6_full`, migrate twice: 81 applied, then up to date) | 3948 passed, 4 skipped, **1 failed** in 51 min 39 s: `test_g0_eval_environment::test_the_script_captures_this_repository` -- the subprocess resolved `lab_brain` through the shared `.venv`'s editable install, which points at the main checkout (another branch, no `lab_brain.evaluation`). Environment artifact of the worktree, not of this change; the test passes with `PYTHONPATH` set to this tree. Log: `discovery-independent-eval-kit-evidence/full-suite-607bd66-run1-editable-path.log` |
-| full PostgreSQL suite, run 2 at `607bd66` (fresh `ie6_full2`, migrate twice: 81 applied, then up to date; `PYTHONPATH=<worktree>/src`) | FULL_SUITE_RUN2 |
+| full PostgreSQL suite, run 2 at `607bd66` (fresh `ie6_full2`, migrate twice: 81 applied, then up to date; `PYTHONPATH=<worktree>/src`) | **3949 passed, 4 skipped, 0 failed in 27 min 28 s (exit 0)** -- the one complete clean run of record. Log: `discovery-independent-eval-kit-evidence/full-suite-607bd66-run2.log` |
 | `update_status.py` | regenerated after the full run |
 
 ## 10. What remains open
