@@ -451,7 +451,7 @@ def test_for_a_cap_independent_deterministic_arm_the_trace_answer_equals_a_fresh
 def test_early_stopping_moves_no_checkpoint_and_another_arm_s_trace_changes_nothing():
     """S2-CE-1: X right at 10 and stops; Y right at 30: at c* both are what they are, and X's
     rows do not depend on Y's trace."""
-    experiment, cost = cheapest()
+    experiment, _ = cheapest()
     x = serve(anytime_arm([experiment] * 3, truth_id()), cap=PLAN.cap)
     y = serve(anytime_arm([experiment] * 9, truth_id()), cap=PLAN.cap)
     rx, ry = score(x), score(y)
