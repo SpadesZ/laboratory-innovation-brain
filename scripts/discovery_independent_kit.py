@@ -371,7 +371,10 @@ def verify(workdir: Path, archive: Path | None = None, quick: bool = False) -> l
             problems.append(f"{name} differ from the freeze: {changed[:8]}")
     if canonical_hash(frozen["kit_sources_sha256"]) != frozen["kit_code_hash"]:
         problems.append("the manifest's kit code hash does not match its own file list")
-    if PLAN.digest != frozen["plan_digest"] or PLAN.as_json() != frozen["plan"]:
+    if (
+        PLAN.digest != frozen["plan_digest"]
+        or json.loads(json.dumps(PLAN.as_json())) != frozen["plan"]
+    ):
         problems.append("the analysis plan differs from the frozen plan")
     if EVALUATOR_RULE_V14.digest != frozen["scoring"]["evaluator_rule_v14_digest"]:
         problems.append("the evaluator rule differs from the frozen rule")
