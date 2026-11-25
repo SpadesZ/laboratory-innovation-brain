@@ -564,6 +564,55 @@ def check(out: Path, files: dict[str, str], record: bool) -> int:
     return 0
 
 
+def cause_table(paths: Sequence[Path], arms: Sequence[str]) -> list[str]:
+    """Markdown tables of the abstention causes (answer NONE on supportable worlds) and of the
+    open-rival kinds, per row file, arm and cap (reads row files only)."""
+    out: list[str] = []
+    for path in paths:
+        rows = _load(path)
+        caps = sorted({int(c) for r in rows for a in r["arms"].values() for c in a})
+        for part, keep in (("primary", False), ("aliased", True)):
+            sub = [r for r in rows if bool(r.get("aliased")) is keep]
+            if not sub:
+                continue
+            out.append(f"\n#### {path.name} ({part}, {len(sub)} worlds)\n")
+            out.append(
+                "| arm | cap | supportable | SUPPORTED | abstained | "
+                + " | ".join(c.lower() for c in dg.CAUSES)
+                + " | correct / noise / budget / avoidable | open rivals by kind (abstained) |"
+            )
+            out.append("|" + "---|" * (6 + len(dg.CAUSES)))
+            for arm in arms:
+                for cap in caps:
+                    cells = [
+                        r["arms"][arm][str(cap)]
+                        for r in sub
+                        if arm in r["arms"] and str(cap) in r["arms"][arm]
+                    ]
+                    supp = [c for c in cells if c.get("supportable")]
+                    if not supp:
+                        continue
+                    none = [c for c in supp if c["answer"] == "NONE" and c.get("cause")]
+                    counts = {k: sum(c["cause"] == k for c in none) for k in dg.CAUSES}
+                    buckets = {
+                        b: sum(n for k, n in counts.items() if dg.BUCKETS[k] == b)
+                        for b in ("correct", "noise_limited", "budget_limited", "avoidable")
+                    }
+                    kinds: dict[str, int] = {}
+                    for c in none:
+                        for k, n in (c.get("diagnosis") or {}).get("open_rival_kinds", {}).items():
+                            kinds[k] = kinds.get(k, 0) + n
+                    out.append(
+                        f"| {arm} | {cap} | {len(supp)} | "
+                        f"{sum(c['level'] == 'SUPPORTED' for c in supp)} | {len(none)} | "
+                        + " | ".join(str(counts[k]) for k in dg.CAUSES)
+                        + " | "
+                        + " / ".join(str(v) for v in buckets.values())
+                        + f" | {kinds} |"
+                    )
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
@@ -580,10 +629,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--in-process", action="store_true")
     parser.add_argument("--dev-out", type=Path, help="development only: also write JSON here")
     parser.add_argument("--arm-worker", action="store_true")
+    parser.add_argument("--cause-table", nargs="+", type=Path, help="row files to tabulate")
     parser.add_argument("--jobs", type=int, default=4)
     args = parser.parse_args(argv)
     if args.arm_worker:
         return worker_loop(_handle)
+    if args.cause_table:
+        arms = tuple(a for a in args.arms.split(",") if a)
+        print("\n".join(cause_table(args.cause_table, arms)))
+        return 0
     log: list[str] = []
     budgets = tuple(int(b) for b in args.budgets.split(",")) if args.budgets else PLAN.budgets
     arms = tuple(a for a in args.arms.split(",") if a)
