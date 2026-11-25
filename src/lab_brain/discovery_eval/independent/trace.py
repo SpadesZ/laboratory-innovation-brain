@@ -206,7 +206,9 @@ def answer_at(events: Sequence[TraceEvent], checkpoint: int) -> TraceEvent | Non
     return held
 
 
-def evidence_before(events: Sequence[TraceEvent], declaration: TraceEvent | None) -> list[TraceEvent]:
+def evidence_before(
+    events: Sequence[TraceEvent], declaration: TraceEvent | None
+) -> list[TraceEvent]:
     """The evidence events written before `declaration` (all of them when it is None and the
     caller wants the whole trace's evidence)."""
     limit = declaration.index if declaration is not None else len(events)

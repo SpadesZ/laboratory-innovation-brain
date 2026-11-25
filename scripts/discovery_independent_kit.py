@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import hashlib
 import io
 import json
@@ -115,7 +116,7 @@ class KitRefused(SystemExit):
     """The kit refuses to continue (a hash mismatch, a wrong input)."""
 
 
-# -- small helpers ---------------------------------------------------------------------------------
+# -- small helpers --------------------------------------------------------------------------------
 
 
 def _sha256(path: Path) -> str:
@@ -162,7 +163,9 @@ def kit_sources() -> dict[str, str]:
 
 def engine_sources() -> dict[str, str]:
     files = sorted((ROOT / "src" / "lab_brain" / "discovery").glob("*.py"))
-    files.append(ROOT / "src" / "lab_brain" / "domains" / "silicon_photonics" / "discovery_catalog.py")
+    files.append(
+        ROOT / "src" / "lab_brain" / "domains" / "silicon_photonics" / "discovery_catalog.py"
+    )
     return {_rel(p): _sha256(p) for p in files}
 
 
@@ -183,11 +186,11 @@ def evaluator_closure() -> dict[str, str]:
     return {_rel(p): _sha256(p) for p in sorted(files)}
 
 
-# -- the arm registry and arm trees ----------------------------------------------------------------
+# -- the arm registry and arm trees ---------------------------------------------------------------
 
 
 def registry() -> dict[str, Any]:
-    data = _load(REGISTRY)
+    data: dict[str, Any] = _load(REGISTRY)
     if data.get("kind") != REGISTRY_KIND:
         raise KitRefused(f"{_rel(REGISTRY)} is not a {REGISTRY_KIND}")
     return data
@@ -252,7 +255,7 @@ def _arm_env() -> dict[str, str]:
     return {"PYTHONHASHSEED": "0", "PATH": "/usr/bin:/bin", "LC_ALL": "C.UTF-8"}
 
 
-# -- the manifest and verify ------------------------------------------------------------------------
+# -- the manifest and verify ----------------------------------------------------------------------
 
 
 def commitments_check(path: Path) -> list[str]:
@@ -407,7 +410,7 @@ def verify(workdir: Path, archive: Path | None = None, quick: bool = False) -> l
     return problems
 
 
-# -- the arm process and one run --------------------------------------------------------------------
+# -- the arm process and one run ------------------------------------------------------------------
 
 
 class _Lines:
@@ -532,10 +535,8 @@ def run_one(
             )
         finally:
             if process.stdin is not None:
-                try:
+                with contextlib.suppress(OSError):
                     process.stdin.close()
-                except OSError:
-                    pass
             try:
                 process.wait(timeout=10)
             except subprocess.TimeoutExpired:
@@ -547,7 +548,7 @@ def run_one(
     return events
 
 
-# -- the evaluator's phases -------------------------------------------------------------------------
+# -- the evaluator's phases -----------------------------------------------------------------------
 
 
 def _example_salt(world_id: str) -> str:
@@ -672,8 +673,12 @@ def _score_case(case_id: str) -> tuple[str, str, list[dict[str, Any]]]:
                 leaks = find_truth_leaks(said, needles)
                 if leaks:
                     arm_rows = [
-                        cp._deficient(c, "LEAK", f"truth strings in the arm's output: {leaks[:3]}",
-                                      recorded["charge"])
+                        cp._deficient(
+                            c,
+                            "LEAK",
+                            f"truth strings in the arm's output: {leaks[:3]}",
+                            recorded["charge"],
+                        )
                         for c in PLAN.ladder
                     ]
         for row in arm_rows:
@@ -735,7 +740,7 @@ def score_phase(
     return results
 
 
-# -- signing ----------------------------------------------------------------------------------------
+# -- signing --------------------------------------------------------------------------------------
 
 
 def keygen(key: Path) -> str:
@@ -800,7 +805,7 @@ def verify_signature(out: Path, public_key: str | None) -> list[str]:
     return problems
 
 
-# -- the dry run on the PUBLIC example --------------------------------------------------------------
+# -- the dry run on the PUBLIC example ------------------------------------------------------------
 
 
 def _equivalence(
@@ -874,8 +879,12 @@ def _equivalence(
         mine_counts[c["kind"]] = mine_counts.get(c["kind"], 0) + 1
     credited = {
         arm: {
-            "trace_derived": sum(1 for c in cells if c["arm"] == arm and c["trace_category_credited"]),
-            "fresh_capped": sum(1 for c in cells if c["arm"] == arm and c["fresh_category_credited"]),
+            "trace_derived": sum(
+                1 for c in cells if c["arm"] == arm and c["trace_category_credited"]
+            ),
+            "fresh_capped": sum(
+                1 for c in cells if c["arm"] == arm and c["fresh_category_credited"]
+            ),
         }
         for arm in sorted(counts)
     }
@@ -894,7 +903,9 @@ def dry_run(workdir: Path, jobs: int, check: bool) -> int:
     compares every file byte for byte with the committed ones."""
     catalog = ring_catalog()
     data = hw.load_document(EXAMPLE, repo=ROOT, allow_example=True)
-    sealed, package_data = hw.seal(hw.parse_hidden_worlds(data, catalog, DISCOVERY), salts=_example_salt)
+    sealed, package_data = hw.seal(
+        hw.parse_hidden_worlds(data, catalog, DISCOVERY), salts=_example_salt
+    )
     slots = filled_slots(registry())
     started = time.monotonic()
     with tempfile.TemporaryDirectory(prefix="kit-dry-") as tmp:
@@ -915,7 +926,9 @@ def dry_run(workdir: Path, jobs: int, check: bool) -> int:
         digest = _load(out / "results-digest.json")
         digest["files_sha256"]["equivalence.json"] = _sha256(out / "equivalence.json")
         (out / "results-digest.json").write_text(_dump(digest), encoding="utf-8")
-        produced = {p.relative_to(out).as_posix(): p.read_bytes() for p in out.rglob("*") if p.is_file()}
+        produced = {
+            p.relative_to(out).as_posix(): p.read_bytes() for p in out.rglob("*") if p.is_file()
+        }
         elapsed = time.monotonic() - started
         if check:
             committed = {
@@ -936,7 +949,7 @@ def dry_run(workdir: Path, jobs: int, check: bool) -> int:
     return 0
 
 
-# -- power -----------------------------------------------------------------------------------------
+# -- power ----------------------------------------------------------------------------------------
 
 
 def power_table() -> dict[str, Any]:
@@ -962,7 +975,30 @@ def power_table() -> dict[str, Any]:
                 ),
             }
         )
+    non_inferiority = []
+    for n in (40, 58):
+        for extra in (0, 1, 2, 3):
+            diffs = [1.0] * extra + [0.0] * (n - extra)
+            interval = analysis.percentile_interval(
+                diffs,
+                resamples=PLAN.bootstrap_resamples,
+                seed=PLAN.bootstrap_seed,
+                label="non-inferiority",
+                confidence=PLAN.confidence,
+            )
+            non_inferiority.append(
+                {
+                    "n": n,
+                    "candidate_only_errors": extra,
+                    "baseline_only_errors": 0,
+                    "upper_bound": interval["hi"],
+                    "meets_margin": interval["hi"] <= PLAN.non_inferiority_margin,
+                }
+            )
+    zero = {str(n): analysis.wilson(0, n) for n in (20, 29, 40, 58)}
     return {
+        "non_inferiority_at_margin": non_inferiority,
+        "wilson95_for_zero_events": zero,
         "what": "minimum detectable paired difference (80 % power, two-sided 5 %) for a binary "
         "per-case indicator, by the normal approximation d = k sqrt(D / (n + k^2)), k = z_0.975 + "
         "z_0.80, D = the share of discordant cases; checked by simulation of the plan's paired "
@@ -985,7 +1021,7 @@ def power(check: bool) -> int:
     return 0
 
 
-# -- pinning an arm (fills a registry slot; no code change) -----------------------------------------
+# -- pinning an arm (fills a registry slot; no code change) ---------------------------------------
 
 
 def pin_arm(args: argparse.Namespace, workdir: Path) -> int:
@@ -1013,7 +1049,7 @@ def pin_arm(args: argparse.Namespace, workdir: Path) -> int:
     return 0
 
 
-# -- main -------------------------------------------------------------------------------------------
+# -- main -----------------------------------------------------------------------------------------
 
 
 def _frozen_or_refuse(workdir: Path, archive: Path | None) -> str:
@@ -1026,6 +1062,12 @@ def _frozen_or_refuse(workdir: Path, archive: Path | None) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None and os.environ.get("PYTHONHASHSEED") != "0":
+        # every evaluator-side number must not depend on string hashing: re-run with a fixed seed
+        env = {**os.environ, "PYTHONHASHSEED": "0"}
+        os.execve(
+            sys.executable, [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]], env
+        )
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
     v = sub.add_parser("verify")
@@ -1057,14 +1099,16 @@ def main(argv: list[str] | None = None) -> int:
     pa.add_argument("--entry", required=True)
     pa.add_argument("--arm-name")
     sub.add_parser("freeze")
-    parser.add_argument("--workdir", type=Path, default=Path(tempfile.gettempdir()) / "lab-brain-kit")
+    parser.add_argument(
+        "--workdir", type=Path, default=Path(tempfile.gettempdir()) / "lab-brain-kit"
+    )
     args = parser.parse_args(argv)
     workdir: Path = args.workdir
     workdir.mkdir(parents=True, exist_ok=True)
     if args.command == "verify":
         problems = verify(workdir, args.archive, args.quick)
-        for p in problems:
-            print(f"MISMATCH: {p}")
+        for problem in problems:
+            print(f"MISMATCH: {problem}")
         if not problems:
             print(f"verify: OK; kit freeze id {freeze_id(_load(MANIFEST))}")
         return 1 if problems else 0
@@ -1076,7 +1120,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "run":
             if (args.out / "run-summary.json").exists():
                 raise KitRefused("this output directory already holds a run; a run is made once")
-            summary = run_phase(package, worlds, args.out, workdir, args.jobs, freeze=freeze, slots=slots)
+            summary = run_phase(
+                package, worlds, args.out, workdir, args.jobs, freeze=freeze, slots=slots
+            )
             print(
                 f"run complete: {sum(len(v) for v in summary['runs'].values())} runs; publish "
                 f"run-summary.json sha256 {_sha256(args.out / 'run-summary.json')} before scoring"
@@ -1093,8 +1139,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "verify-signature":
         problems = verify_signature(args.out, args.public_key)
-        for p in problems:
-            print(f"MISMATCH: {p}")
+        for problem in problems:
+            print(f"MISMATCH: {problem}")
         print("signature and files verify" if not problems else "signature check FAILED")
         return 1 if problems else 0
     if args.command == "dry-run":

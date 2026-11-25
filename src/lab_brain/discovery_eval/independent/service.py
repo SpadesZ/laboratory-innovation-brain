@@ -1,14 +1,14 @@
 """The evaluator's side of one run: the laboratory service, the meter and the trace.
 
-    evaluator process                                  arm process (separate interpreter)
-    -----------------                                  ----------------------------------
-    the world (truth), the meter, the trace     <--    {"op": "motivating"}
-                                                <--    {"op": "measure", experiment_id, replicate, session}
-                                                <--    {"op": "register", identity, experiment_id, runs, data_digest}
-                                                <--    {"op": "declare", "answer": {...}}       (anytime, optional)
-                                                <--    {"op": "done", "answer": {...}}          (final)
-                                                <--    {"op": "failed", "error": "..."}         (the arm raised)
-                                                <--    {"op": "violation", ...}                 (the worker's guard)
+    evaluator process (world, meter, trace)  <--  arm process (separate interpreter)
+
+        {"op": "motivating"}
+        {"op": "measure", experiment_id, replicate, session}
+        {"op": "register", identity, experiment_id, runs, data_digest}
+        {"op": "declare", "answer": {...}}         an anytime answer (optional)
+        {"op": "done", "answer": {...}}            the final answer
+        {"op": "failed", "error": "..."}           the arm raised
+        {"op": "violation", ...}                   the worker's guard refused something
 
 The transport is the caller's (`send`, `receive`): the composition root owns the arm process, its
 pipes and its wall-clock limit (this package starts no process and reads no clock). `receive`
@@ -33,13 +33,12 @@ scored; every other status is DEFICIENT and is scored against the arm at every c
 
 from __future__ import annotations
 
-import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
 from lab_brain.discovery.loop import Laboratory
-from lab_brain.discovery.model import ExperimentSpec
+from lab_brain.discovery.model import ExperimentSpec, Outcome
 from lab_brain.discovery_eval.blind import _checked
 from lab_brain.discovery_eval.independent import trace as tr
 
@@ -62,6 +61,7 @@ ANSWER_KEYS = frozenset(
     }
 )
 ANSWER_KINDS = frozenset({"NONE", "CATALOG_CLAIM", "NEW_MECHANISM"})
+OUTCOMES = frozenset(o.value for o in Outcome)
 OPS = frozenset({"motivating", "measure", "register", "declare", "done", "failed", "violation"})
 MAX_TEXT = 4000
 MAX_LIST = 64
@@ -123,6 +123,8 @@ def validate_answer(raw: Any, arm_id: str) -> dict[str, Any]:
     }
     if out["arm"] != arm_id:
         raise _Invalid("protocol", f"the answer names arm {out['arm']!r}, not {arm_id!r}")
+    if out["outcome"] not in OUTCOMES:
+        raise _Invalid("protocol", f"outcome {out['outcome']!r} is not one of the outcomes")
     if out["answer_kind"] not in ANSWER_KINDS:
         raise _Invalid("protocol", f"answer_kind {out['answer_kind']!r} is not one of the kinds")
     for key in ("labelled_proposal", "acted_on"):
@@ -227,7 +229,9 @@ class CaseService:
         if not identity:
             raise _Invalid("protocol", "a registration names an identity")
         if experiment_id not in self._specs:
-            raise _Invalid("protocol", f"a registration names an unknown experiment {experiment_id!r}")
+            raise _Invalid(
+                "protocol", f"a registration names an unknown experiment {experiment_id!r}"
+            )
         # the v1.3 ledger index the arm would have received: evidence events before this one
         index = self.writer.evidence_count()
         event = self.writer.append(
@@ -325,10 +329,6 @@ def run_case(
     events = service.serve(request, send, receive)
     tr.verify_trace(events)
     return events
-
-
-def finite(values: Any) -> bool:
-    return all(math.isfinite(float(v)) for _, v in values)
 
 
 __all__ = [

@@ -70,8 +70,8 @@ def mcnemar_exact(b: int, c: int) -> float:
     if n == 0:
         return 1.0
     k = min(b, c)
-    tail = math.fsum(math.comb(n, i) for i in range(k + 1)) / 2**n
-    return min(1.0, 2 * tail)
+    tail: float = math.fsum(math.comb(n, i) for i in range(k + 1)) / 2**n
+    return min(1.0, 2.0 * tail)
 
 
 def holm(pvalues: Mapping[str, float], alpha: float = 0.05) -> dict[str, dict[str, Any]]:
@@ -98,7 +98,7 @@ def wilson(k: int, n: int, z: float = Z975) -> list[float] | None:
     return [_r(max(0.0, centre - half)), _r(min(1.0, centre + half))]
 
 
-# -- paired values with the deficient-record rule ---------------------------------------------------
+# -- paired values with the deficient-record rule -------------------------------------------------
 
 _GOOD = {"exact": True, "credited": True, "own_correct": True, "error": False}
 
@@ -174,7 +174,7 @@ def compare(
     }
 
 
-# -- the study --------------------------------------------------------------------------------------
+# -- the study ------------------------------------------------------------------------------------
 
 
 def study_validity(
@@ -189,7 +189,9 @@ def study_validity(
     )
     incident_share = len(incidents) / total if total else 0.0
     case_share = len(deficient_cases) / len(cases) if cases else 0.0
-    valid = incident_share <= plan.max_incident_share and case_share <= plan.max_deficient_case_share
+    valid = (
+        incident_share <= plan.max_incident_share and case_share <= plan.max_deficient_case_share
+    )
     return {
         "runs": total,
         "incident_runs": incidents,
@@ -201,7 +203,9 @@ def study_validity(
     }
 
 
-def decide(primary: Mapping[str, Any], safety: Mapping[str, Any], margin: float, valid: bool) -> str:
+def decide(
+    primary: Mapping[str, Any], safety: Mapping[str, Any], margin: float, valid: bool
+) -> str:
     if not valid:
         return "INVALID"
     p, s = primary["difference"], safety["difference"]
@@ -216,7 +220,9 @@ def decide(primary: Mapping[str, Any], safety: Mapping[str, Any], margin: float,
     return "INCONCLUSIVE"
 
 
-def arm_summary(rows: Sequence[Row], arm: str, checkpoint: int, cases: Sequence[str]) -> dict[str, Any]:
+def arm_summary(
+    rows: Sequence[Row], arm: str, checkpoint: int, cases: Sequence[str]
+) -> dict[str, Any]:
     at = _index(rows)
     mine = [at[(c, arm, checkpoint)] for c in cases if (c, arm, checkpoint) in at]
     n = len(mine)
@@ -310,9 +316,7 @@ def analyse(
     }
     auc = {}
     for arm in filled:
-        points = [
-            curves[arm][str(c)]["all"]["credited"]["rate"] or 0.0 for c in plan.ladder
-        ]
+        points = [curves[arm][str(c)]["all"]["credited"]["rate"] or 0.0 for c in plan.ladder]
         width = plan.ladder[-1] - plan.ladder[0]
         area = math.fsum(
             (points[i] + points[i + 1]) / 2 * (plan.ladder[i + 1] - plan.ladder[i])
@@ -364,7 +368,7 @@ def analyse(
     }
 
 
-# -- power ------------------------------------------------------------------------------------------
+# -- power ----------------------------------------------------------------------------------------
 
 
 def minimum_detectable_difference(n: int, discordance: float, z_alpha: float = Z975) -> float:
@@ -395,9 +399,12 @@ def simulated_power(
     for s in range(simulations):
         diffs = []
         for i in range(n):
-            u = int.from_bytes(
-                hashlib.sha256(f"power\x00{seed}\x00{s}\x00{i}".encode()).digest()[:8], "big"
-            ) / 2**64
+            u = (
+                int.from_bytes(
+                    hashlib.sha256(f"power\x00{seed}\x00{s}\x00{i}".encode()).digest()[:8], "big"
+                )
+                / 2**64
+            )
             diffs.append(1.0 if u < p_plus else (-1.0 if u < p_plus + p_minus else 0.0))
         interval = percentile_interval(
             diffs, resamples=resamples, seed=seed, label="power", confidence=0.95

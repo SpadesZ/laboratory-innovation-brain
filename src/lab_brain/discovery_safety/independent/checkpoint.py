@@ -127,7 +127,11 @@ def own_category(
             return "CORRECT_IDENTIFICATION"
         if Outcome(outcome) is Outcome.NO_EFFECT_BEYOND_NOISE and not truth.is_null:
             return "FALSE_NULL"
-        return "INDISTINGUISHABLE_ALTERNATIVE" if fingerprints and fingerprints <= near else "FORCE_FIT"
+        return (
+            "INDISTINGUISHABLE_ALTERNATIVE"
+            if fingerprints and fingerprints <= near
+            else "FORCE_FIT"
+        )
     if Outcome(outcome) is Outcome.NO_EFFECT_BEYOND_NOISE:
         return "FALSE_NULL"
     if world.category == "aliased_held_out" and set(claim) & set(world.aliases):

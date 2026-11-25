@@ -29,6 +29,7 @@ laboratory requests (motivating, measure, register), optional anytime declaratio
 
 from __future__ import annotations
 
+import contextlib
 import importlib
 import json
 import os
@@ -98,10 +99,8 @@ def _violation(event: str, detail: str) -> None:
 
 def _roots(tree: str) -> tuple[str, ...]:
     candidates = {tree, sys.prefix, sys.base_prefix, sys.exec_prefix, sys.base_exec_prefix}
-    try:
+    with contextlib.suppress(AttributeError):  # a venv without getsitepackages
         candidates.update(site.getsitepackages())
-    except AttributeError:  # pragma: no cover - venv without getsitepackages
-        pass
     out: set[str] = set()
     for c in candidates:
         if c:

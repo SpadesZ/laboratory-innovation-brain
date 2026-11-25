@@ -1,0 +1,130 @@
+{
+  "analytic_mdd": {
+    "20": {
+      "0.1": 0.1679,
+      "0.2": 0.2374,
+      "0.3": 0.2908,
+      "0.4": 0.3358,
+      "0.5": 0.3754
+    },
+    "29": {
+      "0.1": 0.1459,
+      "0.2": 0.2064,
+      "0.3": 0.2528,
+      "0.4": 0.2919,
+      "0.5": 0.3263
+    },
+    "40": {
+      "0.1": 0.1281,
+      "0.2": 0.1811,
+      "0.3": 0.2218,
+      "0.4": 0.2562,
+      "0.5": 0.2864
+    },
+    "58": {
+      "0.1": 0.1092,
+      "0.2": 0.1544,
+      "0.3": 0.1891,
+      "0.4": 0.2184,
+      "0.5": 0.2441
+    }
+  },
+  "n_note": "58 = every case; 20-40 = plausible numbers of expressible (primary) cases, which are not published before the reveal",
+  "non_inferiority_at_margin": [
+    {
+      "baseline_only_errors": 0,
+      "candidate_only_errors": 0,
+      "meets_margin": true,
+      "n": 40,
+      "upper_bound": 0.0
+    },
+    {
+      "baseline_only_errors": 0,
+      "candidate_only_errors": 1,
+      "meets_margin": false,
+      "n": 40,
+      "upper_bound": 0.075
+    },
+    {
+      "baseline_only_errors": 0,
+      "candidate_only_errors": 2,
+      "meets_margin": false,
+      "n": 40,
+      "upper_bound": 0.125
+    },
+    {
+      "baseline_only_errors": 0,
+      "candidate_only_errors": 3,
+      "meets_margin": false,
+      "n": 40,
+      "upper_bound": 0.175
+    },
+    {
+      "baseline_only_errors": 0,
+      "candidate_only_errors": 0,
+      "meets_margin": true,
+      "n": 58,
+      "upper_bound": 0.0
+    },
+    {
+      "baseline_only_errors": 0,
+      "candidate_only_errors": 1,
+      "meets_margin": false,
+      "n": 58,
+      "upper_bound": 0.051724
+    },
+    {
+      "baseline_only_errors": 0,
+      "candidate_only_errors": 2,
+      "meets_margin": false,
+      "n": 58,
+      "upper_bound": 0.086207
+    },
+    {
+      "baseline_only_errors": 0,
+      "candidate_only_errors": 3,
+      "meets_margin": false,
+      "n": 58,
+      "upper_bound": 0.12069
+    }
+  ],
+  "simulation_checks": [
+    {
+      "difference": 0.1544,
+      "discordance": 0.2,
+      "n": 58,
+      "simulated_power": 0.8133333333333334
+    },
+    {
+      "difference": 0.2184,
+      "discordance": 0.4,
+      "n": 58,
+      "simulated_power": 0.7633333333333333
+    },
+    {
+      "difference": 0.2528,
+      "discordance": 0.3,
+      "n": 29,
+      "simulated_power": 0.7966666666666666
+    }
+  ],
+  "what": "minimum detectable paired difference (80 % power, two-sided 5 %) for a binary per-case indicator, by the normal approximation d = k sqrt(D / (n + k^2)), k = z_0.975 + z_0.80, D = the share of discordant cases; checked by simulation of the plan's paired percentile bootstrap (300 studies, 1000 resamples each)",
+  "wilson95_for_zero_events": {
+    "20": [
+      0.0,
+      0.161125
+    ],
+    "29": [
+      0.0,
+      0.11697
+    ],
+    "40": [
+      0.0,
+      0.087622
+    ],
+    "58": [
+      0.0,
+      0.062118
+    ]
+  }
+}
