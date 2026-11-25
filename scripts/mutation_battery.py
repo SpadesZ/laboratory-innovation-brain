@@ -7758,6 +7758,39 @@ MUTATIONS: tuple[Mutation, ...] = (
         new="        if True:",
         tests=("tests/unit/test_discovery_safety_v14.py",),
     ),
+    # -- safety v1.5 (src/lab_brain/discovery_safety/v15): arm B8, diagnosis, refutation counts --
+    Mutation(
+        name="safety_v15_no_effect_targeted",
+        guards="discovery safety v1.5 -- a claim of no effect runs exactly as B7 (no rival-first shortcut)",
+        path="src/lab_brain/discovery_safety/v15/gate.py",
+        old="        return self.v15.targeted_selection and not any(m.is_null for m in self.members)",
+        new="        return self.v15.targeted_selection",
+        tests=("tests/unit/test_discovery_safety_v15.py",),
+    ),
+    Mutation(
+        name="safety_v15_refutation_without_failure",
+        guards="discovery safety v1.5 -- a refutation is counted only when the rival's prediction failed",
+        path="src/lab_brain/discovery_safety/v15/diagnose.py",
+        old="            if closed_by(rescorer, events, tests, identity, r.identity) is not None:",
+        new="            if True:",
+        tests=("tests/unit/test_discovery_safety_v15.py",),
+    ),
+    Mutation(
+        name="safety_v15_expected_refutation_ignores_separation",
+        guards="discovery safety v1.5 -- B8's expected refutations grow with the rival's separation",
+        path="src/lab_brain/discovery_safety/v15/gate.py",
+        old="        lam += d * d / s_r2",
+        new="        lam += 0.0",
+        tests=("tests/unit/test_discovery_safety_v15.py",),
+    ),
+    Mutation(
+        name="safety_v15_holdout_seed_overlap",
+        guards="discovery safety v1.5 -- derived held-out seeds stay away from every range seen before",
+        path="src/lab_brain/discovery_safety/v15/model.py",
+        old="        if all(abs(base - u) >= 20_000 for u in used):",
+        new="        if True:",
+        tests=("tests/unit/test_discovery_safety_v15.py",),
+    ),
 )
 
 

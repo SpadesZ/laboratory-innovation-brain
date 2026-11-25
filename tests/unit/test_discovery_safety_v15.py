@@ -420,5 +420,7 @@ def test_v15_seeds_use_the_v15_domain_the_full_commit_and_avoid_every_earlier_ra
     assert PLAN.held_out_seeds(commit, 2)["held-out-worlds"]["attempt"] >= 2
     with pytest.raises(ValueError):
         holdout_base_seed("abc", "held-out-worlds", ())
+    first = holdout_base_seed(commit, "x", ())[0]
+    assert holdout_base_seed(commit, "x", (first,))[1] >= 1
     assert SAFETY_V15.rival_first and SAFETY_V15.targeted_selection
     assert NULL_HYPOTHESIS.is_null
