@@ -1,0 +1,43 @@
+2026-11-25T06:39:01Z
+........................................................................ [ 98%]
+.................................................................        [100%]
+=================================== FAILURES ===================================
+___________________ test_the_script_captures_this_repository ___________________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-303/test_the_script_captures_this_0')
+
+    def test_the_script_captures_this_repository(tmp_path):
+        out = tmp_path / "env.json"
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(REPO / "scripts/g0_eval_environment.py"),
+                "capture",
+                "--model-endpoint", LOCAL["endpoint"],
+                "--model-id", LOCAL["model_id"],
+                "--model-digest", LOCAL["model_digest"],
+                "--allow-dirty",
+                "--out", str(out),
+            ],
+            capture_output=True,
+            text=True,
+        )  # fmt: skip
+>       assert result.returncode == 0, result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/home/user/wt/ieval/scripts/g0_eval_environment.py", line 20, in <module>
+E             from lab_brain.evaluation.environment import EnvironmentRefused, capture, verify
+E         ModuleNotFoundError: No module named 'lab_brain.evaluation'
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/user/wt/ieval/.venv/bin/python', '/home/user/wt/ieval/scripts/g0_eval_environment.py', '...vironment import EnvironmentRefused, capture, verify\nModuleNotFoundError: No module named \'lab_brain.evaluation\'\n').returncode
+
+tests/unit/test_g0_eval_environment.py:105: AssertionError
+=========================== short test summary info ============================
+SKIPPED [1] tests/e2e/test_research_live_model_postgres.py:276: set LAB_BRAIN_LIVE_PRIMARY to a local model to run
+SKIPPED [1] tests/e2e/test_vs_sp_001_licensed_replay.py:24: requires lumerical; set LAB_BRAIN_TEST_LUMERICAL=1 to enable
+SKIPPED [1] tests/integration/test_github_network.py:31: requires network; set LAB_BRAIN_TEST_NETWORK=1 to enable
+SKIPPED [1] tests/unit/test_llm_runtime.py:202: Windows Credential Manager
+FAILED tests/unit/test_g0_eval_environment.py::test_the_script_captures_this_repository
+1 failed, 3948 passed, 4 skipped in 3099.10s (0:51:39)
+exit=1 seconds=3101
+2026-11-25T07:30:42Z
