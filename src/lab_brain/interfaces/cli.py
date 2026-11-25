@@ -644,6 +644,24 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"the product vertical (an entry point in {ENTRY_POINT_GROUP}); "
         "default: the only one installed",
     )
+    verify_measurements = admin_sub.add_parser(
+        "verify-measurements",
+        help=(
+            "003g: verify every relayed measurement signature not yet judged and record the "
+            "verdict the SQL readers count by (schema owner only; append-only)"
+        ),
+    )
+    verify_measurements.add_argument("--actor", required=True, help="the person who runs it")
+    measurement_mode = admin_sub.add_parser(
+        "measurement-mode",
+        help=(
+            "003g: record the measurement-provenance mode every reader applies, 'enrolled' "
+            "(default) or 'strict' (schema owner only; append-only)"
+        ),
+    )
+    measurement_mode.add_argument("mode", choices=("enrolled", "strict"))
+    measurement_mode.add_argument("--reason", required=True, help="why (kept with the record)")
+    measurement_mode.add_argument("--actor", required=True, help="the person who decided it")
     admin_sub.add_parser("show", help="list actors, projects, memberships, LLM administrators")
     return parser
 
@@ -1199,6 +1217,12 @@ def run_admin(args: argparse.Namespace, connection: Any, *, out: TextIO) -> int:
             lines = _register_policies(args, connection)
         elif args.admin_command == "quarantine":
             lines = [_quarantine(args, connection)]
+        elif args.admin_command == "verify-measurements":
+            lines = deployment.verify_measurements(connection, actor_id=args.actor)
+        elif args.admin_command == "measurement-mode":
+            lines = deployment.measurement_mode(
+                connection, args.mode, reason=args.reason, actor_id=args.actor
+            )
         else:
             lines = deployment.describe(connection)
     except deployment.OperatorRefused as refused:

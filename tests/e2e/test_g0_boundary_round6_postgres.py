@@ -122,7 +122,6 @@ def _python_support(g: Guarded, hypothesis: str) -> set[str]:
 # =============================================================================================
 
 
-@pytest.mark.xfail(strict=True, reason="T-1r: the SQL state reader ignores measurement provenance")
 def test_t1r_the_sql_state_is_not_supported_on_a_measurement_python_refuses(guarded, roles):
     g = guarded
     hypothesis, relation, _written = _promoted_on_a_measurement(g, roles)
@@ -134,7 +133,6 @@ def test_t1r_the_sql_state_is_not_supported_on_a_measurement_python_refuses(guar
     assert sql is None
 
 
-@pytest.mark.xfail(strict=True, reason="T-1r: cwg_evidence ignores measurement provenance")
 def test_t1r_the_sql_confirmation_rule_does_not_count_a_support_python_refuses(guarded, roles):
     g = guarded
     hypothesis, relation, _written = _promoted_on_a_measurement(g, roles)
@@ -146,7 +144,6 @@ def test_t1r_the_sql_confirmation_rule_does_not_count_a_support_python_refuses(g
     assert sql == python
 
 
-@pytest.mark.xfail(strict=True, reason="T-1r: the 011z gate ignores measurement provenance")
 def test_t1r_the_write_gate_refuses_a_snapshot_counting_a_support_python_refuses(guarded, roles):
     g = guarded
     _hypothesis, relation, written = _promoted_on_a_measurement(g, roles)
@@ -182,7 +179,6 @@ def _confirm(app: Any, g: Guarded, hypothesis: str, evidence: str) -> BaseExcept
     return refused
 
 
-@pytest.mark.xfail(strict=True, reason="T-1r: 011l reads a state Python refuses")
 def test_t1r_a_root_cause_is_not_confirmed_on_a_support_python_refuses(guarded, roles):
     g = guarded
     hypothesis, relation, _written = _promoted_on_a_measurement(g, roles)
@@ -194,7 +190,6 @@ def test_t1r_a_root_cause_is_not_confirmed_on_a_support_python_refuses(guarded, 
     assert "current belief state is no history" in str(refused), refused
 
 
-@pytest.mark.xfail(strict=True, reason="T-1r: the strict mode is invisible to SQL")
 def test_t1r_strict_mode_is_the_owners_and_sql_reads_it(guarded, roles, monkeypatch):
     """The owner sets strict mode; an unsigned measurement of an unenrolled pair is then support
     for neither Python nor SQL, and the services cannot switch the mode back."""
@@ -221,7 +216,6 @@ def test_t1r_strict_mode_is_the_owners_and_sql_reads_it(guarded, roles, monkeypa
 # =============================================================================================
 
 
-@pytest.mark.xfail(strict=True, reason="Q-r: any writer may quarantine an external snapshot")
 def test_qr_the_services_cannot_demote_a_belief_by_quarantining_a_snapshot(guarded, roles):
     g = guarded
     hypothesis = _unscreened(g)
@@ -246,3 +240,125 @@ def test_qr_the_services_cannot_demote_a_belief_by_quarantining_a_snapshot(guard
     print(f"Q-r the services quarantine {snapshot}: refused={refused!r}; projection -> {state}")
     assert isinstance(refused, psycopg.errors.InsufficientPrivilege), refused
     assert state == BeliefState.SUPPORTED.value
+
+
+# =============================================================================================
+# T-1r after the fix: who writes the verdicts, and the one case left to the owner
+# =============================================================================================
+
+
+def _signed_run(g: Guarded, app: Any, name: str) -> tuple[str, Any]:
+    from tests.e2e.test_g0_measurement_provenance_postgres import (
+        _enrol,
+        _honest_signer,
+        _measure,
+        _runner,
+    )
+
+    runner = _runner()
+    _enrol(g, runner)
+    _job, run, _relation = _measure(g, app, name, sign=_honest_signer(runner, name))
+    return run, runner
+
+
+def test_t1r_the_services_cannot_record_a_verdict_or_edit_one(guarded, roles):
+    from lab_brain.security.measurement_provenance import set_mode, verify_run
+
+    g = guarded
+    with roles.connect(roles.app) as app:
+        run, _runner = _signed_run(g, app, "verdict")
+        refused = _write(lambda: verify_run(app, run, actor_id=g.actor))[1]
+        assert isinstance(refused, psycopg.errors.InsufficientPrivilege), refused
+        assert verify_run(g.db, run, actor_id=g.actor) == "VERIFIED"
+        set_mode(g.db, "enrolled", reason="the default, recorded (G0 round 6)", actor_id=g.actor)
+        for statement in (
+            "UPDATE measurement_verifications SET status = 'VERIFIED'",
+            "DELETE FROM measurement_verifications",
+            "UPDATE measurement_provenance_modes SET mode = 'enrolled'",
+        ):
+            assert isinstance(_write(lambda s=statement: app.execute(s))[1], psycopg.Error)
+
+
+def test_t1r_residual_a_verdict_the_owner_writes_by_hand_is_counted_by_sql_only(guarded, roles):
+    """The owner is the trust root: a VERIFIED verdict the owner inserts for a signature that
+    does not verify is counted by SQL (which cannot check the signature) and refused by Python
+    (which re-verifies it). The direction is Python refusing more, never counting more."""
+    import dataclasses
+    import datetime as dt
+
+    from lab_brain.domains.silicon_photonics import vertical as sp
+    from lab_brain.security.measurement_provenance import VERIFIER, MeasurementProvenance
+    from tests.e2e.test_g0_measurement_provenance_postgres import _enrol, _export, _measure, _runner
+
+    g = guarded
+    runner = _runner()
+    _enrol(g, runner)
+
+    def forged(job: str, run: str, nonce: str) -> Any:
+        signed = runner.sign(
+            job_id=job,
+            run_id=run,
+            nonce=nonce,
+            capability_id=sp.CAP_FOURPOINT_PROBE,
+            outputs=(_export("by-hand"),),
+            measured_at=dt.datetime.now(dt.UTC),
+        )
+        return dataclasses.replace(
+            signed,
+            signature=runner.sign(
+                job_id=job,
+                run_id=f"{run}-other",
+                nonce=nonce,
+                capability_id=sp.CAP_FOURPOINT_PROBE,
+                outputs=(_export("by-hand"),),
+                measured_at=dt.datetime.now(dt.UTC),
+            ).signature,
+        )
+
+    with roles.connect(roles.app) as app:
+        _job, run, _relation = _measure(g, app, "by-hand", sign=forged)
+    g.db.execute(
+        "INSERT INTO measurement_verifications (run_id, status, key_id, signature, detail,"
+        " verifier, actor_id, verified_at, recorded_by)"
+        " VALUES (%s, 'VERIFIED', '', '', 'written by hand', %s, %s, now(), '')",
+        (run, VERIFIER, g.actor),
+    )
+    ((sql,),) = g.db.execute("SELECT measurement_run_status(%s)", (run,)).fetchall()
+    python = MeasurementProvenance(g.db).run(run).status.value
+    print(f"T-1r residual: owner's hand-written verdict -> SQL {sql}, Python {python}")
+    assert (sql, python) == ("VERIFIED", "BAD_SIGNATURE")
+
+
+def test_qr_an_owners_quarantine_records_who_and_why_and_stays(guarded):
+    """The owner's quarantine still works (the fail-safe direction is kept, see the round-5 Q6
+    test), but only with the deciding person and a reason; it is never released."""
+    from lab_brain.core.repositories.external_sources import SqlExternalSourceStore
+
+    g = guarded
+    attestation = _external_attestation(g)
+    ((snapshot,),) = g.db.execute(
+        "SELECT method ->> 'snapshot_id' FROM attestations WHERE attestation_id = %s",
+        (attestation,),
+    ).fetchall()
+    store = SqlExternalSourceStore(g.db)
+    _, refused = _write(lambda: store.quarantine(PROJECT, snapshot, "QUARANTINED_BY_OPERATOR"))
+    assert refused is not None and "records the person who decided it" in str(refused), refused
+    store.quarantine(
+        PROJECT,
+        snapshot,
+        "QUARANTINED_BY_OPERATOR",
+        actor_id=g.actor,
+        reason="scope of this read is in doubt (G0 round 6)",
+    )
+    ((actor, reason, by),) = g.db.execute(
+        "SELECT decided_by_actor_id, reason, recorded_by FROM external_snapshot_quarantine"
+        " WHERE snapshot_id = %s",
+        (snapshot,),
+    ).fetchall()
+    assert (actor, by) == (g.actor, g.db.info.user) and "in doubt" in reason
+    assert attestation in store.quarantined_attestation_ids(PROJECT)
+    for statement in (
+        "DELETE FROM external_snapshot_quarantine",
+        "UPDATE external_snapshot_quarantine SET reason = 'released'",
+    ):
+        assert isinstance(_write(lambda s=statement: g.db.execute(s))[1], psycopg.Error)

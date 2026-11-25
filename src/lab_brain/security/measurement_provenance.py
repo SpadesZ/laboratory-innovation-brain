@@ -21,15 +21,30 @@ sensor, a mis-configured instrument), that the runner's host was honest (whoever
 signs anything), that the key was not stolen, or that the observation value the services extracted
 from the bytes is faithful -- the observation row is still the services' write.
 
-ENFORCEMENT. The deployment setting `LAB_BRAIN_MEASUREMENT_PROVENANCE` (the Owner's):
+ENFORCEMENT. The Owner's mode, recorded in the database (`003g`, `measurement_provenance_modes`,
+owner only, append-only; `set_mode`), so the SQL readers and the Python readers read the same one
+and the services' process cannot change it:
     enrolled (default)  per (instrument, capability): once any key was ever enrolled for the pair,
                         a measurement of it must verify; a pair with no enrolment is NOT_REQUIRED
                         and keeps counting, labelled unverified (the product's offline backends,
                         whose runner is the services' own process today, are unchanged);
     strict              every measurement must verify; anything else is not support.
-Any other value is read as strict (fail closed). An attestation with no run behind it is not a
-measurement and is left to the other rules. Every `SqlRelationStore` applies it to every SUPPORTS
-it admits or re-checks, so all product readers share one definition.
+The deployment setting `LAB_BRAIN_MEASUREMENT_PROVENANCE` may only state the database's mode (any
+value but `enrolled` states `strict`): a disagreement is `ProvenanceModeMismatch`, so a reader is
+never built on a weaker mode than the one the deployment expects. On a database without `003g`
+the setting alone decides, as before.
+
+SQL CANNOT VERIFY ED25519 (round 6, `003g`). The owner runs the verifier (`verify_pending`,
+`lab-brain admin verify-measurements`), which records its verdict on each relayed signature in the
+owner-only `measurement_verifications`; the SQL readers (`measurement_run_status`) count a signed
+measurement only on a VERIFIED verdict, and this reader requires that verdict too, besides its own
+verification -- so a signed measurement counts nowhere until the owner's verifier has judged it,
+and SQL and Python agree on every measurement (Python re-verifies the signature, so a verdict the
+owner wrote by hand for a bad signature is the one case where Python refuses what SQL counts).
+
+An attestation with no run behind it is not a measurement and is left to the other rules. Every
+`SqlRelationStore` applies it to every SUPPORTS it admits or re-checks, so all product readers share
+one definition.
 """
 
 from __future__ import annotations
@@ -63,6 +78,36 @@ def strict_mode(env: Mapping[str, str] | None = None) -> bool:
     """Whether every measurement must verify. Unset or `enrolled`: per enrolled pair only."""
     value = (os.environ if env is None else env).get(MODE_ENV, "enrolled").strip().lower()
     return value != "enrolled"
+
+
+class ProvenanceModeMismatch(RuntimeError):
+    """The deployment setting states another mode than the Owner's in the database."""
+
+
+def database_mode(connection: Any) -> str | None:
+    """The Owner's mode (`003g`), or None on a database without it."""
+    present = connection.execute(
+        "SELECT to_regprocedure('public.measurement_provenance_mode()')"
+    ).fetchone()
+    if present is None or present[0] is None:
+        return None
+    row = connection.execute("SELECT measurement_provenance_mode()").fetchone()
+    return str(row[0])
+
+
+def effective_strict(connection: Any, env: Mapping[str, str] | None = None) -> bool:
+    """The mode a reader applies: the database's; the deployment setting may only agree."""
+    stored = database_mode(connection)
+    if stored is None:
+        return strict_mode(env)
+    stated = (os.environ if env is None else env).get(MODE_ENV)
+    if stated is not None and strict_mode({MODE_ENV: stated}) != (stored == "strict"):
+        raise ProvenanceModeMismatch(
+            f"{MODE_ENV}={stated!r} states another mode than the Owner's recorded mode "
+            f"{stored!r} (003g); the database's is the one every reader applies -- record the "
+            "intended mode with `set_mode` as the schema owner, or correct the setting"
+        )
+    return stored == "strict"
 
 
 def raw_digest(content_hashes: Iterable[str]) -> str:
@@ -192,6 +237,8 @@ class ProvenanceStatus(StrEnum):
     TIME_MISMATCH = "TIME_MISMATCH"
     BAD_SIGNATURE = "BAD_SIGNATURE"
     NO_RUN = "NO_RUN"
+    #: Signed, and the owner-run verifier has not yet recorded its verdict (`003g`).
+    PENDING_VERIFICATION = "PENDING_VERIFICATION"
 
     @property
     def counts(self) -> bool:
@@ -228,7 +275,11 @@ class MeasurementProvenance:
     ) -> None:
         self._c = connection
         self._skew = skew
-        self.strict = strict_mode() if strict is None else strict
+        self.strict = effective_strict(connection) if strict is None else strict
+        present = connection.execute(
+            "SELECT to_regprocedure('public.measurement_run_status(text)')"
+        ).fetchone()
+        self._sql = present is not None and present[0] is not None
 
     def enforced(self, instrument_id: str, capability_id: str) -> bool:
         """Whether any key was ever enrolled for this pair (revoked keys included: revoking the
@@ -240,7 +291,24 @@ class MeasurementProvenance:
         ).fetchone()
         return row is not None
 
-    def run(self, run_id: str) -> Provenance:
+    def run(self, run_id: str, *, own_only: bool = False) -> Provenance:
+        """The run's provenance. A signature this reader verifies counts only once the owner's
+        verifier recorded VERIFIED for it too (`003g`, the verdict the SQL readers count by);
+        `own_only` is the verifier's own judgement, before any verdict exists."""
+        judged = self._judge(run_id)
+        if own_only or not self._sql or judged.status is not ProvenanceStatus.VERIFIED:
+            return judged
+        row = self._c.execute("SELECT measurement_run_status(%s)", (run_id,)).fetchone()
+        sql = ProvenanceStatus(str(row[0]))
+        if sql is ProvenanceStatus.VERIFIED:
+            return judged
+        return Provenance(
+            sql,
+            f"run {run_id}'s signature verifies here, but the database counts it as {sql}: "
+            "the owner's verifier has not recorded it as VERIFIED",
+        )
+
+    def _judge(self, run_id: str) -> Provenance:
         found = self._c.execute(
             "SELECT job_id, capability_id, backend_id, output_artifacts FROM runs"
             " WHERE run_id = %s",
@@ -420,3 +488,40 @@ def combined(
         return None
 
     return check
+
+
+def set_mode(connection: Any, mode: str, *, reason: str, actor_id: str) -> None:
+    """The schema owner's record of the enforcement mode (`003g`; refused for anyone else)."""
+    connection.execute(
+        "INSERT INTO measurement_provenance_modes (mode, reason, actor_id, decided_at, recorded_by)"
+        " VALUES (%s, %s, %s, now(), '')",
+        (mode, reason, actor_id),
+    )
+
+
+#: The verifier named in each verdict it records.
+VERIFIER = f"{STATEMENT_KIND}/verifier@{STATEMENT_VERSION}"
+
+
+def verify_run(connection: Any, run_id: str, *, actor_id: str) -> str:
+    """The owner-run verifier's verdict on one relayed signature (`003g`), recorded as the schema
+    owner (the guard refuses anyone else). Returns the status recorded."""
+    judged = MeasurementProvenance(connection, strict=False).run(run_id, own_only=True)
+    connection.execute(
+        "INSERT INTO measurement_verifications (run_id, status, key_id, signature, detail,"
+        " verifier, actor_id, verified_at, recorded_by)"
+        " VALUES (%s, %s, '', '', %s, %s, %s, now(), '')",
+        (run_id, judged.status.value, judged.detail, VERIFIER, actor_id),
+    )
+    return judged.status.value
+
+
+def verify_pending(connection: Any, *, actor_id: str) -> list[tuple[str, str]]:
+    """The owner-run verifier (`003g`): judge every relayed signature with no verdict yet and
+    record the verdict. Returns (run, status) for each verdict recorded."""
+    pending = connection.execute(
+        "SELECT s.run_id FROM measurement_signatures s WHERE NOT EXISTS"
+        " (SELECT 1 FROM measurement_verifications v WHERE v.run_id = s.run_id)"
+        ' ORDER BY s.run_id COLLATE "C"'
+    ).fetchall()
+    return [(str(r), verify_run(connection, str(r), actor_id=actor_id)) for (r,) in pending]

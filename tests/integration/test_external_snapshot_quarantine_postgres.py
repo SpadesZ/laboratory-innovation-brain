@@ -343,7 +343,13 @@ def _quarantined_admission(db) -> tuple[Any, Any]:  # type: ignore[no-untyped-de
         )
 
     admitted = admit()
-    world.store.quarantine(BELIEF_PROJECT, snapshot.snapshot_id, "QUARANTINED_BY_OPERATOR")
+    world.store.quarantine(
+        BELIEF_PROJECT,
+        snapshot.snapshot_id,
+        "QUARANTINED_BY_OPERATOR",
+        actor_id=ACTOR,
+        reason="operator quarantine (test)",
+    )
     return admitted, admit
 
 
@@ -382,8 +388,26 @@ def test_a_quarantine_names_its_snapshot_project_and_known_reasons_only(db):
     )
     db.execute("INSERT INTO projects (project_id, name) VALUES ('prj:other', 'o')")
     with pytest.raises(Exception, match="not the snapshot's project"):
-        world.store.quarantine("prj:other", snapshot.snapshot_id, "QUARANTINED_BY_OPERATOR")
+        world.store.quarantine(
+            "prj:other",
+            snapshot.snapshot_id,
+            "QUARANTINED_BY_OPERATOR",
+            actor_id=ACTOR,
+            reason="operator quarantine (test)",
+        )
     with pytest.raises(Exception, match="reason_code"):
-        world.store.quarantine("prj:q", snapshot.snapshot_id, "BECAUSE")
-    world.store.quarantine("prj:q", snapshot.snapshot_id, "QUARANTINED_BY_OPERATOR")
+        world.store.quarantine(
+            "prj:q",
+            snapshot.snapshot_id,
+            "BECAUSE",
+            actor_id=ACTOR,
+            reason="operator quarantine (test)",
+        )
+    world.store.quarantine(
+        "prj:q",
+        snapshot.snapshot_id,
+        "QUARANTINED_BY_OPERATOR",
+        actor_id=ACTOR,
+        reason="operator quarantine (test)",
+    )
     assert world.store.quarantine_reason("prj:q", snapshot.snapshot_id) == "QUARANTINED_BY_OPERATOR"

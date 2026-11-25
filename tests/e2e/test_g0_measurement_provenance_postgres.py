@@ -8,7 +8,7 @@ a SUCCEEDED Run on the probe station, an ELEVATED reading and its attestation --
 episode's person really did pre-register (`011s`, signed `011w`), and cites it as SUPPORTS.
 
 The product's relation reader (the one every belief decision reads) must not admit it as support
-once the deployment asks for measurement provenance (`LAB_BRAIN_MEASUREMENT_PROVENANCE=strict`:
+once the deployment asks for measurement provenance (the Owner's strict mode, `003g`:
 a measurement counts only if a key the services never hold signed it). The setting is the Owner's;
 the default leaves every unenrolled instrument's measurements counted, unverified.
 
@@ -44,6 +44,8 @@ from lab_brain.security.measurement_provenance import (
     issue_nonce,
     relay,
     revoke,
+    set_mode,
+    verify_pending,
 )
 from lab_brain.security.reviewer_identity import SigningKey
 from tests.e2e.test_g0_screening_independence_postgres import PROBE_METHOD, Guarded
@@ -78,6 +80,14 @@ def _fabricated(g: Guarded, app: Any, name: str) -> tuple[str, str]:
     return observation, attestation
 
 
+def _strict(g: Guarded, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The Owner's strict mode: recorded in the database by the schema owner (`003g`), which
+    every SQL and Python reader applies, and stated by the deployment setting (which may only
+    agree with it)."""
+    monkeypatch.setenv(MODE_ENV, "strict")
+    set_mode(g.db, "strict", reason="every measurement must verify (G0 T-1)", actor_id=g.actor)
+
+
 def _admitted_support(g: Guarded, relations: Any) -> set[str]:
     return {
         r.relation_id
@@ -87,8 +97,8 @@ def _admitted_support(g: Guarded, relations: Any) -> set[str]:
 
 
 def test_t1_a_fabricated_measurement_is_not_admitted_as_support(guarded, roles, monkeypatch):
-    monkeypatch.setenv("LAB_BRAIN_MEASUREMENT_PROVENANCE", "strict")
     g = guarded
+    _strict(g, monkeypatch)
     with roles.connect(roles.app) as app:
         observation, attestation = _fabricated(g, app, "fabricated")
     admitted = _admitted_support(g, _product_relations(g))
@@ -136,6 +146,7 @@ def _measure(
     *,
     sign: Callable[[str, str, str], Any] | None = None,
     export_of: str | None = None,
+    instrument: str = INSTRUMENT,
 ) -> tuple[str, str, str]:
     """A pre-registered probe measurement written by the services' role: the Job, its nonce (asked
     of the database while the job runs), the Run, the reading and its SUPPORTS. `sign(job, run,
@@ -176,7 +187,7 @@ def _measure(
                 "run_id": run_id,
                 "job_id": job.job_id,
                 "capability_id": sp.CAP_FOURPOINT_PROBE,
-                "backend_id": INSTRUMENT,
+                "backend_id": instrument,
                 "input_artifacts": (),
                 "input_parameters": {"variant": name},
                 "output_artifacts": (export,),
@@ -210,13 +221,15 @@ def _honest_signer(runner: MeasurementRunner, name: str) -> Callable[[str, str, 
 
 
 def _status(g: Guarded, run_id: str) -> str:
+    """The run's provenance once the owner's verifier (`003g`) has judged what was relayed."""
+    verify_pending(g.db, actor_id=g.actor)
     return MeasurementProvenance(g.db).run(run_id).status.value
 
 
 def test_t1_a_runner_signed_measurement_is_admitted_in_strict_mode(guarded, roles, monkeypatch):
     """The positive control: the probe station's enrolled runner signs; the services relay it."""
-    monkeypatch.setenv(MODE_ENV, "strict")
     g = guarded
+    _strict(g, monkeypatch)
     runner = _runner()
     _enrol(g, runner)
     with roles.connect(roles.app) as app:
@@ -280,8 +293,8 @@ ATTACKS: dict[str, tuple[str, Callable[..., Any]]] = {
 def test_t1_a_measurement_without_a_verifying_signature_is_not_support(
     guarded, roles, monkeypatch, attack
 ):
-    monkeypatch.setenv(MODE_ENV, "strict")
     g = guarded
+    _strict(g, monkeypatch)
     runner = _runner()
     _enrol(g, runner)
     expected, signer = ATTACKS[attack]
@@ -301,8 +314,8 @@ def test_t1_a_measurement_without_a_verifying_signature_is_not_support(
 
 
 def test_t1_a_revoked_key_no_longer_verifies(guarded, roles, monkeypatch):
-    monkeypatch.setenv(MODE_ENV, "strict")
     g = guarded
+    _strict(g, monkeypatch)
     runner = _runner()
     _enrol(g, runner)
     revoke(g.db, key_id=runner.key_id, reason="key left the probe station host", actor_id=g.actor)
@@ -313,8 +326,8 @@ def test_t1_a_revoked_key_no_longer_verifies(guarded, roles, monkeypatch):
 
 
 def test_t1_a_key_enrolled_for_another_instrument_is_out_of_scope(guarded, roles, monkeypatch):
-    monkeypatch.setenv(MODE_ENV, "strict")
     g = guarded
+    _strict(g, monkeypatch)
     runner = _runner()
     _enrol(g, runner, instrument="lab.another_station")
     with roles.connect(roles.app) as app:

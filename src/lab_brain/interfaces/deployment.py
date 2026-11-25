@@ -740,6 +740,41 @@ def quarantine(
     )
 
 
+def verify_measurements(c: Any, *, actor_id: str) -> list[str]:
+    """The owner-run measurement verifier (`003g`): one verdict per relayed signature not yet
+    judged, recorded where the SQL readers read it. Refused for anyone but the schema owner."""
+    from lab_brain.security.measurement_provenance import verify_pending
+
+    recorded = _owner_call(c, lambda: verify_pending(c, actor_id=actor_id))
+    if not recorded:
+        return ["verified   nothing pending: every relayed signature has a verdict"]
+    return [f"verified   {run}  {status}" for run, status in recorded]
+
+
+def measurement_mode(c: Any, mode: str, *, reason: str, actor_id: str) -> list[str]:
+    """The owner's measurement-provenance mode (`003g`), read by every SQL and Python reader."""
+    from lab_brain.security.measurement_provenance import set_mode
+
+    if len(reason.strip()) < 10:
+        raise OperatorRefused("a mode change records why, in at least ten characters")
+    _owner_call(c, lambda: set_mode(c, mode, reason=reason.strip(), actor_id=actor_id))
+    return [f"measurement provenance mode is now {mode} for every reader"]
+
+
+def _owner_call(c: Any, call: Any) -> Any:
+    """`call()` in one transaction; the database's refusal reported as it said it."""
+    try:
+        with c.transaction():
+            return call()
+    except Exception as exc:  # the database's own rule, as it said it
+        diag = getattr(exc, "diag", None)
+        if getattr(exc, "sqlstate", None) is None and diag is None:
+            raise
+        raise OperatorRefused(
+            getattr(diag, "message_primary", None) or str(exc).splitlines()[0]
+        ) from exc
+
+
 def _write(c: Any, sql: str, params: Sequence[object]) -> None:
     try:
         with c.transaction():

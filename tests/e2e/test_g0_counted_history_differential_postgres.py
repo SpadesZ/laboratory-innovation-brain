@@ -185,8 +185,9 @@ def test_sql_belief_replay_equals_the_product_projection_for_every_exclusion(his
             if bits[-1]:
                 db.execute(
                     "INSERT INTO external_snapshot_quarantine (snapshot_id, project_id,"
-                    " reason_code) VALUES (%s, %s, 'QUARANTINED_BY_OPERATOR')",
-                    (snapshot, PROJECT),
+                    " reason_code, decided_by_actor_id, reason)"
+                    " VALUES (%s, %s, 'QUARANTINED_BY_OPERATOR', %s, %s)",
+                    (snapshot, PROJECT, ACTOR, "differential enumeration (G0 round 5)"),
                 )
             projection = _projection_reader(db).project(project_id=PROJECT, hypothesis_id=HYP)
             sql = db.execute(

@@ -60,8 +60,18 @@ class ExternalSourceStore(Protocol):
 
     def record_access_scope(self, scope: ExternalAccessScope) -> ExternalAccessScope: ...
 
-    def quarantine(self, project_id: str, snapshot_id: str, reason_code: str) -> None:
-        """Quarantine a snapshot (append-only; quarantining more is the fail-safe direction)."""
+    def quarantine(
+        self,
+        project_id: str,
+        snapshot_id: str,
+        reason_code: str,
+        *,
+        actor_id: str | None = None,
+        reason: str | None = None,
+    ) -> None:
+        """Quarantine a snapshot (append-only, irreversible). Since `005f` it demotes the beliefs
+        its evidence triggered, so in the database it is the schema owner's decision, recorded with
+        the deciding person and why (`002f`)."""
         ...
 
     def quarantine_reason(self, project_id: str, snapshot_id: str) -> str | None:
@@ -86,7 +96,15 @@ class InMemoryExternalSourceStore:
         self._scopes: dict[str, ExternalAccessScope] = {}
         self._quarantine: dict[str, str] = {}
 
-    def quarantine(self, project_id: str, snapshot_id: str, reason_code: str) -> None:
+    def quarantine(
+        self,
+        project_id: str,
+        snapshot_id: str,
+        reason_code: str,
+        *,
+        actor_id: str | None = None,
+        reason: str | None = None,
+    ) -> None:
         if self.snapshot(project_id, snapshot_id) is None:
             raise ExternalSourceStoreError(f"{snapshot_id} is not a snapshot of {project_id}")
         self._quarantine.setdefault(snapshot_id, reason_code)
@@ -240,11 +258,22 @@ class SqlExternalSourceStore:
         stored = ExternalAccessScope.model_validate(dict(zip(_SCOPE_COLUMNS, row, strict=True)))
         return _same_scope(stored, scope)
 
-    def quarantine(self, project_id: str, snapshot_id: str, reason_code: str) -> None:
+    def quarantine(
+        self,
+        project_id: str,
+        snapshot_id: str,
+        reason_code: str,
+        *,
+        actor_id: str | None = None,
+        reason: str | None = None,
+    ) -> None:
+        """The schema owner's quarantine (`002f`: refused for anyone else, and without the
+        deciding person and a reason)."""
         self._connection.execute(
-            "INSERT INTO external_snapshot_quarantine (snapshot_id, project_id, reason_code)"
-            " VALUES (%s, %s, %s) ON CONFLICT (snapshot_id) DO NOTHING",
-            (snapshot_id, project_id, reason_code),
+            "INSERT INTO external_snapshot_quarantine (snapshot_id, project_id, reason_code,"
+            " decided_by_actor_id, reason) VALUES (%s, %s, %s, %s, %s)"
+            " ON CONFLICT (snapshot_id) DO NOTHING",
+            (snapshot_id, project_id, reason_code, actor_id, reason),
         )
 
     def quarantine_reason(self, project_id: str, snapshot_id: str) -> str | None:

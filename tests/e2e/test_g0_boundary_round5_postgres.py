@@ -317,7 +317,13 @@ def _quarantine_snapshot_of(g: Guarded, attestation: str) -> None:
         "SELECT method ->> 'snapshot_id' FROM attestations WHERE attestation_id = %s",
         (attestation,),
     ).fetchall()
-    SqlExternalSourceStore(g.db).quarantine(PROJECT, snapshot, "QUARANTINED_BY_OPERATOR")
+    SqlExternalSourceStore(g.db).quarantine(
+        PROJECT,
+        snapshot,
+        "QUARANTINED_BY_OPERATOR",
+        actor_id=g.actor,
+        reason="the owner's quarantine of this snapshot (G0 round 5)",
+    )
 
 
 def g_attempt_with_trigger(

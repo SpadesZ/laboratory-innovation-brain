@@ -362,6 +362,13 @@ APPLY_ORDER: tuple[str, ...] = (
     # G0 T-1 prototype: owner-enrolled measurement signing keys, database-issued nonces per job,
     # relayed runner signatures (verified by the readers in Python). After 010e.
     "003f_measurement_provenance.sql",
+    # G0 round 6, T-1r: measurement provenance in SQL -- the owner's mode, the owner-run
+    # verifier's verdicts, and the SQL readers (cwg_evidence, belief_replay, the 011z snapshot
+    # check) applying the rule the Python reader applies. After 003f and 005f.
+    "003g_measurement_provenance_in_sql.sql",
+    # G0 round 6, Q-r: a new external-snapshot quarantine (which demotes beliefs since 005f) is
+    # the schema owner's decision, recorded with the deciding person and why. After 002e, 005f.
+    "002f_external_snapshot_quarantine_is_decided_by_the_owner.sql",
 )
 
 _BOOTSTRAP = """
