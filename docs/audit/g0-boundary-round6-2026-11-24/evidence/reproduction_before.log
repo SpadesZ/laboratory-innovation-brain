@@ -1,0 +1,33 @@
+# round-6 reproductions at 6415000 + uncommitted test file; fresh database g6_a (91 migrations); Wed Nov 25 06:01:15 UTC 2026
+## normal run (strict xfail)
+xxxxxx                                                                   [100%]
+=========================== short test summary info ============================
+XFAIL tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_the_sql_state_is_not_supported_on_a_measurement_python_refuses - T-1r: the SQL state reader ignores measurement provenance
+XFAIL tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_the_sql_confirmation_rule_does_not_count_a_support_python_refuses - T-1r: cwg_evidence ignores measurement provenance
+XFAIL tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_the_write_gate_refuses_a_snapshot_counting_a_support_python_refuses - T-1r: the 011z gate ignores measurement provenance
+XFAIL tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_a_root_cause_is_not_confirmed_on_a_support_python_refuses - T-1r: 011l reads a state Python refuses
+XFAIL tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_strict_mode_is_the_owners_and_sql_reads_it - T-1r: the strict mode is invisible to SQL
+XFAIL tests/e2e/test_g0_boundary_round6_postgres.py::test_qr_the_services_cannot_demote_a_belief_by_quarantining_a_snapshot - Q-r: any writer may quarantine an external snapshot
+6 xfailed in 15.22s
+## --runxfail -s (why each fails)
+T1 after enrolment: projection -> REFUSED:SUPPORT_UNVERIFIED; cwg_state -> SUPPORTED
+E       AssertionError: assert 'SUPPORTED' is None
+E       AssertionError: assert {'rel:tb-5a7607bdb4'} == set()
+E         
+E         Extra items in the left set:
+E         'rel:tb-5a7607bdb4'
+E         Use -v to get more diff
+E       AssertionError: None
+E       assert (None is not None)
+E       AssertionError: RaiseException('failure analysis fa:r6-bd7b9297 confirms hyp:bd4c0e47-075b-4b84-a0d7-80bb7afbfdc7 with no diagnostic w...eclared effect alone (012o)
+E         CONTEXT:  PL/pgSQL function failure_analyses_confirmation_is_warranted() line 9 at RAISE')
+E       assert 'current belief state is no history' in 'failure analysis fa:r6-bd7b9297 confirms hyp:bd4c0e47-075b-4b84-a0d7-80bb7afbfdc7 with no diagnostic warrant. A confi...declared effect alone (012o)\nCONTEXT:  PL/pgSQL function failure_analyses_confirmation_is_warranted() line 9 at RAISE'
+E        +  where 'failure analysis fa:r6-bd7b9297 confirms hyp:bd4c0e47-075b-4b84-a0d7-80bb7afbfdc7 with no diagnostic warrant. A confi...declared effect alone (012o)\nCONTEXT:  PL/pgSQL function failure_analyses_confirmation_is_warranted() line 9 at RAISE' = str(RaiseException('failure analysis fa
+E       AssertionError: no owner setting of the mode exists
+E       assert None is not None
+E       AssertionError: None
+E       assert False
+E        +  where False = isinstance(None, <class 'psycopg.errors.InsufficientPrivilege'>)
+E        +    where <class 'psycopg.errors.InsufficientPrivilege'> = <module 'psycopg.errors' from '/home/user/wt/g0b6/.venv/lib/python3.13/site-packages/psycopg/errors.py'>.InsufficientPrivilege
+E        +      where <module 'psycopg.errors' from '/home/user/wt/g0b6/.venv/lib/python3.13/site-packages/psycopg/errors.py'> = psycopg.errors
+6 failed in 25.59s
