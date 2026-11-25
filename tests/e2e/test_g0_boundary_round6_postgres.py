@@ -510,3 +510,32 @@ def test_t1s_the_sql_confirmation_rule_does_not_count_support_on_a_forged_author
     print(f"T-1s forged authorization: Python admits {sorted(python)}; cwg_evidence {sorted(sql)}")
     assert relation not in python
     assert relation not in sql
+
+
+# =============================================================================================
+# C-1: single-row picks on the confirmation path break text ties byte-wise
+# =============================================================================================
+
+#: (function, the tie-break that must be byte-wise) -- `005h`.
+BYTEWISE_PICKS = (
+    ("cwg_bound_class", 'ORDER BY d.set_ref COLLATE "C", d.class_id COLLATE "C"'),
+    ("confirmation_rule_breaches", 'ORDER BY set_ref COLLATE "C" LIMIT 1'),
+    ("failure_analyses_confirmation_holds_the_rule", 'ORDER BY set_ref COLLATE "C" LIMIT 1'),
+)
+
+
+def test_c1_the_collation_hazard_is_real(db):
+    """Byte-wise (C, and Python's str order) and a common ICU locale disagree on the kind of refs
+    a declaration set may carry, so an un-collated tie-break depends on the database's locale."""
+    ((bytewise, icu),) = db.execute(
+        "SELECT 'B-set' < 'a-set' COLLATE \"C\", 'B-set' < 'a-set' COLLATE \"en-US-x-icu\""
+    ).fetchall()
+    assert (bytewise, icu) == ("B-set" < "a-set", False)
+
+
+@pytest.mark.parametrize(("function", "tie_break"), BYTEWISE_PICKS)
+def test_c1_the_confirmation_path_breaks_ties_bytewise(db, function, tie_break):
+    ((definition,),) = db.execute(
+        "SELECT pg_get_functiondef(p.oid) FROM pg_proc p WHERE p.proname = %s", (function,)
+    ).fetchall()
+    assert tie_break in definition, f"{function}: {tie_break!r} not in its live definition"

@@ -373,6 +373,9 @@ APPLY_ORDER: tuple[str, ...] = (
     # counted a relation resting on it is excluded (005f's view), and no reader admits such a
     # relation (cwg_evidence, the 011z snapshot check, SqlRelationStore). After 003g and 002f.
     "005g_quarantined_evidence_counts_nowhere.sql",
+    # G0 round 6, C-1: the confirmation path's single-row picks (cwg_bound_class, the candidate's
+    # own declaration, the recorded class name) break text ties byte-wise, as Python does.
+    "005h_counted_readers_break_ties_bytewise.sql",
 )
 
 _BOOTSTRAP = """
