@@ -35,11 +35,14 @@ class SafetyProtocolV15(SafetyProtocolV14):
     """v1.4's switches, plus:
 
     targeted_selection       choose rival tests by expected refutations per unit cost
+    rival_first              run rival-targeted tests BEFORE the fixed-order signal probes while
+                             one is expected to refute enough rivals
     min_expected_refutations below this expected count for every option, fall back to B7's choice
     """
 
     version: str = "1.5.0"
     targeted_selection: bool = True
+    rival_first: bool = True
     min_expected_refutations: float = 0.5
 
 

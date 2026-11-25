@@ -32,12 +32,14 @@ from lab_brain.discovery.loop import Laboratory, investigate
 from lab_brain.discovery.model import Budget, DiscoveryResult, ExperimentSpec
 from lab_brain.discovery.numerics import chi2_sf
 from lab_brain.discovery.protocol import DiscoveryProtocol
+from lab_brain.discovery_safety.model import ProbePurpose
 from lab_brain.discovery_safety.v12.grammar import TermGrammar
 from lab_brain.discovery_safety.v12.model import LadderStep, SafeRunV12
 from lab_brain.discovery_safety.v12.replay import ReplayLaboratory, run_ladder
 from lab_brain.discovery_safety.v13.rule import Prediction
 from lab_brain.discovery_safety.v14.gate import _GateV14
 from lab_brain.discovery_safety.v14.model import EVALUATOR_RULE_V14, EvaluatorRuleV14
+from lab_brain.discovery_safety.v14.rule import Rival
 from lab_brain.discovery_safety.v15.model import SAFETY_V15, SafetyProtocolV15
 
 
@@ -58,6 +60,9 @@ def noncentral_chi2_sf(x: float, dof: int, noncentrality: float) -> float:
     """P(X >= x), X ~ noncentral chi-square(dof, lambda): the Poisson mixture of central ones."""
     if noncentrality <= 0.0:
         return chi2_sf(x, dof)
+    # far in the tail of the mixture: certain failure / central behaviour (|error| < 1e-9)
+    if math.sqrt(noncentrality) - math.sqrt(x) > 9.0:
+        return 1.0
     half = noncentrality / 2.0
     j0 = int(half)
     total = 0.0
@@ -105,47 +110,157 @@ class _GateV15(_GateV14):
             raise TypeError("the v1.5 gate runs under a SafetyProtocolV15")
         self.v15: SafetyProtocolV15 = self.safety
 
-    def rival_test(self) -> str:
-        if not self.v15.targeted_selection:
-            return super().rival_test()
+    # -- the rival-targeted choice --------------------------------------------------------------
+
+    def targeted_option(self) -> tuple[ExperimentSpec, int, list[Rival], float] | None:
+        """(experiment, runs, rivals most-likely-to-fail first, expected refutations) of the
+        affordable option with the most expected refutations per unit cost, or None when no
+        option reaches `min_expected_refutations` (or nothing is open)."""
         rivals = [r for _, _, r in self.open_rivals()]
-        if not rivals:
-            return "none"
+        if not rivals or not self.members:
+            return None
         data = self.data()
         alpha = self.rescorer.rule.alpha
         top = self.v15.max_runs if self.v15.multi_run_tests else 1
-        best: tuple[float, int, int, int, ExperimentSpec, int] | None = None
-        best_order: list[int] = []
+        best: tuple[tuple[float, int, int], ExperimentSpec, int, list[float], float] | None = None
         for e in self.available:
-            mine = [self.rescorer.predict(m.fingerprint, data, e) for m in self.members]
-            if any(p is None for p in mine) or not mine:
+            if e.cost > self.remaining():
                 continue
+            mine = [self.rescorer.predict(m.fingerprint, data, e) for m in self.members]
+            if any(p is None for p in mine):
+                continue
+            claims = [p for p in mine if p is not None]
             theirs = [self._rival_prediction(r, e) for r in rivals]
             for n in range(1, top + 1):
                 cost = n * e.cost
                 if cost > self.remaining():
                     break
+                cache: dict[tuple[object, ...], float] = {}
                 probs = []
                 for p in theirs:
                     if p is None:
                         probs.append(0.0)
                         continue
-                    # the rival is refuted only if it fails whichever member is true: the least
-                    # favourable member decides
-                    probs.append(
-                        min(failure_probability(q, p, e, n, alpha) for q in mine if q is not None)
-                    )
+                    key = _key(p)
+                    if key not in cache:
+                        # a rival is refuted only if it fails whichever member is true: the least
+                        # favourable member decides
+                        cache[key] = min(failure_probability(q, p, e, n, alpha) for q in claims)
+                    probs.append(cache[key])
                 expected = math.fsum(probs)
                 if expected < self.v15.min_expected_refutations:
                     continue
-                key = (-expected / cost, cost, self.declared_order[e.experiment_id])
-                if best is None or key < best[:3]:
-                    best = (*key, n, e, 0)
-                    best_order = sorted(range(len(rivals)), key=lambda i: (-probs[i], i))
+                rank = (-expected / cost, cost, self.declared_order[e.experiment_id])
+                if best is None or rank < best[0]:
+                    best = (rank, e, n, probs, expected)
         if best is None:
+            return None
+        _, e, n, probs, expected = best
+        order = sorted(range(len(rivals)), key=lambda i: (-probs[i], i))
+        return e, n, [rivals[i] for i in order], expected
+
+    def rival_test(self) -> str:
+        if not self.v15.targeted_selection:
             return super().rival_test()
-        lead = [rivals[best_order[0]], *(rivals[i] for i in best_order[1:])]
-        return self._close(best[4], best[3], lead)
+        option = self.targeted_option()
+        if option is None:
+            return super().rival_test()
+        e, n, rivals, _ = option
+        return self._close(e, n, rivals)
+
+    def probe_fixpoint(self) -> bool | None:
+        """v1.2's probe fixpoint (`_GateV12.probe_fixpoint`) with one phase added in FRONT of the
+        signal probes (`rival_first`): while a rival-targeted option is expected to refute at
+        least `min_expected_refutations` open rivals and fewer than `max_rival_tests` rival tests
+        have run, run it. Development showed B7 spending its whole budget at small caps on the
+        fixed-order signal probes, leaving refutable rivals untested. The signal probes, the
+        support test, the rival tests and the null probes follow as in v1.2 (sharing one rival
+        test count)."""
+        if not self.v15.rival_first:
+            return super().probe_fixpoint()
+        self.initial_signals = self.recompute_signals()
+        self.deferring = (
+            self.safety.probes and self.v11.localized_check and self.v11.defer_localized_replication
+        )
+        failure = self.failing()
+        if failure is not None:
+            outcome = self.resolve(failure, self.signal_set())
+            if self.v11.refit_fixpoint:
+                self.recompute_signals()
+            if outcome != "noise":
+                return outcome == "reproduced"
+        if not self.safety.probes:
+            return None
+        support_runs = 0
+        rival_runs = 0
+        while True:
+            observed = {o.experiment_id for o in self.admitted()}
+            signals = self.signal_set()
+            unobserved = [e for e in self.available if e.experiment_id not in observed]
+            affordable = [e for e in unobserved if e.cost <= self.remaining()]
+            queue = self.order([e for e in affordable if e.experiment_id in signals])
+            option = (
+                self.targeted_option()
+                if self.v12.rival_exclusion
+                and self.v12.registered_probes
+                and rival_runs < self.v12.max_rival_tests
+                and self.failing() is None
+                else None
+            )
+            if option is not None:
+                rival_runs += 1
+                excluded = self._close(option[0], option[1], option[2])
+                if excluded != "clean":
+                    return excluded == "reproduced"
+                continue
+            if queue:
+                chosen = queue[0]
+                self.run(chosen.experiment_id, ProbePurpose.ADEQUACY_PROBE, True, None)
+            elif self.deferring:
+                self.deferring = False
+                reproduced = self.settle()
+                if reproduced is not None:
+                    return reproduced
+                continue
+            elif (
+                self.v12.support_test
+                and self.v12.registered_probes
+                and support_runs < 2
+                and self.failing() is None
+                and not self.members_supported()
+                and (tested := self.support_test()) != "none"
+            ):
+                support_runs += 1
+                if tested != "clean":
+                    return tested == "reproduced"
+                continue
+            elif (
+                self.v12.rival_exclusion
+                and rival_runs < self.v12.max_rival_tests
+                and self.failing() is None
+                and (excluded := _GateV14.rival_test(self)) != "none"
+            ):
+                rival_runs += 1
+                if excluded != "clean":
+                    return excluded == "reproduced"
+                continue
+            else:
+                nulls = self.order([e for e in affordable if e.experiment_id not in signals])
+                if not (self.safety.probe_null_experiments and nulls):
+                    return None
+                self.run(nulls[0].experiment_id, ProbePurpose.ADEQUACY_PROBE, False, None)
+            if self.v11.refit_fixpoint:
+                self.recompute_signals()
+            reproduced = self.settle()
+            if reproduced is not None:
+                return reproduced
+
+
+def _key(p: Prediction) -> tuple[object, ...]:
+    return (
+        tuple(sorted((k, round(v, 9)) for k, v in p[0].items())),
+        tuple(sorted((k, round(v, 9)) for k, v in p[1].items())),
+    )
 
 
 def safe_investigate_v15(
