@@ -125,6 +125,7 @@ known-first-party = ["lab_brain", "tests"]
 "scripts/discovery_safety_v13_eval.py" = ["TID251"]
 "scripts/discovery_safety_v13_reproduce_before.py" = ["TID251"]
 "scripts/discovery_safety_v14_eval.py" = ["TID251"]
+"scripts/discovery_safety_v15_eval.py" = ["TID251"]
 # The mutation battery's `old=` fields are verbatim excerpts of the source lines they anchor on.
 # Wrapping them with implicit concatenation would keep the line length and make the anchor
 # unreadable -- and an anchor a reviewer cannot compare against the source by eye is the one
