@@ -217,6 +217,22 @@ class SqlRelationStore:
             from lab_brain.security.measurement_provenance import MeasurementProvenance
 
             self._measurements = MeasurementProvenance(connection).support_problem
+        # G0 round 6 (`005g`): a relation resting on an attestation of a quarantined external
+        # snapshot is not admitted -- the database's own definition, read here.
+        present = connection.execute(
+            "SELECT to_regprocedure('public.quarantined_evidence_problem(text, text[])')"
+        ).fetchone()
+        self._quarantine_aware = present is not None and present[0] is not None
+
+    def quarantine_problem(self, relation: RelationJudgment) -> str | None:
+        """Why a relation rests on quarantined external evidence (`005g`), or None."""
+        if not self._quarantine_aware or not relation.supporting_attestation_ids:
+            return None
+        row = self._connection.execute(
+            "SELECT quarantined_evidence_problem(%s, %s)",
+            (relation.project_id, list(relation.supporting_attestation_ids)),
+        ).fetchone()
+        return None if row is None or row[0] is None else str(row[0])
 
     def measurement_problem(self, relation: RelationJudgment) -> str | None:
         """Why a SUPPORTS rests on a measurement whose provenance does not count, or None."""
@@ -298,7 +314,7 @@ class SqlRelationStore:
             f"SELECT {_RELATION_COLUMNS} FROM relation_judgments"
             " WHERE project_id = %s AND to_entity_id = %s AND valid_to IS NULL"
             "   AND relation_type = ANY (%s)"
-            " ORDER BY valid_from, relation_id",
+            ' ORDER BY valid_from, relation_id COLLATE "C"',
             (
                 project_id,
                 subject_id,
@@ -308,7 +324,8 @@ class SqlRelationStore:
         relations = tuple(
             r
             for r in (self._hydrate(row) for row in rows)
-            if r.relation_type is not RelationType.SUPPORTS or self.measurement_problem(r) is None
+            if (r.relation_type is not RelationType.SUPPORTS or self.measurement_problem(r) is None)
+            and self.quarantine_problem(r) is None
         )
         if not any(r.relation_type is RelationType.SUPPORTS for r in relations):
             return relations

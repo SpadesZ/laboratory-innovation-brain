@@ -405,7 +405,6 @@ def _owner_quarantines_snapshot_of(g: Guarded, attestation: str) -> None:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="Q-x: support on a quarantined snapshot is still admitted")
 def test_qx_a_relation_on_a_quarantined_snapshot_is_support_nowhere(guarded, roles):
     g = guarded
     hypothesis = _unscreened(g)
@@ -420,7 +419,6 @@ def test_qx_a_relation_on_a_quarantined_snapshot_is_support_nowhere(guarded, rol
     assert relation.relation_id not in sql
 
 
-@pytest.mark.xfail(strict=True, reason="Q-x: a promotion counting it still counts")
 def test_qx_a_promotion_that_counted_it_no_longer_counts(guarded, roles):
     g = guarded
     hypothesis = _unscreened(g)

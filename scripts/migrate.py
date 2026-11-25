@@ -369,6 +369,10 @@ APPLY_ORDER: tuple[str, ...] = (
     # G0 round 6, Q-r: a new external-snapshot quarantine (which demotes beliefs since 005f) is
     # the schema owner's decision, recorded with the deciding person and why. After 002e, 005f.
     "002f_external_snapshot_quarantine_is_decided_by_the_owner.sql",
+    # G0 round 6, Q-x: quarantined external evidence counts nowhere -- an event whose decision
+    # counted a relation resting on it is excluded (005f's view), and no reader admits such a
+    # relation (cwg_evidence, the 011z snapshot check, SqlRelationStore). After 003g and 002f.
+    "005g_quarantined_evidence_counts_nowhere.sql",
 )
 
 _BOOTSTRAP = """
