@@ -362,3 +362,84 @@ def test_qr_an_owners_quarantine_records_who_and_why_and_stays(guarded):
         "UPDATE external_snapshot_quarantine SET reason = 'released'",
     ):
         assert isinstance(_write(lambda s=statement: g.db.execute(s))[1], psycopg.Error)
+
+
+# =============================================================================================
+# Q-x: a relation resting on a quarantined external snapshot's attestation
+# =============================================================================================
+
+
+def _external_support(app: Any, g: Guarded, hypothesis: str, attestation: str) -> Any:
+    """As the services' role: a SUPPORTS of the hypothesis resting on an external attestation."""
+    from lab_brain.core.models import RelationJudgment
+    from lab_brain.core.repositories.evidence import SqlRelationStore
+
+    ((claim,),) = g.db.execute(
+        "SELECT claim_id FROM attestations WHERE attestation_id = %s", (attestation,)
+    ).fetchall()
+    relation = RelationJudgment(
+        relation_id=f"rel:r6-ext-{uuid.uuid4().hex[:8]}",
+        from_entity_id=str(claim),
+        to_entity_id=hypothesis,
+        relation_type=RelationType.SUPPORTS,
+        supporting_attestation_ids=(attestation,),
+        project_id=PROJECT,
+    )
+    SqlRelationStore(app).add(relation)
+    return relation
+
+
+def _owner_quarantines_snapshot_of(g: Guarded, attestation: str) -> None:
+    from lab_brain.core.repositories.external_sources import SqlExternalSourceStore
+
+    ((snapshot,),) = g.db.execute(
+        "SELECT method ->> 'snapshot_id' FROM attestations WHERE attestation_id = %s",
+        (attestation,),
+    ).fetchall()
+    SqlExternalSourceStore(g.db).quarantine(
+        PROJECT,
+        snapshot,
+        "QUARANTINED_BY_OPERATOR",
+        actor_id=g.actor,
+        reason="scope of this read is in doubt (G0 round 6)",
+    )
+
+
+@pytest.mark.xfail(strict=True, reason="Q-x: support on a quarantined snapshot is still admitted")
+def test_qx_a_relation_on_a_quarantined_snapshot_is_support_nowhere(guarded, roles):
+    g = guarded
+    hypothesis = _unscreened(g)
+    attestation = _external_attestation(g)
+    with roles.connect(roles.app) as app:
+        relation = _external_support(app, g, hypothesis, attestation)
+    assert relation.relation_id in _python_support(g, hypothesis) & _sql_support(g, hypothesis)
+    _owner_quarantines_snapshot_of(g, attestation)
+    python, sql = _python_support(g, hypothesis), _sql_support(g, hypothesis)
+    print(f"Q-x after quarantine: Python admits {sorted(python)}; cwg_evidence {sorted(sql)}")
+    assert relation.relation_id not in python
+    assert relation.relation_id not in sql
+
+
+@pytest.mark.xfail(strict=True, reason="Q-x: a promotion counting it still counts")
+def test_qx_a_promotion_that_counted_it_no_longer_counts(guarded, roles):
+    g = guarded
+    hypothesis = _unscreened(g)
+    attestation = _external_attestation(g)
+    policy = _owner_registers(g, SUPPORT_ONLY)
+    with roles.connect(roles.app) as app:
+        _external_support(app, g, hypothesis, attestation)
+        written = _attempt(_services_episode(app, g), g, hypothesis, policy)
+    assert written.event is not None
+    assert _read(_honest(g), hypothesis) == BeliefState.SUPPORTED.value
+    _owner_quarantines_snapshot_of(g, attestation)
+    python = _read(_honest(g), hypothesis)
+    ((sql,),) = g.db.execute("SELECT cwg_state(%s, %s)", (PROJECT, hypothesis)).fetchall()
+    ((problem,),) = g.db.execute(
+        "SELECT belief_snapshot_problem(project_id, subject_id, decision_input_snapshot::jsonb)"
+        " FROM belief_transition_decisions WHERE decision_id = %s",
+        (written.authorization.decision_id,),
+    ).fetchall()
+    print(f"Q-x promotion after quarantine: projection {python}; cwg_state {sql}; gate {problem}")
+    assert python == BeliefState.ACTIVE.value
+    assert sql == BeliefState.ACTIVE.value
+    assert problem is not None and "quarantined" in problem, problem

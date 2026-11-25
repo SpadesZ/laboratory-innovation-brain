@@ -1,0 +1,16 @@
+# Q-x reproductions at 81636fc + the uncommitted Q-x tests; database g6_a (93 migrations); Wed Nov 25 06:11:50 UTC 2026
+## normal run (strict xfail)
+xx                                                                       [100%]
+=========================== short test summary info ============================
+XFAIL tests/e2e/test_g0_boundary_round6_postgres.py::test_qx_a_relation_on_a_quarantined_snapshot_is_support_nowhere - Q-x: support on a quarantined snapshot is still admitted
+XFAIL tests/e2e/test_g0_boundary_round6_postgres.py::test_qx_a_promotion_that_counted_it_no_longer_counts - Q-x: a promotion counting it still counts
+9 deselected, 2 xfailed in 12.74s
+## --runxfail -s
+Q-x after quarantine: Python admits ['rel:r6-ext-8b151c84']; cwg_evidence ['rel:r6-ext-8b151c84']
+E       AssertionError: assert 'rel:r6-ext-8b151c84' not in {'rel:r6-ext-8b151c84'}
+E        +  where 'rel:r6-ext-8b151c84' = RelationJudgment(relation_id='rel:r6-ext-8b151c84', from_entity_id='clm:m5-0001', to_entity_id='hyp:07fb2ef5-6bd6-41e2...alidated_by_actor_id=None, created_at=datetime.datetime(2026, 11, 25, 6, 12, 10, 865645, tzinfo=datetime.timezone.utc)).relation_id
+E       AssertionError: assert 'SUPPORTED' == 'ACTIVE'
+E         
+E         - ACTIVE
+E         + SUPPORTED
+2 failed, 9 deselected in 12.47s
