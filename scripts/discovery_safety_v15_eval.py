@@ -38,6 +38,7 @@ import dataclasses
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import time
@@ -49,6 +50,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+import lab_brain  # noqa: E402
 from lab_brain.discovery import benchmark  # noqa: E402
 from lab_brain.discovery.model import (  # noqa: E402
     ExperimentSpec,
@@ -78,6 +80,21 @@ from lab_brain.domains.silicon_photonics.discovery_catalog import (  # noqa: E40
     ring_catalog,
     ring_scenario,
 )
+
+
+def assert_own_checkout() -> None:
+    """Refuse to run unless `lab_brain` (and the frozen v1.4 script's imports) resolve inside the
+    repository this script belongs to: an editable install of ANOTHER checkout on the interpreter
+    must never silently produce evidence (in the evaluator or in an arm process)."""
+    here = Path(lab_brain.__file__).resolve()
+    if not here.is_relative_to((ROOT / "src").resolve()):
+        raise SystemExit(
+            f"lab_brain was imported from {here}, outside {ROOT / 'src'}; refusing to run "
+            "(set PYTHONPATH to this checkout's src)"
+        )
+
+
+assert_own_checkout()
 
 V14_SCRIPT = ROOT / "scripts" / "discovery_safety_v14_eval.py"
 _spec = importlib.util.spec_from_file_location("discovery_safety_v14_eval", V14_SCRIPT)
@@ -179,6 +196,7 @@ class ArmProcess:
     def __init__(self) -> None:
         self.process = subprocess.Popen(
             [sys.executable, str(Path(__file__).resolve()), "--arm-worker"],
+            env={**os.environ, "PYTHONPATH": str(ROOT / "src")},
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             text=True,
@@ -522,7 +540,11 @@ def build(log: list[str], freeze: dict[str, Any], jobs: int) -> dict[str, str]:
         for name, text in sorted(files.items())
     }
     body["manifest_sha256"] = stable_digest(body)
-    manifest = {**body, "code_commit": _commit(), "environment": environment()}
+    manifest = {
+        **body,
+        "code_commit": _commit(),
+        "environment": {**environment(), "lab_brain_imported_from": _rel(Path(lab_brain.__file__))},
+    }
     log.append(f"elapsed {time.monotonic() - started:.1f}s")
     return {"manifest.json": _dump(manifest), "results.json": results_text, **files}
 

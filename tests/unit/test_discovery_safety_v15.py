@@ -100,6 +100,14 @@ def _run(case: Any, arm: str, cap: int, handle: Any = None) -> tuple[ArmAnswer, 
     return answer, ledger.events()
 
 
+def test_the_script_refuses_a_lab_brain_imported_from_another_checkout(monkeypatch):
+    s = script()
+    s.assert_own_checkout()  # this checkout: fine
+    monkeypatch.setattr(s.lab_brain, "__file__", "/elsewhere/src/lab_brain/__init__.py")
+    with pytest.raises(SystemExit):
+        s.assert_own_checkout()
+
+
 # -- A. B8 changes the arm's experiment choice only -------------------------------------------
 
 
