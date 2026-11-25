@@ -1,0 +1,16 @@
+# Round-6 battery, Python half, pass 2: the three entries that survived pass 1, re-run at bfe4ccf after the verdict test was added; database g6_batpy.
+3 mutations
+
+[KILLED ] t1_unknown_key_accepted
+           G0 T-1 -- only an enrolled key signs
+           killed by FAILED tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_the_owners_verifier_records_the_failu
+
+[KILLED ] t1_revocation_ignored
+           G0 T-1 -- a revoked key no longer verifies
+           killed by FAILED tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_the_owners_verifier_records_the_failu
+
+[KILLED ] t1_scope_ignored
+           G0 T-1 -- a key signs only for its instrument and capabilities
+           killed by FAILED tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_the_owners_verifier_records_the_failu
+
+3/3 killed
