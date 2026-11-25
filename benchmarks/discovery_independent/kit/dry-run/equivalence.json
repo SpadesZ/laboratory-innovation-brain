@@ -1,0 +1,3507 @@
+{
+  "cells": [
+    {
+      "arm": "B4",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:null"
+        ],
+        "spent": 16
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:null"
+        ],
+        "spent": 24
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:null"
+        ],
+        "spent": 29
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 29,
+        "claim": [
+          "hyp:null"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:null"
+        ],
+        "spent": 29
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 29,
+        "claim": [
+          "hyp:null"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 9
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 9,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 9
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 9,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 9
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 9,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 9
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 9,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 9
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 9,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 16
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 22
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 22,
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 22
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 22,
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 22
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 22,
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 16
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 21
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 21,
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 21
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 21,
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 21
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 21,
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 11
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 13
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 13,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 13
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 13,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 13
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 13,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 13
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 13,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 14
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 17
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 17,
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 17
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 17,
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 17
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 17,
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "spent": 16
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "spent": 21
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 21,
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "spent": 21
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 21,
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "spent": 21
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 21,
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 15
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 24
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 24,
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 24
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 24,
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B4",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 24
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 24,
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 3
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 15
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 24
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:null"
+        ],
+        "spent": 32
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:null"
+        ],
+        "spent": 35
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 35,
+        "claim": [
+          "hyp:null"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 10,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 9
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 10,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 10
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 10,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 10
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 10,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 10
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 10,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 11
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 15
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 18
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 18,
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 18
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 18,
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 18
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 18,
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 16
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 22
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 22,
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 22
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 22,
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 22
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 22,
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 14
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 14,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 14
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 14,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 14
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 14,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 14
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 14,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 11
+      },
+      "fresh_category_credited": false,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 16
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 16,
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 16
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 16,
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 16
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 16,
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "UNSUPPORTED_CLAIM",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 16
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "UNSUPPORTED_CLAIM",
+        "charge_at_answer": 16,
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "spent": 15
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "spent": 19
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 19,
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "spent": 19
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 19,
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "spent": 19
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 19,
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 6
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 8
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 12
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 15
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 24
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 24,
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 24
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 24,
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B6",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 24
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 24,
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 3
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 15
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 24
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:null"
+        ],
+        "spent": 31
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-21c366631c33",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:null"
+        ],
+        "spent": 40
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 40,
+        "claim": [
+          "hyp:null"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 10,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 9
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 10,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 10
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 10,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 10
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 10,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-4d9b7922914a",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 10
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 10,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 12
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 16
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 22
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 25
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 25,
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-52dc8720dee1",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "spent": 25
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 25,
+        "claim": [
+          "hyp:thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 16
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 24
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "INDISTINGUISHABLE_ALTERNATIVE",
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 32
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-6b8793a0b460",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "INDISTINGUISHABLE_ALTERNATIVE",
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 34
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "INDISTINGUISHABLE_ALTERNATIVE",
+        "charge_at_answer": 34,
+        "claim": [
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 14
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 14,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 14
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 14,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 14
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 14,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-804a71cedc74",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "CORRECT_ABSTENTION",
+        "claim": [],
+        "spent": 14
+      },
+      "fresh_category_credited": false,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "CORRECT_ABSTENTION",
+        "charge_at_answer": 14,
+        "claim": [],
+        "held": "final"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 16
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 24
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 31
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c6527e82c4b9",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "spent": 33
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 33,
+        "claim": [
+          "hyp:geometry.thickness",
+          "hyp:geometry.width_wide"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 6
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 8
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "FALSE_NULL",
+        "claim": [],
+        "spent": 12
+      },
+      "fresh_category_credited": false,
+      "kind": "DIFFERENT_ANSWER",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "spent": 15
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "spent": 19
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 19,
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "spent": 19
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 19,
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-c8b94f77702e",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "spent": 19
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 19,
+        "claim": [
+          "hyp:scatter.sidewall+thermo.ambient"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 6,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 6
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 8,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 8
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 12,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 12
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 16,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 15
+      },
+      "fresh_category_credited": true,
+      "kind": "TRACE_HOLDS_NO_ANSWER_YET",
+      "trace": {
+        "category": "FALSE_NULL",
+        "charge_at_answer": null,
+        "claim": [],
+        "held": "NONE"
+      },
+      "trace_category_credited": false
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 24,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 24
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 24,
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 32,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 24
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 24,
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    },
+    {
+      "arm": "B7",
+      "case_id": "case-dd7422fc6bb7",
+      "checkpoint": 48,
+      "fresh": {
+        "category": "EXACT_IDENTIFICATION",
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "spent": 24
+      },
+      "fresh_category_credited": true,
+      "kind": "EQUAL",
+      "trace": {
+        "category": "EXACT_IDENTIFICATION",
+        "charge_at_answer": 24,
+        "claim": [
+          "hyp:chain.laser_drift"
+        ],
+        "held": "final"
+      },
+      "trace_category_credited": true
+    }
+  ],
+  "counts": {
+    "B4": {
+      "DIFFERENT_ANSWER": 17,
+      "EQUAL": 26,
+      "TRACE_HOLDS_NO_ANSWER_YET": 13
+    },
+    "B6": {
+      "DIFFERENT_ANSWER": 17,
+      "EQUAL": 26,
+      "TRACE_HOLDS_NO_ANSWER_YET": 13
+    },
+    "B7": {
+      "DIFFERENT_ANSWER": 24,
+      "EQUAL": 20,
+      "TRACE_HOLDS_NO_ANSWER_YET": 12
+    }
+  },
+  "credited_cells": {
+    "B4": {
+      "fresh_capped": 0,
+      "trace_derived": 0
+    },
+    "B6": {
+      "fresh_capped": 18,
+      "trace_derived": 10
+    },
+    "B7": {
+      "fresh_capped": 23,
+      "trace_derived": 11
+    }
+  },
+  "what": "trace-derived answer at checkpoint c vs a fresh run capped at c, PUBLIC example only; the sealed run never makes fresh capped runs"
+}
