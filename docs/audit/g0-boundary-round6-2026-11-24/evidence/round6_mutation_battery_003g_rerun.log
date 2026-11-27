@@ -1,0 +1,40 @@
+# Round-6 battery: the 9 entries whose mutated migration is 003g, re-run at 0489b23 after the verdict-column rename; PYTHONPATH=/home/user/wt/g0b6/src; base database g6_bat3.
+9 mutations
+
+[KILLED ] round5_replay_does_not_cascade
+           G0 round 5 -- 005f (live in 003g): belief_replay skips an event whose from_state no longer holds
+           killed by FAILED tests/e2e/test_g0_counted_history_differential_postgres.py::test_sql_belief_replay_equals_the
+
+[KILLED ] round5_replay_counts_excluded_events
+           G0 round 5 -- 005f (live in 003g): belief_replay skips an excluded event
+           killed by FAILED tests/e2e/test_g0_boundary_round5_postgres.py::test_q1_the_sql_confirmation_rule_reads_the_st
+
+[KILLED ] round6_mode_and_verdicts_written_by_any_role
+           G0 round 6 T-1r -- 003g: the mode and the verifier's verdicts are the schema owner's
+           killed by FAILED tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_strict_mode_is_the_owners_and_sql_rea
+
+[KILLED ] round6_sql_ignores_enrolment
+           G0 round 6 T-1r -- 003g: an unsigned measurement of an enrolled pair is UNSIGNED in SQL
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_differential_postgres.py::test_t1r_sql_python_and_an
+
+[KILLED ] round6_sql_ignores_mode
+           G0 round 6 T-1r -- 003g: the owner's strict mode reaches the SQL readers
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_differential_postgres.py::test_t1r_sql_python_and_an
+
+[KILLED ] round6_sql_counts_unverified_signatures
+           G0 round 6 T-1r -- 003g: a signature counts in SQL only on the owner's VERIFIED verdict
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_differential_postgres.py::test_t1r_sql_python_and_an
+
+[KILLED ] round6_sql_counts_failed_verdicts
+           G0 round 6 T-1r -- 003g: a failed verdict is not VERIFIED
+           killed by FAILED tests/e2e/test_g0_measurement_provenance_differential_postgres.py::test_t1r_sql_python_and_an
+
+[KILLED ] round6_replay_ignores_refused_history
+           G0 round 6 T-1r -- 003g: belief_replay counts nothing in a history Python refuses
+           killed by FAILED tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_the_sql_state_is_not_supported_on_a_m
+
+[KILLED ] round6_gate_ignores_measurement_provenance
+           G0 round 6 T-1r -- 003g: the 011z snapshot check refuses a SUPPORTS that does not count
+           killed by FAILED tests/e2e/test_g0_boundary_round6_postgres.py::test_t1r_the_write_gate_refuses_a_snapshot_cou
+
+9/9 killed
