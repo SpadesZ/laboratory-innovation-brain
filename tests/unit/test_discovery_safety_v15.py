@@ -432,3 +432,24 @@ def test_v15_seeds_use_the_v15_domain_the_full_commit_and_avoid_every_earlier_ra
     assert holdout_base_seed(commit, "x", (first,))[1] >= 1
     assert SAFETY_V15.rival_first and SAFETY_V15.targeted_selection
     assert NULL_HYPOTHESIS.is_null
+
+
+def _square(t: int) -> list[int]:
+    _CALLS.append(t)
+    return [t * t]
+
+
+_CALLS: list[int] = []
+
+
+def test_an_interrupted_run_resumes_from_its_finished_worlds_without_changing_them(tmp_path):
+    s = script()
+    s._CHECKPOINT[0] = tmp_path / "progress"
+    try:
+        assert s._map(_square, [1, 2, 3], 1, "in-process", ("B8",)) == [1, 4, 9]
+        _CALLS.clear()
+        (tmp_path / "progress" / f"{s._task_key(_square, (('B8',), 2))}.pickle").unlink()
+        assert s._map(_square, [1, 2, 3], 1, "in-process", ("B8",)) == [1, 4, 9]
+        assert _CALLS == [2]  # only the missing world was recomputed
+    finally:
+        s._CHECKPOINT[0] = None

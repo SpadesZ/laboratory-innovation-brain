@@ -39,6 +39,8 @@ import hashlib
 import importlib.util
 import json
 import os
+import pickle
+import shutil
 import subprocess
 import sys
 import time
@@ -278,12 +280,47 @@ def _benchmark_task(args: tuple[int, int, int, tuple[int, ...]]) -> list[ev.RunR
     return _evaluator().run(benchmark_case(scenario, scenario.worlds[index], oracles), budgets)
 
 
+#: Where finished world results are kept while a held-out run is in progress (None: nowhere). A
+#: run interrupted by the machine is resumed from here: each world's result is deterministic and
+#: computed in isolation (one oracle per case), so resuming changes no output (`--check` re-runs
+#: everything from nothing to prove it). The directory is deleted when the evidence is written.
+_CHECKPOINT: list[Path | None] = [None]
+
+
+def _task_key(fn: Any, task: Any) -> str:
+    return hashlib.sha256(f"{fn.__name__}:{task!r}".encode()).hexdigest()[:32]
+
+
 def _map(fn: Any, tasks: list[Any], jobs: int, mode: str, arms: tuple[str, ...]) -> list[Any]:
+    store = _CHECKPOINT[0]
+    done: dict[int, list[Any]] = {}
+    if store is not None:
+        store.mkdir(parents=True, exist_ok=True)
+        for i, t in enumerate(tasks):
+            path = store / f"{_task_key(fn, (arms, t))}.pickle"
+            if path.exists():
+                done[i] = pickle.loads(path.read_bytes())
+    todo = [i for i in range(len(tasks)) if i not in done]
+
+    def keep(i: int, result: list[Any]) -> None:
+        done[i] = result
+        if store is not None:
+            path = store / f"{_task_key(fn, (arms, tasks[i]))}.pickle"
+            tmp = path.with_suffix(".tmp")
+            tmp.write_bytes(pickle.dumps(result))
+            tmp.replace(path)
+
     if jobs <= 1:
         _init(mode, arms)
-        return [r for t in tasks for r in fn(t)]
-    with Pool(jobs, initializer=_init, initargs=(mode, arms)) as pool:
-        return [r for rs in pool.map(fn, tasks, chunksize=1) for r in rs]
+        for i in todo:
+            keep(i, fn(tasks[i]))
+    elif todo:
+        with Pool(jobs, initializer=_init, initargs=(mode, arms)) as pool:
+            for i, result in zip(
+                todo, pool.imap(fn, [tasks[i] for i in todo], chunksize=1), strict=True
+            ):
+                keep(i, result)
+    return [r for i in range(len(tasks)) for r in done[i]]
 
 
 def comparisons(
@@ -713,6 +750,8 @@ def main(argv: list[str] | None = None) -> int:
                 "held-out evidence already exists: the held-out evaluation runs exactly once "
                 "(use --check to reproduce it)"
             )
+    if not args.check:
+        _CHECKPOINT[0] = args.out.parent / f".{args.out.name}-in-progress"
     files = build(log, design_freeze(commit, first), args.jobs)
     for line in log:
         print(line)
@@ -722,6 +761,8 @@ def main(argv: list[str] | None = None) -> int:
     for name, content in files.items():
         (args.out / name).write_text(content, encoding="utf-8")
     (args.out / "run.log").write_text("\n".join(log) + "\n", encoding="utf-8")
+    if _CHECKPOINT[0] is not None:
+        shutil.rmtree(_CHECKPOINT[0], ignore_errors=True)
     return 0
 
 
