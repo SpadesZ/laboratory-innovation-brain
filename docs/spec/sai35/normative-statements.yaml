@@ -47,6 +47,9 @@ in_progress_branches:
   claude/lib-implementation-agent-47evs0-hidden-cases: from c022f3a; head 3d54297; 58 sealed hidden worlds by a separately
     briefed AI author (procedural barrier, not institutional independence), encrypted, key held outside the repository;
     not run
+  claude/lib-implementation-agent-47evs0-independent-eval: from 0eac9b3; head d60272a; evaluation kit frozen 607bd66
+    (one trace per case and arm, evaluator-recomputed SUPPORTED at checkpoints 6-48, pinned arms B4/B6/B7, empty B8 slot,
+    pre-registered plan with bootstrap plus exact McNemar); dry run on the public example only; never run on the sealed set
   claude/lib-implementation-agent-47evs0-discovery: from d7ec9f2; head 0928602; offline out-of-catalog safety gate (engineering
     evidence on same-author worlds only); not connected to research execution
 spec_document: docs/spec/SAI_3.5.md
