@@ -18,6 +18,7 @@ import pytest
 
 from lab_brain.core.models import compute_content_hash
 from tests.conftest_fixtures import TOY_SCHEMA, TOY_SCHEMA_REF
+from tests.postgres_fixtures import place_artifact
 
 pytestmark = pytest.mark.postgres
 
@@ -183,6 +184,7 @@ def test_database_rejects_an_unregistered_condition_schema_version(db):
     import psycopg
 
     db.execute(_INSERT_ARTIFACT, _artifact_params(HASH_A))
+    place_artifact(db, f"art:{HASH_A}")
     with pytest.raises(psycopg.errors.ForeignKeyViolation):
         db.execute(
             "INSERT INTO observations (observation_id, artifact_id, metric_or_event, "
@@ -290,6 +292,7 @@ def db_with_schema(db):  # type: ignore[no-untyped-def]
     """Toy condition schema + one artifact, ready for payload tests."""
     _register_toy_schema(db)
     db.execute(_INSERT_ARTIFACT, _artifact_params(HASH_A))
+    place_artifact(db, f"art:{HASH_A}")
     return db
 
 

@@ -128,6 +128,45 @@ class SqlReviewItemStore:
         require_durable_connection(connection)
         self._connection = connection
 
+    def enqueue_extraction_review(
+        self,
+        *,
+        review_id: str,
+        project_id: str,
+        item_id: str,
+        stakes: str,
+        reason: str,
+        trace_id: str,
+        created_at: dt.datetime,
+        estimated_minutes: int = 30,
+    ) -> str:
+        """UX-005: put a low-confidence extraction into the ONE queue.
+
+        Thin, because the invariants are `011h`'s: pricing comes from the active policy rather
+        than from the caller (a caller supplying its own `due_at` could grant itself an SLA
+        nobody agreed to), and the insert is idempotent on `review_id` so a retrying ingestion
+        worker cannot consume reviewer capacity twice for the same item.
+
+        Returns the authoritative review id -- the existing one on a repeat, exactly as
+        `JobStore.complete` returns the authoritative Run.
+        """
+        row = self._connection.execute(
+            "SELECT extraction_review_enqueue(%s, %s, %s, %s, %s, %s, %s, %s)",
+            (
+                review_id,
+                project_id,
+                item_id,
+                stakes,
+                reason,
+                trace_id,
+                created_at,
+                estimated_minutes,
+            ),
+        ).fetchone()
+        if row is None:  # pragma: no cover - the function returns an id or raises
+            raise ReviewStoreError(f"extraction_review_enqueue returned nothing for {review_id}")
+        return str(row[0])
+
     def escalate_authority_conflict(self, *, conflict: Conflict, review: ReviewItem) -> ReviewItem:
         """Create the review and link it to the conflict in one statement.
 
@@ -227,7 +266,7 @@ class SqlReviewItemStore:
         row = self._connection.execute(
             "SELECT resolution_id, review_id, project_id, outcome, resolved_by_actor_id,"
             " resolved_at, rationale, belief_revision_event_id, governance_event_id,"
-            " resolution_event_kind FROM review_resolutions"
+            " resolution_event_kind, warrant_grant_id FROM review_resolutions"
             " WHERE project_id = %s AND review_id = %s",
             (project_id, review_id),
         ).fetchone()
@@ -245,6 +284,7 @@ class SqlReviewItemStore:
                 "belief_revision_event_id": row[7],
                 "governance_event_id": row[8],
                 "resolution_event_kind": row[9],
+                "warrant_grant_id": row[10],
             }
         )
 

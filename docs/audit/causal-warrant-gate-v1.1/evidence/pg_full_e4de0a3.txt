@@ -1,0 +1,18 @@
+PostgreSQL full suite at e4de0a3, fresh database lab_brain_final_pg (63 migrations),
+2026-10-15 02:22-02:49 (+08:00), wall 1574 s.
+Run concurrently with the V1 suite below and with the mutation battery: same machine, same
+PostgreSQL server, same window, so the two suites' times are comparable with each other.
+$ LAB_BRAIN_TEST_POSTGRES=1 python -m pytest -q --durations=40
+SKIPPED [1] tests\e2e\test_vs_sp_001_licensed_replay.py:24: requires lumerical; set LAB_BRAIN_TEST_LUMERICAL=1 to enable
+SKIPPED [1] tests\integration\test_github_network.py:31: requires network; set LAB_BRAIN_TEST_NETWORK=1 to enable
+2770 passed, 2 skipped in 1571.57s (0:26:11)
+
+V1 (dc4fc12), fresh database lab_brain_v1_fullpg (62 migrations), same window, wall 1530 s:
+SKIPPED [1] tests\e2e\test_vs_sp_001_licensed_replay.py:24: requires lumerical; set LAB_BRAIN_TEST_LUMERICAL=1 to enable
+SKIPPED [1] tests\integration\test_github_network.py:31: requires network; set LAB_BRAIN_TEST_NETWORK=1 to enable
+FAILED tests/e2e/test_web_llm_transport_postgres.py::test_no_path_through_the_service_follows_a_redirect
+1 failed, 2711 passed, 2 skipped in 1527.84s (0:25:27)
+The V1 failure is `UNREACHABLE: [WinError 10053]` from the test's local fake endpoint (an
+aborted loopback connection) in a test V1.1 does not touch; it passed at e4de0a3.
+
+Slowest 40 at e4de0a3:

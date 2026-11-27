@@ -1,0 +1,500 @@
+Security reviewer's probes (they pass while a defect exists), rerun on a disposable DB against the working tree committed as fdfc97c
+FFFFFFF.FF.F.F.F                                                         [100%]
+================================== FAILURES ===================================
+________________ test_F1_open_redirect_after_sign_in_with_tab _________________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_secre) at 0x2502...unt is approved', body='An administrator approved your Lab Brain account. Sign in at http://127.0.0.1:8765/login\n')]))
+tmp_path = WindowsPath('C:\Users\<user>/AppData/Local/Temp/pytest-of-<user>/pytest-7845/test_F1_open_redirect_after_si0')
+people = {'admin': Account(account_id='acc:380d8220-8b93-4632-9928-627e917af05d', actor_id='act:c9842f8e-5a8e-465b-b82d-e7b0be3...o.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))}
+
+    def test_F1_open_redirect_after_sign_in_with_tab(lab, tmp_path, people):
+        browser = _browser(tmp_path, lab.mail)
+        # The victim follows a crafted link to the sign-in page.
+        page = browser.get("/login?next=/%09/evil.example/phish")
+        hidden = re.findall(r'<input type="hidden" name="next" value="([^"]*)">', page.text)[-1:]
+        hidden = re.search(r'(.*)', hidden[0], flags=re.S) if hidden else None
+        assert hidden is not None
+        carried = html.unescape(hidden.group(1))
+        print("hidden next carried by the sign-in form:", repr(carried))
+>       assert carried == "/\t/evil.example/phish"
+E       AssertionError: assert '/' == '/\t/evil.example/phish'
+E         
+E         - /	/evil.example/phish
+E         + /
+
+.secreview_tmp\test_secreview.py:93: AssertionError
+---------------------------- Captured stdout call -----------------------------
+hidden next carried by the sign-in form: '/'
+______________ test_F1b_the_tab_reaches_the_wire_through_wsgiref ______________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_secre) at 0x2502...unt is approved', body='An administrator approved your Lab Brain account. Sign in at http://127.0.0.1:8765/login\n')]))
+tmp_path = WindowsPath('C:\Users\<user>/AppData/Local/Temp/pytest-of-<user>/pytest-7845/test_F1b_the_tab_reaches_the_w0')
+people = {'admin': Account(account_id='acc:1a9a9b5a-1dba-44cd-a6bf-9552825539d1', actor_id='act:5fb33cff-6010-4de5-b2fa-f5963d9...o.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))}
+
+    def test_F1b_the_tab_reaches_the_wire_through_wsgiref(lab, tmp_path, people):
+        """The stdlib server the CLI uses (wsgiref) writes the Location header with the tab intact."""
+        from wsgiref.handlers import SimpleHandler
+    
+        app = _workspace(tmp_path, lab.mail)
+        browser = Browser(app)
+        page = browser.get("/login?next=/%09/evil.example/")
+        body = (
+            "csrf=" + _csrf(page) + "&email=ada%40uni.example.edu&password="
+            + PASSWORD.replace(" ", "+") + "&next=%2F%09%2Fevil.example%2F"
+        ).encode()
+        environ = {
+            "REQUEST_METHOD": "POST", "PATH_INFO": "/login", "QUERY_STRING": "",
+            "SERVER_NAME": "127.0.0.1", "SERVER_PORT": "8765", "SERVER_PROTOCOL": "HTTP/1.1",
+            "HTTP_HOST": "127.0.0.1:8765", "CONTENT_LENGTH": str(len(body)),
+            "CONTENT_TYPE": "application/x-www-form-urlencoded",
+            "HTTP_COOKIE": "; ".join(f"{k}={v}" for k, v in browser.cookies.items()),
+            "HTTP_ORIGIN": "http://127.0.0.1:8765",
+        }
+        out = io.BytesIO()
+        handler = SimpleHandler(io.BytesIO(body), out, sys.stderr, environ, multithread=True)
+        handler.run(app)
+        raw = out.getvalue()
+        line = next(x for x in raw.split(b"\r\n") if x.lower().startswith(b"location:"))
+        print("raw header on the wire:", line)
+>       assert line == b"Location: /\t/evil.example/"
+E       AssertionError: assert b'Location: /' == b'Location: /\t/evil.example/'
+E         
+E         Use -v to get more diff
+
+.secreview_tmp\test_secreview.py:133: AssertionError
+---------------------------- Captured stdout call -----------------------------
+raw header on the wire: b'Location: /'
+________________ test_F2_last_owner_demoted_through_add_member ________________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_secre) at 0x2502...unt is approved', body='An administrator approved your Lab Brain account. Sign in at http://127.0.0.1:8765/login\n')]))
+tmp_path = WindowsPath('C:\Users\<user>/AppData/Local/Temp/pytest-of-<user>/pytest-7845/test_F2_last_owner_demoted_thr0')
+people = {'admin': Account(account_id='acc:6d6815bf-3a11-4c02-81bc-b23f7b314d19', actor_id='act:3c6e5fef-ff95-4385-b56d-fdffd6d...o.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))}
+
+    def test_F2_last_owner_demoted_through_add_member(lab, tmp_path, people):
+        ada = _browser(tmp_path, lab.mail)
+        _sign_in(ada, "ada@uni.example.edu")
+        project = _create_project(ada, "Solo", ["INTERNAL", "PUBLIC"])
+        # The guarded path refuses removing the last owner ...
+        refused = ada.post(
+            f"/projects/{project}/members/remove",
+            {"csrf": _csrf(ada.get(f"/projects/{project}")), "actor": people["ada"].actor_id},
+        )
+        assert refused.status == 409
+        # ... the add path, on oneself without "owner", does not.
+        demoted = ada.post(
+            f"/projects/{project}/members",
+            {"csrf": _csrf(ada.get(f"/projects/{project}")), "email": "ada@uni.example.edu",
+             "clearance": "PUBLIC"},
+        )
+        print("self re-grant:", demoted.status, demoted.location)
+        rows = lab.connection.execute(
+            "SELECT actor_id, role, sensitivity_clearance, approval_scopes, active"
+            " FROM project_memberships WHERE project_id = %s",
+            (project,),
+        ).fetchall()
+        print("memberships now:", rows)
+>       assert demoted.status == 303
+E       AssertionError: assert 409 == 303
+E        +  where 409 = Reply(status=409, headers={'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '11628', 'Content-Security-Po...</summary><p><code>prj:c86aae06-5ac8-4b56-be78-2a5effab08c4</code></p></details></main></body></html>', set_cookies=()).status
+
+.secreview_tmp\test_secreview.py:162: AssertionError
+---------------------------- Captured stdout call -----------------------------
+self re-grant: 409 
+memberships now: [('act:d927cce6-44c3-4937-bb63-e1dba68c19fc', 'OWNER', ['INTERNAL', 'PUBLIC'], ['LLM_EGRESS'], True)]
+___________ test_F3_admin_self_grants_takes_over_and_reads_unlogged ___________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_secre) at 0x2502...unt is approved', body='An administrator approved your Lab Brain account. Sign in at http://127.0.0.1:8765/login\n')]))
+tmp_path = WindowsPath('C:\Users\<user>/AppData/Local/Temp/pytest-of-<user>/pytest-7845/test_F3_admin_self_grants_take0')
+people = {'admin': Account(account_id='acc:e74f01f0-4ee4-4b2d-96da-e97febc62ca0', actor_id='act:fe632eee-297b-4543-a671-b930588...o.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))}
+
+    def test_F3_admin_self_grants_takes_over_and_reads_unlogged(lab, tmp_path, people):
+        bob, admin = (_browser(tmp_path, lab.mail) for _ in range(2))
+        _sign_in(bob, "bob@gmail.example")
+        _sign_in(admin, "owner@lab.example")
+        project = _create_project(bob, "Bob private", ["PUBLIC"])
+        page = admin.get(f"/admin/projects/{project}")
+        assert page.status == 200
+        logged_before = lab.connection.execute(
+            "SELECT count(*) FROM admin_access_log WHERE project_id = %s", (project,)
+        ).fetchone()[0]
+        joined = admin.post(
+            f"/projects/{project}/members",
+            {"csrf": _csrf(page), "email": "owner@lab.example",
+             "clearance": ["PUBLIC", "INTERNAL", "CONFIDENTIAL_LAB", "RESTRICTED_NDA"],
+             "owner": "1"},
+        )
+        print("admin self-grant:", joined.status, joined.location, joined.text[:300])
+>       assert joined.status == 303
+E       AssertionError: assert 409 == 303
+E        +  where 409 = Reply(status=409, headers={'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '12966', 'Content-Security-Po...</summary><p><code>prj:6bdb9853-e5a5-42f2-af1c-7faf09773d36</code></p></details></main></body></html>', set_cookies=()).status
+
+.secreview_tmp\test_secreview.py:186: AssertionError
+---------------------------- Captured stdout call -----------------------------
+admin self-grant: 409  <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Bob private - Lab Brain</title><style>
+body{font:15px/1.5 system-ui,-apple-system,"Segoe UI","Noto Sans TC","Microsoft JhengHei",
+sans-serif;margin:0;color:#1d2330;ba
+_____________________ test_F4_register_timing_enumeration _____________________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_secre) at 0x2502...r works. After you confirm, an administrator approves the account. If you did not register, ignore this message.\n')]))
+tmp_path = WindowsPath('C:\Users\<user>/AppData/Local/Temp/pytest-of-<user>/pytest-7845/test_F4_register_timing_enumer0')
+people = {'admin': Account(account_id='acc:66559251-2c01-4998-bc46-566cba392471', actor_id='act:c0dcd60a-f325-42f3-8208-8198418...o.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))}
+
+    def test_F4_register_timing_enumeration(lab, tmp_path, people):
+        browser = _browser(tmp_path, lab.mail, cost=DEFAULT_COST)
+        page = browser.get("/register")
+        token = _csrf(page)
+    
+        def post(email: str) -> float:
+            start = time.perf_counter()
+            reply = browser.post(
+                "/register",
+                {"csrf": token, "name": "X", "email": email, "password": PASSWORD,
+                 "repeat": PASSWORD},
+            )
+            elapsed = time.perf_counter() - start
+            assert reply.status == 200 and "confirmation link is on its way" in reply.text
+            return elapsed
+    
+        post("warmup@new.example")
+        known = [post("ada@uni.example.edu") for _ in range(7)]
+        fresh = [post(f"n{i}@new.example") for i in range(7)]
+        print(f"registered address: median {statistics.median(known) * 1000:.1f} ms {known}")
+        print(f"new address:        median {statistics.median(fresh) * 1000:.1f} ms {fresh}")
+>       assert max(known) < min(fresh), "every new-address answer is slower than every known one"
+E       AssertionError: every new-address answer is slower than every known one
+E       assert 1.0688987000030465 < 1.024902099976316
+E        +  where 1.0688987000030465 = max([1.0295943999662995, 1.0445613999618217, 1.0311800999916159, 1.0279734999639913, 1.0688987000030465, 1.0368499999749474, ...])
+E        +  and   1.024902099976316 = min([1.0309010000200942, 1.0351519000250846, 1.0267631000024267, 1.024902099976316, 1.0443951000343077, 1.0449623999884352, ...])
+
+.secreview_tmp\test_secreview.py:234: AssertionError
+---------------------------- Captured stdout call -----------------------------
+registered address: median 1034.8 ms [1.0295943999662995, 1.0445613999618217, 1.0311800999916159, 1.0279734999639913, 1.0688987000030465, 1.0368499999749474, 1.0347771999659017]
+new address:        median 1030.9 ms [1.0309010000200942, 1.0351519000250846, 1.0267631000024267, 1.024902099976316, 1.0443951000343077, 1.0449623999884352, 1.0298538999632]
+____________ test_F5_reset_enumeration_by_mail_failure_and_latency ____________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_secre) at 0x2502...unt is approved', body='An administrator approved your Lab Brain account. Sign in at http://127.0.0.1:8765/login\n')]))
+tmp_path = WindowsPath('C:\Users\<user>/AppData/Local/Temp/pytest-of-<user>/pytest-7845/test_F5_reset_enumeration_by_m0')
+people = {'admin': Account(account_id='acc:77884c70-6aff-4d4f-a6b3-3fdeca597fe0', actor_id='act:26421a8f-3d41-4e81-a2e3-58f0d9f...o.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))}
+
+    def test_F5_reset_enumeration_by_mail_failure_and_latency(lab, tmp_path, people):
+        failing = _browser(tmp_path, _Failing())
+        page = failing.get("/password/forgot")
+        known = failing.post("/password/forgot", {"csrf": _csrf(page), "email": "ada@uni.example.edu"})
+        unknown = failing.post("/password/forgot", {"csrf": _csrf(page), "email": "nobody@x.example"})
+        print("known   :", known.status, "on its way" in known.text, "could not be sent" in known.text)
+        print("unknown :", unknown.status, "on its way" in unknown.text,
+              "could not be sent" in unknown.text)
+>       assert "could not be sent" in known.text and "on its way" not in known.text
+E       assert ('could not be sent' in '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial...uired autocomplete="email"></label></p><p><button type="submit">Send the link</button></p></form></main></body></html>')
+E        +  where '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial...uired autocomplete="email"></label></p><p><button type="submit">Send the link</button></p></form></main></body></html>' = Reply(status=200, headers={'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '9608', 'Content-Security-Pol...e="email"></label></p><p><button type="submit">Send the link</button></p></form></main></body></html>', set_cookies=()).text
+
+.secreview_tmp\test_secreview.py:259: AssertionError
+---------------------------- Captured stdout call -----------------------------
+known   : 200 True False
+unknown : 200 True False
+_________________ test_F6_unauthenticated_mail_amplification __________________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_secre) at 0x2502...r works. After you confirm, an administrator approves the account. If you did not register, ignore this message.\n')]))
+tmp_path = WindowsPath('C:\Users\<user>/AppData/Local/Temp/pytest-of-<user>/pytest-7845/test_F6_unauthenticated_mail_a0')
+people = {'admin': Account(account_id='acc:de182a72-a27b-47e8-a451-e0d1e87b5e7f', actor_id='act:70d89fc7-33a4-4409-9edd-7354433...o.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))}
+
+    def test_F6_unauthenticated_mail_amplification(lab, tmp_path, people):
+        browser = _browser(tmp_path, lab.mail)
+        before = len(lab.mail.sent)
+        page = browser.get("/password/forgot")
+        for _ in range(20):
+            browser.post("/password/forgot", {"csrf": _csrf(page), "email": "ada@uni.example.edu"})
+        reg = browser.get("/register")
+        for _ in range(20):
+            browser.post(
+                "/register",
+                {"csrf": _csrf(reg), "name": "Visit http://evil.example now", "email":
+                 "ada@uni.example.edu", "password": PASSWORD, "repeat": PASSWORD},
+            )
+        for i in range(5):
+            browser.post(
+                "/register",
+                {"csrf": _csrf(reg), "name": "Visit http://evil.example now",
+                 "email": f"victim{i}@elsewhere.example", "password": PASSWORD, "repeat": PASSWORD},
+            )
+        sent = lab.mail.sent[before:]
+        print("messages sent by 45 anonymous posts:", len(sent))
+        print("a verification mail to an arbitrary address carries attacker text:",
+              next(m.body for m in sent if m.to == "victim0@elsewhere.example")[:120])
+>       assert len(sent) == 45
+E       AssertionError: assert 7 == 45
+E        +  where 7 = len([Message(to='ada@uni.example.edu', subject='Lab Brain: reset your password', body='Set a new password for your Lab Bra...orks. After you confirm, an administrator approves the account. If you did not register, ignore this message.\n'), ...])
+
+.secreview_tmp\test_secreview.py:301: AssertionError
+---------------------------- Captured stdout call -----------------------------
+messages sent by 45 anonymous posts: 7
+a verification mail to an arbitrary address carries attacker text: Confirm this address for a Lab Brain account:
+
+http://127.0.0.1:8765/verify?token=<redacted>
+________________ test_F8_change_password_guessing_is_unlimited ________________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_secre) at 0x2502...unt is approved', body='An administrator approved your Lab Brain account. Sign in at http://127.0.0.1:8765/login\n')]))
+tmp_path = WindowsPath('C:\Users\<user>/AppData/Local/Temp/pytest-of-<user>/pytest-7845/test_F8_change_password_guessi0')
+people = {'admin': Account(account_id='acc:888c7027-2ed2-498b-8b18-2987e2b205e6', actor_id='act:a3e57f42-c74f-4092-898d-3c6cacc...o.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))}
+
+    def test_F8_change_password_guessing_is_unlimited(lab, tmp_path, people):
+        ada = _browser(tmp_path, lab.mail)
+        _sign_in(ada, "ada@uni.example.edu")
+        for i in range(12):
+            reply = ada.post(
+                "/account/password",
+                {"csrf": _csrf(ada.get("/account")), "current": f"wrong guess {i:04d}",
+                 "password": "brand new passphrase 1", "repeat": "brand new passphrase 1"},
+            )
+            assert reply.status == 409
+        row = lab.connection.execute(
+            "SELECT failed_logins, locked_until FROM accounts WHERE account_id = %s",
+            (people["ada"].account_id,),
+        ).fetchone()
+        print("after 12 wrong current passwords: failed_logins, locked_until =", row)
+        ok = ada.post(
+            "/account/password",
+            {"csrf": _csrf(ada.get("/account")), "current": PASSWORD,
+             "password": "brand new passphrase 1", "repeat": "brand new passphrase 1"},
+        )
+>       assert ok.status == 200 and "Password changed" in ok.text
+E       assert (409 == 200)
+E        +  where 409 = Reply(status=409, headers={'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '11038', 'Content-Security-Po...h="256"></label></p><p><button type="submit">Change password</button></p></form></main></body></html>', set_cookies=()).status
+
+.secreview_tmp\test_secreview.py:353: AssertionError
+---------------------------- Captured stdout call -----------------------------
+after 12 wrong current passwords: failed_logins, locked_until = (0, datetime.datetime(2026, 10, 20, 4, 31, 38, 994716, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))
+______________ test_F9_db_rules_bypassed_by_delete_and_reinsert _______________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_secre) at 0x2502...Dkk\n\nThe link works once, for 30 minutes. If you did not ask, ignore this message; your password is unchanged.\n')]))
+people = {'admin': Account(account_id='acc:b2d69142-719f-40c3-9a56-55506096a2fb', actor_id='act:dbf2458f-221f-4afa-96fd-27c9e00...o.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))}
+
+    def test_F9_db_rules_bypassed_by_delete_and_reinsert(lab, people):
+        c = lab.connection
+        service = lab.service()
+        service.request_password_reset(email="ada@uni.example.edu")
+        token = lab.link("/password/reset")
+        service.reset_password(token=token, password="first new passphrase")
+        row = c.execute(
+            "SELECT token_hash, account_id, purpose, created_at, expires_at, used_at"
+            " FROM account_tokens WHERE token_hash = %s", (token_hash(token),)
+        ).fetchone()
+        assert row[5] is not None
+        # Any writer with DELETE + INSERT (the services' role holds both) "un-uses" it.
+>       c.execute("DELETE FROM account_tokens WHERE token_hash = %s", (row[0],))
+
+.secreview_tmp\test_secreview.py:372: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_secre) at 0x25025498740>
+query = 'DELETE FROM account_tokens WHERE token_hash = %s'
+params = ('2c9d98923f9861ae148a871c51f49ee19eb2e0a378f63f3dc81a75402a0d3c21',)
+prepare = None, binary = False
+
+    def execute(
+        self,
+        query: Query,
+        params: Params | None = None,
+        *,
+        prepare: bool | None = None,
+        binary: bool = False,
+    ) -> Cursor[Row]:
+        """Execute a query and return a cursor to read its results."""
+        try:
+            cur = self.cursor()
+            if binary:
+                cur.format = BINARY
+    
+            if isinstance(query, Template):
+                if params is not None:
+                    raise TypeError(
+                        "'execute()' with string template query doesn't support parameters"
+                    )
+                return cur.execute(query, prepare=prepare)
+            else:
+                return cur.execute(query, params, prepare=prepare)
+        except e._NO_TRACEBACK as ex:
+>           raise ex.with_traceback(None)
+E           psycopg.errors.RaiseException: account_tokens is append-only (012u)
+E           CONTEXT:  PL/pgSQL function account_records_are_append_only() line 3 at RAISE
+
+.venv\Lib\site-packages\psycopg\connection.py:300: RaiseException
+________________ test_F11_member_status_page_technical_details ________________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_secre) at 0x2502...unt is approved', body='An administrator approved your Lab Brain account. Sign in at http://127.0.0.1:8765/login\n')]))
+tmp_path = WindowsPath('C:\Users\<user>/AppData/Local/Temp/pytest-of-<user>/pytest-7845/test_F11_member_status_page_te0')
+people = {'admin': Account(account_id='acc:af4ffce9-b504-47b3-b889-eb70153876a8', actor_id='act:b3f943a0-dee2-44b6-8117-d7ac109...o.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))}
+
+    def test_F11_member_status_page_technical_details(lab, tmp_path, people):
+        ada = _browser(tmp_path, lab.mail)
+        _sign_in(ada, "ada@uni.example.edu")
+        page = ada.get("/status")
+        root = str((tmp_path / "artifacts").resolve())
+        print("artifact root shown to a MEMBER:", html.escape(root) in page.text or root in page.text)
+        print("schema_migrations shown:", "schema_migrations=" in page.text)
+>       assert "schema_migrations=" in page.text
+E       assert 'schema_migrations=' in '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial...er.</div></li></ul></div><div class="card"><h2>External transfer, per project</h2><ul></ul></div></main></body></html>'
+E        +  where '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial...er.</div></li></ul></div><div class="card"><h2>External transfer, per project</h2><ul></ul></div></main></body></html>' = Reply(status=200, headers={'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '12485', 'Content-Security-Po...l></div><div class="card"><h2>External transfer, per project</h2><ul></ul></div></main></body></html>', set_cookies=()).text
+
+.secreview_tmp\test_secreview.py:443: AssertionError
+---------------------------- Captured stdout call -----------------------------
+artifact root shown to a MEMBER: False
+schema_migrations shown: False
+____________ test_F12_email_squatting_and_pre_verification_hijack _____________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_secre) at 0x2502...r works. After you confirm, an administrator approves the account. If you did not register, ignore this message.\n')]))
+tmp_path = WindowsPath('C:\Users\<user>/AppData/Local/Temp/pytest-of-<user>/pytest-7845/test_F12_email_squatting_and_p0')
+people = {'admin': Account(account_id='acc:de4eb4d6-bb69-4da9-92ca-04023d5e98eb', actor_id='act:43ecce2c-e257-44de-97ef-452d7ee...o.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))}
+
+    def test_F12_email_squatting_and_pre_verification_hijack(lab, tmp_path, people):
+        attacker = _browser(tmp_path, lab.mail)
+        reg = attacker.get("/register")
+        attacker_pw = "<test password>"
+        attacker.post("/register", {"csrf": _csrf(reg), "name": "Cy Victim", "email": "cy@uni.example",
+                                    "password": attacker_pw, "repeat": attacker_pw})
+        victim = _browser(tmp_path, lab.mail)
+        n = len(lab.mail.sent)
+        reg2 = victim.get("/register")
+        answer = victim.post("/register", {"csrf": _csrf(reg2), "name": "Cy", "email": "cy@uni.example",
+                                           "password": PASSWORD, "repeat": PASSWORD})
+        assert "on its way" in answer.text
+        print("victim's own registration mails:", [m.subject for m in lab.mail.sent[n:]])
+>       assert all("/verify?token=" not in m.body for m in lab.mail.sent[n:])
+E       assert False
+E        +  where False = all(<generator object test_F12_email_squatting_and_pre_verification_hijack.<locals>.<genexpr> at 0x00000250259A9220>)
+
+.secreview_tmp\test_secreview.py:496: AssertionError
+---------------------------- Captured stdout call -----------------------------
+victim's own registration mails: ['Lab Brain: confirm your email address']
+_______ test_research_routes_are_the_openers_and_oversight_is_recorded ________
+
+lab = Lab(connection=<psycopg.Connection [IDLE] (host=127.0.0.1 port=5433 user=lab_brain database=lab_brain_secre) at 0x2502...unt is approved', body='An administrator approved your Lab Brain account. Sign in at http://127.0.0.1:8765/login\n')]))
+tmp_path = WindowsPath('C:\Users\<user>/AppData/Local/Temp/pytest-of-<user>/pytest-7845/test_research_routes_are_the_o0')
+people = {'admin': Account(account_id='acc:358f2716-f191-4127-9a1c-8b3c924d9d71', actor_id='act:6c1c2aeb-a1b1-4c7a-a7a7-eba5568...o.ZoneInfo(key='Etc/UTC')), created_at=datetime.datetime(2026, 10, 20, 9, 0, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC')))}
+
+    def test_research_routes_are_the_openers_and_oversight_is_recorded(lab, tmp_path, people):
+        ada, bob, admin = (_browser(tmp_path, lab.mail) for _ in range(3))
+        _sign_in(ada, "ada@uni.example.edu")
+        _sign_in(bob, "bob@gmail.example")
+        _sign_in(admin, "owner@lab.example")
+        project = _create_project(ada, "Rs anomaly", ["INTERNAL", "PUBLIC"])
+        token = _csrf(ada.get(f"/runs/new?project={project}"))
+        device = _device(tmp_path, "mesh-coarse-access")
+        started = ada.post(
+            "/runs",
+            {"csrf": token, "project": project, "goal": GOAL, "sensitivity": "INTERNAL",
+             # a forged actor / owner in the form
+             "actor": people["bob"].actor_id, "actor_id": people["bob"].actor_id},
+            {"measurement": [(REPORT.name, REPORT.read_bytes())],
+             "verification_input": [(device.name, device.read_bytes())]},
+        )
+        assert started.status == 303, started.text[:2000]
+        episode = unquote(started.location.split("/episodes/", 1)[1])
+        opener = lab.connection.execute(
+            "SELECT actor_id FROM research_runs WHERE episode_id = %s AND ordinal = 1", (episode,)
+        ).fetchone()[0]
+        assert opener == people["ada"].actor_id
+        assert ada.get(f"/episodes/{episode}").status == 200
+        md = ada.get(f"/episodes/{episode}/runs/1/report.md")
+        assert md.status == 200
+        excerpts_for_ada = md.text.count(WITHHELD)
+        # A non-member: every research route is the same 404.
+        for path in (f"/episodes/{episode}", f"/episodes/{episode}/runs/1/report.md",
+                     f"/projects/{project}", f"/projects/{project}/egress",
+                     f"/data?project={project}", f"/runs/new?project={project}"):
+            reply = bob.get(path)
+            print("bob (non-member)", path, reply.status, project in reply.text)
+            if path.startswith(("/data", "/runs/new")):
+                assert project not in reply.text
+            else:
+                assert reply.status == 404
+        cont = bob.post(f"/episodes/{episode}/continue", {"csrf": _csrf(bob.get("/"))})
+        assert cont.status == 404
+        data = bob.post("/data", {"csrf": _csrf(bob.get("/data")), "project": project, "kind":
+                        "measurement", "sensitivity": "PUBLIC"}, {"files": [("x.csv", b"a,b\n1,2\n")]})
+        assert data.status == 403
+        run = bob.post("/runs", {"csrf": _csrf(bob.get("/")), "project": project, "goal": "x",
+                       "sensitivity": "PUBLIC"})
+        assert run.status == 403
+        # A co-member who did not open it.
+        ada.post(f"/projects/{project}/members",
+                 {"csrf": _csrf(ada.get(f"/projects/{project}")), "email": "bob@gmail.example",
+                  "clearance": "PUBLIC"})
+        for path in (f"/episodes/{episode}", f"/episodes/{episode}/runs/1/report.md"):
+            print("bob (co-member, PUBLIC)", path, bob.get(path).status)
+            assert bob.get(path).status == 404
+        # Oversight: recorded, excerpts withheld for an admin who is not a member.
+        before = lab.connection.execute("SELECT count(*) FROM admin_access_log").fetchone()[0]
+        seen = admin.get(f"/admin/episodes/{episode}")
+        after = lab.connection.execute("SELECT count(*) FROM admin_access_log").fetchone()[0]
+        print("admin episode oversight:", seen.status, "withheld:", seen.text.count("withheld"),
+              "log +", after - before)
+        assert seen.status == 200 and after == before + 1
+        assert admin.get(f"/episodes/{episode}").status == 404
+        assert admin.post(f"/episodes/{episode}/continue", {"csrf": _csrf(admin.get("/"))}).status == 404
+        # ... until the admin grants themselves the clearance.
+        admin.post(f"/projects/{project}/members",
+                   {"csrf": _csrf(admin.get("/admin")), "email": "owner@lab.example",
+                    "clearance": ["INTERNAL", "PUBLIC"]})
+        seen2 = admin.get(f"/admin/episodes/{episode}")
+        print("after self-grant, withheld count:", seen.text.count("withheld"), "->",
+              seen2.text.count("withheld"), "(ada's own export withheld:", excerpts_for_ada, ")")
+>       assert seen2.text.count("withheld") < seen.text.count("withheld")
+E       assert 19 < 19
+E        +  where 19 = <built-in method count of str object at 0x0000025024D74550>('withheld')
+E        +    where <built-in method count of str object at 0x0000025024D74550> = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial...ity have no backend in this deployment\n- Not performed: no external source was contacted\n</pre></main></body></html>'.count
+E        +      where '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial...ity have no backend in this deployment\n- Not performed: no external source was contacted\n</pre></main></body></html>' = Reply(status=200, headers={'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '29248', 'Content-Security-Po...nd in this deployment\n- Not performed: no external source was contacted\n</pre></main></body></html>', set_cookies=()).text
+E        +  and   19 = <built-in method count of str object at 0x0000025024DD4180>('withheld')
+E        +    where <built-in method count of str object at 0x0000025024DD4180> = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial...ity have no backend in this deployment\n- Not performed: no external source was contacted\n</pre></main></body></html>'.count
+E        +      where '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial...ity have no backend in this deployment\n- Not performed: no external source was contacted\n</pre></main></body></html>' = Reply(status=200, headers={'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '29248', 'Content-Security-Po...nd in this deployment\n- Not performed: no external source was contacted\n</pre></main></body></html>', set_cookies=()).text
+
+.secreview_tmp\test_secreview_research.py:99: AssertionError
+---------------------------- Captured stdout call -----------------------------
+bob (non-member) /episodes/epi:176c372b-bbf9-457b-9f1b-c8e795df1644 404 False
+bob (non-member) /episodes/epi:176c372b-bbf9-457b-9f1b-c8e795df1644/runs/1/report.md 404 False
+bob (non-member) /projects/prj:19e0d1a9-2d94-41cb-8370-015e241f1df7 404 True
+bob (non-member) /projects/prj:19e0d1a9-2d94-41cb-8370-015e241f1df7/egress 404 True
+bob (non-member) /data?project=prj:19e0d1a9-2d94-41cb-8370-015e241f1df7 200 False
+bob (non-member) /runs/new?project=prj:19e0d1a9-2d94-41cb-8370-015e241f1df7 200 False
+bob (co-member, PUBLIC) /episodes/epi:176c372b-bbf9-457b-9f1b-c8e795df1644 404
+bob (co-member, PUBLIC) /episodes/epi:176c372b-bbf9-457b-9f1b-c8e795df1644/runs/1/report.md 404
+admin episode oversight: 200 withheld: 19 log + 1
+after self-grant, withheld count: 19 -> 19 (ada's own export withheld: 0 )
+=================================== PASSES ====================================
+__________________ test_F7_member_enumerates_active_accounts __________________
+---------------------------- Captured stdout call -----------------------------
+bob@gmail.example (409, 'Choose at least one classification level.')
+owner@lab.example (409, 'Choose at least one classification level.')
+pending@x.example (409, 'No active account has that email address.')
+no@x.example (409, 'No active account has that email address.')
+____________ test_F10_suspended_bootstrap_actor_fails_compose_init ____________
+---------------------------- Captured stdout call -----------------------------
+created actor act:researcher (HUMAN)
+bootstrap.sh's `lab-brain admin actor` (set -eu) for a suspended account's actor: act:1bf6edbd-c95f-47e2-9260-b15045a565ad is deactivated; reactivating an account is not done by this command
+_____________________ test_probe_cross_project_duplicate ______________________
+---------------------------- Captured stdout call -----------------------------
+ada upload: 303 /data?project=prj%3Abb263e2a-3913-499c-835e-1feb0b86a6d1&added=ing%3Aa20735b7-b9a2-4efe-bc6d-e7f055aa9f47#result
+bob upload: 303 /data?project=prj%3A750bc4e1-362b-455b-8367-9c1ed8db974c&added=ing%3A3d2ff9c2-b22e-41bc-b5e7-8123167c9e6c#result
+bob's data page around the item:  is checked for secrets, stored and split into citable passages. Once it shows “Ready for research”, pick it in New research -- no need to upload it again. 1 file(s) received. How each was processed: ring.csv Ready for research -- Nothing to do: pick it in New research. ＋ Import research data into B 1 Choose files one or more text files: .md, .txt, .csv or .json 2 What kind of material is it? Required. The system does not guess it; it decides how much weight the statements carry in research. Measurement report or lab record Data the lab measured: test reports, measurement logs. Simulation or computation record What a simulation, calculation or script run recorded. Notes, ideas or literature excerpts Experience, meeting notes, key points from papers. Treated as expert judgement, not as a me
+ingestion items (project, item, duplicate?, occurrences in own project): [('prj:bb263e2a-3913-499c-835e-1feb0b86a6d1', 'ing:a20735b7-b9a2-4efe-bc6d-e7f055aa9f47', False, 1), ('prj:750bc4e1-362b-455b-8367-9c1ed8db974c', 'ing:3d2ff9c2-b22e-41bc-b5e7-8123167c9e6c', False, 1)]
+___________ test_F12b_victim_click_verifies_the_attackers_password ____________
+---------------------------- Captured stdout call -----------------------------
+attacker signs in as the victim's verified address: 303
+=========================== short test summary info ===========================
+PASSED .secreview_tmp/test_secreview.py::test_F7_member_enumerates_active_accounts
+PASSED .secreview_tmp/test_secreview.py::test_F10_suspended_bootstrap_actor_fails_compose_init
+PASSED .secreview_tmp/test_secreview.py::test_probe_cross_project_duplicate
+PASSED .secreview_tmp/test_secreview.py::test_F12b_victim_click_verifies_the_attackers_password
+FAILED .secreview_tmp/test_secreview.py::test_F1_open_redirect_after_sign_in_with_tab
+FAILED .secreview_tmp/test_secreview.py::test_F1b_the_tab_reaches_the_wire_through_wsgiref
+FAILED .secreview_tmp/test_secreview.py::test_F2_last_owner_demoted_through_add_member
+FAILED .secreview_tmp/test_secreview.py::test_F3_admin_self_grants_takes_over_and_reads_unlogged
+FAILED .secreview_tmp/test_secreview.py::test_F4_register_timing_enumeration
+FAILED .secreview_tmp/test_secreview.py::test_F5_reset_enumeration_by_mail_failure_and_latency
+FAILED .secreview_tmp/test_secreview.py::test_F6_unauthenticated_mail_amplification
+FAILED .secreview_tmp/test_secreview.py::test_F8_change_password_guessing_is_unlimited
+FAILED .secreview_tmp/test_secreview.py::test_F9_db_rules_bypassed_by_delete_and_reinsert
+FAILED .secreview_tmp/test_secreview.py::test_F11_member_status_page_technical_details
+FAILED .secreview_tmp/test_secreview.py::test_F12_email_squatting_and_pre_verification_hijack
+FAILED .secreview_tmp/test_secreview_research.py::test_research_routes_are_the_openers_and_oversight_is_recorded
+12 failed, 4 passed in 101.32s (0:01:41)

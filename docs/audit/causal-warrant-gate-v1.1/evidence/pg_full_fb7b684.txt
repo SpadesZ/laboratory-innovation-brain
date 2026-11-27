@@ -1,0 +1,3 @@
+PostgreSQL full suite at fb7b684 (fresh database lab_brain_v11_full, 63 migrations), 2026-10-14
+FAILED tests/e2e/test_web_episode_view_postgres.py::test_each_executed_check_and_each_governed_move_is_explained_from_the_stored_records
+1 failed, 2737 passed, 2 skipped in 2652.74s (0:44:12)

@@ -1,0 +1,75 @@
+{
+ "description": "Local literature corpus for M5's PaperQA-style adapter. Invented SiPh papers under the reserved 10.5555 DOI prefix; no network, no publisher API.",
+ "papers": [
+  {
+   "doi": "10.5555/sp.2019.041",
+   "version": "vor",
+   "title": "Series resistance extraction in carrier-depletion phase shifters",
+   "authors": [
+    "A. Author",
+    "B. Author"
+   ],
+   "venue": "Journal of Invented Photonics",
+   "year": 2019,
+   "peer_reviewed": true,
+   "license": "CC-BY-4.0",
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "p3",
+     "section": "Results",
+     "page": "4",
+     "text": "Normalising the extracted series resistance by the taper-inclusive length overstates Rs per unit length by the ratio of the lengths, while leaving its bias dependence unchanged."
+    },
+    {
+     "id": "p5",
+     "section": "Discussion",
+     "page": "6",
+     "text": "An open contact via produces a series resistance that is large and nearly independent of reverse bias."
+    }
+   ]
+  },
+  {
+   "doi": "10.5555/sp.2021.113",
+   "version": "v2",
+   "title": "Mesh sensitivity of simulated access resistance",
+   "authors": [
+    "C. Author"
+   ],
+   "venue": "preprint server",
+   "year": 2021,
+   "peer_reviewed": false,
+   "license": null,
+   "status": "ACTIVE",
+   "passages": [
+    {
+     "id": "p2",
+     "section": "Method",
+     "page": "2",
+     "text": "Refining the access-region mesh below ten nanometres changed the extracted series resistance by less than one percent, whereas a forty nanometre edge inflated it by more than half; mesh studies should precede any physical interpretation of a flat, high Rs."
+    }
+   ]
+  },
+  {
+   "doi": "10.5555/sp.2018.007",
+   "version": "vor",
+   "title": "Counter-doping and resistance in rib modulators",
+   "authors": [
+    "D. Author"
+   ],
+   "venue": "Journal of Invented Photonics",
+   "year": 2018,
+   "peer_reviewed": true,
+   "license": "All-rights-reserved",
+   "status": "RETRACTED",
+   "passages": [
+    {
+     "id": "p1",
+     "section": "Results",
+     "page": "3",
+     "text": "Counter-doping of the rib raises the series resistance of the undepleted access path."
+    }
+   ]
+  }
+ ]
+}

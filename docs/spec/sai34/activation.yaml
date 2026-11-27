@@ -1,0 +1,1016 @@
+# Formal phased architecture registry; planned tests are not executed runtime evidence.
+schema_version: 1
+spec_version: 3.4.0-phased.1
+status: PHASED_ARCHITECTURAL_BASIS
+ready_for_real_research: false
+approved_candidate:
+  branch: docs/sai-3.4-autonomous-modeling-candidate
+  sha: eaea2c03e24b968c62ef9d60e7032f279f5e136c
+integration_target: integration-integrity-accounts
+integration_base: f3fadf6eaa7676d27b0129beeb40239cba2e1723
+staging_candidate_merge: e430bc142ad8183331118e1ac1e27098fa4d8aea
+effectiveness:
+- explicit_owner_scope
+- documentation_only_delta
+- same_sha_full_ci_success
+- published_to_integration_target
+owner_authorization:
+  id: OWNER-SAI34-20261021-INTEGRATION
+  date: '2026-10-21'
+  source: 'Current Human Owner user message: SiPh Lab - SAI 3.4 Integration & Phased Activation'
+  authorized:
+  - documentation_integration
+  - phased_activation_preparation
+  - G0_reliability_work
+  - pre_license_autonomous_modeling_preparation
+  does_not_authorize:
+  - main_merge
+  - deployment
+  - production_data_changes
+  - paid_api_calls
+  - licensed_simulations
+  - SP_1.1.0_enablement
+  - scientific_readiness
+owner_decision_statuses:
+  D-01: OPEN
+  D-02: OPEN
+  D-03: OPEN
+  D-04: OPEN
+  D-05: OPEN
+  D-06: OPEN
+  D-07: OPEN
+  D-08: OPEN
+unresolved_security_decisions:
+- A3
+- A9
+- A12
+inherited_profile:
+  version: '3.3'
+  requirement_count: 60
+  test_id_count: 60
+  file_hashes:
+    docs/spec/SAI_3.3.md: d7576691ef846ef05d8a0036434402a6fb0317f3c28af97597d4fc5dc375c1aa
+    docs/normative_statements.yaml: 0e49fdc7544c0cbf56821d7463f1d86e1ec2089484c454d4d0310813638bae29
+    docs/milestones.yaml: e35f3455dd97c378058dcf8bfe57844129227b68c8504cb9a6e28739c4e9ea5d
+  requirement_test_bindings:
+    SYS-001:
+    - T-SYS-001
+    ART-001:
+    - T-ART-001
+    SIM-001:
+    - T-SIM-001
+    SIM-002:
+    - T-SIM-002
+    SIM-003:
+    - T-SIM-003
+    EVI-001:
+    - T-EVI-001
+    EVI-002:
+    - T-EVI-002
+    EVI-003:
+    - T-EVI-003
+    EVI-004:
+    - T-EVI-004
+    EVI-005:
+    - T-EVI-005
+    EVI-006:
+    - T-EVI-006
+    EVI-007:
+    - T-EVI-007
+    EVI-008:
+    - T-EVI-008
+    EVI-009:
+    - T-EVI-009
+    EVI-010:
+    - T-EVI-010
+    EPI-001:
+    - T-EPI-001
+    EPI-002:
+    - T-EPI-002
+    EPI-003:
+    - T-EPI-003
+    EPI-004:
+    - T-EPI-004
+    EPI-005:
+    - T-EPI-005
+    EPI-006:
+    - T-EPI-006
+    VER-001:
+    - T-VER-001
+    VER-002:
+    - T-VER-002
+    VER-003:
+    - T-VER-003
+    VER-004:
+    - T-VER-004
+    VER-005:
+    - T-VER-005
+    VER-006:
+    - T-VER-006
+    VER-007:
+    - T-VER-007
+    VER-008:
+    - T-VER-008
+    DOM-SP-001:
+    - T-DOM-SP-001
+    DOM-SP-002:
+    - T-DOM-SP-002
+    SRC-001:
+    - T-SRC-001
+    SRC-002:
+    - T-SRC-002
+    SRC-003:
+    - T-SRC-003
+    GH-001:
+    - T-GH-001
+    GH-002:
+    - T-GH-002
+    GH-003:
+    - T-GH-003
+    HEU-001:
+    - T-HEU-001
+    LLM-001:
+    - T-LLM-001
+    LLM-002:
+    - T-LLM-002
+    SEC-001:
+    - T-SEC-001
+    SEC-002:
+    - T-SEC-002
+    SEC-003:
+    - T-SEC-003
+    SEC-004:
+    - T-SEC-004
+    OPS-001:
+    - T-OPS-001
+    OPS-002:
+    - T-OPS-002
+    OPS-003:
+    - T-OPS-003
+    OPS-004:
+    - T-OPS-004
+    COST-001:
+    - T-COST-001
+    UX-001:
+    - T-UX-001
+    UX-002:
+    - T-UX-002
+    UX-003:
+    - T-UX-003
+    UX-004:
+    - T-UX-004
+    UX-005:
+    - T-UX-005
+    UX-006:
+    - T-UX-006
+    UX-007:
+    - T-UX-007
+    EXT-001:
+    - T-EXT-001
+    TST-001:
+    - T-E2E-SP-001
+    TST-002:
+    - T-SPEC-001
+    TST-003:
+    - T-SPEC-002
+frozen_candidate_files:
+  docs/spec/SAI_3.4_Candidate.md: 78d2ddf536bd55f7532c776b70b8fc4bb22372edb09d829ecbdc4b39110b14ed
+  docs/architecture/sai34-autonomous-modeling.md: acd553336aaed057d1bbbf8948ef8d494e9dba6a612abf8fe68fd03facccd829
+  docs/spec/sai34/acceptance.md: b3b525ae628a5ec70cf24ad54c372719d5b322f43b1de7ae956c74120189bc40
+  docs/spec/sai34/implementation-gap.md: b9942d736f7ff56ac9185b2fddb203dabc63dbbd608a950e323722f2bed6a725
+  docs/spec/sai34/change-impact.md: 1ae46679c92f41d5e9a25758f09100b9638d0536f7ac4d2170c34365d2cb6d16
+  docs/spec/sai34/decisions-and-review.md: 22be410e5ce2b3e9b6d871a3b60effe097d3d325202569fdff93025ad70e40e2
+  docs/adr/ADR-0013-autonomous-scientific-modeling-candidate.md: 483b4ab0c553548754f5690bd7b818568a1ff737f11390873c71db5bcc8d5862
+  docs/spec/sai34/normative-statements.yaml: 3cde28259dcf3872bbdb8ae52958c6ef1f32608dfba06fd48fd2ea969e6ff075
+  docs/spec/sai34/check_candidate.py: 229e2c028327e597b90c07974a9e00ff6058842ab8f71a29b848ee1710673730
+allowed_documentation_paths:
+- .github/workflows/ci.yml
+- IMPLEMENTATION_STATUS.md
+- README.md
+- docs/adr/ADR-0013-autonomous-scientific-modeling-candidate.md
+- docs/adr/ADR-0014-phased-sai34-activation.md
+- docs/architecture/sai34-autonomous-modeling.md
+- docs/spec/ACTIVE_SPEC.yaml
+- docs/spec/SAI_3.4.md
+- docs/spec/SAI_3.4_Candidate.md
+- docs/spec/sai34/acceptance.md
+- docs/spec/sai34/activation.yaml
+- docs/spec/sai34/change-impact.md
+- docs/spec/sai34/check_activation.py
+- docs/spec/sai34/check_candidate.py
+- docs/spec/sai34/decisions-and-review.md
+- docs/spec/sai34/implementation-gap.md
+- docs/spec/sai34/integration-activation.md
+- docs/spec/sai34/normative-statements.yaml
+coordination:
+  agent_a_branch: pre-lumerical-acceptance
+  observed_sha: 567dee323e515eb16c697ebbb9dcebe6f4f096da
+  must_not_be_ancestors:
+  - 567dee323e515eb16c697ebbb9dcebe6f4f096da
+  - 3afee2150f99d3432e4b8f4ec7a686eb54321991
+  - 7d2cd09605db5c1097b5384688d69ae294510ded
+  agent_a_merge_authorized: false
+  agent_a_acceptance_claimed: false
+tracks:
+  P-G0:
+    depends_on:
+    - P0-BASIS
+    requires_model_builder: false
+    requires_lumerical: false
+    acceptance_gate: G0
+    acceptance_status: NOT_ACCEPTED
+  P-MODEL:
+    depends_on:
+    - P0-BASIS
+    requires_g0_acceptance: false
+    requires_lumerical: false
+    acceptance_status: NOT_ACCEPTED
+later_gates:
+  P-LICENSED:
+    depends_on:
+    - P-MODEL
+    owner_decisions:
+    - D-02
+    - D-04
+    - D-05
+    - D-06
+    status: REQUIRES_LICENSE
+  P-PHYSICAL:
+    depends_on:
+    - P-G0
+    - P-LICENSED
+    owner_decisions:
+    - D-02
+    - D-03
+    - D-08
+    status: DEFERRED
+  P-PORTABILITY:
+    required_for_single_site: false
+    status: DEFERRED
+  P-FULL-RUNTIME:
+    status: DEFERRED
+    owner: specification_maintainer
+    rationale: Runtime parser/namespace, marked implementation tests, active registry and outcome ratchet migration
+      require a separate authorized implementation slice; documentation activation does not discharge runtime conformance.
+    review_at: '2026-11-20'
+acceptance_gates:
+- G0
+- G1
+- G2
+- G3
+- G4
+- G5
+- G6
+- G7
+- G8
+- G9
+milestones:
+- P0-BASIS
+- P-G0
+- P-MODEL
+- P-LICENSED
+- P-PHYSICAL
+- P-PORTABILITY
+- P-FULL-RUNTIME
+documents:
+- docs/spec/SAI_3.4.md
+- docs/adr/ADR-0014-phased-sai34-activation.md
+- docs/spec/sai34/integration-activation.md
+normative_statements:
+- requirement_id: ASM-001
+  statement_key: autonomy.production
+  source_section: '1'
+  level: MUST
+  source_pass_condition: Clean deployment without external coding agents constructs unseen in-envelope models from
+    blank workspace and completes all applicable gates with auditable human interventions.
+  planned_tests:
+  - T-ASM-001
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: Autonomous first-time construction and all applicable licensed/modeling acceptance tests are
+    not delivered by documentation integration.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G1
+  - G9
+  candidate_milestone: C34-A2
+  authorized_preparation_tracks:
+  - P-MODEL
+  owner_decisions:
+  - D-01
+  - D-08
+  legacy_dependencies:
+  - SYS-001
+  - VER-001
+  - SIM-003
+  - EXT-001
+  legacy_test_dependencies:
+  - T-EXT-001
+  - T-SIM-003
+  - T-SYS-001
+  - T-VER-001
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Requires internal autonomous builder and deployment-equivalent licensed acceptance;
+    neither exists in this delivery.
+- requirement_id: ASM-002
+  statement_key: workflow.governed
+  source_section: '1'
+  level: MUST
+  source_pass_condition: Every stage persists scoped inputs, outputs and decisions; G0 separately completes an authenticated
+    real governed LLM research workflow with useful bilingual science, provenance and explicit unperformed simulations;
+    catalog or mock cannot pass it.
+  planned_tests:
+  - T-ASM-002
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: G0 reliability and autonomous modeling-stage integration still require implementation and
+    acceptance; Agent A changes remain unmerged.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G0
+  - G8
+  - G9
+  candidate_milestone: C34-A1
+  authorized_preparation_tracks:
+  - P-G0
+  - P-MODEL
+  owner_decisions:
+  - D-01
+  - D-06
+  legacy_dependencies:
+  - OPS-001
+  - OPS-004
+  - VER-001
+  - EVI-003
+  - LLM-001
+  legacy_test_dependencies:
+  - T-EVI-003
+  - T-LLM-001
+  - T-OPS-001
+  - T-OPS-004
+  - T-VER-001
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Existing research workflow lacks autonomous modeling stage integration.
+- requirement_id: ASM-003
+  statement_key: sources.provenance
+  source_section: '2'
+  level: MUST
+  source_pass_condition: Missing rights, authority or project scope refuses source use; each used parameter traces
+    to pinned content; derived example families cannot count as independent proof.
+  planned_tests:
+  - T-ASM-003
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: Parameter-level references, source rights, family independence and untrusted-example controls
+    still need implementation tests.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G1
+  - G4
+  - G8
+  candidate_milestone: C34-A1
+  authorized_preparation_tracks:
+  - P-G0
+  - P-MODEL
+  owner_decisions:
+  - D-05
+  legacy_dependencies:
+  - GH-001
+  - GH-002
+  - GH-003
+  - SRC-001
+  - SRC-003
+  - SEC-003
+  - EVI-009
+  legacy_test_dependencies:
+  - T-EVI-009
+  - T-GH-001
+  - T-GH-002
+  - T-GH-003
+  - T-SEC-003
+  - T-SRC-001
+  - T-SRC-003
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Requires reference-role and parameter-level provenance plus Ansys active-content boundary.
+- requirement_id: ASM-004
+  statement_key: modelspec.typed
+  source_section: '3'
+  level: MUST
+  source_pass_condition: Missing authoritative fields, wrong units, unknown keys, nonfinite values and inconsistent
+    model assumptions refuse construction before side effects; valid inputs round-trip units.
+  planned_tests:
+  - T-ASM-004
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: Complete PhysicalModelSpec, typed units and the CHARGE model payload are not implemented by
+    this integration.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G1
+  - G3
+  - G8
+  candidate_milestone: C34-A1
+  authorized_preparation_tracks:
+  - P-MODEL
+  owner_decisions:
+  - D-02
+  - D-06
+  legacy_dependencies:
+  - SIM-003
+  - DOM-SP-001
+  - EVI-009
+  legacy_test_dependencies:
+  - T-DOM-SP-001
+  - T-EVI-009
+  - T-SIM-003
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Complete PhysicalModelSpec and CHARGE domain payload are not implemented.
+- requirement_id: ASM-005
+  statement_key: construction.constrained
+  source_section: '4'
+  level: MUST
+  source_pass_condition: Allowed typed operations construct a new project with verified vendor readback; arbitrary
+    code, script objects, injected strings and workspace escape cause zero unauthorized side effects.
+  planned_tests:
+  - T-ASM-005
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: The constrained compiler, new-project construction, sandbox and actual vendor readback need
+    implementation; real readback requires license.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G1
+  - G7
+  - G8
+  candidate_milestone: C34-A1
+  authorized_preparation_tracks:
+  - P-MODEL
+  owner_decisions:
+  - D-05
+  - D-06
+  legacy_dependencies:
+  - SIM-003
+  - SIM-001
+  - EXT-001
+  - SEC-001
+  legacy_test_dependencies:
+  - T-EXT-001
+  - T-SEC-001
+  - T-SIM-001
+  - T-SIM-003
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Constructor, operation compiler, sandbox and vendor readback require new work; real
+    readback also requires license.
+- requirement_id: ASM-006
+  statement_key: execution.licensed
+  source_section: '4'
+  level: MUST
+  source_pass_condition: Qualified real product records actual entitlement checkout, solver identity and outputs;
+    unavailable license or mismatched worker blocks instead of returning a mock solver success.
+  planned_tests:
+  - T-ASM-006
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: A real provider, qualified installation and verified entitlements are absent from the accepted
+    integration baseline; fake SDK checks cannot accept real execution.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G2
+  - G7
+  - G8
+  candidate_milestone: C34-A2
+  authorized_preparation_tracks:
+  - P-MODEL
+  owner_decisions:
+  - D-04
+  - D-06
+  legacy_dependencies:
+  - SIM-001
+  - SIM-002
+  - TST-001
+  legacy_test_dependencies:
+  - T-E2E-SP-001
+  - T-SIM-001
+  - T-SIM-002
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Licensed provider is absent; fake contract tests precede C34-A3 real execution and
+    cannot discharge its licensed gate.
+- requirement_id: ASM-007
+  statement_key: resources.recovery
+  source_section: '4'
+  level: MUST
+  source_pass_condition: Denied budget or ACL produces no external effect; injected crash, lost lease, retry, cancellation
+    and duplicate completion preserve one admitted result and fully reconciled attempt costs.
+  planned_tests:
+  - T-ASM-007
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: Existing Job/Run/resource contracts do not discharge new worker fencing, orphan-process reconciliation
+    and licensed failure-recovery tests.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G8
+  - G9
+  candidate_milestone: C34-A1
+  authorized_preparation_tracks:
+  - P-MODEL
+  owner_decisions:
+  - D-04
+  - D-06
+  legacy_dependencies:
+  - OPS-001
+  - OPS-003
+  - COST-001
+  - SEC-001
+  legacy_test_dependencies:
+  - T-COST-001
+  - T-OPS-001
+  - T-OPS-003
+  - T-SEC-001
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Existing job/resource contracts are reusable but do not qualify real worker lifecycle
+    or vendor reconciliation.
+- requirement_id: ASM-008
+  statement_key: validation.numerical
+  source_section: '5'
+  level: MUST
+  source_pass_condition: Every declared observable passes frozen residual, conservation, mesh, domain and step refinement
+    checks; oscillatory or nonasymptotic cases cannot pass from solver convergence alone.
+  planned_tests:
+  - T-ASM-008
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: Frozen numerical protocols, approved observable tolerances and licensed convergence/sensitivity
+    studies are still required.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G3
+  - G5
+  candidate_milestone: C34-A2
+  authorized_preparation_tracks:
+  - P-MODEL
+  owner_decisions:
+  - D-02
+  legacy_dependencies:
+  - SIM-001
+  - SIM-002
+  - VER-007
+  - DOM-SP-001
+  legacy_test_dependencies:
+  - T-DOM-SP-001
+  - T-SIM-001
+  - T-SIM-002
+  - T-VER-007
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Needs numerical protocol, independent validators and approved observable thresholds;
+    physical acceptance requires licensed runs.
+- requirement_id: ASM-009
+  statement_key: validation.physical
+  source_section: '5'
+  level: MUST
+  source_pass_condition: Independent references and physical checks support only the registered validity envelope
+    with uncertainty; trend plausibility, expert agreement or cross-solver agreement alone cannot pass G5.
+  planned_tests:
+  - T-ASM-009
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: Independent physical reference data, valid uncertainty budgets, approved accuracy thresholds
+    and licensed evaluation remain external gates.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G4
+  - G5
+  candidate_milestone: C34-A2
+  authorized_preparation_tracks:
+  - P-MODEL
+  owner_decisions:
+  - D-02
+  - D-03
+  legacy_dependencies:
+  - EVI-009
+  - VER-002
+  - DOM-SP-001
+  - VER-007
+  legacy_test_dependencies:
+  - T-DOM-SP-001
+  - T-EVI-009
+  - T-VER-002
+  - T-VER-007
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Independent physical reference data, approved thresholds and licensed evaluation remain
+    external dependencies.
+- requirement_id: ASM-010
+  statement_key: benchmark.independence
+  source_section: '5'
+  level: MUST
+  source_pass_condition: Sealed family-grouped splits are disjoint; builder cannot read expert projects, hidden
+    truth or per-case holdout feedback; detected contamination invalidates independent acceptance.
+  planned_tests:
+  - T-ASM-010
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: Sealed family-grouped holdouts and evaluator isolation need implementation and independent
+    data/rights approval.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G4
+  - G5
+  - G9
+  candidate_milestone: C34-A2
+  authorized_preparation_tracks:
+  - P-G0
+  - P-MODEL
+  owner_decisions:
+  - D-02
+  - D-05
+  legacy_dependencies:
+  - EVI-004
+  - EVI-006
+  - SRC-003
+  - LLM-002
+  legacy_test_dependencies:
+  - T-EVI-004
+  - T-EVI-006
+  - T-LLM-002
+  - T-SRC-003
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Requires isolated evaluator, family lineage, split manifest and access-control evidence.
+- requirement_id: ASM-011
+  statement_key: refinement.bounded
+  source_section: '6'
+  level: MUST
+  source_pass_condition: Only approved patch classes create immutable children; assumption, oracle or validator
+    edits are refused or reviewed; limits stop the loop and changed models lose invalidated validation status.
+  planned_tests:
+  - T-ASM-011
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: Policy-classified bounded model refinement and immutable patch lineage are not implemented
+    or accepted.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G3
+  - G6
+  - G8
+  - G9
+  candidate_milestone: C34-A2
+  authorized_preparation_tracks:
+  - P-MODEL
+  owner_decisions:
+  - D-02
+  - D-06
+  legacy_dependencies:
+  - EPI-003
+  - EPI-005
+  - HEU-001
+  - COST-001
+  legacy_test_dependencies:
+  - T-COST-001
+  - T-EPI-003
+  - T-EPI-005
+  - T-HEU-001
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Bounded refinement with policy-classified model patches is unimplemented.
+- requirement_id: ASM-012
+  statement_key: evidence.admission
+  source_section: '7'
+  level: MUST
+  source_pass_condition: Missing or mismatched spec, run, validity, conditions or scope prevents admission or authority
+    upgrade; G0 preserves canonical evidence and inference provenance without fabricating absent simulation Runs;
+    failed or unperformed outputs never become measured facts.
+  planned_tests:
+  - T-ASM-012
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: Existing evidence admission remains; new model/validation lineage bindings and G0 provenance
+    acceptance still need tests.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G0
+  - G5
+  - G6
+  - G8
+  candidate_milestone: C34-A1
+  authorized_preparation_tracks:
+  - P-G0
+  - P-MODEL
+  owner_decisions:
+  - D-03
+  - D-05
+  legacy_dependencies:
+  - ART-001
+  - EVI-001
+  - EVI-003
+  - EVI-009
+  - EVI-010
+  legacy_test_dependencies:
+  - T-ART-001
+  - T-EVI-001
+  - T-EVI-003
+  - T-EVI-009
+  - T-EVI-010
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Existing evidence path remains; new model and validation lineage binding still needs
+    implementation tests.
+- requirement_id: ASM-013
+  statement_key: causal.warrant
+  source_section: '7'
+  level: MUST
+  source_pass_condition: Invalid or missing warrant, signature or rival discrimination never yields unsupported
+    confirmation; accepted decisions rederive through existing policy and immutable events.
+  planned_tests:
+  - T-ASM-013
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: CWG V1.1 remains unchanged; new modeling integration tests and any expansion of causal authority
+    require their own evidence and D-03 approval.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G6
+  - G8
+  candidate_milestone: C34-A2
+  authorized_preparation_tracks:
+  - P-G0
+  - P-MODEL
+  owner_decisions:
+  - D-03
+  legacy_dependencies:
+  - EPI-003
+  - EPI-004
+  - EPI-005
+  - EPI-006
+  legacy_test_dependencies:
+  - T-EPI-003
+  - T-EPI-004
+  - T-EPI-005
+  - T-EPI-006
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Existing CWG protections persist; modeling integration and expanded scientific authority
+    await D-03.
+- requirement_id: ASM-014
+  statement_key: human.intervention
+  source_section: '8'
+  level: MUST
+  source_pass_condition: Enumerated ambiguity and irreversible cases enter ReviewQueue; scoped offline work requires
+    recorded architectural approval, later license/benchmark/deployment approvals stay at their own gates; only
+    ADMIN and MEMBER are human account roles, other governance authorizations remain separate; A3/A9/A12 stay unresolved.
+  planned_tests:
+  - T-ASM-014
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: Scoped preparation is authorized, but specific execution/intervention policies, identity-isolation
+    evidence and A3/A9/A12 remain unresolved.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G0
+  - G6
+  - G8
+  - G9
+  candidate_milestone: C34-A0
+  authorized_preparation_tracks:
+  - P-G0
+  - P-MODEL
+  owner_decisions:
+  - D-06
+  - D-07
+  legacy_dependencies:
+  - SEC-001
+  - SEC-002
+  - OPS-002
+  legacy_test_dependencies:
+  - T-OPS-002
+  - T-SEC-001
+  - T-SEC-002
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Owner-approved intervention envelope and new workflow integration are pending.
+- requirement_id: ASM-015
+  statement_key: extension.domain_boundary
+  source_section: '9'
+  level: MUST
+  source_pass_condition: Removing the photonics provider leaves core working; ToyDomain registers model/validator/provider
+    contracts without core physics edits; each later solver and coupling qualifies separately.
+  planned_tests:
+  - T-ASM-015
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: The modeling extension and its removable-provider/ToyDomain acceptance are not implemented;
+    later solvers remain deferred.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G1
+  - G8
+  - G9
+  candidate_milestone: C34-A2
+  authorized_preparation_tracks:
+  - P-MODEL
+  owner_decisions:
+  - D-01
+  - D-04
+  legacy_dependencies:
+  - EXT-001
+  - DOM-SP-001
+  - DOM-SP-002
+  legacy_test_dependencies:
+  - T-DOM-SP-001
+  - T-DOM-SP-002
+  - T-EXT-001
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: New modeling extension is unimplemented; later solver delivery is deferred to C34-A5.
+- requirement_id: ASM-016
+  statement_key: interface.bilingual
+  source_section: '9'
+  level: MUST
+  source_pass_condition: English and Traditional Chinese hypotheses, predictions, observations, interpretations,
+    uncertainty, conclusions, limitations and exports have complete semantic coverage and matching values, conditions
+    and machine-verifiable states; original canonical hashes and signatures remain unchanged, translations cannot
+    invent evidence or hide unperformed simulations.
+  planned_tests:
+  - T-ASM-016
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: Full scientific bilingual content, export parity and genuine-LLM G0 acceptance are not inferred
+    from labels or Agent A unmerged evidence.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G0
+  - G6
+  - G8
+  - G9
+  candidate_milestone: C34-A1
+  authorized_preparation_tracks:
+  - P-G0
+  - P-MODEL
+  owner_decisions:
+  - D-05
+  - D-08
+  legacy_dependencies:
+  - UX-001
+  - UX-002
+  - UX-003
+  - UX-004
+  - UX-005
+  - UX-006
+  - UX-007
+  - LLM-001
+  legacy_test_dependencies:
+  - T-LLM-001
+  - T-UX-001
+  - T-UX-002
+  - T-UX-003
+  - T-UX-004
+  - T-UX-005
+  - T-UX-006
+  - T-UX-007
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: Existing interface labels do not prove bilingual scientific content, semantic review,
+    export parity or genuine-LLM G0 acceptance.
+- requirement_id: ASM-017
+  statement_key: replay.reproducible
+  source_section: '10'
+  level: MUST
+  source_pass_condition: G7-SITE independently accepts three clean licensed runs at one qualified installation within
+    frozen tolerances; G7-WORKER separately requires a second qualified worker and does not block single-site acceptance;
+    cross-site claims additionally require target-site qualification and replay.
+  planned_tests:
+  - T-ASM-017
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: Single-site licensed repeatability is unverified; cross-worker and cross-site qualification
+    remain separate, unclaimed acceptance scopes.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G7
+  - G8
+  candidate_milestone: C34-A1
+  authorized_preparation_tracks:
+  - P-MODEL
+  owner_decisions:
+  - D-04
+  - D-05
+  legacy_dependencies:
+  - SIM-001
+  - ART-001
+  - OPS-001
+  legacy_test_dependencies:
+  - T-ART-001
+  - T-OPS-001
+  - T-SIM-001
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: New replay is unimplemented; single-site licensed repeatability and cross-worker or
+    cross-site qualification remain separately unverified and are never inferred from one installation.
+- requirement_id: ASM-018
+  statement_key: readiness.external_gate
+  source_section: '10'
+  level: MUST
+  source_pass_condition: Offline mocks cannot sign G0, licensed or physical gates; genuine governed LLM G0 research
+    acceptance cannot sign unperformed simulations; readiness stays false until applicable scoped gates and formal
+    Owner acceptance are recorded without requiring unclaimed cross-worker qualification for single-site validation.
+  planned_tests:
+  - T-ASM-018
+  tests: []
+  implementation_status: SPECIFIED
+  deferral_status: DEFERRED
+  deferred_rationale: P0 enables only the architecture basis after its publication/CI conditions; G0, licensed/physical
+    acceptance and full runtime conformance remain outstanding.
+  review_at: '2026-11-20'
+  review_trigger: Before the applicable milestone or 2026-11-20, whichever is earlier.
+  acceptance_gates:
+  - G0
+  - G1
+  - G2
+  - G3
+  - G4
+  - G5
+  - G6
+  - G7
+  - G8
+  - G9
+  candidate_milestone: C34-A0
+  authorized_preparation_tracks:
+  - P-G0
+  - P-MODEL
+  owner_decisions:
+  - D-08
+  legacy_dependencies:
+  - TST-001
+  - TST-002
+  - TST-003
+  - SEC-002
+  legacy_test_dependencies:
+  - T-E2E-SP-001
+  - T-SEC-002
+  - T-SPEC-001
+  - T-SPEC-002
+  adr: ADR-0014
+  candidate_adr: ADR-0013
+  deferral_owner: specification_maintainer
+  source_deferred_rationale: This candidate establishes test obligations only; no new runtime, licensed or physical
+    acceptance is delivered.

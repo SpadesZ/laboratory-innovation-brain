@@ -9,5 +9,26 @@ from lab_brain.evidence.condition_schema_registry import (
     ConditionComparator,
     ConditionSchemaRegistry,
 )
+from lab_brain.evidence.independence import (
+    DEPENDENT_RELATIONS,
+    IndependenceCount,
+    count_independent_attestations,
+)
+from lab_brain.evidence.retriever import (
+    CandidateResolver,
+    IndexDivergence,
+    LexicalEvidenceIndex,
+    ResolvedCandidate,
+)
 
-__all__ = ["ConditionComparator", "ConditionSchemaRegistry"]
+__all__ = [
+    "DEPENDENT_RELATIONS",
+    "CandidateResolver",
+    "ConditionComparator",
+    "ConditionSchemaRegistry",
+    "IndependenceCount",
+    "IndexDivergence",
+    "LexicalEvidenceIndex",
+    "ResolvedCandidate",
+    "count_independent_attestations",
+]

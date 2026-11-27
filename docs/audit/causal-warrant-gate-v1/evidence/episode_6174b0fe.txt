@@ -1,0 +1,487 @@
+BEGIN
+== episode
+-[ RECORD 1 ]--+----------------------------------------------
+episode_id     | epi:6174b0fe-fec9-4cf3-ab68-f63516e708aa
+project_id     | prj:bench-gemini
+state          | SUSPENDED
+outcome_status | 
+start_time     | 2026-10-13 11:31:47.311451+00
+end_time       | 
+suspend_reason | awaiting simulator for cap:sp.charge_ac_sweep
+
+== research runs
+-[ RECORD 1 ]------------+----------------------------------------------------------------------------
+research_run_id          | rrn:270e9af5-0118-4d4b-b1f4-4ee7013ddc1d
+ordinal                  | 1
+hypothesis_set_id        | hst:75e8dcff-446d-4a91-ae23-197c0437540e
+verification_artifact_id | art:sha256:3741fc2d058a7c79ec1b86a7f1915fd9a9b26e6360b0df05bf47f9f94db52294
+started_at               | 2026-10-13 11:31:47.255891+00
+finished_at              | 2026-10-13 11:54:20.411181+00
+seconds                  | 1353
+outcome                  | SUSPENDED:PROVISIONAL
+
+== model calls (InferenceProvenance)
+-[ RECORD 1 ]-+------------------------------------------------------------------------
+inference_id  | inf:00118161-1e8f-4c44-ad53-f1e4fa3ad79d
+role          | EVIDENCE_RESEARCHER
+logical_slot  | FAST_UTILITY
+provider      | ollama
+model_id      | qwen2.5-coder:7b
+model_version | lk:f14109bc296cdf49
+prompt        | prm:evidence-query-rewrite@1.0.0
+context_hash  | sha256:577404c3a0056af2cbf73efb18590c87fc6d934ad3813c481ac6376cb9296c6c
+out_chars     | 278
+created_at    | 2026-10-13 11:31:47.860616+00
+-[ RECORD 2 ]-+------------------------------------------------------------------------
+inference_id  | inf:18b2a8b8-b7b5-413d-aaa9-b305131a5442
+role          | HYPOTHESIS_ENGINE
+logical_slot  | REASONING_PRIMARY
+provider      | a
+model_id      | models/gemini-3.1-pro-preview
+model_version | lk:2b48e377a4355cff
+prompt        | prm:hypothesis-engine@5.0.0
+context_hash  | sha256:688cfa7a17a02ee7b3662ec2a230dacbefb04a41fdc3868c9c07f222d91eee93
+out_chars     | 6317
+created_at    | 2026-10-13 11:32:22.013107+00
+-[ RECORD 3 ]-+------------------------------------------------------------------------
+inference_id  | inf:fd56b3bf-2d36-4960-8afc-b1dadab1b320
+role          | sp.specialist.semiconductor_device
+logical_slot  | REASONING_PRIMARY
+provider      | a
+model_id      | models/gemini-3.1-pro-preview
+model_version | lk:2b48e377a4355cff
+prompt        | prm:sp.specialist.semiconductor_device@1.0.0
+context_hash  | sha256:602c84e9d894cb3a0bc32719de6bf8f80be9c26582f1536c1f9e5a40af896585
+out_chars     | 1518
+created_at    | 2026-10-13 11:34:50.185756+00
+-[ RECORD 4 ]-+------------------------------------------------------------------------
+inference_id  | inf:57fdebdf-ed3c-49f3-bf45-d4de121e50f1
+role          | sp.specialist.simulation_numerics
+logical_slot  | REASONING_PRIMARY
+provider      | a
+model_id      | models/gemini-3.1-pro-preview
+model_version | lk:2b48e377a4355cff
+prompt        | prm:sp.specialist.simulation_numerics@1.0.0
+context_hash  | sha256:a3293f4159db32b0bf72ad643555cb75ce64ac48fdb8b22175faf453eaa3e949
+out_chars     | 1415
+created_at    | 2026-10-13 11:38:59.523889+00
+-[ RECORD 5 ]-+------------------------------------------------------------------------
+inference_id  | inf:85d27e50-2b68-4c43-bd19-8a6f7b4d7e5b
+role          | EVIDENCE_RESEARCHER
+logical_slot  | FAST_UTILITY
+provider      | ollama
+model_id      | qwen2.5-coder:7b
+model_version | lk:f14109bc296cdf49
+prompt        | prm:evidence-query-rewrite@1.0.0
+context_hash  | sha256:ab0ddd4c8f368dcbeca6545a4735867343621dd43bef62a17059134b73833310
+out_chars     | 199
+created_at    | 2026-10-13 11:39:24.499674+00
+-[ RECORD 6 ]-+------------------------------------------------------------------------
+inference_id  | inf:da5106d5-3177-4747-90ff-7d28805f301f
+role          | critic
+logical_slot  | REASONING_ADVERSARIAL
+provider      | ollama
+model_id      | qwen2.5:7b
+model_version | lk:f80baa75bc60a828
+prompt        | prm:adversarial-critic@1.0.0
+context_hash  | sha256:11aefcfa323812129abd56495e47e44209e0ea3acfe021852cc82dbc03d07b96
+out_chars     | 2389
+created_at    | 2026-10-13 11:40:26.485534+00
+-[ RECORD 7 ]-+------------------------------------------------------------------------
+inference_id  | inf:bb24977d-5122-4ae7-822c-38e32ea75662
+role          | HYPOTHESIS_ENGINE
+logical_slot  | REASONING_PRIMARY
+provider      | a
+model_id      | models/gemini-3.1-pro-preview
+model_version | lk:2b48e377a4355cff
+prompt        | prm:hypothesis-engine@5.0.0
+context_hash  | sha256:4b4275e8adcdffe89f52aff8e8f1e56d509602d8911c74aa9bdc00db1f0f79aa
+out_chars     | 4435
+created_at    | 2026-10-13 11:46:52.670156+00
+-[ RECORD 8 ]-+------------------------------------------------------------------------
+inference_id  | inf:55dfc414-4ae2-4bf2-8a91-3cf60065033d
+role          | EVIDENCE_RESEARCHER
+logical_slot  | FAST_UTILITY
+provider      | ollama
+model_id      | qwen2.5-coder:7b
+model_version | lk:f14109bc296cdf49
+prompt        | prm:evidence-query-rewrite@1.0.0
+context_hash  | sha256:5917872458b358d9ea86b939dafb47f92d0eb472ba7b24f41854e88836379eaa
+out_chars     | 199
+created_at    | 2026-10-13 11:47:52.540578+00
+-[ RECORD 9 ]-+------------------------------------------------------------------------
+inference_id  | inf:1ea3f8cb-e9ca-4c78-ad47-b1d9b86b8db5
+role          | critic
+logical_slot  | REASONING_ADVERSARIAL
+provider      | ollama
+model_id      | qwen2.5:7b
+model_version | lk:f80baa75bc60a828
+prompt        | prm:adversarial-critic@1.0.0
+context_hash  | sha256:6b621e642e2306265e67561b18583131bf884cb388d14d1709e9e88ff6ad501a
+out_chars     | 2434
+created_at    | 2026-10-13 11:49:00.828672+00
+
+== LLM call spans (wall clock per call)
+-[ RECORD 1 ]-+-----------------------------------------
+model_call_id | inf:00118161-1e8f-4c44-ad53-f1e4fa3ad79d
+status        | SUCCEEDED
+seconds       | 34
+-[ RECORD 2 ]-+-----------------------------------------
+model_call_id | inf:18b2a8b8-b7b5-413d-aaa9-b305131a5442
+status        | SUCCEEDED
+seconds       | 148
+-[ RECORD 3 ]-+-----------------------------------------
+model_call_id | inf:fd56b3bf-2d36-4960-8afc-b1dadab1b320
+status        | SUCCEEDED
+seconds       | 249
+-[ RECORD 4 ]-+-----------------------------------------
+model_call_id | inf:57fdebdf-ed3c-49f3-bf45-d4de121e50f1
+status        | SUCCEEDED
+seconds       | 25
+-[ RECORD 5 ]-+-----------------------------------------
+model_call_id | inf:85d27e50-2b68-4c43-bd19-8a6f7b4d7e5b
+status        | SUCCEEDED
+seconds       | 62
+-[ RECORD 6 ]-+-----------------------------------------
+model_call_id | inf:da5106d5-3177-4747-90ff-7d28805f301f
+status        | SUCCEEDED
+seconds       | 386
+-[ RECORD 7 ]-+-----------------------------------------
+model_call_id | inf:bb24977d-5122-4ae7-822c-38e32ea75662
+status        | SUCCEEDED
+seconds       | 60
+-[ RECORD 8 ]-+-----------------------------------------
+model_call_id | inf:55dfc414-4ae2-4bf2-8a91-3cf60065033d
+status        | SUCCEEDED
+seconds       | 68
+-[ RECORD 9 ]-+-----------------------------------------
+model_call_id | inf:1ea3f8cb-e9ca-4c78-ad47-b1d9b86b8db5
+status        | SUCCEEDED
+seconds       | 318
+
+== hypotheses
+-[ RECORD 1 ]------------+-------------------------------------------------------------------------------
+hypothesis_id            | hyp:cebe720f-cb84-4d9e-801a-6a2ffa88a468
+mechanism                | process_contact_resistance
+statement                | The Rs difference is caused by a process-dependent contact resistance.
+prose_falsifier          | Rs is found to be strongly bias dependent
+falsifier_prediction_ids | {prd:b2ae82ee-7904-4389-ac14-ad26e13540a8}
+inference_provenance_id  | inf:18b2a8b8-b7b5-413d-aaa9-b305131a5442
+-[ RECORD 2 ]------------+-------------------------------------------------------------------------------
+hypothesis_id            | hyp:1a0b470c-ac8b-4f00-a134-98cabf6ea60a
+mechanism                | mesh_artefact
+statement                | The Rs difference is a mesh artefact in the simulated structure.
+prose_falsifier          | Mesh stability is confirmed to be stable
+falsifier_prediction_ids | {prd:7abcc839-0569-43fa-b38b-c6b87c01d5c3}
+inference_provenance_id  | inf:18b2a8b8-b7b5-413d-aaa9-b305131a5442
+-[ RECORD 3 ]------------+-------------------------------------------------------------------------------
+hypothesis_id            | hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c
+mechanism                | missing_correction
+statement                | The Rs difference is an artefact of the missing contact-resistance correction.
+prose_falsifier          | Normalization basis agrees with expected corrected values
+falsifier_prediction_ids | {prd:463d8a6b-c5fe-4b34-bd5c-c6bc1b047252}
+inference_provenance_id  | inf:18b2a8b8-b7b5-413d-aaa9-b305131a5442
+-[ RECORD 4 ]------------+-------------------------------------------------------------------------------
+hypothesis_id            | hyp:6d245224-008f-440d-a06c-4916fd545399
+mechanism                | depletion_effect
+statement                | A depletion effect is causing the series resistance anomaly.
+prose_falsifier          | Rs is bias insensitive
+falsifier_prediction_ids | {prd:04131fff-4af7-4fa4-8e2c-ac518ed784dc}
+inference_provenance_id  | inf:18b2a8b8-b7b5-413d-aaa9-b305131a5442
+-[ RECORD 5 ]------------+-------------------------------------------------------------------------------
+hypothesis_id            | hyp:d516f447-085d-4dc4-9306-4b88c65e36e9
+mechanism                | probe_contact_resistance
+statement                | Elevated probe contact resistance on split B causes the Rs difference.
+prose_falsifier          | Probe contact resistance is nominal
+falsifier_prediction_ids | {prd:600ecb41-9499-454f-9223-9e25eee3d4c4}
+inference_provenance_id  | inf:18b2a8b8-b7b5-413d-aaa9-b305131a5442
+-[ RECORD 6 ]------------+-------------------------------------------------------------------------------
+hypothesis_id            | hyp:6dc91568-d251-49bd-b400-b16226ce0bbc
+mechanism                | bias_dependent_contact_resistance
+statement                | The high series resistance is caused by a bias-dependent contact resistance.
+prose_falsifier          | Observation of bias-insensitive series resistance.
+falsifier_prediction_ids | {prd:cd3e7160-57df-42a8-bcff-499973e4a057}
+inference_provenance_id  | inf:bb24977d-5122-4ae7-822c-38e32ea75662
+
+== typed predictions (D = designated machine falsifier)
+-[ RECORD 1 ]----+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+hypothesis_id    | hyp:cebe720f-cb84-4d9e-801a-6a2ffa88a468
+prediction_id    | prd:3af99cbb-7178-4027-a2e3-20bed570d583
+observable_ref   | sp.small_signal_impedance
+space            | os:sp.rs_bias_response@1.0.0
+expected_outcome | RS_BIAS_INSENSITIVE
+effect           | [{"to_entity_id": "hyp:cebe720f-cb84-4d9e-801a-6a2ffa88a468", "relation_type": "PREDICTS", "implied_authority_class": null, "implied_condition_match": null}]
+falsifier        | 
+-[ RECORD 2 ]----+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+hypothesis_id    | hyp:cebe720f-cb84-4d9e-801a-6a2ffa88a468
+prediction_id    | prd:b2ae82ee-7904-4389-ac14-ad26e13540a8
+observable_ref   | sp.small_signal_impedance
+space            | os:sp.rs_bias_response@1.0.0
+expected_outcome | RS_FALLS_WITH_REVERSE_BIAS
+effect           | [{"to_entity_id": "hyp:cebe720f-cb84-4d9e-801a-6a2ffa88a468", "relation_type": "CONTRADICTS", "implied_authority_class": null, "implied_condition_match": null}]
+falsifier        | D
+-[ RECORD 3 ]----+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+hypothesis_id    | hyp:1a0b470c-ac8b-4f00-a134-98cabf6ea60a
+prediction_id    | prd:3797c59a-03b9-4b57-9eb8-400151d2fc8b
+observable_ref   | sp.mesh_stability
+space            | os:sp.mesh_stability@1.0.0
+expected_outcome | UNSTABLE
+effect           | [{"to_entity_id": "hyp:1a0b470c-ac8b-4f00-a134-98cabf6ea60a", "relation_type": "SUPPORTS", "implied_authority_class": null, "implied_condition_match": null}]
+falsifier        | 
+-[ RECORD 4 ]----+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+hypothesis_id    | hyp:1a0b470c-ac8b-4f00-a134-98cabf6ea60a
+prediction_id    | prd:7abcc839-0569-43fa-b38b-c6b87c01d5c3
+observable_ref   | sp.mesh_stability
+space            | os:sp.mesh_stability@1.0.0
+expected_outcome | STABLE
+effect           | [{"to_entity_id": "hyp:1a0b470c-ac8b-4f00-a134-98cabf6ea60a", "relation_type": "CONTRADICTS", "implied_authority_class": null, "implied_condition_match": null}]
+falsifier        | D
+-[ RECORD 5 ]----+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+hypothesis_id    | hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c
+prediction_id    | prd:463d8a6b-c5fe-4b34-bd5c-c6bc1b047252
+observable_ref   | sp.normalization_basis
+space            | os:sp.normalization_basis@1.0.0
+expected_outcome | AGREES
+effect           | [{"to_entity_id": "hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c", "relation_type": "CONTRADICTS", "implied_authority_class": null, "implied_condition_match": null}]
+falsifier        | D
+-[ RECORD 6 ]----+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+hypothesis_id    | hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c
+prediction_id    | prd:a329a062-d98f-46c0-b669-f85d118a9740
+observable_ref   | sp.normalization_basis
+space            | os:sp.normalization_basis@1.0.0
+expected_outcome | DISAGREES
+effect           | [{"to_entity_id": "hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c", "relation_type": "SUPPORTS", "implied_authority_class": null, "implied_condition_match": null}]
+falsifier        | 
+-[ RECORD 7 ]----+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+hypothesis_id    | hyp:6d245224-008f-440d-a06c-4916fd545399
+prediction_id    | prd:04131fff-4af7-4fa4-8e2c-ac518ed784dc
+observable_ref   | sp.small_signal_impedance
+space            | os:sp.rs_bias_response@1.0.0
+expected_outcome | RS_BIAS_INSENSITIVE
+effect           | [{"to_entity_id": "hyp:6d245224-008f-440d-a06c-4916fd545399", "relation_type": "CONTRADICTS", "implied_authority_class": null, "implied_condition_match": null}]
+falsifier        | D
+-[ RECORD 8 ]----+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+hypothesis_id    | hyp:6d245224-008f-440d-a06c-4916fd545399
+prediction_id    | prd:092fe719-18b0-4ae3-9fb3-95b08ff25d07
+observable_ref   | sp.small_signal_impedance
+space            | os:sp.rs_bias_response@1.0.0
+expected_outcome | RS_FALLS_WITH_REVERSE_BIAS
+effect           | [{"to_entity_id": "hyp:6d245224-008f-440d-a06c-4916fd545399", "relation_type": "SUPPORTS", "implied_authority_class": null, "implied_condition_match": null}]
+falsifier        | 
+-[ RECORD 9 ]----+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+hypothesis_id    | hyp:d516f447-085d-4dc4-9306-4b88c65e36e9
+prediction_id    | prd:600ecb41-9499-454f-9223-9e25eee3d4c4
+observable_ref   | sp.probe_contact_resistance
+space            | os:sp.probe_contact_resistance@1.0.0
+expected_outcome | NOMINAL
+effect           | [{"to_entity_id": "hyp:d516f447-085d-4dc4-9306-4b88c65e36e9", "relation_type": "CONTRADICTS", "implied_authority_class": null, "implied_condition_match": null}]
+falsifier        | D
+-[ RECORD 10 ]---+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+hypothesis_id    | hyp:d516f447-085d-4dc4-9306-4b88c65e36e9
+prediction_id    | prd:ad900977-2a42-4c69-b068-723e79fc9f78
+observable_ref   | sp.probe_contact_resistance
+space            | os:sp.probe_contact_resistance@1.0.0
+expected_outcome | ELEVATED
+effect           | [{"to_entity_id": "hyp:d516f447-085d-4dc4-9306-4b88c65e36e9", "relation_type": "SUPPORTS", "implied_authority_class": null, "implied_condition_match": null}]
+falsifier        | 
+-[ RECORD 11 ]---+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+hypothesis_id    | hyp:6dc91568-d251-49bd-b400-b16226ce0bbc
+prediction_id    | prd:47eb33ca-ac79-401c-9b1a-8f29a52a1ae6
+observable_ref   | sp.small_signal_impedance
+space            | os:sp.rs_bias_response@1.0.0
+expected_outcome | RS_FALLS_WITH_REVERSE_BIAS
+effect           | [{"to_entity_id": "hyp:6dc91568-d251-49bd-b400-b16226ce0bbc", "relation_type": "PREDICTS", "implied_authority_class": null, "implied_condition_match": null}]
+falsifier        | 
+-[ RECORD 12 ]---+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+hypothesis_id    | hyp:6dc91568-d251-49bd-b400-b16226ce0bbc
+prediction_id    | prd:cd3e7160-57df-42a8-bcff-499973e4a057
+observable_ref   | sp.small_signal_impedance
+space            | os:sp.rs_bias_response@1.0.0
+expected_outcome | RS_BIAS_INSENSITIVE
+effect           | [{"to_entity_id": "hyp:6dc91568-d251-49bd-b400-b16226ce0bbc", "relation_type": "CONTRADICTS", "implied_authority_class": null, "implied_condition_match": null}]
+falsifier        | D
+
+== debate
+-[ RECORD 1 ]------------------+-----------------------------------------
+debate_id                      | dbt:14f46607-c0ab-489c-83f7-2f1670f10c8b
+rounds                         | 2
+max_rounds                     | 2
+stop_reason                    | MAX_ROUNDS
+escalation_triggers            | {BUNDLES_MATERIALLY_CONFLICT}
+critic_changed_final_set       | t
+position_diversity             | 0.3426
+critic_bundle_divergence       | 0.0000
+surviving_hypothesis_diversity | 0.8550
+initial                        | 5
+surviving                      | 6
+additional_token_count         | 3199
+
+== specialist positions
+-[ RECORD 1 ]--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+role_id              | HYPOTHESIS_ENGINE
+mechanism_view       | The evidence strongly points to either a process-dependent contact resistance or an artefact of the missing correction term, as depletion effects and instrumentation offsets are largely ruled out.
+uncertainties        | {"Whether the missing contact-resistance term in the extraction script fully accounts for the 50% difference.","Whether the mesh artefact is present in the simulated structure."}
+proposed_predictions | []
+confounders          | {"Uncorrected extraction scripts masking true device behavior.","Simulation mesh sensitivities mimicking physical resistance differences."}
+-[ RECORD 2 ]--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+role_id              | sp.specialist.semiconductor_device
+mechanism_view       | The identical junction capacitance (Cj) curves between splits A and B rule out depletion effects and mesh artefacts, as both would perturb the capacitance signature. The ~50% difference in series resistance (Rs) that is weakly bias-dependent points to a constant resistance addition. This is consistent with either a genuine process-dependent contact resistance difference between the splits or an artefact arising from the extraction script missing the contact-resistance correction.
+uncertainties        | {"Whether the observed Rs difference reflects a physical process variation or is purely an artefact of the uncorrected extraction.","Lack of transmission-line measurement (TLM) data to independently verify the contact resistance."}
+proposed_predictions | [{"observable_ref": "Transmission-line measurement (TLM) on the same wafer", "expected_outcome": "Will isolate and quantify the actual contact resistance to confirm if a physical difference exists between splits A and B.", "outcome_space_id": null, "outcome_space_version": null}, {"observable_ref": "Re-extraction of Rs with the contact_resistance_term enabled", "expected_outcome": "Will determine if the 50% Rs difference disappears once the correction is applied.", "outcome_space_id": null, "outcome_space_version": null}]
+confounders          | {"The extraction script reported Rs uncorrected due to an unavailable contact_resistance_term."}
+-[ RECORD 3 ]--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+role_id              | sp.specialist.simulation_numerics
+mechanism_view       | The anomaly could be a numerical or data-processing artefact. A mesh artefact is a candidate, though it is less likely because it would typically perturb the capacitance non-uniformly across the sweep, which contradicts the indistinguishable Cj curves. A more probable artefact is the missing contact-resistance correction during data extraction, as the extraction log explicitly warns that this term was unavailable, leaving the reported series resistance uncorrected.
+uncertainties        | {"Whether a mesh-sensitivity sweep would definitively rule out a mesh artefact despite the capacitance signature.","Whether applying the missing contact-resistance correction would fully resolve the 50% difference in Rs between splits A and B."}
+proposed_predictions | [{"observable_ref": "Mesh-sensitivity sweep on the simulated structure", "expected_outcome": "Rs difference between splits remains unchanged, ruling out a mesh artefact.", "outcome_space_id": null, "outcome_space_version": null}, {"observable_ref": "Re-extraction of Rs with the contact-resistance correction applied", "expected_outcome": "The 50% difference in Rs between splits A and B is eliminated.", "outcome_space_id": null, "outcome_space_version": null}]
+confounders          | {"A genuine process-dependent contact resistance could produce the same constant Rs offset, confounding the identification of an extraction artefact."}
+-[ RECORD 4 ]--------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+role_id              | HYPOTHESIS_ENGINE
+mechanism_view       | The evidence strongly points towards a process-dependent contact resistance or a missing correction in the extraction script, as the series resistance is weakly bias dependent and differs significantly between splits. A bias-dependent contact resistance is contradicted by the observed bias-insensitive series resistance.
+uncertainties        | {"Whether the 50% difference in series resistance is due to actual device differences or an artefact of the missing contact-resistance correction."}
+proposed_predictions | []
+confounders          | {"Missing correction in the extraction script.","Mesh artefacts in the simulated comparison."}
+
+== critique
+-[ RECORD 1 ]----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+critique_id            | crq:21c2693d-0d21-4cf1-b9bf-04aa552afed3
+objections             | [{"kind": "MISSING_CONTROL", "text": "The hypothesis assumes that contact resistance does not vary with reverse bias, but there is no evidence to confirm this assumption. The measured Rs difference could be due to a bias-dependent contact resistance, which the hypothesis fails to account for.", "severity": "CHALLENGES", "target_id": "hyp:cebe720f-cb84-4d9e-801a-6a2ffa88a468", "evidence_attestation_ids": []}, {"kind": "MISSING_CONTROL", "text": "The hypothesis assumes that the simulation mesh is unstable or overly sensitive, but there is no evidence to confirm this assumption. The measured Rs difference could be due to a bias-dependent contact resistance, which the hypothesis fails to account for.", "severity": "CHALLENGES", "target_id": "hyp:1a0b470c-ac8b-4f00-a134-98cabf6ea60a", "evidence_attestation_ids": []}, {"kind": "MISSING_CONTROL", "text": "The hypothesis assumes that the extraction script lacks the contact-resistance term, but there is no evidence to confirm this assumption. The measured Rs difference could be due to a bias-dependent contact resistance, which the hypothesis fails to account for.", "severity": "CHALLENGES", "target_id": "hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c", "evidence_attestation_ids": []}, {"kind": "MISSING_CONTROL", "text": "The hypothesis assumes that a depletion effect is causing the series resistance anomaly, but there is no evidence to confirm this assumption. The measured Rs difference could be due to a bias-dependent contact resistance, which the hypothesis fails to account for.", "severity": "CHALLENGES", "target_id": "hyp:6d245224-008f-440d-a06c-4916fd545399", "evidence_attestation_ids": []}, {"kind": "MISSING_CONTROL", "text": "The hypothesis assumes that elevated probe contact resistance on split B causes the Rs difference, but there is no evidence to confirm this assumption. The measured Rs difference could be due to a bias-dependent contact resistance, which the hypothesis fails to account for.", "severity": "CHALLENGES", "target_id": "hyp:d516f447-085d-4dc4-9306-4b88c65e36e9", "evidence_attestation_ids": []}]
+alternative_mechanisms | {"bias-dependent contact resistance"}
+falsifier_challenges   | [{"text": "The measured Rs difference could be due to a bias-dependent contact resistance, which the hypothesis fails to account for.", "target_id": "hyp:cebe720f-cb84-4d9e-801a-6a2ffa88a468"}]
+blocking_conflicts     | {}
+differs_in             | {RETRIEVAL_BUNDLE,MODEL_ROUTE}
+-[ RECORD 2 ]----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+critique_id            | crq:0585b131-ea08-4420-aa61-0c8d6afeee72
+objections             | [{"kind": "MISSING_CONTROL", "text": "The hypothesis assumes contact resistance does not vary with reverse bias, but the evidence does not provide a control measurement to confirm this.", "severity": "CHALLENGES", "target_id": "hyp:cebe720f-cb84-4d9e-801a-6a2ffa88a468", "evidence_attestation_ids": ["att:83ab749d-2f19-4fb1-9f59-1e5a30c67a81"]}, {"kind": "MISSING_CONTROL", "text": "The hypothesis assumes the simulation mesh is unstable or overly sensitive, but there is no evidence of a stable mesh to compare against.", "severity": "CHALLENGES", "target_id": "hyp:1a0b470c-ac8b-4f00-a134-98cabf6ea60a", "evidence_attestation_ids": ["att:83ab749d-2f19-4fb1-9f59-1e5a30c67a81"]}, {"kind": "MISSING_CONTROL", "text": "The hypothesis assumes the extraction script lacks the contact-resistance term, but there is no evidence of a script with the term to compare against.", "severity": "CHALLENGES", "target_id": "hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c", "evidence_attestation_ids": ["att:83ab749d-2f19-4fb1-9f59-1e5a30c67a81"]}, {"kind": "MISSING_CONTROL", "text": "The hypothesis assumes a depletion effect moves both Cj and Rs together, but there is no evidence of a depletion effect on Rs to compare against.", "severity": "CHALLENGES", "target_id": "hyp:6d245224-008f-440d-a06c-4916fd545399", "evidence_attestation_ids": ["att:83ab749d-2f19-4fb1-9f59-1e5a30c67a81"]}, {"kind": "MISSING_CONTROL", "text": "The hypothesis assumes elevated probe contact resistance on split B causes the Rs difference, but there is no evidence of a nominal probe contact resistance to compare against.", "severity": "CHALLENGES", "target_id": "hyp:d516f447-085d-4dc4-9306-4b88c65e36e9", "evidence_attestation_ids": ["att:83ab749d-2f19-4fb1-9f59-1e5a30c67a81"]}, {"kind": "CAUSAL_GAP", "text": "The hypothesis assumes bias-dependent contact resistance, but the evidence does not provide a direct causal link between bias and contact resistance.", "severity": "CHALLENGES", "target_id": "hyp:6dc91568-d251-49bd-b400-b16226ce0bbc", "evidence_attestation_ids": ["att:83ab749d-2f19-4fb1-9f59-1e5a30c67a81"]}]
+alternative_mechanisms | {"A probe contact resistance that varies with the probe tip pressure or probe station setup could cause the Rs difference between splits A and B."}
+falsifier_challenges   | [{"text": "The Rs difference is not caused by a process-dependent contact resistance if the series resistance falls with reverse bias.", "target_id": "hyp:cebe720f-cb84-4d9e-801a-6a2ffa88a468"}]
+blocking_conflicts     | {}
+differs_in             | {MODEL_ROUTE}
+
+== verification plans
+-[ RECORD 1 ]--------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+plan_id              | vpl:5b5d2b69-4b76-4c8c-9d82-042486ef8f21
+candidate_action_ids | {cap:sp.extraction_consistency,cap:sp.fourpoint_probe}
+ranked_action_ids    | {cap:sp.extraction_consistency,cap:sp.fourpoint_probe}
+pareto_front_ids     | {cap:sp.extraction_consistency}
+chosen_action_id     | cap:sp.extraction_consistency
+sufficiency_results  | {"cap:sp.fourpoint_probe": {"reason": null, "metric_ref": null, "sufficient": true, "implausible": [], "disagreement": null, "discriminating": [["hyp:d516f447-085d-4dc4-9306-4b88c65e36e9", "CHALLENGED", "NOMINAL"], ["hyp:d516f447-085d-4dc4-9306-4b88c65e36e9", "CONTRADICTED", "NOMINAL"], ["hyp:d516f447-085d-4dc4-9306-4b88c65e36e9", "SUPPORTED", "ELEVATED"], ["hyp:d516f447-085d-4dc4-9306-4b88c65e36e9", "SUPPORTED", "ELEVATED"]]}, "cap:sp.extraction_consistency": {"reason": null, "metric_ref": null, "sufficient": true, "implausible": [], "disagreement": null, "discriminating": [["hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c", "CHALLENGED", "AGREES"], ["hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c", "CONTRADICTED", "AGREES"], ["hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c", "SUPPORTED", "DISAGREES"], ["hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c", "SUPPORTED", "DISAGREES"]]}}
+rationale            | {"summary": "cap:sp.extraction_consistency (ANALYTICAL_RULE_CHECK) is sufficient and nothing cheaper remains", "decision": "ACT", "tradeoffs": [{"cost": {"token_count": 0, "irreversible": false, "wall_clock_s": 2, "compute_units": 0, "human_minutes": 0, "license_seat_s": 0, "money_estimate": "0", "dependency_risk": "NONE", "earliest_available_at": null}, "action_id": "cap:sp.extraction_consistency", "action_type": "ANALYTICAL_RULE_CHECK", "dominated_by": [], "pareto_layer": 0}, {"cost": {"token_count": 0, "irreversible": false, "wall_clock_s": 14400, "compute_units": 0, "human_minutes": 90, "license_seat_s": 0, "money_estimate": "250", "dependency_risk": "MEDIUM", "earliest_available_at": null}, "action_id": "cap:sp.fourpoint_probe", "action_type": "MEASUREMENT", "dominated_by": ["cap:sp.extraction_consistency"], "pareto_layer": 1}], "escalation": [], "precedents": [], "existing_evidence": []}
+created_at           | 2026-10-13 11:54:19.788647+00
+-[ RECORD 2 ]--------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+plan_id              | vpl:3e06eed1-084d-4bb2-bee6-50e830e6abe1
+candidate_action_ids | {cap:sp.fourpoint_probe}
+ranked_action_ids    | {cap:sp.fourpoint_probe}
+pareto_front_ids     | {cap:sp.fourpoint_probe}
+chosen_action_id     | cap:sp.fourpoint_probe
+sufficiency_results  | {"cap:sp.fourpoint_probe": {"reason": null, "metric_ref": null, "sufficient": true, "implausible": [], "disagreement": null, "discriminating": [["hyp:d516f447-085d-4dc4-9306-4b88c65e36e9", "CHALLENGED", "NOMINAL"], ["hyp:d516f447-085d-4dc4-9306-4b88c65e36e9", "CONTRADICTED", "NOMINAL"], ["hyp:d516f447-085d-4dc4-9306-4b88c65e36e9", "SUPPORTED", "ELEVATED"], ["hyp:d516f447-085d-4dc4-9306-4b88c65e36e9", "SUPPORTED", "ELEVATED"]]}}
+rationale            | {"summary": "cap:sp.fourpoint_probe (MEASUREMENT) is sufficient and nothing cheaper remains; 1 check(s) already executed in this episode", "decision": "ACT", "tradeoffs": [{"cost": {"token_count": 0, "irreversible": false, "wall_clock_s": 14400, "compute_units": 0, "human_minutes": 90, "license_seat_s": 0, "money_estimate": "250", "dependency_risk": "MEDIUM", "earliest_available_at": null}, "action_id": "cap:sp.fourpoint_probe", "action_type": "MEASUREMENT", "dominated_by": [], "pareto_layer": 0}], "escalation": [{"reason": "executed earlier in this episode; its outcome is on record and is already reflected in the rivals' admitted evidence", "action_id": "cap:sp.extraction_consistency"}], "precedents": [], "existing_evidence": []}
+created_at           | 2026-10-13 11:54:20.245766+00
+
+== executed checks (Job -> Run -> Observation -> Attestation)
+-[ RECORD 1 ]----+------------------------------------------------------------------------------
+job_id           | job:6597c2d2-ea74-4873-8557-ee9359727b5c
+capability_id    | cap:sp.extraction_consistency
+state            | SUCCEEDED
+run_id           | run:6597c2d2-ea74-4873-8557-ee9359727b5c
+backend_id       | sp.local.normalization_basis_reader
+status           | SUCCEEDED
+output_artifacts | {art:sha256:049ad77f4ed175dd1e7d7a7647b0128d5762bf81d80a55ed97b4a98af7547281}
+observation_id   | obs:999b9da0-5c6b-493d-962d-3db033ea5e3e
+metric_or_event  | sp.normalization_basis
+value_text       | AGREES
+attestation_id   | att:79bd3172-861c-4e85-80ff-dfae50108a3e
+epistemic_type   | OBSERVED
+att_space        | os:sp.normalization_basis@1.0.0
+
+== relation judgments instantiated by this episode's observations
+-[ RECORD 1 ]--------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+relation_id                | rel:c1df3dca-4f78-4e2e-b7c6-b547e7f41ead
+from_entity_id             | obs:999b9da0-5c6b-493d-962d-3db033ea5e3e
+to_entity_id               | hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c
+relation_type              | CONTRADICTS
+attributes                 | {"run_id": "run:6597c2d2-ea74-4873-8557-ee9359727b5c", "outcome": "AGREES", "capability_id": "cap:sp.extraction_consistency", "outcome_space": "os:sp.normalization_basis@1.0.0", "prediction_id": "prd:463d8a6b-c5fe-4b34-bd5c-c6bc1b047252"}
+supporting_attestation_ids | {att:79bd3172-861c-4e85-80ff-dfae50108a3e}
+
+== governed decisions
+-[ RECORD 1 ]-+-----------------------------------------
+decision_id   | dec:f089e5fa-11e6-466c-b63a-939fbe3d98d0
+subject_id    | hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c
+decision_type | BELIEF_TRANSITION
+result        | ALLOW
+from_state    | ACTIVE
+to_state      | CONTRADICTED
+policy_id     | policy:sp-fidelity-reject
+created_at    | 2026-10-13 11:54:20.068553+00
+
+== belief events on this episode's hypotheses
+-[ RECORD 1 ]-------------+-----------------------------------------
+event_id                  | bre:bcb27774-84d6-42d6-ae92-c92430d5f6c3
+target_id                 | hyp:cebe720f-cb84-4d9e-801a-6a2ffa88a468
+from_state                | 
+to_state                  | ACTIVE
+policy_id                 | tp:research.admission
+authorization_decision_id | 
+occurred_at               | 2026-10-13 11:34:49.889185+00
+-[ RECORD 2 ]-------------+-----------------------------------------
+event_id                  | bre:da300e29-4d34-4a2a-8f15-fbe6c22e7823
+target_id                 | hyp:1a0b470c-ac8b-4f00-a134-98cabf6ea60a
+from_state                | 
+to_state                  | ACTIVE
+policy_id                 | tp:research.admission
+authorization_decision_id | 
+occurred_at               | 2026-10-13 11:34:49.889185+00
+-[ RECORD 3 ]-------------+-----------------------------------------
+event_id                  | bre:95683d24-1ef6-4d80-a178-5e899666adf6
+target_id                 | hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c
+from_state                | 
+to_state                  | ACTIVE
+policy_id                 | tp:research.admission
+authorization_decision_id | 
+occurred_at               | 2026-10-13 11:34:49.889185+00
+-[ RECORD 4 ]-------------+-----------------------------------------
+event_id                  | bre:98a72c47-0c5e-44b4-bbf1-4ef843343794
+target_id                 | hyp:6d245224-008f-440d-a06c-4916fd545399
+from_state                | 
+to_state                  | ACTIVE
+policy_id                 | tp:research.admission
+authorization_decision_id | 
+occurred_at               | 2026-10-13 11:34:49.889185+00
+-[ RECORD 5 ]-------------+-----------------------------------------
+event_id                  | bre:a7e558c2-1328-4319-9856-36500b1e8041
+target_id                 | hyp:d516f447-085d-4dc4-9306-4b88c65e36e9
+from_state                | 
+to_state                  | ACTIVE
+policy_id                 | tp:research.admission
+authorization_decision_id | 
+occurred_at               | 2026-10-13 11:34:49.889185+00
+-[ RECORD 6 ]-------------+-----------------------------------------
+event_id                  | bre:1bcb6b12-ef12-4f1c-ba4d-ecaee9110bb6
+target_id                 | hyp:6dc91568-d251-49bd-b400-b16226ce0bbc
+from_state                | 
+to_state                  | ACTIVE
+policy_id                 | tp:research.admission
+authorization_decision_id | 
+occurred_at               | 2026-10-13 11:47:52.44915+00
+-[ RECORD 7 ]-------------+-----------------------------------------
+event_id                  | bre:117311b9-247d-4228-8281-5dbf8bf1093e
+target_id                 | hyp:1bb80e38-1dfd-4fa3-bf74-64656f44805c
+from_state                | ACTIVE
+to_state                  | CONTRADICTED
+policy_id                 | policy:sp-fidelity-reject
+authorization_decision_id | dec:f089e5fa-11e6-466c-b63a-939fbe3d98d0
+occurred_at               | 2026-10-13 11:54:20.068553+00
+
+== BudgetGate cost entries (tokens, wall clock)
+-[ RECORD 1 ]+----------
+cost_kind    | ACTUAL
+entries      | 10
+tokens       | 5548
+wall_clock_s | 1344.0
+-[ RECORD 2 ]+----------
+cost_kind    | ESTIMATED
+entries      | 10
+tokens       | 3867
+wall_clock_s | 2.0
+
+COMMIT

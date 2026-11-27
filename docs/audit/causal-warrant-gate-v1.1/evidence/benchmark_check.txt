@@ -1,0 +1,3 @@
+Root-cause benchmark at 6717521, fresh database (63 migrations), 2026-10-14
+$ python scripts/run_root_cause_benchmark.py --disposable --check
+OK    benchmarks/root_cause_benchmark_report.md is current

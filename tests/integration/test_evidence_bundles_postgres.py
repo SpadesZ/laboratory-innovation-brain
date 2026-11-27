@@ -18,6 +18,7 @@ import pytest
 from lab_brain.core.models import compute_content_hash
 from lab_brain.core.models.evidence_bundle import EvidenceBundle, ResearchIntent
 from tests.conftest_fixtures import TOY_SCHEMA, TOY_SCHEMA_REF
+from tests.postgres_fixtures import place_artifact
 
 pytestmark = pytest.mark.postgres
 
@@ -73,6 +74,7 @@ def db_with_attestations(db):  # type: ignore[no-untyped-def]
         "VALUES (%s, %s, 'application/pdf', 'file:///p.pdf', %s, 'UPLOAD')",
         (f"art:{HASH_A}", HASH_A, f"art:{HASH_A}"),
     )
+    place_artifact(db, f"art:{HASH_A}")
     db.execute("INSERT INTO claims (claim_id, normalized_proposition) VALUES ('clm:1', 'p')")
     for suffix in ("a", "b", "c"):
         db.execute(

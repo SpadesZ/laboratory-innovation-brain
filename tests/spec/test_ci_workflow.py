@@ -117,6 +117,36 @@ def test_the_ratchet_does_not_run_where_it_cannot_pass(workflow):
     )
 
 
+def test_every_declared_gate_profile_can_be_met_where_the_ratchet_runs(workflow):
+    """Checked for EVERY milestone, not only DONE ones -- before sign-off, not at it.
+
+    The two tests above look only at DONE milestones, so a profile no CI job can ever enable sits
+    unnoticed until the day the milestone is signed off, and then the ratchet fails and the
+    tempting fix is to weaken it. M5 declared `[postgres, network]` from the catalog's first
+    version -- stricter than SAI, whose GH-001 test is fixture-based, and unmeetable by the offline
+    CI AGT-007 requires. A milestone's profile must name only gates the ratchet's own job enables;
+    a live-network or licensed check that is useful but not normative stays an optional,
+    unmarked test instead.
+    """
+    catalog = load_milestones()
+    jobs = _jobs_running(workflow, RATCHET)
+    enabled = {
+        gate
+        for job in jobs.values()
+        for gate, env_var in GATE_ENV_VARS.items()
+        if env_var in (job.get("env") or {})
+    }
+    unmeetable = {
+        milestone.milestone_id: sorted(set(milestone.gate_profile) - enabled)
+        for milestone in catalog.milestones
+        if set(milestone.gate_profile) - enabled
+    }
+    assert not unmeetable, (
+        f"milestones declare gates the ratchet's CI job never enables: {unmeetable}. The "
+        "ratchet could never sign them off; declare only the normative gate profile"
+    )
+
+
 def test_the_ratchet_runs_after_the_whole_suite_in_its_job(workflow):
     """Order matters: it reads the report the pytest run produced.
 

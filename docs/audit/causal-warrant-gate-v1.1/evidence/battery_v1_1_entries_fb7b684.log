@@ -1,0 +1,111 @@
+45 mutations
+
+[KILLED ] unwarranted_conclusions_are_precedents
+           Causal Warrant Gate -- case memory reads warranted conclusions only
+           killed by FAILED tests/unit/test_root_cause_trace.py::test_the_in_memory_failure_store_is_append_only_and_cand
+
+[KILLED ] the_resolver_counts_unverified_answers
+           Causal Warrant Gate V1.1 -- an answer counts only if its reviewer's signature verifies
+           killed by FAILED tests/unit/test_reviewer_identity.py::test_the_resolver_counts_only_answers_that_verify
+
+[KILLED ] a_grant_signature_is_not_checked
+           Causal Warrant Gate V1.1 -- the reviewer's signature over the whole answer is verified
+           killed by FAILED tests/unit/test_reviewer_identity.py::test_an_answer_verifies_under_its_enrolled_key_and_any_
+
+[KILLED ] an_enrolment_signature_is_not_checked
+           Causal Warrant Gate V1.1 -- an enrolment counts only under a pinned authority's signature
+           killed by FAILED tests/unit/test_reviewer_identity.py::test_an_edited_enrolment_no_longer_verifies
+
+[KILLED ] any_key_may_claim_the_authority
+           Causal Warrant Gate V1.1 -- an authority key acts only for the person it is pinned for
+           killed by FAILED tests/unit/test_reviewer_identity.py::test_only_a_pinned_authority_enrols_and_never_itself
+
+[KILLED ] an_unpinned_key_is_an_authority
+           Causal Warrant Gate V1.1 -- only a key pinned outside the database is an authority
+           killed by FAILED tests/unit/test_reviewer_identity.py::test_only_a_pinned_authority_enrols_and_never_itself
+
+[KILLED ] a_revoked_key_still_answers
+           Causal Warrant Gate V1.1 -- a revoked key answers nothing from its revocation
+           killed by FAILED tests/unit/test_reviewer_identity.py::test_a_revoked_key_answers_nothing_from_its_revocation
+
+[SURVIVED] an_answer_may_predate_its_key
+           Causal Warrant Gate V1.1 -- an answer cannot predate the enrolment of its key
+           SURVIVED — tests still pass with the guard disabled
+
+[KILLED ] an_unsigned_answer_counts
+           Causal Warrant Gate V1.1 -- an unsigned answer is no answer
+           killed by FAILED tests/unit/test_reviewer_identity.py::test_naming_the_pi_does_not_make_an_answer_the_pis
+
+[SURVIVED] another_persons_enrolment_signs
+           Causal Warrant Gate V1.1 -- an answer is signed under the answering person's own enrolment
+           SURVIVED — tests still pass with the guard disabled
+
+[KILLED ] a_flagged_conclusion_is_relied_on
+           Causal Warrant Gate V1.1 -- a flagged conclusion feeds neither case memory nor the miner
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_person_flags_a_conclusion_and_case_mem
+
+[KILLED ] an_unverifiable_review_conclusion_is_relied_on
+           Causal Warrant Gate V1.1 -- a conclusion resting on an answer nothing verified is not relied on
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_signed_answer_still_confirms_and_is_re
+
+[KILLED ] the_confirmation_verifier_accepts_anything
+           Causal Warrant Gate V1.1 -- every answer in a confirmed cause's set must verify before reuse
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_signed_answer_still_confirms_and_is_re
+
+[KILLED ] declarations_are_not_registered
+           Causal Warrant Gate V1.1 -- the confirmation rule in SQL reads the code's own declarations
+           killed by FAILED tests/e2e/test_causal_warrant_counterexample_postgres.py::test_the_catalog_mechanism_confirms
+
+[KILLED ] a_stranger_declaration_version_is_accepted
+           Causal Warrant Gate V1.1 -- a declaration version the code does not declare stops the run
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_registered_declarations_must_be_the_code
+
+[KILLED ] a_changed_declaration_digest_is_accepted
+           Causal Warrant Gate V1.1 -- a registered declaration version must be the code's, by digest
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_registered_declarations_must_be_the_code
+
+[KILLED ] the_review_sweep_is_not_run
+           Causal Warrant Gate V1.1 -- every research run closes the project's overdue reviews first
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_research_run_expires_overdue_reviews_b
+
+[SURVIVED] the_review_queue_command_ignores_its_declarer
+           Causal Warrant Gate V1.1 -- a review queue's expiry is a member's standing decision
+           SURVIVED — tests still pass with the guard disabled
+
+[KILLED ] sql_an_unsigned_answer_is_written
+           Causal Warrant Gate V1.1 (012p) -- every new answer carries an enrolment and a signature
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_an_answer_written_as_the_pi_without_the_
+
+[KILLED ] sql_another_persons_enrolment_signs
+           Causal Warrant Gate V1.1 (012p) -- an answer is signed under its reviewer's own enrolment
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_an_answer_is_signed_under_its_own_enrolm
+
+[KILLED ] sql_a_revoked_enrolment_answers
+           Causal Warrant Gate V1.1 (012p) -- a revoked enrolment answers nothing more
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_a_revoked_key_answers_nothing_more
+
+[KILLED ] sql_an_answer_predates_its_key
+           Causal Warrant Gate V1.1 (012p) -- an answer is dated after its key's enrolment
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_an_answer_is_signed_under_its_own_enrolm
+
+[KILLED ] sql_an_answer_predates_its_question
+           Causal Warrant Gate V1.1 (012p) -- an answer is dated after its question
+           killed by FAILED tests/e2e/test_causal_warrant_v1_1_postgres.py::test_an_answer_is_signed_under_its_own_enrolm
+
+Traceback (most recent call last):
+  File "C:\Users\Franky Kuo\Desktop\SiPh Lab Brain\lib-battery\scripts\mutation_battery.py", line 4753, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "C:\Users\Franky Kuo\Desktop\SiPh Lab Brain\lib-battery\scripts\mutation_battery.py", line 4742, in main
+    ok, detail = run(mutation)
+                 ^^^^^^^^^^^^^
+  File "C:\Users\Franky Kuo\Desktop\SiPh Lab Brain\lib-battery\scripts\mutation_battery.py", line 4697, in run
+    return run_sql(mutation)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Franky Kuo\Desktop\SiPh Lab Brain\lib-battery\scripts\mutation_battery.py", line 4669, in run_sql
+    db.execute(source.replace(mutation.old, mutation.new, 1))
+  File "C:\Users\Franky Kuo\Desktop\SiPh Lab Brain\lib-battery\.venv\Lib\site-packages\psycopg\connection.py", line 300, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.SyntaxError: syntax error at or near "||"
+LINE 75: ... %, so no reviewer key can be enrolled for them ' || CASE WH...
+                                                              ^

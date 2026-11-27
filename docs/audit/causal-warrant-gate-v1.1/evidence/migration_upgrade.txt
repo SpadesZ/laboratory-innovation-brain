@@ -1,0 +1,13 @@
+Upgrade paths, 2026-10-14 (copies of V1 development databases holding data)
+
+lab_brain_cwg4 (62 migrations, through 012o; 1 unsigned V1 grant, 1 CONFIRMED analysis citing it):
+  applied  012p_causal_warrant_gate_v1_1.sql -> applied 1 migration(s)
+  afterwards: grant dwg:1 enrolment_id IS NULL, signature IS NULL (unchanged; counts as no answer)
+  afterwards: fan:normalization-taper-least_cost-failure_analysis-0002 warrant_refs {dwg:1} (unchanged; not trusted for reuse)
+  failure_analysis_flags: 0 (the recorded row is not in this database)
+
+lab_brain_cwg_verify (61 migrations, through 012n):
+  applied  012o_causal_warrant_gate.sql
+  applied  012p_causal_warrant_gate_v1_1.sql -> applied 2 migration(s)
+
+fresh database: applied 63 migration(s)

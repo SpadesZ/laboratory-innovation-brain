@@ -1,0 +1,135 @@
+33 mutations
+
+[KILLED ] a_continuation_reasons_under_the_default_label
+           Research integrity F-01 (012q) -- a continuation reasons under the question's recorded classification
+           killed by FAILED tests/e2e/test_web_debate_retry_postgres.py::test_a_continued_debate_reasons_under_the_questi
+
+[KILLED ] a_continuation_may_change_the_label
+           Research integrity F-01 (012q) -- a continuation that declares another classification is refused
+           killed by FAILED tests/e2e/test_question_classification_postgres.py::test_a_continuation_carries_the_recorded_
+
+[KILLED ] an_older_episode_continues_under_a_default
+           Research integrity F-01 (012q) -- an episode opened before 012q continues only under a declared classification
+           killed by FAILED tests/e2e/test_question_classification_postgres.py::test_an_episode_opened_before_012q_contin
+
+[KILLED ] a_question_above_clearance_is_asked
+           Research integrity F-01 (012q) -- a question is opened only at a level its asker may read
+           killed by FAILED tests/e2e/test_question_classification_postgres.py::test_an_episode_opens_only_under_a_declar
+
+[SURVIVED] a_continuation_above_clearance_is_asked
+           Research integrity F-01 (012q) -- a question is continued only by someone cleared for its classification
+           SURVIVED — tests still pass with the guard disabled
+
+[KILLED ] the_cli_continues_under_a_default_label
+           Research integrity F-01 (012q) -- the command line never fills in a classification
+           killed by FAILED tests/e2e/test_question_classification_postgres.py::test_an_episode_opened_before_012q_contin
+
+[KILLED ] the_web_continues_above_clearance
+           Research integrity F-01 (012q) -- the research page accepts a declared classification only within clearance
+           killed by FAILED tests/e2e/test_question_classification_postgres.py::test_the_web_asks_an_older_episode_for_it
+
+[KILLED ] the_web_asks_no_declaration
+           Research integrity F-01 (012q) -- the research page asks for an older episode's classification
+           killed by FAILED tests/e2e/test_question_classification_postgres.py::test_the_web_asks_an_older_episode_for_it
+
+[KILLED ] sql_a_run_without_a_question_label
+           Research integrity F-01 (012q) -- every research run written records its question's classification
+           killed by FAILED tests/e2e/test_question_classification_postgres.py::test_the_database_holds_the_classificatio
+
+[KILLED ] sql_a_continuation_changes_the_label
+           Research integrity F-01 (012q) -- a later run of an episode carries the recorded classification
+           killed by FAILED tests/e2e/test_question_classification_postgres.py::test_the_database_holds_the_classificatio
+
+[KILLED ] sql_a_question_label_is_edited
+           Research integrity F-01 (012q) -- a run's recorded classification is never changed
+           killed by FAILED tests/e2e/test_question_classification_postgres.py::test_the_database_holds_the_classificatio
+
+[KILLED ] the_invalidation_overwrites_the_author
+           Research integrity F-02 (012r) -- an invalidation records the invalidator beside the author
+           killed by FAILED tests/unit/test_relation_invalidation.py::test_invalidate_preserves_every_other_field
+
+[KILLED ] the_store_drops_the_invalidator
+           Research integrity F-02 (012r) -- the store writes who invalidated a relation
+           killed by FAILED tests/integration/test_relation_invalidation_postgres.py::test_the_store_records_the_invalida
+
+[KILLED ] a_snapshot_carries_an_unset_invalidator
+           Research integrity F-02 (012r) -- a stored decision snapshot still re-derives byte-exact
+           killed by FAILED tests/unit/test_pre_gate_history.py::test_a_stored_snapshot_canonicalises_to_exactly_what_was
+
+[KILLED ] the_review_packet_joins_across_projects
+           Research integrity F-02 (012r) -- a review packet shows the relation's own project's hypothesis
+           killed by FAILED tests/e2e/test_causal_warrant_counterexample_postgres.py::test_the_review_packet_reads_only_i
+
+[KILLED ] the_review_rivals_cross_projects
+           Research integrity F-02 (012r) -- a review packet's rivals are the relation's own project's
+           killed by FAILED tests/e2e/test_causal_warrant_counterexample_postgres.py::test_the_review_packet_reads_only_i
+
+[KILLED ] sql_a_relation_author_is_rewritten
+           Research integrity F-02 (012r) -- a relation's author is immutable
+           killed by FAILED tests/integration/test_relation_invalidation_postgres.py::test_a_closed_relation_is_never_reo
+
+[KILLED ] sql_an_invalidation_is_reopened
+           Research integrity F-02 (012r) -- a closed relation is never reopened, re-dated or re-attributed
+           killed by FAILED tests/integration/test_relation_invalidation_postgres.py::test_a_closed_relation_is_never_reo
+
+[KILLED ] sql_an_invalidation_names_nobody
+           Research integrity F-02 (012r) -- an invalidation names who made it
+           killed by FAILED tests/integration/test_relation_invalidation_postgres.py::test_a_current_relation_keeps_its_a
+
+[KILLED ] sql_a_relation_is_deleted
+           Research integrity F-02 (012r) -- a relation is never deleted
+           killed by FAILED tests/integration/test_relation_invalidation_postgres.py::test_a_relation_is_never_deleted
+
+[KILLED ] sql_an_observation_names_another_projects_run
+           Research integrity F-03 (012s) -- an observation's run is a run of its project
+           killed by FAILED tests/integration/test_project_scoped_provenance_postgres.py::test_an_observation_names_only_
+
+[KILLED ] sql_an_observation_names_an_absent_artifact
+           Research integrity F-03 (012s) -- an observation's artifact is present in its project
+           killed by FAILED tests/integration/test_project_scoped_provenance_postgres.py::test_an_observation_names_only_
+
+[KILLED ] sql_an_attestation_names_another_projects_observation
+           Research integrity F-03 (012s) -- an attestation's observation is an observation of its project
+           killed by FAILED tests/integration/test_project_scoped_provenance_postgres.py::test_an_attestation_names_only_
+
+[KILLED ] sql_an_attestation_cites_an_absent_artifact
+           Research integrity F-03 (012s) -- an attestation's artifact is present in its project
+           killed by FAILED tests/integration/test_project_scoped_provenance_postgres.py::test_an_attestation_names_only_
+
+[KILLED ] sql_an_attestation_names_another_projects_run
+           Research integrity F-03 (012s) -- an attestation's run is a run of its project
+           killed by FAILED tests/integration/test_project_scoped_provenance_postgres.py::test_an_attestation_names_only_
+
+[KILLED ] sql_a_relation_rests_on_another_projects_attestation
+           Research integrity F-03 (012s) -- a relation rests only on attestations of its project that exist
+           killed by FAILED tests/integration/test_project_scoped_provenance_postgres.py::test_a_relation_rests_only_on_i
+
+[KILLED ] sql_a_relation_names_another_projects_inference
+           Research integrity F-03 (012s) -- a relation's inference is a recorded inference of its project
+           killed by FAILED tests/integration/test_project_scoped_provenance_postgres.py::test_a_relation_rests_only_on_i
+
+[KILLED ] sql_a_bundle_holds_another_projects_attestation
+           Research integrity F-03 (012s) -- a bundle holds only attestations of its project
+           killed by FAILED tests/integration/test_project_scoped_provenance_postgres.py::test_a_bundle_holds_only_its_pr
+
+[KILLED ] sql_a_heuristic_cites_an_absent_artifact
+           Research integrity F-03 (012s) -- a candidate heuristic's source artifacts are present in its project
+           killed by FAILED tests/integration/test_project_scoped_provenance_postgres.py::test_a_candidate_heuristic_cite
+
+[KILLED ] sql_a_heuristic_cites_another_projects_episode
+           Research integrity F-03 (012s) -- a candidate heuristic's source episodes are episodes of its project
+           killed by FAILED tests/integration/test_project_scoped_provenance_postgres.py::test_a_candidate_heuristic_cite
+
+[KILLED ] sql_an_observation_reference_moves_by_update
+           Research integrity F-03 (012s) -- moving an observation's reference is checked like writing it
+           killed by FAILED tests/integration/test_project_scoped_provenance_postgres.py::test_a_reference_moved_to_anoth
+
+[KILLED ] sql_an_attestation_reference_moves_by_update
+           Research integrity F-03 (012s) -- moving an attestation's reference is checked like writing it
+           killed by FAILED tests/integration/test_project_scoped_provenance_postgres.py::test_a_reference_moved_to_anoth
+
+[KILLED ] sql_the_view_hides_a_dangling_inference
+           Research integrity F-03 (012s) -- the history view lists a relation whose inference is not its project's
+           killed by FAILED tests/integration/test_project_scoped_provenance_postgres.py::test_the_view_lists_stored_rows
+
+32/33 killed

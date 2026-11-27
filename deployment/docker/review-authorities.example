@@ -1,0 +1,18 @@
+# Review authorities for diagnostic warrant reviews (Causal Warrant Gate V1.1).
+#
+# One line per authority:   <act:id> ed25519:<base64 public key>
+#
+# An authority enrols reviewers' keys (`lab-brain review enrol`); an answer to a warrant review
+# counts only if it is signed with a key an authority listed here enrolled for that person in that
+# project. This file is the trust anchor and lives OUTSIDE the database on purpose: whoever can
+# write the database cannot make themselves an authority.
+#
+# THIS EXAMPLE PINS NO AUTHORITY, so no reviewer's answer verifies and every belief that needs a
+# person waits (fail closed). To pin one:
+#   1. the authority runs `lab-brain review keygen --out authority.key` on their own machine and
+#      keeps the private key there;
+#   2. the operator copies this file to `review-authorities` next to it (git-ignored), adds the
+#      printed line, and points LAB_BRAIN_REVIEW_AUTHORITIES_FILE at it in `.env`;
+#   3. `docker compose up` mounts it read-only into every service.
+#
+# act:pi ed25519:REPLACE_WITH_THE_AUTHORITY_PUBLIC_KEY

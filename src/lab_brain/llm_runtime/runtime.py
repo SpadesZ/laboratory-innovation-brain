@@ -1,0 +1,774 @@
+"""The LLM settings workflow, and the active runtime the research service reasons with.
+
+`LLMSettings` is the operation behind each step of the workspace's LLM settings:
+
+    Connection -> Fetch/declare model -> Capability test -> Lock -> Slot binding -> Readiness
+    -> Activate
+
+Every step writes through `SqlLLMRegistry`, whose rules are the database's; this layer adds what
+the database cannot see -- a URL's host, a credential in the operating system's store, what a
+provider actually answered.
+
+`load_active_runtime` turns the ACTIVE runtime into the `ReasoningRuntime` the research service
+builds its one `ScientificLLM` from. With no active runtime it returns `None`, and the service
+uses its explicit fallback, the local catalog reasoner. With an active runtime that cannot be used
+-- a credential that is no longer readable, or a route this deployment may not use (judged under
+the deployment's own declaration of which hosts are this machine, a required argument) -- it
+RAISES: a research run is refused rather than silently reasoned by something other than what is
+active.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import re
+from collections.abc import Callable, Iterable, Sequence
+from contextlib import suppress
+from dataclasses import dataclass
+from typing import Any, TypeVar
+from urllib.parse import urlsplit
+
+from lab_brain.cognition.llm import ModelSlot
+from lab_brain.core.models.base import utc_now
+from lab_brain.core.models.enums import SensitivityLabel
+from lab_brain.core.models.inference import LogicalSlot
+from lab_brain.llm_runtime.authority import ProjectEgressPolicies, is_administrator
+from lab_brain.llm_runtime.capabilities import BUILTIN_EMBEDDING, Capability, roles_on
+from lab_brain.llm_runtime.contracts import contract_for
+from lab_brain.llm_runtime.probes import GENERIC_HYPOTHESIS_MINIMUM, PROBE_ORDER, run_probe
+from lab_brain.llm_runtime.provider import (
+    OpenAICompatibleClient,
+    ProviderError,
+    endpoint_refusal,
+    is_this_machine_url,
+    plaintext_refusal,
+)
+from lab_brain.llm_runtime.readiness import (
+    Readiness,
+    critic_route,
+    deadline_problem,
+    egress_route,
+    evaluate,
+    hypothesis_fit_problem,
+)
+from lab_brain.llm_runtime.registry import (
+    ConnectionRow,
+    HealthRow,
+    ModelRow,
+    ProbeRow,
+    RegistryRefused,
+    RuntimeRow,
+    SqlLLMRegistry,
+)
+from lab_brain.llm_runtime.secrets import (
+    SecretError,
+    SecretRef,
+    SecretStore,
+    SecretUnavailable,
+    fingerprint,
+    looks_like_credential,
+    parse_secret_ref,
+    redact,
+)
+from lab_brain.research.reasoning import ReasoningRuntime
+from lab_brain.security.egress import EgressPolicy
+from lab_brain.security.external import ExternalReach
+
+_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]{0,47}$")
+
+T = TypeVar("T")
+
+#: Evidence labels an EXTERNAL route may be declared to carry. Never RESTRICTED_NDA (§14.1).
+EXTERNAL_LABELS: tuple[str, ...] = (
+    SensitivityLabel.PUBLIC.value,
+    SensitivityLabel.INTERNAL.value,
+    SensitivityLabel.CONFIDENTIAL_LAB.value,
+)
+
+
+#: The longest a model call waits for its answer, unless the deployment sets its own
+#: (`lab-brain web --inference-deadline`, `LAB_BRAIN_INFERENCE_DEADLINE`). ONE deadline per
+#: deployment: the capability probes that qualify a model and the research calls an active runtime
+#: makes both use it, so a model is never qualified under a longer wait than research grants it.
+DEFAULT_INFERENCE_DEADLINE_S = 180.0
+
+#: Listing a provider's models and checking its health: an operational question, answered fast,
+#: and not a judgement of inference -- so it does not use the inference deadline.
+DISCOVERY_TIMEOUT_S = 20.0
+
+
+def checked_deadline(seconds: float) -> float:
+    """A usable inference deadline, or ValueError."""
+    if not 1.0 <= seconds <= 86_400.0:
+        raise ValueError("the inference deadline is between 1 and 86400 seconds")
+    return float(seconds)
+
+
+class SettingsRefused(ValueError):
+    """A settings step cannot be taken as asked. Nothing was written.
+
+    `code` names the case (`secret.<...>`, `provider.<...>`) for a page to explain in the
+    researcher's words; the message is the rule as the server says it, and never a credential."""
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+class RuntimeUnavailable(RuntimeError):
+    """A runtime is active and cannot be used: research is refused, not silently re-routed."""
+
+
+ClientFactory = Callable[[str, str | None, float], OpenAICompatibleClient]
+
+
+class LLMSettings:
+    """Every step that changes configuration -- or probes, or records health -- is deployment
+    administration: it refuses an actor who is not a current LLM administrator (`012f`), before
+    anything is written or sent. Reads (the registry, a readiness evaluation) are not."""
+
+    def __init__(
+        self,
+        connection: Any,
+        *,
+        secrets: SecretStore,
+        actor_id: str,
+        clock: Callable[[], dt.datetime] = utc_now,
+        client: ClientFactory | None = None,
+        inference_deadline: float = DEFAULT_INFERENCE_DEADLINE_S,
+        local_hosts: Iterable[str] = (),
+        hypothesis_minimum: int = GENERIC_HYPOTHESIS_MINIMUM,
+    ) -> None:
+        self.registry = SqlLLMRegistry(connection)
+        self._db = connection
+        self._secrets = secrets
+        self._actor = actor_id
+        self._clock = clock
+        #: The deployment's inference deadline: what a capability probe may take, and what
+        #: readiness holds every bound slot's recorded probes to.
+        self._deadline = checked_deadline(inference_deadline)
+        #: How many competing hypotheses the deployment's research asks for: what ROLE_HYPOTHESIS
+        #: is probed at, and what readiness holds a REASONING_PRIMARY model to. The research's own
+        #: number (the web workspace passes its vertical's); §7.4's floor where none is known.
+        if hypothesis_minimum < GENERIC_HYPOTHESIS_MINIMUM:
+            raise ValueError(
+                f"the Hypothesis Engine is never asked for fewer than {GENERIC_HYPOTHESIS_MINIMUM}"
+            )
+        self._hypothesis_minimum = hypothesis_minimum
+        #: Host names besides loopback that are this machine: the Docker host of a containerised
+        #: workspace (`host.docker.internal`), and only when the deployment says it is one.
+        self._local_hosts = frozenset(h.lower() for h in local_hosts)
+        self._client: ClientFactory = client if client is not None else self._declared_client
+
+    def _declared_client(
+        self, base_url: str, key: str | None, timeout: float
+    ) -> OpenAICompatibleClient:
+        """Every client this service builds carries the deployment's declaration, so the
+        transport's own check decides with it -- not with a guess from the host name."""
+        return OpenAICompatibleClient(base_url, key, timeout=timeout, local_hosts=self._local_hosts)
+
+    @property
+    def inference_deadline(self) -> float:
+        return self._deadline
+
+    @property
+    def hypothesis_minimum(self) -> int:
+        return self._hypothesis_minimum
+
+    @property
+    def is_administrator(self) -> bool:
+        return is_administrator(self._db, self._actor)
+
+    def _require_admin(self) -> None:
+        if not self.is_administrator:
+            raise SettingsRefused(
+                f"{self._actor} is not an LLM administrator of this deployment. The language-model "
+                "routes are deployment configuration, granted by the deployment's operator "
+                f"(lab-brain admin llm-admin {self._actor}); project membership does not grant it"
+            )
+
+    # -- 1. connection ----------------------------------------------------------------------------
+
+    def add_connection(
+        self,
+        *,
+        name: str,
+        base_url: str,
+        reach: str,
+        secret_mode: str,
+        env_name: str = "",
+        secret_value: str = "",
+        secret_ref: str = "",
+    ) -> ConnectionRow:
+        self._require_admin()
+        name = name.strip().lower()
+        base_url = base_url.strip().rstrip("/")
+        if not _NAME.match(name) or looks_like_credential(name):
+            raise SettingsRefused(
+                "a connection name is 1-48 lower-case letters, digits, '.', '_' or '-'"
+            )
+        parts = urlsplit(base_url)
+        if parts.scheme not in ("http", "https") or not parts.hostname:
+            raise SettingsRefused("the base URL is http:// or https:// and names a host")
+        if "@" in parts.netloc or parts.query or parts.fragment:
+            raise SettingsRefused(
+                "the base URL carries no credentials, query or fragment; the credential is "
+                "referenced separately"
+            )
+        if reach not in ("LOCAL", "EXTERNAL"):
+            raise SettingsRefused("reach is LOCAL or EXTERNAL")
+        if reach == "LOCAL" and not is_this_machine_url(base_url, self._local_hosts):
+            also = "".join(f", or {h}" for h in sorted(self._local_hosts))
+            raise SettingsRefused(
+                "LOCAL may only be declared of this machine (127.0.0.1, localhost or "
+                f"[::1]{also}); a model on any other host is EXTERNAL"
+            )
+        # Before any credential is stored, resolved or even parsed: whichever way it would come
+        # (pasted, environment variable, existing reference), it would cross a network in clear.
+        if (refusal := plaintext_refusal(base_url, self._local_hosts)) is not None:
+            raise SettingsRefused(refusal, code="url.plaintext")
+        if any(c.name == name for c in self.registry.connections()):
+            raise SettingsRefused(f"a connection named {name} already exists", code="name_taken")
+        ref, secret_fingerprint, stored = self._secret(
+            secret_mode, env_name, secret_value, secret_ref
+        )
+        try:
+            return self.registry.create_connection(
+                name=name,
+                base_url=base_url,
+                reach=reach,
+                secret_ref=ref,
+                secret_fingerprint=secret_fingerprint,
+                actor_id=self._actor,
+                at=self._clock(),
+            )
+        except RegistryRefused as refused:
+            # A key stored for a connection that was never created would be kept for nothing.
+            if stored and ref is not None:
+                self._secrets.forget(parse_secret_ref(ref))
+            raise SettingsRefused(str(refused)) from None
+
+    def replace_secret(
+        self,
+        connection_id: str,
+        *,
+        secret_mode: str,
+        env_name: str = "",
+        secret_value: str = "",
+        secret_ref: str = "",
+    ) -> None:
+        """Rotation: the new credential is stored and referenced first; only then is the old one
+        released -- deleted from its store unless another live connection still references it."""
+        self._require_admin()
+        connection = self._connection(connection_id)
+        self._require_transport(connection)
+        ref, print_, stored = self._secret(secret_mode, env_name, secret_value, secret_ref)
+        try:
+            self._refusing(
+                lambda: self.registry.replace_secret(
+                    connection.connection_id, ref, print_, self._clock()
+                )
+            )
+        except SettingsRefused:
+            if stored and ref is not None:
+                self._secrets.forget(parse_secret_ref(ref))
+            raise
+        if connection.secret_ref is not None and connection.secret_ref != ref:
+            self._release(connection.secret_ref)
+
+    def set_connection_lifecycle(self, connection_id: str, lifecycle: str) -> None:
+        self._require_admin()
+        if lifecycle not in ("ENABLED", "DISABLED", "RETIRED"):
+            raise SettingsRefused("a connection is ENABLED, DISABLED or RETIRED")
+        connection = self._connection(connection_id)
+        if lifecycle == "ENABLED":
+            # Disabling or removing a connection the transport rule refuses is always possible;
+            # enabling one is not.
+            self._require_transport(connection)
+        self._refusing(
+            lambda: self.registry.set_connection_lifecycle(
+                connection.connection_id, lifecycle, self._clock()
+            )
+        )
+        if lifecycle == "RETIRED" and connection.secret_ref is not None:
+            # A removed connection is never used again: its stored key goes with it -- unless
+            # another live connection references the same stored key.
+            self._release(connection.secret_ref)
+
+    def check_health(self, connection_id: str) -> HealthRow:
+        """Whether the endpoint answers with this credential. Recorded; changes no lifecycle."""
+        self._require_admin()
+        connection = self._connection(connection_id)
+        self._require_transport(connection)
+        outcome, detail, latency, _ = self._list(connection)
+        return self.registry.record_health(
+            connection.connection_id,
+            outcome=outcome,
+            latency_ms=latency,
+            detail=detail,
+            at=self._clock(),
+        )
+
+    # -- 2. models --------------------------------------------------------------------------------
+
+    def fetch_models(self, connection_id: str) -> list[ModelRow]:
+        self._require_admin()
+        connection = self._enabled(connection_id)
+        self._require_transport(connection)
+        outcome, detail, latency, names = self._list(connection)
+        self.registry.record_health(
+            connection.connection_id,
+            outcome=outcome,
+            latency_ms=latency,
+            detail=detail,
+            at=self._clock(),
+        )
+        if outcome != "REACHABLE":
+            raise SettingsRefused(
+                f"the model list could not be fetched: {outcome} {detail}",
+                code=f"provider.{outcome.lower()}",
+            )
+        at = self._clock()
+        return [self.registry.add_model(connection.connection_id, n, "FETCHED", at) for n in names]
+
+    def declare_model(self, connection_id: str, model_name: str) -> ModelRow:
+        self._require_admin()
+        connection = self._enabled(connection_id)
+        name = model_name.strip()
+        if not name or len(name) > 200 or looks_like_credential(name):
+            raise SettingsRefused("a model name is 1-200 characters and is not a credential")
+        return self._refusing(
+            lambda: self.registry.add_model(
+                connection.connection_id, name, "DECLARED", self._clock()
+            )
+        )
+
+    # -- 3. capability test, 4. lock --------------------------------------------------------------
+
+    def test_model(
+        self, model_profile_id: str, capabilities: Sequence[Capability] | None = None
+    ) -> list[ProbeRow]:
+        self._require_admin()
+        model = self._model(model_profile_id)
+        if model.lifecycle in ("LOCKED", "RETIRED"):
+            raise SettingsRefused(
+                f"model {model.model_name} is {model.lifecycle}; unlock it to test it again"
+            )
+        connection = self._enabled(model.connection_id)
+        self._require_transport(connection)
+        key = self._key(connection)
+        # Under the deployment's inference deadline: a capability is proven at the wait research
+        # will grant it, never a longer one.
+        client = self._client(connection.base_url, key, self._deadline)
+        wanted = [c for c in PROBE_ORDER if capabilities is None or c in capabilities]
+        rows = []
+        for capability in wanted:
+            result = run_probe(
+                client, model.model_name, capability, hypothesis_minimum=self._hypothesis_minimum
+            )
+            clean = type(result)(
+                result.capability,
+                result.outcome,
+                redact(result.detail, [key or ""]),
+                result.latency_ms,
+                result.response_digest,
+                result.parameters,
+            )
+            rows.append(self.registry.record_probe(model.model_profile_id, clean, self._clock()))
+        return rows
+
+    def lock(self, model_profile_id: str) -> ModelRow:
+        self._require_admin()
+        model = self._model(model_profile_id)
+        return self._refusing(
+            lambda: self.registry.lock(
+                model.model_profile_id, actor_id=self._actor, at=self._clock()
+            )
+        )
+
+    def unlock(self, model_profile_id: str) -> None:
+        self._require_admin()
+        model = self._model(model_profile_id)
+        self._refusing(lambda: self.registry.unlock(model.model_profile_id))
+
+    def retire_model(self, model_profile_id: str) -> None:
+        self._require_admin()
+        model = self._model(model_profile_id)
+        self._refusing(lambda: self.registry.retire_model(model.model_profile_id))
+
+    # -- 5. binding, 6. readiness, 7. activation --------------------------------------------------
+
+    def create_runtime(self, name: str, external_labels: Sequence[str]) -> RuntimeRow:
+        self._require_admin()
+        labels = [x for x in EXTERNAL_LABELS if x in set(external_labels)]
+        if set(external_labels) - set(EXTERNAL_LABELS):
+            raise SettingsRefused(
+                "an external route may carry PUBLIC, INTERNAL or CONFIDENTIAL_LAB evidence; "
+                "RESTRICTED_NDA never leaves this machine"
+            )
+        if not name.strip():
+            raise SettingsRefused("a runtime needs a name")
+        return self._refusing(
+            lambda: self.registry.create_runtime(
+                name=name.strip()[:80],
+                external_labels=labels or [SensitivityLabel.PUBLIC.value],
+                actor_id=self._actor,
+                at=self._clock(),
+            )
+        )
+
+    def bind(self, runtime_id: str, slot: LogicalSlot, model_profile_id: str) -> None:
+        self._require_admin()
+        self._runtime(runtime_id)
+        self._model(model_profile_id)
+        self._refusing(
+            lambda: self.registry.bind(
+                runtime_id, slot, model_profile_id, actor_id=self._actor, at=self._clock()
+            )
+        )
+
+    def unbind(self, runtime_id: str, slot: LogicalSlot) -> None:
+        self._require_admin()
+        self._runtime(runtime_id)
+        self._refusing(lambda: self.registry.unbind(runtime_id, slot))
+
+    def readiness(self, runtime_id: str, *, live: bool = False) -> Readiness:
+        """`live` first checks the health of every connection the runtime binds (recorded)."""
+        runtime = self._runtime(runtime_id)
+        if live:
+            self._require_admin()
+            bound = {
+                m.connection_id
+                for b in self.registry.bindings(runtime_id).values()
+                if (m := self.registry.model(b.model_profile_id)) is not None
+            }
+            for connection_id in sorted(bound):
+                connection = self._connection(connection_id)
+                # One the transport rule refuses is not contacted; the evaluation blocks it.
+                if self._transport_problem(connection) is None:
+                    self.check_health(connection_id)
+        return evaluate(
+            self.registry,
+            runtime,
+            secret_problem=self._secret_problem,
+            transport_problem=self._transport_problem,
+            inference_deadline=self._deadline,
+            hypothesis_minimum=self._hypothesis_minimum,
+        )
+
+    def activate(self, runtime_id: str) -> Readiness:
+        """Live readiness first; activation only with no blocker. The database checks again."""
+        self._require_admin()
+        readiness = self.readiness(runtime_id, live=True)
+        if not readiness.ready:
+            raise SettingsRefused("not ready: " + "; ".join(readiness.blockers))
+        self._refusing(
+            lambda: self.registry.activate(runtime_id, actor_id=self._actor, at=self._clock())
+        )
+        return readiness
+
+    def retire_runtime(self, runtime_id: str) -> None:
+        self._require_admin()
+        self._runtime(runtime_id)
+        self._refusing(lambda: self.registry.retire_runtime(runtime_id, self._clock()))
+
+    # -- plumbing ---------------------------------------------------------------------------------
+
+    def _secret(
+        self, mode: str, env_name: str, secret_value: str, secret_ref: str = ""
+    ) -> tuple[str | None, str | None, bool]:
+        """(reference, fingerprint, whether a key was stored just now for it). The credential is
+        read once, to fingerprint it, and goes no further."""
+        if mode == "none":
+            return None, None, False
+        stored = False
+        ref: SecretRef | None = None
+        try:
+            if mode == "env":
+                ref = parse_secret_ref(f"env:{env_name.strip()}")
+            elif mode == "store":
+                ref = self._secrets.store(secret_value)
+                stored = True
+            elif mode == "ref":
+                ref = parse_secret_ref(secret_ref)
+            else:
+                raise SettingsRefused(
+                    "the credential is none, an environment variable, a stored reference, or "
+                    "typed in",
+                    code="secret.mode",
+                )
+            value = self._secrets.resolve(ref)
+        except (SecretError, SecretUnavailable) as refused:
+            if stored and ref is not None:
+                self._secrets.forget(ref)
+            raise SettingsRefused(str(refused), code=f"secret.{refused.code}") from None
+        return str(ref), fingerprint(value, self.registry.salt()), stored
+
+    def _release(self, secret_ref: str) -> None:
+        """Delete a stored credential no live connection references any more. An `env:` variable
+        is the operator's and is never touched; a reference still in use elsewhere is kept."""
+        still = [
+            c
+            for c in self.registry.connections()
+            if c.secret_ref == secret_ref and c.lifecycle != "RETIRED"
+        ]
+        if still:
+            return
+        with suppress(SecretError, SecretUnavailable, OSError):
+            self._secrets.forget(parse_secret_ref(secret_ref))
+
+    def _key(self, connection: ConnectionRow) -> str | None:
+        if connection.secret_ref is None:
+            return None
+        try:
+            return self._secrets.resolve(parse_secret_ref(connection.secret_ref))
+        except (SecretError, SecretUnavailable) as unavailable:
+            raise SettingsRefused(
+                f"{connection.name}: {unavailable}", code=f"secret.{unavailable.code}"
+            ) from None
+
+    def credential_problem(self, connection: ConnectionRow) -> str | None:
+        """Why this connection's credential cannot be read now, or None. A read: nothing is
+        written, sent or shown of the credential itself."""
+        return self._secret_problem(connection)
+
+    def _secret_problem(self, connection: ConnectionRow) -> str | None:
+        try:
+            self._key(connection)
+        except SettingsRefused as refused:
+            return str(refused).split(": ", 1)[-1]
+        return None
+
+    def _transport_problem(self, connection: ConnectionRow) -> str | None:
+        """Why this connection may not be used in THIS deployment, or None: plaintext only to this
+        machine, and LOCAL only of this machine, both under the deployment's declaration. The rules
+        bind every USE, not only creation: a row written before them, around the application, or
+        under another deployment's declaration is refused the same."""
+        return endpoint_refusal(connection.base_url, connection.reach, self._local_hosts)
+
+    def _require_transport(self, connection: ConnectionRow) -> None:
+        if (refusal := self._transport_problem(connection)) is not None:
+            local = connection.reach == "LOCAL" and not is_this_machine_url(
+                connection.base_url, self._local_hosts
+            )
+            code = "local_remote" if local else "url.plaintext"
+            raise SettingsRefused(f"{connection.name}: {refusal}", code=code)
+
+    def _list(self, connection: ConnectionRow) -> tuple[str, str, int | None, list[str]]:
+        try:
+            key = self._key(connection)
+        except SettingsRefused as refused:
+            return "SECRET_UNAVAILABLE", str(refused), None, []
+        client = self._client(connection.base_url, key, DISCOVERY_TIMEOUT_S)
+        started = self._clock()
+        try:
+            names = client.list_models()
+        except ProviderError as failed:
+            return failed.failure.value, failed.detail, None, []
+        latency = int((self._clock() - started).total_seconds() * 1000)
+        return "REACHABLE", f"{len(names)} model(s) listed", max(latency, 0), names
+
+    def _connection(self, connection_id: str) -> ConnectionRow:
+        connection = self.registry.connection(connection_id)
+        if connection is None:
+            raise SettingsRefused(f"no connection {connection_id}")
+        return connection
+
+    def _enabled(self, connection_id: str) -> ConnectionRow:
+        connection = self._connection(connection_id)
+        if connection.lifecycle != "ENABLED":
+            raise SettingsRefused(f"connection {connection.name} is {connection.lifecycle}")
+        return connection
+
+    def _model(self, model_profile_id: str) -> ModelRow:
+        model = self.registry.model(model_profile_id)
+        if model is None:
+            raise SettingsRefused(f"no model {model_profile_id}")
+        return model
+
+    def _runtime(self, runtime_id: str) -> RuntimeRow:
+        runtime = self.registry.runtime(runtime_id)
+        if runtime is None:
+            raise SettingsRefused(f"no runtime {runtime_id}")
+        return runtime
+
+    @staticmethod
+    def _refusing(work: Callable[[], T]) -> T:
+        try:
+            return work()
+        except RegistryRefused as refused:
+            raise SettingsRefused(str(refused), code=refused.code) from None
+
+
+# -- the active runtime, for the research service -------------------------------------------
+
+
+@dataclass(frozen=True)
+class _Route:
+    client: OpenAICompatibleClient
+    model: str
+
+
+class RouteCompletion:
+    """The `Completion` transport of an active runtime: `ScientificLLM` calls it, after the gates,
+    with the prompt it digested; it sends that prompt to the slot's model with the role's
+    response contract."""
+
+    def __init__(self, routes: dict[LogicalSlot, _Route]) -> None:
+        self._routes = routes
+
+    def __call__(self, material: str, slot: ModelSlot) -> str:
+        route = self._routes[slot.logical_slot]
+        return route.client.chat(route.model, material, system=contract_for(material)).text
+
+
+def load_active_runtime(
+    connection: Any,
+    secrets: SecretStore,
+    *,
+    local_hosts: Iterable[str],
+    inference_deadline: float,
+    hypothesis_minimum: int,
+) -> ReasoningRuntime | None:
+    """`local_hosts`: the hosts THIS deployment declared to be this machine, besides loopback --
+    required, because this is the last boundary before research reaches a network: a route is
+    checked against the running deployment's declaration, never against what a row or a host name
+    suggests, and its client is built with the same declaration.
+
+    `inference_deadline`: the deployment's, also required. Every route's client waits that long
+    for an answer, and a route whose model needed longer for a capability its slot requires is
+    refused here -- research would only time out on it.
+
+    `hypothesis_minimum`: how many competing hypotheses this deployment's research asks for, also
+    required. A route whose lock is not current under today's qualification semantics, or whose
+    model demonstrated fewer, is refused here before its credential is read."""
+    declared = frozenset(h.lower() for h in local_hosts)
+    deadline = checked_deadline(inference_deadline)
+    registry = SqlLLMRegistry(connection)
+    active = registry.active_runtime()
+    if active is None:
+        return None
+    slots: list[ModelSlot] = []
+    routes: dict[LogicalSlot, _Route] = {}
+    served: dict[LogicalSlot, ModelRow] = {}
+    lines: list[str] = []
+    #: EXTERNAL connection id -> the provider name its `ModelSlot` records.
+    external: dict[str, str] = {}
+    for slot, binding in sorted(registry.bindings(active.runtime_id).items()):
+        model = registry.model(binding.model_profile_id)
+        connection_row = registry.connection(model.connection_id) if model is not None else None
+        if model is None or connection_row is None or model.lock_fingerprint is None:
+            raise RuntimeUnavailable(f"runtime {active.name}: {slot.value} has no locked model")
+        if connection_row.lifecycle != "ENABLED":
+            raise RuntimeUnavailable(
+                f"runtime {active.name}: connection {connection_row.name} is "
+                f"{connection_row.lifecycle}"
+            )
+        # Before the credential is read: a route this deployment may not use -- plaintext to a
+        # host it did not declare to be this machine, or LOCAL of such a host -- refuses the run,
+        # never reasons it. A row that predates the rules, or was written around them, included.
+        refusal = endpoint_refusal(connection_row.base_url, connection_row.reach, declared)
+        if refusal is not None:
+            raise RuntimeUnavailable(
+                f"the active LLM runtime {active.name} cannot be used: "
+                f"{connection_row.name}: {refusal}"
+            )
+        if (slow := deadline_problem(registry, model, slot, deadline)) is not None:
+            raise RuntimeUnavailable(
+                f"the active LLM runtime {active.name} cannot be used: {slot.value}: {slow}"
+            )
+        if (stale := registry.lock_problem(model)) is not None:
+            raise RuntimeUnavailable(
+                f"the active LLM runtime {active.name} cannot be used: {slot.value}: {stale}"
+            )
+        if (unfit := hypothesis_fit_problem(registry, model, slot, hypothesis_minimum)) is not None:
+            raise RuntimeUnavailable(
+                f"the active LLM runtime {active.name} cannot be used: {slot.value}: {unfit}"
+            )
+        key: str | None = None
+        if connection_row.secret_ref is not None:
+            try:
+                key = secrets.resolve(parse_secret_ref(connection_row.secret_ref))
+            except (SecretError, SecretUnavailable) as unavailable:
+                raise RuntimeUnavailable(
+                    f"the active LLM runtime {active.name} cannot be used: "
+                    f"{connection_row.name}: {unavailable}"
+                ) from None
+        reach = ExternalReach(connection_row.reach)
+        slots.append(
+            ModelSlot(
+                slot,
+                model.model_name,
+                model.lock_fingerprint,
+                provider=connection_row.name,
+                reach=reach,
+            )
+        )
+        routes[slot] = _Route(
+            OpenAICompatibleClient(
+                connection_row.base_url, key, timeout=deadline, local_hosts=declared
+            ),
+            model.model_name,
+        )
+        served[slot] = model
+        if reach is ExternalReach.EXTERNAL:
+            external[connection_row.connection_id] = connection_row.name
+        roles = ", ".join(r.value for r in roles_on(slot)) or "no role in this version"
+        lines.append(
+            f"{slot.value}: `{model.model_name}` via `{connection_row.name}` "
+            f"({connection_row.reach}, route `{model.lock_fingerprint}`), serving {roles}."
+        )
+    critic, _ = critic_route(
+        served.get(LogicalSlot.REASONING_PRIMARY), served.get(LogicalSlot.REASONING_ADVERSARIAL)
+    )
+    description = (
+        f"Reasoner: the active LLM runtime `{active.name}` (`{active.runtime_id}`), activated by "
+        f"`{active.activated_by}`. Every model call passed the budget gate, the egress gate and "
+        "the typed role parsers, and is recorded in InferenceProvenance with the route below; "
+        "the local catalog reasoner was not used.",
+        *lines,
+        f"Each model call waits at most {deadline:g} s for its answer: the deployment's inference "
+        "deadline, the same one its capability probes were held to.",
+        f"The Hypothesis Engine is asked for at least {hypothesis_minimum} competing hypotheses "
+        "(this deployment's research); the model serving it demonstrated at least that many, "
+        "under the qualification semantics in force.",
+        f"EMBEDDING: the built-in local embedder ({BUILTIN_EMBEDDING}).",
+        critic,
+        egress_route(sorted(external.values()), active.external_labels),
+    )
+    # A global runtime supplies ROUTES, never permission. Each call's policy is the policy of the
+    # project the evidence belongs to, read when the gate asks: that project's own declaration and
+    # privacy mode, narrowed to these routes and to what this runtime lets any project send.
+    ceiling = frozenset(SensitivityLabel(x) for x in active.external_labels)
+    policies = ProjectEgressPolicies(connection)
+
+    def policy(project_id: str) -> EgressPolicy | None:
+        if not external:
+            return None
+        return policies.effective(project_id, routes=external, ceiling=ceiling)
+
+    def statement(project_id: str) -> str:
+        return policies.statement(project_id, routes=external, ceiling=ceiling)
+
+    return ReasoningRuntime(
+        runtime_id=active.runtime_id,
+        name=active.name,
+        slots=tuple(slots),
+        complete=RouteCompletion(routes),
+        egress_policy=policy,
+        description=description,
+        egress_statement=statement,
+    )
+
+
+__all__ = [
+    "DEFAULT_INFERENCE_DEADLINE_S",
+    "DISCOVERY_TIMEOUT_S",
+    "EXTERNAL_LABELS",
+    "LLMSettings",
+    "RouteCompletion",
+    "RuntimeUnavailable",
+    "SettingsRefused",
+    "checked_deadline",
+    "load_active_runtime",
+]

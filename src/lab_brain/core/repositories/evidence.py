@@ -48,7 +48,8 @@ _ATTESTATION_COLUMNS = (
 _RELATION_COLUMNS = (
     "relation_id, from_entity_id, to_entity_id, relation_type, attributes, "
     "supporting_attestation_ids, condition_match_ref, inference_provenance_id, actor_id, "
-    "project_id, valid_from, valid_to, invalidation_reason, created_at"
+    "project_id, valid_from, valid_to, invalidation_reason, created_at, "
+    "invalidated_by_actor_id"
 )
 
 
@@ -178,7 +179,7 @@ class SqlRelationStore:
         require_durable_connection(self._connection)
         self._connection.execute(
             f"INSERT INTO relation_judgments ({_RELATION_COLUMNS})"
-            " VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            " VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
             (
                 relation.relation_id,
                 relation.from_entity_id,
@@ -194,6 +195,7 @@ class SqlRelationStore:
                 relation.valid_to,
                 relation.invalidation_reason,
                 relation.created_at,
+                relation.invalidated_by_actor_id,
             ),
         )
         return relation
@@ -205,6 +207,21 @@ class SqlRelationStore:
             (project_id, relation_id),
         ).fetchone()
         return None if row is None else self._hydrate(row)
+
+    def from_observation(
+        self, project_id: str, observation_id: str
+    ) -> tuple[RelationJudgment, ...]:
+        """Every relation one observation produced, invalidated ones included, by id.
+
+        For the Causal Warrant Gate's confirmation rule: a rival's affirmation of the observation
+        a candidate rests on must not disappear because someone closed its validity window.
+        """
+        rows = self._connection.execute(
+            f"SELECT {_RELATION_COLUMNS} FROM relation_judgments"
+            " WHERE project_id = %s AND from_entity_id = %s ORDER BY relation_id",
+            (project_id, observation_id),
+        ).fetchall()
+        return tuple(self._hydrate(row) for row in rows)
 
     def admitted_for_subject(
         self, project_id: str, subject_id: str
@@ -263,9 +280,16 @@ class SqlRelationStore:
             )
         closed = existing.invalidate(reason=reason, actor_id=actor_id, at=at)
         self._connection.execute(
-            "UPDATE relation_judgments SET valid_to = %s, invalidation_reason = %s, actor_id = %s"
+            "UPDATE relation_judgments SET valid_to = %s, invalidation_reason = %s,"
+            " invalidated_by_actor_id = %s"
             " WHERE relation_id = %s AND project_id = %s AND valid_to IS NULL",
-            (closed.valid_to, closed.invalidation_reason, closed.actor_id, relation_id, project_id),
+            (
+                closed.valid_to,
+                closed.invalidation_reason,
+                closed.invalidated_by_actor_id,
+                relation_id,
+                project_id,
+            ),
         )
         return closed
 
@@ -286,6 +310,7 @@ class SqlRelationStore:
                 "valid_to": row[11],
                 "invalidation_reason": row[12],
                 "created_at": row[13],
+                "invalidated_by_actor_id": row[14],
             }
         )
 

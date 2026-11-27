@@ -74,8 +74,8 @@ try {
             Write-Host 'core.hooksPath -> .githooks (fast local feedback; CI commit-hygiene is the gate)'
         }
         'commit-hygiene' { Assert-Venv; & $py scripts/check_commit_messages.py }
-        'db-up'     { docker compose up -d }
-        'db-down'   { docker compose down }
+        'db-up'     { docker compose -f compose.dev.yaml up -d }
+        'db-down'   { docker compose -f compose.dev.yaml down }
         'migrate'   { Assert-Venv; & $py scripts/migrate.py }
         'clean'     {
             foreach ($d in '.pytest_cache', '.mypy_cache', '.ruff_cache', 'htmlcov') {
