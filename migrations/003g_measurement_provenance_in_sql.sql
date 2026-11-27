@@ -56,7 +56,7 @@ CREATE TABLE measurement_provenance_modes (
 
 CREATE TABLE measurement_verifications (
     run_id      TEXT PRIMARY KEY REFERENCES measurement_signatures (run_id),
-    status      TEXT NOT NULL CHECK (status IN (
+    verdict     TEXT NOT NULL CHECK (verdict IN (
                     'VERIFIED', 'UNKNOWN_KEY', 'KEY_REVOKED', 'OUT_OF_SCOPE', 'NONCE_MISMATCH',
                     'DIGEST_MISMATCH', 'TIME_MISMATCH', 'BAD_SIGNATURE')),
     -- The signature judged, copied from `measurement_signatures` by the guard.
@@ -166,7 +166,7 @@ BEGIN
        OR v_ver.signature IS DISTINCT FROM v_sig.signature THEN
         RETURN 'BAD_SIGNATURE';
     END IF;
-    RETURN v_ver.status;
+    RETURN v_ver.verdict;
 END;
 $$ LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public;
 

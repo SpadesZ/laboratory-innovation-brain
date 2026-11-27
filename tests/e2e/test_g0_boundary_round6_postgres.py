@@ -318,7 +318,7 @@ def test_t1r_residual_a_verdict_the_owner_writes_by_hand_is_counted_by_sql_only(
     with roles.connect(roles.app) as app:
         _job, run, _relation = _measure(g, app, "by-hand", sign=forged)
     g.db.execute(
-        "INSERT INTO measurement_verifications (run_id, status, key_id, signature, detail,"
+        "INSERT INTO measurement_verifications (run_id, verdict, key_id, signature, detail,"
         " verifier, actor_id, verified_at, recorded_by)"
         " VALUES (%s, 'VERIFIED', '', '', 'written by hand', %s, %s, now(), '')",
         (run, VERIFIER, g.actor),

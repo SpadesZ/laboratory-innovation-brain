@@ -8741,7 +8741,7 @@ MUTATIONS: tuple[Mutation, ...] = (
         name="round6_sql_counts_failed_verdicts",
         guards="G0 round 6 T-1r -- 003g: a failed verdict is not VERIFIED",
         path="migrations/003g_measurement_provenance_in_sql.sql",
-        old="    RETURN v_ver.status;",
+        old="    RETURN v_ver.verdict;",
         new="    RETURN 'VERIFIED';",
         tests=("tests/e2e/test_g0_measurement_provenance_differential_postgres.py",),
     ),

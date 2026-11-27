@@ -508,7 +508,7 @@ def verify_run(connection: Any, run_id: str, *, actor_id: str) -> str:
     owner (the guard refuses anyone else). Returns the status recorded."""
     judged = MeasurementProvenance(connection, strict=False).run(run_id, own_only=True)
     connection.execute(
-        "INSERT INTO measurement_verifications (run_id, status, key_id, signature, detail,"
+        "INSERT INTO measurement_verifications (run_id, verdict, key_id, signature, detail,"
         " verifier, actor_id, verified_at, recorded_by)"
         " VALUES (%s, %s, '', '', %s, %s, %s, now(), '')",
         (run_id, judged.status.value, judged.detail, VERIFIER, actor_id),

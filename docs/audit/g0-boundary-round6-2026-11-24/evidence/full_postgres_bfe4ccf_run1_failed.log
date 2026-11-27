@@ -1,0 +1,136 @@
+start 2026-11-25T11:30:09Z head 4091647 code bfe4ccf db g6_final (fresh, migrate twice: 95 applied, then up to date) PYTHONPATH=/home/user/wt/g0b6/src
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+.......................F................................................ [ 27%]
+............x........................................................... [ 29%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+...............................................s........................ [ 36%]
+........s............................................................... [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+.............................................s.......................... [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 59%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+...........................................................s............ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+...................................................                      [100%]
+=================================== FAILURES ===================================
+_ test_cognition_cannot_write_a_projection_because_there_is_nothing_to_write_to _
+
+world = <psycopg.Connection [IDLE] (host=localhost user=lab_brain database=g6_final) at 0x7fef39e778c0>
+
+    def test_cognition_cannot_write_a_projection_because_there_is_nothing_to_write_to(world):
+        """The structural half: `EpistemicStateProjection` is derived, and there is no table for it.
+    
+        The bypass an LLM-driven implementation reaches for first is "set current_status". There is no
+        such column anywhere in the schema -- status is rebuilt from `BeliefRevisionEvent` (§8.1) --
+        and asserting the absence is what stops a well-meaning reintroduction.
+        """
+        # A belief-status column by any of its plausible names, anywhere in the schema.
+        belief_named = world.execute(
+            "SELECT table_name, column_name FROM information_schema.columns"
+            " WHERE table_schema = 'public'"
+            "   AND column_name IN ('current_status', 'current_state', 'belief_state', 'belief_level',"
+            "                       'hypothesis_status', 'epistemic_state')"
+        ).fetchall()
+        assert belief_named == [], (
+            f"a writable belief-status column exists: {belief_named}. §8.1 rebuilds status from "
+            "BeliefRevisionEvent, and a column is a place to set it instead"
+        )
+    
+        #: Bare `status` columns are allowed only where the lifecycle is *not* scientific belief, and
+        #: each one is named here so a new table carrying belief status fails rather than blending in.
+        #: `review_items.status` is §17.19.1's queue state, `execution_spans.status` is §17.19.1's
+        #: observability state, `conflicts.resolution_status` is §17.19.3's -- none of them is what a
+        #: hypothesis is believed to be, and all three change through their own governed paths.
+        #:
+        #: `runs.status` joined them with OPS-001 (`006`). It is §17.4's execution outcome -- did this
+        #: backend invocation succeed -- and is write-once with the Run. What a Run *means* for belief
+        #: is decided downstream by AuthorityPolicy and TransitionPolicy over the attestations that
+        #: cite it, never by reading this column. `jobs.state` is deliberately not in this set because
+        #: it is not called `status`, and renaming it to match would make it look like one of these.
+        #: `ingestion_stage_results.status` joined with `012`. It is §17.22's StageResult outcome --
+        #: did this parse finish -- and UX-001 derives the ITEM's state from a precedence over these
+        #: rather than reading any one of them as a verdict. Nothing about belief is representable in
+        #: it; the vocabulary is SUCCEEDED/FAILED/SKIPPED/PENDING/DEGRADED.
+        #: `candidate_heuristics.status` joined with `011l` (M4). It is §17.11's review state of a mined
+        #: candidate, CHECK-constrained to PENDING_REVIEW and append-only -- a statement about whether a
+        #: person has reviewed a proposal, never about what any hypothesis is believed to be.
+        #: `accounts.status` joined with `012u`. It is a person's account state -- PENDING, ACTIVE or
+        #: SUSPENDED, CHECK-constrained -- whether they may sign in at all; it says nothing about any
+        #: hypothesis.
+        declared_non_belief = {
+            "review_items",
+            "execution_spans",
+            "runs",
+            "ingestion_stage_results",
+            "candidate_heuristics",
+            "accounts",
+            # `012y`: whether a screening check executed (EXECUTED / FAILED / NOT_RUN ...), an
+            # execution lifecycle like `runs.status` -- never a belief.
+            "screening_observations",
+        }
+        bare_status = {
+            table
+            for table, _ in world.execute(
+                "SELECT table_name, column_name FROM information_schema.columns"
+                " WHERE table_schema = 'public' AND column_name = 'status'"
+            ).fetchall()
+        }
+>       assert bare_status <= declared_non_belief, (
+            f"undeclared `status` column(s) on {sorted(bare_status - declared_non_belief)}. If this is "
+            "a belief status it must not exist; if it is another lifecycle, declare it here"
+        )
+E       AssertionError: undeclared `status` column(s) on ['measurement_verifications']. If this is a belief status it must not exist; if it is another lifecycle, declare it here
+E       assert {'accounts', ...w_items', ...} <= {'accounts', ..., 'runs', ...}
+E         
+E         Extra items in the left set:
+E         'measurement_verifications'
+
+tests/e2e/test_episode_cognition_path_postgres.py:738: AssertionError
+=========================== short test summary info ============================
+FAILED tests/e2e/test_episode_cognition_path_postgres.py::test_cognition_cannot_write_a_projection_because_there_is_nothing_to_write_to
+SKIPPED [1] tests/e2e/test_research_live_model_postgres.py:276: set LAB_BRAIN_LIVE_PRIMARY to a local model to run
+SKIPPED [1] tests/e2e/test_vs_sp_001_licensed_replay.py:24: requires lumerical; set LAB_BRAIN_TEST_LUMERICAL=1 to enable
+SKIPPED [1] tests/integration/test_github_network.py:31: requires network; set LAB_BRAIN_TEST_NETWORK=1 to enable
+SKIPPED [1] tests/unit/test_llm_runtime.py:205: Windows Credential Manager
+XFAIL tests/e2e/test_g0_boundary_round6_postgres.py::test_t1s_the_sql_confirmation_rule_does_not_count_support_on_a_forged_authorization - T-1s open: SQL cannot verify a verification authorization's signature (011w); closing it needs an owner-run verifier for authorizations, an Owner decision (see the round-6 report)
+1 failed, 3717 passed, 4 skipped, 1 xfailed in 1527.23s (0:25:27)
+exit=1 wall_seconds=1528 end 2026-11-25T11:55:37Z
