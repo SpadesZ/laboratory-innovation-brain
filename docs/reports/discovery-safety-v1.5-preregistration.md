@@ -13,7 +13,16 @@ fixed by `src/lab_brain/discovery_safety/v15/model.py` (`PLAN`, `SAFETY_V15`) an
 |---|---|---|
 | B4 | frozen engine + safety gate v1.1 | the offline safety BASELINE ("v1.1 baseline" and "B4" are the same arm) |
 | B7 | safety gate v1.4, unchanged | the previous round's arm |
-| B8 | safety gate v1.5 = B7 + rival-targeted experiment choice (`v15/gate.py`) | the candidate |
+| B8 | safety gate v1.5 = B7 + rival-targeted experiment choice (`v15/gate.py`, entry point `safe_investigate_v15`) | the candidate |
+
+B8 as frozen (`SAFETY_V15`): before the fixed-order signal probes, while some affordable option
+(experiment, 1-4 runs) is expected to refute >= 0.5 open rivals (sum over open rivals of the
+probability that the rival's evaluator prediction fails the chi-square pass test at alpha 0.01 if
+the claim is true; noncentral chi-square under the declared noise and both predictive SDs), run the
+option with the most expected refutations per unit cost, registering the claim and the rival most
+likely to fail; at most 6 such targeted tests; then v1.2's phases (signal probes, support test, up
+to 6 rival tests, null probes). A claim of "no effect" (and the parsimony fallback to it) runs
+exactly as B7 (development found rival-first testing of "no effect" reaching a false SUPPORTED).
 
 The evaluator rule is v1.4's (`EVALUATOR_RULE_V14`), unchanged, for every arm. Every input that
 decides SUPPORTED is computed by the evaluator from its own hash-chained ledger; a rival closes only
