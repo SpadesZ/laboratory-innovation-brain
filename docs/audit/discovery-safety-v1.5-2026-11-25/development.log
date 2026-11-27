@@ -1,0 +1,33 @@
+# Discovery safety v1.5 development log (DEVELOPMENT SEEDS ONLY; nothing here is held-out)
+
+All runs: PYTHONHASHSEED=12345, scripts/discovery_safety_v15_eval.py --dev ... --in-process; the
+script inserts this checkout's src first on sys.path (the shared .venv has an editable install of
+another checkout; the import guard added later confirms the resolution; in-process runs start no
+arm subprocess). Files in development/.
+
+## A. Root cause of B7's abstention (diagnosis of the SPENT v1.4 held-out seeds, B7 only)
+Re-ran B7 on base 3905077000 (8 per class), held_out and control, every cap, with the evaluator-side
+diagnosis. B7 is unchanged: 1791 of 1792 runs identical to the recorded v1.4 rows (digest, ledger
+chain head, category); one (control width_narrow-03 cap 48) differs in the arm's result digest only
+(same chain head, same category). Diagnosis-only use of spent data; not evidence.
+Cause table: `--cause-table development/dev_3905077000_8_*_rows.json --arms B7` (report section 2).
+
+## B. B8 drafts
+B1 (rival_test choice only, by expected refutations): no change at small caps -- B7 runs no rival
+test there: the engine ladder and the fixed-order signal probes spend the whole budget (ledgers of
+control fcd.static-00 / width_narrow-00 at cap 12, base 8000000 per 1).
+B2 (targeted tests BEFORE the signal probes, one shared rival-test count): control 8000000x2
+better at caps 8-24, but (i) held_out geometry.gap_small-01 (8000000x2, family removed): SUPPORTED
+"no effect" (FORCE_FIT) at caps 6, 8, 10 -- rival-first testing of "no effect" closed its catalog
+rivals (at smallest declared effects) with cheap baseline / power_sweep / fiber_recouple tests;
+the true out-of-catalog coupling shift was below the rule's grammar threshold on what was
+measured; (ii) control cap 48: 26 vs 31 SUPPORTED (the shared count ended rival testing early).
+B3 (frozen): "no effect" claims run exactly as B7; targeted tests have their own count (6).
+dev1_*.log = B2, dev2_*.log = B3. B3: 0 SUPPORTED errors in every setting and cap.
+
+## C. Design freeze
+The commit that adds this section is the v1.5 design freeze F6: src/lab_brain/discovery_safety/v15/,
+scripts/discovery_safety_v15_eval.py and scripts/discovery_safety_v14_eval.py are frozen as of F6.
+The pre-registration (docs/reports/discovery-safety-v1.5-preregistration.md) was committed before.
+Held-out seeds are derived from F6's full commit id only after F6 is pushed. The held-out
+evaluation runs exactly once from F6.
