@@ -1,0 +1,19 @@
+4 mutations
+
+[KILLED ] safety_v15_no_effect_targeted
+           discovery safety v1.5 -- a claim of no effect runs exactly as B7 (no rival-first shortcut)
+           killed by FAILED tests/unit/test_discovery_safety_v15.py::test_b8_runs_a_claim_of_no_effect_as_b7_and_does_not
+
+[KILLED ] safety_v15_refutation_without_failure
+           discovery safety v1.5 -- a refutation is counted only when the rival's prediction failed
+           killed by FAILED tests/unit/test_discovery_safety_v15.py::test_a_separation_only_test_counts_as_no_refutation
+
+[KILLED ] safety_v15_expected_refutation_ignores_separation
+           discovery safety v1.5 -- B8's expected refutations grow with the rival's separation
+           killed by FAILED tests/unit/test_discovery_safety_v15.py::test_every_rival_b8_closes_is_closed_by_its_own_fail
+
+[KILLED ] safety_v15_holdout_seed_overlap
+           discovery safety v1.5 -- derived held-out seeds stay away from every range seen before
+           killed by FAILED tests/unit/test_discovery_safety_v15.py::test_v15_seeds_use_the_v15_domain_the_full_commit_an
+
+4/4 killed
