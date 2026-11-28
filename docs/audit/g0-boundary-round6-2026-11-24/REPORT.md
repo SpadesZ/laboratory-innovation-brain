@@ -287,3 +287,15 @@ so they imported this tree. The `003g` re-run (`161d827`) set `PYTHONPATH`.
   `003g`'s SQL structural re-checks (revocation, scope, nonce), which are defence in depth.
 - A report file could be written in this session; this report was written by the engineer, not the
   lead, and nothing in it was independently re-checked.
+
+## Lead's independent checks (2026-11-28)
+
+By the lead, separately from the engineer, with `PYTHONPATH` set to the tree under test:
+
+| Check | Result |
+|---|---|
+| reproductions at `fa90ca7` (before any fix), fresh database `lib_g6rep`, 91 migrations then up to date | 6 xfailed (T-1r ×5, Q-r ×1): every reproduced gap present before the fix |
+| round-5/6 G0 tests, provenance differential, counted-history differential, snapshot quarantine and `tests/spec` at `2e31ced`, fresh database `lib_g6head`, 95 migrations then up to date | 297 passed, 1 xfailed (T-1s, open by design), 5 min 54 s |
+| commits after the final code commit `0489b23` | evidence, status inventory and report only |
+
+Not re-checked by the lead: the complete PostgreSQL run (the engineer's log at `0489b23` is the record) and the mutation battery.
