@@ -1,0 +1,5 @@
+held_out index 0 held_out-chain.fiber_coupling-00: 21 runs, identical=True
+held_out index 37 held_out-fcd.static-05: 21 runs, identical=True
+held_out index 74 held_out-geometry.width_wide-02: 21 runs, identical=True
+held_out index 120 held_out-thermo.self_heating-00: 21 runs, identical=True
+command: PYTHONPATH=src PYTHONHASHSEED=12345 python docs/audit/discovery-safety-v1.5-2026-11-25/heldout_resume_determinism.py <copy of the checkpoint directory taken before resuming> 0,37,74,120
